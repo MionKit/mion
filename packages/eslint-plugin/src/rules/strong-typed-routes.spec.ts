@@ -198,7 +198,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingReturnType',
+                    messageId: 'missingReturnTypeRouter',
                 },
             ],
         },
@@ -210,7 +210,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingParamTypes',
+                    messageId: 'missingParamTypesRouter',
                 },
             ],
         },
@@ -222,7 +222,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingBothTypes',
+                    messageId: 'missingBothTypesRouter',
                 },
             ],
         },
@@ -234,7 +234,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingBothTypes',
+                    messageId: 'missingBothTypesRouter',
                 },
             ],
         },
@@ -246,7 +246,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingBothTypes',
+                    messageId: 'missingBothTypesRouter',
                 },
             ],
         },
@@ -258,7 +258,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingBothTypes',
+                    messageId: 'missingBothTypesRouter',
                 },
             ],
         },
@@ -270,7 +270,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingBothTypes',
+                    messageId: 'missingBothTypesRouter',
                 },
             ],
         },
@@ -282,7 +282,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingParamTypes',
+                    messageId: 'missingParamTypesRouter',
                 },
             ],
         },
@@ -294,7 +294,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingParamTypes',
+                    messageId: 'missingParamTypesRouter',
                 },
             ],
         },
@@ -307,7 +307,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingBothTypes',
+                    messageId: 'missingBothTypesRouter',
                 },
             ],
         },
@@ -320,7 +320,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingBothTypes',
+                    messageId: 'missingBothTypesRouter',
                 },
             ],
         },
@@ -333,7 +333,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingReturnType',
+                    messageId: 'missingReturnTypeRouter',
                 },
             ],
         },
@@ -346,7 +346,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingParamTypes',
+                    messageId: 'missingParamTypesRouter',
                 },
             ],
         },
@@ -359,7 +359,7 @@ ruleTester.run('strong-typed-routes', rule, {
             `,
             errors: [
                 {
-                    messageId: 'missingBothTypes',
+                    messageId: 'missingBothTypesRouter',
                 },
             ],
         },
