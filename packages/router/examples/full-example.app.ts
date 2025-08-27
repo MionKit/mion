@@ -44,5 +44,5 @@ export const shared = {
 };
 export const getSharedData = (): typeof shared => shared;
 
-export type SharedData = ReturnType<typeof getSharedData>;
-export type Context = CallContext<SharedData>;
+export type ContextData = ReturnType<typeof getSharedData>;
+export type Context = CallContext<ContextData>;

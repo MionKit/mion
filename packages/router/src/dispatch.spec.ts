@@ -62,7 +62,7 @@ describe('Dispatch routes', () => {
 
     describe('success path should', () => {
         it('read data from body & route', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const id = 'changeUserName';
@@ -80,7 +80,7 @@ describe('Dispatch routes', () => {
         });
 
         it('read data from header & hook', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
@@ -103,7 +103,7 @@ describe('Dispatch routes', () => {
         // when the body is an array we assume it's a single route call and we have to reconstruct the body
         // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
         it('read data from body & route, when the body is a single array we should reconstruct full body request', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const id = 'changeUserName';
@@ -124,7 +124,7 @@ describe('Dispatch routes', () => {
         });
 
         it('headers are case insensitive, returned headers alway lowercase', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             const auth = headersHook(['Authorization'], (ctx, token: string): string[] =>
                 token === '1234' ? ['MyUser'] : ['Unknown']
             );
@@ -148,7 +148,7 @@ describe('Dispatch routes', () => {
         });
 
         it('if there are no params input field can be omitted', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({sayHello: route((): string => 'hello')});
 
             const path = '/sayHello';
@@ -175,7 +175,7 @@ describe('Dispatch routes', () => {
                 ...getDefaultRequest(routeId, []),
             };
             const options = {
-                sharedDataFactory: getSharedData,
+                contextDataFactory: getSharedData,
                 pathTransform: (req, path: string): string => {
                     const rPath = path.replace(`${options.prefix}/`, `${options.prefix}/${req.method.toLowerCase()}`);
                     return rPath;
@@ -193,7 +193,7 @@ describe('Dispatch routes', () => {
 
         // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another hook it wil work
         it('support async handlers and ensure execution in order', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             const id = 'sumTwo';
             const routes = {
                 sumTwo: route(async (ctx, val: number): Promise<number> => {
@@ -219,7 +219,7 @@ describe('Dispatch routes', () => {
 
     describe('fail path should', () => {
         it('return an error if no route is found', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const request = getDefaultRequest('abcd', [{name: 'Leo', surname: 'Tungsten'}]);
@@ -236,7 +236,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if data is missing from header', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({auth, changeUserName});
 
             const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
@@ -260,7 +260,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if body is not the correct type', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const request: RawRequest = {
@@ -307,7 +307,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if data is missing from body', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const request = getDefaultRequest('changeUserName', []);
@@ -331,7 +331,7 @@ describe('Dispatch routes', () => {
         });
 
         it("return an error if can't deserialize", async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({getSameDate});
 
             const request = getDefaultRequest('getSameDate', []);
@@ -355,7 +355,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if validation fails, incorrect type', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
@@ -381,7 +381,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if validation fails, empty type', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const request = getDefaultRequest('changeUserName', [{}]);
@@ -409,7 +409,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an unknown error if a route fails with a generic error', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
 
             const routeFail = route((): void => {
                 throw new Error('this is a generic error');
@@ -431,7 +431,7 @@ describe('Dispatch routes', () => {
         // TODO: not sure how to make serialization/validation throw an error
         // eslint-disable-next-line jest/no-disabled-tests
         it.skip("return an error if can't validate", async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({getSameDate});
 
             const request = getDefaultRequest('getSameDate', [1234]);
@@ -456,7 +456,7 @@ describe('Dispatch routes', () => {
 
     describe('parsedBody functionality should', () => {
         it('use parsedBody when provided instead of parsing rawBody', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const id = 'changeUserName';
@@ -476,7 +476,7 @@ describe('Dispatch routes', () => {
         });
 
         it('handle parsedBody with Date objects correctly', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({getSameDate});
 
             const id = 'getSameDate';
@@ -498,7 +498,7 @@ describe('Dispatch routes', () => {
         });
 
         it('handle parsedBody as array for single route calls', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const parsedBody = [{name: 'Leo', surname: 'Tungsten'}];
@@ -517,7 +517,7 @@ describe('Dispatch routes', () => {
         });
 
         it('fallback to parsing rawBody when parsedBody is not provided', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const id = 'changeUserName';
@@ -536,7 +536,7 @@ describe('Dispatch routes', () => {
         });
 
         it('handle empty rawBody and no parsedBody correctly', async () => {
-            initRouter({sharedDataFactory: getSharedData});
+            initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const response = await dispatchRoute(

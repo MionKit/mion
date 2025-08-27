@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>Type Safe APIs at the speed of light 🚀
+  <strong>Full Stack APIs at the speed of light 🚀
   </strong>
 </p>
 <p align=center>

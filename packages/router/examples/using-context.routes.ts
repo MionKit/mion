@@ -3,13 +3,13 @@ import {myApp} from './myApp';
 import type {CallContext, Routes} from '@mionkit/router';
 import type {Pet, User} from './myModels';
 
-interface SharedData {
+interface ContextData {
     myUser: User | null;
-    // ... other shared data properties
+    // ... other context data properties
 }
-const initSharedData = (): SharedData => ({myUser: null});
+const initContextData = (): ContextData => ({myUser: null});
 
-type MyContext = CallContext<SharedData>;
+type MyContext = CallContext<ContextData>;
 
 const routes = {
     getMyPet: route(async (ctx: MyContext): Promise<Pet> => {
@@ -19,4 +19,4 @@ const routes = {
     }),
 } satisfies Routes;
 
-export const myApi = initMionRouter(routes, {sharedDataFactory: initSharedData});
+export const myApi = initMionRouter(routes, {contextDataFactory: initContextData});

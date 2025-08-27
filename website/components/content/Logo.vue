@@ -12,7 +12,7 @@
     role="img"
     aria-describedby="mion-logo-title"
   >
-    <title id="mion-logo-title">mion nodejs framework, type safe APIs at the speed of light</title>
+    <title id="mion-logo-title">mion nodejs framework, full stack APIs at the speed of light</title>
     <g transform="matrix(7.913,0,0,7.96869,-159.526,2002.47)">
       <g transform="matrix(288,0,0,288,0,0)">
         <path

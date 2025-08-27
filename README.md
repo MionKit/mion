@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# mion : Type Safe APIs at the speed of light 🚀
+# mion : Full Stack APIs at the speed of light 🚀
 
 mion is a lightweight TypeScript-based framework designed for building serverless APIs. It aims to provide a great developer experience and is optimized for serverless environments. With mion, you can quickly build APIs that are type-safe, with automatic validation and serialization out of the box.
 
@@ -65,7 +65,7 @@ mion utilizes [Deepkit's runtime types](https://deepkit.io/) for automatic valid
 
 By leveraging runtime types, mion offers advanced capabilities such as request validation and response/request serialization that typically involves using multiple framework and loads of code or boilerplate to be manually written by developers.
 
-## Type Safe Apis
+## Full Stack APIs
 
 ![type safes apis](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/type-safe-apis.gif)
 

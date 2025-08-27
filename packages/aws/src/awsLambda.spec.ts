@@ -50,7 +50,7 @@ describe('serverless router should', () => {
 
     beforeAll(async () => {
         resetAwsLambdaOpts();
-        initRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
         registerRoutes({changeUserName, getDate, updateHeaders});
     });
 
@@ -131,7 +131,7 @@ describe('serverless router should', () => {
 
     it('get default headers', async () => {
         const routerOpts = {
-            sharedDataFactory: getSharedData,
+            contextDataFactory: getSharedData,
             prefix: 'api/',
         };
         const awsOpts = {

@@ -12,15 +12,15 @@ import type {RpcError} from '@mionkit/core';
 // ####### Call Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
-export interface CallContext<SharedData extends Record<string, any> = any> {
+export interface CallContext<ContextData extends Record<string, any> = any> {
     /** Route's path after internal transformation */
     readonly path: string;
     /** Router's own request object */
     readonly request: MionRequest;
     /** Router's own response object */
     readonly response: MionResponse;
-    /** shared data between handlers (route/hooks) and that is not returned in the response. */
-    shared: SharedData;
+    /** context data between handlers (route/hooks) and that is not returned in the response. */
+    shared: ContextData;
 }
 
 // ####### REQUEST & RESPONSE #######
@@ -39,7 +39,7 @@ export interface MionRequest {
     /** pre-parsed body from platforms like Google Cloud Functions where Express auto-parses JSON */
     readonly parsedBody?: Readonly<AnyObject>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
-    readonly internalErrors: Readonly<RpcError[]>;
+    readonly internalErrors: Readonly<RpcError<any>[]>;
 }
 
 /** Router's own response object, do not confuse with the underlying raw response */
@@ -77,5 +77,5 @@ export type SingleHeaderValue = string;
 /** Multi Header value, this is used when multiple headers are sent in the http response with the same header name (Mostly Set-Cookie) */
 export type MultiHeaderValue = SingleHeaderValue | SingleHeaderValue[];
 
-/** Function used to create the shared data object on each route call  */
-export type SharedDataFactory<SharedData extends Record<string, any>> = () => SharedData;
+/** Function used to create the context data object on each route call  */
+export type ContextDataFactory<ContextData extends Record<string, any>> = () => ContextData;

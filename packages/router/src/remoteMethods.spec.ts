@@ -55,14 +55,14 @@ describe('Public Methods should', () => {
     beforeEach(() => resetRouter());
 
     it('not generate public data when  generateSpec = false', () => {
-        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: false});
+        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: false});
         const publicExecutables = registerRoutes(routes);
 
         expect(publicExecutables).toEqual({});
     });
 
     it('generate all the required public fields for hook and route', () => {
-        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
+        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
             auth: paramsHook,
             routes: {
@@ -95,7 +95,7 @@ describe('Public Methods should', () => {
     });
 
     it('be able to convert serialized handler types to json, deserialize and use them for validation', () => {
-        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
+        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
             addMilliseconds: route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
         };
@@ -131,7 +131,7 @@ describe('Public Methods should', () => {
     });
 
     it('generate public data when suing prefix and suffix', () => {
-        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
+        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
         const testR = {
             auth: paramsHook,
             route1,
@@ -151,7 +151,7 @@ describe('Public Methods should', () => {
     });
 
     it('generate public data for public routes only', () => {
-        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
+        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
         const publicExecutables = registerRoutes(routes);
 
         expect(publicExecutables).toEqual({
@@ -207,7 +207,7 @@ describe('Public Methods should', () => {
     });
 
     it('should serialize remote method type skipping the context parameter', () => {
-        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
+        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
         const routes = {
             sayHello: route((ctx: CallContext, name: string): string => `Hello ${name}`),
         };

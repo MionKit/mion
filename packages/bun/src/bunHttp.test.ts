@@ -50,7 +50,7 @@ describe('bun router should', () => {
 
     const port = 8079;
     beforeAll(async () => {
-        initRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
         registerRoutes({changeUserName, getDate, updateHeaders});
         setBunHttpOpts({port});
         server = await startBunServer();
@@ -120,7 +120,7 @@ describe('bun router should', () => {
     test('get an error when body size is too large and get default headers', async () => {
         const smallPort = port + 1;
         const routerOpts = {
-            sharedDataFactory: getSharedData,
+            contextDataFactory: getSharedData,
             prefix: 'api/',
         };
         const bunOpts = {
@@ -166,7 +166,7 @@ describe('bun router should', () => {
     test('compile routes metadata and skip server initialization', async () => {
         process.env.MION_COMPILE = 'true';
         const routerOpts = {
-            sharedDataFactory: getSharedData,
+            contextDataFactory: getSharedData,
             prefix: 'api/',
         };
         const httpOpts = {

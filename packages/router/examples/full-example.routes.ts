@@ -46,7 +46,7 @@ const routes = {
 } satisfies Routes;
 
 export const apiSpec = initMionRouter(routes, {
-    sharedDataFactory: getSharedData,
+    contextDataFactory: getSharedData,
     prefix: 'api/v1',
 });
 export type ApiSpec = typeof apiSpec;

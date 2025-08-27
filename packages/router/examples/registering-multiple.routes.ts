@@ -1,9 +1,8 @@
-import {AnyObject} from '@mionkit/core';
 import {initMionRouter, Routes, CallContext, registerRoutes, route, headersHook} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 
 export type HttpRequest = IncomingMessage & {body: string};
-export type Shared = () => AnyObject;
+export type Shared = () => Record<string, any>;
 export type Context = CallContext<Shared>;
 
 const authRoutes = {
