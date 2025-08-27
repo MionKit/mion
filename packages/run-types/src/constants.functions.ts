@@ -87,7 +87,22 @@ export const jitSerializationFunctions = {
         jitArgs,
         jitDefaultArgs,
     },
-    // not yet implemented
+    // BSON serialization functions
+    toBSON: {
+        id: 'tbs',
+        name: 'toBSON',
+        type: CodeTypes.expression,
+        jitArgs,
+        jitDefaultArgs,
+    },
+    fromBSON: {
+        id: 'fbs',
+        name: 'fromBSON',
+        type: CodeTypes.statement,
+        jitArgs,
+        jitDefaultArgs,
+    },
+    // Legacy binary functions (not yet implemented)
     toBinary: {
         id: 'tb',
         name: 'toBinary',
