@@ -121,5 +121,5 @@ export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 
 export interface MethodsExecutionList {
     routeIndex: number;
     methods: Method[];
-    bodyStringify?: (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError>};
+    bodyStringify?: (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError<any>>};
 }

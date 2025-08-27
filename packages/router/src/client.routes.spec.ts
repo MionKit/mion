@@ -181,9 +181,9 @@ describe('Client Routes should', () => {
     const getSharedData = (): typeof shared => shared;
 
     const methodsMetadata = {
-        'users-getUser': {
+        'users/getUser': {
             type: HandlerType.route,
-            id: 'users-getUser',
+            id: 'users/getUser',
             handler: 'users.getUser' as any,
             paramsJitHashes: {
                 isType: expect.any(String),
@@ -202,9 +202,9 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
         },
-        'users-setUser': {
+        'users/setUser': {
             type: HandlerType.route,
-            id: 'users-setUser',
+            id: 'users/setUser',
             handler: 'users.setUser' as any,
             paramsJitHashes: {
                 isType: expect.any(String),
@@ -223,9 +223,9 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
         },
-        'users-pets-getUserPet': {
+        'users/pets/getUserPet': {
             type: HandlerType.route,
-            id: 'users-pets-getUserPet',
+            id: 'users/pets/getUserPet',
             handler: 'users.pets.getUserPet' as any,
             paramsJitHashes: {
                 isType: expect.any(String),
@@ -244,9 +244,9 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
         },
-        'pets-getPet': {
+        'pets/getPet': {
             type: HandlerType.route,
-            id: 'pets-getPet',
+            id: 'pets/getPet',
             handler: 'pets.getPet' as any,
             paramsJitHashes: {
                 isType: expect.any(String),
@@ -265,9 +265,9 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
         },
-        'pets-setPet': {
+        'pets/setPet': {
             type: HandlerType.route,
-            id: 'pets-setPet',
+            id: 'pets/setPet',
             handler: 'pets.setPet' as any,
             paramsJitHashes: {
                 isType: expect.any(String),
@@ -368,7 +368,7 @@ describe('Client Routes should', () => {
         registerRoutes(routes);
         registerRoutes(clientRoutes);
 
-        const methodIdList = ['users-getUser']; // all public methods
+        const methodIdList = ['users/getUser']; // all public methods
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
@@ -379,7 +379,7 @@ describe('Client Routes should', () => {
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedMethods = {
             auth: methodsMetadata.auth,
-            'users-getUser': methodsMetadata['users-getUser'],
+            'users/getUser': methodsMetadata['users/getUser'],
             last: methodsMetadata['last'],
         };
         const methodsData = response.body[methodsId] as MethodsData; // serializable data for remote methods
@@ -423,13 +423,13 @@ describe('Client Routes should', () => {
             headers: headersFromRecord({}),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
-                [routeMethodsId]: ['/users-getUser'],
+                [routeMethodsId]: ['/users/getUser'],
             }),
         };
         const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedMethods = {
             auth: methodsMetadata.auth,
-            'users-getUser': methodsMetadata['users-getUser'],
+            'users/getUser': methodsMetadata['users/getUser'],
             last: methodsMetadata.last,
         };
         const methodsData = response.body[routeMethodsId] as MethodsData; // serializable data for remote methods
@@ -517,7 +517,7 @@ describe('Restore Client Routes jit functions', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                [routeMethodsId]: ['/users-getUser'],
+                [routeMethodsId]: ['/users/getUser'],
             }),
         };
         const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});

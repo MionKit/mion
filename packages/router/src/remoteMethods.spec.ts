@@ -86,7 +86,7 @@ describe('Public Methods should', () => {
             expect.objectContaining({
                 type: HandlerType.route,
                 handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
-                id: 'routes-route1',
+                id: 'routes/route1',
                 paramsJitHashes: hasSerializableHashes([]),
                 returnJitHashes: hasSerializableHashes(),
                 paramNames: [],
@@ -164,16 +164,16 @@ describe('Public Methods should', () => {
                 userBefore: null,
                 getUser: expect.objectContaining({
                     type: HandlerType.route,
-                    id: 'users-getUser',
+                    id: 'users/getUser',
                 }),
                 setUser: expect.objectContaining({
                     type: HandlerType.route,
-                    id: 'users-setUser',
+                    id: 'users/setUser',
                 }),
                 pets: {
                     getUserPet: expect.objectContaining({
                         type: HandlerType.route,
-                        id: 'users-pets-getUserPet',
+                        id: 'users/pets/getUserPet',
                     }),
                 },
                 userAfter: null,
@@ -181,11 +181,11 @@ describe('Public Methods should', () => {
             pets: {
                 getPet: expect.objectContaining({
                     type: HandlerType.route,
-                    id: 'pets-getPet',
+                    id: 'pets/getPet',
                 }),
                 setPet: expect.objectContaining({
                     type: HandlerType.route,
-                    id: 'pets-setPet',
+                    id: 'pets/setPet',
                 }),
             },
             last: expect.objectContaining({
