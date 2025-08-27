@@ -16,7 +16,18 @@ import type {ClassRunType} from '../runType/collection/class';
 import type {MapRunType} from '../runType/native/map';
 import type {SetRunType} from '../runType/native/set';
 import type {UnionRunType} from '../runType/collection/union';
-import {BSON_TYPES} from './bsonUtils';
+// BSON type constants
+const BSON_TYPES = {
+    DOUBLE: 0x01,
+    STRING: 0x02,
+    DOCUMENT: 0x03,
+    ARRAY: 0x04,
+    BINARY: 0x05,
+    BOOLEAN: 0x08,
+    NULL: 0x0a,
+    INT32: 0x10,
+    INT64: 0x12,
+} as const;
 
 /**
  * Main BSON deserialization compiler function
