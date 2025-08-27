@@ -43,10 +43,10 @@ describe('getStringifyFnForExecutionPath', () => {
 
     it('should return the stringify function for the execution path of "updateUser" route', () => {
         initMionRouter(routes);
-        const bodyStringify = getStringifyFnForExecutionPath('/users-updateUser');
-        const body = {'users-updateUser': {name: 'John', age: 30, lastActivity}};
+        const bodyStringify = getStringifyFnForExecutionPath('/users/updateUser');
+        const body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
         const expectedString =
-            '{"users-updateUser":{"name":"John","age":30,"lastActivity":"' + lastActivity.toISOString() + '"}}';
+            '{"users/updateUser":{"name":"John","age":30,"lastActivity":"' + lastActivity.toISOString() + '"}}';
         expect(bodyStringify(body).body).toEqual(expectedString);
     });
 
@@ -60,10 +60,10 @@ describe('getStringifyFnForExecutionPath', () => {
 
     it('should correctly stringify complex objects and provide performance benchmark', () => {
         initMionRouter(routes);
-        const bodyStringify = getStringifyFnForExecutionPath('/users-updateUser');
+        const bodyStringify = getStringifyFnForExecutionPath('/users/updateUser');
 
         const body = {
-            'users-updateUser': {
+            'users/updateUser': {
                 name: 'John',
                 age: 30,
                 lastActivity,
@@ -77,7 +77,7 @@ describe('getStringifyFnForExecutionPath', () => {
 
         // Parse the result to verify it's valid JSON and contains expected data
         const parsed = JSON.parse(result.body);
-        expect(parsed['users-updateUser']).toEqual({
+        expect(parsed['users/updateUser']).toEqual({
             name: 'John',
             age: 30,
             lastActivity: lastActivity.toISOString(),

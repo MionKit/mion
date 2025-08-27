@@ -18,10 +18,10 @@ const routes = {
     auth: headersHook(['Authorization'], (ctx, token: string): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
-    sayHello: route((_ctx, user: User): string | RpcError => `Hello ${user.name} ${user.surname}`),
+    sayHello: route((_ctx, user: User): string | RpcError<'some-error'> => `Hello ${user.name} ${user.surname}`),
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    alwaysFails: route((ctx, user: User): User | RpcError => {
-        return new RpcError({statusCode: 500, publicMessage: 'Something fails', type: 'UnknownError'});
+    alwaysFails: route((ctx, user: User): User | RpcError<'unknown-error'> => {
+        return new RpcError({statusCode: 500, publicMessage: 'Something fails', type: 'unknown-error'});
     }),
 
     // Additional routes for testing different validation types

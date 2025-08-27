@@ -117,7 +117,11 @@ function getSerializationRequiredData(
     return {methodMeta, subRequest};
 }
 
-function serializeParameters(params: any[], method: PublicMethod, paramsJit?: JitCompiledFunctions): any[] | RpcError {
+function serializeParameters(
+    params: any[],
+    method: PublicMethod,
+    paramsJit?: JitCompiledFunctions
+): any[] | RpcError<'serialization-error'> {
     if (!paramsJit) return params;
     if (params.length && paramsJit && !paramsJit.toJsonVal.isNoop) {
         try {
@@ -134,7 +138,11 @@ function serializeParameters(params: any[], method: PublicMethod, paramsJit?: Ji
     return params;
 }
 
-function validateParameters(params: any[], method: PublicMethod, paramsJit?: JitCompiledFunctions): void | RpcError {
+function validateParameters(
+    params: any[],
+    method: PublicMethod,
+    paramsJit?: JitCompiledFunctions
+): void | RpcError<'validation-error'> {
     if (!paramsJit || paramsJit.typeErrors.isNoop) return;
     try {
         const validationsResponse = paramsJit.typeErrors.fn(params);
@@ -155,7 +163,11 @@ function validateParameters(params: any[], method: PublicMethod, paramsJit?: Jit
     }
 }
 
-function deSerializeReturn(response: any | RpcError, method: PublicMethod, returnJit?: JitCompiledFunctions): any | RpcError {
+function deSerializeReturn(
+    response: any | RpcError<string>,
+    method: PublicMethod,
+    returnJit?: JitCompiledFunctions
+): any | RpcError<'serialization-error'> {
     if (!returnJit || returnJit.fromJsonVal.isNoop || !response) return response;
     try {
         if (response instanceof RpcError) return response;

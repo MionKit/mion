@@ -70,8 +70,8 @@ export class TestServerManager {
 
     constructor(options: TestServerOptions) {
         this.options = {
-            startupTimeout: 30000, // Increased to 30s for high-load scenarios
-            shutdownTimeout: 8000, // Increased to 8s for better shutdown handling
+            startupTimeout: JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT - 500,
+            shutdownTimeout: JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT - 500,
             logOutput: false,
             maxStartupRetries: 3,
             useHealthCheck: true,

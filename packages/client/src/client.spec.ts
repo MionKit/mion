@@ -60,7 +60,7 @@ describe('client', () => {
 
         const expectedSumTwoSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
             pointer: ['utils', 'sumTwo'],
-            id: 'utils-sumTwo',
+            id: 'utils/sumTwo',
             isResolved: false,
             params: [2],
             call: expect.any(Function),
@@ -117,7 +117,7 @@ describe('client', () => {
 
         try {
             await routes.alwaysFails(someUser).hooks(hooks.auth('XWYZ-TOKEN')).call();
-        } catch (e: RpcError | any) {
+        } catch (e: RpcError<string> | any) {
             error = e;
         }
 
@@ -133,7 +133,7 @@ describe('client', () => {
             // Call a route without providing the required auth hook
             // This should fail because the server expects authentication
             await routes.sayHello(someUser).call();
-        } catch (e: RpcError | any) {
+        } catch (e: RpcError<string> | any) {
             error = e;
         }
 
@@ -144,7 +144,7 @@ describe('client', () => {
         // The error should indicate missing authentication or validation failure
         // Based on the server setup, this should be a 400 error for missing auth
         expect(error.statusCode).toBe(400);
-        expect(error.name).toBe('Error');
+        expect(error.name).toBe('RpcError');
         expect(error.message).toContain('auth');
     });
 

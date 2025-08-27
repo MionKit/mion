@@ -18,6 +18,6 @@ export const ROUTE_PATH_ROOT = PATH_SEPARATOR;
 export const GET_REMOTE_METHODS_BY_ID = 'mionGetRemoteMethodsInfoById';
 export const GET_REMOTE_METHODS_BY_PATH = 'mionGetRemoteMethodsInfoByPath';
 
-export const ROUTER_ITEM_SEPARATOR_CHAR = '-';
+export const ROUTER_ITEM_SEPARATOR_CHAR = '/';
 export const MAX_UNKNOWN_KEYS = 10;
 export const MAX_STACK_DEPTH = 50;
