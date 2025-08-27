@@ -7,6 +7,8 @@
 
 import {runType} from '../lib/runType';
 import {JitFunctions} from '../constants.functions';
+import {BSONWriter, BSONReader, BSON_TYPES as BSON_TYPES_CLASS} from './bsonUtils';
+import * as PureBSON from './bsonPureFunctions';
 
 // BSON type constants for testing
 const BSON_TYPES = {
@@ -241,6 +243,102 @@ describe('BSON JIT Serialization', () => {
 
             const view = new DataView(result.buffer, result.byteOffset + 1, 8);
             expect(view.getBigUint64(0, true)).toBe(largeBigInt);
+        });
+    });
+
+    describe('Reference Implementations', () => {
+        describe('Class-based BSONWriter/BSONReader', () => {
+            it('should write and read basic types', () => {
+                const writer = new BSONWriter();
+
+                // Write different types
+                writer.writeUInt8(BSON_TYPES_CLASS.STRING);
+                writer.writeString('hello');
+                writer.writeUInt8(BSON_TYPES_CLASS.INT32);
+                writer.writeInt32LE(42);
+                writer.writeUInt8(BSON_TYPES_CLASS.BOOLEAN);
+                writer.writeUInt8(1);
+
+                const buffer = writer.getBuffer();
+                const reader = new BSONReader(buffer);
+
+                // Read back
+                expect(reader.readUInt8()).toBe(BSON_TYPES_CLASS.STRING);
+                expect(reader.readString()).toBe('hello');
+                expect(reader.readUInt8()).toBe(BSON_TYPES_CLASS.INT32);
+                expect(reader.readInt32LE()).toBe(42);
+                expect(reader.readUInt8()).toBe(BSON_TYPES_CLASS.BOOLEAN);
+                expect(reader.readUInt8()).toBe(1);
+            });
+        });
+
+        describe('Pure Functional BSON', () => {
+            it('should write and read basic types functionally', () => {
+                let ctx = PureBSON.createBSONContext();
+
+                // Write different types
+                let result = PureBSON.writeUInt8(ctx, BSON_TYPES.STRING);
+                ctx = result.context;
+
+                result = PureBSON.writeBSONString(ctx, 'hello');
+                ctx = result.context;
+
+                result = PureBSON.writeUInt8(ctx, BSON_TYPES.INT32);
+                ctx = result.context;
+
+                result = PureBSON.writeInt32LE(ctx, 42);
+                ctx = result.context;
+
+                result = PureBSON.writeUInt8(ctx, BSON_TYPES.BOOLEAN);
+                ctx = result.context;
+
+                result = PureBSON.writeUInt8(ctx, 1);
+                ctx = result.context;
+
+                const buffer = PureBSON.getBuffer(ctx);
+
+                // Read back
+                let readCtx: PureBSON.BSONContext = {buffer, position: 0};
+
+                let readResult = PureBSON.readUInt8(readCtx);
+                expect(readResult.value).toBe(BSON_TYPES.STRING);
+                readCtx = readResult.context;
+
+                const stringResult = PureBSON.readBSONString(readCtx);
+                expect(stringResult.value).toBe('hello');
+                readCtx = stringResult.context;
+
+                readResult = PureBSON.readUInt8(readCtx);
+                expect(readResult.value).toBe(BSON_TYPES.INT32);
+                readCtx = readResult.context;
+
+                const intResult = PureBSON.readInt32LE(readCtx);
+                expect(intResult.value).toBe(42);
+                readCtx = intResult.context;
+
+                readResult = PureBSON.readUInt8(readCtx);
+                expect(readResult.value).toBe(BSON_TYPES.BOOLEAN);
+                readCtx = readResult.context;
+
+                readResult = PureBSON.readUInt8(readCtx);
+                expect(readResult.value).toBe(1);
+            });
+
+            it('should handle buffer growth in pure functions', () => {
+                let ctx = PureBSON.createBSONContext(10); // Small initial size
+                const largeString = 'x'.repeat(1000);
+
+                const result = PureBSON.writeBSONString(ctx, largeString);
+                ctx = result.context;
+
+                expect(ctx.buffer.length).toBeGreaterThan(1000);
+                expect(result.bytesWritten).toBe(4 + 1000 + 1); // length + string + null
+
+                // Verify we can read it back
+                const readCtx: PureBSON.BSONContext = {buffer: PureBSON.getBuffer(ctx), position: 0};
+                const stringResult = PureBSON.readBSONString(readCtx);
+                expect(stringResult.value).toBe(largeString);
+            });
         });
     });
 });
