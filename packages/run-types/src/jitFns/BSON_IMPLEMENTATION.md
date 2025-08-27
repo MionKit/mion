@@ -4,6 +4,38 @@
 
 This document outlines the detailed implementation plan for BSON serialization/deserialization in the Mion run-types package using JIT compilation.
 
+## ⚠️ IMPORTANT: JIT Code Generation Approach
+
+**CRITICAL**: The BSON implementation must generate direct binary manipulation code, NOT calls to utility functions. This follows the same pattern as `jsonStringify.ts`.
+
+### ❌ WRONG Approach (calling utility functions):
+
+```typescript
+case ReflectionKind.string:
+    return `utl.writeBSONString(${comp.vλl})`;
+```
+
+### ✅ CORRECT Approach (generating inline code):
+
+```typescript
+case ReflectionKind.string:
+    return `
+        (function() {
+            const utf8Bytes = new TextEncoder().encode(${comp.vλl});
+            const stringLength = utf8Bytes.length + 1;
+            const buffer = new Uint8Array(1 + 4 + stringLength);
+            buffer[0] = 0x02; // BSON string type
+            const view = new DataView(buffer.buffer);
+            view.setInt32(1, stringLength, true); // little-endian
+            buffer.set(utf8Bytes, 5);
+            buffer[buffer.length - 1] = 0; // null terminator
+            return buffer;
+        })()
+    `;
+```
+
+The JIT compiler generates optimized code for each specific TypeScript type, avoiding function call overhead and enabling maximum performance.
+
 ## Required Changes
 
 ### 1. Constants and Types Updates
@@ -194,18 +226,32 @@ The BSON implementation should leverage existing JSON serialization logic as ref
 **Map and Set Types** (Reference: MapRunType, SetRunType):
 
 ```typescript
-// Map serialization (reference from MapRunType.toJsonVal)
+// Map serialization - generate inline BSON array code
 case ReflectionKind.map:
-    return `utl.writeBSONArray(Array.from(${comp.vλl}).map(([k,v]) =>
-        utl.writeBSONDocument([
-            {name: "k", type: ${getBSONType('key')}, data: ${compileKey}},
-            {name: "v", type: ${getBSONType('value')}, data: ${compileValue}}
-        ])
-    ))`;
+    return `
+        (function() {
+            const entries = Array.from(${comp.vλl});
+            const items = entries.map(([k,v]) => {
+                // Generate inline document for each key-value pair
+                const keyData = ${generateKeySerializationCode};
+                const valueData = ${generateValueSerializationCode};
+                return createBSONDocument([
+                    {name: "k", data: keyData},
+                    {name: "v", data: valueData}
+                ]);
+            });
+            return createBSONArray(items);
+        })()
+    `;
 
-// Set serialization (reference from SetRunType.toJsonVal)
+// Set serialization - generate inline BSON array code
 case ReflectionKind.set:
-    return `utl.writeBSONArray(Array.from(${comp.vλl}).map(item => ${compileItem}))`;
+    return `
+        (function() {
+            const items = Array.from(${comp.vλl}).map(item => ${generateItemSerializationCode});
+            return createBSONArray(items);
+        })()
+    `;
 ```
 
 **Union Types** (Reference: UnionRunType):
@@ -244,13 +290,31 @@ case ReflectionKind.class:
 ```typescript
 function generateNumberSerialization(valueExpr: string): jitCode {
   return `
-        if (Number.isInteger(${valueExpr}) && ${valueExpr} >= -2147483648 && ${valueExpr} <= 2147483647) {
-            utl.writeBSONInt32(${valueExpr})
-        } else if (Number.isInteger(${valueExpr})) {
-            utl.writeBSONInt64(${valueExpr})
-        } else {
-            utl.writeBSONDouble(${valueExpr})
-        }
+        (function() {
+            const val = ${valueExpr};
+            if (Number.isInteger(val) && val >= -2147483648 && val <= 2147483647) {
+                // BSON int32 (0x10) + 4 bytes little-endian
+                const buffer = new Uint8Array(5);
+                buffer[0] = 0x10;
+                const view = new DataView(buffer.buffer);
+                view.setInt32(1, val, true);
+                return buffer;
+            } else if (Number.isInteger(val)) {
+                // BSON int64 (0x12) + 8 bytes little-endian
+                const buffer = new Uint8Array(9);
+                buffer[0] = 0x12;
+                const view = new DataView(buffer.buffer);
+                view.setBigInt64(1, BigInt(val), true);
+                return buffer;
+            } else {
+                // BSON double (0x01) + 8 bytes little-endian
+                const buffer = new Uint8Array(9);
+                buffer[0] = 0x01;
+                const view = new DataView(buffer.buffer);
+                view.setFloat64(1, val, true);
+                return buffer;
+            }
+        })()
     `;
 }
 ```
@@ -261,10 +325,45 @@ function generateNumberSerialization(valueExpr: string): jitCode {
 function compileObjectSerialization(runType: BaseRunType, comp: JitCompiler): jitCode {
   const properties = getObjectProperties(runType);
   const fieldCode = properties
-    .map((prop) => `utl.writeBSONField("${prop.name}", ${getBSONType(prop.type)}, ${compilePropertyValue(prop, comp)})`)
+    .map(
+      (prop) => `
+        // Field: ${prop.name}
+        const fieldName${prop.index} = new TextEncoder().encode("${prop.name}");
+        const fieldData${prop.index} = ${compilePropertyValue(prop, comp)};
+        // Combine type byte + field name + null terminator + field data
+        const field${prop.index} = new Uint8Array(1 + fieldName${prop.index}.length + 1 + fieldData${prop.index}.length);
+        field${prop.index}[0] = ${getBSONTypeCode(prop.type)};
+        field${prop.index}.set(fieldName${prop.index}, 1);
+        field${prop.index}[1 + fieldName${prop.index}.length] = 0; // null terminator
+        field${prop.index}.set(fieldData${prop.index}, 1 + fieldName${prop.index}.length + 1);
+    `
+    )
     .join('\n');
 
-  return `utl.writeBSONDocument([${fieldCode}])`;
+  return `
+    (function() {
+        ${fieldCode}
+        // Calculate total document size
+        const totalSize = 4 + ${properties.map((p) => `field${p.index}.length`).join(' + ')} + 1;
+        const document = new Uint8Array(totalSize);
+        document[0] = 0x03; // BSON document type
+        const view = new DataView(document.buffer);
+        view.setInt32(1, totalSize - 1, true); // document size
+
+        let offset = 5;
+        ${properties
+          .map(
+            (p) => `
+            document.set(field${p.index}, offset);
+            offset += field${p.index}.length;
+        `
+          )
+          .join('')}
+
+        document[document.length - 1] = 0; // document terminator
+        return document;
+    })()
+  `;
 }
 ```
 
