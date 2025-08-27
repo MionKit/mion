@@ -167,4 +167,80 @@ describe('BSON JIT Serialization', () => {
             expect(result[1]).toBe(0x01);
         });
     });
+
+    describe('Edge Cases', () => {
+        it('should handle empty strings', () => {
+            const rt = runType<string>();
+            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
+
+            const result = toBSON('');
+            expect(result).toBeInstanceOf(Uint8Array);
+            expect(result[0]).toBe(BSON_TYPES.STRING);
+
+            // Empty string should have length 1 (just null terminator)
+            const view = new DataView(result.buffer, result.byteOffset + 1, 4);
+            const stringLength = view.getInt32(0, true);
+            expect(stringLength).toBe(1);
+
+            // Total length: type(1) + length(4) + null(1) = 6
+            expect(result.length).toBe(6);
+        });
+
+        it('should handle Unicode strings', () => {
+            const rt = runType<string>();
+            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
+
+            const unicodeString = 'Hello 世界 🌍';
+            const result = toBSON(unicodeString);
+            expect(result).toBeInstanceOf(Uint8Array);
+            expect(result[0]).toBe(BSON_TYPES.STRING);
+
+            // Verify we can decode the string back
+            const utf8Bytes = new TextEncoder().encode(unicodeString);
+            const view = new DataView(result.buffer, result.byteOffset + 1, 4);
+            const stringLength = view.getInt32(0, true);
+            expect(stringLength).toBe(utf8Bytes.length + 1); // +1 for null terminator
+
+            const stringBytes = result.slice(5, 5 + utf8Bytes.length);
+            const decodedString = new TextDecoder().decode(stringBytes);
+            expect(decodedString).toBe(unicodeString);
+        });
+
+        it('should handle negative numbers correctly', () => {
+            const rt = runType<number>();
+            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
+
+            const result = toBSON(-42);
+            expect(result).toBeInstanceOf(Uint8Array);
+            expect(result[0]).toBe(BSON_TYPES.INT32);
+
+            const view = new DataView(result.buffer, result.byteOffset + 1, 4);
+            expect(view.getInt32(0, true)).toBe(-42);
+        });
+
+        it('should handle zero correctly', () => {
+            const rt = runType<number>();
+            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
+
+            const result = toBSON(0);
+            expect(result).toBeInstanceOf(Uint8Array);
+            expect(result[0]).toBe(BSON_TYPES.INT32);
+
+            const view = new DataView(result.buffer, result.byteOffset + 1, 4);
+            expect(view.getInt32(0, true)).toBe(0);
+        });
+
+        it('should handle very large bigints', () => {
+            const rt = runType<bigint>();
+            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
+
+            const largeBigInt = BigInt('18446744073709551615'); // Max uint64
+            const result = toBSON(largeBigInt);
+            expect(result).toBeInstanceOf(Uint8Array);
+            expect(result[0]).toBe(BSON_TYPES.INT64);
+
+            const view = new DataView(result.buffer, result.byteOffset + 1, 8);
+            expect(view.getBigUint64(0, true)).toBe(largeBigInt);
+        });
+    });
 });
