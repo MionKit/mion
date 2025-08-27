@@ -223,21 +223,21 @@ describe('Create routes should', () => {
         expect(() => registerRoutes(numericNames)).toThrow('Invalid route: directory/2. Numeric route names are not allowed');
     });
 
-    it('throw an error when sharedDataFactory returns invalid values', () => {
-        const errorMessage = 'sharedDataFactory must return a plain object with at least one property';
+    it('throw an error when contextDataFactory returns invalid values', () => {
+        const errorMessage = 'contextDataFactory must return a plain object with at least one property';
 
-        expect(() => initRouter({sharedDataFactory: () => undefined as any})).toThrow(errorMessage);
-        expect(() => initRouter({sharedDataFactory: () => null as any})).toThrow(errorMessage);
-        expect(() => initRouter({sharedDataFactory: () => 'string' as any})).toThrow(errorMessage);
-        expect(() => initRouter({sharedDataFactory: () => 42 as any})).toThrow(errorMessage);
-        expect(() => initRouter({sharedDataFactory: () => [] as any})).toThrow(errorMessage);
-        expect(() => initRouter({sharedDataFactory: () => ({})})).toThrow(errorMessage);
+        expect(() => initRouter({contextDataFactory: () => undefined as any})).toThrow(errorMessage);
+        expect(() => initRouter({contextDataFactory: () => null as any})).toThrow(errorMessage);
+        expect(() => initRouter({contextDataFactory: () => 'string' as any})).toThrow(errorMessage);
+        expect(() => initRouter({contextDataFactory: () => 42 as any})).toThrow(errorMessage);
+        expect(() => initRouter({contextDataFactory: () => [] as any})).toThrow(errorMessage);
+        expect(() => initRouter({contextDataFactory: () => ({})})).toThrow(errorMessage);
     });
 
-    it('accept valid sharedDataFactory that returns an object with properties', () => {
-        expect(() => initRouter({sharedDataFactory: () => ({user: null})})).not.toThrow();
+    it('accept valid contextDataFactory that returns an object with properties', () => {
+        expect(() => initRouter({contextDataFactory: () => ({user: null})})).not.toThrow();
         resetRouter();
-        expect(() => initRouter({sharedDataFactory: () => ({user: null, data: 'test'})})).not.toThrow();
+        expect(() => initRouter({contextDataFactory: () => ({user: null, data: 'test'})})).not.toThrow();
     });
 
     it('optimize parsing routes (complexity) when there are multiple routes in a row', () => {

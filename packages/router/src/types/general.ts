@@ -6,7 +6,7 @@
  * ######## */
 
 import {CoreOptions} from '@mionkit/core';
-import {SharedDataFactory} from './context';
+import {ContextDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import type {RunTypeOptions} from '@mionkit/run-types';
 // #######  Router Object #######
@@ -25,7 +25,7 @@ export interface Routes {
 // ####### Router Options #######
 
 /** Global Router Options */
-export interface RouterOptions<Req = any, SharedData extends Record<string, any> = any> extends CoreOptions {
+export interface RouterOptions<Req = any, ContextData extends Record<string, any> = any> extends CoreOptions {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;
@@ -35,7 +35,7 @@ export interface RouterOptions<Req = any, SharedData extends Record<string, any>
     /** Transform the path before finding a route */
     pathTransform?: (request: Req, path: string) => string;
     /** factory function to initialize shared call context data */
-    sharedDataFactory?: SharedDataFactory<SharedData>;
+    contextDataFactory?: ContextDataFactory<ContextData>;
     /** Enables json stringify using runTypes jit stringify function instead JSON.stringify */
     useJitStringify: boolean;
     /** run type compiler options for hooks and routes */

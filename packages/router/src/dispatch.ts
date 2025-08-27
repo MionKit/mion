@@ -78,7 +78,7 @@ export function getEmptyCallContext(
             body: {},
             rawBody: '',
         },
-        shared: opts.sharedDataFactory ? opts.sharedDataFactory() : {},
+        shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
     };
 }
 

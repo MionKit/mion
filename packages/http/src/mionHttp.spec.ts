@@ -49,7 +49,7 @@ describe('node http router should', () => {
 
     const port = 8075;
     beforeAll(async () => {
-        initRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
         registerRoutes({changeUserName, getDate, updateHeaders});
         setNodeHttpOpts({port});
         server = await startNodeServer();
@@ -132,7 +132,7 @@ describe('node http router should', () => {
     it('get an error when body size is too large, get default headers', async () => {
         const smallPort = port + 1;
         const routerOpts = {
-            sharedDataFactory: getSharedData,
+            contextDataFactory: getSharedData,
             prefix: 'api/',
         };
         const httpOpts = {
@@ -175,7 +175,7 @@ describe('node http router should', () => {
     it('skip server initialization', async () => {
         process.env.MION_COMPILE = 'true';
         const routerOpts = {
-            sharedDataFactory: getSharedData,
+            contextDataFactory: getSharedData,
             prefix: 'api/',
         };
         const httpOpts = {

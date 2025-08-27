@@ -53,7 +53,7 @@ const port = process.argv[2] ? parseInt(process.argv[2], 10) : 8076;
 async function startServer() {
     try {
         // Initialize router
-        initRouter({sharedDataFactory: () => ({user: null}), skipClientRoutes: false});
+        initRouter({contextDataFactory: () => ({user: null}), skipClientRoutes: false});
 
         // Register routes
         registerRoutes(routes);
