@@ -33,6 +33,17 @@ export interface JITUtils {
     useDeserializeFn(className: string): DeserializeClassFn<any>;
     getDeserializeFn(className: string): DeserializeClassFn<any> | undefined;
 
+    // BSON serialization utilities
+    writeBSONNull(): Uint8Array;
+    writeBSONBoolean(value: boolean): Uint8Array;
+    writeBSONInt32(value: number): Uint8Array;
+    writeBSONInt64(value: number | bigint): Uint8Array;
+    writeBSONDouble(value: number): Uint8Array;
+    writeBSONString(value: string): Uint8Array;
+    writeBSONBinary(data: Uint8Array, subtype?: number): Uint8Array;
+    writeBSONArray(items: Uint8Array[]): Uint8Array;
+    writeBSONDocument(fields: Array<{name: string; type: number; data: Uint8Array}>): Uint8Array;
+
     // TODO: all functions bellow could be moved to pure functions instead being part of jitUtils
     getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[];
     hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean;
@@ -259,6 +270,8 @@ export interface JitCompiledFunctions {
     toJsonVal: JitCompiledFn<ToJsonValFn>;
     fromJsonVal: JitCompiledFn<FromJsonValFn>;
     jsonStringify: JitCompiledFn<JsonStringifyFn>;
+    toBSON: JitCompiledFn<ToBSONFn>;
+    fromBSON: JitCompiledFn<FromBSONFn>;
 }
 export interface SerializableJITFunctions {
     isType: JitCompiledFnData;
@@ -266,6 +279,8 @@ export interface SerializableJITFunctions {
     toJsonVal: JitCompiledFnData;
     fromJsonVal: JitCompiledFnData;
     jsonStringify: JitCompiledFnData;
+    toBSON: JitCompiledFnData;
+    fromBSON: JitCompiledFnData;
 }
 export interface JitFunctionsHashes {
     isType: string;
@@ -273,6 +288,8 @@ export interface JitFunctionsHashes {
     toJsonVal: string;
     fromJsonVal: string;
     jsonStringify: string;
+    toBSON: string;
+    fromBSON: string;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type FromJsonValFn = (value: JSONValue) => any;
@@ -280,6 +297,8 @@ export type ToJsonValFn = (value: any) => JSONValue;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
 export type ToCodeFn = (value: any) => string;
+export type ToBSONFn = (value: any) => Uint8Array;
+export type FromBSONFn = (bson: Uint8Array) => any;
 
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;
@@ -320,6 +339,8 @@ export type SerializableJitHashes = {
     toJsonVal: string;
     fromJsonVal: string;
     jsonStringify: string;
+    toBSON: string;
+    fromBSON: string;
 };
 
 /** Shared interface for PublicMethod that can be used between client and server without handler dependencies */

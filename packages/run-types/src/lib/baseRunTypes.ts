@@ -44,6 +44,8 @@ import {
 } from './formats';
 import {typeParamsToString} from './utils';
 import {_compileJsonStringify} from '../jitFns/jsonStringify';
+import {_compileToBSON} from '../jitFns/toBSON';
+import {_compileFromBSON} from '../jitFns/fromBSON';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core';
 import {_compileToCode} from '../jitFns/toCode';
@@ -201,6 +203,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     abstract _compileTypeErrors(comp: JitErrorsCompiler): jitCode;
     abstract _compileToJsonVal(comp: JitCompiler): jitCode;
     abstract _compileFromJsonVal(comp: JitCompiler): jitCode;
+    abstract _compileToBSON(comp: JitCompiler): jitCode;
+    abstract _compileFromBSON(comp: JitCompiler): jitCode;
     abstract _compileHasUnknownKeys(comp: JitCompiler): jitCode;
     abstract _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode;
     abstract _compileStripUnknownKeys(comp: JitCompiler): jitCode;
@@ -219,6 +223,12 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     }
     compileFromJsonVal(comp: JitCompiler): jitCode {
         return this.compile(comp, JitFunctions.fromJsonVal.id);
+    }
+    compileToBSON(comp: JitCompiler): jitCode {
+        return this.compile(comp, JitFunctions.toBSON.id);
+    }
+    compileFromBSON(comp: JitCompiler): jitCode {
+        return this.compile(comp, JitFunctions.fromBSON.id);
     }
     compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         return this.compile(comp, JitFunctions.unknownKeyErrors.id);
@@ -265,6 +275,12 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                     break;
                 case JitFunctions.jsonStringify.id:
                     code = _compileJsonStringify(this, comp);
+                    break;
+                case JitFunctions.toBSON.id:
+                    code = _compileToBSON(this, comp);
+                    break;
+                case JitFunctions.fromBSON.id:
+                    code = _compileFromBSON(this, comp);
                     break;
                 case JitFunctions.toCode.id:
                         code = _compileToCode(this, comp);
@@ -441,6 +457,12 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return undefined;
     }
+    _compileToBSON(comp: JitCompiler): jitCode {
+        return undefined;
+    }
+    _compileFromBSON(comp: JitCompiler): jitCode {
+        return undefined;
+    }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         return undefined;
     }
@@ -459,6 +481,8 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
             case JitFunctions.toJsonVal.id:
             case JitFunctions.fromJsonVal.id:
             case JitFunctions.jsonStringify.id:
+            case JitFunctions.toBSON.id:
+            case JitFunctions.fromBSON.id:
             case JitFunctions.toCode.id:
                 return 'E';
             default:
@@ -522,6 +546,12 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .map((c) => c.compileUnknownKeysToUndefined(comp))
             .filter((code) => !!code)
             .join(';');
+    }
+    _compileToBSON(comp: JitCompiler): jitCode {
+        return undefined;
+    }
+    _compileFromBSON(comp: JitCompiler): jitCode {
+        return undefined;
     }
     _getTypeID(stack: BaseRunType[] = []): StrNumber {
         return this.getChildrenTypeID(stack);
@@ -594,6 +624,16 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         const code = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp);
         if (!code) return undefined;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
+    }
+    _compileToBSON(comp: JitCompiler): jitCode {
+        const code = this.getJitChild(comp)?.compileToBSON(comp);
+        if (!code) return undefined;
+        return this.isOptional() ? `(${comp.getChildVλl()} !== undefined ? ${code} : utl.writeBSONNull())` : code;
+    }
+    _compileFromBSON(comp: JitCompiler): jitCode {
+        const code = this.getJitChild(comp)?.compileFromBSON(comp);
+        if (!code) return undefined;
+        return code;
     }
     _getTypeID(stack: BaseRunType[] = []): StrNumber {
         return this.getMemberTypeID(stack);

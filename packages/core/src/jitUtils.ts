@@ -217,6 +217,121 @@ export const jitUtils: JITUtils = {
         const runTypeErr: Required<RunTypeError> = {expected, path, format};
         εrr.push(runTypeErr);
     },
+
+    // BSON serialization utilities
+    writeBSONNull(): Uint8Array {
+        return new Uint8Array([0x0a]); // BSON null type
+    },
+
+    writeBSONBoolean(value: boolean): Uint8Array {
+        return new Uint8Array([0x08, value ? 0x01 : 0x00]); // BSON boolean type + value
+    },
+
+    writeBSONInt32(value: number): Uint8Array {
+        const buffer = new Uint8Array(5); // type + 4 bytes
+        buffer[0] = 0x10; // BSON int32 type
+        const view = new DataView(buffer.buffer);
+        view.setInt32(1, value, true); // little-endian
+        return buffer;
+    },
+
+    writeBSONInt64(value: number | bigint): Uint8Array {
+        const buffer = new Uint8Array(9); // type + 8 bytes
+        buffer[0] = 0x12; // BSON int64 type
+        const view = new DataView(buffer.buffer);
+        if (typeof value === 'number') {
+            view.setBigInt64(1, BigInt(value), true); // little-endian
+        } else {
+            view.setBigInt64(1, value, true); // little-endian
+        }
+        return buffer;
+    },
+
+    writeBSONDouble(value: number): Uint8Array {
+        const buffer = new Uint8Array(9); // type + 8 bytes
+        buffer[0] = 0x01; // BSON double type
+        const view = new DataView(buffer.buffer);
+        view.setFloat64(1, value, true); // little-endian
+        return buffer;
+    },
+
+    writeBSONString(value: string): Uint8Array {
+        const utf8Bytes = new TextEncoder().encode(value);
+        const stringLength = utf8Bytes.length + 1; // include null terminator
+        const buffer = new Uint8Array(1 + 4 + stringLength); // type + length + string + null
+        buffer[0] = 0x02; // BSON string type
+        const view = new DataView(buffer.buffer);
+        view.setInt32(1, stringLength, true); // little-endian
+        buffer.set(utf8Bytes, 5);
+        buffer[buffer.length - 1] = 0; // null terminator
+        return buffer;
+    },
+
+    writeBSONBinary(data: Uint8Array, subtype: number = 0x00): Uint8Array {
+        const buffer = new Uint8Array(1 + 4 + 1 + data.length); // type + length + subtype + data
+        buffer[0] = 0x05; // BSON binary type
+        const view = new DataView(buffer.buffer);
+        view.setInt32(1, data.length, true); // little-endian
+        buffer[5] = subtype;
+        buffer.set(data, 6);
+        return buffer;
+    },
+
+    writeBSONArray(items: Uint8Array[]): Uint8Array {
+        // Calculate total size
+        let totalSize = 1 + 4; // type + document size
+        items.forEach((item, index) => {
+            totalSize += String(index).length + 1 + item.length; // key + null + item
+        });
+        totalSize += 1; // document terminator
+
+        const buffer = new Uint8Array(totalSize);
+        buffer[0] = 0x04; // BSON array type
+        const view = new DataView(buffer.buffer);
+        view.setInt32(1, totalSize - 1, true); // document size (excluding type byte)
+
+        let position = 5;
+        items.forEach((item, index) => {
+            const keyBytes = new TextEncoder().encode(String(index));
+            buffer.set(keyBytes, position);
+            position += keyBytes.length;
+            buffer[position] = 0; // null terminator for key
+            position += 1;
+            buffer.set(item, position);
+            position += item.length;
+        });
+        buffer[buffer.length - 1] = 0; // document terminator
+        return buffer;
+    },
+
+    writeBSONDocument(fields: Array<{name: string; type: number; data: Uint8Array}>): Uint8Array {
+        // Calculate total size
+        let totalSize = 1 + 4; // type + document size
+        fields.forEach((field) => {
+            totalSize += 1 + field.name.length + 1 + field.data.length; // type + key + null + data
+        });
+        totalSize += 1; // document terminator
+
+        const buffer = new Uint8Array(totalSize);
+        buffer[0] = 0x03; // BSON document type
+        const view = new DataView(buffer.buffer);
+        view.setInt32(1, totalSize - 1, true); // document size (excluding type byte)
+
+        let position = 5;
+        fields.forEach((field) => {
+            buffer[position] = field.type;
+            position += 1;
+            const keyBytes = new TextEncoder().encode(field.name);
+            buffer.set(keyBytes, position);
+            position += keyBytes.length;
+            buffer[position] = 0; // null terminator for key
+            position += 1;
+            buffer.set(field.data, position);
+            position += field.data.length;
+        });
+        buffer[buffer.length - 1] = 0; // document terminator
+        return buffer;
+    },
 };
 
 /**
