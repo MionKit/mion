@@ -329,29 +329,151 @@ function generateInlinePropertyAccess(properties: PropertyInfo[]): jitCode {
 - Test error handling and edge cases
 - Test compatibility with MongoDB BSON
 
-### 8. Implementation Phases
+### 8. Progressive Implementation Strategy
 
-#### Phase 1: Basic Types (Week 1)
+#### Start with Atomic Types First
 
-- Implement primitive types (null, boolean, number, string)
-- Basic buffer utilities
-- Simple object serialization
+The implementation should follow a progressive approach, starting with the simplest atomic types and gradually building up to complex TypeScript features:
 
-#### Phase 2: Complex Types (Week 2)
+#### Phase 1: Atomic Types Foundation
 
-- Arrays and nested objects
-- Binary data support
-- Union type handling
+**Target ReflectionKind cases:**
 
-#### Phase 3: Optimization (Week 3)
+```typescript
+// Start with these basic cases in toBSON.ts and fromBSON.ts
+case ReflectionKind.null:
+case ReflectionKind.boolean:
+case ReflectionKind.number:
+case ReflectionKind.string:
+case ReflectionKind.bigint:
+```
+
+**Implementation order:**
+
+1. **Null and Boolean** - Simplest types, no variable data
+2. **Numbers** - Integer vs float detection logic
+3. **Strings** - Variable length with UTF-8 encoding
+4. **BigInt** - 64-bit integer handling
+
+**Test file structure:**
+
+```typescript
+// bson.spec.ts - Start with atomic types
+describe('BSON Atomic Types', () => {
+  describe('null and undefined', () => {
+    it('should serialize null to BSON null type', () => {});
+    it('should deserialize BSON null to null', () => {});
+  });
+
+  describe('boolean', () => {
+    it('should serialize true/false to BSON boolean', () => {});
+    it('should deserialize BSON boolean correctly', () => {});
+  });
+
+  describe('numbers', () => {
+    it('should serialize integers as BSON int32 when in range', () => {});
+    it('should serialize large integers as BSON int64', () => {});
+    it('should serialize floats as BSON double', () => {});
+  });
+
+  describe('strings', () => {
+    it('should serialize strings with UTF-8 encoding', () => {});
+    it('should handle empty strings', () => {});
+    it('should handle unicode characters', () => {});
+  });
+});
+```
+
+#### Phase 2: Simple Collections
+
+**Target ReflectionKind cases:**
+
+```typescript
+case ReflectionKind.array:
+case ReflectionKind.object: // Simple objects without complex features
+case ReflectionKind.literal:
+```
+
+**Build upon atomic foundation:**
+
+- Arrays of atomic types
+- Simple objects with atomic properties
+- Literal types (string/number/boolean literals)
+
+#### Phase 3: Advanced Collections
+
+**Target ReflectionKind cases:**
+
+```typescript
+case ReflectionKind.tuple:
+case ReflectionKind.map:
+case ReflectionKind.set:
+case ReflectionKind.class:
+```
+
+**Leverage existing JSON logic:**
+
+- Reference `MapRunType.toJsonVal()` for Map handling
+- Reference `SetRunType.toJsonVal()` for Set handling
+- Reference `ClassRunType.toJsonVal()` for Class serialization
+
+#### Phase 4: Complex TypeScript Features
+
+**Target ReflectionKind cases:**
+
+```typescript
+case ReflectionKind.union:
+case ReflectionKind.intersection:
+case ReflectionKind.function:
+case ReflectionKind.promise:
+```
+
+**Advanced features:**
+
+- Union type discrimination
+- Optional properties
+- Branded types
+- Function serialization (via toCode)
+
+#### Phase 5: Optimization & Polish
 
 - Performance optimizations
 - Buffer pooling
 - Size pre-calculation
+- Comprehensive error handling
 
-#### Phase 4: Testing & Polish (Week 4)
+### 9. Implementation Timeline
 
-- Comprehensive test suite
+#### Phase 1: Atomic Types Foundation
+
+- Implement `bsonUtils.ts` with basic buffer utilities
+- Implement atomic types in `toBSON.ts` and `fromBSON.ts`
+- Create basic test suite for atomic types
+- Add BSON utilities to `jitUtils.ts`
+
+#### Phase 2: Simple Collections
+
+- Arrays and simple objects
+- Literal types
+- Nested object serialization
+- Expand test coverage
+
+#### Phase 3: Advanced Collections
+
+- Maps, Sets, Classes, Tuples
+- Reference existing JSON implementations
+- Complex object handling
+
+#### Phase 4: Complex TypeScript Features
+
+- Union types and intersections
+- Optional properties and branded types
+- Function serialization integration
+
+#### Phase 5: Optimization & Polish
+
+- Performance benchmarking
+- Buffer pooling and size optimization
 - Error handling improvements
 - Documentation and examples
 
