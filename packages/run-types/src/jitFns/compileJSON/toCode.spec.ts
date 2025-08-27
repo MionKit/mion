@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {runType} from '../lib/runType';
-import {JitFunctions} from '../constants.functions';
+import {runType} from '../../lib/runType';
+import {JitFunctions} from '../../constants.functions';
 
 it('toCode should transform functions to code using toString()', () => {
     // Create a type with a function

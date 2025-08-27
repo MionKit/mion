@@ -35,8 +35,15 @@ export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: '', pλth: '[]', εrr: '[]'} as const;
 export const jitArgsWithOptions = {vλl: 'v', θpts: 'opts'} as const;
 export const jitDefaultArgsWithOptions = {vλl: '', θpts: '{}'} as const;
-export const jitBSONArgs = {vλl: 'v'} as const;
-export const jitDefaultBSONArgs = {vλl: ''} as const;
+export const jitBSONArgs = {vλl: 'v', cTx: 'ctx'} as const;
+export const jitDefaultBSONWriterArgs = {
+    vλl: '',
+    cTx: '{buffer:new Uint8Array(0),position:0,bytesWritten:0,tempBuffer:new Uint8Array(0)}',
+} as const;
+export const jitDefaultBSONReaderArgs = {
+    vλl: '',
+    cTx: '{buffer:new Uint8Array(0),position:0,bytesRead:0,value:undefined}',
+} as const;
 
 // ######## !IMPORTANT: ALL JIT FUNCTIONS IDs MUST BE UNIQUE and short ########
 
@@ -91,33 +98,20 @@ export const jitSerializationFunctions = {
     },
     // BSON serialization functions
     toBSON: {
-        id: 'tbs',
+        id: 'tBS',
         name: 'toBSON',
         type: CodeTypes.expression,
         jitArgs,
-        jitDefaultArgs,
+        jitDefaultArgs: jitDefaultBSONWriterArgs,
+        import: () => import('./jitFns/compileBSON/toBSON').then((m) => m._compileToBSON),
     },
     fromBSON: {
-        id: 'fbs',
+        id: 'fBS',
         name: 'fromBSON',
         type: CodeTypes.statement,
         jitArgs,
-        jitDefaultArgs,
-    },
-    // Legacy binary functions (not yet implemented)
-    toBinary: {
-        id: 'tb',
-        name: 'toBinary',
-        type: CodeTypes.statement,
-        jitArgs,
-        jitDefaultArgs,
-    },
-    fromBinary: {
-        id: 'fb',
-        name: 'fromBinary',
-        type: CodeTypes.statement,
-        jitArgs,
-        jitDefaultArgs,
+        jitDefaultArgs: jitDefaultBSONReaderArgs,
+        import: () => import('./jitFns/compileBSON/fromBSON').then((m) => m._compileFromBSON),
     },
     // apply type formatters, ie: lowercase, uppercase, trim, etc
     format: {

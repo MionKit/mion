@@ -6,27 +6,27 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import {ReflectionSubKind} from '../constants.kind';
-import {JitFunctions} from '../constants.functions';
-import {JitCompiler} from '../lib/jitCompiler';
-import {createIfElseFn, isSafePropName} from '../lib/utils';
-import type {IndexSignatureRunType} from '../runType/member/indexProperty';
-import type {jitCode, JitFnID} from '../types';
-import type {BaseRunType} from '../lib/baseRunTypes';
-import type {ClassRunType} from '../runType/collection/class';
-import type {PropertyRunType} from '../runType/member/property';
-import type {MapRunType} from '../runType/native/map';
-import type {SetRunType} from '../runType/native/set';
-import type {InterfaceRunType} from '../runType/collection/interface';
-import type {TupleRunType} from '../runType/collection/tuple';
-import type {FunctionParamsRunType} from '../runType/collection/functionParams';
-import type {UnionRunType} from '../runType/collection/union';
-import type {ParameterRunType} from '../runType/member/param';
-import type {RestParamsRunType} from '../runType/member/restParams';
-import type {ArrayRunType} from '../runType/member/array';
-import type {MemberRunType} from '../lib/baseRunTypes';
-import type {LiteralRunType} from '../runType/atomic/literal';
-import type {IterableRunType} from '../runType/native/Iterable';
+import {ReflectionSubKind} from '../../constants.kind';
+import {JitFunctions} from '../../constants.functions';
+import {JitCompiler} from '../../lib/jitCompiler';
+import {createIfElseFn, isSafePropName} from '../../lib/utils';
+import type {IndexSignatureRunType} from '../../runType/member/indexProperty';
+import type {jitCode, JitFnID} from '../../types';
+import type {BaseRunType} from '../../lib/baseRunTypes';
+import type {ClassRunType} from '../../runType/collection/class';
+import type {PropertyRunType} from '../../runType/member/property';
+import type {MapRunType} from '../../runType/native/map';
+import type {SetRunType} from '../../runType/native/set';
+import type {InterfaceRunType} from '../../runType/collection/interface';
+import type {TupleRunType} from '../../runType/collection/tuple';
+import type {FunctionParamsRunType} from '../../runType/collection/functionParams';
+import type {UnionRunType} from '../../runType/collection/union';
+import type {ParameterRunType} from '../../runType/member/param';
+import type {RestParamsRunType} from '../../runType/member/restParams';
+import type {ArrayRunType} from '../../runType/member/array';
+import type {MemberRunType} from '../../lib/baseRunTypes';
+import type {LiteralRunType} from '../../runType/atomic/literal';
+import type {IterableRunType} from '../../runType/native/Iterable';
 
 type Operation = typeof JitFunctions.jsonStringify.id | typeof JitFunctions.toCode.id;
 

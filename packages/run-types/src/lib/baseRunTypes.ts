@@ -43,12 +43,12 @@ import {
     defaultIgnoreFormatProps,
 } from './formats';
 import {typeParamsToString} from './utils';
-import {_compileJsonStringify} from '../jitFns/jsonStringify';
-import {_compileToBSON} from '../jitFns/toBSON';
-import {_compileFromBSON} from '../jitFns/fromBSON';
+import {_compileJsonStringify} from '../jitFns/compileJSON/jsonStringify';
+import {_compileToBSON} from '../jitFns/compileBSON/toBSON';
+import {_compileFromBSON} from '../jitFns/compileBSON/fromBSON';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core';
-import {_compileToCode} from '../jitFns/toCode';
+import {_compileToCode} from '../jitFns/compileJSON/toCode';
 import {defaultMockOptions} from '../mocking/constants.mock';
 import {getENV} from '@mionkit/core';
 
