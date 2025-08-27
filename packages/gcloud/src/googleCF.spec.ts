@@ -63,7 +63,7 @@ describe('serverless router should', () => {
     beforeAll(async () => {
         server = await initServer(port);
         resetGoogleCFOpts();
-        initRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
         registerRoutes({changeUserName, getDate, updateHeaders});
     });
 
@@ -156,7 +156,7 @@ describe('serverless router should', () => {
     it('get default headers', async () => {
         const smallPort = port + 1;
         const routerOpts = {
-            sharedDataFactory: getSharedData,
+            contextDataFactory: getSharedData,
             prefix: 'api/',
         };
         const httpOpts = {

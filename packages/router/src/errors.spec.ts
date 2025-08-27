@@ -11,12 +11,12 @@ import {initRouter, resetRouter} from './router';
 describe('Route errors should', () => {
     it('automatically generate error ids when RouteOptions autoGenerateErrorId is set to true', () => {
         initRouter({autoGenerateErrorId: true});
-        const error = new RpcError({statusCode: 400, publicMessage: 'error'});
+        const error = new RpcError({statusCode: 400, publicMessage: 'error', type: 'test-error'});
         expect(typeof error.id).toEqual('string');
 
         resetRouter();
         initRouter({autoGenerateErrorId: false});
-        const error2 = new RpcError({statusCode: 400, publicMessage: 'error'});
+        const error2 = new RpcError({statusCode: 400, publicMessage: 'error', type: 'test-error'});
         expect(error2.id).toEqual(undefined);
     });
 });

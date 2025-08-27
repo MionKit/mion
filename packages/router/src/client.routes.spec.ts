@@ -338,7 +338,7 @@ describe('Client Routes should', () => {
     afterEach(() => resetRouter());
 
     it('get Remote Hooks Only info from id', async () => {
-        initRouter({sharedDataFactory: getSharedData});
+        initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
         registerRoutes(clientRoutes);
 
@@ -364,7 +364,7 @@ describe('Client Routes should', () => {
     });
 
     it('get Remote Route info from id, it should also return the hooks from the execution path', async () => {
-        initRouter({sharedDataFactory: getSharedData});
+        initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
         registerRoutes(clientRoutes);
 
@@ -391,7 +391,7 @@ describe('Client Routes should', () => {
     });
 
     it('get All Remote Methods info when getAllRemoteMethods is true', async () => {
-        initRouter({sharedDataFactory: getSharedData});
+        initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
         registerRoutes(clientRoutes);
 
@@ -415,7 +415,7 @@ describe('Client Routes should', () => {
     });
 
     it('get Remote Methods info from route path', async () => {
-        initRouter({sharedDataFactory: getSharedData});
+        initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
         registerRoutes(clientRoutes);
 
@@ -441,7 +441,7 @@ describe('Client Routes should', () => {
     });
 
     it('fail when remote method is private or not defined', async () => {
-        initRouter({sharedDataFactory: getSharedData});
+        initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
         registerRoutes(clientRoutes);
 
@@ -468,7 +468,7 @@ describe('Client Routes should', () => {
     });
 
     it('fail when route path is not defined', async () => {
-        initRouter({sharedDataFactory: getSharedData});
+        initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
         registerRoutes(clientRoutes);
 

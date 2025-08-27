@@ -94,7 +94,7 @@ export function initMionRouter<R extends Routes>(routes: R, opts?: Partial<Route
 /**
  * Initializes the Router.
  * @param application
- * @param sharedDataFactory a factory function that returns an object to be shared in the `callContext.shared`
+ * @param contextDataFactory a factory function that returns an object to be shared in the `callContext.shared`
  * @param routerOptions
  * @returns
  */
@@ -476,19 +476,19 @@ function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawMetho
 }
 
 /**
- * Validates that a sharedDataFactory returns a valid shared data object.
- * @param sharedDataFactory The factory function to validate
+ * Validates that a contextDataFactory returns a valid context data object.
+ * @param contextDataFactory The factory function to validate
  * @throws Error if the factory doesn't return a plain object with at least one property
  */
 function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
-    if (!opts?.sharedDataFactory) return;
-    const testSharedData = opts.sharedDataFactory();
+    if (!opts?.contextDataFactory) return;
+    const testSharedData = opts.contextDataFactory();
     if (
         typeof testSharedData !== 'object' ||
         Array.isArray(testSharedData) ||
         testSharedData === null ||
         Object.keys(testSharedData).length === 0
     ) {
-        throw new Error('sharedDataFactory must return a plain object with at least one property');
+        throw new Error('contextDataFactory must return a plain object with at least one property');
     }
 }
