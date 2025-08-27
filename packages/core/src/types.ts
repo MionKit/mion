@@ -32,18 +32,6 @@ export interface JITUtils {
     setDeserializeFn<C extends AnyClass>(cls: C, deserializeFn: DeserializeClassFn<InstanceType<C>>): void;
     useDeserializeFn(className: string): DeserializeClassFn<any>;
     getDeserializeFn(className: string): DeserializeClassFn<any> | undefined;
-
-    // BSON serialization utilities
-    writeBSONNull(): Uint8Array;
-    writeBSONBoolean(value: boolean): Uint8Array;
-    writeBSONInt32(value: number): Uint8Array;
-    writeBSONInt64(value: number | bigint): Uint8Array;
-    writeBSONDouble(value: number): Uint8Array;
-    writeBSONString(value: string): Uint8Array;
-    writeBSONBinary(data: Uint8Array, subtype?: number): Uint8Array;
-    writeBSONArray(items: Uint8Array[]): Uint8Array;
-    writeBSONDocument(fields: Array<{name: string; type: number; data: Uint8Array}>): Uint8Array;
-
     // TODO: all functions bellow could be moved to pure functions instead being part of jitUtils
     getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[];
     hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean;
@@ -60,6 +48,8 @@ export interface JITUtils {
         fmtAccessPath?: StrNumber[]
     ): void;
     safeKey(value: any): any;
+    textEncoder: TextEncoder;
+    textDecoder: TextDecoder;
 }
 
 // ########################################## Options ##########################################
