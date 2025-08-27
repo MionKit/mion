@@ -87,9 +87,13 @@ describe('BSON Atomic Types Serialization', () => {
             const rt = runType<null>();
             const toBSON = rt.createJitFunction(JitFunctions.toBSON);
 
+            // The function now returns a Uint8Array
             const result = toBSON(null);
+
+            // Check that result is a Uint8Array with null type (0x0a)
             expect(result).toBeInstanceOf(Uint8Array);
             expect(result[0]).toBe(BSON_TYPES.NULL);
+            expect(result.length).toBe(1);
         });
     });
 
@@ -102,11 +106,13 @@ describe('BSON Atomic Types Serialization', () => {
             expect(trueResult).toBeInstanceOf(Uint8Array);
             expect(trueResult[0]).toBe(BSON_TYPES.BOOLEAN);
             expect(trueResult[1]).toBe(0x01);
+            expect(trueResult.length).toBe(2);
 
             const falseResult = toBSON(false);
             expect(falseResult).toBeInstanceOf(Uint8Array);
             expect(falseResult[0]).toBe(BSON_TYPES.BOOLEAN);
             expect(falseResult[1]).toBe(0x00);
+            expect(falseResult.length).toBe(2);
         });
     });
 
