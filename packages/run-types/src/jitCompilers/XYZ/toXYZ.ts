@@ -9,15 +9,14 @@ import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import type {jitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
-import type {JitBinaryCompiler} from '../../lib/jitCompiler';
 
 /**
- * Main Binary serialization compiler function
- * Generates JIT code to serialize values to Binary format following Binary 1.1 specification
+ * Main XYZ serialization compiler function
+ * Generates JIT code to serialize values to XYZ format following XYZ 1.1 specification
  *
- * This function generates JavaScript expressions that return Uint8Array containing Binary bytes.
+ * This function generates JavaScript expressions that return Uint8Array containing XYZ bytes.
  */
-export function _compileToBinary(runType: BaseRunType, comp: JitBinaryCompiler): jitCode {
+export function _compileToXYZ(runType: BaseRunType, comp: JitXYZCompiler): jitCode {
     const src = runType.src;
     const kind = src.kind;
 
@@ -61,20 +60,20 @@ export function _compileToBinary(runType: BaseRunType, comp: JitBinaryCompiler):
             break;
 
         case ReflectionKind.object:
-            throw new Error('Binary serialization not supported for generic object types');
+            throw new Error('XYZ serialization not supported for generic object types');
 
         case ReflectionKind.enum:
             // TODO
             break;
 
         case ReflectionKind.enumMember:
-            throw new Error('Binary serialization not supported for enum member types');
+            throw new Error('XYZ serialization not supported for enum member types');
 
         case ReflectionKind.never:
-            throw new Error('Never type cannot be serialized to Binary');
+            throw new Error('Never type cannot be serialized to XYZ');
 
         case ReflectionKind.templateLiteral:
-            throw new Error('Template literals are not supported in Binary serialization');
+            throw new Error('Template literals are not supported in XYZ serialization');
 
         case ReflectionKind.literal: {
             // Literal types are serialized as their underlying value
@@ -102,7 +101,7 @@ export function _compileToBinary(runType: BaseRunType, comp: JitBinaryCompiler):
             }
 
             // Recursively call the main function with the changed kind
-            const result = _compileToBinary(runType, comp);
+            const result = _compileToXYZ(runType, comp);
 
             // Restore the original kind
             (src as any).kind = originalKind;
@@ -129,7 +128,7 @@ export function _compileToBinary(runType: BaseRunType, comp: JitBinaryCompiler):
                 break;
             } else {
                 throw new Error(
-                    'Binary serialization not supported for function types, call compileParams or compileReturn instead'
+                    'XYZ serialization not supported for function types, call compileParams or compileReturn instead'
                 );
             }
 
@@ -164,14 +163,14 @@ export function _compileToBinary(runType: BaseRunType, comp: JitBinaryCompiler):
             break;
 
         case ReflectionKind.promise:
-            throw new Error('Binary serialization not supported for Promise types');
+            throw new Error('XYZ serialization not supported for Promise types');
 
         // ###################### COLLECTION RUNTYPES ######################
         // Types that contain other types as members
         case ReflectionKind.objectLiteral:
         case ReflectionKind.intersection:
             if (runType.src.subKind === ReflectionSubKind.nonSerializable) {
-                throw new Error('Binary serialization is disabled for Non Serializable types');
+                throw new Error('XYZ serialization is disabled for Non Serializable types');
             } else {
                 // TODO: Handle object literal/intersection
                 break;
@@ -189,7 +188,7 @@ export function _compileToBinary(runType: BaseRunType, comp: JitBinaryCompiler):
                     // TODO: Handle Set class
                     break;
                 case ReflectionSubKind.nonSerializable:
-                    throw new Error('Binary serialization disabled for Non Serializable types');
+                    throw new Error('XYZ serialization disabled for Non Serializable types');
                 default:
                     // TODO: Handle regular class
                     break;
@@ -197,20 +196,20 @@ export function _compileToBinary(runType: BaseRunType, comp: JitBinaryCompiler):
             break;
 
         case ReflectionKind.infer:
-            throw new Error('Infer is not supported in Binary serialization');
+            throw new Error('Infer is not supported in XYZ serialization');
 
         case ReflectionKind.tuple:
             // TODO
             break;
 
         case ReflectionKind.typeParameter:
-            throw new Error('Type parameter not implemented in Binary serialization');
+            throw new Error('Type parameter not implemented in XYZ serialization');
 
         case ReflectionKind.union:
             // TODO
             break;
 
         default:
-            throw new Error(`Binary serialization not supported for ${ReflectionKind[kind]} types`);
+            throw new Error(`XYZ serialization not supported for ${ReflectionKind[kind]} types`);
     }
 }

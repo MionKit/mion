@@ -10,5 +10,5 @@
   "references": [{"path": "../core/tsconfig.esm.json"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
+  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist", "src/jitCompilers/XYZ/**"]
 }
