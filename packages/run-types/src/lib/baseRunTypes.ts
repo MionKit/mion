@@ -31,7 +31,8 @@ import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
 import type {TypeIndexSignature, TypeProperty, Type, TypeFunction} from '@deepkit/type';
 import {getJitFnArgCallVarName, getPropIndex, memorize, toLiteral} from './utils';
-import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler, MockJitCompiler} from './jitCompiler';
+import {getJITFnHash, createJitCompiler, MockJitCompiler} from './jitCompiler';
+import type {JitCompiler, JitBinaryCompiler, JitErrorsCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from '@mionkit/core';
 import {createUniqueHash} from './quickHash';
@@ -43,12 +44,12 @@ import {
     defaultIgnoreFormatProps,
 } from './formats';
 import {typeParamsToString} from './utils';
-import {_compileJsonStringify} from '../jitFns/compileJSON/jsonStringify';
-import {_compileToBSON} from '../jitFns/compileBSON/toBSON';
-import {_compileFromBSON} from '../jitFns/compileBSON/fromBSON';
+import {_compileJsonStringify} from '../jitCompilers/json/jsonStringify';
+import {_compileToBinary} from '../jitCompilers/binary/toBinary';
+import {_compileFromBinary} from '../jitCompilers/binary/fromBinary';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core';
-import {_compileToCode} from '../jitFns/compileJSON/toCode';
+import {_compileToCode} from '../jitCompilers/json/toCode';
 import {defaultMockOptions} from '../mocking/constants.mock';
 import {getENV} from '@mionkit/core';
 
@@ -203,8 +204,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     abstract _compileTypeErrors(comp: JitErrorsCompiler): jitCode;
     abstract _compileToJsonVal(comp: JitCompiler): jitCode;
     abstract _compileFromJsonVal(comp: JitCompiler): jitCode;
-    abstract _compileToBSON(comp: JitCompiler): jitCode;
-    abstract _compileFromBSON(comp: JitCompiler): jitCode;
     abstract _compileHasUnknownKeys(comp: JitCompiler): jitCode;
     abstract _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode;
     abstract _compileStripUnknownKeys(comp: JitCompiler): jitCode;
@@ -224,11 +223,14 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     compileFromJsonVal(comp: JitCompiler): jitCode {
         return this.compile(comp, JitFunctions.fromJsonVal.id);
     }
-    compileToBSON(comp: JitCompiler): jitCode {
-        return this.compile(comp, JitFunctions.toBSON.id);
+    compileJsonStringify(comp: JitCompiler): jitCode {
+        return this.compile(comp, JitFunctions.jsonStringify.id);
     }
-    compileFromBSON(comp: JitCompiler): jitCode {
-        return this.compile(comp, JitFunctions.fromBSON.id);
+    compileToBinary(comp: JitCompiler): jitCode {
+        return this.compile(comp, JitFunctions.toBinary.id);
+    }
+    compileFromBinary(comp: JitCompiler): jitCode {
+        return this.compile(comp, JitFunctions.fromBinary.id);
     }
     compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         return this.compile(comp, JitFunctions.unknownKeyErrors.id);
@@ -271,16 +273,16 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                     code = this._compileToJsonVal(comp);
                     break;
                 case JitFunctions.fromJsonVal.id:
-                    code =this._compileFromJsonVal(comp);
+                    code = this._compileFromJsonVal(comp);
                     break;
                 case JitFunctions.jsonStringify.id:
                     code = _compileJsonStringify(this, comp);
                     break;
-                case JitFunctions.toBSON.id:
-                    code = _compileToBSON(this, comp);
+                case JitFunctions.toBinary.id:
+                    code = _compileToBinary(this, comp as JitBinaryCompiler);
                     break;
-                case JitFunctions.fromBSON.id:
-                    code = _compileFromBSON(this, comp);
+                case JitFunctions.fromBinary.id:
+                    code = _compileFromBinary(this, comp as JitBinaryCompiler);
                     break;
                 case JitFunctions.toCode.id:
                         code = _compileToCode(this, comp);
@@ -457,10 +459,10 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return undefined;
     }
-    _compileToBSON(comp: JitCompiler): jitCode {
+    _compileToBinary(comp: JitCompiler): jitCode {
         return undefined;
     }
-    _compileFromBSON(comp: JitCompiler): jitCode {
+    _compileFromBinary(comp: JitCompiler): jitCode {
         return undefined;
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
@@ -481,8 +483,8 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
             case JitFunctions.toJsonVal.id:
             case JitFunctions.fromJsonVal.id:
             case JitFunctions.jsonStringify.id:
-            case JitFunctions.toBSON.id:
-            case JitFunctions.fromBSON.id:
+            case JitFunctions.toBinary.id:
+            case JitFunctions.fromBinary.id:
             case JitFunctions.toCode.id:
                 return 'E';
             default:
@@ -547,10 +549,10 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .filter((code) => !!code)
             .join(';');
     }
-    _compileToBSON(comp: JitCompiler): jitCode {
+    _compileToBinary(comp: JitCompiler): jitCode {
         return undefined;
     }
-    _compileFromBSON(comp: JitCompiler): jitCode {
+    _compileFromBinary(comp: JitCompiler): jitCode {
         return undefined;
     }
     _getTypeID(stack: BaseRunType[] = []): StrNumber {
@@ -625,13 +627,13 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (!code) return undefined;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }
-    _compileToBSON(comp: JitCompiler): jitCode {
-        const code = this.getJitChild(comp)?.compileToBSON(comp);
+    _compileToBinary(comp: JitCompiler): jitCode {
+        const code = this.getJitChild(comp)?.compileToBinary(comp);
         if (!code) return undefined;
-        return this.isOptional() ? `(${comp.getChildVλl()} !== undefined ? ${code} : utl.writeBSONNull())` : code;
+        return this.isOptional() ? `(${comp.getChildVλl()} !== undefined ? ${code} : utl.writeBinaryNull())` : code;
     }
-    _compileFromBSON(comp: JitCompiler): jitCode {
-        const code = this.getJitChild(comp)?.compileFromBSON(comp);
+    _compileFromBinary(comp: JitCompiler): jitCode {
+        const code = this.getJitChild(comp)?.compileFromBinary(comp);
         if (!code) return undefined;
         return code;
     }

@@ -260,8 +260,8 @@ export interface JitCompiledFunctions {
     toJsonVal: JitCompiledFn<ToJsonValFn>;
     fromJsonVal: JitCompiledFn<FromJsonValFn>;
     jsonStringify: JitCompiledFn<JsonStringifyFn>;
-    toBSON: JitCompiledFn<ToBSONFn>;
-    fromBSON: JitCompiledFn<FromBSONFn>;
+    toBinary: JitCompiledFn<ToBinaryFn>;
+    fromBinary: JitCompiledFn<FromBinaryFn>;
 }
 export interface SerializableJITFunctions {
     isType: JitCompiledFnData;
@@ -269,8 +269,8 @@ export interface SerializableJITFunctions {
     toJsonVal: JitCompiledFnData;
     fromJsonVal: JitCompiledFnData;
     jsonStringify: JitCompiledFnData;
-    toBSON: JitCompiledFnData;
-    fromBSON: JitCompiledFnData;
+    toBinary: JitCompiledFnData;
+    fromBinary: JitCompiledFnData;
 }
 export interface JitFunctionsHashes {
     isType: string;
@@ -278,8 +278,8 @@ export interface JitFunctionsHashes {
     toJsonVal: string;
     fromJsonVal: string;
     jsonStringify: string;
-    toBSON: string;
-    fromBSON: string;
+    toBinary: string;
+    fromBinary: string;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type FromJsonValFn = (value: JSONValue) => any;
@@ -287,8 +287,8 @@ export type ToJsonValFn = (value: any) => JSONValue;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
 export type ToCodeFn = (value: any) => string;
-export type ToBSONFn = (value: any) => Uint8Array;
-export type FromBSONFn = (bson: Uint8Array) => any;
+export type ToBinaryFn = (value: any) => Uint8Array;
+export type FromBinaryFn = (bson: Uint8Array) => any;
 
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;
@@ -329,8 +329,8 @@ export type SerializableJitHashes = {
     toJsonVal: string;
     fromJsonVal: string;
     jsonStringify: string;
-    toBSON: string;
-    fromBSON: string;
+    toBinary: string;
+    fromBinary: string;
 };
 
 /** Shared interface for PublicMethod that can be used between client and server without handler dependencies */

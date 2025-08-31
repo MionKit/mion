@@ -9,33 +9,33 @@ import {runType} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
 
 /**
- * Helper function to perform a full roundtrip test: JS -> BSON -> JS
+ * Helper function to perform a full roundtrip test: JS -> Binary -> JS
  * @param value - The JavaScript value to test
- * @param toBSON - The toBSON function
- * @param fromBSON - The fromBSON function
+ * @param toBinary - The toBinary function
+ * @param fromBinary - The fromBinary function
  * @param debug - Whether to output debug information
  * @returns The deserialized value after roundtrip
  */
-function testRoundtrip<T>(value: T, toBSON: (val: T) => any, fromBSON: (data: any) => T, debug = false): T {
+function testRoundtrip<T>(value: T, toBinary: (val: T) => any, fromBinary: (data: any) => T, debug = false): T {
     if (debug) {
         console.log('Original value:', value);
         console.log('Type:', typeof value);
     }
 
-    // Serialize to BSON
-    const bsonData = toBSON(value);
+    // Serialize to Binary
+    const bsonData = toBinary(value);
     if (debug) {
         console.log(
-            'BSON bytes:',
+            'Binary bytes:',
             Array.from(bsonData as Uint8Array)
                 .map((b) => '0x' + b.toString(16).padStart(2, '0'))
                 .join(' ')
         );
-        console.log('BSON length:', bsonData.length);
+        console.log('Binary length:', bsonData.length);
     }
 
-    // Deserialize from BSON
-    const result = fromBSON(bsonData);
+    // Deserialize from Binary
+    const result = fromBinary(bsonData);
     if (debug) {
         console.log('Deserialized value:', result);
         console.log('Result type:', typeof result);
@@ -44,28 +44,28 @@ function testRoundtrip<T>(value: T, toBSON: (val: T) => any, fromBSON: (data: an
     return result;
 }
 
-describe('BSON JIT Serialization', () => {
+describe('Binary JIT Serialization', () => {
     describe('Atomic Types', () => {
         it('should handle null values', () => {
             const rt = runType<null>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const original = null;
-            const result = testRoundtrip(original, toBSON, fromBSON);
+            const result = testRoundtrip(original, toBinary, fromBinary);
             expect(result).toBe(null);
         });
 
         it('should handle boolean values', () => {
             const rt = runType<boolean>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const trueValue = true;
             const falseValue = false;
 
-            const resultTrue = testRoundtrip(trueValue, toBSON, fromBSON);
-            const resultFalse = testRoundtrip(falseValue, toBSON, fromBSON);
+            const resultTrue = testRoundtrip(trueValue, toBinary, fromBinary);
+            const resultFalse = testRoundtrip(falseValue, toBinary, fromBinary);
 
             expect(resultTrue).toBe(true);
             expect(resultFalse).toBe(false);
@@ -73,8 +73,8 @@ describe('BSON JIT Serialization', () => {
 
         it('should handle number values', () => {
             const rt = runType<number>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             // Test different number types
             const int32Value = 42;
@@ -82,62 +82,62 @@ describe('BSON JIT Serialization', () => {
             const floatValue = 3.14159;
             const largeIntValue = 2147483648; // Larger than int32
 
-            expect(testRoundtrip(int32Value, toBSON, fromBSON)).toBe(int32Value);
-            expect(testRoundtrip(negativeValue, toBSON, fromBSON)).toBe(negativeValue);
-            expect(testRoundtrip(floatValue, toBSON, fromBSON)).toBeCloseTo(floatValue, 10);
-            expect(testRoundtrip(largeIntValue, toBSON, fromBSON)).toBe(largeIntValue);
+            expect(testRoundtrip(int32Value, toBinary, fromBinary)).toBe(int32Value);
+            expect(testRoundtrip(negativeValue, toBinary, fromBinary)).toBe(negativeValue);
+            expect(testRoundtrip(floatValue, toBinary, fromBinary)).toBeCloseTo(floatValue, 10);
+            expect(testRoundtrip(largeIntValue, toBinary, fromBinary)).toBe(largeIntValue);
         });
 
         it('should handle string values', () => {
             const rt = runType<string>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const simpleString = 'hello world';
             const emptyString = '';
             const unicodeString = '🚀 Hello 世界 مرحبا';
             const specialChars = 'Line1\nLine2\tTabbed"Quoted\'Single';
 
-            expect(testRoundtrip(simpleString, toBSON, fromBSON)).toBe(simpleString);
-            expect(testRoundtrip(emptyString, toBSON, fromBSON)).toBe(emptyString);
-            expect(testRoundtrip(unicodeString, toBSON, fromBSON)).toBe(unicodeString);
-            expect(testRoundtrip(specialChars, toBSON, fromBSON)).toBe(specialChars);
+            expect(testRoundtrip(simpleString, toBinary, fromBinary)).toBe(simpleString);
+            expect(testRoundtrip(emptyString, toBinary, fromBinary)).toBe(emptyString);
+            expect(testRoundtrip(unicodeString, toBinary, fromBinary)).toBe(unicodeString);
+            expect(testRoundtrip(specialChars, toBinary, fromBinary)).toBe(specialChars);
         });
 
         it('should handle bigint values', () => {
             const rt = runType<bigint>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const smallBigInt = 123n;
             const largeBigInt = 9223372036854775807n; // Max safe int64
             const negativeBigInt = -456n;
 
-            expect(testRoundtrip(smallBigInt, toBSON, fromBSON)).toBe(smallBigInt);
-            expect(testRoundtrip(largeBigInt, toBSON, fromBSON)).toBe(largeBigInt);
-            expect(testRoundtrip(negativeBigInt, toBSON, fromBSON)).toBe(negativeBigInt);
+            expect(testRoundtrip(smallBigInt, toBinary, fromBinary)).toBe(smallBigInt);
+            expect(testRoundtrip(largeBigInt, toBinary, fromBinary)).toBe(largeBigInt);
+            expect(testRoundtrip(negativeBigInt, toBinary, fromBinary)).toBe(negativeBigInt);
         });
 
         it('should handle undefined values', () => {
             const rt = runType<undefined>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const original = undefined;
-            const result = testRoundtrip(original, toBSON, fromBSON);
+            const result = testRoundtrip(original, toBinary, fromBinary);
             expect(result).toBe(undefined);
         });
 
         it('should handle symbol values', () => {
             const rt = runType<symbol>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const namedSymbol = Symbol('test');
             const anonymousSymbol = Symbol();
 
-            const resultNamed = testRoundtrip(namedSymbol, toBSON, fromBSON);
-            const resultAnonymous = testRoundtrip(anonymousSymbol, toBSON, fromBSON);
+            const resultNamed = testRoundtrip(namedSymbol, toBinary, fromBinary);
+            const resultAnonymous = testRoundtrip(anonymousSymbol, toBinary, fromBinary);
 
             expect(typeof resultNamed).toBe('symbol');
             expect(resultNamed.description).toBe('test');
@@ -147,16 +147,16 @@ describe('BSON JIT Serialization', () => {
 
         it('should handle regexp values', () => {
             const rt = runType<RegExp>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const simpleRegex = /hello/;
             const complexRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/gi;
             const regexWithFlags = /test/gim;
 
-            const resultSimple = testRoundtrip(simpleRegex, toBSON, fromBSON);
-            const resultComplex = testRoundtrip(complexRegex, toBSON, fromBSON);
-            const resultFlags = testRoundtrip(regexWithFlags, toBSON, fromBSON);
+            const resultSimple = testRoundtrip(simpleRegex, toBinary, fromBinary);
+            const resultComplex = testRoundtrip(complexRegex, toBinary, fromBinary);
+            const resultFlags = testRoundtrip(regexWithFlags, toBinary, fromBinary);
 
             expect(resultSimple).toEqual(simpleRegex);
             expect(resultSimple.source).toBe(simpleRegex.source);
@@ -185,18 +185,18 @@ describe('BSON JIT Serialization', () => {
             }
 
             const numberRt = runType<NumberEnum>();
-            const numberToBSON = numberRt.createJitFunction(JitFunctions.toBSON);
-            const numberFromBSON = numberRt.createJitFunction(JitFunctions.fromBSON);
+            const numberToBinary = numberRt.createJitFunction(JitFunctions.toBinary);
+            const numberFromBinary = numberRt.createJitFunction(JitFunctions.fromBinary);
 
             const stringRt = runType<StringEnum>();
-            const stringToBSON = stringRt.createJitFunction(JitFunctions.toBSON);
-            const stringFromBSON = stringRt.createJitFunction(JitFunctions.fromBSON);
+            const stringToBinary = stringRt.createJitFunction(JitFunctions.toBinary);
+            const stringFromBinary = stringRt.createJitFunction(JitFunctions.fromBinary);
 
             const numberEnumValue = NumberEnum.Second;
             const stringEnumValue = StringEnum.Green;
 
-            expect(testRoundtrip(numberEnumValue, numberToBSON, numberFromBSON)).toBe(numberEnumValue);
-            expect(testRoundtrip(stringEnumValue, stringToBSON, stringFromBSON)).toBe(stringEnumValue);
+            expect(testRoundtrip(numberEnumValue, numberToBinary, numberFromBinary)).toBe(numberEnumValue);
+            expect(testRoundtrip(stringEnumValue, stringToBinary, stringFromBinary)).toBe(stringEnumValue);
         });
     });
 
@@ -204,12 +204,12 @@ describe('BSON JIT Serialization', () => {
         it('should handle string literals', () => {
             type StringLiteral = 'hello';
             const rt = runType<StringLiteral>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const original: StringLiteral = 'hello';
-            const bsonData = toBSON(original);
-            const result = fromBSON(bsonData);
+            const bsonData = toBinary(original);
+            const result = fromBinary(bsonData);
 
             expect(result).toBe('hello');
         });
@@ -217,12 +217,12 @@ describe('BSON JIT Serialization', () => {
         it('should handle number literals', () => {
             type NumberLiteral = 42;
             const rt = runType<NumberLiteral>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const original: NumberLiteral = 42;
-            const bsonData = toBSON(original);
-            const result = fromBSON(bsonData);
+            const bsonData = toBinary(original);
+            const result = fromBinary(bsonData);
 
             expect(result).toBe(42);
         });
@@ -230,12 +230,12 @@ describe('BSON JIT Serialization', () => {
         it('should handle boolean literals', () => {
             type BooleanLiteral = true;
             const rt = runType<BooleanLiteral>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const original: BooleanLiteral = true;
-            const bsonData = toBSON(original);
-            const result = fromBSON(bsonData);
+            const bsonData = toBinary(original);
+            const result = fromBinary(bsonData);
 
             expect(result).toBe(true);
         });
@@ -243,12 +243,12 @@ describe('BSON JIT Serialization', () => {
         it('should handle null literals', () => {
             type NullLiteral = null;
             const rt = runType<NullLiteral>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const original: NullLiteral = null;
-            const bsonData = toBSON(original);
-            const result = fromBSON(bsonData);
+            const bsonData = toBinary(original);
+            const result = fromBinary(bsonData);
 
             expect(result).toBe(null);
         });
@@ -256,12 +256,12 @@ describe('BSON JIT Serialization', () => {
         it('should handle bigint literals', () => {
             type BigIntLiteral = 123n;
             const rt = runType<BigIntLiteral>();
-            const toBSON = rt.createJitFunction(JitFunctions.toBSON);
-            const fromBSON = rt.createJitFunction(JitFunctions.fromBSON);
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
             const original: BigIntLiteral = 123n;
-            const bsonData = toBSON(original);
-            const result = fromBSON(bsonData);
+            const bsonData = toBinary(original);
+            const result = fromBinary(bsonData);
 
             expect(result).toBe(123n);
         });
@@ -272,24 +272,24 @@ describe('BSON JIT Serialization', () => {
             expect(() => {
                 type UnknownType = unknown;
                 const rt = runType<UnknownType>();
-                rt.createJitFunction(JitFunctions.toBSON);
-            }).toThrow('BSON serialization not supported for unknown/any types');
+                rt.createJitFunction(JitFunctions.toBinary);
+            }).toThrow('Binary serialization not supported for unknown/any types');
         });
 
         it('should throw for generic object types', () => {
             expect(() => {
                 type ObjectType = object;
                 const rt = runType<ObjectType>();
-                rt.createJitFunction(JitFunctions.toBSON);
-            }).toThrow('BSON serialization not supported for generic object types');
+                rt.createJitFunction(JitFunctions.toBinary);
+            }).toThrow('Binary serialization not supported for generic object types');
         });
 
         it('should throw for never types', () => {
             expect(() => {
                 type NeverType = never;
                 const rt = runType<NeverType>();
-                rt.createJitFunction(JitFunctions.toBSON);
-            }).toThrow('Never type cannot be serialized to BSON');
+                rt.createJitFunction(JitFunctions.toBinary);
+            }).toThrow('Never type cannot be serialized to Binary');
         });
     });
 });
