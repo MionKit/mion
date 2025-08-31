@@ -6,6 +6,7 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
+import {ReflectionSubKind} from '../../constants.kind';
 import type {jitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
 import type {JitBinaryCompiler} from '../../lib/jitCompiler';
@@ -108,6 +109,106 @@ function _compileFromBinaryType(runType: BaseRunType, comp: JitBinaryCompiler): 
 
             return result;
         }
+
+        // ###################### MEMBER RUNTYPES ######################
+        // Types that represent members of collections or other structures
+        case ReflectionKind.array:
+            // TODO
+            break;
+
+        case ReflectionKind.indexSignature:
+            // TODO
+            break;
+
+        case ReflectionKind.function:
+        case ReflectionKind.method:
+        case ReflectionKind.methodSignature:
+        case ReflectionKind.callSignature:
+            if (runType.src.subKind === ReflectionSubKind.params) {
+                // TODO: Handle function parameters
+                break;
+            } else {
+                throw new Error(
+                    'Binary deserialization not supported for function types, call compileParams or compileReturn instead'
+                );
+            }
+
+        case ReflectionKind.parameter:
+            switch (src.subKind) {
+                case ReflectionSubKind.mapKey:
+                    // TODO: Handle map key parameter
+                    break;
+                case ReflectionSubKind.mapValue:
+                    // TODO: Handle map value parameter
+                    break;
+                case ReflectionSubKind.setItem:
+                    // TODO: Handle set item parameter
+                    break;
+                default:
+                    // TODO: Handle regular parameter
+                    break;
+            }
+            break;
+
+        case ReflectionKind.property:
+        case ReflectionKind.propertySignature:
+            // TODO
+            break;
+
+        case ReflectionKind.rest:
+            // TODO
+            break;
+
+        case ReflectionKind.tupleMember:
+            // TODO
+            break;
+
+        case ReflectionKind.promise:
+            throw new Error('Binary deserialization not supported for Promise types');
+
+        // ###################### COLLECTION RUNTYPES ######################
+        // Types that contain other types as members
+        case ReflectionKind.objectLiteral:
+        case ReflectionKind.intersection:
+            if (runType.src.subKind === ReflectionSubKind.nonSerializable) {
+                throw new Error('Binary deserialization is disabled for Non Serializable types');
+            } else {
+                // TODO: Handle object literal/intersection
+                break;
+            }
+
+        case ReflectionKind.class:
+            switch (runType.src.subKind) {
+                case ReflectionSubKind.date:
+                    // TODO: Handle Date class
+                    break;
+                case ReflectionSubKind.map:
+                    // TODO: Handle Map class
+                    break;
+                case ReflectionSubKind.set:
+                    // TODO: Handle Set class
+                    break;
+                case ReflectionSubKind.nonSerializable:
+                    throw new Error('Binary deserialization disabled for Non Serializable types');
+                default:
+                    // TODO: Handle regular class
+                    break;
+            }
+            break;
+
+        case ReflectionKind.infer:
+            throw new Error('Infer is not supported in Binary deserialization');
+
+        case ReflectionKind.tuple:
+            // TODO
+            break;
+
+        case ReflectionKind.typeParameter:
+            throw new Error('Type parameter not implemented in Binary deserialization');
+
+        case ReflectionKind.union:
+            // TODO
+            break;
 
         default:
             throw new Error(`Binary deserialization not supported for ${ReflectionKind[kind]} types`);
