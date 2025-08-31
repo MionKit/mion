@@ -6,20 +6,19 @@
  * ######## */
 
 /**
- * BSON read context - mutable for performance with reusable objects
+ * Binary read context - mutable for performance with reusable objects
  */
-export interface BSONReadContext {
+export interface BinaryReadContext {
     buffer: Uint8Array;
     position: number;
     bytesRead: number;
-    value: any; // Last read value
 }
 
 /**
- * BSON write context - mutable for performance with reusable objects
+ * Binary write context - mutable for performance with reusable objects
  */
 
-export interface BSONWriteContext {
+export interface BinaryWriteContext {
     buffer: Uint8Array;
     position: number;
     bytesWritten: number;

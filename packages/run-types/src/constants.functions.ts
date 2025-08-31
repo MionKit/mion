@@ -35,12 +35,12 @@ export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: '', pλth: '[]', εrr: '[]'} as const;
 export const jitArgsWithOptions = {vλl: 'v', θpts: 'opts'} as const;
 export const jitDefaultArgsWithOptions = {vλl: '', θpts: '{}'} as const;
-export const jitBSONArgs = {vλl: 'v', cTx: 'ctx'} as const;
-export const jitDefaultBSONWriterArgs = {
+export const jitBinaryArgs = {vλl: 'v', cTx: 'ctx'} as const;
+export const jitDefaultBinaryWriterArgs = {
     vλl: '',
     cTx: '{buffer:new Uint8Array(0),position:0,bytesWritten:0,tempBuffer:new Uint8Array(0)}',
 } as const;
-export const jitDefaultBSONReaderArgs = {
+export const jitDefaultBinaryReaderArgs = {
     vλl: '',
     cTx: '{buffer:new Uint8Array(0),position:0,bytesRead:0,value:undefined}',
 } as const;
@@ -96,22 +96,20 @@ export const jitSerializationFunctions = {
         jitArgs,
         jitDefaultArgs,
     },
-    // BSON serialization functions
-    toBSON: {
+    // Binary serialization functions
+    toBinary: {
         id: 'tBS',
-        name: 'toBSON',
-        type: CodeTypes.expression,
-        jitArgs,
-        jitDefaultArgs: jitDefaultBSONWriterArgs,
-        import: () => import('./jitFns/compileBSON/toBSON').then((m) => m._compileToBSON),
-    },
-    fromBSON: {
-        id: 'fBS',
-        name: 'fromBSON',
+        name: 'toBinary',
         type: CodeTypes.statement,
-        jitArgs,
-        jitDefaultArgs: jitDefaultBSONReaderArgs,
-        import: () => import('./jitFns/compileBSON/fromBSON').then((m) => m._compileFromBSON),
+        jitArgs: jitBinaryArgs,
+        jitDefaultArgs: jitDefaultBinaryWriterArgs,
+    },
+    fromBinary: {
+        id: 'fBS',
+        name: 'fromBinary',
+        type: CodeTypes.statement,
+        jitArgs: jitBinaryArgs,
+        jitDefaultArgs: jitDefaultBinaryReaderArgs,
     },
     // apply type formatters, ie: lowercase, uppercase, trim, etc
     format: {
