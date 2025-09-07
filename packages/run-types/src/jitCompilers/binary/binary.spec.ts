@@ -8,6 +8,11 @@
 import {runType} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
 import {FunctionRunType} from '../../runType/function/function';
+import {createBinaryDeserializer, createBinarySerializer} from './binaryPureFns';
+import type {BinaryDeserializer, BinarySerializer} from './types';
+
+const serContext = createBinarySerializer({bufferSize: 1024});
+const desContext = createBinaryDeserializer(new ArrayBuffer(0));
 
 /**
  * Helper function to perform a full roundtrip test: JS -> Binary -> JS
@@ -17,31 +22,33 @@ import {FunctionRunType} from '../../runType/function/function';
  * @param debug - Whether to output debug information
  * @returns The deserialized value after roundtrip
  */
-function testRoundtrip<T>(value: T, toBinary: (val: T) => any, fromBinary: (data: any) => T, debug = false): T {
-    if (debug) {
-        console.log('Original value:', value);
-        console.log('Type:', typeof value);
-    }
-
+function testRoundtrip<T>(
+    value: T,
+    toBinary: (val: T, serContext: BinarySerializer) => any,
+    fromBinary: (data: any, desContext: BinaryDeserializer) => T,
+    debug = false
+): T {
     // Serialize to Binary
-    const bsonData = toBinary(value);
+    serContext.reset();
+    toBinary(value, serContext);
+    const buffer = serContext.getBuffer();
     if (debug) {
         console.log(
+            'Binary length:',
+            buffer.byteLength,
             'Binary bytes:',
-            Array.from(bsonData as Uint8Array)
-                .map((b) => '0x' + b.toString(16).padStart(2, '0'))
+            Array.from(new Uint32Array(buffer))
+                .map((b) => '0x' + b.toString(16).padStart(8, '0'))
                 .join(' ')
         );
-        console.log('Binary length:', bsonData.length);
     }
 
     // Deserialize from Binary
-    const result = fromBinary(bsonData);
+    desContext.setBuffer(buffer);
+    const result = fromBinary(buffer, desContext);
     if (debug) {
-        console.log('Deserialized value:', result);
-        console.log('Result type:', typeof result);
+        console.log('Original value:', value, 'Deserialized value:', result);
     }
-
     return result;
 }
 
@@ -80,13 +87,23 @@ describe('Binary JIT Serialization', () => {
             // Test different number types
             const int32Value = 42;
             const negativeValue = -123;
-            const floatValue = 3.14159;
+            const floatValue = 3.14159; // float exact precision
             const largeIntValue = 2147483648; // Larger than int32
+            const negativeLargeIntValue = -2147483649; // Smaller than int32
+            const PiValue = Math.PI; // float exact precision
 
             expect(testRoundtrip(int32Value, toBinary, fromBinary)).toBe(int32Value);
             expect(testRoundtrip(negativeValue, toBinary, fromBinary)).toBe(negativeValue);
-            expect(testRoundtrip(floatValue, toBinary, fromBinary)).toBeCloseTo(floatValue, 10);
+            expect(testRoundtrip(floatValue, toBinary, fromBinary)).toBe(floatValue);
             expect(testRoundtrip(largeIntValue, toBinary, fromBinary)).toBe(largeIntValue);
+            expect(testRoundtrip(negativeLargeIntValue, toBinary, fromBinary)).toBe(negativeLargeIntValue);
+            expect(testRoundtrip(PiValue, toBinary, fromBinary)).toBe(PiValue);
+            expect(testRoundtrip(Infinity, toBinary, fromBinary)).toBe(Infinity);
+            expect(testRoundtrip(-Infinity, toBinary, fromBinary)).toBe(-Infinity);
+            expect(testRoundtrip(NaN, toBinary, fromBinary)).toBe(NaN);
+            expect(testRoundtrip(-0, toBinary, fromBinary)).toBe(0);
+            expect(testRoundtrip(0, toBinary, fromBinary)).toBe(0);
+            expect(testRoundtrip(Number.MAX_SAFE_INTEGER, toBinary, fromBinary)).toBe(Number.MAX_SAFE_INTEGER);
         });
 
         it('should handle string values', () => {
@@ -185,6 +202,12 @@ describe('Binary JIT Serialization', () => {
                 Blue = 'blue',
             }
 
+            enum MixedEnum {
+                First = 1,
+                Second = 'second',
+                Third = 3,
+            }
+
             const numberRt = runType<NumberEnum>();
             const numberToBinary = numberRt.createJitFunction(JitFunctions.toBinary);
             const numberFromBinary = numberRt.createJitFunction(JitFunctions.fromBinary);
@@ -193,11 +216,19 @@ describe('Binary JIT Serialization', () => {
             const stringToBinary = stringRt.createJitFunction(JitFunctions.toBinary);
             const stringFromBinary = stringRt.createJitFunction(JitFunctions.fromBinary);
 
+            const mixedRt = runType<MixedEnum>();
+            const mixedToBinary = mixedRt.createJitFunction(JitFunctions.toBinary);
+            const mixedFromBinary = mixedRt.createJitFunction(JitFunctions.fromBinary);
+
             const numberEnumValue = NumberEnum.Second;
             const stringEnumValue = StringEnum.Green;
+            const mixedEnumValue = MixedEnum.Second;
+            const mixedEnumValue2 = MixedEnum.Third;
 
             expect(testRoundtrip(numberEnumValue, numberToBinary, numberFromBinary)).toBe(numberEnumValue);
             expect(testRoundtrip(stringEnumValue, stringToBinary, stringFromBinary)).toBe(stringEnumValue);
+            expect(testRoundtrip(mixedEnumValue, mixedToBinary, mixedFromBinary)).toBe(mixedEnumValue);
+            expect(testRoundtrip(mixedEnumValue2, mixedToBinary, mixedFromBinary)).toBe(mixedEnumValue2);
         });
     });
 

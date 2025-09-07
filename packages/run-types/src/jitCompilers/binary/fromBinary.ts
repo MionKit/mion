@@ -9,106 +9,69 @@ import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import type {jitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
-import type {JitBinaryCompiler} from '../../lib/jitCompiler';
+import {compileAddPureFunctionWithClosure, type BaseCompiler} from '../../lib/jitCompiler';
+import type {LiteralRunType} from '../../runType/atomic/literal';
+import {jitBinaryDeserializerArgs, JitFunctions} from '../../constants.functions';
+import {mionBinDesEnum, mionBinDesNumber, mionBinDesString} from './binaryPureFns';
+
+type BinaryCompiler = BaseCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
 
 /**
  * Main Binary deserialization compiler function
  * Generates JIT code to deserialize Binary data to JavaScript values
  */
-export function _compileFromBinary(runType: BaseRunType, comp: JitBinaryCompiler): jitCode {
-    // Get type validation function once
-    return _compileFromBinaryType(runType, comp);
-}
-
-function _compileFromBinaryType(runType: BaseRunType, comp: JitBinaryCompiler): jitCode {
+export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): jitCode {
     const src = runType.src;
     const kind = src.kind;
+    const dεs = comp.args.dεs;
 
     switch (kind) {
         // ###################### ATOMIC TYPES ######################
         case ReflectionKind.unknown:
         case ReflectionKind.any:
-            // TODO
-            break;
+            throw new Error('Binary deserialization not supported for unknown/any types');
         case ReflectionKind.null:
-            // TODO
-            break;
+            return `(${dεs}.index++, null)`;
         case ReflectionKind.boolean:
-            // TODO
-            break;
-        case ReflectionKind.number:
-            // TODO
-            break;
-        case ReflectionKind.string:
-            // TODO
-            break;
-        case ReflectionKind.bigint:
-            // TODO
-            break;
+            return `${dεs}.uint32Array[${dεs}.index++] === 1`;
+        case ReflectionKind.number: {
+            const deserializeNumberFn = compileAddPureFunctionWithClosure(comp, mionBinDesNumber);
+            return `${deserializeNumberFn}(${dεs})`;
+        }
+        case ReflectionKind.string: {
+            const deserializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinDesString);
+            return `${deserializeStringFn}(${dεs})`;
+        }
+        case ReflectionKind.bigint: {
+            const deserializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinDesString);
+            return `BigInt(${deserializeStringFn}(${dεs}))`;
+        }
         case ReflectionKind.undefined:
-            // TODO
-            break;
         case ReflectionKind.void:
-            // TODO
-            break;
-
-        case ReflectionKind.symbol:
-            // TODO
-            break;
-
-        case ReflectionKind.regexp:
-            // TODO
-            break;
-
+            return `(${dεs}.index++, undefined)`;
+        case ReflectionKind.symbol: {
+            const deserializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinDesString);
+            return `Symbol(${deserializeStringFn}(${dεs}) || undefined)`;
+        }
+        case ReflectionKind.regexp: {
+            const deserializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinDesString);
+            return `new RegExp(${deserializeStringFn}(${dεs}), ${deserializeStringFn}(${dεs}))`;
+        }
         case ReflectionKind.object:
             throw new Error('Binary deserialization not supported for generic object types');
 
-        case ReflectionKind.enum:
-            // TODO
-            break;
-
+        case ReflectionKind.enum: {
+            const deserializeEnumFn = compileAddPureFunctionWithClosure(comp, mionBinDesEnum);
+            return `${deserializeEnumFn}(${dεs})`;
+        }
         case ReflectionKind.enumMember:
             throw new Error('Binary deserialization not supported for enum member types');
-
         case ReflectionKind.never:
             throw new Error('Never type cannot be deserialized from Binary');
-
         case ReflectionKind.templateLiteral:
             throw new Error('Template literals are not supported in Binary deserialization');
-
-        case ReflectionKind.literal: {
-            // Literal types are deserialized based on their underlying type
-            const literalValue = src.literal;
-            const originalKind = src.kind;
-
-            // Handle RegExp literals specially
-            if (literalValue instanceof RegExp) {
-                (src as any).kind = ReflectionKind.regexp;
-            } else if (typeof literalValue === 'string') {
-                (src as any).kind = ReflectionKind.string;
-            } else if (typeof literalValue === 'number') {
-                (src as any).kind = ReflectionKind.number;
-            } else if (typeof literalValue === 'boolean') {
-                (src as any).kind = ReflectionKind.boolean;
-            } else if (typeof literalValue === 'bigint') {
-                (src as any).kind = ReflectionKind.bigint;
-            } else if (typeof literalValue === 'symbol') {
-                (src as any).kind = ReflectionKind.symbol;
-            } else if (literalValue === null) {
-                (src as any).kind = ReflectionKind.null;
-            } else {
-                // Fallback to string for unknown types
-                (src as any).kind = ReflectionKind.string;
-            }
-
-            // Recursively call the main function with the changed kind
-            const result = _compileFromBinaryType(runType, comp);
-
-            // Restore the original kind
-            (src as any).kind = originalKind;
-
-            return result;
-        }
+        case ReflectionKind.literal:
+            return compileLiteral(runType as LiteralRunType, comp);
 
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
@@ -213,4 +176,35 @@ function _compileFromBinaryType(runType: BaseRunType, comp: JitBinaryCompiler): 
         default:
             throw new Error(`Binary deserialization not supported for ${ReflectionKind[kind]} types`);
     }
+}
+
+function compileLiteral(runType: LiteralRunType, comp: BinaryCompiler): jitCode {
+    const src = runType.src;
+    // Literal types are serialized as their underlying value
+    const literalValue = src.literal;
+    const originalKind = src.kind;
+    // Handle RegExp literals specially
+    if (literalValue instanceof RegExp) {
+        (src as any).kind = ReflectionKind.regexp;
+    } else if (typeof literalValue === 'string') {
+        (src as any).kind = ReflectionKind.string;
+    } else if (typeof literalValue === 'number') {
+        (src as any).kind = ReflectionKind.number;
+    } else if (typeof literalValue === 'boolean') {
+        (src as any).kind = ReflectionKind.boolean;
+    } else if (typeof literalValue === 'bigint') {
+        (src as any).kind = ReflectionKind.bigint;
+    } else if (typeof literalValue === 'symbol') {
+        (src as any).kind = ReflectionKind.symbol;
+    } else if (literalValue === null) {
+        (src as any).kind = ReflectionKind.null;
+    } else {
+        // Fallback to string for unknown types
+        (src as any).kind = ReflectionKind.string;
+    }
+    // Recursively call the main function with the changed kind
+    const result = _compileFromBinary(runType, comp);
+    // Restore the original kind
+    (src as any).kind = originalKind;
+    return result;
 }

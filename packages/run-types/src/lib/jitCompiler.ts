@@ -11,7 +11,7 @@ import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOp
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
 import {maxStackErrorMessage, JIT_STACK_TRACE_MESSAGE} from '../constants';
-import {jitBinaryArgs, jitErrorArgs} from '../constants.functions';
+import {jitErrorArgs} from '../constants.functions';
 import {getJITFnName, getJitFnSettings} from './jitFnsRegistry';
 import {JitFunctions} from '../constants.functions';
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
@@ -391,9 +391,6 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
     }
 }
 
-type BinaryFnID = typeof JitFunctions.toBinary.id | typeof JitFunctions.fromBinary.id;
-export type JitBinaryCompiler = BaseCompiler<typeof jitBinaryArgs, BinaryFnID>;
-
 /**
  * This is an special compiler for mock Function as mock is not technically a jit compiled function
  * but still needs to be created to reuse all jit functionality.
@@ -424,15 +421,14 @@ export function createJitCompiler(
         case JitFunctions.unknownKeysToUndefined.id:
         case JitFunctions.format.id:
         case JitFunctions.toCode.id:
+        case JitFunctions.toBinary.id:
+        case JitFunctions.fromBinary.id:
             return new JitCompiler(rt, fnID, parent, jitFnHash, typeID, opts);
         case JitFunctions.typeErrors.id:
         case JitFunctions.unknownKeyErrors.id:
             return new JitErrorsCompiler(rt, fnID, parent, jitFnHash, typeID, opts);
         case JitFunctions.mock.id:
             return new MockJitCompiler(rt, opts, parent, jitFnHash, typeID);
-        case JitFunctions.toBinary.id:
-        case JitFunctions.fromBinary.id:
-            return new JitCompiler(rt, fnID, parent, jitFnHash, typeID, opts) as JitBinaryCompiler;
         default:
             throw new Error(`Unknown compile operation: ${fnID}`);
     }

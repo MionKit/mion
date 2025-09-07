@@ -32,7 +32,7 @@ import {ReflectionKind} from '@deepkit/type';
 import type {TypeIndexSignature, TypeProperty, Type, TypeFunction} from '@deepkit/type';
 import {getJitFnArgCallVarName, getPropIndex, memorize, toLiteral} from './utils';
 import {getJITFnHash, createJitCompiler, MockJitCompiler} from './jitCompiler';
-import type {JitCompiler, JitBinaryCompiler, JitErrorsCompiler} from './jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from '@mionkit/core';
 import {createUniqueHash} from './quickHash';
@@ -49,7 +49,7 @@ import {_compileToBinary} from '../jitCompilers/binary/toBinary';
 import {_compileFromBinary} from '../jitCompilers/binary/fromBinary';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core';
-import {_compileToCode} from '../jitCompilers/json/toCode';
+import {_compileToCode} from '../jitCompilers/json/toJsCode';
 import {defaultMockOptions} from '../mocking/constants.mock';
 import {getENV} from '@mionkit/core';
 
@@ -279,10 +279,10 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                     code = _compileJsonStringify(this, comp);
                     break;
                 case JitFunctions.toBinary.id:
-                    code = _compileToBinary(this, comp as JitBinaryCompiler);
+                    code = _compileToBinary(this, comp as any);
                     break;
                 case JitFunctions.fromBinary.id:
-                    code = _compileFromBinary(this, comp as JitBinaryCompiler);
+                    code = _compileFromBinary(this, comp as any);
                     break;
                 case JitFunctions.toCode.id:
                         code = _compileToCode(this, comp);
@@ -459,12 +459,6 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return undefined;
     }
-    _compileToBinary(comp: JitCompiler): jitCode {
-        return undefined;
-    }
-    _compileFromBinary(comp: JitCompiler): jitCode {
-        return undefined;
-    }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         return undefined;
     }
@@ -483,7 +477,6 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
             case JitFunctions.toJsonVal.id:
             case JitFunctions.fromJsonVal.id:
             case JitFunctions.jsonStringify.id:
-            case JitFunctions.toBinary.id:
             case JitFunctions.fromBinary.id:
             case JitFunctions.toCode.id:
                 return 'E';
@@ -548,12 +541,6 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .map((c) => c.compileUnknownKeysToUndefined(comp))
             .filter((code) => !!code)
             .join(';');
-    }
-    _compileToBinary(comp: JitCompiler): jitCode {
-        return undefined;
-    }
-    _compileFromBinary(comp: JitCompiler): jitCode {
-        return undefined;
     }
     _getTypeID(stack: BaseRunType[] = []): StrNumber {
         return this.getChildrenTypeID(stack);

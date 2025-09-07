@@ -9,6 +9,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import type {jitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
+import type {LiteralRunType} from '../../runType/atomic/literal';
 
 /**
  * Main XYZ serialization compiler function
@@ -75,39 +76,8 @@ export function _compileToXYZ(runType: BaseRunType, comp: JitXYZCompiler): jitCo
         case ReflectionKind.templateLiteral:
             throw new Error('Template literals are not supported in XYZ serialization');
 
-        case ReflectionKind.literal: {
-            // Literal types are serialized as their underlying value
-            const literalValue = src.literal;
-            const originalKind = src.kind;
-
-            // Handle RegExp literals specially
-            if (literalValue instanceof RegExp) {
-                (src as any).kind = ReflectionKind.regexp;
-            } else if (typeof literalValue === 'string') {
-                (src as any).kind = ReflectionKind.string;
-            } else if (typeof literalValue === 'number') {
-                (src as any).kind = ReflectionKind.number;
-            } else if (typeof literalValue === 'boolean') {
-                (src as any).kind = ReflectionKind.boolean;
-            } else if (typeof literalValue === 'bigint') {
-                (src as any).kind = ReflectionKind.bigint;
-            } else if (typeof literalValue === 'symbol') {
-                (src as any).kind = ReflectionKind.symbol;
-            } else if (literalValue === null) {
-                (src as any).kind = ReflectionKind.null;
-            } else {
-                // Fallback to string for unknown types
-                (src as any).kind = ReflectionKind.string;
-            }
-
-            // Recursively call the main function with the changed kind
-            const result = _compileToXYZ(runType, comp);
-
-            // Restore the original kind
-            (src as any).kind = originalKind;
-
-            return result;
-        }
+        case ReflectionKind.literal:
+            return compileLiteral(runType as LiteralRunType, comp);
 
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
@@ -212,4 +182,35 @@ export function _compileToXYZ(runType: BaseRunType, comp: JitXYZCompiler): jitCo
         default:
             throw new Error(`XYZ serialization not supported for ${ReflectionKind[kind]} types`);
     }
+}
+
+function compileLiteral(runType: LiteralRunType, comp: JitXYZCompiler): jitCode {
+    const src = runType.src;
+    // Literal types are serialized as their underlying value
+    const literalValue = src.literal;
+    const originalKind = src.kind;
+    // Handle RegExp literals specially
+    if (literalValue instanceof RegExp) {
+        (src as any).kind = ReflectionKind.regexp;
+    } else if (typeof literalValue === 'string') {
+        (src as any).kind = ReflectionKind.string;
+    } else if (typeof literalValue === 'number') {
+        (src as any).kind = ReflectionKind.number;
+    } else if (typeof literalValue === 'boolean') {
+        (src as any).kind = ReflectionKind.boolean;
+    } else if (typeof literalValue === 'bigint') {
+        (src as any).kind = ReflectionKind.bigint;
+    } else if (typeof literalValue === 'symbol') {
+        (src as any).kind = ReflectionKind.symbol;
+    } else if (literalValue === null) {
+        (src as any).kind = ReflectionKind.null;
+    } else {
+        // Fallback to string for unknown types
+        (src as any).kind = ReflectionKind.string;
+    }
+    // Recursively call the main function with the changed kind
+    const result = _compileToXYZ(runType, comp);
+    // Restore the original kind
+    (src as any).kind = originalKind;
+    return result;
 }

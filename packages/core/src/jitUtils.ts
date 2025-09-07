@@ -217,8 +217,6 @@ export const jitUtils: JITUtils = {
         const runTypeErr: Required<RunTypeError> = {expected, path, format};
         εrr.push(runTypeErr);
     },
-    textEncoder: new TextEncoder(),
-    textDecoder: new TextDecoder('utf-8'),
 };
 
 /**

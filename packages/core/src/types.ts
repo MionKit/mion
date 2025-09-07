@@ -48,8 +48,6 @@ export interface JITUtils {
         fmtAccessPath?: StrNumber[]
     ): void;
     safeKey(value: any): any;
-    textEncoder: TextEncoder;
-    textDecoder: TextDecoder;
 }
 
 // ########################################## Options ##########################################
