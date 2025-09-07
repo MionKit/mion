@@ -28,7 +28,7 @@ export * from './src/mocking/mockType';
 export * from './src/mocking/mockUtils';
 export * from './src/runType/function/function';
 export * from './src/jitCompilers/json/jsonStringify';
-export * from './src/jitCompilers/json/toCode';
+export * from './src/jitCompilers/json/toJsCode';
 export * from './src/runType/member/array';
 export * from './src/runType/member/property';
 export * from './src/runType/atomic/literal';

@@ -28,11 +28,11 @@ Some variable length types and object properties require additional information.
 
 SeqProto uses type markers for number encoding. All headers are 32-bit values:
 
-| Header        | Value | Description             | Usage                           |
-| ------------- | ----- | ----------------------- | ------------------------------- |
-| `TYPE_FLOAT`  | 0     | 32-bit IEEE 754 float   | `value % 1 !== 0`               |
-| `TYPE_UINT32` | 1     | 32-bit unsigned integer | `value >= 0 && value % 1 === 0` |
-| `TYPE_INT32`  | 2     | 32-bit signed integer   | `value < 0 && value % 1 === 0`  |
+| Header        | Value | Description             |
+| ------------- | ----- | ----------------------- |
+| `TYPE_FLOAT`  | 0     | 32-bit IEEE 754 float   |
+| `TYPE_UINT32` | 1     | 32-bit unsigned integer |
+| `TYPE_INT32`  | 2     | 32-bit signed integer   |
 
 ### Object Property Headers (Mion-specific)
 
@@ -45,67 +45,65 @@ SeqProto doesn't handle object properties, so we define our own property encodin
 
 ### Collection Headers
 
-| Collection | Bit Layout                   | Description                            |
-| ---------- | ---------------------------- | -------------------------------------- |
-| **Array**  | `[length + elements]`        | Length as uint32, then elements        |
-| **Object** | `[length + key-value pairs]` | length as uint32, then key-value pairs |
+| Collection | Bit Layout            | Description                                                               |
+| ---------- | --------------------- | ------------------------------------------------------------------------- |
+| **Array**  | `[length + elements]` | Length as uint32, number of elements                                      |
+| **Object** | `[length + elements]` | Length as uint32, number of elements, elements are `[propHeader + value]` |
 
 ### Number Types (Type-Aware Encoding)
 
-Following seqproto's intelligent number encoding strategy:
+Following seqproto's number encoding strategy:
 
-| Type                   | Bytes | Encoding                                                                        | JIT Code | Notes                           |
-| ---------------------- | ----- | ------------------------------------------------------------------------------- | -------- | ------------------------------- |
-| **Integer (positive)** | 4     | `uint32Array[index++] = TYPE_UINT32; uint32Array[index++] = value`              | ✅       | `value >= 0 && value % 1 === 0` |
-| **Integer (negative)** | 4     | `uint32Array[index++] = TYPE_INT32; uint32Array[index++] = POW_2_32 + value`    | ✅       | `value < 0 && value % 1 === 0`  |
-| **Float**              | 4     | `uint32Array[index++] = TYPE_FLOAT; float32Array[index++] = value`              | ✅       | `value % 1 !== 0`               |
-| **BigInt**             | 8     | `uint32Array[index++] = TYPE_BIGINT; setBigInt64(index * 4, value); index += 2` | ❌       | Use seqproto function           |
+| Type                   | Bytes | Bit Layout              | Notes                           |
+| ---------------------- | ----- | ----------------------- | ------------------------------- |
+| **Integer (positive)** | 4     | `TYPE_UINT32` + `value` | `value >= 0 && value % 1 === 0` |
+| **Integer (negative)** | 4     | `TYPE_INT32` + `value`  | `value < 0 && value % 1 === 0`  |
+| **Float**              | 4     | `TYPE_FLOAT` + `value`  | `value % 1 !== 0`               |
+| **BigInt**             | 8     | `TYPE_BIGINT` + `value` |                                 |
 
 ### Primitive Types (32-bit Aligned)
 
-| Type          | Bytes | Encoding                                                                                | JIT Code | Notes                          |
-| ------------- | ----- | --------------------------------------------------------------------------------------- | -------- | ------------------------------ |
-| **Boolean**   | 4     | `uint32Array[index++] = value ? 1 : 0`                                                  | ✅       | 32-bit aligned for performance |
-| **Null**      | 4     | `uint32Array[index++] = TYPE_NULL`                                                      | ✅       | Type marker only               |
-| **Undefined** | 4     | `uint32Array[index++] = TYPE_UNDEFINED`                                                 | ✅       | Type marker only               |
-| **Date**      | 8     | `uint32Array[index++] = TYPE_DATE; setBigInt64(index * 4, value.getTime()); index += 2` | ❌       | Use seqproto function          |
+| Type          | Bytes | Notes                                                             |
+| ------------- | ----- | ----------------------------------------------------------------- |
+| **Boolean**   | 4     | 32-bit aligned for performance                                    |
+| **Null**      | 4     | null is serialized as 0                                           |
+| **Undefined** | 4     | undefined is serialized as -1, undefined props are not serialized |
+| **Date**      | 8     | serialized as number                                              |
 
 ### String Types (Zero-Allocation Encoding)
 
-| Type       | Encoding                                                                                        | JIT Code | Notes                 |
-| ---------- | ----------------------------------------------------------------------------------------------- | -------- | --------------------- |
-| **String** | `uint32Array[index] = length; encodeInto(str, uint8View(index+1)); index += ceil(length/4) + 1` | ❌       | Use seqproto function |
-| **RegExp** | Serialize as `[source: string, flags: string]` object                                           | ❌       | Use seqproto function |
+| Type       | Bit Layout          | Notes                 |
+| ---------- | ------------------- | --------------------- |
+| **String** | `[length, content]` | byte length is 32 bit |
+| **RegExp** | `[source, flags]`   |                       |
 
 ## Complex Types (SeqProto-Compatible)
 
 ### Collection Types
 
-| Type       | Encoding Strategy                                                                          | JIT Code | Notes                            |
-| ---------- | ------------------------------------------------------------------------------------------ | -------- | -------------------------------- |
-| **Array**  | `uint32Array[index++] = TYPE_ARRAY; uint32Array[index++] = length; [encode each element]`  | ✅       | Length + elements                |
-| **Object** | `uint32Array[index++] = TYPE_OBJECT; uint32Array[index++] = propCount; [encode each prop]` | ✅       | Property count + key-value pairs |
-| **Map**    | Serialize as Array of `[key, value]` tuples                                                | ❌       | Use seqproto function            |
-| **Set**    | Serialize as Array of values                                                               | ❌       | Use seqproto function            |
-| **Class**  | Serialize as data only, functions are not serialized.                                      | ✅       | Use object function              |
+| Type       | Encoding Strategy                                                                          | Notes                            |
+| ---------- | ------------------------------------------------------------------------------------------ | -------------------------------- |
+| **Array**  | `uint32Array[index++] = TYPE_ARRAY; uint32Array[index++] = length; [encode each element]`  | Length + elements                |
+| **Object** | `uint32Array[index++] = TYPE_OBJECT; uint32Array[index++] = propCount; [encode each prop]` | Property count + key-value pairs |
+| **Map**    | Serialize as Array of `[key, value]` tuples                                                | Use seqproto function            |
+| **Set**    | Serialize as Array of values                                                               | Use seqproto function            |
+| **Class**  | Serialize as data only, functions are not serialized.                                      | Use object function              |
 
 ### Object Properties (32-bit Aligned)
 
-| Property Type      | Encoding                                                                           | JIT Code | Notes                        |
-| ------------------ | ---------------------------------------------------------------------------------- | -------- | ---------------------------- |
-| **Known Required** | `uint32Array[index++] = propIndex; [encode value]`                                 | ✅       | Direct property index        |
-| **Known Optional** | `uint32Array[index++] = (isDefined << 31) \| propIndex; [encode value if defined]` | ✅       | Bit-packed existence + index |
-| **Unknown Props**  | `serializeString(propName); [encode value]`                                        | ❌       | Use seqproto string function |
+| Property Type     | Bit Layout                            | Encoding                                           | Notes                        |
+| ----------------- | ------------------------------------- | -------------------------------------------------- | ---------------------------- |
+| **Known props**   | `[propIndex + value]`                 | `uint32Array[index++] = propIndex; [encode value]` | Direct property index        |
+| **Unknown Props** | `[length + string prop name + value]` | `serializeString(propName); [encode value]`        | Use seqproto string function |
 
 ### TypeScript Features
 
-| Feature           | Encoding Strategy                                                                              | JIT Code | Notes                      |
-| ----------------- | ---------------------------------------------------------------------------------------------- | -------- | -------------------------- |
-| **Union Types**   | `uint32Array[index++] = TYPE_UNION; uint32Array[index++] = discriminatorIndex; [encode value]` | ✅       | Type index + value         |
-| **Intersection**  | Serialize as merged object                                                                     | ✅       | Flatten all properties     |
-| **Tuple**         | Serialize as Array with length validation                                                      | ✅       | Fixed-length array         |
-| **Enum**          | Serialize as appropriate number type                                                           | ✅       | Use number encoding rules  |
-| **Literal Types** | Serialize underlying value                                                                     | ✅       | No special encoding needed |
+| Feature           | Encoding Strategy                                                                              | Notes              |
+| ----------------- | ---------------------------------------------------------------------------------------------- | ------------------ |
+| **Union Types**   | `uint32Array[index++] = TYPE_UNION; uint32Array[index++] = discriminatorIndex; [encode value]` | Type index + value |
+| **Tuple**         | Serialize as Array                                                                             | Fixed-length array |
+| **Enum**          | `[type, value]` where type indicates string or number                                          |                    |
+| **Literal Types** | Serialize underlying value                                                                     |                    |
 
 #### TypeScript Features
 

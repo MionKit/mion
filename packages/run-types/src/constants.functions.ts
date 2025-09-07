@@ -35,15 +35,10 @@ export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: '', pλth: '[]', εrr: '[]'} as const;
 export const jitArgsWithOptions = {vλl: 'v', θpts: 'opts'} as const;
 export const jitDefaultArgsWithOptions = {vλl: '', θpts: '{}'} as const;
-export const jitBinaryArgs = {vλl: 'v', cTx: 'ctx'} as const;
-export const jitDefaultBinaryWriterArgs = {
-    vλl: '',
-    cTx: '{buffer:new Uint8Array(0),position:0,bytesWritten:0,tempBuffer:new Uint8Array(0)}',
-} as const;
-export const jitDefaultBinaryReaderArgs = {
-    vλl: '',
-    cTx: '{buffer:new Uint8Array(0),position:0,bytesRead:0,value:undefined}',
-} as const;
+export const jitBinarySerializerArgs = {vλl: 'v', sεr: 'ser'} as const;
+export const jitBinaryDeserializerArgs = {vλl: 'v', dεs: 'des'} as const;
+export const jitDefaultBinarySerializerArgs = {vλl: '', sεr: ''} as const;
+export const jitDefaultBinaryDeserializerArgs = {vλl: '', dεs: ''} as const;
 
 // ######## !IMPORTANT: ALL JIT FUNCTIONS IDs MUST BE UNIQUE and short ########
 
@@ -98,18 +93,18 @@ export const jitSerializationFunctions = {
     },
     // Binary serialization functions
     toBinary: {
-        id: 'tBS',
+        id: 'tBi',
         name: 'toBinary',
         type: CodeTypes.statement,
-        jitArgs: jitBinaryArgs,
-        jitDefaultArgs: jitDefaultBinaryWriterArgs,
+        jitArgs: jitBinarySerializerArgs,
+        jitDefaultArgs: jitDefaultBinarySerializerArgs,
     },
     fromBinary: {
-        id: 'fBS',
+        id: 'fBi',
         name: 'fromBinary',
-        type: CodeTypes.statement,
-        jitArgs: jitBinaryArgs,
-        jitDefaultArgs: jitDefaultBinaryReaderArgs,
+        type: CodeTypes.expression,
+        jitArgs: jitBinaryDeserializerArgs,
+        jitDefaultArgs: jitDefaultBinaryDeserializerArgs,
     },
     // apply type formatters, ie: lowercase, uppercase, trim, etc
     format: {

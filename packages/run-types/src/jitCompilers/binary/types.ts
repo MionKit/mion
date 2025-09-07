@@ -5,23 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/**
- * Binary read context - mutable for performance with reusable objects
- */
-export interface BinaryReadContext {
-    buffer: Uint8Array;
-    position: number;
-    bytesRead: number;
+export type StrictArrayBuffer = ArrayBuffer & {buffer?: undefined};
+
+export interface BinarySerializer {
+    index: number;
+    buffer: ArrayBuffer;
+    uint32Array: Uint32Array;
+    float32Array: Float32Array;
+    float64Array: Float64Array;
+    reset: () => void;
+    getBuffer: () => StrictArrayBuffer;
 }
-
-/**
- * Binary write context - mutable for performance with reusable objects
- */
-
-export interface BinaryWriteContext {
-    buffer: Uint8Array;
-    position: number;
-    bytesWritten: number;
-    // Reusable objects for performance
-    tempBuffer: Uint8Array; // For temporary operations
+export interface BinaryDeserializer {
+    index: number;
+    buffer: StrictArrayBuffer;
+    uint32Array: Uint32Array;
+    float32Array: Float32Array;
+    float64Array: Float64Array;
+    setBuffer: (buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) => void;
 }
