@@ -24,6 +24,7 @@ export interface JitFnSettings {
     import?: () => Promise<(...args: any[]) => any>;
     jitArgs: JitFnArgs;
     jitDefaultArgs: JitFnArgs;
+    returnName: string;
     runTimeOptions?: Record<string, {keyName: string; type: 'boolean' | 'number' | 'string'; defaultValue: any}>;
 } // list of available jit functions
 
@@ -35,10 +36,10 @@ export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: '', pλth: '[]', εrr: '[]'} as const;
 export const jitArgsWithOptions = {vλl: 'v', θpts: 'opts'} as const;
 export const jitDefaultArgsWithOptions = {vλl: '', θpts: '{}'} as const;
-export const jitBinarySerializerArgs = {vλl: 'v', sεr: 'ser'} as const;
-export const jitBinaryDeserializerArgs = {vλl: 'v', dεs: 'des'} as const;
+export const jitBinarySerializerArgs = {vλl: 'v', sεr: 'ser'} as const; // v= js value, ser = serializer,
+export const jitBinaryDeserializerArgs = {vλl: 'ret', dεs: 'des'} as const; // v = deserialized js value (initially undefined), des = deserializer
 export const jitDefaultBinarySerializerArgs = {vλl: '', sεr: ''} as const;
-export const jitDefaultBinaryDeserializerArgs = {vλl: '', dεs: ''} as const;
+export const jitDefaultBinaryDeserializerArgs = {vλl: 'undefined', dεs: ''} as const;
 
 // ######## !IMPORTANT: ALL JIT FUNCTIONS IDs MUST BE UNIQUE and short ########
 
@@ -51,6 +52,7 @@ export const jitValidationFunctions = {
         type: CodeTypes.expression,
         jitArgs,
         jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
     typeErrors: {
         id: 'te',
@@ -58,6 +60,7 @@ export const jitValidationFunctions = {
         type: CodeTypes.statement,
         jitArgs: jitErrorArgs,
         jitDefaultArgs: jitDefaultErrorArgs,
+        returnName: jitErrorArgs.εrr,
     },
     // not yet implemented, this will check and include type formats, ie, lowercase, uppercase, etc
     isTypeStrict: {
@@ -66,6 +69,7 @@ export const jitValidationFunctions = {
         type: CodeTypes.expression,
         jitArgs,
         jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
 } as const satisfies JitFunctionsGroup;
 
@@ -76,6 +80,7 @@ export const jitSerializationFunctions = {
         type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
     fromJsonVal: {
         id: 'fj',
@@ -83,6 +88,7 @@ export const jitSerializationFunctions = {
         type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
     jsonStringify: {
         id: 'js',
@@ -90,6 +96,16 @@ export const jitSerializationFunctions = {
         type: CodeTypes.expression,
         jitArgs,
         jitDefaultArgs,
+        returnName: jitArgs.vλl,
+    },
+    // similar to json stringify but outputs js code, including pure functions, already imported as size is quite small
+    toCode: {
+        id: 'tc',
+        name: 'toCode',
+        type: CodeTypes.expression,
+        jitArgs,
+        jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
     // Binary serialization functions
     toBinary: {
@@ -98,13 +114,17 @@ export const jitSerializationFunctions = {
         type: CodeTypes.statement,
         jitArgs: jitBinarySerializerArgs,
         jitDefaultArgs: jitDefaultBinarySerializerArgs,
+        // returns the serializer buffer
+        returnName: jitBinarySerializerArgs.sεr,
     },
     fromBinary: {
         id: 'fBi',
         name: 'fromBinary',
-        type: CodeTypes.expression,
+        type: CodeTypes.statement,
         jitArgs: jitBinaryDeserializerArgs,
         jitDefaultArgs: jitDefaultBinaryDeserializerArgs,
+        // deserialized value is stored in vλl that is initially undefined
+        returnName: jitBinaryDeserializerArgs.vλl,
     },
     // apply type formatters, ie: lowercase, uppercase, trim, etc
     format: {
@@ -113,6 +133,7 @@ export const jitSerializationFunctions = {
         type: CodeTypes.expression,
         jitArgs,
         jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
 } as const satisfies JitFunctionsGroup;
 
@@ -125,6 +146,7 @@ export const JitFunctions = {
         type: CodeTypes.statement,
         jitArgs: jitErrorArgs,
         jitDefaultArgs: jitDefaultErrorArgs,
+        returnName: jitErrorArgs.εrr,
     },
     hasUnknownKeys: {
         id: 'hk',
@@ -133,6 +155,7 @@ export const JitFunctions = {
         jitArgs: jitArgsWithOptions,
         jitDefaultArgs: jitDefaultArgsWithOptions,
         runTimeOptions: {checkNonJitProps: {keyName: 'checkNonJitProps', type: 'boolean', defaultValue: false}},
+        returnName: jitArgsWithOptions.vλl,
     },
     stripUnknownKeys: {
         id: 'sk',
@@ -140,6 +163,7 @@ export const JitFunctions = {
         type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
     unknownKeysToUndefined: {
         id: 'ku',
@@ -147,6 +171,7 @@ export const JitFunctions = {
         type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
     aux: {
         id: 'aux',
@@ -154,6 +179,7 @@ export const JitFunctions = {
         type: CodeTypes.returnBlock,
         jitArgs,
         jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
     // mock is not really a jit function but is used in a similar way, main difference is that it is not compiled
     mock: {
@@ -163,14 +189,7 @@ export const JitFunctions = {
         import: () => import('./mocking/mockType').then((m) => m.mockType),
         jitArgs,
         jitDefaultArgs,
-    },
-    // similar to json stringify but outputs js code, including pure functions, already imported as size is quite small
-    toCode: {
-        id: 'tc',
-        name: 'toCode',
-        type: CodeTypes.expression,
-        jitArgs,
-        jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
     // pure function are not jit compiled but we ensure we reserve a prefix to avoid collisions
     pureFunction: {
@@ -179,6 +198,7 @@ export const JitFunctions = {
         type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
+        returnName: jitArgs.vλl,
     },
 } as const satisfies JitFunctionsGroup;
 

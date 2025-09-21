@@ -15,6 +15,7 @@ import {jitBinarySerializerArgs, JitFunctions} from '../../constants.functions';
 import {mionBinSerEnum, mionBinSerNumber, mionBinSerString} from './binaryPureFns';
 import {Mutable} from '@mionkit/core';
 import {toLiteralInContext} from '../../lib/utils';
+import type {ArrayRunType} from '../../runType/member/array';
 
 type BinaryCompiler = BaseCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
 
@@ -28,6 +29,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
     const src = runType.src;
     const kind = src.kind;
     const sεr = comp.args.sεr;
+    const fnID = comp.fnID;
 
     switch (kind) {
         // ###################### ATOMIC TYPES ######################
@@ -78,10 +80,11 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
 
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
-        case ReflectionKind.array:
-            // TODO
-            break;
-
+        case ReflectionKind.array: {
+            const rt = runType as ArrayRunType;
+            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            return `${sεr}.uint32Array[${sεr}.index++] = ${comp.vλl}.length; ${rt.traverseCode(comp, memberCode)}`;
+        }
         case ReflectionKind.indexSignature:
             // TODO
             break;

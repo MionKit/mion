@@ -13,6 +13,7 @@ import {compileAddPureFunctionWithClosure, type BaseCompiler} from '../../lib/ji
 import type {LiteralRunType} from '../../runType/atomic/literal';
 import {jitBinaryDeserializerArgs, JitFunctions} from '../../constants.functions';
 import {mionBinDesEnum, mionBinDesNumber, mionBinDesString} from './binaryPureFns';
+import type {ArrayRunType} from '../../runType/member/array';
 
 type BinaryCompiler = BaseCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
 
@@ -24,6 +25,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
     const src = runType.src;
     const kind = src.kind;
     const dεs = comp.args.dεs;
+    const fnID = comp.fnID;
 
     switch (kind) {
         // ###################### ATOMIC TYPES ######################
@@ -75,9 +77,14 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
 
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
-        case ReflectionKind.array:
-            // TODO
-            break;
+        case ReflectionKind.array: {
+            const rt = runType as ArrayRunType;
+            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            const totalVar = `lng${comp.getNestLevel(rt)}`;
+            const index = rt.getChildVarName(comp);
+            const arrayCode = `for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${totalVar}; ${index}++) {${comp.vλl}[${index}] = ${memberCode}}`;
+            return `const ${totalVar} = ${dεs}.uint32Array[${dεs}.index++];${comp.vλl} = new Array(${totalVar});${arrayCode}`;
+        }
 
         case ReflectionKind.indexSignature:
             // TODO

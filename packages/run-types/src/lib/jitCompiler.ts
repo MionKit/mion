@@ -11,7 +11,7 @@ import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOp
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
 import {maxStackErrorMessage, JIT_STACK_TRACE_MESSAGE} from '../constants';
-import {jitErrorArgs} from '../constants.functions';
+import {jitErrorArgs, type JitFnSettings} from '../constants.functions';
 import {getJITFnName, getJitFnSettings} from './jitFnsRegistry';
 import {JitFunctions} from '../constants.functions';
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
@@ -40,10 +40,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         public readonly rootType: BaseRunType,
         // the id of the function to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc)
         public readonly fnID: ID,
-        public readonly args: FnArgsNames,
-        /** when creating the function it might have default values */
-        public readonly defaultParamValues: JitFnArgs,
-        public readonly returnName: string,
+        jitFnSettings: JitFnSettings,
         public readonly parentCompiler?: BaseCompiler,
         jitFnHash?: string,
         typeID?: StrNumber,
@@ -52,6 +49,9 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.typeName = this.rootType.getTypeName();
         this.jitFnHash = jitFnHash || getJITFnHash(this.fnID, this.rootType, opts);
         this.typeID = typeID || this.rootType.getTypeID();
+        this.args = {...jitFnSettings.jitArgs} as FnArgsNames;
+        this.defaultParamValues = {...jitFnSettings.jitDefaultArgs} as FnArgsNames;
+        this.returnName = jitFnSettings.returnName;
         if (this.args.vλl) this.vλl = this.args.vλl;
         // At the time of adding this compiler to the jit cache, the fn is undefined which is technically not allowed
         // but this prevents issues with circular types and loading order of jit dependencies
@@ -61,6 +61,9 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     readonly typeName: string;
     readonly typeID: StrNumber;
     readonly jitFnHash: string;
+    readonly args: FnArgsNames;
+    readonly defaultParamValues: FnArgsNames;
+    readonly returnName: string;
 
     /** Alternative arguments to use when calling a child function */
     readonly childrenCallArgs: Partial<Record<JitFnID, Partial<JitFnArgs>>> = {};
@@ -294,9 +297,7 @@ export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<JitFnArg
         opts: RunTypeOptions = {}
     ) {
         const fnSettings = getJitFnSettings(fnID);
-        const args = {...fnSettings.jitArgs};
-        const defaultValues = {...fnSettings.jitDefaultArgs};
-        super(rt, fnID, args, defaultValues, 'v', parentCompiler, jitFnHash, typeID, opts);
+        super(rt, fnID, fnSettings, parentCompiler, jitFnHash, typeID, opts);
     }
 }
 
@@ -310,9 +311,7 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         opts: RunTypeOptions = {}
     ) {
         const fnSettings = getJitFnSettings(fnID);
-        const args = {...fnSettings.jitArgs} as typeof jitErrorArgs;
-        const defaultValues = {...fnSettings.jitDefaultArgs};
-        super(rt, fnID, args, defaultValues, 'er', parentCompiler, jitFnHash, typeID, opts);
+        super(rt, fnID, fnSettings, parentCompiler, jitFnHash, typeID, opts);
     }
     callJitErr(expected: AnyKindName | BaseRunType<any>): string {
         // TODO: most of the time jit path is an empty array, so a new array is created every time
@@ -397,7 +396,7 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
  */
 export class MockJitCompiler extends BaseCompiler<JitFnArgs, 'mock'> {
     constructor(rt: BaseRunType, opts: RunTypeOptions, parentCompiler?: BaseCompiler, jitFnHash?: string, typeID?: StrNumber) {
-        super(rt, JitFunctions.mock.id, {vλl: 'v'}, {vλl: ''}, 'v', parentCompiler, jitFnHash, typeID, opts);
+        super(rt, JitFunctions.mock.id, JitFunctions.mock, parentCompiler, jitFnHash, typeID, opts);
     }
 }
 
