@@ -13,6 +13,8 @@ import {compileAddPureFunctionWithClosure, type BaseCompiler} from '../../lib/ji
 import type {LiteralRunType} from '../../runType/atomic/literal';
 import {jitBinarySerializerArgs, JitFunctions} from '../../constants.functions';
 import {mionBinSerEnum, mionBinSerNumber, mionBinSerString} from './binaryPureFns';
+import {Mutable} from '@mionkit/core';
+import {toLiteralInContext} from '../../lib/utils';
 
 type BinaryCompiler = BaseCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
 
@@ -179,33 +181,39 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
     }
 }
 
+// TODO, maybe we don't need to serialize literals as we do know the value we can just restore the value from the runType
+
 function compileLiteral(runType: LiteralRunType, comp: BinaryCompiler): jitCode {
-    const src = runType.src;
+    const src = runType.src as Mutable<typeof src>;
     // Literal types are serialized as their underlying value
     const literalValue = src.literal;
     const originalKind = src.kind;
+    const varName = toLiteralInContext(comp, literalValue);
+    const originalVλl = comp.vλl;
+    comp.vλl = varName;
     // Handle RegExp literals specially
     if (literalValue instanceof RegExp) {
-        (src as any).kind = ReflectionKind.regexp;
+        src.kind = ReflectionKind.regexp;
     } else if (typeof literalValue === 'string') {
-        (src as any).kind = ReflectionKind.string;
+        src.kind = ReflectionKind.string;
     } else if (typeof literalValue === 'number') {
-        (src as any).kind = ReflectionKind.number;
+        src.kind = ReflectionKind.number;
     } else if (typeof literalValue === 'boolean') {
-        (src as any).kind = ReflectionKind.boolean;
+        src.kind = ReflectionKind.boolean;
     } else if (typeof literalValue === 'bigint') {
-        (src as any).kind = ReflectionKind.bigint;
+        src.kind = ReflectionKind.bigint;
     } else if (typeof literalValue === 'symbol') {
-        (src as any).kind = ReflectionKind.symbol;
+        src.kind = ReflectionKind.symbol;
     } else if (literalValue === null) {
-        (src as any).kind = ReflectionKind.null;
+        src.kind = ReflectionKind.null;
     } else {
         // Fallback to string for unknown types
-        (src as any).kind = ReflectionKind.string;
+        src.kind = ReflectionKind.string;
     }
     // Recursively call the main function with the changed kind
     const result = _compileToBinary(runType, comp);
     // Restore the original kind
-    (src as any).kind = originalKind;
+    src.kind = originalKind;
+    comp.vλl = originalVλl;
     return result;
 }

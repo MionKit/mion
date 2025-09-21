@@ -239,11 +239,7 @@ describe('Binary JIT Serialization', () => {
             const toBinary = rt.createJitFunction(JitFunctions.toBinary);
             const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
-            const original: StringLiteral = 'hello';
-            const bsonData = toBinary(original);
-            const result = fromBinary(bsonData);
-
-            expect(result).toBe('hello');
+            expect(testRoundtrip(undefined, toBinary, fromBinary)).toBe('hello');
         });
 
         it('should handle number literals', () => {
@@ -252,11 +248,7 @@ describe('Binary JIT Serialization', () => {
             const toBinary = rt.createJitFunction(JitFunctions.toBinary);
             const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
-            const original: NumberLiteral = 42;
-            const bsonData = toBinary(original);
-            const result = fromBinary(bsonData);
-
-            expect(result).toBe(42);
+            expect(testRoundtrip(undefined, toBinary, fromBinary)).toBe(42);
         });
 
         it('should handle boolean literals', () => {
@@ -265,11 +257,7 @@ describe('Binary JIT Serialization', () => {
             const toBinary = rt.createJitFunction(JitFunctions.toBinary);
             const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
-            const original: BooleanLiteral = true;
-            const bsonData = toBinary(original);
-            const result = fromBinary(bsonData);
-
-            expect(result).toBe(true);
+            expect(testRoundtrip(undefined, toBinary, fromBinary)).toBe(true);
         });
 
         it('should handle null literals', () => {
@@ -278,11 +266,7 @@ describe('Binary JIT Serialization', () => {
             const toBinary = rt.createJitFunction(JitFunctions.toBinary);
             const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
-            const original: NullLiteral = null;
-            const bsonData = toBinary(original);
-            const result = fromBinary(bsonData);
-
-            expect(result).toBe(null);
+            expect(testRoundtrip(undefined, toBinary, fromBinary)).toBe(null);
         });
 
         it('should handle bigint literals', () => {
@@ -291,11 +275,17 @@ describe('Binary JIT Serialization', () => {
             const toBinary = rt.createJitFunction(JitFunctions.toBinary);
             const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
-            const original: BigIntLiteral = 123n;
-            const bsonData = toBinary(original);
-            const result = fromBinary(bsonData);
+            expect(testRoundtrip(undefined, toBinary, fromBinary)).toBe(123n);
+        });
 
-            expect(result).toBe(123n);
+        it('should handle regexp literals', () => {
+            const regexp = /abc/;
+            type RegExpLiteral = typeof regexp;
+            const rt = runType<RegExpLiteral>();
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
+
+            expect(testRoundtrip(undefined, toBinary, fromBinary)).toEqual(regexp);
         });
     });
 
