@@ -45,7 +45,7 @@ function testRoundtrip<T>(
 
     // Deserialize from Binary
     desContext.setBuffer(buffer);
-    const result = fromBinary(buffer, desContext);
+    const result = fromBinary(undefined, desContext);
     if (debug) {
         console.log('Original value:', value, 'Deserialized value:', result);
     }
@@ -304,18 +304,6 @@ describe('Binary JIT Serialization', () => {
             expect(testRoundtrip(mixedNumbers, toBinary, fromBinary)).toEqual(mixedNumbers);
         });
 
-        it('should handle nested array types', () => {
-            const rt = runType<number[][]>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const nestedArray = [[1, 2], [3, 4], [5]];
-            const emptyNested: number[][] = [[], []];
-
-            expect(testRoundtrip(nestedArray, toBinary, fromBinary)).toEqual(nestedArray);
-            expect(testRoundtrip(emptyNested, toBinary, fromBinary)).toEqual(emptyNested);
-        });
-
         it('should handle string array types', () => {
             const rt = runType<string[]>();
             const toBinary = rt.createJitFunction(JitFunctions.toBinary);
@@ -326,6 +314,18 @@ describe('Binary JIT Serialization', () => {
 
             expect(testRoundtrip(stringArray, toBinary, fromBinary)).toEqual(stringArray);
             expect(testRoundtrip(unicodeArray, toBinary, fromBinary)).toEqual(unicodeArray);
+        });
+
+        it('should handle nested array types', () => {
+            const rt = runType<number[][]>();
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
+
+            const nestedArray = [[1, 2], [3, 4], [5]];
+            const emptyNested: number[][] = [[], []];
+
+            expect(testRoundtrip(nestedArray, toBinary, fromBinary)).toEqual(nestedArray);
+            expect(testRoundtrip(emptyNested, toBinary, fromBinary)).toEqual(emptyNested);
         });
 
         it('should handle tuple types', () => {
@@ -391,6 +391,17 @@ describe('Binary JIT Serialization', () => {
 
             expect(testRoundtrip(withAge, toBinary, fromBinary)).toEqual(withAge);
             expect(testRoundtrip(withoutAge, toBinary, fromBinary)).toEqual(withoutAge);
+        });
+
+        it('should handle index signatures in objects (Records)', () => {
+            const rt = runType<{[key: string]: number}>();
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
+
+            const record = {a: 1, b: 2, c: 3};
+            const result = testRoundtrip(record, toBinary, fromBinary);
+
+            expect(result).toEqual(record);
         });
 
         it('should handle nested object types', () => {
