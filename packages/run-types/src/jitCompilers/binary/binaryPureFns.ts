@@ -116,7 +116,7 @@ export function mionBinSerEnum(jUtil: JITUtils) {
 /** @reflection never */
 export function mionBinDesEnum(jUtil: JITUtils) {
     const NUM = 2;
-    const dString = jUtil.getPureFn('pf_mionBinDesString') as ReturnType<typeof mionBinDesFloat64>;
+    const dString = jUtil.getPureFn('pf_mionBinDesString') as ReturnType<typeof mionBinDesString>;
     return function deserializeEnum(des: BinaryDeserializer): number | string {
         const type = des.uint32Array[des.index++];
         if (type === NUM) return des.uint32Array[des.index++];
