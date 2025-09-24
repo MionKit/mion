@@ -1190,7 +1190,30 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 54 tests
+    // Interface with index properties json stringify test - moved from packages/run-types/src/runType/collection/interface.spec.ts:219-237
+    {
+        it('json stringify interfaces with a single property and index properties', () => {
+            type Obj1 = {
+                a: string;
+                [key: string]: string;
+            };
+            const rtObj1 = runType<Obj1>();
+            const jsonStringify = rtObj1.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtObj1.createJitFunction(JitFunctions.fromJsonVal);
+
+            const typeValue: Obj1 = {a: 'helloA'};
+            const json = jsonStringify(typeValue);
+            expect(json).toEqual(`{"a":"helloA"}`);
+            expect(fromJsonVal(JSON.parse(json))).toEqual(typeValue);
+
+            const typeValue2: Obj1 = {a: 'helloA', b: 'helloB'};
+            const json2 = jsonStringify(typeValue2);
+            expect(json2).toEqual(`{"b":"helloB","a":"helloA"}`); // properties are reordered for json stringify to work properly
+            expect(fromJsonVal(JSON.parse(json2))).toEqual(typeValue2);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 55 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
