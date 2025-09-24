@@ -351,23 +351,7 @@ describe('Union Obj', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyE))))).toEqual(objE);
     });
 
-    it('json stringify with discriminator', () => {
-        // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copyA = structuredClone(objA);
-        const copyB = structuredClone(objB);
-        const copyC = structuredClone(objC);
-        const copyD = structuredClone(objD);
-        const copyE = structuredClone(objE);
-
-        expect(() => jsonStringify(copyA)).toThrow(); // mion throws an error for mixed properties in the union
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyB)))).toEqual(objB);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyC)))).toEqual(objC);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyD)))).toEqual(objD);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyE)))).toEqual(objE);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 902-918)
 
     it('throw errors whe serializing deserializing object not belonging to the union', () => {
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
