@@ -140,16 +140,7 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
         expect(decoded).toEqual(testSetSmallObject);
     });
 
-    it('json stringify Set<SmallObject>', () => {
-        const jsonStringify = rtSmallObject.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtSmallObject.createJitFunction(JitFunctions.fromJsonVal);
-
-        const setCopy = cloneSet(testSetSmallObject);
-        const jsonString = jsonStringify(setCopy);
-        const restored = fromJsonVal(JSON.parse(jsonString));
-
-        expect(restored).toEqual(testSetSmallObject);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1691-1699)
 
     it('has unknown keys in Set<SmallObject>', () => {
         const hasUnknownKeys = rtSmallObject.createJitFunction(JitFunctions.hasUnknownKeys);
