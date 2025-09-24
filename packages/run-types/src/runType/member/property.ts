@@ -7,14 +7,22 @@
 
 import type {TypeProperty, TypePropertySignature} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {jitCode} from '../../types';
+import type {jitCode, JitFnID} from '../../types';
 import {childIsExpression, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {InterfaceRunType} from '../collection/interface';
-import {JitFunctions} from '../../constants.functions';
+import {type CodeType, JitFunctions} from '../../constants.functions';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     isUnionDiscriminator = false;
+    getCodeType(fnID: JitFnID): CodeType {
+        switch (fnID) {
+            case JitFunctions.fromBinary.id:
+                return 'E';
+            default:
+                return super.getCodeType(fnID);
+        }
+    }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getChildVarName(comp: JitCompiler) {
         return getPropVarName(this.src.name);

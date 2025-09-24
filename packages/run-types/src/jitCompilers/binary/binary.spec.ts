@@ -382,15 +382,28 @@ describe('Binary JIT Serialization', () => {
         });
 
         it('should handle optional properties', () => {
-            const rt = runType<{name: string; age?: number}>();
+            // prettier-ignore
+            const rt = runType<{name: string; age?: number; address?: string; "weird\nName \"?\\"?: string}>();
             const toBinary = rt.createJitFunction(JitFunctions.toBinary);
             const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
-            const withAge = {name: 'John', age: 30};
-            const withoutAge = {name: 'Jane'};
+            const all = {name: 'John', age: 30, address: '123 Main St'};
+            const withoutAge = {name: 'Jane', address: '456 Elm St'};
+            const orderChanged = {age: 30, address: '123 Main St', name: 'John'};
+            const withoutAddress = {name: 'John', age: 30};
+            const onlyName = {name: 'John'};
+            // prettier-ignore
+            const weirdName = {name: 'John', age: 30, "weird\nName \"?\\": 'hello'};
+            // prettier-ignore
+            const weirdName2 = {name: 'John', age: 45, 'weird\nName "?\\': 'hello'};
 
-            expect(testRoundtrip(withAge, toBinary, fromBinary)).toEqual(withAge);
+            expect(testRoundtrip(all, toBinary, fromBinary)).toEqual(all);
             expect(testRoundtrip(withoutAge, toBinary, fromBinary)).toEqual(withoutAge);
+            expect(testRoundtrip(orderChanged, toBinary, fromBinary)).toEqual(orderChanged);
+            expect(testRoundtrip(withoutAddress, toBinary, fromBinary)).toEqual(withoutAddress);
+            expect(testRoundtrip(onlyName, toBinary, fromBinary)).toEqual(onlyName);
+            expect(testRoundtrip(weirdName, toBinary, fromBinary)).toEqual(weirdName);
+            expect(testRoundtrip(weirdName2, toBinary, fromBinary)).toEqual(weirdName2);
         });
 
         it('should handle index signatures in objects (Records)', () => {
@@ -398,7 +411,18 @@ describe('Binary JIT Serialization', () => {
             const toBinary = rt.createJitFunction(JitFunctions.toBinary);
             const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
 
-            const record = {a: 1, b: 2, c: 3};
+            const record = {a: 1, b: 2, c: 3, hello: 4};
+            const result = testRoundtrip(record, toBinary, fromBinary);
+
+            expect(result).toEqual(record);
+        });
+
+        it('should handle index signatures + other props', () => {
+            const rt = runType<{[key: string]: number; foo: number}>();
+            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
+            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
+
+            const record = {a: 1, b: 2, c: 3, foo: 4};
             const result = testRoundtrip(record, toBinary, fromBinary);
 
             expect(result).toEqual(record);

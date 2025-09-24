@@ -91,10 +91,11 @@ Following seqproto's number encoding strategy:
 
 ### Object Properties (32-bit Aligned)
 
-| Property Type     | Bit Layout                            | Encoding                                           | Notes                        |
-| ----------------- | ------------------------------------- | -------------------------------------------------- | ---------------------------- |
-| **Known props**   | `[propIndex + value]`                 | `uint32Array[index++] = propIndex; [encode value]` | Direct property index        |
-| **Unknown Props** | `[length + string prop name + value]` | `serializeString(propName); [encode value]`        | Use seqproto string function |
+| Property Type          | Bit Layout                   | Encoding                                           | Notes                                              |
+| ---------------------- | ---------------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| **Non Optional props** | `value`                      | `[encode value]`                                   | Serialized in order they are declared in the type. |
+| **Optional props**     | `[propIndex + value]`        | `uint32Array[index++] = propIndex; [encode value]` | Direct property index                              |
+| **Unknown Props**      | `[string prop name + value]` | `serializeString(propName); [encode value]`        | used inIndexSignature or Records                   |
 
 ### TypeScript Features
 

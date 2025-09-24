@@ -14,6 +14,10 @@ import type {LiteralRunType} from '../../runType/atomic/literal';
 import {jitBinaryDeserializerArgs, JitFunctions} from '../../constants.functions';
 import {mionBinDesEnum, mionBinDesNumber, mionBinDesString} from './binaryPureFns';
 import type {ArrayRunType} from '../../runType/member/array';
+import type {PropertyRunType} from '../../runType/member/property';
+import type {InterfaceRunType} from '../../runType/collection/interface';
+import type {IndexSignatureRunType} from '../../runType/member/indexProperty';
+import {isSafePropName} from '../../lib/utils';
 
 type BinaryCompiler = BaseCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
 
@@ -86,9 +90,31 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             return `const ${totalVar} = ${dεs}.uint32Array[${dεs}.index++];${comp.vλl} = new Array(${totalVar});${arrayCode}`;
         }
 
-        case ReflectionKind.indexSignature:
-            // TODO
-            break;
+        case ReflectionKind.indexSignature: {
+            const rt = runType as IndexSignatureRunType;
+            const indexKind = (rt.src as any).index?.kind;
+            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            if (!memberCode) return undefined;
+
+            const prop = rt.getChildVarName(comp);
+            const countVar = `cnt${comp.getNestLevel(rt)}`;
+            const indexVar = `prI${comp.getNestLevel(rt)}`;
+            const deserializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinDesString);
+
+            // Deserialize key based on index type
+            let keyDeserializationCode: string;
+            if (indexKind === ReflectionKind.number) {
+                // For number indices, deserialize as uint32
+                keyDeserializationCode = `const ${prop} = ${dεs}.uint32Array[${dεs}.index++];`;
+            } else {
+                // For string indices (default), deserialize as string
+                keyDeserializationCode = `const ${prop} = ${deserializeStringFn}(${dεs});`;
+            }
+
+            const deserializeCode = `for (let ${indexVar} = 0; ${indexVar} < ${countVar}; ${indexVar}++) {${keyDeserializationCode} ${comp.vλl}[${prop}] = ${memberCode};}`;
+
+            return `const ${countVar} = ${dεs}.uint32Array[${dεs}.index++]; ${comp.vλl} = {}; ${deserializeCode}`;
+        }
 
         case ReflectionKind.function:
         case ReflectionKind.method:
@@ -121,10 +147,21 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             break;
 
         case ReflectionKind.property:
-        case ReflectionKind.propertySignature:
-            // TODO
-            break;
+        case ReflectionKind.propertySignature: {
+            const rt = runType as PropertyRunType;
+            const parent = rt.getParent() as InterfaceRunType;
+            if (parent.hasIndexSignature(comp)) return undefined; // all deserialization is done by index signature code
 
+            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            // optional props go inside a switch statement and should produce each case block with a break;
+            if (rt.isOptional())
+                return `case ${rt.getJitChildIndex(comp)}: ${comp.vλl}${getPropName(rt, comp, false)} = ${memberCode}; break`;
+
+            // non optional props are part of an object constructor {a: deserializeA, b: deserializeB, c: deserializeC}
+            // non optional props does not include the prop index as it is known at compile time
+            const propName = getPropName(rt, comp, true);
+            return `${propName}:${memberCode}`;
+        }
         case ReflectionKind.rest:
             // TODO
             break;
@@ -143,8 +180,43 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             if (runType.src.subKind === ReflectionSubKind.nonSerializable) {
                 throw new Error('Binary deserialization is disabled for Non Serializable types');
             } else {
-                // TODO: Handle object literal/intersection
-                break;
+                const rt = runType as InterfaceRunType;
+
+                const {nonOptionalChildren, optionalChildren, propsLengthVar} = getCompileObjectItems(rt, comp);
+                const indexSignatureProp = optionalChildren.find((prop) => prop.src.kind === ReflectionKind.indexSignature);
+                if (indexSignatureProp) {
+                    return indexSignatureProp.compile(comp, fnID) as string; // index signature code already contains the loop
+                }
+
+                // non optional properties are restored as: '{a: deserializeA, b: deserializeB, c: deserializeC};
+                // and must be serialized/deserialised in the same order they are declared in the type
+                const nonOptionalCode = nonOptionalChildren
+                    .map((prop) => prop.compile(comp, fnID))
+                    .filter(Boolean)
+                    .join(',');
+                const diffCode = nonOptionalChildren.length ? ` - ${nonOptionalChildren.length}` : '';
+                const initVars = `const ${propsLengthVar} = ${dεs}.uint32Array[${dεs}.index++]${diffCode};`;
+                const objectCode = `${comp.vλl} = {${nonOptionalCode}};`;
+
+                let optionalPropsCode = '';
+                if (optionalChildren.length && !indexSignatureProp) {
+                    // optional properties are restored using a loop
+                    const propsCases = optionalChildren
+                        .map((prop) => prop.compile(comp, fnID))
+                        .filter(Boolean)
+                        .join(';\n');
+                    const iName = `iP${comp.getNestLevel(rt)}`;
+                    const propIndex = `propI${comp.getNestLevel(rt)}`;
+                    optionalPropsCode = `for (let ${iName} = 0; ${iName} < ${propsLengthVar}; ${iName}++) {
+                        const ${propIndex} = ${dεs}.uint32Array[${dεs}.index++];
+                        switch(${propIndex}) {
+                            ${propsCases}
+                            default: throw new Error('Unknown property index' + ${propIndex} + ' cannot be deserialized in type ${rt.getTypeName()} at buffer position' + ${dεs}.index);
+                        }
+                    }`;
+                }
+
+                return `${initVars}\n${objectCode}\n${optionalPropsCode}`;
             }
 
         case ReflectionKind.class:
@@ -183,6 +255,22 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
         default:
             throw new Error(`Binary deserialization not supported for ${ReflectionKind[kind]} types`);
     }
+}
+
+function getPropName(rt: PropertyRunType, comp: BinaryCompiler, isObjectConstructor: boolean): string | number {
+    const isSafe = isSafePropName(rt.src.name);
+    if (isObjectConstructor) return isSafe ? rt.getChildVarName(comp) : rt.getChildLiteral(comp);
+    return isSafe ? `.${rt.getChildVarName(comp)}` : `[${rt.getChildLiteral(comp)}]`;
+}
+
+function getCompileObjectItems(rt: InterfaceRunType, comp: BinaryCompiler) {
+    // we need to use getJitNonOptionalChildrenFirst to ensure serialization order is the same as deserialization
+    const nonOptionalFirst = rt.getJitNonOptionalChildrenFirst(comp);
+    const nonOptionalChildren = nonOptionalFirst.filter((prop) => !prop.isOptional());
+    const optionalChildren = nonOptionalFirst.filter((prop) => prop.isOptional());
+
+    const propsLengthVar = `pL${comp.getNestLevel(rt)}`;
+    return {nonOptionalChildren, optionalChildren, propsLengthVar};
 }
 
 function compileLiteral(runType: LiteralRunType, comp: BinaryCompiler): jitCode {

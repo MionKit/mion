@@ -15,6 +15,12 @@ export interface BinarySerializer {
     float64Array: Float64Array;
     reset: () => void;
     getBuffer: () => StrictArrayBuffer;
+    // String encoding and caching
+    textEncoder: TextEncoder;
+    maxStrLength: number;
+    maxCacheSize: number;
+    stringCache: Map<string, Uint8Array>;
+    evictStringCache: () => void;
 }
 export interface BinaryDeserializer {
     index: number;
@@ -23,4 +29,11 @@ export interface BinaryDeserializer {
     float32Array: Float32Array;
     float64Array: Float64Array;
     setBuffer: (buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) => void;
+    // String decoding and caching
+    textDecoder: TextDecoder;
+    maxStrLength: number;
+    maxCacheSize: number;
+    stringCache: Map<string, string>;
+    evictStringCache: () => void;
+    hashBytes: (bytes: Uint8Array, len: number) => string;
 }
