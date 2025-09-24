@@ -162,16 +162,7 @@ describe('non serializable parameters', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue2))))).toEqual([3, true, undefined]);
     });
 
-    it('json stringify non serializable types', () => {
-        const jsonStringify = rtWithFN.createJitParamsFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtWithFN.createJitParamsFunction(JitFunctions.fromJsonVal);
-        const typeValue = [3, true, () => null];
-        const typeValue2 = [3, true, undefined];
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
-        expect(roundTrip).toEqual([3, true, undefined]);
-        expect(roundTrip2).toEqual([3, true, undefined]);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 476-486)
 
     it('mock non serializable types', async () => {
         const mocked = await rtWithFN.mockParams();
