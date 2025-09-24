@@ -8,11 +8,11 @@
 import {runType} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
 
-it('toCode should transform functions to code using toString()', () => {
+it('toJavascript should transform functions to code using toString()', () => {
     // Create a type with a function
     type TestType = {fn: (a: number, b: string) => boolean};
     const rt = runType<TestType>();
-    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    const toJavascript = rt.createJitFunction(JitFunctions.toJavascript);
     // Create an object with a function
     const testObj: TestType = {
         fn: function (a, b) {
@@ -20,7 +20,7 @@ it('toCode should transform functions to code using toString()', () => {
         },
     };
     // Get the code representation
-    const code = toCode(testObj);
+    const code = toJavascript(testObj);
     // Parse the code back to an object
     const parsedObj = eval(`(${code})`);
     // Verify the function was properly transformed to code
@@ -30,20 +30,20 @@ it('toCode should transform functions to code using toString()', () => {
     expect(parsedObj.fn(1, '')).toBe(false);
 });
 
-it('toCode should use property names without double quotes', () => {
+it('toJavascript should use property names without double quotes', () => {
     // Create a type with properties
     type TestType = {name: string; age: number; 'hello world': string};
     const rt = runType<TestType>();
-    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    const toJavascript = rt.createJitFunction(JitFunctions.toJavascript);
     const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
     const testObj: TestType = {name: 'John', age: 30, 'hello world': 'test'};
     // Get the code representation
-    const code = toCode(testObj);
+    const code = toJavascript(testObj);
     const json = jsonStringify(testObj);
-    // Verify property names don't use double quotes in toCode
+    // Verify property names don't use double quotes in toJavascript
     expect(code).toContain('name:');
     expect(code).not.toContain('"name":');
-    // Verify non-safe property names use double quotes in toCode
+    // Verify non-safe property names use double quotes in toJavascript
     expect(code).toContain('"hello world":');
     expect(code).not.toContain('hello world:');
     expect(json).toContain('"hello world":');
@@ -51,7 +51,7 @@ it('toCode should use property names without double quotes', () => {
     expect(json).toContain('"name":');
 });
 
-it('toCode should handle complex objects similar to jsonStringify', () => {
+it('toJavascript should handle complex objects similar to jsonStringify', () => {
     // Create a complex type
     type ComplexType = {
         name: string;
@@ -62,7 +62,7 @@ it('toCode should handle complex objects similar to jsonStringify', () => {
         date: Date;
     };
     const rt = runType<ComplexType>();
-    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    const toJavascript = rt.createJitFunction(JitFunctions.toJavascript);
     const testDate = new Date('2023-01-01');
     const testObj: ComplexType = {
         name: 'Test',
@@ -73,7 +73,7 @@ it('toCode should handle complex objects similar to jsonStringify', () => {
         date: testDate,
     };
     // Get the code representation
-    const code = toCode(testObj);
+    const code = toJavascript(testObj);
     // Parse the code back to an object
     const parsedObj = eval(`(${code})`);
     // Verify the object was properly transformed
@@ -83,16 +83,16 @@ it('toCode should handle complex objects similar to jsonStringify', () => {
     expect(parsedObj.date).toEqual(testDate);
 });
 
-it('toCode should handle arrow functions', () => {
+it('toJavascript should handle arrow functions', () => {
     // Create a type with an arrow function
     const arrowFnObj = {arrowFn: (x): number => x * 2};
     type TestType = typeof arrowFnObj;
     const rt = runType<TestType>();
-    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    const toJavascript = rt.createJitFunction(JitFunctions.toJavascript);
     // Create an object with an arrow function
     const testObj: TestType = {arrowFn: (x) => x * 2};
     // Get the code representation
-    const code = toCode(testObj);
+    const code = toJavascript(testObj);
     // Parse the code back to an object
     const parsedObj = eval(`(${code})`);
     // Verify the function was properly transformed to code
@@ -100,11 +100,11 @@ it('toCode should handle arrow functions', () => {
     expect(parsedObj.arrowFn(5)).toBe(10);
 });
 
-it('toCode should handle objects with methods', () => {
+it('toJavascript should handle objects with methods', () => {
     // Create a type with a method
     type TestType = {value: number; increment(): void; getValue(): number};
     const rt = runType<TestType>();
-    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    const toJavascript = rt.createJitFunction(JitFunctions.toJavascript);
     // Create an object with methods
     const testObj: TestType = {
         value: 5,
@@ -116,7 +116,7 @@ it('toCode should handle objects with methods', () => {
         },
     };
     // Get the code representation
-    const code = toCode(testObj);
+    const code = toJavascript(testObj);
     // Parse the code back to an object
     const parsedObj = eval(`(${code})`);
     // Verify the methods were properly transformed
@@ -126,11 +126,11 @@ it('toCode should handle objects with methods', () => {
     expect(parsedObj.getValue()).toBe(6);
 });
 
-it('toCode should handle optional methods', () => {
+it('toJavascript should handle optional methods', () => {
     // Create a type with an optional method
     type TestType = {value: number; increment?: () => void; getValue(): number};
     const rt = runType<TestType>();
-    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    const toJavascript = rt.createJitFunction(JitFunctions.toJavascript);
     // Create an object with an optional method
     const testObj: TestType = {
         value: 5,
@@ -142,7 +142,7 @@ it('toCode should handle optional methods', () => {
     // PR here https://github.com/deepkit/deepkit-framework/pull/649
     expect(() => {
         // Get the code representation
-        const code = toCode(testObj);
+        const code = toJavascript(testObj);
         // Parse the code back to an object
         const parsedObj = eval(`(${code})`);
         // Verify the methods were properly transformed
@@ -152,7 +152,7 @@ it('toCode should handle optional methods', () => {
 
     type TestType2 = {value: number; increment2?(): void; getValue(): number};
     const rt2 = runType<TestType2>();
-    const toCode2 = rt2.createJitFunction(JitFunctions.toCode);
+    const toJavascript2 = rt2.createJitFunction(JitFunctions.toJavascript);
     // Create an object with an optional method
     const testObj2: TestType2 = {
         value: 5,
@@ -164,7 +164,7 @@ it('toCode should handle optional methods', () => {
     // PR here https://github.com/deepkit/deepkit-framework/pull/649
     expect(() => {
         // Get the code representation
-        const code2 = toCode2(testObj2);
+        const code2 = toJavascript2(testObj2);
         // Parse the code back to an object
         const parsedObj2 = eval(`(${code2})`);
         // Verify the methods were properly transformed
@@ -173,26 +173,26 @@ it('toCode should handle optional methods', () => {
     }).toThrow();
 });
 
-it('toCode should handle native Sets', () => {
+it('toJavascript should handle native Sets', () => {
     // Create a type with a Set
     type TestType = {set: Set<number>};
     const rt = runType<TestType>();
-    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    const toJavascript = rt.createJitFunction(JitFunctions.toJavascript);
     // Create an object with a Set
     const testObj: TestType = {set: new Set([1, 2, 3])};
     // Get the code representation
-    const code = toCode(testObj);
+    const code = toJavascript(testObj);
     // Parse the code back to an object
     const parsedObj = eval(`(${code})`);
     // Verify the Set was properly transformed
     expect(Array.from(parsedObj.set.values())).toEqual([1, 2, 3]);
 });
 
-it('toCode should handle native Maps', () => {
+it('toJavascript should handle native Maps', () => {
     // Create a type with a Map
     type TestType = {map: Map<string, number>};
     const rt = runType<TestType>();
-    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    const toJavascript = rt.createJitFunction(JitFunctions.toJavascript);
     // Create an object with a Map
     const testObj: TestType = {
         map: new Map([
@@ -202,7 +202,7 @@ it('toCode should handle native Maps', () => {
         ]),
     };
     // Get the code representation
-    const code = toCode(testObj);
+    const code = toJavascript(testObj);
     // Parse the code back to an object
     const parsedObj = eval(`(${code})`);
     // Verify the Map was properly transformed
@@ -213,22 +213,22 @@ it('toCode should handle native Maps', () => {
     ]);
 });
 
-it('toCode should handle native Dates', () => {
+it('toJavascript should handle native Dates', () => {
     // Create a type with a Date
     type TestType = {date: Date};
     const rt = runType<TestType>();
-    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    const toJavascript = rt.createJitFunction(JitFunctions.toJavascript);
     // Create an object with a Date
     const testObj: TestType = {date: new Date('2023-01-01')};
     // Get the code representation
-    const code = toCode(testObj);
+    const code = toJavascript(testObj);
     // Parse the code back to an object
     const parsedObj = eval(`(${code})`);
     // Verify the Date was properly transformed
     expect(parsedObj.date).toEqual(testObj.date);
 });
 
-it('toCode should throw when trying to handle classes', () => {
+it('toJavascript should throw when trying to handle classes', () => {
     // Create a type with a class
     class TestClass {
         constructor(
@@ -238,6 +238,6 @@ it('toCode should throw when trying to handle classes', () => {
     }
     type TestType = {obj: TestClass};
     const rt = runType<TestType>();
-    // throw when trying to compile toCode
-    expect(() => rt.createJitFunction(JitFunctions.toCode)).toThrow(`Can not generate code for classes. Class: TestClass`);
+    // throw when trying to compile toJavascript
+    expect(() => rt.createJitFunction(JitFunctions.toJavascript)).toThrow(`Can not generate code for classes. Class: TestClass`);
 });
