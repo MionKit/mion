@@ -572,6 +572,46 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Class json stringify test - moved from packages/run-types/src/runType/collection/class.spec.ts:79-90
+    {
+        class MySerializableClass {
+            name: string;
+            surname: string;
+            id: number;
+            startDate: Date;
+            constructor() {
+                this.name = 'John';
+                this.surname = 'Doe';
+                this.id = 0;
+                this.startDate = new Date();
+            }
+
+            getConstructorParams(): [] {
+                return [];
+            }
+
+            getFullName() {
+                return `${this.name} ${this.surname}`;
+            }
+        }
+
+        const serializable = new MySerializableClass();
+        const rt = runType<MySerializableClass>();
+
+        it('json stringify class', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            // restored object has the properties of the original object but is not a class instance
+            const restored = JSON.parse(jsonStringify(serializable));
+            // TODO: decide if we want to include methods in the serialization
+            expect(restored).toEqual({
+                name: serializable.name,
+                surname: serializable.surname,
+                id: serializable.id,
+                startDate: serializable.startDate.toJSON(),
+            });
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)

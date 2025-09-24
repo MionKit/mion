@@ -76,18 +76,7 @@ it('encode/decode class to json', () => {
     });
 });
 
-it('json stringify class', () => {
-    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-    // restored object has the properties of the original object but is not a class instance
-    const restored = JSON.parse(jsonStringify(serializable));
-    // TODO: decide if we want to include methods in the serialization
-    expect(restored).toEqual({
-        name: serializable.name,
-        surname: serializable.surname,
-        id: serializable.id,
-        startDate: serializable.startDate.toJSON(),
-    });
-});
+// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 601-612)
 
 it('non serializable classes can not be decoded', () => {
     expect(() => rtNonS.createJitFunction(JitFunctions.fromJsonVal)).toThrow(
