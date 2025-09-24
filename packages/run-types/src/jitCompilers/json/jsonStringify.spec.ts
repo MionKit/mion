@@ -188,4 +188,72 @@ describe('jsonStringify compilation tests', () => {
             expect(stringify(undefined)).toBe(undefined);
         });
     }
+
+    // Moved from packages/run-types/src/runType/utility/required.spec.ts:61-69
+    {
+        interface MaybePerson {
+            name?: string;
+            age?: number;
+            createdAt?: Date;
+        }
+        const rtRequired = runType<MaybePerson>();
+        const rt = runType<Required<MaybePerson>>();
+        const createdAt = new Date();
+        const person = {name: 'John', age: 30, createdAt};
+        const maybePerson = {createdAt};
+
+        it('json stringify required', () => {
+            const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const stringifyMaybe = rtRequired.createJitFunction(JitFunctions.jsonStringify);
+            const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const decodeMaybe = rtRequired.createJitFunction(JitFunctions.fromJsonVal);
+
+            expect(decode(JSON.parse(stringify(person)))).toEqual({name: 'John', age: 30, createdAt});
+            expect(decodeMaybe(JSON.parse(stringifyMaybe(maybePerson)))).toEqual({createdAt});
+        });
+    }
+
+    // Note: Test from packages/run-types/src/runType/utility/string.spec.ts:41-48 was skipped in original (describe.skip)
+
+    // Moved from packages/run-types/src/runType/utility/extract.spec.ts:53-61
+    {
+        type PersonProp = 'name' | 'age' | 'createdAt';
+        const rt = runType<PersonProp>();
+        const rtExtract = runType<Extract<PersonProp, 'name' | 'createdAt'>>();
+        const personProp: PersonProp = 'age';
+        const excludeAge: Extract<PersonProp, 'name' | 'createdAt'> = 'name';
+
+        it('json stringify extract atomic', () => {
+            const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const stringifyExtract = rtExtract.createJitFunction(JitFunctions.jsonStringify);
+            const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const decodeExtract = rtExtract.createJitFunction(JitFunctions.fromJsonVal);
+
+            expect(decode(JSON.parse(stringify(personProp)))).toEqual(personProp);
+            expect(decodeExtract(JSON.parse(stringifyExtract(excludeAge)))).toEqual(excludeAge);
+        });
+    }
+
+    // Moved from packages/run-types/src/runType/utility/extract.spec.ts:120-128
+    {
+        type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
+        type ToExtract = {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
+        const rt = runType<Shape>();
+        const rtExtract = runType<Extract<Shape, ToExtract>>();
+        const shape: Shape = {kind: 'circle', radius: 3};
+        const excludeShape: Extract<Shape, ToExtract> = {
+            kind: 'square',
+            x: 5,
+        };
+
+        it('json stringify extract objects', () => {
+            const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const stringifyExtract = rtExtract.createJitFunction(JitFunctions.jsonStringify);
+            const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const decodeExtract = rtExtract.createJitFunction(JitFunctions.fromJsonVal);
+
+            expect(decode(JSON.parse(stringify(shape)))).toEqual(shape);
+            expect(decodeExtract(JSON.parse(stringifyExtract(excludeShape)))).toEqual(excludeShape);
+        });
+    }
 });

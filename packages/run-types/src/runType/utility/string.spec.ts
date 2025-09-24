@@ -38,14 +38,7 @@ describe.skip('Uppercase typescript utility type', () => {
         expect(decoded).toEqual(upperString);
     });
 
-    it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const jsonString = stringify(upperString);
-        const parsed = JSON.parse(jsonString);
-        const decoded = decode(parsed);
-        expect(decoded).toEqual(upperString);
-    });
+    // Note: Test was skipped in original (describe.skip), not moved
 
     it('mock', async () => {
         const mocked = await rt.mock();
