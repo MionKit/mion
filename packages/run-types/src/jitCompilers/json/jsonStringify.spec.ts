@@ -1588,7 +1588,29 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 67 tests
+    // Index property nested json stringify tests - moved from packages/run-types/src/runType/member/indexProperty.spec.ts:200-214
+    {
+        const rtNested = runType<{[key: string]: {[key: string]: number}}>();
+        const rtNested2 = runType<{[key: string]: {[key: string]: Date}}>();
+
+        it('json stringify index property nested', () => {
+            const jsonStringify = rtNested.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtNested.createJitFunction(JitFunctions.fromJsonVal);
+            const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
+            expect(roundTrip).toEqual(obj);
+        });
+
+        it('json stringify index property nested date', () => {
+            const jsonStringify = rtNested2.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtNested2.createJitFunction(JitFunctions.fromJsonVal);
+            const obj = {key1: {nestedKey1: new Date(), nestedKey2: new Date()}};
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
+            expect(roundTrip).toEqual(obj);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 69 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
