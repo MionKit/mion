@@ -949,7 +949,24 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 45 tests
+    // Union mixed json stringify test - moved from packages/run-types/src/runType/collection/union.spec.ts:577-584
+    {
+        type UnionMix = string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'};
+        const mixA: UnionMix = ['a', 'b', 'c'];
+        const mixB: UnionMix = {a: 'hello', aa: true};
+        const rt = runType<UnionMix>();
+
+        it('json stringify union mixed with discriminator', () => {
+            // this should be serialized as [discriminatorIndex, value]
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            expect(fromJsonVal(JSON.parse(jsonStringify(mixA)))).toEqual(mixA);
+            expect(fromJsonVal(JSON.parse(jsonStringify(mixB)))).toEqual(mixB);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 46 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
