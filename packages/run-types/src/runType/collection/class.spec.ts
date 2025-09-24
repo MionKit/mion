@@ -86,22 +86,7 @@ it('non serializable classes can not be decoded', () => {
 
 // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 642-649)
 
-it('classes can be deserialized suing a deserialize function', () => {
-    const jsonStringify = rtNonS.createJitFunction(JitFunctions.jsonStringify);
-    expect(() => rtNonS.createJitFunction(JitFunctions.fromJsonVal)).toThrow();
-    jitUtils.setDeserializeFn(NonSerializableClass, (deserialized: DataOnly<NonSerializableClass>) => {
-        const instance = new NonSerializableClass(
-            deserialized.name,
-            deserialized.surname,
-            deserialized.id,
-            deserialized.startDate
-        );
-        return instance;
-    });
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const restored = fromJsonVal(JSON.parse(jsonStringify(serializable)));
-    expect(restored instanceof MySerializableClass).toBeTruthy();
-});
+// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 690-705)
 
 it('mock class', async () => {
     const mock = await rt.mock();

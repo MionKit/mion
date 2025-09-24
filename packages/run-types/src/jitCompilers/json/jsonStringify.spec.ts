@@ -649,6 +649,65 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Class deserialize function test - moved from packages/run-types/src/runType/collection/class.spec.ts:89-104
+    {
+        class MySerializableClass {
+            name: string;
+            surname: string;
+            id: number;
+            startDate: Date;
+            constructor() {
+                this.name = 'John';
+                this.surname = 'Doe';
+                this.id = 0;
+                this.startDate = new Date();
+            }
+
+            getConstructorParams(): [] {
+                return [];
+            }
+
+            getFullName() {
+                return `${this.name} ${this.surname}`;
+            }
+        }
+
+        class NonSerializableClass {
+            constructor(
+                public name: string,
+                public surname: string,
+                public id: number,
+                public startDate: Date
+            ) {}
+
+            getFullName() {
+                return `${this.name} ${this.surname}`;
+            }
+        }
+
+        const serializable = new MySerializableClass();
+        const rt = runType<MySerializableClass>();
+        const rtNonS = runType<NonSerializableClass>();
+
+        it('classes can be deserialized suing a deserialize function', () => {
+            const nonSerializable = new NonSerializableClass('John', 'Doe', 0, new Date());
+            const jsonStringify = rtNonS.createJitFunction(JitFunctions.jsonStringify);
+            expect(() => rtNonS.createJitFunction(JitFunctions.fromJsonVal)).toThrow();
+            jitUtils.setDeserializeFn(NonSerializableClass, (deserialized: DataOnly<NonSerializableClass>) => {
+                const instance = new NonSerializableClass(
+                    deserialized.name,
+                    deserialized.surname,
+                    deserialized.id,
+                    deserialized.startDate
+                );
+                return instance;
+            });
+            const fromJsonVal = rtNonS.createJitFunction(JitFunctions.fromJsonVal);
+            const restored = fromJsonVal(JSON.parse(jsonStringify(nonSerializable)));
+            expect(restored instanceof NonSerializableClass).toBeTruthy();
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
