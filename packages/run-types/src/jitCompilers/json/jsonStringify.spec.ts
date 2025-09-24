@@ -529,6 +529,37 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Function reflectFunction general test - moved from packages/run-types/src/runType/function/function.spec.ts:271-297
+    {
+        it('should get runType from a function using reflectFunction', () => {
+            const fn = (a: number, b: boolean, c?: string): Date => new Date();
+            const reflectedType = reflectFunction(fn);
+            expect(reflectedType instanceof FunctionRunType).toBe(true);
+
+            const validate = reflectedType.createJitParamsFunction(JitFunctions.isType);
+            const typeErrors = reflectedType.createJitParamsFunction(JitFunctions.typeErrors);
+            const toJsonVal = reflectedType.createJitParamsFunction(JitFunctions.toJsonVal);
+            const fromJsonVal = reflectedType.createJitParamsFunction(JitFunctions.fromJsonVal);
+            const jsonStringify = reflectedType.createJitParamsFunction(JitFunctions.jsonStringify);
+            const paramsValues = [3, true, 'hello'];
+            expect(validate(paramsValues)).toBe(true);
+            expect(typeErrors(paramsValues)).toEqual([]);
+            expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, true, 'hello']))))).toEqual(paramsValues);
+            expect(fromJsonVal(JSON.parse(jsonStringify([3, true, 'hello'])))).toEqual(paramsValues);
+
+            const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
+            const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
+            const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
+            const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
+            const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
+            const returnValue = new Date();
+            expect(validateReturn(returnValue)).toBe(true);
+            expect(typeErrorsReturn(returnValue)).toEqual([]);
+            expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
+            expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
