@@ -438,6 +438,20 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Function required return test - moved from packages/run-types/src/runType/function/function.spec.ts:226-232
+    {
+        type TestFunction2 = (a: Date, b?: boolean) => bigint;
+        const rt2 = runType<TestFunction2>();
+
+        it('json stringify required function return', () => {
+            const jsonStringify = rt2.createJitReturnFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt2.createJitReturnFunction(JitFunctions.fromJsonVal);
+            const returnValue = 1n;
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(returnValue)));
+            expect(roundTrip).toEqual(returnValue);
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
