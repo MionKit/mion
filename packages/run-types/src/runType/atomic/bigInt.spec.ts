@@ -39,13 +39,7 @@ it('decode from json', () => {
     expect(fromJsonVal('90071992547409999')).toEqual(90071992547409999n);
 });
 
-it('json stringify', () => {
-    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const typeValue = 1n;
-    const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-    expect(roundTrip).toEqual(typeValue);
-});
+// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 45-52)
 
 it('mock', async () => {
     const mocked = await rt.mock();
