@@ -31,13 +31,7 @@ it('decode from json', () => {
     expect(fromJsonVal('hello')).toBe('hello');
 });
 
-it('json stringify', () => {
-    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const typeValue = 'hello';
-    const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-    expect(roundTrip).toEqual(typeValue);
-});
+// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 16-23)
 
 it('mock', async () => {
     const mocked = await rt.mock();
