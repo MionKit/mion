@@ -117,17 +117,7 @@ describe('Array with multiple dimensions', () => {
         expect(fromJsonVal(json)).toEqual(typeValue);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = [['hello', 'world'], ['a', 'b'], []];
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        expect(roundTrip).toEqual(typeValue);
-
-        const typeValue2 = [];
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
-        expect(roundTrip2).toEqual(typeValue2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1470-1479)
 
     it('mock', async () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
