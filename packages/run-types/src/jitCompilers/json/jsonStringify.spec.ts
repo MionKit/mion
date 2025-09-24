@@ -1545,7 +1545,27 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 65 tests
+    // Index property json stringify test - moved from packages/run-types/src/runType/member/indexProperty.spec.ts:100-110
+    {
+        interface IndexString {
+            [key: string]: string;
+        }
+        const rt = runType<IndexString>();
+
+        it('json stringify index property', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue = {key1: 'value1', key2: 'value2'};
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+
+            const typeValue2 = {};
+            const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
+            expect(roundTrip2).toEqual(typeValue2);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 66 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
@@ -1556,12 +1576,12 @@ describe('jsonStringify compilation tests', () => {
     // - packages/run-types/src/runType/collection/union.spec.ts (ALL 8 jsonStringify tests moved)
     // - packages/run-types/src/runType/collection/tuple.spec.ts (ALL 3 jsonStringify tests moved)
     // - packages/run-types/src/runType/collection/interface.spec.ts (ALL 8 jsonStringify tests moved)
+    // - packages/run-types/src/runType/member/array.spec.ts (ALL 3 jsonStringify tests moved)
     //
     // 🔄 IN PROGRESS:
-    // - packages/run-types/src/runType/member/array.spec.ts (0 of ~2 jsonStringify tests moved)
+    // - packages/run-types/src/runType/member/indexProperty.spec.ts (0 of ~2 jsonStringify tests moved)
     //
     // ⏳ PENDING FILES (still have jsonStringify tests to move):
-    // - packages/run-types/src/runType/member/array.spec.ts (~2 more jsonStringify tests)
     // - packages/run-types/src/runType/member/indexProperty.spec.ts (~2 jsonStringify tests)
     // - packages/run-types/src/runType/member/callSignature.spec.ts (~1 jsonStringify test)
     // - packages/run-types/src/runType/native/set.spec.ts (~2 jsonStringify tests)
