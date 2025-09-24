@@ -97,17 +97,7 @@ describe('IndexType', () => {
         expect(roundTripBigint).toEqual({key1: 1n, key2: 1n});
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = {key1: 'value1', key2: 'value2'};
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        expect(roundTrip).toEqual(typeValue);
-
-        const typeValue2 = {};
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
-        expect(roundTrip2).toEqual(typeValue2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1553-1565)
 
     it('json stringify IndexWithExtraProps', () => {
         const jsonStringify = rtExtra.createJitFunction(JitFunctions.jsonStringify);
