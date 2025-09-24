@@ -182,15 +182,7 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
         expect(decoded).toEqual(testMapStringSmallObject);
     });
 
-    it('json stringify Map<string, SmallObject>', () => {
-        const jsonStringify = rtStringSmallObject.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtStringSmallObject.createJitFunction(JitFunctions.fromJsonVal);
-        // Should serialize the Map as an array of entries
-        const mapCopy = cloneMap(testMapStringSmallObject);
-        const jsonString = jsonStringify(mapCopy);
-        const restored = fromJsonVal(JSON.parse(jsonString));
-        expect(restored).toEqual(testMapStringSmallObject);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1773-1781)
 
     it('has unknown keys in Map<string, SmallObject>', () => {
         const hasUnknownKeys = rtStringSmallObject.createJitFunction(JitFunctions.hasUnknownKeys);
