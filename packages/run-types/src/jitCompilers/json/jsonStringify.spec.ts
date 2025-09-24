@@ -1849,7 +1849,27 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 79 tests
+    // Non-serializable types jsonStringify error tests - moved from packages/run-types/src/runType/native/nonSerializable.spec.ts:34-46
+    {
+        it('jsonStringify should throw error for non-serializable types', () => {
+            const errorMessage = `Jit compilation disabled for Non Serializable types.`;
+
+            // Test various non-serializable types
+            const rtInt8Array = runType<Int8Array>();
+            expect(() => rtInt8Array.createJitFunction(JitFunctions.jsonStringify)).toThrow(errorMessage);
+
+            const rtInterfaceWithNonSerializable = runType<{a: Int8Array}>();
+            expect(() => rtInterfaceWithNonSerializable.createJitFunction(JitFunctions.jsonStringify)).toThrow(errorMessage);
+
+            const rtArrayWithNonSerializable = runType<Int8Array[]>();
+            expect(() => rtArrayWithNonSerializable.createJitFunction(JitFunctions.jsonStringify)).toThrow(errorMessage);
+
+            const rtTupleWithNonSerializable = runType<[Int8Array]>();
+            expect(() => rtTupleWithNonSerializable.createJitFunction(JitFunctions.jsonStringify)).toThrow(errorMessage);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 80 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
