@@ -496,22 +496,7 @@ describe('Union with discriminator property', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyD))))).toEqual(objD);
     });
 
-    it('json stringify with discriminator', () => {
-        // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copyA = structuredClone(objA);
-        const copyB = structuredClone(objB);
-        // cant use structuredClone for dates: https://stackoverflow.com/questions/76664834/structuredclone-not-keeping-date-type
-        const copyC = {...objC, time: new Date(objC.time.getTime())};
-        const copyD = structuredClone(objD);
-
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyA)))).toEqual(objA);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyB)))).toEqual(objB);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyC)))).toEqual(objC);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyD)))).toEqual(objD);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 933-948)
 });
 
 describe('Union Mixed', () => {
