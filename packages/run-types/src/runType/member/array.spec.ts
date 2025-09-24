@@ -411,20 +411,7 @@ describe('Array circular ref', () => {
         expect(fromJsonVal(json)).toEqual(arr);
     });
 
-    it('json stringify CircularArray', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const arr: CircularArray = [];
-        arr.push([]);
-        arr[0].push([]);
-        arr[0][0].push([]);
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(arr)));
-        expect(roundTrip).toEqual(arr);
-
-        const arr2: CircularArray = [];
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(arr2)));
-        expect(roundTrip2).toEqual(arr2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1532-1545)
 
     it('mock CircularArray', async () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
