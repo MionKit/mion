@@ -30,7 +30,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     skipJit(comp: JitCompiler): boolean {
         const index = (this.src as TypeIndexSignature).index?.kind || undefined;
         if (index === ReflectionKind.symbol) {
-            return comp?.fnID !== JitFunctions.toCode.id;
+            return comp?.fnID !== JitFunctions.toJavascript.id;
         }
         return false;
     }
@@ -39,7 +39,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             case JitFunctions.isType.id:
             case JitFunctions.jsonStringify.id:
             case JitFunctions.hasUnknownKeys.id:
-            case JitFunctions.toCode.id:
+            case JitFunctions.toJavascript.id:
                 return 'RB';
             default:
                 return super.getCodeType(fnID);

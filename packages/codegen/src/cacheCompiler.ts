@@ -63,8 +63,8 @@ export function compileTypeToJs<T>(
     originalSrcCode?: string
 ): string {
     const rt = runType(type);
-    const toCode = rt.createJitFunction(JitFunctions.toCode, config.runTypeOptions);
-    const code = toCode(instance);
+    const toJavascript = rt.createJitFunction(JitFunctions.toJavascript, config.runTypeOptions);
+    const code = toJavascript(instance);
 
     // If original source code is provided, replace the export pattern instead of generating full file
     if (originalSrcCode) {

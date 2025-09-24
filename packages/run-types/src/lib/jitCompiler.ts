@@ -419,7 +419,7 @@ export function createJitCompiler(
         case JitFunctions.stripUnknownKeys.id:
         case JitFunctions.unknownKeysToUndefined.id:
         case JitFunctions.format.id:
-        case JitFunctions.toCode.id:
+        case JitFunctions.toJavascript.id:
         case JitFunctions.toBinary.id:
         case JitFunctions.fromBinary.id:
             return new JitCompiler(rt, fnID, parent, jitFnHash, typeID, opts);

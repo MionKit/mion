@@ -38,7 +38,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     skipJit(comp: JitCompiler): boolean {
         const name = (this.src as TypeProperty).name;
         if (typeof name === 'symbol') {
-            return comp?.fnID !== JitFunctions.toCode.id;
+            return comp?.fnID !== JitFunctions.toJavascript.id;
         }
         return false;
     }

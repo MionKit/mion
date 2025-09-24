@@ -20,7 +20,7 @@ import {_compileJsonStringify, _compileJsonStringifyIterable} from './jsonString
 import {registerPureFnClosure} from '../../lib/pureFn';
 
 /** Centralized compile jit function with a switch statement that handles all node types. */
-export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toCode.id): jitCode {
+export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toJavascript.id): jitCode {
     const src = runType.src;
     const kind = src.kind;
 

@@ -44,7 +44,7 @@ export async function mockTypeFn<T>(type?: ReceiveType<T>): Promise<(opts?: Part
 }
 
 /** Returns a function that mocks a value of the specified type. */
-export function toCodeFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): ToCodeFn {
+export function toJavascriptFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): ToCodeFn {
     const rt = runType(type) as BaseRunType;
-    return rt.createJitFunction(JitFunctions.toCode, opts);
+    return rt.createJitFunction(JitFunctions.toJavascript, opts);
 }

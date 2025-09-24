@@ -13,7 +13,7 @@ import type {JitCompiler} from '../../lib/jitCompiler';
 export class PromiseRunType extends MemberRunType<TypePromise> {
     _getTypeID = () => ReflectionKind.promise;
     skipJit(comp: JitCompiler): boolean {
-        return comp?.fnID !== JitFunctions.toCode.id;
+        return comp?.fnID !== JitFunctions.toJavascript.id;
     }
     _compileIsType(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);

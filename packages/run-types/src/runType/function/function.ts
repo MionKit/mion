@@ -21,7 +21,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     parameterRunTypes: FunctionParamsRunType = new FunctionParamsRunType();
     skipJit(comp: JitCompiler): boolean {
         if (!comp) return true;
-        return comp.fnID !== JitFunctions.toCode.id;
+        return comp.fnID !== JitFunctions.toJavascript.id;
     }
     onCreated(deepkitType: SrcType): void {
         // here we are mapping parameters from TypeParameter[] to TypeTuple as TupleRunType() is the same functionality as ParameterRunType[]

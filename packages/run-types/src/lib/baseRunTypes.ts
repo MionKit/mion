@@ -284,7 +284,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 case JitFunctions.fromBinary.id:
                     code = _compileFromBinary(this, comp as any);
                     break;
-                case JitFunctions.toCode.id:
+                case JitFunctions.toJavascript.id:
                         code = _compileToCode(this, comp);
                         break;
                 case JitFunctions.unknownKeyErrors.id: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
@@ -478,7 +478,7 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
             case JitFunctions.fromJsonVal.id:
             case JitFunctions.jsonStringify.id:
             case JitFunctions.fromBinary.id:
-            case JitFunctions.toCode.id:
+            case JitFunctions.toJavascript.id:
                 return 'E';
             default:
                 return super.getCodeType(fnID);
