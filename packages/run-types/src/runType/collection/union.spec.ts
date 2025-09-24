@@ -654,19 +654,7 @@ describe('Union mixed with index property', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyD))))).toEqual(indexD);
     });
 
-    it('json stringify with discriminator', () => {
-        // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copyA = structuredClone(indexA);
-        const copyB = structuredClone(indexB);
-        const copyD = structuredClone(indexD);
-
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyA)))).toEqual(indexA);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyB)))).toEqual(indexB);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copyD)))).toEqual(indexD);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 979-991)
 });
 
 describe('Union circular', () => {
