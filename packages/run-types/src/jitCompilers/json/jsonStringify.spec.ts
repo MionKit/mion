@@ -452,6 +452,23 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Function with only rest parameters test - moved from packages/run-types/src/runType/function/function.spec.ts:324-333
+    {
+        type TestFunctionRest2 = (...rest: number[]) => Date;
+        const rtRest2 = runType<TestFunctionRest2>();
+
+        it('stringify function with only rest parameters', () => {
+            const jsonStringify = rtRest2.createJitParamsFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtRest2.createJitParamsFunction(JitFunctions.fromJsonVal);
+            const typeValue = [3, 2, 1];
+            const typeValue2: number[] = [];
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            const roundTrip3 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
+            expect(roundTrip).toEqual(typeValue);
+            expect(roundTrip3).toEqual(typeValue2);
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
