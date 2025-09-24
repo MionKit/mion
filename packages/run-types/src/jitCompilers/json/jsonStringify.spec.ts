@@ -256,4 +256,64 @@ describe('jsonStringify compilation tests', () => {
             expect(decodeExtract(JSON.parse(stringifyExtract(excludeShape)))).toEqual(excludeShape);
         });
     }
+
+    // Function tests - error cases moved from packages/run-types/src/runType/function/function.spec.ts:72-74
+    {
+        type TestFunction = (a: number, b: boolean, c?: string) => Date;
+        const rt = runType<TestFunction>();
+
+        it('throw errors for jsonStringify on function type', () => {
+            expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(
+                `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
+            );
+        });
+    }
+
+    // Function parameters tests - moved from packages/run-types/src/runType/function/function.spec.ts:128-137
+    {
+        type TestFunction = (a: number, b: boolean, c?: string) => Date;
+        const rt = runType<TestFunction>();
+
+        it('json stringify parameters', () => {
+            const jsonStringify = rt.createJitParamsFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitParamsFunction(JitFunctions.fromJsonVal);
+            const typeValue = [3, true, 'hello'];
+            const typeValue2 = [3, true];
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
+            expect(roundTrip).toEqual(typeValue);
+            expect(roundTrip2).toEqual(typeValue2);
+        });
+    }
+
+    // Function return tests - moved from packages/run-types/src/runType/function/function.spec.ts:235-241
+    {
+        type TestFunction = (a: number, b: boolean, c?: string) => Date;
+        const rt = runType<TestFunction>();
+
+        it('json stringify function return', () => {
+            const jsonStringify = rt.createJitReturnFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitReturnFunction(JitFunctions.fromJsonVal);
+            const returnValue = new Date();
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(returnValue)));
+            expect(roundTrip).toEqual(returnValue);
+        });
+    }
+
+    // Function with rest parameters - moved from packages/run-types/src/runType/function/function.spec.ts:339-348
+    {
+        type TestFunctionRest = (a: number, b: boolean, ...rest: Date[]) => Date;
+        const rtRest = runType<TestFunctionRest>();
+
+        it('stringify function with rest parameters', () => {
+            const jsonStringify = rtRest.createJitParamsFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtRest.createJitParamsFunction(JitFunctions.fromJsonVal);
+            const typeValue = [3, true, new Date(), new Date()];
+            const typeValue2 = [3, true];
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
+            expect(roundTrip).toEqual(typeValue);
+            expect(roundTrip2).toEqual(typeValue2);
+        });
+    }
 });
