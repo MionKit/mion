@@ -127,18 +127,7 @@ describe('Circular array + union', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(cu3);
     });
 
-    it('json stringify CircularUnion array with discriminator', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copy1: CuArray = [date, 123, 'hello', ['a', 'b', 'c']];
-        const copy2: CuArray = [date, 123, 'hello', ['a', 2, 'c'], [date, 123, 'hello', ['a', 'b', 'c']]];
-        const copy3: CuArray = [];
-
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy1))).length).toEqual(cu1.length);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy2))).length).toEqual(cu2.length);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy3))).length).toEqual(cu3.length);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 743-754)
 
     it('mock CircularUnion array', async () => {
         const mocked = await rt.mock();
