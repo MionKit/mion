@@ -203,15 +203,7 @@ describe('TupleRunType with circular type definitions', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(typeValue);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
-        const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
-
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        expect(roundTrip).toEqual(typeValue);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1118-1126)
 
     it('mock', async () => {
         const mocked = await rt.mock();

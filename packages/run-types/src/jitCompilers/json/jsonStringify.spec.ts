@@ -1109,7 +1109,23 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 50 tests
+    // Tuple circular json stringify test - moved from packages/run-types/src/runType/collection/tuple.spec.ts:206-214
+    {
+        type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
+        const rt = runType<TupleCircular>();
+
+        it('json stringify tuple circular', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
+            const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
+
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 51 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
