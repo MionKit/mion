@@ -1521,7 +1521,31 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 64 tests
+    // Array circular json stringify test - moved from packages/run-types/src/runType/member/array.spec.ts:414-427
+    {
+        // this type is not really useful as only allows empty array
+        // but it is the only valid test for circular references in the array runType
+        // other more common circular array involves unions and are tested there i.e: types CS = (CS | string)[]
+        type CircularArray = CircularArray[];
+        const rt = runType<CircularArray>();
+
+        it('json stringify array circular', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const arr: CircularArray = [];
+            arr.push([]);
+            arr[0].push([]);
+            arr[0][0].push([]);
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(arr)));
+            expect(roundTrip).toEqual(arr);
+
+            const arr2: CircularArray = [];
+            const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(arr2)));
+            expect(roundTrip2).toEqual(arr2);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 65 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
