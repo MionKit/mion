@@ -1329,7 +1329,33 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 58 tests
+    // Interface circular deep json stringify test - moved from packages/run-types/src/runType/collection/interface.spec.ts:777-789
+    {
+        interface ICircularDeep {
+            name: string;
+            embedded: {
+                hello: string;
+                child?: ICircularDeep;
+            };
+        }
+        const rt = runType<ICircularDeep>();
+
+        it('json stringify interface circular deep', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const obj1: ICircularDeep = {name: 'hello', embedded: {hello: 'world'}};
+            const obj2: ICircularDeep = {
+                name: 'hello',
+                embedded: {hello: 'world', child: {name: 'world1', embedded: {hello: 'world2'}}},
+            };
+            const roundTrip1 = fromJsonVal(JSON.parse(jsonStringify(obj1)));
+            const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(obj2)));
+            expect(roundTrip1).toEqual(obj1);
+            expect(roundTrip2).toEqual(obj2);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 59 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
