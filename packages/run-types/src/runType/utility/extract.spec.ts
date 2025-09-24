@@ -50,15 +50,7 @@ describe('Extract typescript utility type, extract atomic elements from an union
         expect(decodeExtract(JSON.parse(JSON.stringify(encodeExtract(excludeAge))))).toEqual(excludeAge);
     });
 
-    it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const stringifyExtract = rtExtract.createJitFunction(JitFunctions.jsonStringify);
-        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const decodeExtract = rtExtract.createJitFunction(JitFunctions.fromJsonVal);
-
-        expect(decode(JSON.parse(stringify(personProp)))).toEqual(personProp);
-        expect(decodeExtract(JSON.parse(stringifyExtract(excludeAge)))).toEqual(excludeAge);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 242-250)
 
     it('mock', async () => {
         const mocked = await rt.mock();
@@ -117,15 +109,7 @@ describe('Extract typescript utility type, extract items from objects union', ()
         expect(decodeExtract(JSON.parse(JSON.stringify(encodeExtract(excludeShape))))).toEqual(excludeShape);
     });
 
-    it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const stringifyExtract = rtExtract.createJitFunction(JitFunctions.jsonStringify);
-        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const decodeExtract = rtExtract.createJitFunction(JitFunctions.fromJsonVal);
-
-        expect(decode(JSON.parse(stringify(shape)))).toEqual(shape);
-        expect(decodeExtract(JSON.parse(stringifyExtract(excludeShape)))).toEqual(excludeShape);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 263-271)
 
     it('mock', async () => {
         const mocked = await rt.mock();
