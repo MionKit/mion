@@ -248,14 +248,7 @@ describe('IndexType non root', () => {
         expect(fromJsonVal(JSON.parse(jsonString))).toEqual(obj);
     });
 
-    it('json stringify', () => {
-        const rt = runType<Obj2>();
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj = {b: 'hello', c: {a: 'world', c: 'world'}};
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
-        expect(roundTrip).toEqual(obj);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1625-1632)
 
     it('mock', async () => {
         const rt = runType<Obj2>();

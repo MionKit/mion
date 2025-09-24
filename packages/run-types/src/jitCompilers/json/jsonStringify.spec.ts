@@ -1610,7 +1610,29 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 69 tests
+    // Index property non-root json stringify test - moved from packages/run-types/src/runType/member/indexProperty.spec.ts:251-258
+    {
+        interface Obj1 {
+            a: string;
+            [key: string]: string;
+        }
+
+        interface Obj2 {
+            b: string;
+            c: Obj1;
+        }
+
+        it('json stringify index property non-root', () => {
+            const rt = runType<Obj2>();
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const obj = {b: 'hello', c: {a: 'world', c: 'world'}};
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
+            expect(roundTrip).toEqual(obj);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 70 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
