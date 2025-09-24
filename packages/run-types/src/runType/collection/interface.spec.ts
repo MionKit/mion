@@ -1032,25 +1032,7 @@ describe('Interface with nested circular + multiple circular', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
-        const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
-        const obj2: RootCircular = {
-            isRoot: true,
-            ciChild: {
-                name: 'hello',
-                big: 1n,
-                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
-            },
-            ciDate,
-        };
-        const roundTrip1 = fromJsonVal(JSON.parse(jsonStringify(obj1)));
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(obj2)));
-        expect(roundTrip1).toEqual(obj1);
-        expect(roundTrip2).toEqual(obj2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1422-1441)
 
     it('mock', async () => {
         const mocked = await rt.mock();
