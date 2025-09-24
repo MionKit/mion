@@ -59,16 +59,7 @@ describe('SerRunType with simple keys Set<string>', () => {
         expect(decoded).toEqual(testSet);
     });
 
-    it('json stringify Set', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const setCopy = cloneSet(testSet);
-        const jsonString = jsonStringify(setCopy);
-        const restored = fromJsonVal(JSON.parse(jsonString));
-
-        expect(restored).toEqual(testSet);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1661-1669)
 
     it('has unknown keys in Set<string>', () => {
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
