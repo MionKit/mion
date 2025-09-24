@@ -57,17 +57,7 @@ describe('Array', () => {
         expect((rD as BaseRunType).createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = ['hello', 'world'];
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        expect(roundTrip).toEqual(typeValue);
-
-        const typeValue2 = [];
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
-        expect(roundTrip2).toEqual(typeValue2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 343-353)
 
     it('mock', async () => {
         const mocked = await rt.mock();

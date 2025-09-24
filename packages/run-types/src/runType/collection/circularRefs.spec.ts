@@ -68,19 +68,7 @@ describe('Circular object', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(c3);
     });
 
-    it('should use JSON.stringify when there are circular references', () => {
-        const jsonStringify = rtCircular.createJitFunction(JitFunctions.jsonStringify);
-
-        const toJsonVal = rtCircular.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rtCircular.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copy1 = structuredClone(c1);
-        const copy2 = structuredClone(c2);
-        const copy3 = structuredClone(c3);
-        expect(fromJsonVal(JSON.parse(jsonStringify(toJsonVal(copy1))))).toEqual(c1);
-        expect(fromJsonVal(JSON.parse(jsonStringify(toJsonVal(copy2))))).toEqual(c2);
-        expect(fromJsonVal(JSON.parse(jsonStringify(toJsonVal(copy3))))).toEqual(c3);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 329-336)
 });
 
 /**  Test Circular array + union type:

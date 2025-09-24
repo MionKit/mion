@@ -126,13 +126,7 @@ describe('TupleRunType', () => {
         expect(restored2.length).toBe(1);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        expect(roundTrip).toEqual(typeValue);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 360-367)
 
     it('json stringify tuple with optional params', () => {
         const jsonStringify = runType<TupleWithOptionals>().createJitFunction(JitFunctions.jsonStringify);
