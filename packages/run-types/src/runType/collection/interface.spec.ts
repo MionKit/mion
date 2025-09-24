@@ -473,26 +473,7 @@ describe('Interface with unknown props', () => {
         });
     });
 
-    it('json stringify to strip extra params without fail', () => {
-        // json stringify automatically strips unknown keys
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const jsonString = jsonStringify(objWithExtra);
-        const roundTrip = fromJsonVal(JSON.parse(jsonString));
-        expect(roundTrip).toEqual({
-            startDate,
-            quantity: 123,
-            name: 'hello',
-            nullValue: null,
-            stringArray: ['a', 'b', 'c'],
-            bigInt: BigInt(123),
-            "weird prop name \n?>'\\\t\r": 'hello2',
-            deep: {
-                a: 'hello',
-                b: 123,
-            },
-        });
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1267-1284)
 });
 
 describe('Interface with unknown props and opts run time param', () => {
