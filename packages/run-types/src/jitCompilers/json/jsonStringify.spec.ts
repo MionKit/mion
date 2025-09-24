@@ -823,6 +823,38 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Union array json stringify test - moved from packages/run-types/src/runType/collection/union.spec.ts:182-201
+    {
+        type UnionArr = string[] | number[] | boolean[] | Date[];
+        const date1 = new Date();
+        const arrA: UnionArr = ['a', 'b', 'c'];
+        const arrB: UnionArr = [1, 2, 3];
+        const arrC: UnionArr = [true, false, true];
+        const arrD: UnionArr = [];
+        const rt = runType<UnionArr>();
+
+        it('json stringify union array', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const copyA = structuredClone(arrA);
+            const copyB = structuredClone(arrB);
+            const copyC = structuredClone(arrC);
+            const copyD = structuredClone(arrD);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyA)))).toEqual(arrA);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyB)))).toEqual(arrB);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyC)))).toEqual(arrC);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyD)))).toEqual(arrD);
+
+            // ensure code for items that do not
+            const stringifyCode = jsonStringify.toString();
+            expect(stringifyCode).not.toContain('[0,');
+            expect(stringifyCode).not.toContain('[1,');
+            expect(stringifyCode).not.toContain('[2,');
+            expect(stringifyCode).toContain('[3,'); // date must be encoded to tuple [index, type]
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
