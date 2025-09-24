@@ -5,9 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {runType} from '../../lib/runType';
+import {runType, reflectFunction} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
 import {mockRegExpsList} from '../../mocking/constants.mock';
+import {FunctionRunType} from '../../runType/function/function';
 
 describe('jsonStringify compilation tests', () => {
     // Tests moved from various spec files under packages/run-types/src/runType/
@@ -483,6 +484,26 @@ describe('jsonStringify compilation tests', () => {
             const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
             expect(roundTrip).toEqual([3, true, undefined]);
             expect(roundTrip2).toEqual([3, true, undefined]);
+        });
+    }
+
+    // Function promise return type test - moved from packages/run-types/src/runType/function/function.spec.ts:217-232
+    {
+        it(`if function's return type is a promise then return type should be the promise's resolvedType`, () => {
+            const fn = (a: number, b: boolean, c?: string): Promise<Date> => Promise.resolve(new Date());
+            const reflectedType = reflectFunction(fn);
+            expect(reflectedType instanceof FunctionRunType).toBe(true);
+
+            const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
+            const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
+            const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
+            const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
+            const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
+            const returnValue = new Date();
+            expect(validateReturn(returnValue)).toBe(true);
+            expect(typeErrorsReturn(returnValue)).toEqual([]);
+            expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
+            expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
         });
     }
 
