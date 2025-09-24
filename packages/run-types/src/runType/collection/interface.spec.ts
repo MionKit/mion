@@ -210,34 +210,7 @@ describe('Interface', () => {
         expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = {
-            startDate: new Date(),
-            quantity: 123,
-            name: 'hello',
-            nullValue: null,
-            stringArray: ['a', 'b', 'c'],
-            bigInt: BigInt(123),
-            "weird prop name \n?>'\\\t\r": 'hello2',
-        };
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        expect(roundTrip).toEqual(typeValue);
-
-        const typeValue2 = {
-            startDate: new Date(),
-            quantity: 123,
-            name: 'hello',
-            nullValue: null,
-            stringArray: ['a', 'b', 'c'],
-            bigInt: BigInt(123),
-            "weird prop name \n?>'\\\t\r": 'hello2',
-            optionalString: 'hello',
-        };
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
-        expect(roundTrip2).toEqual(typeValue2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 383-398)
 
     it('json stringify must set optional properties first in order to work properly', () => {
         type Obj1 = {

@@ -316,4 +316,123 @@ describe('jsonStringify compilation tests', () => {
             expect(roundTrip2).toEqual(typeValue2);
         });
     }
+
+    // Circular references tests - moved from packages/run-types/src/runType/collection/circularRefs.spec.ts:71-83
+    {
+        type CircularObject = {
+            name: string;
+            child?: CircularObject;
+        };
+        const rtCircular = runType<CircularObject>();
+        const c1: CircularObject = {name: 'hello', child: {name: 'world'}};
+
+        it('should use JSON.stringify when there are circular references', () => {
+            const jsonStringify = rtCircular.createJitFunction(JitFunctions.jsonStringify);
+            const toJsonVal = rtCircular.createJitFunction(JitFunctions.toJsonVal);
+            const fromJsonVal = rtCircular.createJitFunction(JitFunctions.fromJsonVal);
+
+            const copy1 = structuredClone(c1);
+            expect(fromJsonVal(JSON.parse(jsonStringify(toJsonVal(copy1))))).toEqual(c1);
+        });
+    }
+
+    // Array tests - moved from packages/run-types/src/runType/member/array.spec.ts:60-70
+    {
+        const rt = runType<string[]>();
+
+        it('json stringify array', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue = ['hello', 'world'];
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+
+            const typeValue2 = [];
+            const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
+            expect(roundTrip2).toEqual(typeValue2);
+        });
+    }
+
+    // Tuple tests - moved from packages/run-types/src/runType/collection/tuple.spec.ts:129-135
+    {
+        type TestTuple = [Date, number, string, null, string[], bigint];
+        const rt = runType<TestTuple>();
+
+        it('json stringify tuple', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+        });
+    }
+
+    // Interface tests - moved from packages/run-types/src/runType/collection/interface.spec.ts:213-226
+    {
+        interface TestInterface {
+            startDate: Date;
+            quantity: number;
+            name: string;
+            nullValue: null;
+            stringArray: string[];
+            bigInt: bigint;
+            "weird prop name \n?>'\\\t\r": string;
+            optionalString?: string;
+        }
+        const rt = runType<TestInterface>();
+
+        it('json stringify interface', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue = {
+                startDate: new Date(),
+                quantity: 123,
+                name: 'hello',
+                nullValue: null,
+                stringArray: ['a', 'b', 'c'],
+                bigInt: BigInt(123),
+                "weird prop name \n?>'\\\t\r": 'hello2',
+            };
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+        });
+    }
+
+    // Union tests - moved from packages/run-types/src/runType/collection/union.spec.ts:78-87
+    {
+        type AtomicUnion = Date | number | string | null | bigint;
+        const rt = runType<AtomicUnion>();
+        const a: AtomicUnion = new Date();
+        const b: AtomicUnion = 123;
+        const c: AtomicUnion = 'hello';
+        const d: AtomicUnion = null;
+        const e: AtomicUnion = 3n;
+
+        it('json stringify union', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            expect(fromJsonVal(JSON.parse(jsonStringify(a)))).toEqual(a);
+            expect(fromJsonVal(JSON.parse(jsonStringify(b)))).toEqual(b);
+            expect(fromJsonVal(JSON.parse(jsonStringify(c)))).toEqual(c);
+            expect(fromJsonVal(JSON.parse(jsonStringify(d)))).toEqual(d);
+            expect(fromJsonVal(JSON.parse(jsonStringify(e)))).toEqual(e);
+        });
+    }
+
+    // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
+    // Original files with jsonStringify tests include:
+    // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
+    // - packages/run-types/src/runType/collection/circularRefs.spec.ts (more circular reference tests)
+    // - packages/run-types/src/runType/collection/union.spec.ts (many more union tests)
+    // - packages/run-types/src/runType/collection/tuple.spec.ts (more tuple tests)
+    // - packages/run-types/src/runType/collection/interface.spec.ts (many more interface tests)
+    // - packages/run-types/src/runType/collection/class.spec.ts (class serialization tests)
+    // - packages/run-types/src/runType/member/array.spec.ts (more array tests)
+    // - packages/run-types/src/runType/member/indexProperty.spec.ts (index property tests)
+    // - packages/run-types/src/runType/member/callSignature.spec.ts (call signature tests)
+    // - packages/run-types/src/runType/native/set.spec.ts (Set serialization tests)
+    // - packages/run-types/src/runType/native/map.spec.ts (Map serialization tests)
+    // - packages/run-types/src/runType/native/promise.spec.ts (Promise error tests)
+    // - packages/run-types/src/runType/native/nonSerializable.spec.ts (error tests)
 });

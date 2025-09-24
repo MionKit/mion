@@ -75,16 +75,7 @@ describe('Atomic Union', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(e))))).toEqual(e);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        expect(fromJsonVal(JSON.parse(jsonStringify(a)))).toEqual(a);
-        expect(fromJsonVal(JSON.parse(jsonStringify(b)))).toEqual(b);
-        expect(fromJsonVal(JSON.parse(jsonStringify(c)))).toEqual(c);
-        expect(fromJsonVal(JSON.parse(jsonStringify(d)))).toEqual(d);
-        expect(fromJsonVal(JSON.parse(jsonStringify(e)))).toEqual(e);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 410-420)
 
     it('throw errors when serializing deserializing object not belonging to the union', () => {
         type UT = string | number;
