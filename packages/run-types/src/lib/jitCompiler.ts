@@ -105,8 +105,8 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
             if (item.rt === rt) index = i;
         });
         if (index !== -1) return index;
-        const fomParent = this.parentCompiler?.getNestLevel(rt);
-        if (fomParent !== -1) return fomParent;
+        const fromParent = this.parentCompiler?.getNestLevel(rt);
+        if (fromParent !== -1) return fromParent;
         throw new Error(`Type ${rt.getTypeName()} not found in stack, so can't get nest level`);
     }
     /**

@@ -13,21 +13,47 @@ import {registerPureFnClosure} from '../../lib/pureFn';
 
 /** @reflection never */
 export function mionBinSerString() {
-    const textEncoder = new TextEncoder();
+    function setIndex(ser: BinarySerializer, length: number) {
+        ser.uint32Array[ser.index] = length;
+        ser.index += Math.ceil(length / 4) + 1;
+    }
     return function serializeString(ser: BinarySerializer, str: string): void {
-        const r = textEncoder.encodeInto(str, new Uint8Array(ser.buffer, (ser.index + 1) * 4));
-        ser.uint32Array[ser.index] = r.written;
-        ser.index += Math.ceil(r.written / 4) + 1;
+        if (str.length >= ser.maxStrLength) {
+            const targetView = new Uint8Array(ser.buffer, (ser.index + 1) * 4);
+            const result = ser.textEncoder.encodeInto(str, targetView);
+            setIndex(ser, result.written);
+            return;
+        }
+        const cached = ser.stringCache.get(str);
+        if (cached) {
+            const targetView = new Uint8Array(ser.buffer, (ser.index + 1) * 4, cached.length);
+            targetView.set(cached);
+            setIndex(ser, cached.length);
+            return;
+        }
+        const encodedBytes = ser.textEncoder.encode(str);
+        const targetView = new Uint8Array(ser.buffer, (ser.index + 1) * 4, encodedBytes.length);
+        targetView.set(encodedBytes);
+        setIndex(ser, encodedBytes.length);
+        if (ser.stringCache.size >= ser.maxCacheSize) ser.evictStringCache();
+        ser.stringCache.set(str, encodedBytes);
     };
 }
 
 /** @reflection never */
 export function mionBinDesString() {
-    const textDecoder = new TextDecoder();
     return function deserializeString(des: BinaryDeserializer): string {
         const len = des.uint32Array[des.index++];
-        const decoded = textDecoder.decode(new Uint8Array(des.buffer, des.index * 4, len));
-        des.index += Math.ceil(len / 4);
+        const bytes = new Uint8Array(des.buffer, des.index * 4, len);
+        const indexIncrement = Math.ceil(len / 4);
+        des.index += indexIncrement;
+        if (len >= des.maxStrLength) return des.textDecoder.decode(bytes);
+        const cacheKey = des.hashBytes(bytes, len);
+        const cached = des.stringCache.get(cacheKey);
+        if (cached) return cached;
+        const decoded = des.textDecoder.decode(bytes);
+        if (des.stringCache.size >= des.maxCacheSize) des.evictStringCache();
+        des.stringCache.set(cacheKey, decoded);
         return decoded;
     };
 }
@@ -148,12 +174,23 @@ export function createBinarySerializer({bufferSize}: CreateSerOption = {}): Bina
     // Ensure buffer size is aligned to 8 bytes for Float64Array compatibility
     const alignedSize = Math.floor(size / 8) * 8;
     const buffer = new ArrayBuffer(alignedSize);
-    return {
+    const serializer: BinarySerializer = {
         index: 0,
         buffer,
         uint32Array: new Uint32Array(buffer),
         float32Array: new Float32Array(buffer),
         float64Array: new Float64Array(buffer),
+        textEncoder: new TextEncoder(),
+        maxStrLength: 64,
+        maxCacheSize: 600,
+        stringCache: new Map<string, Uint8Array>(),
+        evictStringCache: function () {
+            const entries = Array.from(this.stringCache.entries());
+            this.stringCache.clear();
+            for (let i = entries.length / 2; i < entries.length; i++) {
+                this.stringCache.set(entries[i][0], entries[i][1]);
+            }
+        },
         reset: function () {
             this.index = 0;
         },
@@ -161,18 +198,35 @@ export function createBinarySerializer({bufferSize}: CreateSerOption = {}): Bina
             return this.buffer.slice(0, this.index * 4);
         },
     };
+
+    return serializer;
 }
 
 export function createBinaryDeserializer(buffer: StrictArrayBuffer): BinaryDeserializer {
     const n32 = Math.floor(buffer.byteLength / 4);
     const n64 = Math.floor(buffer.byteLength / 8);
-
-    return {
+    const deserializer: BinaryDeserializer = {
         index: 0,
         buffer,
         uint32Array: new Uint32Array(buffer, 0, n32),
         float32Array: new Float32Array(buffer, 0, n32),
         float64Array: new Float64Array(buffer, 0, n64),
+        textDecoder: new TextDecoder(),
+        maxStrLength: 64,
+        maxCacheSize: 600,
+        stringCache: new Map<string, string>(),
+        evictStringCache: function () {
+            const entries = Array.from(this.stringCache.entries());
+            this.stringCache.clear();
+            for (let i = entries.length / 2; i < entries.length; i++) {
+                this.stringCache.set(entries[i][0], entries[i][1]);
+            }
+        },
+        hashBytes: function (bytes: Uint8Array, len: number): string {
+            let hash = '';
+            for (let i = 0; i < len; i++) hash += String.fromCharCode(bytes[i]);
+            return hash;
+        },
         setBuffer: function (buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) {
             if (typeof byteOffset === 'number' && typeof byteLength === 'number') {
                 this.index = Math.floor(byteOffset / 4);
@@ -193,4 +247,5 @@ export function createBinaryDeserializer(buffer: StrictArrayBuffer): BinaryDeser
             this.float64Array = new Float64Array(buffer, 0, n64);
         },
     };
+    return deserializer;
 }
