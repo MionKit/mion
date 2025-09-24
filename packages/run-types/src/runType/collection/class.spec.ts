@@ -132,15 +132,7 @@ describe('Classes that extend other classes', () => {
         });
     });
 
-    it('json stringify extended class', () => {
-        const jsonStringify = rtExtended.createJitFunction(JitFunctions.jsonStringify);
-        // restored object has the properties of the original object but is not a class instance
-        const restored = JSON.parse(jsonStringify(extended));
-        expect(restored).toEqual({
-            baseProp: extended.baseProp,
-            extendedProp: extended.extendedProp,
-        });
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 721-729)
 
     it('mock extended class', async () => {
         const mock = await rtExtended.mock();
