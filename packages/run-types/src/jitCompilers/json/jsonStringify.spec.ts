@@ -1784,7 +1784,36 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 76 tests
+    // Map with complex keys json stringify test - moved from packages/run-types/src/runType/native/map.spec.ts:310-318
+    {
+        interface SmallObject {
+            prop1: string;
+            prop2: number;
+            prop3: boolean;
+            prop4?: Date;
+            prop5?: bigint;
+        }
+
+        const testMapSmallObjectNumber = new Map<SmallObject, number>([
+            [{prop1: 'value1', prop2: 1, prop3: true}, 1],
+            [{prop1: 'value2', prop2: 2, prop3: false, prop4: new Date()}, 2],
+            [{prop1: 'value3', prop2: 3, prop3: true, prop5: BigInt(100)}, 3],
+        ]);
+
+        const rtSmallObjectNumber = runType<Map<SmallObject, number>>();
+
+        it('json stringify Map<SmallObject, number>', () => {
+            const jsonStringify = rtSmallObjectNumber.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtSmallObjectNumber.createJitFunction(JitFunctions.fromJsonVal);
+            // Should serialize the Map as an array of entries
+            const mapCopy = cloneMap(testMapSmallObjectNumber);
+            const jsonString = jsonStringify(mapCopy);
+            const restored = fromJsonVal(JSON.parse(jsonString));
+            expect(restored).toEqual(testMapSmallObjectNumber);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 77 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
