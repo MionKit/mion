@@ -574,14 +574,7 @@ describe('Union Mixed', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(mixB);
     });
 
-    it('json stringify with discriminator', () => {
-        // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        expect(fromJsonVal(JSON.parse(jsonStringify(mixA)))).toEqual(mixA);
-        expect(fromJsonVal(JSON.parse(jsonStringify(mixB)))).toEqual(mixB);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 958-965)
 
     it('throw errors whe serializing deserializing object not belonging to the union', () => {
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
