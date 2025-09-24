@@ -196,18 +196,7 @@ describe('Circular object with tuple', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(c3);
     });
 
-    it('json stringify CircularTuple object with discriminator', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copy1: CircularTuple = {tuple: [1n, {tuple: [2n, {tuple: [3n, {tuple: [4n]}]}]}]};
-        const copy2: CircularTuple = {tuple: [1n, {tuple: [2n]}]};
-        const copy3: CircularTuple = {tuple: [1n]};
-
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy3)))).toEqual(c3);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 766-777)
 
     it('mock CircularTuple object', async () => {
         const mocked = await rt.mock();
