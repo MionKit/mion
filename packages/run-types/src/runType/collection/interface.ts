@@ -42,8 +42,21 @@ export class InterfaceRunType<
         const children = super.getJitChildren(comp) as InterfaceMember[];
         return children.toSorted((a, b) => sortDiscriminatorsFirst(a, b)) as InterfaceMember[];
     }
+    getJitNonOptionalChildrenFirst(comp: JitCompiler): InterfaceMember[] {
+        const children = super.getJitChildren(comp) as InterfaceMember[];
+        return children.toSorted((a, b) => {
+            const aOpt = a.isOptional();
+            const bOpt = b.isOptional();
+            if (aOpt && !bOpt) return 1;
+            if (!aOpt && bOpt) return -1;
+            return 0;
+        });
+    }
     isPartOfUnion(): boolean {
         return this.getParent()?.src.kind === ReflectionKind.union;
+    }
+    hasIndexSignature(comp: JitCompiler): boolean {
+        return this.getJitChildren(comp).some((prop) => prop.src.kind === ReflectionKind.indexSignature);
     }
 
     // #### collection's jit code ####
@@ -176,17 +189,31 @@ export class InterfaceRunType<
         const ifNoNative = `Object.prototype.toString.call(${comp.vλl}) === '[object Object]'`;
         return `(${isNotArray} && ${ifNoNative})`;
     }
+
+    addObjectPropsToContext(comp: JitCompiler, jitChildrenRunTypes?: BaseRunType[], allChildrenRuntypes?: BaseRunType[]) {
+        const jitChildren = jitChildrenRunTypes || this.getJitChildren(comp);
+        const allChildren = allChildrenRuntypes || this.getChildRunTypes();
+        return addObjectPropsToContext(this, comp, jitChildren, allChildren);
+    }
 }
 
-// TODO: look like some of this logic should be moved to index prop ?
-export function callCheckUnknownProperties(
+export interface ObjectPropsContextResult {
+    keysName: string;
+    allKeysName: string;
+    hasNonJitChildren: boolean;
+    jitChildrenNames: string[];
+    allChildrenNames: string[];
+}
+
+/**
+ * Extracts object property names and adds them to the JIT compiler context.
+ */
+function addObjectPropsToContext(
     rt: InterfaceRunType<any>,
     comp: JitCompiler,
     jitChildrenRunTypes: BaseRunType[],
-    returnKeys: boolean,
-    checkObject = true,
     allChildrenRuntypes?: BaseRunType[]
-): string {
+): ObjectPropsContextResult {
     const jitArrNames = jitChildrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
     const AllArrNames = allChildrenRuntypes?.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
     const jitChildrenNames = Array.from(new Set(jitArrNames));
@@ -194,19 +221,41 @@ export function callCheckUnknownProperties(
     const isSameLength = jitChildrenNames.length === allChildrenNames.length;
     const isSameSet = isSameLength && jitChildrenNames.every((v) => allChildrenNames.includes(v));
     const hasNonJitChildren = !(isSameLength && isSameSet);
-    if (jitChildrenNames.length === 0 && allChildrenNames.length === 0) return '';
     const keysName = `k_${rt.getJitHash(comp.opts)}`;
     const allKeysName = `kA_${rt.getJitHash(comp.opts)}`;
-    const objectCheckCode = checkObject ? [`typeof ${comp.vλl} === 'object'`, `${comp.vλl} !== null`] : [];
 
     comp.setContextItem(keysName, `const ${keysName} = ${arrayToLiteral(jitChildrenNames)}`);
     if (hasNonJitChildren) comp.setContextItem(allKeysName, `const ${allKeysName} = ${arrayToLiteral(allChildrenNames)}`);
+
+    return {
+        keysName,
+        allKeysName,
+        hasNonJitChildren,
+        jitChildrenNames,
+        allChildrenNames,
+    };
+}
+
+// TODO: look like some of this logic should be moved to index prop ? Also the runtime
+function callCheckUnknownProperties(
+    rt: InterfaceRunType<any>,
+    comp: JitCompiler,
+    jitChildrenRunTypes: BaseRunType[],
+    returnKeys: boolean,
+    checkObject = true,
+    allChildrenRuntypes?: BaseRunType[]
+): string {
+    const result = addObjectPropsToContext(rt, comp, jitChildrenRunTypes, allChildrenRuntypes);
+
+    if (result.jitChildrenNames.length === 0 && result.allChildrenNames.length === 0) return '';
+
+    const objectCheckCode = checkObject ? [`typeof ${comp.vλl} === 'object'`, `${comp.vλl} !== null`] : [];
     const checkPropName = JitFunctions.hasUnknownKeys.runTimeOptions.checkNonJitProps.keyName;
     const optsVarName = getJitFnArgCallVarName(comp, rt, JitFunctions.hasUnknownKeys.id, 'θpts');
     const conditional =
-        allChildrenRuntypes?.length && hasNonJitChildren
-            ? `${optsVarName}.${checkPropName} ? ${allKeysName} : ${keysName}`
-            : keysName;
+        allChildrenRuntypes?.length && result.hasNonJitChildren
+            ? `${optsVarName}.${checkPropName} ? ${result.allKeysName} : ${result.keysName}`
+            : result.keysName;
     if (returnKeys) return `utl.getUnknownKeysFromArray(${comp.vλl}, ${conditional})`;
     objectCheckCode.push(`utl.hasUnknownKeysFromArray(${comp.vλl}, ${conditional})`);
     const filtered = objectCheckCode.filter(Boolean);
