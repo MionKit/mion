@@ -731,6 +731,29 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Circular array union json stringify test - moved from packages/run-types/src/runType/collection/circularRefs.spec.ts:130-141
+    {
+        type CuArray = (CuArray | Date | number | string)[];
+        const rt = runType<CuArray>();
+        const date = new Date();
+        const cu1: CuArray = [date, 123, 'hello', ['a', 'b', 'c']];
+        const cu2: CuArray = [date, 123, 'hello', ['a', 2, 'c'], cu1];
+        const cu3: CuArray = [];
+
+        it('json stringify CircularUnion array with discriminator', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const copy1: CuArray = [date, 123, 'hello', ['a', 'b', 'c']];
+            const copy2: CuArray = [date, 123, 'hello', ['a', 2, 'c'], [date, 123, 'hello', ['a', 'b', 'c']]];
+            const copy3: CuArray = [];
+
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy1))).length).toEqual(cu1.length);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy2))).length).toEqual(cu2.length);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy3))).length).toEqual(cu3.length);
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
