@@ -330,16 +330,7 @@ describe('Circular Object with deep nested properties', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(c2);
     });
 
-    it('json stringify CircularDeep object with discriminator', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copy1: CircularDeep = {deep1: {deep2: {deep3: {deep4: {deep1: {deep2: {deep3: {}}}}}}}};
-        const copy2: CircularDeep = {deep1: {deep2: {deep3: {}}}};
-
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 813-822)
 
     it('mock CircularDeep object', async () => {
         const mocked = await rt.mock();

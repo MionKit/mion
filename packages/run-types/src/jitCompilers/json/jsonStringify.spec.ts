@@ -802,6 +802,27 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Circular deep json stringify test - moved from packages/run-types/src/runType/collection/circularRefs.spec.ts:333-342
+    {
+        interface CircularDeep {
+            deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
+        }
+        const rt = runType<CircularDeep>();
+        const c1: CircularDeep = {deep1: {deep2: {deep3: {deep4: {deep1: {deep2: {deep3: {}}}}}}}};
+        const c2: CircularDeep = {deep1: {deep2: {deep3: {}}}};
+
+        it('json stringify CircularDeep object with discriminator', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const copy1: CircularDeep = {deep1: {deep2: {deep3: {deep4: {deep1: {deep2: {deep3: {}}}}}}}};
+            const copy2: CircularDeep = {deep1: {deep2: {deep3: {}}}};
+
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
