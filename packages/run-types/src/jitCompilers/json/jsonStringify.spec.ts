@@ -1672,7 +1672,37 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 72 tests
+    // Set with complex objects json stringify test - moved from packages/run-types/src/runType/native/set.spec.ts:143-152
+    {
+        interface SmallObject {
+            prop1: string;
+            prop2: number;
+            prop3: boolean;
+            prop4?: Date;
+            prop5?: bigint;
+        }
+
+        const testSetSmallObject = new Set<SmallObject>([
+            {prop1: 'value1', prop2: 1, prop3: true},
+            {prop1: 'value2', prop2: 2, prop3: false, prop4: new Date()},
+            {prop1: 'value3', prop2: 3, prop3: true, prop5: BigInt(100)},
+        ]);
+
+        const rtSmallObject = runType<Set<SmallObject>>();
+
+        it('json stringify Set<SmallObject>', () => {
+            const jsonStringify = rtSmallObject.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtSmallObject.createJitFunction(JitFunctions.fromJsonVal);
+
+            const setCopy = cloneSet(testSetSmallObject);
+            const jsonString = jsonStringify(setCopy);
+            const restored = fromJsonVal(JSON.parse(jsonString));
+
+            expect(restored).toEqual(testSetSmallObject);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 73 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
