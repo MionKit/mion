@@ -469,6 +469,23 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Function non serializable types test - moved from packages/run-types/src/runType/function/function.spec.ts:165-174
+    {
+        type TestFunctionWithFN = (a: number, b: boolean, c?: () => null) => Date;
+        const rtWithFN = runType<TestFunctionWithFN>();
+
+        it('json stringify non serializable types', () => {
+            const jsonStringify = rtWithFN.createJitParamsFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtWithFN.createJitParamsFunction(JitFunctions.fromJsonVal);
+            const typeValue = [3, true, () => null];
+            const typeValue2 = [3, true, undefined];
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
+            expect(roundTrip).toEqual([3, true, undefined]);
+            expect(roundTrip2).toEqual([3, true, undefined]);
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
