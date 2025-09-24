@@ -258,13 +258,7 @@ describe('TupleRunType with rest parameter', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(typeValue);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue: TupleRest = [3, 'a', 'b', 'c'];
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        expect(roundTrip).toEqual(typeValue);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1134-1140)
 
     it('mock', async () => {
         const mocked = await rt.mock();
