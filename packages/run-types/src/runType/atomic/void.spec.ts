@@ -37,10 +37,7 @@ it('decode from json should return undefined', () => {
     expect(decode('')).toBe(undefined);
 });
 
-it('json stringify should return undefined', () => {
-    const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-    expect(stringify(undefined)).toBe(undefined);
-});
+// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 184-188)
 
 it('mock', async () => {
     const mocked = await rt.mock();
