@@ -39,4 +39,56 @@ describe('jsonStringify compilation tests', () => {
             });
         });
     }
+
+    // Moved from packages/run-types/src/runType/atomic/bigInt.spec.ts:42-48
+    {
+        const rt = runType<bigint>();
+
+        it('json stringify bigint', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue = 1n;
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+        });
+    }
+
+    // Moved from packages/run-types/src/runType/atomic/boolean.spec.ts:41-47
+    {
+        const rt = runType<boolean>();
+
+        it('json stringify boolean', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue = true;
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+        });
+    }
+
+    // Moved from packages/run-types/src/runType/atomic/any.spec.ts:41-47
+    {
+        const rt = runType<any>();
+
+        it('json stringify any', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue = {a: 42, b: 'hello'};
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+        });
+    }
+
+    // Moved from packages/run-types/src/runType/atomic/null.spec.ts:41-47
+    {
+        const rt = runType<null>();
+
+        it('json stringify null', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue = null;
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+        });
+    }
 });
