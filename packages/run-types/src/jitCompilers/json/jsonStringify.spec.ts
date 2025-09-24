@@ -918,7 +918,38 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 44 tests
+    // Union with discriminator property json stringify test - moved from packages/run-types/src/runType/collection/union.spec.ts:499-514
+    {
+        type UnionDisc =
+            | {otherProp: boolean; type: 'a'}
+            | {otherProp: number; type: 'b'}
+            | {otherProp: string; type: 'c'; time: Date}
+            | {type: boolean; otherProp: string};
+        const objA: UnionDisc = {type: 'a', otherProp: true};
+        const objB: UnionDisc = {type: 'b', otherProp: 123};
+        const objC: UnionDisc = {type: 'c', otherProp: 'hello', time: new Date()};
+        const objD: UnionDisc = {type: true, otherProp: 'typeD'};
+        const rt = runType<UnionDisc>();
+
+        it('json stringify union with discriminator property', () => {
+            // this should be serialized as [discriminatorIndex, value]
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const copyA = structuredClone(objA);
+            const copyB = structuredClone(objB);
+            // cant use structuredClone for dates: https://stackoverflow.com/questions/76664834/structuredclone-not-keeping-date-type
+            const copyC = {...objC, time: new Date(objC.time.getTime())};
+            const copyD = structuredClone(objD);
+
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyA)))).toEqual(objA);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyB)))).toEqual(objB);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyC)))).toEqual(objC);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyD)))).toEqual(objD);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 45 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
