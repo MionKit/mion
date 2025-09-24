@@ -1162,7 +1162,35 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 53 tests
+    // Interface all optional fields json stringify test - moved from packages/run-types/src/runType/collection/interface.spec.ts:217-240
+    {
+        it('json stringify should work when all fields are optional', () => {
+            type Obj2 = {
+                a?: string;
+                b?: string;
+            };
+            const rtObj1 = runType<Obj2>();
+            const jsonStringify = rtObj1.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtObj1.createJitFunction(JitFunctions.fromJsonVal);
+
+            const typeValue: Obj2 = {a: 'helloA', b: 'helloB'};
+            const json = jsonStringify(typeValue);
+            expect(json).toEqual(`{"a":"helloA","b":"helloB"}`);
+            expect(fromJsonVal(JSON.parse(json))).toEqual(typeValue);
+
+            const typeValue2: Obj2 = {a: 'helloA'};
+            const json2 = jsonStringify(typeValue2);
+            expect(json2).toEqual(`{"a":"helloA"}`);
+            expect(fromJsonVal(JSON.parse(json2))).toEqual(typeValue2);
+
+            const typeValue3: Obj2 = {};
+            const json3 = jsonStringify(typeValue3);
+            expect(json3).toEqual(`{}`);
+            expect(fromJsonVal(JSON.parse(json3))).toEqual(typeValue3);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 54 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)

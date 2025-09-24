@@ -214,30 +214,7 @@ describe('Interface', () => {
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1147-1162)
 
-    it('json stringify should work when all fields are optional', () => {
-        type Obj2 = {
-            a?: string;
-            b?: string;
-        };
-        const rtObj1 = runType<Obj2>();
-        const jsonStringify = rtObj1.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtObj1.createJitFunction(JitFunctions.fromJsonVal);
-
-        const typeValue: Obj2 = {a: 'helloA', b: 'helloB'};
-        const json = jsonStringify(typeValue);
-        expect(json).toEqual(`{"a":"helloA","b":"helloB"}`);
-        expect(fromJsonVal(JSON.parse(json))).toEqual(typeValue);
-
-        const typeValue2: Obj2 = {a: 'helloA'};
-        const json2 = jsonStringify(typeValue2);
-        expect(json2).toEqual(`{"a":"helloA"}`);
-        expect(fromJsonVal(JSON.parse(json2))).toEqual(typeValue2);
-
-        const typeValue3: Obj2 = {};
-        const json3 = jsonStringify(typeValue3);
-        expect(json3).toEqual(`{}`);
-        expect(fromJsonVal(JSON.parse(json3))).toEqual(typeValue3);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1170-1190)
 
     it('json stringify interfaces with a single property and index properties', () => {
         type Obj1 = {
