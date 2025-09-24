@@ -84,14 +84,7 @@ it('non serializable classes can not be decoded', () => {
     );
 });
 
-it('serializable class can be restored after they are registered', async () => {
-    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-    expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow();
-    jitUtils.setSerializableClass(MySerializableClass);
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const restored = fromJsonVal(JSON.parse(jsonStringify(serializable)));
-    expect(restored instanceof MySerializableClass).toBeTruthy();
-});
+// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 642-649)
 
 it('classes can be deserialized suing a deserialize function', () => {
     const jsonStringify = rtNonS.createJitFunction(JitFunctions.jsonStringify);
