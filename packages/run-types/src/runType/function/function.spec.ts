@@ -69,9 +69,7 @@ describe('function', () => {
             `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
         );
 
-        expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(
-            `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
-        );
+        // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 264-268)
         await expect(() => rt.mock()).rejects.toThrow('Mock is not allowed, call mockParams or mockReturn instead.');
     });
 });
@@ -125,16 +123,7 @@ describe('function parameters', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue2))))).toEqual(typeValue2);
     });
 
-    it('json stringify parameters', () => {
-        const jsonStringify = rt.createJitParamsFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitParamsFunction(JitFunctions.fromJsonVal);
-        const typeValue = [3, true, 'hello'];
-        const typeValue2 = [3, true];
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
-        expect(roundTrip).toEqual(typeValue);
-        expect(roundTrip2).toEqual(typeValue2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 274-284)
 
     it('json stringify required parameters', () => {
         const jsonStringify = rt2.createJitParamsFunction(JitFunctions.jsonStringify);
@@ -232,13 +221,7 @@ describe('function return', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(returnValue))))).toEqual(returnValue);
     });
 
-    it('json stringify function return', () => {
-        const jsonStringify = rt.createJitReturnFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitReturnFunction(JitFunctions.fromJsonVal);
-        const returnValue = new Date();
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(returnValue)));
-        expect(roundTrip).toEqual(returnValue);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 294-301)
 
     it('json stringify required function return', () => {
         const jsonStringify = rt2.createJitReturnFunction(JitFunctions.jsonStringify);
@@ -336,16 +319,7 @@ describe('function with rest parameters', () => {
         expect(roundTrip2).toEqual(typeValue2);
     });
 
-    it('stringify function with rest parameters', () => {
-        const jsonStringify = rtRest.createJitParamsFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtRest.createJitParamsFunction(JitFunctions.fromJsonVal);
-        const typeValue = [3, true, new Date(), new Date()];
-        const typeValue2 = [3, true];
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
-        expect(roundTrip).toEqual(typeValue);
-        expect(roundTrip2).toEqual(typeValue2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 308-317)
 
     it('stringify function with only rest parameters', () => {
         const jsonStringify = rtRest2.createJitParamsFunction(JitFunctions.jsonStringify);
