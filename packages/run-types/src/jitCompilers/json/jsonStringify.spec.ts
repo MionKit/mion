@@ -1125,7 +1125,21 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 51 tests
+    // Tuple rest parameter json stringify test - moved from packages/run-types/src/runType/collection/tuple.spec.ts:261-267
+    {
+        type TupleRest = [number, ...string[]];
+        const rt = runType<TupleRest>();
+
+        it('json stringify tuple rest parameter', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue: TupleRest = [3, 'a', 'b', 'c'];
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 52 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
