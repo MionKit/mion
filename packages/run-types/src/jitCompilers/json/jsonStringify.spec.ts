@@ -1813,7 +1813,33 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 77 tests
+    // Map nested objects json stringify test - moved from packages/run-types/src/runType/native/map.spec.ts:434-448
+    {
+        interface DeepWithMap {
+            a: string;
+            b: Map<string, {sm: {s: string; arr: number[]}}>;
+        }
+
+        const rtDeepWithMap = runType<DeepWithMap>();
+
+        it('json stringify objects with nested maps', () => {
+            const jsonStringify = rtDeepWithMap.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtDeepWithMap.createJitFunction(JitFunctions.fromJsonVal);
+
+            const obj: DeepWithMap = {
+                a: 'a',
+                b: new Map([
+                    ['key1', {sm: {s: 's', arr: [1, 2, 3]}}],
+                    ['key2', {sm: {s: 's', arr: [1, 2, 3]}}],
+                ]),
+            };
+            const jsonString = jsonStringify(obj);
+            const restored = fromJsonVal(JSON.parse(jsonString));
+            expect(restored).toEqual(obj);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 78 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
