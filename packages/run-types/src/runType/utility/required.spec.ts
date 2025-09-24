@@ -58,15 +58,7 @@ describe('Required typescript utility type makes all properties required', () =>
         expect(decodeMaybe(JSON.parse(JSON.stringify(encodeMaybe(maybePerson))))).toEqual({createdAt});
     });
 
-    it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const stringifyMaybe = rtRequired.createJitFunction(JitFunctions.jsonStringify);
-        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const decodeMaybe = rtRequired.createJitFunction(JitFunctions.fromJsonVal);
-
-        expect(decode(JSON.parse(stringify(person)))).toEqual({name: 'John', age: 30, createdAt});
-        expect(decodeMaybe(JSON.parse(stringifyMaybe(maybePerson)))).toEqual({createdAt});
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 205-215)
 
     it('mock', async () => {
         const mocked = await rt.mock();
