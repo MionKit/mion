@@ -645,13 +645,7 @@ describe('Interface with circular ref properties', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy))))).toEqual(obj);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj: ICircular = {name: 'hello', child: {name: 'world'}};
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
-        expect(roundTrip).toEqual(obj);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1302-1308)
 
     it('mock', async () => {
         const mocked = await rt.mock();
