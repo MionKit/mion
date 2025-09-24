@@ -348,10 +348,5 @@ describe('function run type general', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(paramsValues))))).toEqual(paramsValues);
     });
 
-    it('createJitParamsFunction json stringify', () => {
-        const jsonStringify = rt.createJitParamsFunction(JitFunctions.jsonStringify, {paramsSlice: {start: 1}});
-        const fromJsonVal = rt.createJitParamsFunction(JitFunctions.fromJsonVal, {paramsSlice: {start: 1}});
-        const paramsValues = [true, 'hello'];
-        expect(fromJsonVal(JSON.parse(jsonStringify(paramsValues)))).toEqual(paramsValues);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 565-571)
 });
