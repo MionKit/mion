@@ -886,23 +886,7 @@ describe('Interface with nested circular type where root is not the circular ref
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
-        const obj2: RootNotCircular = {
-            isRoot: true,
-            ciChild: {
-                name: 'hello',
-                big: 1n,
-                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
-            },
-        };
-        const roundTrip1 = fromJsonVal(JSON.parse(jsonStringify(obj1)));
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(obj2)));
-        expect(roundTrip1).toEqual(obj1);
-        expect(roundTrip2).toEqual(obj2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1375-1388)
 
     it('mock', async () => {
         const mocked = await rt.mock();
