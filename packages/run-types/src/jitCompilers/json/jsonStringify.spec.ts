@@ -1093,7 +1093,23 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 49 tests
+    // Tuple with optional params json stringify test - moved from packages/run-types/src/runType/collection/tuple.spec.ts:131-140
+    {
+        type TupleWithOptionals = [number, bigint?, boolean?, number?];
+
+        it('json stringify tuple with optional params', () => {
+            const jsonStringify = runType<TupleWithOptionals>().createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = runType<TupleWithOptionals>().createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue = [3, undefined, true, 4];
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+            const typeValue2 = [3];
+            const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
+            expect(roundTrip2).toEqual([3]);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 50 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
@@ -1101,12 +1117,12 @@ describe('jsonStringify compilation tests', () => {
     // - packages/run-types/src/runType/function/function.spec.ts (ALL 8 jsonStringify tests moved)
     // - packages/run-types/src/runType/collection/class.spec.ts (ALL 4 jsonStringify tests moved)
     // - packages/run-types/src/runType/collection/circularRefs.spec.ts (ALL 5 jsonStringify tests moved)
+    // - packages/run-types/src/runType/collection/union.spec.ts (ALL 8 jsonStringify tests moved)
     //
     // 🔄 IN PROGRESS:
-    // - packages/run-types/src/runType/collection/union.spec.ts (2 of ~15 jsonStringify tests moved)
+    // - packages/run-types/src/runType/collection/tuple.spec.ts (0 of ~4 jsonStringify tests moved)
     //
     // ⏳ PENDING FILES (still have jsonStringify tests to move):
-    // - packages/run-types/src/runType/collection/union.spec.ts (~13 more jsonStringify tests)
     // - packages/run-types/src/runType/collection/tuple.spec.ts (~4 jsonStringify tests)
     // - packages/run-types/src/runType/collection/interface.spec.ts (~2 more jsonStringify tests)
     // - packages/run-types/src/runType/member/array.spec.ts (~2 more jsonStringify tests)

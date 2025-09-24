@@ -128,16 +128,7 @@ describe('TupleRunType', () => {
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 360-367)
 
-    it('json stringify tuple with optional params', () => {
-        const jsonStringify = runType<TupleWithOptionals>().createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = runType<TupleWithOptionals>().createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = [3, undefined, true, 4];
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        expect(roundTrip).toEqual(typeValue);
-        const typeValue2 = [3];
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
-        expect(roundTrip2).toEqual([3]);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1101-1109)
 
     it('mock', async () => {
         const mocked = await rt.mock();
