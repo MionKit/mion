@@ -1479,7 +1479,49 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 63 tests
+    // Array strip extra params json stringify test - moved from packages/run-types/src/runType/member/array.spec.ts:365-379
+    {
+        type ObjectType = {
+            a: string;
+            deep?: {
+                b: string;
+                c: number;
+            };
+            d?: ObjectType[];
+        };
+
+        const obj: ObjectType = {
+            a: 'hello',
+            deep: {
+                b: 'world',
+                c: 123,
+            },
+            d: [{a: 'hello2', deep: {b: 'world2', c: 1234}}],
+        };
+
+        const objWithExtra = structuredClone(obj) as any;
+        objWithExtra.extraA = 'extraA';
+
+        const rt = runType<ObjectType>();
+
+        it('json stringify array to strip extra params without fail', () => {
+            // json stringify automatically strips unknown keys
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const jsonString = jsonStringify(objWithExtra);
+            const roundTrip = fromJsonVal(JSON.parse(jsonString));
+            expect(roundTrip).toEqual({
+                a: 'hello',
+                deep: {
+                    b: 'world',
+                    c: 123,
+                },
+                d: [{a: 'hello2', deep: {b: 'world2', c: 1234}}],
+            });
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 64 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)

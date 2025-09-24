@@ -362,21 +362,7 @@ describe('test array strict modes + circular reference', () => {
         });
     });
 
-    it('json stringify to strip extra params without fail', () => {
-        // json stringify automatically strips unknown keys
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const jsonString = jsonStringify(objWithExtra);
-        const roundTrip = fromJsonVal(JSON.parse(jsonString));
-        expect(roundTrip).toEqual({
-            a: 'hello',
-            deep: {
-                b: 'world',
-                c: 123,
-            },
-            d: [{a: 'hello2', deep: {b: 'world2', c: 1234}}],
-        });
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1507-1521)
 });
 
 describe('Array circular ref', () => {
