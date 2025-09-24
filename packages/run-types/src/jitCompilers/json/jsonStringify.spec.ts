@@ -1839,7 +1839,17 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 78 tests
+    // Promise jsonStringify error test - moved from packages/run-types/src/runType/native/promise.spec.ts:12-19
+    {
+        const rt = runType<Promise<string>>();
+
+        it('jsonStringify should throw error for Promise types', () => {
+            const errorMessage = `Jit compilation disabled for Non Serializable types.`;
+            expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(errorMessage);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 79 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
@@ -1854,12 +1864,12 @@ describe('jsonStringify compilation tests', () => {
     // - packages/run-types/src/runType/member/indexProperty.spec.ts (ALL 5 jsonStringify tests moved)
     // - packages/run-types/src/runType/member/callSignature.spec.ts (ALL 1 jsonStringify test moved)
     // - packages/run-types/src/runType/native/set.spec.ts (ALL 3 jsonStringify tests moved)
+    // - packages/run-types/src/runType/native/map.spec.ts (ALL 4 jsonStringify tests moved)
     //
     // 🔄 IN PROGRESS:
-    // - packages/run-types/src/runType/native/map.spec.ts (0 of ~2 jsonStringify tests moved)
+    // - packages/run-types/src/runType/native/promise.spec.ts (0 of ~1 jsonStringify error test moved)
     //
     // ⏳ PENDING FILES (still have jsonStringify tests to move):
-    // - packages/run-types/src/runType/native/map.spec.ts (~2 jsonStringify tests)
     // - packages/run-types/src/runType/native/promise.spec.ts (~1 jsonStringify error test)
     // - packages/run-types/src/runType/native/nonSerializable.spec.ts (~1 jsonStringify error test)
 });
