@@ -197,21 +197,7 @@ describe('IndexType nested', () => {
         expect(fromJsonVal(JSON.parse(jsonString))).toEqual(obj);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rtNested.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtNested.createJitFunction(JitFunctions.fromJsonVal);
-        const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
-        expect(roundTrip).toEqual(obj);
-    });
-
-    it('json stringify Date', () => {
-        const jsonStringify = rtNested2.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtNested2.createJitFunction(JitFunctions.fromJsonVal);
-        const obj = {key1: {nestedKey1: new Date(), nestedKey2: new Date()}};
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
-        expect(roundTrip).toEqual(obj);
-    });
+    // Tests moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1596-1610)
 
     it('mock', async () => {
         const mocked = await rtNested.mock();
