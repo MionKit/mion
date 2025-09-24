@@ -754,6 +754,30 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Circular tuple json stringify test - moved from packages/run-types/src/runType/collection/circularRefs.spec.ts:199-210
+    {
+        interface CircularTuple {
+            tuple: [bigint, CircularTuple?];
+        }
+        const rt = runType<CircularTuple>();
+        const c1: CircularTuple = {tuple: [1n, {tuple: [2n, {tuple: [3n, {tuple: [4n]}]}]}]};
+        const c2: CircularTuple = {tuple: [1n, {tuple: [2n]}]};
+        const c3: CircularTuple = {tuple: [1n]};
+
+        it('json stringify CircularTuple object with discriminator', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const copy1: CircularTuple = {tuple: [1n, {tuple: [2n, {tuple: [3n, {tuple: [4n]}]}]}]};
+            const copy2: CircularTuple = {tuple: [1n, {tuple: [2n]}]};
+            const copy3: CircularTuple = {tuple: [1n]};
+
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy3)))).toEqual(c3);
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
