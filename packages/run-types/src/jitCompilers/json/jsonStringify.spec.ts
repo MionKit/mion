@@ -1702,7 +1702,35 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 73 tests
+    // Set nested objects json stringify test - moved from packages/run-types/src/runType/native/set.spec.ts:271-288
+    {
+        interface DeepWithSet {
+            a: string;
+            b: Set<{s: string; arr: number[]}>;
+        }
+        const rtDeepWithSet = runType<DeepWithSet>();
+
+        it('json stringify objects with nested sets', () => {
+            const jsonStringify = rtDeepWithSet.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtDeepWithSet.createJitFunction(JitFunctions.fromJsonVal);
+
+            const set1: DeepWithSet['b'] = new Set([
+                {s: 'a', arr: [1, 2, 3]},
+                {s: 'b', arr: [4, 5, 6]},
+            ]);
+            const obj: DeepWithSet = {
+                a: 'a',
+                b: set1,
+            };
+            const objCopy = structuredClone(obj);
+            const jsonString = jsonStringify(objCopy);
+            const restored = fromJsonVal(JSON.parse(jsonString));
+
+            expect(restored).toEqual(obj);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 74 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
