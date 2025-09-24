@@ -704,16 +704,7 @@ describe('Interface with circular ref type array', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj1: ICircularArray = {name: 'hello', children: []};
-        const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
-        const roundTrip1 = fromJsonVal(JSON.parse(jsonStringify(obj1)));
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(obj2)));
-        expect(roundTrip1).toEqual(obj1);
-        expect(roundTrip2).toEqual(obj2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1319-1328)
 
     // todo: max comp size exceeded, this is because we are generating a full array with all recursive items with more array with recursive items.
     // so the fix would be ti reduce the probability of generating an optional property the deeper we go.
