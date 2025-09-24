@@ -8,6 +8,11 @@
 import {runType, reflectFunction} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
 import {InterfaceRunType} from '../../runType/collection/interface';
+
+function cloneSet<T>(set: Set<T>): Set<T> {
+    const copyValues = Array.from(set.values()).map((v) => structuredClone(v));
+    return new Set(copyValues);
+}
 import {mockRegExpsList} from '../../mocking/constants.mock';
 import {FunctionRunType} from '../../runType/function/function';
 import {jitUtils, DataOnly} from '@mionkit/core';
@@ -1650,7 +1655,24 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 71 tests
+    // Set json stringify test - moved from packages/run-types/src/runType/native/set.spec.ts:62-71
+    {
+        const testSet = new Set<string>(['one', 'two', 'three']);
+        const rt = runType<Set<string>>();
+
+        it('json stringify Set', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const setCopy = cloneSet(testSet);
+            const jsonString = jsonStringify(setCopy);
+            const restored = fromJsonVal(JSON.parse(jsonString));
+
+            expect(restored).toEqual(testSet);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 72 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
@@ -1663,12 +1685,12 @@ describe('jsonStringify compilation tests', () => {
     // - packages/run-types/src/runType/collection/interface.spec.ts (ALL 8 jsonStringify tests moved)
     // - packages/run-types/src/runType/member/array.spec.ts (ALL 3 jsonStringify tests moved)
     // - packages/run-types/src/runType/member/indexProperty.spec.ts (ALL 5 jsonStringify tests moved)
+    // - packages/run-types/src/runType/member/callSignature.spec.ts (ALL 1 jsonStringify test moved)
     //
     // 🔄 IN PROGRESS:
-    // - packages/run-types/src/runType/member/callSignature.spec.ts (0 of ~1 jsonStringify test moved)
+    // - packages/run-types/src/runType/native/set.spec.ts (0 of ~2 jsonStringify tests moved)
     //
     // ⏳ PENDING FILES (still have jsonStringify tests to move):
-    // - packages/run-types/src/runType/member/callSignature.spec.ts (~1 jsonStringify test)
     // - packages/run-types/src/runType/native/set.spec.ts (~2 jsonStringify tests)
     // - packages/run-types/src/runType/native/map.spec.ts (~2 jsonStringify tests)
     // - packages/run-types/src/runType/native/promise.spec.ts (~1 jsonStringify error test)
