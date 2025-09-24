@@ -739,24 +739,7 @@ describe('Union circular', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.arrRec2))))).toEqual(arrRec2);
     });
 
-    it('json stringify Circular Union with discriminator', () => {
-        // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copy = mockData();
-
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy.d)))).toEqual(d);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy.n)))).toEqual(n);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy.s)))).toEqual(s);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy.recA)))).toEqual(recA);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy.o1)))).toEqual(o1);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy.a)))).toEqual(a);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy.a2)))).toEqual(a2);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy.arrRec0)))).toEqual(arrRec0);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy.arrRec1)))).toEqual(arrRec1);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy.arrRec2)))).toEqual(arrRec2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1021-1038)
 });
 
 describe('Union with objects containing methods', () => {

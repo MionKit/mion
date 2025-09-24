@@ -994,7 +994,52 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 47 tests
+    // Union circular json stringify test - moved from packages/run-types/src/runType/collection/union.spec.ts:742-759
+    {
+        type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
+        const date = new Date();
+
+        const mockData = () => {
+            const d: UnionC = new Date(date.getTime());
+            const n: UnionC = 123;
+            const s: UnionC = 'hello';
+            const recA: UnionC = {a: {a: {}}};
+            const o1: UnionC = {};
+            const a: UnionC = [];
+            const a2: UnionC = [[]];
+            const arrRec0: UnionC = [123, 3, {b: 'hello'}];
+            const arrRec1: UnionC = [123, 3, 'hello'];
+            const arrRec2: UnionC = [[123], 3, [3, 'hello']];
+
+            const notA = true;
+            const notB = {c: 'hello'}; // note existing properties are not allowed in the union
+            const notC = {a: true}; // properties of the union must be of the correct type
+            return {d, n, s, recA, o1, a, a2, arrRec0, arrRec1, arrRec2, notA, notB, notC};
+        };
+        const {d, n, s, recA, o1, a, a2, arrRec0, arrRec1, arrRec2, notA, notB, notC} = mockData();
+        const rt = runType<UnionC>();
+
+        it('json stringify Circular Union with discriminator', () => {
+            // this should be serialized as [discriminatorIndex, value]
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const copy = mockData();
+
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy.d)))).toEqual(d);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy.n)))).toEqual(n);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy.s)))).toEqual(s);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy.recA)))).toEqual(recA);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy.o1)))).toEqual(o1);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy.a)))).toEqual(a);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy.a2)))).toEqual(a2);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy.arrRec0)))).toEqual(arrRec0);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy.arrRec1)))).toEqual(arrRec1);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copy.arrRec2)))).toEqual(arrRec2);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 48 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
