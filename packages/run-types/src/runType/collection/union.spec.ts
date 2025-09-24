@@ -849,23 +849,7 @@ describe('Union with objects containing methods', () => {
         expect(typeof (decodedActive as any).isActive).toBe('undefined');
     });
 
-    it('json stringify union with methods - methods should be excluded', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const stringifiedName = jsonStringify(objWithName);
-        const stringifiedAge = jsonStringify(objWithAge);
-        const stringifiedActive = jsonStringify(objWithActive);
-
-        const parsedName = fromJsonVal(JSON.parse(stringifiedName));
-        const parsedAge = fromJsonVal(JSON.parse(stringifiedAge));
-        const parsedActive = fromJsonVal(JSON.parse(stringifiedActive));
-
-        // Parsed objects should only have data properties, not methods
-        expect(parsedName).toEqual({name: 'John'});
-        expect(parsedAge).toEqual({age: 25});
-        expect(parsedActive).toEqual({active: true});
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1084-1094)
 
     it('mock union with methods', async () => {
         // methods are ignored during mock

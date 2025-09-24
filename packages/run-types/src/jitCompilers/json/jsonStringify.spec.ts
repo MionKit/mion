@@ -1039,7 +1039,61 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 48 tests
+    // Union with methods json stringify test - moved from packages/run-types/src/runType/collection/union.spec.ts:852-868
+    {
+        // unions use strict check to identify the objects in the union,
+        // but we want to ignore methods an other non serializable properties, so those does not make the object invalid
+
+        // Test union with objects that have methods - methods should be ignored during validation
+        type UnionWithMethods =
+            | {name: string; getName(): string}
+            | {age: number; getAge(): number}
+            | {active: boolean; isActive(): boolean};
+
+        // Create test objects with methods - cast to specific types to avoid TypeScript errors
+        const objWithName = {
+            name: 'John',
+            getName() {
+                return 'John';
+            },
+        } as {name: string; getName(): string};
+
+        const objWithAge = {
+            age: 25,
+            getAge() {
+                return 25;
+            },
+        } as {age: number; getAge(): number};
+
+        const objWithActive = {
+            active: true,
+            isActive() {
+                return true;
+            },
+        } as {active: boolean; isActive(): boolean};
+
+        const rt = runType<UnionWithMethods>();
+
+        it('json stringify union with methods - methods should be excluded', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const stringifiedName = jsonStringify(objWithName);
+            const stringifiedAge = jsonStringify(objWithAge);
+            const stringifiedActive = jsonStringify(objWithActive);
+
+            const parsedName = fromJsonVal(JSON.parse(stringifiedName));
+            const parsedAge = fromJsonVal(JSON.parse(stringifiedAge));
+            const parsedActive = fromJsonVal(JSON.parse(stringifiedActive));
+
+            // Parsed objects should only have data properties, not methods
+            expect(parsedName).toEqual({name: 'John'});
+            expect(parsedAge).toEqual({age: 25});
+            expect(parsedActive).toEqual({active: true});
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 49 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
