@@ -966,7 +966,35 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 46 tests
+    // Union mixed with index property json stringify test - moved from packages/run-types/src/runType/collection/union.spec.ts:657-669
+    {
+        type UnionIndex =
+            | string[]
+            | {a: string; aa: boolean}
+            | {b: number}
+            | {a: string; [key: string]: string}
+            | {[key: string]: bigint; b: bigint};
+        const indexA: UnionIndex = ['a', 'b', 'c'];
+        const indexB: UnionIndex = {a: 'hello', aa: true};
+        const indexD: UnionIndex = {b: 1n, c: 2n};
+        const rt = runType<UnionIndex>();
+
+        it('json stringify union index property with discriminator', () => {
+            // this should be serialized as [discriminatorIndex, value]
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const copyA = structuredClone(indexA);
+            const copyB = structuredClone(indexB);
+            const copyD = structuredClone(indexD);
+
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyA)))).toEqual(indexA);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyB)))).toEqual(indexB);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyD)))).toEqual(indexD);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 47 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
