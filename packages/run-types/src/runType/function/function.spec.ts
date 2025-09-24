@@ -216,24 +216,7 @@ describe('function return', () => {
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 493-507)
 
-    it(`if function's return type is a function then return type should be the function's return type`, () => {
-        const fn =
-            (a: number, b: boolean, c?: string): (() => Date) =>
-            () =>
-                new Date();
-        const reflectedType = reflectFunction(fn);
-
-        const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
-        const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
-        const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
-        const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
-        const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
-        const returnValue = new Date();
-        expect(validateReturn(returnValue)).toBe(true);
-        expect(typeErrorsReturn(returnValue)).toEqual([]);
-        expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
-        expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 511-529)
 });
 
 describe('function with rest parameters', () => {

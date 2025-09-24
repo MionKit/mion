@@ -507,6 +507,28 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Function return type is function test - moved from packages/run-types/src/runType/function/function.spec.ts:219-236
+    {
+        it(`if function's return type is a function then return type should be the function's return type`, () => {
+            const fn =
+                (a: number, b: boolean, c?: string): (() => Date) =>
+                () =>
+                    new Date();
+            const reflectedType = reflectFunction(fn);
+
+            const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
+            const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
+            const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
+            const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
+            const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
+            const returnValue = new Date();
+            expect(validateReturn(returnValue)).toBe(true);
+            expect(typeErrorsReturn(returnValue)).toEqual([]);
+            expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
+            expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
