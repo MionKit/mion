@@ -708,6 +708,29 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
+    // Extended class json stringify test - moved from packages/run-types/src/runType/collection/class.spec.ts:135-143
+    {
+        class BaseClass {
+            baseProp: string = 'base'; // properties must be all strongly typed otherwise types wont appear in the jit code
+        }
+        class ExtendedClass extends BaseClass {
+            // TODO: build eslint rule that enforces all properties to be strongly typed
+            extendedProp: string = 'extended'; // properties must be all strongly typed otherwise types wont appear in the jit code
+        }
+        const rtExtended = runType<ExtendedClass>();
+        const extended = new ExtendedClass();
+
+        it('json stringify extended class', () => {
+            const jsonStringify = rtExtended.createJitFunction(JitFunctions.jsonStringify);
+            // restored object has the properties of the original object but is not a class instance
+            const restored = JSON.parse(jsonStringify(extended));
+            expect(restored).toEqual({
+                baseProp: extended.baseProp,
+                extendedProp: extended.extendedProp,
+            });
+        });
+    }
+
     // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
     // Original files with jsonStringify tests include:
     // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
