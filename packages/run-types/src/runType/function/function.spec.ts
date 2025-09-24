@@ -213,13 +213,7 @@ describe('function return', () => {
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 294-301)
 
-    it('json stringify required function return', () => {
-        const jsonStringify = rt2.createJitReturnFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt2.createJitReturnFunction(JitFunctions.fromJsonVal);
-        const returnValue = 1n;
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(returnValue)));
-        expect(roundTrip).toEqual(returnValue);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 444-451)
 
     it('mock function return', async () => {
         const mocked = await rt.mockReturn();
