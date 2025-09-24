@@ -268,24 +268,7 @@ describe('SerRunType with nested sets', () => {
         expect(decoded).toEqual(obj);
     });
 
-    it('json stringify objects with nested sets', () => {
-        const jsonStringify = rtDeepWithSet.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtDeepWithSet.createJitFunction(JitFunctions.fromJsonVal);
-
-        const set1: DeepWithSet['b'] = new Set([
-            {s: 'a', arr: [1, 2, 3]},
-            {s: 'b', arr: [4, 5, 6]},
-        ]);
-        const obj: DeepWithSet = {
-            a: 'a',
-            b: set1,
-        };
-        const objCopy = structuredClone(obj);
-        const jsonString = jsonStringify(objCopy);
-        const restored = fromJsonVal(JSON.parse(jsonString));
-
-        expect(restored).toEqual(obj);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1713-1729)
 
     it('has unknown keys in objects with nested sets', () => {
         const hasUnknownKeys = rtDeepWithSet.createJitFunction(JitFunctions.hasUnknownKeys);
