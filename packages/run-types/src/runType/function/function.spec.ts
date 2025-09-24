@@ -125,17 +125,7 @@ describe('function parameters', () => {
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 274-284)
 
-    it('json stringify required parameters', () => {
-        const jsonStringify = rt2.createJitParamsFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt2.createJitParamsFunction(JitFunctions.fromJsonVal);
-        const d = new Date();
-        const typeValue = [d, true];
-        const typeValue2 = [d];
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
-        expect(roundTrip).toEqual(typeValue);
-        expect(roundTrip2).toEqual(typeValue2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 428-439)
 
     it('mock parameters', async () => {
         const mocked = await rt.mockParams();
