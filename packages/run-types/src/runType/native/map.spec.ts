@@ -431,21 +431,7 @@ describe('MapRunType with nested maps', () => {
         expect(decoded).toEqual(obj);
     });
 
-    it('json stringify objects with nested maps', () => {
-        const jsonStringify = rtDeepWithMap.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtDeepWithMap.createJitFunction(JitFunctions.fromJsonVal);
-
-        const obj: DeepWithMap = {
-            a: 'a',
-            b: new Map([
-                ['key1', {sm: {s: 's', arr: [1, 2, 3]}}],
-                ['key2', {sm: {s: 's', arr: [1, 2, 3]}}],
-            ]),
-        };
-        const jsonString = jsonStringify(obj);
-        const restored = fromJsonVal(JSON.parse(jsonString));
-        expect(restored).toEqual(obj);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1824-1836)
 
     it('has unknown keys in objects with nested maps', () => {
         const hasUnknownKeys = rtDeepWithMap.createJitFunction(JitFunctions.hasUnknownKeys);
