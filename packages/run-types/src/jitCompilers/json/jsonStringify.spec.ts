@@ -855,19 +855,61 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // Note: Many more tests exist in the original files but are not moved to keep this file manageable.
-    // Original files with jsonStringify tests include:
-    // - packages/run-types/src/runType/function/function.spec.ts (many more function-related tests)
-    // - packages/run-types/src/runType/collection/circularRefs.spec.ts (more circular reference tests)
-    // - packages/run-types/src/runType/collection/union.spec.ts (many more union tests)
-    // - packages/run-types/src/runType/collection/tuple.spec.ts (more tuple tests)
-    // - packages/run-types/src/runType/collection/interface.spec.ts (many more interface tests)
-    // - packages/run-types/src/runType/collection/class.spec.ts (class serialization tests)
-    // - packages/run-types/src/runType/member/array.spec.ts (more array tests)
-    // - packages/run-types/src/runType/member/indexProperty.spec.ts (index property tests)
-    // - packages/run-types/src/runType/member/callSignature.spec.ts (call signature tests)
-    // - packages/run-types/src/runType/native/set.spec.ts (Set serialization tests)
-    // - packages/run-types/src/runType/native/map.spec.ts (Map serialization tests)
-    // - packages/run-types/src/runType/native/promise.spec.ts (Promise error tests)
-    // - packages/run-types/src/runType/native/nonSerializable.spec.ts (error tests)
+    // Array with union types json stringify test - moved from packages/run-types/src/runType/collection/union.spec.ts:262-283
+    {
+        type ArrUnion = (string | bigint | boolean | Date)[];
+        const date = new Date();
+        const arrA: ArrUnion = ['a', 'b', 'c'];
+        const arrB: ArrUnion = [1n, 2n, 3n];
+        const arrC: ArrUnion = [true, false, true];
+        const arrD: ArrUnion = [1n, 'b', date];
+        const rt = runType<ArrUnion>();
+
+        it('json stringify with discriminator', () => {
+            // this should be serialized as [discriminatorIndex, value]
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const copyA = structuredClone(arrA);
+            const copyB = structuredClone(arrB);
+            const copyC = structuredClone(arrC);
+            const copyD = [1n, 'b', date]; // dates cant be cloned properly
+
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyA)))).toEqual(arrA);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyB)))).toEqual(arrB);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyC)))).toEqual(arrC);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyD)))).toEqual(arrD);
+
+            // ensure code for items that do not need stringify to tuple is not emitted [index, type]
+            const stringifyCode = jsonStringify.toString();
+            expect(stringifyCode).not.toContain('[0,');
+            expect(stringifyCode).toContain('[1,'); // bigint must be encoded to tuple [index, type]
+            expect(stringifyCode).not.toContain('[2,');
+            expect(stringifyCode).toContain('[3,'); // date must be encoded to tuple [index, type]
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 43 tests
+    //
+    // ✅ COMPLETED FILES (all jsonStringify tests moved):
+    // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
+    // - packages/run-types/src/runType/utility/* (required, extract)
+    // - packages/run-types/src/runType/function/function.spec.ts (ALL 8 jsonStringify tests moved)
+    // - packages/run-types/src/runType/collection/class.spec.ts (ALL 4 jsonStringify tests moved)
+    // - packages/run-types/src/runType/collection/circularRefs.spec.ts (ALL 5 jsonStringify tests moved)
+    //
+    // 🔄 IN PROGRESS:
+    // - packages/run-types/src/runType/collection/union.spec.ts (2 of ~15 jsonStringify tests moved)
+    //
+    // ⏳ PENDING FILES (still have jsonStringify tests to move):
+    // - packages/run-types/src/runType/collection/union.spec.ts (~13 more jsonStringify tests)
+    // - packages/run-types/src/runType/collection/tuple.spec.ts (~4 jsonStringify tests)
+    // - packages/run-types/src/runType/collection/interface.spec.ts (~2 more jsonStringify tests)
+    // - packages/run-types/src/runType/member/array.spec.ts (~2 more jsonStringify tests)
+    // - packages/run-types/src/runType/member/indexProperty.spec.ts (~2 jsonStringify tests)
+    // - packages/run-types/src/runType/member/callSignature.spec.ts (~1 jsonStringify test)
+    // - packages/run-types/src/runType/native/set.spec.ts (~2 jsonStringify tests)
+    // - packages/run-types/src/runType/native/map.spec.ts (~2 jsonStringify tests)
+    // - packages/run-types/src/runType/native/promise.spec.ts (~1 jsonStringify error test)
+    // - packages/run-types/src/runType/native/nonSerializable.spec.ts (~1 jsonStringify error test)
 });
