@@ -9,6 +9,7 @@ import {runType, reflectFunction} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
 import {mockRegExpsList} from '../../mocking/constants.mock';
 import {FunctionRunType} from '../../runType/function/function';
+import {jitUtils, DataOnly} from '@mionkit/core';
 
 describe('jsonStringify compilation tests', () => {
     // Tests moved from various spec files under packages/run-types/src/runType/
@@ -609,6 +610,42 @@ describe('jsonStringify compilation tests', () => {
                 id: serializable.id,
                 startDate: serializable.startDate.toJSON(),
             });
+        });
+    }
+
+    // Class serializable restoration test - moved from packages/run-types/src/runType/collection/class.spec.ts:87-94
+    {
+        class MySerializableClass {
+            name: string;
+            surname: string;
+            id: number;
+            startDate: Date;
+            constructor() {
+                this.name = 'John';
+                this.surname = 'Doe';
+                this.id = 0;
+                this.startDate = new Date();
+            }
+
+            getConstructorParams(): [] {
+                return [];
+            }
+
+            getFullName() {
+                return `${this.name} ${this.surname}`;
+            }
+        }
+
+        const serializable = new MySerializableClass();
+        const rt = runType<MySerializableClass>();
+
+        it('serializable class can be restored after they are registered', async () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow();
+            jitUtils.setSerializableClass(MySerializableClass);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const restored = fromJsonVal(JSON.parse(jsonStringify(serializable)));
+            expect(restored instanceof MySerializableClass).toBeTruthy();
         });
     }
 
