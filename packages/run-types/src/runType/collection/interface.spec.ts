@@ -1090,16 +1090,7 @@ describe('Interface with circular ref tuple', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
     });
 
-    it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
-        const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
-        const roundTrip1 = fromJsonVal(JSON.parse(jsonStringify(obj1)));
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(obj2)));
-        expect(roundTrip1).toEqual(obj1);
-        expect(roundTrip2).toEqual(obj2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1452-1461)
 
     it('mock', async () => {
         const mocked = await rt.mock();
