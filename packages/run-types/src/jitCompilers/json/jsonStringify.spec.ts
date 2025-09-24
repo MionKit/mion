@@ -1213,7 +1213,86 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 55 tests
+    // Interface strip extra params json stringify test - moved from packages/run-types/src/runType/collection/interface.spec.ts:476-495
+    {
+        type ObjectType = {
+            startDate: Date;
+            quantity: number;
+            name: string;
+            nullValue: null;
+            stringArray: string[];
+            bigInt: bigint;
+            optionalString?: string;
+            "weird prop name \n?>'\\\t\r": string;
+            deep?: {
+                a: string;
+                b: number;
+            };
+        };
+
+        type ObjectTypeWithExtra = {
+            startDate: Date;
+            quantity: number;
+            name: string;
+            nullValue: null;
+            stringArray: string[];
+            bigInt: bigint;
+            optionalString?: string;
+            "weird prop name \n?>'\\\t\r": string;
+            someExtra: string;
+            someExtra2: number;
+            "extra weird prop name \n?>'\\\t\r": string;
+            deep?: {
+                a: string;
+                b: number;
+                cExtra: boolean;
+            };
+        };
+
+        const rt = runType<ObjectType>();
+        const startDate = new Date();
+
+        const objWithExtra: ObjectTypeWithExtra = {
+            startDate,
+            quantity: 123,
+            name: 'hello',
+            nullValue: null,
+            stringArray: ['a', 'b', 'c'],
+            bigInt: BigInt(123),
+            "weird prop name \n?>'\\\t\r": 'hello2',
+            someExtra: 'hello',
+            someExtra2: 123,
+            "extra weird prop name \n?>'\\\t\r": 'hello3',
+            deep: {
+                a: 'hello',
+                b: 123,
+                cExtra: true,
+            },
+        };
+
+        it('json stringify to strip extra params without fail', () => {
+            // json stringify automatically strips unknown keys
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const jsonString = jsonStringify(objWithExtra);
+            const roundTrip = fromJsonVal(JSON.parse(jsonString));
+            expect(roundTrip).toEqual({
+                startDate,
+                quantity: 123,
+                name: 'hello',
+                nullValue: null,
+                stringArray: ['a', 'b', 'c'],
+                bigInt: BigInt(123),
+                "weird prop name \n?>'\\\t\r": 'hello2',
+                deep: {
+                    a: 'hello',
+                    b: 123,
+                },
+            });
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 56 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
