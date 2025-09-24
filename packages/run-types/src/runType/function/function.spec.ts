@@ -305,16 +305,7 @@ describe('function with rest parameters', () => {
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 308-317)
 
-    it('stringify function with only rest parameters', () => {
-        const jsonStringify = rtRest2.createJitParamsFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtRest2.createJitParamsFunction(JitFunctions.fromJsonVal);
-        const typeValue = [3, 2, 1];
-        const typeValue2: number[] = [];
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        const roundTrip3 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
-        expect(roundTrip).toEqual(typeValue);
-        expect(roundTrip3).toEqual(typeValue2);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 459-469)
 });
 
 describe('function run type general', () => {
