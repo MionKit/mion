@@ -1292,7 +1292,24 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 56 tests
+    // Interface circular ref json stringify test - moved from packages/run-types/src/runType/collection/interface.spec.ts:648-654
+    {
+        interface ICircular {
+            name: string;
+            child?: ICircular;
+        }
+        const rt = runType<ICircular>();
+
+        it('json stringify interface circular', () => {
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+            const obj: ICircular = {name: 'hello', child: {name: 'world'}};
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
+            expect(roundTrip).toEqual(obj);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 57 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
