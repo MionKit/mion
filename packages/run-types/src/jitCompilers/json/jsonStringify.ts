@@ -28,7 +28,7 @@ import type {MemberRunType} from '../../lib/baseRunTypes';
 import type {LiteralRunType} from '../../runType/atomic/literal';
 import type {IterableRunType} from '../../runType/native/Iterable';
 
-type Operation = typeof JitFunctions.jsonStringify.id | typeof JitFunctions.toCode.id;
+type Operation = typeof JitFunctions.jsonStringify.id | typeof JitFunctions.toJavascript.id;
 
 /** Centralized compile jit function with a switch statement that handles all node types. */
 export function _compileJsonStringify(
@@ -288,7 +288,7 @@ function getOperationName(fnID: Operation) {
     switch (fnID) {
         case JitFunctions.jsonStringify.id:
             return 'JsonStringify';
-        case JitFunctions.toCode.id:
+        case JitFunctions.toJavascript.id:
             return 'ToCode';
         default:
             throw new Error(`Unknown operation: ${fnID}`);
@@ -297,7 +297,7 @@ function getOperationName(fnID: Operation) {
 
 function getPropName(rt: PropertyRunType, comp: JitCompiler, fnID: JitFnID): string {
     if (!isSafePropName(rt.src.name)) return `${JSON.stringify(rt.getChildLiteral(comp) as string)}+':'`;
-    if (fnID === JitFunctions.toCode.id) return `'${rt.getChildVarName(comp)}:'`;
+    if (fnID === JitFunctions.toJavascript.id) return `'${rt.getChildVarName(comp)}:'`;
     return `'"${rt.getChildVarName(comp)}":'`;
 }
 

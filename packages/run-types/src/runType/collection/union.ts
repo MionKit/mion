@@ -28,7 +28,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     getCodeType(fnID: JitFnID): CodeType {
         switch (fnID) {
             case JitFunctions.jsonStringify.id:
-            case JitFunctions.toCode.id:
+            case JitFunctions.toJavascript.id:
                 return 'RB';
             default:
                 return super.getCodeType(fnID);

@@ -99,9 +99,9 @@ export const jitSerializationFunctions = {
         returnName: jitArgs.vλl,
     },
     // similar to json stringify but outputs js code, including pure functions, already imported as size is quite small
-    toCode: {
+    toJavascript: {
         id: 'tc',
-        name: 'toCode',
+        name: 'toJavascript',
         type: CodeTypes.expression,
         jitArgs,
         jitDefaultArgs,
