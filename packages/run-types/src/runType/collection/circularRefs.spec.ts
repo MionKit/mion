@@ -262,18 +262,7 @@ describe('Circular Object with index property', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(c3);
     });
 
-    it('json stringify CircularIndex object with discriminator', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copy1: CircularIndex = {index: {a: {index: {b: {index: {}}}}}};
-        const copy2: CircularIndex = {index: {a: {index: {}}}};
-        const copy3: CircularIndex = {index: {}};
-
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
-        expect(fromJsonVal(JSON.parse(jsonStringify(copy3)))).toEqual(c3);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 790-801)
 
     it('mock CircularIndex object', async () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
