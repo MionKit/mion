@@ -158,14 +158,7 @@ describe('call signature return', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(returnValue))))).toEqual(returnValue);
     });
 
-    it('json stringify call signature return', () => {
-        const jsonStringify = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.fromJsonVal);
-        const returnValue = 'result';
-
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(returnValue)));
-        expect(roundTrip).toEqual(returnValue);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1641-1648)
 
     it('mock call signature return', async () => {
         const mocked = await rt.getCallSignature()!.mockReturn();
