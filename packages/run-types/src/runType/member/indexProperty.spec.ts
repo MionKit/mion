@@ -99,18 +99,7 @@ describe('IndexType', () => {
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1553-1565)
 
-    it('json stringify IndexWithExtraProps', () => {
-        const jsonStringify = rtExtra.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtExtra.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue: IndexWithExtraProps = {
-            key1: 'value1',
-            key2: 'value2',
-            a: 'extra1',
-            b: 123,
-        };
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-        expect(roundTrip).toEqual(typeValue);
-    });
+    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1576-1588)
 
     it('mock', async () => {
         const mocked = await rt.mock();

@@ -1565,7 +1565,30 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 66 tests
+    // Index property with extra props json stringify test - moved from packages/run-types/src/runType/member/indexProperty.spec.ts:102-113
+    {
+        type IndexWithExtraProps = {
+            a: string;
+            b: number;
+            [key: string]: string | number;
+        };
+        const rtExtra = runType<IndexWithExtraProps>();
+
+        it('json stringify index property with extra props', () => {
+            const jsonStringify = rtExtra.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rtExtra.createJitFunction(JitFunctions.fromJsonVal);
+            const typeValue: IndexWithExtraProps = {
+                key1: 'value1',
+                key2: 'value2',
+                a: 'extra1',
+                b: 123,
+            };
+            const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
+            expect(roundTrip).toEqual(typeValue);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 67 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
