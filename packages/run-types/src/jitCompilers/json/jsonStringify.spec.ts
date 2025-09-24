@@ -889,7 +889,36 @@ describe('jsonStringify compilation tests', () => {
         });
     }
 
-    // PROGRESS TRACKER: Tests moved so far: 43 tests
+    // Union object json stringify test - moved from packages/run-types/src/runType/collection/union.spec.ts:354-370
+    {
+        type UnionObj = {a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string};
+        const objA: UnionObj = {a: 'hello', b: 123, c: 1n}; // unlike typescript we don't allow mix of properties in the union
+        const objB: UnionObj = {a: 'world', aa: true};
+        const objC: UnionObj = {c: 1n};
+        const objD: UnionObj = {d: 'hello'};
+        const objE: UnionObj = {};
+        const rt = runType<UnionObj>();
+
+        it('json stringify union object with discriminator', () => {
+            // this should be serialized as [discriminatorIndex, value]
+            const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+            const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+            const copyA = structuredClone(objA);
+            const copyB = structuredClone(objB);
+            const copyC = structuredClone(objC);
+            const copyD = structuredClone(objD);
+            const copyE = structuredClone(objE);
+
+            expect(() => jsonStringify(copyA)).toThrow(); // mion throws an error for mixed properties in the union
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyB)))).toEqual(objB);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyC)))).toEqual(objC);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyD)))).toEqual(objD);
+            expect(fromJsonVal(JSON.parse(jsonStringify(copyE)))).toEqual(objE);
+        });
+    }
+
+    // PROGRESS TRACKER: Tests moved so far: 44 tests
     //
     // ✅ COMPLETED FILES (all jsonStringify tests moved):
     // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
