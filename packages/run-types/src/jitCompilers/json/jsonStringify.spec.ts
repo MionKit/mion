@@ -506,15 +506,9 @@ describe('jsonStringify compilation tests', () => {
             const reflectedType = reflectFunction(fn);
             expect(reflectedType instanceof FunctionRunType).toBe(true);
 
-            const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
-            const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
-            const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
             const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
             const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
             const returnValue = new Date();
-            expect(validateReturn(returnValue)).toBe(true);
-            expect(typeErrorsReturn(returnValue)).toEqual([]);
-            expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
             expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
         });
     }
@@ -528,15 +522,9 @@ describe('jsonStringify compilation tests', () => {
                     new Date();
             const reflectedType = reflectFunction(fn);
 
-            const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
-            const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
-            const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
             const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
             const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
             const returnValue = new Date();
-            expect(validateReturn(returnValue)).toBe(true);
-            expect(typeErrorsReturn(returnValue)).toEqual([]);
-            expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
             expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
         });
     }
@@ -548,26 +536,15 @@ describe('jsonStringify compilation tests', () => {
             const reflectedType = reflectFunction(fn);
             expect(reflectedType instanceof FunctionRunType).toBe(true);
 
-            const validate = reflectedType.createJitParamsFunction(JitFunctions.isType);
-            const typeErrors = reflectedType.createJitParamsFunction(JitFunctions.typeErrors);
-            const toJsonVal = reflectedType.createJitParamsFunction(JitFunctions.toJsonVal);
             const fromJsonVal = reflectedType.createJitParamsFunction(JitFunctions.fromJsonVal);
             const jsonStringify = reflectedType.createJitParamsFunction(JitFunctions.jsonStringify);
             const paramsValues = [3, true, 'hello'];
-            expect(validate(paramsValues)).toBe(true);
-            expect(typeErrors(paramsValues)).toEqual([]);
-            expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, true, 'hello']))))).toEqual(paramsValues);
+
             expect(fromJsonVal(JSON.parse(jsonStringify([3, true, 'hello'])))).toEqual(paramsValues);
 
-            const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
-            const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
-            const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
             const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
             const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
             const returnValue = new Date();
-            expect(validateReturn(returnValue)).toBe(true);
-            expect(typeErrorsReturn(returnValue)).toEqual([]);
-            expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
             expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
         });
     }
@@ -1868,28 +1845,4 @@ describe('jsonStringify compilation tests', () => {
             expect(() => rtTupleWithNonSerializable.createJitFunction(JitFunctions.jsonStringify)).toThrow(errorMessage);
         });
     }
-
-    // PROGRESS TRACKER: Tests moved so far: 80 tests
-    //
-    // ✅ COMPLETED FILES (all jsonStringify tests moved):
-    // - packages/run-types/src/runType/atomic/* (all atomic types: string, regexp, bigint, boolean, any, null, undefined, number, date, enum, symbol, object, void)
-    // - packages/run-types/src/runType/utility/* (required, extract)
-    // - packages/run-types/src/runType/function/function.spec.ts (ALL 8 jsonStringify tests moved)
-    // - packages/run-types/src/runType/collection/class.spec.ts (ALL 4 jsonStringify tests moved)
-    // - packages/run-types/src/runType/collection/circularRefs.spec.ts (ALL 5 jsonStringify tests moved)
-    // - packages/run-types/src/runType/collection/union.spec.ts (ALL 8 jsonStringify tests moved)
-    // - packages/run-types/src/runType/collection/tuple.spec.ts (ALL 3 jsonStringify tests moved)
-    // - packages/run-types/src/runType/collection/interface.spec.ts (ALL 8 jsonStringify tests moved)
-    // - packages/run-types/src/runType/member/array.spec.ts (ALL 3 jsonStringify tests moved)
-    // - packages/run-types/src/runType/member/indexProperty.spec.ts (ALL 5 jsonStringify tests moved)
-    // - packages/run-types/src/runType/member/callSignature.spec.ts (ALL 1 jsonStringify test moved)
-    // - packages/run-types/src/runType/native/set.spec.ts (ALL 3 jsonStringify tests moved)
-    // - packages/run-types/src/runType/native/map.spec.ts (ALL 4 jsonStringify tests moved)
-    //
-    // 🔄 IN PROGRESS:
-    // - packages/run-types/src/runType/native/promise.spec.ts (0 of ~1 jsonStringify error test moved)
-    //
-    // ⏳ PENDING FILES (still have jsonStringify tests to move):
-    // - packages/run-types/src/runType/native/promise.spec.ts (~1 jsonStringify error test)
-    // - packages/run-types/src/runType/native/nonSerializable.spec.ts (~1 jsonStringify error test)
 });
