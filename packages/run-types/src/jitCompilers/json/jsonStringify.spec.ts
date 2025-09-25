@@ -5,9 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {jitUtils, DataOnly} from '@mionkit/core';
 import {runType, reflectFunction} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
 import {InterfaceRunType} from '../../runType/collection/interface';
+import {mockRegExpsList} from '../../mocking/constants.mock';
+import {FunctionRunType} from '../../runType/function/function';
 
 function cloneSet<T>(set: Set<T>): Set<T> {
     const copyValues = Array.from(set.values()).map((v) => structuredClone(v));
@@ -18,9 +21,6 @@ function cloneMap<K, V>(map: Map<K, V>): Map<K, V> {
     const copyEntries = Array.from(map.entries()).map(([k, v]) => [structuredClone(k), structuredClone(v)] as [K, V]);
     return new Map(copyEntries);
 }
-import {mockRegExpsList} from '../../mocking/constants.mock';
-import {FunctionRunType} from '../../runType/function/function';
-import {jitUtils, DataOnly} from '@mionkit/core';
 
 describe('jsonStringify compilation tests', () => {
     // Tests moved from various spec files under packages/run-types/src/runType/
@@ -285,7 +285,7 @@ describe('jsonStringify compilation tests', () => {
     // Function parameters tests - moved from packages/run-types/src/runType/function/function.spec.ts:128-137
     {
         type TestFunction = (a: number, b: boolean, c?: string) => Date;
-        const rt = runType<TestFunction>();
+        const rt = runType<TestFunction>() as FunctionRunType;
 
         it('json stringify parameters', () => {
             const jsonStringify = rt.createJitParamsFunction(JitFunctions.jsonStringify);
@@ -302,7 +302,7 @@ describe('jsonStringify compilation tests', () => {
     // Function return tests - moved from packages/run-types/src/runType/function/function.spec.ts:235-241
     {
         type TestFunction = (a: number, b: boolean, c?: string) => Date;
-        const rt = runType<TestFunction>();
+        const rt = runType<TestFunction>() as FunctionRunType;
 
         it('json stringify function return', () => {
             const jsonStringify = rt.createJitReturnFunction(JitFunctions.jsonStringify);
@@ -316,7 +316,7 @@ describe('jsonStringify compilation tests', () => {
     // Function with rest parameters - moved from packages/run-types/src/runType/function/function.spec.ts:339-348
     {
         type TestFunctionRest = (a: number, b: boolean, ...rest: Date[]) => Date;
-        const rtRest = runType<TestFunctionRest>();
+        const rtRest = runType<TestFunctionRest>() as FunctionRunType;
 
         it('stringify function with rest parameters', () => {
             const jsonStringify = rtRest.createJitParamsFunction(JitFunctions.jsonStringify);
@@ -436,7 +436,7 @@ describe('jsonStringify compilation tests', () => {
     // Function required parameters test - moved from packages/run-types/src/runType/function/function.spec.ts:128-138
     {
         type TestFunction2 = (a: Date, b?: boolean) => bigint;
-        const rt2 = runType<TestFunction2>();
+        const rt2 = runType<TestFunction2>() as FunctionRunType;
 
         it('json stringify required parameters', () => {
             const jsonStringify = rt2.createJitParamsFunction(JitFunctions.jsonStringify);
@@ -454,7 +454,7 @@ describe('jsonStringify compilation tests', () => {
     // Function required return test - moved from packages/run-types/src/runType/function/function.spec.ts:226-232
     {
         type TestFunction2 = (a: Date, b?: boolean) => bigint;
-        const rt2 = runType<TestFunction2>();
+        const rt2 = runType<TestFunction2>() as FunctionRunType;
 
         it('json stringify required function return', () => {
             const jsonStringify = rt2.createJitReturnFunction(JitFunctions.jsonStringify);
@@ -468,7 +468,7 @@ describe('jsonStringify compilation tests', () => {
     // Function with only rest parameters test - moved from packages/run-types/src/runType/function/function.spec.ts:324-333
     {
         type TestFunctionRest2 = (...rest: number[]) => Date;
-        const rtRest2 = runType<TestFunctionRest2>();
+        const rtRest2 = runType<TestFunctionRest2>() as FunctionRunType;
 
         it('stringify function with only rest parameters', () => {
             const jsonStringify = rtRest2.createJitParamsFunction(JitFunctions.jsonStringify);
@@ -485,7 +485,7 @@ describe('jsonStringify compilation tests', () => {
     // Function non serializable types test - moved from packages/run-types/src/runType/function/function.spec.ts:165-174
     {
         type TestFunctionWithFN = (a: number, b: boolean, c?: () => null) => Date;
-        const rtWithFN = runType<TestFunctionWithFN>();
+        const rtWithFN = runType<TestFunctionWithFN>() as FunctionRunType;
 
         it('json stringify non serializable types', () => {
             const jsonStringify = rtWithFN.createJitParamsFunction(JitFunctions.jsonStringify);
@@ -574,7 +574,7 @@ describe('jsonStringify compilation tests', () => {
 
     // Function createJitParamsFunction json stringify test - moved from packages/run-types/src/runType/function/function.spec.ts:351-356
     {
-        const rt = runType<(a: number, b: boolean, c?: string) => Date>();
+        const rt = runType<(a: number, b: boolean, c?: string) => Date>() as FunctionRunType;
 
         it('createJitParamsFunction json stringify', () => {
             const jsonStringify = rt.createJitParamsFunction(JitFunctions.jsonStringify, {paramsSlice: {start: 1}});
