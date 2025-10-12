@@ -9,7 +9,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import {JitFunctions} from '../../constants.functions';
 import {JitCompiler} from '../../lib/jitCompiler';
-import {createIfElseFn, isSafePropName} from '../../lib/utils';
+import {createIfElseFn, isSafePropName, parentIs} from '../../lib/utils';
 import type {IndexSignatureRunType} from '../../runType/member/indexProperty';
 import type {jitCode, JitFnID} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
@@ -57,27 +57,47 @@ export function _compileJsonStringify(
         case ReflectionKind.literal: {
             const rt = runType as LiteralRunType;
             if (src.literal instanceof RegExp) return _compileJsonStringify({src: {kind: ReflectionKind.regexp}} as any, comp);
+            const literalRt = runType;
+            const originalKind = src.kind;
+            let result: jitCode;
             switch (typeof rt.src.literal) {
                 case 'number':
-                    return _compileJsonStringify({src: {kind: ReflectionKind.number}} as any, comp);
+                    literalRt.src.kind = ReflectionKind.number;
+                    result = _compileJsonStringify(literalRt, comp);
+                    break;
                 case 'string':
-                    return _compileJsonStringify({src: {kind: ReflectionKind.string}} as any, comp);
+                    literalRt.src.kind = ReflectionKind.string;
+                    result = _compileJsonStringify(literalRt, comp);
+                    break;
                 case 'boolean':
-                    return _compileJsonStringify({src: {kind: ReflectionKind.boolean}} as any, comp);
+                    literalRt.src.kind = ReflectionKind.boolean;
+                    result = _compileJsonStringify(literalRt, comp);
+                    break;
                 case 'bigint':
-                    return _compileJsonStringify({src: {kind: ReflectionKind.bigint}} as any, comp);
+                    literalRt.src.kind = ReflectionKind.bigint;
+                    result = _compileJsonStringify(literalRt, comp);
+                    break;
                 case 'symbol':
-                    return _compileJsonStringify({src: {kind: ReflectionKind.symbol}} as any, comp);
+                    literalRt.src.kind = ReflectionKind.symbol;
+                    result = _compileJsonStringify(literalRt, comp);
+                    break;
                 default:
-                    return `JSON.stringify(${comp.vλl})`;
+                    result = `JSON.stringify(${comp.vλl})`;
+                    break;
             }
+            literalRt.src.kind = originalKind;
+            return result;
         }
         case ReflectionKind.never:
             throw new Error('Never type cannot be stringified.');
-        case ReflectionKind.null:
-            return comp.vλl;
-        case ReflectionKind.number:
-            return comp.vλl;
+        case ReflectionKind.null: {
+            const isRoot = comp.getNestLevel(runType) === 0;
+            return isRoot ? `String(${comp.vλl})` : comp.vλl;
+        }
+        case ReflectionKind.number: {
+            const isRoot = comp.getNestLevel(runType) === 0;
+            return isRoot ? `String(${comp.vλl})` : comp.vλl;
+        }
         case ReflectionKind.object:
             return `JSON.stringify(${comp.vλl})`;
         case ReflectionKind.regexp:
@@ -88,8 +108,13 @@ export function _compileJsonStringify(
             return `JSON.stringify('Symbol:' + (${comp.vλl}.description || ''))`;
         case ReflectionKind.templateLiteral:
             throw new Error('Template Literals are not supported.');
-        case ReflectionKind.undefined:
+        case ReflectionKind.undefined: {
+            const isRoot = comp.getNestLevel(runType) === 0;
+            if (isRoot) return `undefined`;
+            const parentIsArray = parentIs(runType, ReflectionKind.array);
+            if (parentIsArray) return `'null'`; // we use array.join(',') to serialize arrays, so we need to return null literal (string)
             return `null`;
+        }
         case ReflectionKind.void:
             return 'undefined';
 

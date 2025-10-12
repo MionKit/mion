@@ -20,26 +20,12 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         const isEmpty = children.every((prop) => !isConstructor(prop) || prop.getParameters().getChildRunTypes().length === 0);
         return isEmpty;
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _compileFromJsonVal(comp: JitCompiler) {
-        const deserializeFn = jitUtils.getDeserializeFn(this.getClassName());
-        const serializableClass = jitUtils.getSerializeClass(this.getClassName());
-
-        if (deserializeFn) {
-            const plainObjCode = super._compileFromJsonVal(comp);
-            const classCode = `${comp.vλl} = utl.${jitUtils.useDeserializeFn.name}(${toLiteral(this.getClassName())})(${comp.vλl})`;
-            if (plainObjCode) return `${plainObjCode} ${classCode}`;
-            return classCode;
-        }
-        if (serializableClass) {
-            const plainObjCode = super._compileFromJsonVal(comp);
-            const classCode = `${comp.vλl} = new (utl.${jitUtils.useSerializeClass.name}(${toLiteral(this.getClassName())}))(${comp.vλl})`;
-            if (plainObjCode) return `${plainObjCode} ${classCode}`;
-            return classCode;
-        }
-
-        throw new Error(
-            `Class ${this.getClassName()} can not be deserialized. Be sure to register a deserialize function first with jiUtils.${jitUtils.setDeserializeFn.name}`
-        );
+        const plainObjCode = super._compileFromJsonVal(comp);
+        const desFnVarName = `desFn${comp.getNestLevel(this)}`;
+        const desFnInit = `let ${desFnVarName} = utl.${jitUtils.getDeserializeFn.name}(${toLiteral(this.getClassName())})`;
+        const desFnCode = `if (${desFnVarName}) {${comp.vλl} = ${desFnVarName}(${comp.vλl})}`;
+        const desClassCode = `else if (${desFnVarName} = utl.${jitUtils.getSerializeClass.name}(${toLiteral(this.getClassName())})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}`;
+        return `${plainObjCode};${desFnInit};${desFnCode} ${desClassCode}`;
     }
 }
