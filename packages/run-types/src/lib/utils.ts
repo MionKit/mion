@@ -382,3 +382,18 @@ export function getJitFnArgCallVarName(parentComp: JitCompiler, rt: BaseRunType,
     parentComp.setContextItem(optsVarName, `const ${optsVarName} = ${defaultArgVal}`);
     return optsVarName;
 }
+
+/**
+ * Returns true if the parent of the runType is of the given kind.
+ * handles special case of union types, as we need to check the parent of the union.
+ * @param rt
+ * @param kind
+ * @returns
+ */
+export function parentIs(rt: BaseRunType, kind: ReflectionKind | ReflectionKind[]): boolean {
+    const parentRT = rt.getParent();
+    if (!parentRT) return false;
+    if (parentRT.src.kind === ReflectionKind.union) return parentIs(parentRT, kind);
+    if (Array.isArray(kind) ? kind.includes(parentRT.src.kind) : parentRT.src.kind === kind) return true;
+    return false;
+}
