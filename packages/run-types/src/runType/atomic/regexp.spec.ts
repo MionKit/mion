@@ -27,16 +27,6 @@ it('validate regexp + errors', () => {
     expect(valWithErrors('hello')).toEqual([{path: [], expected: 'regexp'}]);
 });
 
-it('encode/decode json', () => {
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-    mockRegExpsList.forEach((regexp) => {
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(regexp))))).toEqual(regexp);
-    });
-});
-
-// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 28-38)
-
 it('mock', async () => {
     const mocked = await rt.mock();
     expect(mocked instanceof RegExp).toBe(true);

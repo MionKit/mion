@@ -10,17 +10,11 @@ import {JitFunctions} from '../../constants.functions';
 import type {InterfaceRunType} from '../../runType/collection/interface';
 import type {FunctionRunType} from '../../runType/function/function';
 import type {RunType} from '../../types';
+import {runType} from '../../lib/runType';
+import type {BaseRunType} from '../../lib/baseRunTypes';
 
-// To create a new test suite for a serializer just copy this file and update the following:
-// 1. replace XYZ with the name of the serializer
-// 2. update the createSerializationFns functions to use the new serializer functions
-// 3. update the roundTrip function to use the new serializer functions
-// 4.update any errors or filing test, but most of them should work out of the box
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-const SERIALIZE_FN = JitFunctions.xyz;
-const DESERIALIZE_FN = JitFunctions.xyz;
+const SERIALIZE_FN = JitFunctions.toJsonVal;
+const DESERIALIZE_FN = JitFunctions.fromJsonVal;
 
 function createSerializationFns(rt: RunType) {
     const toJsonVal = rt.createJitFunction(SERIALIZE_FN);
@@ -1460,4 +1454,46 @@ describe('others', () => {
         const totalTest = Object.keys(SERIALIZATION_SPEC.OTHERS).length;
         expect(ranTests).toBe(totalTest);
     });
+});
+
+it('interface json encode/decode should be marked as noop when there are no actions required', () => {
+    interface NoJsonENCDECRequired {
+        a: number;
+        b: string;
+    }
+    interface sonENCDECRequired {
+        a: bigint;
+        c: Date;
+    }
+
+    const rtNoop = runType<NoJsonENCDECRequired>() as BaseRunType;
+    const rtEncRequired = runType<sonENCDECRequired>() as BaseRunType;
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+});
+
+it('tuple json encode/decode should be marked as noop when there are no actions required', () => {
+    type NoJsonENCDECRequired = [number, string];
+    type sonENCDECRequired = [bigint, Date];
+
+    const rtNoop = runType<NoJsonENCDECRequired>() as BaseRunType;
+    const rtEncRequired = runType<sonENCDECRequired>() as BaseRunType;
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+});
+
+it('json encode/decode should never be marked as noop as encoding/decoding is always required', () => {
+    type atomicNoEncRequired = number | string;
+    type atomicEncRequired = bigint | Date;
+
+    const rtNoop = runType<atomicNoEncRequired>() as BaseRunType;
+    const rtEncRequired = runType<atomicEncRequired>() as BaseRunType;
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
 });

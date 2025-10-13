@@ -23,21 +23,6 @@ it('validate number + errors', () => {
     expect(valWithErrors('hello')).toEqual([{path: [], expected: 'number'}]);
 });
 
-it('encode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-    const typeValue = 42;
-    expect(toJsonVal(typeValue)).toEqual(typeValue);
-});
-
-it('decode from json', () => {
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const typeValue = 42;
-    const jsonValue = JSON.parse(JSON.stringify(typeValue));
-    expect(fromJsonVal(jsonValue)).toEqual(typeValue);
-});
-
-// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 110-117)
-
 it('mock', async () => {
     const mocked = await rt.mock();
     expect(typeof mocked).toBe('number');

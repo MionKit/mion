@@ -27,38 +27,6 @@ describe('Array', () => {
         expect(valWithErrors(['hello', 123])).toEqual([{path: [1], expected: 'string'}]);
     });
 
-    it('encode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const typeValue = ['hello', 'world'];
-        expect(toJsonVal(typeValue)).toEqual(typeValue);
-        expect((rt as BaseRunType).createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
-    });
-
-    it('decode from json', () => {
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = ['hello', 'world'];
-        const json = JSON.parse(JSON.stringify(typeValue));
-        expect(fromJsonVal(json)).toEqual(typeValue);
-        expect((rt as BaseRunType).createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
-    });
-
-    it('encode to json date', () => {
-        const toJsonVal = rD.createJitFunction(JitFunctions.toJsonVal);
-        const typeValue = [new Date(), new Date()];
-        expect(toJsonVal(typeValue)).toBe(typeValue);
-        expect((rD as BaseRunType).createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
-    });
-
-    it('decode from json date', () => {
-        const fromJsonVal = rD.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = [new Date(), new Date()];
-        const json = JSON.parse(JSON.stringify(typeValue));
-        expect(fromJsonVal(json)).toEqual(typeValue);
-        expect((rD as BaseRunType).createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 343-353)
-
     it('mock', async () => {
         const mocked = await rt.mock();
         expect(mocked instanceof Array).toBe(true);
@@ -103,21 +71,6 @@ describe('Array with multiple dimensions', () => {
             {path: [1], expected: 'array'},
         ]);
     });
-
-    it('encode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const typeValue = [['hello', 'world'], ['a', 'b'], []];
-        expect(toJsonVal(typeValue)).toEqual(typeValue);
-    });
-
-    it('decode from json', () => {
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = [['hello', 'world'], ['a', 'b'], []];
-        const json = JSON.parse(JSON.stringify(typeValue));
-        expect(fromJsonVal(json)).toEqual(typeValue);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1470-1479)
 
     it('mock', async () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
@@ -205,7 +158,7 @@ describe('test array strict modes', () => {
         expect(unknownKeysToUndefined(wrongArray)).toEqual(wrongArray);
     });
 
-    it('encode/decode to json safeJson deep', () => {
+    it('stripUnknownKeys and unknownKeysToUndefined', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
@@ -280,7 +233,7 @@ describe('test array strict modes + circular reference', () => {
         expect(hasUnknownKeys(objWithExtraDeep)).toBe(true);
     });
 
-    it('encode/decode to json safeJson', () => {
+    it('stripUnknownKeys and unknownKeysToUndefined', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
@@ -318,7 +271,7 @@ describe('test array strict modes + circular reference', () => {
         expect(fromJsonSafeStrip(copy4)).toEqual(extraWithStrip);
     });
 
-    it('encode/decode to json safeJson deep', () => {
+    it('stripUnknownKeys and unknownKeysToUndefined deep', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
@@ -361,8 +314,6 @@ describe('test array strict modes + circular reference', () => {
             d: [{a: 'hello2', deep: {b: 'world2', c: 1234}}],
         });
     });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1507-1521)
 });
 
 describe('Array circular ref', () => {
@@ -391,27 +342,6 @@ describe('Array circular ref', () => {
             {path: [1], expected: 'array'},
         ]);
     });
-
-    it('encode CircularArray to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const arr: CircularArray = [];
-        arr.push([]);
-        arr[0].push([]);
-        arr[0][0].push([]);
-        expect(toJsonVal(arr)).toEqual(arr);
-    });
-
-    it('decode CircularArray from json', () => {
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const arr: CircularArray = [];
-        arr.push([]);
-        arr[0].push([]);
-        arr[0][0].push([]);
-        const json = JSON.parse(JSON.stringify(arr));
-        expect(fromJsonVal(json)).toEqual(arr);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1532-1545)
 
     it('mock CircularArray', async () => {
         const validate = rt.createJitFunction(JitFunctions.isType);

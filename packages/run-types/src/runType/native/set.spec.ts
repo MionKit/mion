@@ -47,20 +47,6 @@ describe('SerRunType with simple keys Set<string>', () => {
         ]);
     });
 
-    it('encode/decode Set to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const setCopy = cloneSet(testSet);
-        const encoded = toJsonVal(setCopy);
-        const stringified = JSON.stringify(encoded);
-        const decoded = fromJsonVal(JSON.parse(stringified));
-
-        expect(decoded).toEqual(testSet);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1661-1669)
-
     it('has unknown keys in Set<string>', () => {
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
         const validate = rt.createJitFunction(JitFunctions.isType);
@@ -127,20 +113,6 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
             {path: [{key: null, index: 0}, 'prop3'], expected: 'boolean'}, // missing prop3
         ]);
     });
-
-    it('encode/decode Set<SmallObject> to json', () => {
-        const toJsonVal = rtSmallObject.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rtSmallObject.createJitFunction(JitFunctions.fromJsonVal);
-
-        const setCopy = cloneSet(testSetSmallObject);
-        const encoded = toJsonVal(setCopy);
-        const stringified = JSON.stringify(encoded);
-        const decoded = fromJsonVal(JSON.parse(stringified));
-
-        expect(decoded).toEqual(testSetSmallObject);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1691-1699)
 
     it('has unknown keys in Set<SmallObject>', () => {
         const hasUnknownKeys = rtSmallObject.createJitFunction(JitFunctions.hasUnknownKeys);

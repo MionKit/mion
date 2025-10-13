@@ -25,21 +25,6 @@ it('validate any + errors', () => {
     expect(valWithErrors('hello')).toEqual([]);
 });
 
-it('encode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-    const typeValue = null;
-    expect(toJsonVal(typeValue)).toEqual(typeValue);
-});
-
-it('decode from json', () => {
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const typeValue = null;
-    const jsonValue = JSON.parse(JSON.stringify(typeValue));
-    expect(fromJsonVal(jsonValue)).toEqual(typeValue);
-});
-
-// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 71-78)
-
 it('mock', async () => {
     const mocked = await rt.mock();
     const validate = rt.createJitFunction(JitFunctions.isType);

@@ -6,52 +6,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {jitUtils} from '@mionkit/core';
+import {DataOnly, jitUtils, RpcError} from '@mionkit/core';
 import {reflectFunction, runType} from '../lib/runType';
 import {mockRegExpsList} from '../mocking/constants.mock';
-import {type JitFn, type RunType} from '../types';
-
-type CustomChecksParams = {
-    rt: RunType;
-    serializeFn: JitFn;
-    deserializeFn: JitFn;
-    original: any;
-    serialized: any;
-    deserialized: any;
-};
-
-export type SingleTest = {
-    title: string;
-    getTestData: (dataOnly?: boolean) => {rt: RunType; values: any[]; deserializedValues?: any[]};
-    /** Do any modifications to the serialized/deserialized values before comparing them */
-    beforeCompare?: (original: any, deserialized: any) => {resultOriginal: any; resultSerialized: any};
-    createSerializerFunction?: (rt: RunType, serializeFn: JitFn) => (v: any) => any;
-    createDeserializerFunction?: (rt: RunType, deserializeFn: JitFn) => (v: any) => any;
-    customChecks?: (params: CustomChecksParams) => void;
-    only?: true;
-};
-export type CategoryTest = Record<string, SingleTest>;
-export type TestSuite = Record<string, CategoryTest>;
+import {type RunType} from '../types';
 
 // ========================================================================
 // TEST Types
+// Bellow test Types cant be defined inside getTestData() function, so are defined here
 // ========================================================================
 
 enum Color {
     Red = 'red',
     Green = 'green',
     Blue = 'blue',
-}
-
-interface TestInterface {
-    startDate: Date;
-    quantity: number;
-    name: string;
-    nullValue: null;
-    stringArray: string[];
-    bigInt: bigint;
-    "weird prop name \n?>'\\\t\r": string;
-    optionalString?: string;
 }
 
 interface SmallObject {
@@ -97,6 +65,15 @@ class NonSerializableClass {
 
 // circular refs
 
+type ObjCircularArr = {
+    a: string;
+    deep?: {
+        b: string;
+        c: number;
+    };
+    d?: ObjCircularArr[];
+};
+
 interface ICircularDeep {
     name: string;
     big: bigint;
@@ -129,19 +106,29 @@ interface ObjectWithMethods {
     methodProp: () => any;
 }
 
-type ObjectType = {
-    a: string;
-    deep?: {
-        b: string;
-        c: number;
-    };
-    d?: ObjectType[];
-};
-
 // ========================================================================
 // SERIALIZATION_TEST_DATA - Reusable test data for all serializers/deserializers
 // ========================================================================
-// testSuites/serializationTestData.ts
+
+export type SingleTest = {
+    title: string;
+    description?: string; // extended functionality description
+    getTestData: (dataOnly?: boolean) => {
+        /** RunType to be used for serialization */
+        rt: RunType;
+        /** Values to be serialized */
+        values: any[];
+        /**
+         * Deserialized values,
+         * Set only when the expected deserialized values are different from the original values
+         * So serialization/deserialization is asymmetric
+         * */
+        deserializedValues?: any[];
+    };
+};
+export type CategoryTest = Record<string, SingleTest>;
+export type TestSuite = Record<string, CategoryTest>;
+
 export const SERIALIZATION_SPEC = {
     ATOMIC: {
         string: {
@@ -202,7 +189,7 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
-        // TODO, any is not supported by non native protocols like binary because HIT code is generated for each type unlike JSON.stringify(any)
+        // TODO, any is not supported by non native protocols like binary because JIT code is generated for each type unlike JSON.stringify(any)
         // so we might change this or use a flag to throw if any types is used
         any: {
             title: 'any',
@@ -213,7 +200,7 @@ export const SERIALIZATION_SPEC = {
             },
         },
         not_supported_any: {
-            title: 'not supported in JSON.stringify',
+            title: 'not supported in JSON stringify when any type is used',
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<any>();
                 // some values are not supported when any type is used
@@ -257,21 +244,15 @@ export const SERIALIZATION_SPEC = {
             title: 'symbol',
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<symbol>();
-                const values = [Symbol('foo')];
+                const values = [Symbol('foo'), Symbol()];
                 return {rt, values};
-            },
-            beforeCompare: (serialized, deserialized) => {
-                return {
-                    resultOriginal: serialized.toString(),
-                    resultSerialized: deserialized.toString(),
-                };
             },
         },
         object: {
             title: 'object',
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<object>();
-                const values = [{a: 42, b: 'hello'}];
+                const values = [{a: 42, b: 'hello'}, null];
                 return {rt, values};
             },
         },
@@ -280,6 +261,14 @@ export const SERIALIZATION_SPEC = {
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<void>();
                 const values = [undefined];
+                return {rt, values};
+            },
+        },
+        never: {
+            title: 'never',
+            getTestData: (dataOnly = false) => {
+                const rt = dataOnly ? (null as any) : runType<never>();
+                const values = []; // never is not serializable, should throw
                 return {rt, values};
             },
         },
@@ -352,11 +341,21 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
-        strip_extra_params: {
+        non_serializable_in_array: {
+            title: 'non serializable items throws an error',
+            description: 'non serializable in array throws an error at compile time. ',
+            getTestData: (dataOnly = false) => {
+                type NonSerializableArray = symbol[];
+                const rt = dataOnly ? (null as any) : runType<NonSerializableArray>();
+                const values = []; // doesn't matter as should throw at compile time
+                return {rt, values};
+            },
+        },
+        object_with_circular_array: {
             title: 'array to strip extra params without fail',
             getTestData: (dataOnly = false) => {
-                const rt = dataOnly ? (null as any) : runType<ObjectType>();
-                const value: ObjectType = {
+                const rt = dataOnly ? (null as any) : runType<ObjCircularArr>();
+                const value: ObjCircularArr = {
                     a: 'hello',
                     deep: {
                         b: 'world',
@@ -371,7 +370,7 @@ export const SERIALIZATION_SPEC = {
         circular: {
             title: 'array circular',
             getTestData: (dataOnly = false) => {
-                type CircularArray = CircularArray[];
+                type CircularArray = CircularArray[]; // this type is not really useful as only allows empty array, but still posible
                 const rt = dataOnly ? (null as any) : runType<CircularArray>();
                 const arr: CircularArray = [];
                 arr.push([]);
@@ -381,22 +380,21 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
-        call_signature_return: {
-            title: 'call signature return',
-            getTestData: (dataOnly = false) => {
-                type CallSignatureType = {
-                    (a: number, b: boolean): string;
-                };
-                const rt = dataOnly ? (null as any) : runType<CallSignatureType>();
-                const values = ['result']; // This is the return value being tested
-                return {rt, values};
-            },
-        },
     },
     OBJECTS: {
         interface: {
             title: 'interface',
             getTestData: (dataOnly = false) => {
+                type TestInterface = {
+                    startDate: Date;
+                    quantity: number;
+                    name: string;
+                    nullValue: null;
+                    stringArray: string[];
+                    bigInt: bigint;
+                    "weird prop name \n?>'\\\t\r": string;
+                    optionalString?: string;
+                };
                 const rt = dataOnly ? (null as any) : runType<TestInterface>();
                 const value: TestInterface = {
                     startDate: new Date('2000-08-06T02:13:00.000Z'),
@@ -429,6 +427,34 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values, deserializedValues};
             },
         },
+        extended_class: {
+            title: 'extended class',
+            getTestData: (dataOnly = false) => {
+                class BaseClass {
+                    baseProp: string = 'base';
+                }
+                class ExtendedClass extends BaseClass {
+                    extendedProp: string = 'extended';
+                }
+                const rt = dataOnly ? (null as any) : runType<ExtendedClass>();
+                const values = [new ExtendedClass()];
+                return {rt, values};
+            },
+        },
+        rpc_error_class: {
+            title: 'rpc error class',
+            getTestData: (dataOnly = false) => {
+                const rt = dataOnly ? (null as any) : runType<RpcError<'test-error'>>();
+                const error = new RpcError({
+                    statusCode: 400,
+                    publicMessage: 'error',
+                    message: 'error',
+                    type: 'test-error',
+                });
+                const values = [error];
+                return {rt, values};
+            },
+        },
         serializable_class_restored: {
             title: 'serializable class can be restored after they are registered',
             getTestData: (dataOnly = false) => {
@@ -444,20 +470,16 @@ export const SERIALIZATION_SPEC = {
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<NonSerializableClass>();
                 const values = [new NonSerializableClass('John', 'Doe', 0, new Date('2000-08-06T02:13:00.000Z'))];
-                return {rt, values};
-            },
-        },
-        extended_class: {
-            title: 'extended class',
-            getTestData: (dataOnly = false) => {
-                class BaseClass {
-                    baseProp: string = 'base';
+                if (!jitUtils.getDeserializeFn(NonSerializableClass.name)) {
+                    jitUtils.setDeserializeFn(NonSerializableClass, (deserialized: DataOnly<NonSerializableClass>) => {
+                        return new NonSerializableClass(
+                            deserialized.name,
+                            deserialized.surname,
+                            deserialized.id,
+                            deserialized.startDate
+                        );
+                    });
                 }
-                class ExtendedClass extends BaseClass {
-                    extendedProp: string = 'extended';
-                }
-                const rt = dataOnly ? (null as any) : runType<ExtendedClass>();
-                const values = [new ExtendedClass()];
                 return {rt, values};
             },
         },
@@ -497,7 +519,7 @@ export const SERIALIZATION_SPEC = {
         strip_extra_params: {
             title: 'to strip extra params without fail',
             getTestData: (dataOnly = false) => {
-                type ObjectType = {
+                type ObjectTypeExtra = {
                     startDate: Date;
                     quantity: number;
                     name: string;
@@ -511,9 +533,9 @@ export const SERIALIZATION_SPEC = {
                         b: number;
                     };
                 };
-                const rt = dataOnly ? (null as any) : runType<ObjectType>();
+                const rt = dataOnly ? (null as any) : runType<ObjectTypeExtra>();
                 const startDate = new Date('2000-08-06T02:13:00.000Z');
-                const value: ObjectType = {
+                const value: ObjectTypeExtra = {
                     startDate,
                     quantity: 123,
                     name: 'hello',
@@ -636,7 +658,7 @@ export const SERIALIZATION_SPEC = {
             },
         },
         interface_with_methods: {
-            title: 'interface with methods - methods should be excluded',
+            title: 'interface with methods - methods should be excluded when serializing',
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<ObjectWithMethods>();
                 const objWithMethod = {
@@ -651,6 +673,7 @@ export const SERIALIZATION_SPEC = {
             },
         },
     },
+    // Records are Object/Interfaces that use index properties where prop names are unknown at compile time
     RECORDS: {
         index_property: {
             title: 'index property',
@@ -694,6 +717,29 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
+        multiple_index_props: {
+            title: 'multiple index properties',
+            getTestData: (dataOnly = false) => {
+                type MultipleIndex = {
+                    [key: string]: string;
+                    [key: number]: string;
+                    [abc: symbol]: Date;
+                };
+                const objWithSymbolKeys: MultipleIndex = {
+                    key1: 'value1',
+                    key2: 'value2',
+                    [Symbol('key3')]: new Date(),
+                    [Symbol('key4')]: new Date(),
+                }; // symbol keys should be skipped from jit
+                const rt = dataOnly ? (null as any) : runType<MultipleIndex>();
+                const values = [{key1: 'value1', key2: 'value2'}, objWithSymbolKeys];
+                const deserializedValues = [
+                    {key1: 'value1', key2: 'value2'},
+                    {key1: 'value1', key2: 'value2'},
+                ]; // symbol keys should be skipped
+                return {rt, values, deserializedValues};
+            },
+        },
         index_property_nested: {
             title: 'index property nested',
             getTestData: (dataOnly = false) => {
@@ -716,7 +762,10 @@ export const SERIALIZATION_SPEC = {
             title: 'index property with bigint values',
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<{[key: string]: bigint}>();
-                const values = [{key1: 1n, key2: 2n}, {}];
+                const values = [
+                    {key1: 1n, key2: 2n},
+                    {hello: 1n, world: 2n},
+                ];
                 return {rt, values};
             },
         },
@@ -765,6 +814,18 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
+        tuple_with_non_serializable: {
+            title: 'tuple with non serializable types are transformed to undefined',
+            description:
+                'tuples relies in the order and length of the array to work, so non serializable types are transformed to undefined, to keep the order and length of the tuple.',
+            getTestData: (dataOnly = false) => {
+                type TupleWithNonSerializable = [number, () => any];
+                const rt = dataOnly ? (null as any) : runType<TupleWithNonSerializable>();
+                const values = [[3, () => null]];
+                const deserializedValues = [[3, undefined]];
+                return {rt, values, deserializedValues};
+            },
+        },
         tuple_circular: {
             title: 'tuple circular',
             getTestData: (dataOnly = false) => {
@@ -793,8 +854,8 @@ export const SERIALIZATION_SPEC = {
         },
     },
     FUNCTIONS: {
-        throw_errors_for_jsonStringify: {
-            title: 'throw errors for jsonStringify on function type',
+        throw_errors_for_functions: {
+            title: 'throw errors for functions',
             getTestData: (dataOnly = false) => {
                 type TestFunction = (a: number, b: boolean, c?: string) => Date;
                 const rt = dataOnly ? (null as any) : runType<TestFunction>();
@@ -805,17 +866,17 @@ export const SERIALIZATION_SPEC = {
         parameters: {
             title: 'parameters',
             getTestData: (dataOnly = false) => {
-                type TestFunction = (a: number, b: boolean, c?: string) => Date;
+                type TestFunction = (a: number, b: boolean, c: string) => Date;
                 const rt = dataOnly ? (null as any) : runType<TestFunction>();
                 const values = [
                     [3, true, 'hello'],
-                    [3, true],
+                    [3, true, 'world'],
                 ];
                 return {rt, values};
             },
         },
-        required_parameters: {
-            title: 'required parameters',
+        optional_params: {
+            title: 'optional parameters',
             getTestData: (dataOnly = false) => {
                 type TestFunction2 = (a: Date, b?: boolean) => bigint;
                 const rt = dataOnly ? (null as any) : runType<TestFunction2>();
@@ -873,7 +934,7 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
-        non_serializable_types: {
+        non_serializable_params: {
             title: 'non serializable types',
             getTestData: (dataOnly = false) => {
                 type TestFunctionWithFN = (a: number, b: boolean, c?: () => null) => Date;
@@ -932,12 +993,45 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
-        createJitParamsFunction_json_stringify: {
-            title: 'createJitParamsFunction json stringify',
+        function_slice_params: {
+            title: 'create jit function with params slice',
             getTestData: (dataOnly = false) => {
                 type TestFunction = (a: number, b: boolean, c?: string) => Date;
                 const rt = dataOnly ? (null as any) : runType<TestFunction>();
                 const values = [[true, 'hello']]; // Params with slice starting from index 1
+                return {rt, values};
+            },
+        },
+        call_signature_params: {
+            title: 'call signature params',
+            getTestData: (dataOnly = false) => {
+                type CallSignatureType = {
+                    (a: number, b: boolean): string;
+                };
+                const rt = dataOnly ? (null as any) : runType<CallSignatureType>();
+                const values = [[3, true]];
+                return {rt, values};
+            },
+        },
+        call_signature_return: {
+            title: 'call signature return',
+            getTestData: (dataOnly = false) => {
+                type CallSignatureType = {
+                    (a: number, b: boolean): string;
+                };
+                const rt = dataOnly ? (null as any) : runType<CallSignatureType>();
+                const values = ['result']; // This is the return value being tested
+                return {rt, values};
+            },
+        },
+        throw_errors_for_call_signature: {
+            title: 'throw errors for  call signature',
+            getTestData: (dataOnly = false) => {
+                type CallSignatureType = {
+                    (a: number, b: boolean): string;
+                };
+                const rt = dataOnly ? (null as any) : runType<CallSignatureType>();
+                const values = [[3, 'invalid']]; // This is the return value being tested
                 return {rt, values};
             },
         },
@@ -1079,6 +1173,15 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
+        union_errors: {
+            title: 'union throw errors when item does not belong to the union',
+            getTestData: (dataOnly = false) => {
+                type AtomicUnion2 = Date | number | {isValid: boolean};
+                const rt = dataOnly ? (null as any) : runType<AtomicUnion2>();
+                const values = ['hello', null, true, {hello: 'world'}];
+                return {rt, values};
+            },
+        },
         union_array: {
             title: 'union array',
             getTestData: (dataOnly = false) => {
@@ -1122,9 +1225,9 @@ export const SERIALIZATION_SPEC = {
             title: 'union with discriminator property',
             getTestData: (dataOnly = false) => {
                 type UnionDisc =
-                    | {otherProp: boolean; type: 'a'}
-                    | {otherProp: number; type: 'b'}
-                    | {otherProp: string; type: 'c'; time: Date}
+                    | {type: 'a'; otherProp: boolean}
+                    | {type: 'b'; otherProp: number}
+                    | {type: 'c'; otherProp: string; time: Date}
                     | {type: boolean; otherProp: string};
                 const rt = dataOnly ? (null as any) : runType<UnionDisc>();
                 const values = [
@@ -1215,6 +1318,17 @@ export const SERIALIZATION_SPEC = {
                 const values = [objWithName, objWithAge, objWithActive];
                 const deserializedValues = [{name: 'John'}, {age: 25}, {active: true}];
                 return {rt, values, deserializedValues};
+            },
+        },
+        union_whit_non_serializable: {
+            title: 'union with non serializable types throws an error',
+            description:
+                "should throw an error at compile time because we don't have the isType logic for non serializable, and isType is used at runtime to determine the type of the union.",
+            getTestData: (dataOnly = false) => {
+                type UnionWithNonSerializable = Date | number | string | (() => any);
+                const rt = dataOnly ? (null as any) : runType<UnionWithNonSerializable>();
+                const values = []; // doesn't matter as should throw at compile time
+                return {rt, values};
             },
         },
     },
@@ -1348,8 +1462,8 @@ export const SERIALIZATION_SPEC = {
         },
     },
     CIRCULAR_REFS: {
-        should_use_json_stringify: {
-            title: 'should use JSON.stringify when there are circular references',
+        circular_types: {
+            title: 'circular objects',
             getTestData: (dataOnly = false) => {
                 type CircularObject = {
                     name: string;

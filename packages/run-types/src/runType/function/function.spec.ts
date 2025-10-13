@@ -58,18 +58,9 @@ describe('function', () => {
         expect(validate(function sum(s, b, c) {})).toBe(true);
     });
 
-    it('throw errors for json encode/decode, jsonStringify and mock', async () => {
+    it('throw errors when mock', async () => {
         expect(() => rt.createJitFunction(JitFunctions.isType)).not.toThrow();
         expect(() => rt.createJitFunction(JitFunctions.typeErrors)).not.toThrow();
-
-        expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow(
-            `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
-        );
-        expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow(
-            `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
-        );
-
-        // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 264-268)
         await expect(() => rt.mock()).rejects.toThrow('Mock is not allowed, call mockParams or mockReturn instead.');
     });
 });
@@ -103,30 +94,6 @@ describe('function parameters', () => {
         expect(validate([3])).toEqual([{expected: 'boolean', path: [1]}]);
     });
 
-    it('encode/decode to json parameters', () => {
-        const toJsonVal = rt.createJitParamsFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitParamsFunction(JitFunctions.fromJsonVal);
-        const typeValue = [3, true, 'hello'];
-        const typeValue2 = [3, true];
-
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual(typeValue);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue2))))).toEqual(typeValue2);
-    });
-
-    it('required encode/decode to json parameters', () => {
-        const toJsonVal = rt2.createJitParamsFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt2.createJitParamsFunction(JitFunctions.fromJsonVal);
-        const d = new Date();
-        const typeValue = [d, true];
-        const typeValue2 = [d];
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual(typeValue);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue2))))).toEqual(typeValue2);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 274-284)
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 428-439)
-
     it('mock parameters', async () => {
         const mocked = await rt.mockParams();
         expect(Array.isArray(mocked)).toBe(true);
@@ -153,17 +120,6 @@ describe('non serializable parameters', () => {
         expect(validate([3, true, undefined])).toEqual([]);
     });
 
-    it('encode/decode to json non serializable types', () => {
-        const toJsonVal = rtWithFN.createJitParamsFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rtWithFN.createJitParamsFunction(JitFunctions.fromJsonVal);
-        const typeValue = [3, true, () => null];
-        const typeValue2 = [3, true, undefined];
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual([3, true, undefined]);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue2))))).toEqual([3, true, undefined]);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 476-486)
-
     it('mock non serializable types', async () => {
         const mocked = await rtWithFN.mockParams();
         expect(Array.isArray(mocked)).toBe(true);
@@ -187,25 +143,6 @@ describe('function return', () => {
         expect(validate(123)).toEqual([{expected: 'date', path: []}]);
     });
 
-    it('encode/decode function return to json', () => {
-        const toJsonVal = rt.createJitReturnFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitReturnFunction(JitFunctions.fromJsonVal);
-        const returnValue = new Date();
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(returnValue))))).toEqual(returnValue);
-    });
-
-    it('required encode/decode function return to json', () => {
-        const toJsonVal = rt2.createJitReturnFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt2.createJitReturnFunction(JitFunctions.fromJsonVal);
-        const returnValue = 1n;
-
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(returnValue))))).toEqual(returnValue);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 294-301)
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 444-451)
-
     it('mock function return', async () => {
         const mocked = await rt.mockReturn();
         expect(mocked instanceof Date).toBe(true);
@@ -213,10 +150,6 @@ describe('function return', () => {
         const mockedReturn = await rt.mockReturn();
         expect(validate(mockedReturn)).toBe(true);
     });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 493-507)
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 511-529)
 });
 
 describe('function with rest parameters', () => {
@@ -249,27 +182,9 @@ describe('function with rest parameters', () => {
             {expected: 'date', path: [4]},
         ]);
     });
-
-    it('encode/decode to json function with rest parameters', () => {
-        const toJsonVal = rtRest.createJitParamsFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rtRest.createJitParamsFunction(JitFunctions.fromJsonVal);
-
-        const typeValue = [3, true, new Date(), new Date()];
-        const typeValue2 = [3, true];
-        const roundTrip = fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))));
-        const roundTrip2 = fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue2))));
-        expect(roundTrip).toEqual(typeValue);
-        expect(roundTrip2).toEqual(typeValue2);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 308-317)
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 459-469)
 });
 
 describe('function run type general', () => {
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 533-559)
-
     it('jitFnHash should be different in functions compiled with different options', () => {
         const fn = (a: number, b: boolean, c?: string): Date => new Date();
         const reflectedType = reflectFunction(fn);
@@ -340,13 +255,4 @@ describe('function run type general', () => {
         expect(errorsOptionalParam([])).toEqual([]);
         expect(errorsOptionalParam([42])).toEqual([{expected: 'string', path: [0]}]);
     });
-
-    it('createJitParamsFunction encode/decode to json', () => {
-        const toJsonVal = rt.createJitParamsFunction(JitFunctions.toJsonVal, {paramsSlice: {start: 1}});
-        const fromJsonVal = rt.createJitParamsFunction(JitFunctions.fromJsonVal, {paramsSlice: {start: 1}});
-        const paramsValues = [true, 'hello'];
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(paramsValues))))).toEqual(paramsValues);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 565-571)
 });

@@ -25,20 +25,6 @@ it('validate undefined + errors', () => {
     expect(valWithErrors('hello')).toEqual([{path: [], expected: 'undefined'}]);
 });
 
-it('encode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-    const typeValue = undefined;
-    expect(toJsonVal(typeValue)).toEqual(null);
-});
-
-it('decode from json', () => {
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const typeValue = null;
-    expect(fromJsonVal(typeValue)).toEqual(undefined);
-});
-
-// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 97-104)
-
 it('mock', async () => {
     const mocked = await rt.mock();
     expect(mocked).toBeUndefined();

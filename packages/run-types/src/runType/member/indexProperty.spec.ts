@@ -81,26 +81,6 @@ describe('IndexType', () => {
         ]);
     });
 
-    it('encode/decode to json', () => {
-        const toJsonString = rt.createJitFunction(JitFunctions.toJsonVal);
-        const toJsonDate = rD.createJitFunction(JitFunctions.toJsonVal);
-        const toJsonBigint = rBI.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonString = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const fromJsonDate = rD.createJitFunction(JitFunctions.fromJsonVal);
-        const fromJsonBigint = rBI.createJitFunction(JitFunctions.fromJsonVal);
-        const date = new Date();
-        const roundTripString = fromJsonString(JSON.parse(JSON.stringify(toJsonString({key1: 'value1', key2: 'value2'}))));
-        const roundTripDate = fromJsonDate(JSON.parse(JSON.stringify(toJsonDate({key1: date, key2: date}))));
-        const roundTripBigint = fromJsonBigint(JSON.parse(JSON.stringify(toJsonBigint({key1: 1n, key2: 1n}))));
-        expect(roundTripString).toEqual({key1: 'value1', key2: 'value2'});
-        expect(roundTripDate).toEqual({key1: date, key2: date});
-        expect(roundTripBigint).toEqual({key1: 1n, key2: 1n});
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1553-1565)
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1576-1588)
-
     it('mock', async () => {
         const mocked = await rt.mock();
         expect(mocked instanceof Object).toBe(true);
@@ -171,34 +151,6 @@ describe('IndexType nested', () => {
         ]);
     });
 
-    it('encode to json', () => {
-        const toJsonVal = rtNested.createJitFunction(JitFunctions.toJsonVal);
-        const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
-        expect(toJsonVal(obj)).toEqual(obj);
-    });
-
-    it('encode to json Date', () => {
-        const toJsonVal = rtNested2.createJitFunction(JitFunctions.toJsonVal);
-        const obj = {key1: {nestedKey1: new Date(), nestedKey2: new Date()}};
-        expect(toJsonVal(obj)).toEqual(obj);
-    });
-
-    it('decode from json', () => {
-        const fromJsonVal = rtNested.createJitFunction(JitFunctions.fromJsonVal);
-        const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
-        const jsonString = JSON.stringify(obj);
-        expect(fromJsonVal(JSON.parse(jsonString))).toEqual(obj);
-    });
-
-    it('decode from json Date', () => {
-        const fromJsonVal = rtNested2.createJitFunction(JitFunctions.fromJsonVal);
-        const obj = {key1: {nestedKey1: new Date(), nestedKey2: new Date()}};
-        const jsonString = JSON.stringify(obj);
-        expect(fromJsonVal(JSON.parse(jsonString))).toEqual(obj);
-    });
-
-    // Tests moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1596-1610)
-
     it('mock', async () => {
         const mocked = await rtNested.mock();
         expect(mocked instanceof Object).toBe(true);
@@ -232,23 +184,6 @@ describe('IndexType non root', () => {
         expect(valWithErrors({b: 'hello', c: {a: 'world', c: 'world'}})).toEqual([]);
         expect(valWithErrors({b: 'hello', c: {a: 'world', c: 123}})).toEqual([{path: ['c', 'c'], expected: 'string'}]);
     });
-
-    it('encode to json', () => {
-        const rt = runType<Obj2>();
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const obj = {b: 'hello', c: {a: 'world', c: 'world'}};
-        expect(toJsonVal(obj)).toEqual(obj);
-    });
-
-    it('decode from json', () => {
-        const rt = runType<Obj2>();
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj = {b: 'hello', c: {a: 'world', c: 'world'}};
-        const jsonString = JSON.stringify(obj);
-        expect(fromJsonVal(JSON.parse(jsonString))).toEqual(obj);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1625-1632)
 
     it('mock', async () => {
         const rt = runType<Obj2>();

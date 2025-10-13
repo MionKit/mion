@@ -73,6 +73,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
 
     _compileIsType(comp: JitCompiler): jitCode {
+        this.checkNonSkipTypes(comp);
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
         const items = simpleItems.map((rt) => this.getChildStrictIsType(rt, comp));
         const checkItems = items.filter(Boolean).join(' || ');
@@ -84,6 +85,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
 
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
+        this.checkNonSkipTypes(comp);
         const isType = this.compileIsType(comp);
         const code = `if (!${isType}) ${comp.callJitErr(this)};`;
         return code;
@@ -96,6 +98,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
     _compileToJsonVal(comp: JitCompiler): jitCode {
+        this.checkNonSkipTypes(comp);
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
         const errName = `uErr${comp.getNestLevel(this)}`;
         const fail = `throw new Error(${errName});`;
@@ -136,6 +139,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
     _compileFromJsonVal(comp: JitCompiler): jitCode {
+        this.checkNonSkipTypes(comp);
         const decVar = `dεc${comp.getNestLevel(this)}`;
         const errVarName = `uErr${comp.getNestLevel(this)}`;
         comp.setContextItem(errVarName, `const ${errVarName} = "Can not json decode union: invalid union index"`);
@@ -167,5 +171,11 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return this.getChildRunTypes()
             .map((rt) => rt.getTypeName())
             .join(' | ');
+    }
+
+    checkNonSkipTypes(comp: JitCompiler) {
+        const allChildren = this.getChildRunTypes();
+        const toSkip = allChildren.filter((rt) => rt.skipJit(comp));
+        if (toSkip.length) throw new Error(`Union can not have non serializable types, ie: Symbol, Function, etc.`);
     }
 }

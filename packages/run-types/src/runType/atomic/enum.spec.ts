@@ -41,15 +41,6 @@ it('validate enum + errors', () => {
     expect(valWithErrors('Blue')).toEqual([{path: [], expected: 'enum'}]);
 });
 
-it('encode/decode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const typeValue = Color.Red;
-    expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual(typeValue);
-});
-
-// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 142-152)
-
 it('mock', async () => {
     const mocked = await rt.mock();
     expect(mocked === 0 || mocked === 'green' || mocked === 2).toBe(true);
