@@ -8,8 +8,6 @@
 import {runType} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
 
-// 
-
 it('toJavascript should transform functions to code using toString()', () => {
     // Create a type with a function
     type TestType = {fn: (a: number, b: string) => boolean};
