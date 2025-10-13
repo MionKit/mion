@@ -37,21 +37,6 @@ it('can validate RpcError class + errors', () => {
     expect(valWithErrors(error)).toEqual([]);
 });
 
-it('can serialize/deserialize RpcError class', () => {
-    const rt = runType<RpcError<'test-error'>>();
-    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const error = new RpcError({
-        statusCode: 400,
-        publicMessage: 'error',
-        message: 'error',
-        type: 'test-error',
-    });
-    const restored = fromJsonVal(JSON.parse(jsonStringify(error)));
-    expect(restored instanceof RpcError).toBeTruthy();
-    expect(restored).toEqual(error);
-});
-
 it('can mock RpcError class', async () => {
     const rt = runType<RpcError<'test-error'>>();
     const mock = await rt.mock();

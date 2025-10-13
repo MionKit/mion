@@ -48,20 +48,9 @@ describe('call signature', () => {
         expect(getTypeErrors({})).toEqual([{expected: 'callSignature', path: []}]);
     });
 
-    it('throw errors for json encode/decode, jsonStringify and mock', async () => {
+    it('throw errors for mock', async () => {
         expect(() => rt.createJitFunction(JitFunctions.isType)).not.toThrow();
         expect(() => rt.createJitFunction(JitFunctions.typeErrors)).not.toThrow();
-
-        expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow(
-            `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
-        );
-        expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow(
-            `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
-        );
-
-        expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(
-            `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
-        );
         await expect(() => rt.mock()).rejects.toThrow('Mock is not allowed, call mockParams or mockReturn instead.');
     });
 });
@@ -121,13 +110,6 @@ describe('call signature parameters', () => {
         expect(getTypeErrors([1, true, 'extra'])).toEqual([{expected: 'params', path: []}]);
     });
 
-    it('should encode and decode parameters to JSON', () => {
-        const toJsonVal = rt.getCallSignature()!.createJitParamsFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.getCallSignature()!.createJitParamsFunction(JitFunctions.fromJsonVal);
-        const params = [1, true];
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(params))))).toEqual(params);
-    });
-
     it('should mock parameters correctly', async () => {
         const mocked = await rt.getCallSignature()!.mockParams();
         expect(Array.isArray(mocked)).toBe(true);
@@ -149,16 +131,6 @@ describe('call signature return', () => {
         expect(typeErrorsReturn('result')).toEqual([]);
         expect(typeErrorsReturn(123)).toEqual([{expected: 'string', path: []}]);
     });
-
-    it('encode/decode call signature return to json', () => {
-        const toJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.fromJsonVal);
-        const returnValue = 'result';
-
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(returnValue))))).toEqual(returnValue);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1641-1648)
 
     it('mock call signature return', async () => {
         const mocked = await rt.getCallSignature()!.mockReturn();

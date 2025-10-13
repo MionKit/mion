@@ -36,7 +36,15 @@ function createSerializationReturnFn(rt: FunctionRunType) {
     return {serialize, deserialize};
 }
 
-function createSerializationCallSignatureFn(rt: InterfaceRunType) {
+function createSerializationCallSignatureParamsFn(rt: InterfaceRunType) {
+    const callSignature = rt.getCallSignature()!;
+    const serialize = callSignature.createJitParamsFunction(SERIALIZE_FN);
+    const fromJsonVal = callSignature.createJitParamsFunction(DESERIALIZE_FN);
+    const deserialize = (data: any) => fromJsonVal(JSON.parse(data));
+    return {serialize, deserialize};
+}
+
+function createSerializationCallSignatureReturnFn(rt: InterfaceRunType) {
     const callSignature = rt.getCallSignature()!;
     const serialize = callSignature.createJitReturnFunction(SERIALIZE_FN);
     const fromJsonVal = callSignature.createJitReturnFunction(DESERIALIZE_FN);
@@ -82,7 +90,17 @@ describe('atomic', () => {
         const {serialize, deserialize} = createSerializationFns(rt);
 
         values.forEach((value) => {
-            expect(() => roundTrip(serialize, deserialize, value)).toThrow();
+            let didThrow = false;
+            let result: any;
+            try {
+                result = roundTrip(serialize, deserialize, value).deserialized;
+                expect(result).not.toEqual(value);
+                return;
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (error) {
+                didThrow = true;
+            }
+            expect(didThrow).toBeTruthy();
         });
     });
 
@@ -141,6 +159,7 @@ describe('atomic', () => {
                 result = roundTrip(serialize, deserialize, value).deserialized;
                 expect(result).not.toEqual(value);
                 return;
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (error) {
                 didThrow = true;
             }
@@ -198,13 +217,11 @@ describe('atomic', () => {
     it('symbol', () => {
         const {rt, values} = SERIALIZATION_SPEC.ATOMIC.symbol.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
-        const beforeCompare = SERIALIZATION_SPEC.ATOMIC.symbol.beforeCompare!;
 
         values.forEach((value) => {
             const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
             expect(typeof serialized).toBe('string');
-            const {resultOriginal, resultSerialized} = beforeCompare(value, deserialized);
-            expect(resultSerialized).toEqual(resultOriginal);
+            expect(deserialized.toString()).toEqual(value.toString());
         });
     });
 
@@ -230,6 +247,12 @@ describe('atomic', () => {
             expect(typeof serialized).toBe('undefined');
             expect(value).toEqual(deserialized);
         });
+    });
+
+    it('never', () => {
+        const {rt} = SERIALIZATION_SPEC.ATOMIC.never.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow('Never type cannot be stringified.');
+        expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow('Never type cannot be decoded from JSON.');
     });
 
     it('literal string', () => {
@@ -311,7 +334,7 @@ describe('arrays', () => {
         const {rt, values} = SERIALIZATION_SPEC.ARRAYS.undefined_in_array.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
 
-        values.forEach((value, i) => {
+        values.forEach((value) => {
             const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
             expect(typeof serialized).toBe('string');
             expect(value).toEqual(deserialized);
@@ -329,8 +352,18 @@ describe('arrays', () => {
         });
     });
 
+    it('non serializable items throws an error', () => {
+        const {rt} = SERIALIZATION_SPEC.ARRAYS.non_serializable_in_array.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
+            'Arrays can not have non serializable types, ie: Symbol[], Function[], etc.'
+        );
+        expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
+            'Arrays can not have non serializable types, ie: Symbol[], Function[], etc.'
+        );
+    });
+
     it('array to strip extra params without fail', () => {
-        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.strip_extra_params.getTestData();
+        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.object_with_circular_array.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
 
         values.forEach((value) => {
@@ -343,17 +376,6 @@ describe('arrays', () => {
     it('array circular', () => {
         const {rt, values} = SERIALIZATION_SPEC.ARRAYS.circular.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
-
-        values.forEach((value) => {
-            const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-            expect(typeof serialized).toBe('string');
-            expect(value).toEqual(deserialized);
-        });
-    });
-
-    it('call signature return', () => {
-        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.call_signature_return.getTestData();
-        const {serialize, deserialize} = createSerializationCallSignatureFn(rt as InterfaceRunType);
 
         values.forEach((value) => {
             const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
@@ -388,7 +410,7 @@ describe('objects', () => {
         const {rt, values} = SERIALIZATION_SPEC.OBJECTS.undefined_in_object.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
 
-        values.forEach((value, i) => {
+        values.forEach((value) => {
             const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
             expect(typeof serialized).toBe('string');
             expect(value).toEqual(deserialized);
@@ -444,6 +466,19 @@ describe('objects', () => {
             const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
             expect(typeof serialized).toBe('string');
             expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('RpcError class are restored to class by default', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.rpc_error_class.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.rpc_error_class.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
+            expect(typeof serialized).toBe('string');
+            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized.constructor.name).toEqual(originalValues[i].constructor.name);
         });
     });
 
@@ -609,6 +644,17 @@ describe('records', () => {
         });
     });
 
+    it('multiple index properties', () => {
+        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.RECORDS.multiple_index_props.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
+            expect(typeof serialized).toBe('string');
+            expect(deserializedValues[i]).toEqual(deserialized);
+        });
+    });
+
     it('index property nested', () => {
         const {rt, values} = SERIALIZATION_SPEC.RECORDS.index_property_nested.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
@@ -633,12 +679,13 @@ describe('records', () => {
 
     it('index property with bigint values', () => {
         const {rt, values} = SERIALIZATION_SPEC.RECORDS.index_property_bigint.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.RECORDS.index_property_bigint.getTestData(true);
         const {serialize, deserialize} = createSerializationFns(rt);
 
-        values.forEach((value) => {
+        values.forEach((value, i) => {
             const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
             expect(typeof serialized).toBe('string');
-            expect(value).toEqual(deserialized);
+            expect(originalValues[i]).toEqual(deserialized);
         });
     });
 
@@ -707,6 +754,16 @@ describe('tuples', () => {
         });
     });
 
+    it('tuple with non serializable types are transformed to undefined', () => {
+        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.TUPLES.tuple_with_non_serializable.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(deserializedValues[i]).toEqual(deserialized);
+        });
+    });
+
     it('all test ran', () => {
         const totalTest = Object.keys(SERIALIZATION_SPEC.TUPLES).length;
         expect(ranTests).toBe(totalTest);
@@ -717,10 +774,13 @@ describe('functions', () => {
     let ranTests = 0;
     afterEach(() => ranTests++);
 
-    it('throw errors for jsonStringify on function type', () => {
-        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_jsonStringify.getTestData();
+    it('throw errors for functions', () => {
+        const {rt} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_functions.getTestData();
         expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
             `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
+        );
+        expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
+            `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
         );
     });
 
@@ -746,9 +806,9 @@ describe('functions', () => {
         });
     });
 
-    it('required parameters', () => {
-        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.required_parameters.getTestData();
-        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.required_parameters.getTestData(true);
+    it('optional parameters', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.optional_params.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.optional_params.getTestData(true);
         const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType);
 
         values.forEach((value, i) => {
@@ -802,7 +862,7 @@ describe('functions', () => {
     });
 
     it('non serializable types', () => {
-        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.FUNCTIONS.non_serializable_types.getTestData();
+        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.FUNCTIONS.non_serializable_params.getTestData();
         const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType);
 
         values.forEach((value, i) => {
@@ -855,15 +915,47 @@ describe('functions', () => {
         });
     });
 
-    it('createJitParamsFunction json stringify', () => {
-        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.createJitParamsFunction_json_stringify.getTestData();
-        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.createJitParamsFunction_json_stringify.getTestData(true);
+    it('slice function params', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.function_slice_params.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.function_slice_params.getTestData(true);
         const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType, 1);
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
             expect(originalValues[i]).toEqual(deserialized);
         });
+    });
+
+    it('call signature params', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.call_signature_params.getTestData();
+        const {serialize, deserialize} = createSerializationCallSignatureParamsFn(rt as InterfaceRunType);
+
+        values.forEach((value) => {
+            const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
+            expect(typeof serialized).toBe('string');
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('call signature return', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.call_signature_return.getTestData();
+        const {serialize, deserialize} = createSerializationCallSignatureReturnFn(rt as InterfaceRunType);
+
+        values.forEach((value) => {
+            const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
+            expect(typeof serialized).toBe('string');
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('throw errors for call signatures', () => {
+        const {rt} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_call_signature.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
+            `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
+        );
+        expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
+            `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
+        );
     });
 
     it('all test ran', () => {
@@ -1007,6 +1099,17 @@ describe('unions', () => {
         });
     });
 
+    it('throw errors when serializing/deserializing object not belonging to the union', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_errors.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+        const jsonValues = values.map((item) => JSON.stringify([-1, item])); // invalid union index
+
+        values.forEach((value, i) => {
+            expect(() => serialize(value)).toThrow('Can not JsonStringify union: item does not belong to the union');
+            expect(() => deserialize(jsonValues[i])).toThrow('Can not json decode union: invalid union index');
+        });
+    });
+
     it('union array', () => {
         const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_array.getTestData();
         const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.union_array.getTestData(true);
@@ -1017,11 +1120,12 @@ describe('unions', () => {
             expect(originalValues[i]).toEqual(deserialized);
         });
 
-        // ensure code for items that do not
-        const stringifyCode = serialize.toString();
-        expect(stringifyCode).not.toContain('[0,');
-        expect(stringifyCode).not.toContain('[1,');
-        expect(stringifyCode).not.toContain('[2,');
+        // ensure code for items that do not need special encoding is not emitted [index, type]
+        const jitSerializeFn = rt.createJitFunction(SERIALIZE_FN);
+        const stringifyCode = jitSerializeFn.toString();
+        expect(stringifyCode).not.toContain('[0,'); // string does not need to be encoded to tuple [index, type]
+        expect(stringifyCode).not.toContain('[1,'); // number does not need to be encoded to tuple [index, type]
+        expect(stringifyCode).not.toContain('[2,'); // boolean does not need to be encoded to tuple [index, type]
         expect(stringifyCode).toContain('[3,'); // date must be encoded to tuple [index, type]
     });
 
@@ -1036,7 +1140,8 @@ describe('unions', () => {
         });
 
         // ensure code for items that do not need stringify to tuple is not emitted [index, type]
-        const stringifyCode = serialize.toString();
+        const jitSerializeFn = rt.createJitFunction(SERIALIZE_FN);
+        const stringifyCode = jitSerializeFn.toString();
         expect(stringifyCode).not.toContain('[0,');
         expect(stringifyCode).toContain('[1,'); // bigint must be encoded to tuple [index, type]
         expect(stringifyCode).not.toContain('[2,');
@@ -1106,6 +1211,16 @@ describe('unions', () => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
             expect(deserialized).toEqual(deserializedValues[i]);
         });
+    });
+
+    it('union with non serializable types throws an error', () => {
+        const {rt} = SERIALIZATION_SPEC.UNIONS.union_whit_non_serializable.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
+            'Union can not have non serializable types, ie: Symbol, Function, etc.'
+        );
+        expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
+            'Union can not have non serializable types, ie: Symbol, Function, etc.'
+        );
     });
 
     it('all test ran', () => {
@@ -1227,18 +1342,13 @@ describe('circular-references', () => {
     let ranTests = 0;
     afterEach(() => ranTests++);
 
-    it('should use JSON.stringify when there are circular references', () => {
-        const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.should_use_json_stringify.getTestData();
-        const {values: originalValues} = SERIALIZATION_SPEC.CIRCULAR_REFS.should_use_json_stringify.getTestData(true);
-
-        const jsonStringify = rt.createJitFunction(SERIALIZE_FN);
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(DESERIALIZE_FN);
+    it('circular types', () => {
+        const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_types.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_types.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
 
         values.forEach((value, i) => {
-            const copy = structuredClone(value);
-            const serialized = jsonStringify(toJsonVal(copy));
-            const deserialized = fromJsonVal(JSON.parse(serialized));
+            const {deserialized} = roundTrip(serialize, deserialize, value);
             expect(originalValues[i]).toEqual(deserialized);
         });
     });

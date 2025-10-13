@@ -19,7 +19,16 @@ import {isSafePropName} from '../../lib/utils';
 import {_compileJsonStringify, _compileJsonStringifyIterable} from './jsonStringify';
 import {registerPureFnClosure} from '../../lib/pureFn';
 
-/** Centralized compile jit function with a switch statement that handles all node types. */
+/**
+ * Compiles jit code to generate JavaScript code from data structures that match a Type.
+ * Process is similar to transform JS to JSON, but with few differences.
+ *
+ * 1 - jitFunctions and pureFunctions are emitted as src code
+ * 2 - Some native classes are supported and initialized using the new operator, ie: new Map(<data>), new Set(<data>), new Date(<data>), etc...
+ *
+ * THIS IS MOSTLY USED INTERNALLY FOR AOT CODE GENERATION AND A VERY BASIC IMPLEMENTATION.
+ * !!! NOT INTENDED FOR PUBLIC USE !!!
+ */
 export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toJavascript.id): jitCode {
     const src = runType.src;
     const kind = src.kind;

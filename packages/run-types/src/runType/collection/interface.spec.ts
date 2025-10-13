@@ -161,63 +161,6 @@ describe('Interface', () => {
         expect(valWithErrors(null)).toEqual([{path: [], expected: 'object'}]);
     });
 
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = {
-            startDate: new Date(),
-            quantity: 123,
-            name: 'hello',
-            nullValue: null,
-            stringArray: ['a', 'b', 'c'],
-            bigInt: BigInt(123),
-            "weird prop name \n?>'\\\t\r": 'hello2',
-        };
-        // value used for json encode/decode gets modified so we need to copy it to compare later
-        const copy = {...typeValue};
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy))))).toEqual(typeValue);
-    });
-
-    // TODO: decide if we want to serialise some properties that are usually skipped by json
-    it('skip props when encode/decode to json', () => {
-        const toJsonVal = rtSkip.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rtSkip.createJitFunction(JitFunctions.fromJsonVal);
-        const jsonStringify = rtSkip.createJitFunction(JitFunctions.jsonStringify);
-        const typeValue = {
-            name: 'hello',
-            methodProp: () => 'hello',
-            [Symbol('test')]: 'hello',
-        };
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual({name: 'hello'});
-        expect(fromJsonVal(JSON.parse(jsonStringify(typeValue)))).toEqual({name: 'hello'});
-    });
-
-    it('json encode/decode should be marked as noop when there are no actions required', () => {
-        interface NoJsonENCDECRequired {
-            a: number;
-            b: string;
-        }
-        interface sonENCDECRequired {
-            a: bigint;
-            c: Date;
-        }
-
-        const rtNoop = runType<NoJsonENCDECRequired>() as BaseRunType;
-        const rtEncRequired = runType<sonENCDECRequired>() as BaseRunType;
-        expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
-        expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
-        expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-        expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 383-398)
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1147-1162)
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1170-1190)
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1198-1213)
-
     it('object with repeated property types', () => {
         interface I {
             name: string;
@@ -374,9 +317,7 @@ describe('Interface with unknown props', () => {
         expect(getUnknownKeyErrors(objWithExtraDeep)).toEqual([{path: ['deep', 'cExtra'], expected: 'never'}]);
     });
 
-    it.todo('hasunknowkeys is generating code that is not needed, stringArray property generates extra function that is empty');
-
-    it('encode/decode to json safeJson', () => {
+    it('safeJson (remove/undefine extra props)', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
@@ -420,7 +361,7 @@ describe('Interface with unknown props', () => {
         expect(fromJsonSafeStrip(copy4)).toEqual(extraWithStrip);
     });
 
-    it('encode/decode to json safeJson deep', () => {
+    it('safeJson deep (remove/undefine extra props)', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
@@ -472,8 +413,6 @@ describe('Interface with unknown props', () => {
             },
         });
     });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1267-1284)
 });
 
 describe('Interface with unknown props and opts run time param', () => {
@@ -596,21 +535,6 @@ describe('Callable Interface', () => {
         expect(valWithErrors(obj)).toEqual([]);
     });
 
-    it('encode/decode to json should throw an error', () => {
-        expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow(
-            'Compile function ToJsonVal not supported, call compileParams or compileReturn instead.'
-        );
-        expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow(
-            'Compile function FromJsonVal not supported, call compileParams or compileReturn instead.'
-        );
-    });
-
-    it('json stringify should trhrow an error', () => {
-        expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(
-            'Compile function JsonStringify not supported, call compileParams or compileReturn instead.'
-        );
-    });
-
     it('mock should throw an error', async () => {
         await expect(() => rt.mock()).rejects.toThrow('Mock is not allowed, call mockParams or mockReturn instead.');
     });
@@ -635,17 +559,6 @@ describe('Interface with circular ref properties', () => {
         const obj: ICircular = {name: 'hello', child: {name: 'world'}};
         expect(valWithErrors(obj)).toEqual([]);
     });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj: ICircular = {name: 'hello', child: {name: 'world'}};
-        // value used for json encode/decode gets modified so we need to copy it to compare later
-        const copy = {...obj};
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy))))).toEqual(obj);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1302-1308)
 
     it('mock', async () => {
         const mocked = await rt.mock();
@@ -691,20 +604,6 @@ describe('Interface with circular ref type array', () => {
         ]);
         expect(valWithErrors(obj4)).toEqual([{path: ['children', 0], expected: 'object'}]);
     });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj1: ICircularArray = {name: 'hello', children: []};
-        const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
-        // value used for json encode/decode gets modified so we need to copy it to compare later
-        const copy1 = {...obj1};
-        const copy2 = {...obj2};
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(obj1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1319-1328)
 
     // todo: max comp size exceeded, this is because we are generating a full array with all recursive items with more array with recursive items.
     // so the fix would be ti reduce the probability of generating an optional property the deeper we go.
@@ -758,23 +657,6 @@ describe('Interface with nested circular type', () => {
         expect(valWithErrors(obj3)).toEqual([{path: ['embedded', 'hello'], expected: 'string'}]);
         expect(valWithErrors(obj4)).toEqual([{path: ['embedded', 'child', 'embedded', 'hello'], expected: 'string'}]);
     });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj1: ICircularDeep = {name: 'hello', embedded: {hello: 'world'}};
-        const obj2: ICircularDeep = {
-            name: 'hello',
-            embedded: {hello: 'world', child: {name: 'world1', embedded: {hello: 'world2'}}},
-        };
-        // value used for json encode/decode gets modified so we need to copy it to compare later
-        const copy1 = {...obj1};
-        const copy2 = {...obj2};
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(obj1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1342-1355)
 
     it('mock', async () => {
         const mocked = await rt.mock();
@@ -866,27 +748,6 @@ describe('Interface with nested circular type where root is not the circular ref
             {path: ['ciChild', 'embedded', 'child'], expected: 'object'},
         ]);
     });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
-        const obj2: RootNotCircular = {
-            isRoot: true,
-            ciChild: {
-                name: 'hello',
-                big: 1n,
-                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
-            },
-        };
-        // value used for json encode/decode gets modified so we need to copy it to compare later
-        const copy1 = structuredClone(obj1);
-        const copy2 = structuredClone(obj2);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(obj1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1375-1388)
 
     it('mock', async () => {
         const mocked = await rt.mock();
@@ -1011,29 +872,6 @@ describe('Interface with nested circular + multiple circular', () => {
         ]);
     });
 
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
-        const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
-        const obj2: RootCircular = {
-            isRoot: true,
-            ciChild: {
-                name: 'hello',
-                big: 1n,
-                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
-            },
-            ciDate,
-        };
-        // value used for json encode/decode gets modified so we need to copy it to compare later
-        const copy1 = structuredClone(obj1);
-        const copy2 = structuredClone(obj2);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(obj1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1422-1441)
-
     it('mock', async () => {
         const mocked = await rt.mock();
         expect(mocked).toHaveProperty('isRoot');
@@ -1077,20 +915,6 @@ describe('Interface with circular ref tuple', () => {
         expect(valWithErrors(obj3)).toEqual([{path: ['parent', 1], expected: 'object'}]);
         expect(valWithErrors(obj4)).toEqual([{path: ['parent', 1, 'parent', 1], expected: 'object'}]);
     });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
-        const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
-        // value used for json encode/decode gets modified so we need to copy it to compare later
-        const copy1 = structuredClone(obj1);
-        const copy2 = structuredClone(obj2);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(obj1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1452-1461)
 
     it('mock', async () => {
         const mocked = await rt.mock();

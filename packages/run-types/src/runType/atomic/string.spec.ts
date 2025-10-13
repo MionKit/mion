@@ -21,18 +21,6 @@ it('validate string + errors', () => {
     expect(valWithErrors(2)).toEqual([{path: [], expected: 'string'}]);
 });
 
-it('encode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-    expect(toJsonVal('hello')).toBe('hello');
-});
-
-it('decode from json', () => {
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    expect(fromJsonVal('hello')).toBe('hello');
-});
-
-// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 16-23)
-
 it('mock', async () => {
     const mocked = await rt.mock();
     expect(typeof mocked).toBe('string');

@@ -26,21 +26,6 @@ it('validate symbol + errors', () => {
     expect(valWithErrors('hello')).toEqual([{path: [], expected: 'symbol'}]);
 });
 
-it('encode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-    const typeValue = Symbol('foo');
-    expect(toJsonVal(typeValue)).toEqual('Symbol:foo');
-});
-
-it('decode from json', () => {
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const typeValue = Symbol('foo');
-    const jsonValue = 'Symbol:foo';
-    expect(fromJsonVal(jsonValue).toString()).toEqual(typeValue.toString());
-});
-
-// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 158-165)
-
 it('mock', async () => {
     const mocked = await rt.mock();
     expect(typeof mocked).toBe('symbol');

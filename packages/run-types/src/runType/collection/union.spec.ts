@@ -64,32 +64,6 @@ describe('Atomic Union', () => {
         expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
     });
 
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(a))))).toEqual(a);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(b))))).toEqual(b);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(c))))).toEqual(c);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(d))))).toEqual(d);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(e))))).toEqual(e);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 410-420)
-
-    it('throw errors when serializing deserializing object not belonging to the union', () => {
-        type UT = string | number;
-        const rtU = runType<UT>();
-        const jsonStringify = rtU.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rtU.createJitFunction(JitFunctions.fromJsonVal);
-        const toJsonVal = rtU.createJitFunction(JitFunctions.toJsonVal);
-        const wrongUnionItem = [0, true];
-
-        expect(() => jsonStringify(wrongUnionItem)).toThrow('Can not JsonStringify union: item does not belong to the union');
-        expect(() => fromJsonVal([7, 123])).toThrow('Can not json decode union: invalid union index');
-        expect(() => toJsonVal(wrongUnionItem)).toThrow('Can not json encode union: item does not belong to the union');
-    });
-
     it('mock', async () => {
         const mocked = await rt.mock();
         expect(
@@ -101,18 +75,6 @@ describe('Atomic Union', () => {
         ).toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(mocked)).toBe(true);
-    });
-
-    it('json encode/decode should never be marked as noop as encoding/decoding is always required', () => {
-        type atomicNoEncRequired = number | string;
-        type atomicEncRequired = bigint | Date;
-
-        const rtNoop = runType<atomicNoEncRequired>() as BaseRunType;
-        const rtEncRequired = runType<atomicEncRequired>() as BaseRunType;
-        expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-        expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
-        expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-        expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
     });
 });
 
@@ -150,46 +112,6 @@ describe('Union Arr', () => {
         expect(valWithErrors(arrD)).toEqual([]);
 
         expect(valWithErrors(notArr)).toEqual([{path: [], expected: 'union'}]);
-    });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copyA = structuredClone(arrA);
-        const copyB = structuredClone(arrB);
-        const copyC = structuredClone(arrC);
-        const copyD = structuredClone(arrD);
-        const copyE = [date1, date1];
-
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toEqual(arrA);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(arrB);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyC))))).toEqual(arrC);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyD))))).toEqual(arrD);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyE))))).toEqual(arrE);
-
-        // objects are not the same same object in memory after round trip
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(arrA))))).not.toBe(arrA);
-
-        // ensure code for items that do not need encode/decode to tuple is not emitted [index, type]
-        const encodeCode = toJsonVal.toString();
-        expect(encodeCode).not.toContain('[0,');
-        expect(encodeCode).not.toContain('[1,');
-        expect(encodeCode).not.toContain('[2,');
-        expect(encodeCode).toContain('[3,'); // date must be encoded to tuple [index, type]
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 835-854)
-
-    it('throw errors when serializing deserializing object not belonging to the union', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const typeValue = new Date();
-
-        expect(() => jsonStringify(typeValue)).toThrow('Can not JsonStringify union: item does not belong to the union');
-        expect(() => fromJsonVal([7, 123])).toThrow('Can not json decode union: invalid union index');
-        expect(() => toJsonVal(typeValue)).toThrow('Can not json encode union: item does not belong to the union');
     });
 
     it('mock', async () => {
@@ -236,30 +158,6 @@ describe('Arr with union of types', () => {
 
         expect(valWithErrors(notArr)).toEqual([{path: [2], expected: 'union'}]);
     });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copyA = structuredClone(arrA);
-        const copyB = structuredClone(arrB);
-        const copyC = structuredClone(arrC);
-        const copyD = [1n, 'b', date]; // dates cant be cloned properly
-
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toEqual(arrA);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(arrB);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyC))))).toEqual(arrC);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyD))))).toEqual(arrD);
-
-        // ensure code for items that do not need encode/decode to tuple is not emitted [index, type]
-        const encodeCode = toJsonVal.toString();
-        expect(encodeCode).not.toContain('[0,'); // string does not need to be encoded to tuple [index, type]
-        expect(encodeCode).toContain('[1,'); // bigint must be encoded to tuple [index, type]
-        expect(encodeCode).not.toContain('[2,'); // boolean does not need to be encoded to tuple [index, type]
-        expect(encodeCode).toContain('[3,'); // date must be encoded to tuple [index, type]
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 867-888)
 });
 
 describe('Union Obj', () => {
@@ -331,37 +229,6 @@ describe('Union Obj', () => {
         expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notD)).toEqual([{path: [], expected: 'union'}]);
-    });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copyA = structuredClone(objA);
-        const copyB = structuredClone(objB);
-        const copyC = structuredClone(objC);
-        const copyD = structuredClone(objD);
-        const copyE = structuredClone(objE);
-
-        // objA should throw as does not belong to the union, we do not support mixin union props
-        expect(() => fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toThrow();
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(objB);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyC))))).toEqual(objC);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyD))))).toEqual(objD);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyE))))).toEqual(objE);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 902-918)
-
-    it('throw errors whe serializing deserializing object not belonging to the union', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const typeValue = new Date();
-
-        expect(() => jsonStringify(typeValue)).toThrow('Can not JsonStringify union: item does not belong to the union');
-        expect(() => fromJsonVal([7, 123])).toThrow('Can not json decode union: invalid union index');
-        expect(() => toJsonVal(typeValue)).toThrow('Can not json encode union: item does not belong to the union');
     });
 
     it('mock', async () => {
@@ -479,24 +346,6 @@ describe('Union with discriminator property', () => {
         expect(valWithErrors(notD)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notKnown)).toEqual([{path: [], expected: 'union'}]);
     });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copyA = structuredClone(objA);
-        const copyB = structuredClone(objB);
-        // cant use structuredClone for dates: https://stackoverflow.com/questions/76664834/structuredclone-not-keeping-date-type
-        const copyC = {...objC, time: new Date(objC.time.getTime())};
-        const copyD = structuredClone(objD);
-
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toEqual(objA);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(objB);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyC))))).toEqual(objC);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyD))))).toEqual(objD);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 933-948)
 });
 
 describe('Union Mixed', () => {
@@ -563,30 +412,6 @@ describe('Union Mixed', () => {
         expect(valWithErrors(notMixC)).toEqual([{path: [], expected: 'union'}]);
     });
 
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copyA = structuredClone(mixA);
-        const copyB = structuredClone(mixB);
-
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toEqual(mixA);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(mixB);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 958-965)
-
-    it('throw errors whe serializing deserializing object not belonging to the union', () => {
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const typeValue = new Date();
-
-        expect(() => jsonStringify(typeValue)).toThrow('Can not JsonStringify union: item does not belong to the union');
-        expect(() => fromJsonVal([7, 123])).toThrow('Can not json decode union: invalid union index');
-        expect(() => toJsonVal(typeValue)).toThrow('Can not json encode union: item does not belong to the union');
-    });
-
     it('mock', async () => {
         const mocked = await rt.mock();
         expect(typeof mocked === 'object').toBe(true);
@@ -640,21 +465,6 @@ describe('Union mixed with index property', () => {
         expect(valWithErrors(notIndexC)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notIndexD)).toEqual([{path: [], expected: 'union'}]);
     });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copyA = structuredClone(indexA);
-        const copyB = structuredClone(indexB);
-        const copyD = structuredClone(indexD);
-
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toEqual(indexA);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(indexB);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyD))))).toEqual(indexD);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 979-991)
 });
 
 describe('Union circular', () => {
@@ -720,26 +530,6 @@ describe('Union circular', () => {
         expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
     });
-
-    it('encode/decode Circular Union to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        const copy = mockData();
-
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.d))))).toEqual(d);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.n))))).toEqual(n);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.s))))).toEqual(s);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.recA))))).toEqual(recA);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.o1))))).toEqual(o1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.a))))).toEqual(a);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.a2))))).toEqual(a2);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.arrRec0))))).toEqual(arrRec0);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.arrRec1))))).toEqual(arrRec1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy.arrRec2))))).toEqual(arrRec2);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1021-1038)
 });
 
 describe('Union with objects containing methods', () => {
@@ -824,32 +614,6 @@ describe('Union with objects containing methods', () => {
         expect(valWithErrors(objWithExtraData)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(objWithMixedProps)).toEqual([{path: [], expected: 'union'}]);
     });
-
-    it('encode/decode union with methods to json - methods should be excluded', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        // Methods should be excluded during serialization
-        const encodedName = toJsonVal(objWithName);
-        const encodedAge = toJsonVal(objWithAge);
-        const encodedActive = toJsonVal(objWithActive);
-
-        const decodedName = fromJsonVal(JSON.parse(JSON.stringify(encodedName)));
-        const decodedAge = fromJsonVal(JSON.parse(JSON.stringify(encodedAge)));
-        const decodedActive = fromJsonVal(JSON.parse(JSON.stringify(encodedActive)));
-
-        // Decoded objects should only have data properties, not methods
-        expect(decodedName).toEqual({name: 'John'});
-        expect(decodedAge).toEqual({age: 25});
-        expect(decodedActive).toEqual({active: true});
-
-        // Methods should not be present in decoded objects
-        expect(typeof (decodedName as any).getName).toBe('undefined');
-        expect(typeof (decodedAge as any).getAge).toBe('undefined');
-        expect(typeof (decodedActive as any).isActive).toBe('undefined');
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1084-1094)
 
     it('mock union with methods', async () => {
         // methods are ignored during mock

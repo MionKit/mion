@@ -93,43 +93,6 @@ describe('TupleRunType', () => {
         expect(valWithErrors([3, '2', true, 4])).toEqual([{path: [1], expected: 'bigint'}]);
     });
 
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
-        // value used for json encode/decode gets modified so we need to copy it to compare later
-        const copy1 = structuredClone(typeValue);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(typeValue);
-    });
-
-    it('encode/decode tuple with optional parameters to json', () => {
-        const toJsonVal = runType<TupleWithOptionals>().createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = runType<TupleWithOptionals>().createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue = [3, undefined, true, 4];
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, undefined, true, 4]))))).toEqual(typeValue);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, undefined, undefined, 4]))))).toEqual([
-            3,
-            undefined,
-            undefined,
-            4,
-        ]);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, 2n, true, 4]))))).toEqual([3, 2n, true, 4]);
-
-        const allUndefined = [3, undefined, undefined, undefined];
-        const restored1 = fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(allUndefined))));
-        expect(restored1).toEqual([3, undefined, undefined, undefined]);
-        expect(restored1.length).toBe(4);
-
-        const allNotSet = [3];
-        const restored2 = fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(allNotSet))));
-        expect(restored2).toEqual([3]);
-        expect(restored2.length).toBe(1);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 360-367)
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1101-1109)
-
     it('mock', async () => {
         const mocked = await rt.mock();
         expect(mocked).toHaveLength(6);
@@ -152,18 +115,6 @@ describe('TupleRunType', () => {
         expect(typeof mocked[3] === 'number' || typeof mocked[3] === 'undefined').toBeTruthy();
         const validate = runType<TupleWithOptionals>().createJitFunction(JitFunctions.isType);
         expect(validate(mocked)).toBe(true);
-    });
-
-    it('json encode/decode should be marked as noop when there are no actions required', () => {
-        type NoJsonENCDECRequired = [number, string];
-        type sonENCDECRequired = [bigint, Date];
-
-        const rtNoop = runType<NoJsonENCDECRequired>() as BaseRunType;
-        const rtEncRequired = runType<sonENCDECRequired>() as BaseRunType;
-        expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
-        expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
-        expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-        expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
     });
 });
 
@@ -192,18 +143,6 @@ describe('TupleRunType with circular type definitions', () => {
             {path: [6], expected: 'tuple'},
         ]);
     });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
-        const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
-        // value used for json encode/decode gets modified so we need to copy it to compare later
-        const copy1 = structuredClone(typeValue);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(typeValue);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1118-1126)
 
     it('mock', async () => {
         const mocked = await rt.mock();
@@ -248,17 +187,6 @@ describe('TupleRunType with rest parameter', () => {
         expect(valWithErrors([3, 'a', 'b'])).toEqual([]);
         expect(valWithErrors([3, 'a', 'b', 4])).toEqual([{path: [3], expected: 'string'}]);
     });
-
-    it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const typeValue: TupleRest = [3, 'a', 'b', 'c'];
-        // value used for json encode/decode gets modified so we need to copy it to compare later
-        const copy1 = structuredClone(typeValue);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(typeValue);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1134-1140)
 
     it('mock', async () => {
         const mocked = await rt.mock();

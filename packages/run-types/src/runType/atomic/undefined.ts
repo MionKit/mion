@@ -18,10 +18,7 @@ export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (typeof ${comp.vλl} !== 'undefined') ${comp.callJitErr(this)}`;
     }
-    _compileToJsonVal(comp: JitCompiler): jitCode {
-        return `${comp.vλl} = null`;
-    }
-    _compileFromJsonVal(comp: JitCompiler): jitCode {
-        return `${comp.vλl} = undefined`;
+    _compileFromJsonVal(): jitCode {
+        return `undefined`;
     }
 }

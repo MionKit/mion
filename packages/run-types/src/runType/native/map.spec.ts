@@ -67,21 +67,6 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
         expect(valWithErrors(wrongValue)).toEqual([{path: [{key: null, index: 0, failed: 'mapVal'}], expected: 'number'}]); // correct key 1n can not be serialized to json so is returned as null
     });
 
-    it('encode/decode Map to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-
-        // the encode/decode operations are destructive, so we need to clone the map
-        const mapCopy = cloneMap(testMap);
-        const encoded = toJsonVal(mapCopy);
-        const stringified = JSON.stringify(encoded);
-        const decoded = fromJsonVal(JSON.parse(stringified));
-
-        expect(decoded).toEqual(testMap);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1746-1754)
-
     it('has unknown keys in Map<string, number>', () => {
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
         const validate = rt.createJitFunction(JitFunctions.isType);
@@ -169,20 +154,6 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
             {path: [{key: 'one', index: 0, failed: 'mapVal'}, 'prop3'], expected: 'boolean'},
         ]);
     });
-
-    it('encode/decode Map<string, SmallObject> to json', () => {
-        const toJsonVal = rtStringSmallObject.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rtStringSmallObject.createJitFunction(JitFunctions.fromJsonVal);
-
-        // the encode/decode operations are destructive, so we need to clone the map
-        const mapCopy = cloneMap(testMapStringSmallObject);
-        const encoded = toJsonVal(mapCopy);
-        const stringified = JSON.stringify(encoded);
-        const decoded = fromJsonVal(JSON.parse(stringified));
-        expect(decoded).toEqual(testMapStringSmallObject);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1773-1781)
 
     it('has unknown keys in Map<string, SmallObject>', () => {
         const hasUnknownKeys = rtStringSmallObject.createJitFunction(JitFunctions.hasUnknownKeys);
@@ -295,20 +266,6 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
         ]);
     });
 
-    it('encode/decode Map<SmallObject, number> to json', () => {
-        const toJsonVal = rtSmallObjectNumber.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rtSmallObjectNumber.createJitFunction(JitFunctions.fromJsonVal);
-
-        // the encode/decode operations are destructive, so we need to clone the map
-        const mapCopy = cloneMap(testMapSmallObjectNumber);
-        const encoded = toJsonVal(mapCopy);
-        const stringified = JSON.stringify(encoded);
-        const decoded = fromJsonVal(JSON.parse(stringified));
-        expect(decoded).toEqual(testMapSmallObjectNumber);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1802-1810)
-
     it('has unknown keys in Map<SmallObject, number>', () => {
         const hasUnknownKeys = rtSmallObjectNumber.createJitFunction(JitFunctions.hasUnknownKeys);
         const validate = rtSmallObjectNumber.createJitFunction(JitFunctions.isType);
@@ -412,26 +369,6 @@ describe('MapRunType with nested maps', () => {
             {path: ['b', {key: 'key1', index: 0, failed: 'mapVal'}, 'sm', 'arr'], expected: 'array'},
         ]);
     });
-
-    it('encode/decode objects with nested maps to json', () => {
-        const toJsonVal = rtDeepWithMap.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rtDeepWithMap.createJitFunction(JitFunctions.fromJsonVal);
-
-        const obj: DeepWithMap = {
-            a: 'a',
-            b: new Map([
-                ['key1', {sm: {s: 's', arr: [1, 2, 3]}}],
-                ['key2', {sm: {s: 's', arr: [1, 2, 3]}}],
-            ]),
-        };
-        const clone = {...obj, b: cloneMap(obj.b)}; // the encode/decode operations are destructive, so we need to clone the map
-        const encoded = toJsonVal(clone);
-        const stringified = JSON.stringify(encoded);
-        const decoded = fromJsonVal(JSON.parse(stringified));
-        expect(decoded).toEqual(obj);
-    });
-
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1824-1836)
 
     it('has unknown keys in objects with nested maps', () => {
         const hasUnknownKeys = rtDeepWithMap.createJitFunction(JitFunctions.hasUnknownKeys);
