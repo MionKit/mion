@@ -9,10 +9,9 @@ import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import type {jitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
-import {compileAddPureFunctionWithClosure, type BaseCompiler} from '../../lib/jitCompiler';
+import {type BaseCompiler} from '../../lib/jitCompiler';
 import type {LiteralRunType} from '../../runType/atomic/literal';
 import {jitBinarySerializerArgs, JitFunctions} from '../../constants.functions';
-import {mionBinSerEnum, mionBinSerNumber, mionBinSerString} from './binaryPureFns';
 import {Mutable} from '@mionkit/core';
 import {toLiteralInContext} from '../../lib/utils';
 import type {ArrayRunType} from '../../runType/member/array';
@@ -37,40 +36,37 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
     switch (kind) {
         // ###################### ATOMIC TYPES ######################
         case ReflectionKind.unknown:
-        case ReflectionKind.any:
-            throw new Error('Binary serialization not supported for unknown/any types');
+        case ReflectionKind.any: {
+            // any is serialized as json string
+            return `${sεr}.serString(JSON.stringify(${comp.vλl}))`;
+        }
         case ReflectionKind.null:
             return `${sεr}.uint32Array[${sεr}.index++] = 0`;
         case ReflectionKind.boolean:
             return `${sεr}.uint32Array[${sεr}.index++] = (${comp.vλl}) ? 1 : 0`;
         case ReflectionKind.number: {
-            const serializeNumberFn = compileAddPureFunctionWithClosure(comp, mionBinSerNumber);
-            return `${serializeNumberFn}(${sεr}, ${comp.vλl})`;
+            return `${sεr}.serNumber(${comp.vλl})`;
         }
         case ReflectionKind.string: {
-            const serializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinSerString);
-            return `${serializeStringFn}(${sεr}, ${comp.vλl})`;
+            return `${sεr}.serString(${comp.vλl})`;
         }
         case ReflectionKind.bigint: {
-            const serializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinSerString);
-            return `${serializeStringFn}(${sεr}, ${comp.vλl}.toString())`;
+            return `${sεr}.serString(${comp.vλl}.toString())`;
         }
         case ReflectionKind.undefined:
         case ReflectionKind.void:
             return `${sεr}.uint32Array[${sεr}.index++] = -1`;
         case ReflectionKind.symbol: {
-            const serializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinSerString);
-            return `${serializeStringFn}(${sεr}, ${comp.vλl}.description || '')`;
+            return `${sεr}.serString(${comp.vλl}.description || '')`;
         }
         case ReflectionKind.regexp: {
-            const serializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinSerString);
-            return `${serializeStringFn}(${sεr}, ${comp.vλl}.source);${serializeStringFn}(${sεr}, ${comp.vλl}.flags)`;
+            return `${sεr}.serString(${comp.vλl}.source);${sεr}.serString(${comp.vλl}.flags)`;
         }
         case ReflectionKind.object:
-            throw new Error('Binary serialization not supported for generic object types');
+            // similar to any, this is serialized as json string
+            return `${sεr}.serString(JSON.stringify(${comp.vλl}))`;
         case ReflectionKind.enum: {
-            const serializeEnumFn = compileAddPureFunctionWithClosure(comp, mionBinSerEnum);
-            return `${serializeEnumFn}(${sεr}, ${comp.vλl})`;
+            return `${sεr}.serEnum(${comp.vλl})`;
         }
         case ReflectionKind.enumMember:
             throw new Error('Binary serialization not supported for enum member types');
@@ -103,8 +99,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             if (indexKind === ReflectionKind.number) {
                 keySerializationCode = `${sεr}.uint32Array[${sεr}.index++] = Number(${propVar})`;
             } else {
-                const serializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinSerString);
-                keySerializationCode = `${serializeStringFn}(${sεr}, ${propVar})`;
+                keySerializationCode = `${sεr}.serString(${propVar})`;
             }
 
             return `for (const ${propVar} in ${comp.vλl}) {${keySerializationCode} ${memberCode};  ${countVar}++;}`;
@@ -190,8 +185,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
         case ReflectionKind.class:
             switch (runType.src.subKind) {
                 case ReflectionSubKind.date:
-                    // TODO: Handle Date class
-                    break;
+                    return `${sεr}.serFloat64(${comp.vλl}.getTime())`;
                 case ReflectionSubKind.map:
                     // TODO: Handle Map class
                     break;

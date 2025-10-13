@@ -9,10 +9,9 @@ import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import type {jitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
-import {compileAddPureFunctionWithClosure, type BaseCompiler} from '../../lib/jitCompiler';
+import {type BaseCompiler} from '../../lib/jitCompiler';
 import type {LiteralRunType} from '../../runType/atomic/literal';
 import {jitBinaryDeserializerArgs, JitFunctions} from '../../constants.functions';
-import {mionBinDesEnum, mionBinDesNumber, mionBinDesString} from './binaryPureFns';
 import type {ArrayRunType} from '../../runType/member/array';
 import type {PropertyRunType} from '../../runType/member/property';
 import type {InterfaceRunType} from '../../runType/collection/interface';
@@ -34,41 +33,37 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
     switch (kind) {
         // ###################### ATOMIC TYPES ######################
         case ReflectionKind.unknown:
-        case ReflectionKind.any:
-            throw new Error('Binary deserialization not supported for unknown/any types');
+        case ReflectionKind.any: {
+            // any is deserialized from json string
+            return `JSON.parse(${dεs}.desString())`;
+        }
         case ReflectionKind.null:
             return `(${dεs}.index++, null)`;
         case ReflectionKind.boolean:
             return `${dεs}.uint32Array[${dεs}.index++] === 1`;
         case ReflectionKind.number: {
-            const deserializeNumberFn = compileAddPureFunctionWithClosure(comp, mionBinDesNumber);
-            return `${deserializeNumberFn}(${dεs})`;
+            return `${dεs}.desNumber()`;
         }
         case ReflectionKind.string: {
-            const deserializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinDesString);
-            return `${deserializeStringFn}(${dεs})`;
+            return `${dεs}.desString()`;
         }
         case ReflectionKind.bigint: {
-            const deserializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinDesString);
-            return `BigInt(${deserializeStringFn}(${dεs}))`;
+            return `BigInt(${dεs}.desString())`;
         }
         case ReflectionKind.undefined:
         case ReflectionKind.void:
             return `(${dεs}.index++, undefined)`;
         case ReflectionKind.symbol: {
-            const deserializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinDesString);
-            return `Symbol(${deserializeStringFn}(${dεs}) || undefined)`;
+            return `Symbol(${dεs}.desString() || undefined)`;
         }
         case ReflectionKind.regexp: {
-            const deserializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinDesString);
-            return `new RegExp(${deserializeStringFn}(${dεs}), ${deserializeStringFn}(${dεs}))`;
+            return `new RegExp(${dεs}.desString(), ${dεs}.desString())`;
         }
         case ReflectionKind.object:
-            throw new Error('Binary deserialization not supported for generic object types');
-
+            // similar to any, this is deserialized as json string
+            return `JSON.parse(${dεs}.desString())`;
         case ReflectionKind.enum: {
-            const deserializeEnumFn = compileAddPureFunctionWithClosure(comp, mionBinDesEnum);
-            return `${deserializeEnumFn}(${dεs})`;
+            return `${dεs}.desEnum()`;
         }
         case ReflectionKind.enumMember:
             throw new Error('Binary deserialization not supported for enum member types');
@@ -99,7 +94,6 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             const prop = rt.getChildVarName(comp);
             const countVar = `cnt${comp.getNestLevel(rt)}`;
             const indexVar = `prI${comp.getNestLevel(rt)}`;
-            const deserializeStringFn = compileAddPureFunctionWithClosure(comp, mionBinDesString);
 
             // Deserialize key based on index type
             let keyDeserializationCode: string;
@@ -108,7 +102,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                 keyDeserializationCode = `const ${prop} = ${dεs}.uint32Array[${dεs}.index++];`;
             } else {
                 // For string indices (default), deserialize as string
-                keyDeserializationCode = `const ${prop} = ${deserializeStringFn}(${dεs});`;
+                keyDeserializationCode = `const ${prop} = ${dεs}.desString();`;
             }
 
             const deserializeCode = `for (let ${indexVar} = 0; ${indexVar} < ${countVar}; ${indexVar}++) {${keyDeserializationCode} ${comp.vλl}[${prop}] = ${memberCode};}`;
@@ -222,7 +216,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
         case ReflectionKind.class:
             switch (runType.src.subKind) {
                 case ReflectionSubKind.date:
-                    // TODO: Handle Date class
+                    return `new Date(${dεs}.desFloat64())`;
                     break;
                 case ReflectionSubKind.map:
                     // TODO: Handle Map class
