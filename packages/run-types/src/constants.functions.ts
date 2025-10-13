@@ -36,8 +36,8 @@ export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: '', pλth: '[]', εrr: '[]'} as const;
 export const jitArgsWithOptions = {vλl: 'v', θpts: 'opts'} as const;
 export const jitDefaultArgsWithOptions = {vλl: '', θpts: '{}'} as const;
-export const jitBinarySerializerArgs = {vλl: 'v', sεr: 'ser'} as const; // v= js value, ser = serializer,
-export const jitBinaryDeserializerArgs = {vλl: 'ret', dεs: 'des'} as const; // v = deserialized js value (initially undefined), des = deserializer
+export const jitBinarySerializerArgs = {vλl: 'v', sεr: 'Ser'} as const; // v= js value, ser = serializer,
+export const jitBinaryDeserializerArgs = {vλl: 'ret', dεs: 'Des'} as const; // v = deserialized js value (initially undefined), des = deserializer
 export const jitDefaultBinarySerializerArgs = {vλl: '', sεr: ''} as const;
 export const jitDefaultBinaryDeserializerArgs = {vλl: 'undefined', dεs: ''} as const;
 

@@ -21,6 +21,11 @@ export interface BinarySerializer {
     maxCacheSize: number;
     stringCache: Map<string, Uint8Array>;
     evictStringCache: () => void;
+    // serialization functions
+    serString(str: string): void;
+    serFloat64(n: number): void;
+    serNumber(n: number): void;
+    serEnum(n: number | string): void;
 }
 export interface BinaryDeserializer {
     index: number;
@@ -36,4 +41,9 @@ export interface BinaryDeserializer {
     stringCache: Map<string, string>;
     evictStringCache: () => void;
     hashBytes: (bytes: Uint8Array, len: number) => string;
+    // deserialization functions
+    desString(): string;
+    desFloat64(): number;
+    desNumber(): number;
+    desEnum(): number | string;
 }

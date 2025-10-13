@@ -5,758 +5,1427 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {runType} from '../../lib/runType';
+import {SERIALIZATION_SPEC} from '../serialization-suite';
 import {JitFunctions} from '../../constants.functions';
 import {FunctionRunType} from '../../runType/function/function';
-import {createBinaryDeserializer, createBinarySerializer} from './binaryPureFns';
-import type {BinaryDeserializer, BinarySerializer} from './types';
+import {createBinaryDeserializer, createBinarySerializer} from './binarySerializer';
+import type {BinaryDeserializer, BinarySerializer, StrictArrayBuffer} from './types';
+import type {InterfaceRunType} from '../../runType/collection/interface';
+import type {RunType} from '../../types';
 
-const serContext = createBinarySerializer({bufferSize: 1024});
-const desContext = createBinaryDeserializer(new ArrayBuffer(0));
+const serContext: BinarySerializer = createBinarySerializer({bufferSize: 1024});
+const desContext: BinaryDeserializer = createBinaryDeserializer(new ArrayBuffer(0));
 
-/**
- * Helper function to perform a full roundtrip test: JS -> Binary -> JS
- * @param value - The JavaScript value to test
- * @param toBinary - The toBinary function
- * @param fromBinary - The fromBinary function
- * @param debug - Whether to output debug information
- * @returns The deserialized value after roundtrip
- */
-function testRoundtrip<T>(
-    value: T,
-    toBinary: (val: T, serContext: BinarySerializer) => any,
-    fromBinary: (data: any, desContext: BinaryDeserializer) => T,
+const SERIALIZE_FN = JitFunctions.toBinary;
+const DESERIALIZE_FN = JitFunctions.fromBinary;
+
+function createSerializationFns(rt: RunType) {
+    const toBinary = rt.createJitFunction(SERIALIZE_FN);
+    const fromBinary = rt.createJitFunction(DESERIALIZE_FN);
+    const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
+    const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
+    return {serialize, deserialize};
+}
+
+function createSerializationParamsFn(rt: FunctionRunType, sliceStart?: number) {
+    const params = typeof sliceStart === 'number' ? {paramsSlice: {start: sliceStart}} : undefined;
+    const toBinary = rt.createJitParamsFunction(SERIALIZE_FN, params);
+    const fromBinary = rt.createJitParamsFunction(DESERIALIZE_FN, params);
+    const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
+    const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
+    return {serialize, deserialize};
+}
+
+function createSerializationReturnFn(rt: FunctionRunType) {
+    const toBinary = rt.createJitReturnFunction(SERIALIZE_FN);
+    const fromBinary = rt.createJitReturnFunction(DESERIALIZE_FN);
+    const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
+    const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
+    return {serialize, deserialize};
+}
+
+function createSerializationCallSignatureParamsFn(rt: InterfaceRunType) {
+    const callSignature = rt.getCallSignature()!;
+    const toBinary = callSignature.createJitParamsFunction(SERIALIZE_FN);
+    const fromBinary = callSignature.createJitParamsFunction(DESERIALIZE_FN);
+    const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
+    const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
+    return {serialize, deserialize};
+}
+
+function createSerializationCallSignatureReturnFn(rt: InterfaceRunType) {
+    const callSignature = rt.getCallSignature()!;
+    const toBinary = callSignature.createJitReturnFunction(SERIALIZE_FN);
+    const fromBinary = callSignature.createJitReturnFunction(DESERIALIZE_FN);
+    const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
+    const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
+    return {serialize, deserialize};
+}
+
+function roundTrip(
+    serialize: (v: any) => StrictArrayBuffer,
+    deserialize: (v: StrictArrayBuffer) => any,
+    value: any,
     debug = false
-): T {
-    // Serialize to Binary
+) {
     serContext.reset();
-    toBinary(value, serContext);
-    const buffer = serContext.getBuffer();
+    const serialized = serialize(value);
     if (debug) {
         console.log(
             'Binary length:',
-            buffer.byteLength,
+            serialized.byteLength,
             'Binary bytes:',
-            Array.from(new Uint32Array(buffer))
+            Array.from(new Uint32Array(serialized))
                 .map((b) => '0x' + b.toString(16).padStart(8, '0'))
                 .join(' ')
         );
     }
-
-    // Deserialize from Binary
-    desContext.setBuffer(buffer);
-    const result = fromBinary(undefined, desContext);
+    const deserialized = deserialize(serialized);
     if (debug) {
-        console.log('Original value:', value, 'Deserialized value:', result);
+        console.log('Original value:', value, 'Deserialized value:', deserialized);
     }
+    const result = {serialized, deserialized};
     return result;
 }
 
-describe('Binary JIT Serialization', () => {
-    describe('Atomic Types', () => {
-        it('should handle null values', () => {
-            const rt = runType<null>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
+describe('atomic', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
 
-            const original = null;
-            const result = testRoundtrip(original, toBinary, fromBinary);
-            expect(result).toBe(null);
+    it('string', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.string.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
         });
+    });
 
-        it('should handle boolean values', () => {
-            const rt = runType<boolean>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
+    it('number', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.number.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
 
-            const trueValue = true;
-            const falseValue = false;
-
-            const resultTrue = testRoundtrip(trueValue, toBinary, fromBinary);
-            const resultFalse = testRoundtrip(falseValue, toBinary, fromBinary);
-
-            expect(resultTrue).toBe(true);
-            expect(resultFalse).toBe(false);
+        values.forEach((value) => {
+            const {deserialized, serialized} = roundTrip(serialize, deserialize, value);
+            expect(serialized instanceof ArrayBuffer).toBeTruthy();
+            expect(value).toEqual(deserialized);
         });
+    });
 
-        it('should handle number values', () => {
-            const rt = runType<number>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
+    it('number not supported', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.number_not_supported.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
 
-            // Test different number types
-            const int32Value = 42;
-            const negativeValue = -123;
-            const floatValue = 3.14159; // float exact precision
-            const largeIntValue = 2147483648; // Larger than int32
-            const negativeLargeIntValue = -2147483649; // Smaller than int32
-            const PiValue = Math.PI; // float exact precision
-
-            expect(testRoundtrip(int32Value, toBinary, fromBinary)).toBe(int32Value);
-            expect(testRoundtrip(negativeValue, toBinary, fromBinary)).toBe(negativeValue);
-            expect(testRoundtrip(floatValue, toBinary, fromBinary)).toBe(floatValue);
-            expect(testRoundtrip(largeIntValue, toBinary, fromBinary)).toBe(largeIntValue);
-            expect(testRoundtrip(negativeLargeIntValue, toBinary, fromBinary)).toBe(negativeLargeIntValue);
-            expect(testRoundtrip(PiValue, toBinary, fromBinary)).toBe(PiValue);
-            expect(testRoundtrip(Infinity, toBinary, fromBinary)).toBe(Infinity);
-            expect(testRoundtrip(-Infinity, toBinary, fromBinary)).toBe(-Infinity);
-            expect(testRoundtrip(NaN, toBinary, fromBinary)).toBe(NaN);
-            expect(testRoundtrip(-0, toBinary, fromBinary)).toBe(0);
-            expect(testRoundtrip(0, toBinary, fromBinary)).toBe(0);
-            expect(testRoundtrip(Number.MAX_SAFE_INTEGER, toBinary, fromBinary)).toBe(Number.MAX_SAFE_INTEGER);
-        });
-
-        it('should handle string values', () => {
-            const rt = runType<string>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const simpleString = 'hello world';
-            const emptyString = '';
-            const unicodeString = '🚀 Hello 世界 مرحبا';
-            const specialChars = 'Line1\nLine2\tTabbed"Quoted\'Single';
-
-            expect(testRoundtrip(simpleString, toBinary, fromBinary)).toBe(simpleString);
-            expect(testRoundtrip(emptyString, toBinary, fromBinary)).toBe(emptyString);
-            expect(testRoundtrip(unicodeString, toBinary, fromBinary)).toBe(unicodeString);
-            expect(testRoundtrip(specialChars, toBinary, fromBinary)).toBe(specialChars);
-        });
-
-        it('should handle bigint values', () => {
-            const rt = runType<bigint>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const smallBigInt = 123n;
-            const largeBigInt = 9223372036854775807n; // Max safe int64
-            const negativeBigInt = -456n;
-
-            expect(testRoundtrip(smallBigInt, toBinary, fromBinary)).toBe(smallBigInt);
-            expect(testRoundtrip(largeBigInt, toBinary, fromBinary)).toBe(largeBigInt);
-            expect(testRoundtrip(negativeBigInt, toBinary, fromBinary)).toBe(negativeBigInt);
-        });
-
-        it('should handle undefined values', () => {
-            const rt = runType<undefined>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const original = undefined;
-            const result = testRoundtrip(original, toBinary, fromBinary);
-            expect(result).toBe(undefined);
-        });
-
-        it('should handle symbol values', () => {
-            const rt = runType<symbol>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const namedSymbol = Symbol('test');
-            const anonymousSymbol = Symbol();
-
-            const resultNamed = testRoundtrip(namedSymbol, toBinary, fromBinary);
-            const resultAnonymous = testRoundtrip(anonymousSymbol, toBinary, fromBinary);
-
-            expect(typeof resultNamed).toBe('symbol');
-            expect(resultNamed.description).toBe('test');
-            expect(typeof resultAnonymous).toBe('symbol');
-            expect(resultAnonymous.description).toBe(undefined);
-        });
-
-        it('should handle regexp values', () => {
-            const rt = runType<RegExp>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const simpleRegex = /hello/;
-            const complexRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/gi;
-            const regexWithFlags = /test/gim;
-
-            const resultSimple = testRoundtrip(simpleRegex, toBinary, fromBinary);
-            const resultComplex = testRoundtrip(complexRegex, toBinary, fromBinary);
-            const resultFlags = testRoundtrip(regexWithFlags, toBinary, fromBinary);
-
-            expect(resultSimple).toEqual(simpleRegex);
-            expect(resultSimple.source).toBe(simpleRegex.source);
-            expect(resultSimple.flags).toBe(simpleRegex.flags);
-
-            expect(resultComplex).toEqual(complexRegex);
-            expect(resultComplex.source).toBe(complexRegex.source);
-            expect(resultComplex.flags).toBe(complexRegex.flags);
-
-            expect(resultFlags).toEqual(regexWithFlags);
-            expect(resultFlags.source).toBe(regexWithFlags.source);
-            expect(resultFlags.flags).toBe(regexWithFlags.flags);
-        });
-
-        it('should handle enum values', () => {
-            enum NumberEnum {
-                First = 1,
-                Second = 2,
-                Third = 3,
+        values.forEach((value) => {
+            let didThrow = false;
+            let result: any;
+            try {
+                result = roundTrip(serialize, deserialize, value).deserialized;
+                expect(result).not.toEqual(value);
+                return;
+            } catch (error) {
+                didThrow = true;
             }
+            expect(didThrow).toBeTruthy();
+        });
+    });
 
-            enum StringEnum {
-                Red = 'red',
-                Green = 'green',
-                Blue = 'blue',
+    it('regexp', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.regexp.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('bigint', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.bigint.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('boolean', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.boolean.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('any', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.any.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+        // JSON.parse(undefined) throws an error, so we need to skip deserialization
+        const deserializeUndefined = (v: any) => (typeof v === 'undefined' ? undefined : deserialize(v));
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserializeUndefined, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('any not supported', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.not_supported_any.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+        values.forEach((value) => {
+            let didThrow = false;
+            let result: any;
+            try {
+                result = roundTrip(serialize, deserialize, value).deserialized;
+                expect(result).not.toEqual(value);
+                return;
+            } catch (error) {
+                didThrow = true;
             }
-
-            enum MixedEnum {
-                First = 1,
-                Second = 'second',
-                Third = 3,
-            }
-
-            const numberRt = runType<NumberEnum>();
-            const numberToBinary = numberRt.createJitFunction(JitFunctions.toBinary);
-            const numberFromBinary = numberRt.createJitFunction(JitFunctions.fromBinary);
-
-            const stringRt = runType<StringEnum>();
-            const stringToBinary = stringRt.createJitFunction(JitFunctions.toBinary);
-            const stringFromBinary = stringRt.createJitFunction(JitFunctions.fromBinary);
-
-            const mixedRt = runType<MixedEnum>();
-            const mixedToBinary = mixedRt.createJitFunction(JitFunctions.toBinary);
-            const mixedFromBinary = mixedRt.createJitFunction(JitFunctions.fromBinary);
-
-            const numberEnumValue = NumberEnum.Second;
-            const stringEnumValue = StringEnum.Green;
-            const mixedEnumValue = MixedEnum.Second;
-            const mixedEnumValue2 = MixedEnum.Third;
-
-            expect(testRoundtrip(numberEnumValue, numberToBinary, numberFromBinary)).toBe(numberEnumValue);
-            expect(testRoundtrip(stringEnumValue, stringToBinary, stringFromBinary)).toBe(stringEnumValue);
-            expect(testRoundtrip(mixedEnumValue, mixedToBinary, mixedFromBinary)).toBe(mixedEnumValue);
-            expect(testRoundtrip(mixedEnumValue2, mixedToBinary, mixedFromBinary)).toBe(mixedEnumValue2);
+            expect(didThrow).toBeTruthy();
         });
     });
 
-    describe('Literal Types', () => {
-        it('should handle string literals', () => {
-            type StringLiteral = 'hello';
-            const rt = runType<StringLiteral>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
+    it('null', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.null.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
 
-            expect(testRoundtrip(undefined, toBinary, fromBinary)).toBe('hello');
-        });
-
-        it('should handle number literals', () => {
-            type NumberLiteral = 42;
-            const rt = runType<NumberLiteral>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            expect(testRoundtrip(undefined, toBinary, fromBinary)).toBe(42);
-        });
-
-        it('should handle boolean literals', () => {
-            type BooleanLiteral = true;
-            const rt = runType<BooleanLiteral>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            expect(testRoundtrip(undefined, toBinary, fromBinary)).toBe(true);
-        });
-
-        it('should handle null literals', () => {
-            type NullLiteral = null;
-            const rt = runType<NullLiteral>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            expect(testRoundtrip(undefined, toBinary, fromBinary)).toBe(null);
-        });
-
-        it('should handle bigint literals', () => {
-            type BigIntLiteral = 123n;
-            const rt = runType<BigIntLiteral>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            expect(testRoundtrip(undefined, toBinary, fromBinary)).toBe(123n);
-        });
-
-        it('should handle regexp literals', () => {
-            const regexp = /abc/;
-            type RegExpLiteral = typeof regexp;
-            const rt = runType<RegExpLiteral>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            expect(testRoundtrip(undefined, toBinary, fromBinary)).toEqual(regexp);
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
         });
     });
 
-    describe('Member RunTypes', () => {
-        it('should handle array types', () => {
-            const rt = runType<number[]>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
+    it('undefined', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.undefined.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+        // JSON.parse(undefined) throws an error, so we need to skip deserialization
+        const deserializeUndefined = (v: any) => (typeof v === 'undefined' ? undefined : deserialize(v));
 
-            const emptyArray: number[] = [];
-            const simpleArray = [1, 2, 3, 4, 5];
-            const mixedNumbers = [0, -1, 3.14, 1000000];
-
-            expect(testRoundtrip(emptyArray, toBinary, fromBinary)).toEqual(emptyArray);
-            expect(testRoundtrip(simpleArray, toBinary, fromBinary)).toEqual(simpleArray);
-            expect(testRoundtrip(mixedNumbers, toBinary, fromBinary)).toEqual(mixedNumbers);
-        });
-
-        it('should handle string array types', () => {
-            const rt = runType<string[]>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const stringArray = ['hello', 'world', '🚀', ''];
-            const unicodeArray = ['世界', 'مرحبا', 'Здравствуй'];
-
-            expect(testRoundtrip(stringArray, toBinary, fromBinary)).toEqual(stringArray);
-            expect(testRoundtrip(unicodeArray, toBinary, fromBinary)).toEqual(unicodeArray);
-        });
-
-        it('should handle nested array types', () => {
-            const rt = runType<number[][]>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const nestedArray = [[1, 2], [3, 4], [5]];
-            const emptyNested: number[][] = [[], []];
-
-            expect(testRoundtrip(nestedArray, toBinary, fromBinary)).toEqual(nestedArray);
-            expect(testRoundtrip(emptyNested, toBinary, fromBinary)).toEqual(emptyNested);
-        });
-
-        it('should handle tuple types', () => {
-            const rt = runType<[string, number, boolean]>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const tuple: [string, number, boolean] = ['hello', 42, true];
-            const result = testRoundtrip(tuple, toBinary, fromBinary);
-
-            expect(result).toEqual(tuple);
-            expect(result[0]).toBe('hello');
-            expect(result[1]).toBe(42);
-            expect(result[2]).toBe(true);
-        });
-
-        it('should handle optional tuple members', () => {
-            const rt = runType<[string, number?]>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const completeTuple: [string, number?] = ['hello', 42];
-            const incompleteTuple: [string, number?] = ['world'];
-
-            expect(testRoundtrip(completeTuple, toBinary, fromBinary)).toEqual(completeTuple);
-            expect(testRoundtrip(incompleteTuple, toBinary, fromBinary)).toEqual(incompleteTuple);
-        });
-
-        it('should handle rest parameters in tuples', () => {
-            const rt = runType<[string, ...number[]]>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const restTuple: [string, ...number[]] = ['prefix', 1, 2, 3, 4];
-            const minimalRest: [string, ...number[]] = ['only'];
-
-            expect(testRoundtrip(restTuple, toBinary, fromBinary)).toEqual(restTuple);
-            expect(testRoundtrip(minimalRest, toBinary, fromBinary)).toEqual(minimalRest);
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserializeUndefined, value);
+            expect(value).toEqual(deserialized);
         });
     });
 
-    describe('Collection RunTypes', () => {
-        it('should handle object literal types', () => {
-            const rt = runType<{name: string; age: number}>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
+    it('date', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.date.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
 
-            const person = {name: 'John', age: 30};
-            const result = testRoundtrip(person, toBinary, fromBinary);
-
-            expect(result).toEqual(person);
-            expect(result.name).toBe('John');
-            expect(result.age).toBe(30);
-        });
-
-        it('should handle optional properties', () => {
-            // prettier-ignore
-            const rt = runType<{name: string; age?: number; address?: string; "weird\nName \"?\\"?: string}>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const all = {name: 'John', age: 30, address: '123 Main St'};
-            const withoutAge = {name: 'Jane', address: '456 Elm St'};
-            const orderChanged = {age: 30, address: '123 Main St', name: 'John'};
-            const withoutAddress = {name: 'John', age: 30};
-            const onlyName = {name: 'John'};
-            // prettier-ignore
-            const weirdName = {name: 'John', age: 30, "weird\nName \"?\\": 'hello'};
-            // prettier-ignore
-            const weirdName2 = {name: 'John', age: 45, 'weird\nName "?\\': 'hello'};
-
-            expect(testRoundtrip(all, toBinary, fromBinary)).toEqual(all);
-            expect(testRoundtrip(withoutAge, toBinary, fromBinary)).toEqual(withoutAge);
-            expect(testRoundtrip(orderChanged, toBinary, fromBinary)).toEqual(orderChanged);
-            expect(testRoundtrip(withoutAddress, toBinary, fromBinary)).toEqual(withoutAddress);
-            expect(testRoundtrip(onlyName, toBinary, fromBinary)).toEqual(onlyName);
-            expect(testRoundtrip(weirdName, toBinary, fromBinary)).toEqual(weirdName);
-            expect(testRoundtrip(weirdName2, toBinary, fromBinary)).toEqual(weirdName2);
-        });
-
-        it('should handle index signatures in objects (Records)', () => {
-            const rt = runType<{[key: string]: number}>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const record = {a: 1, b: 2, c: 3, hello: 4};
-            const result = testRoundtrip(record, toBinary, fromBinary);
-
-            expect(result).toEqual(record);
-        });
-
-        it('should handle index signatures + other props', () => {
-            const rt = runType<{[key: string]: number; foo: number}>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const record = {a: 1, b: 2, c: 3, foo: 4};
-            const result = testRoundtrip(record, toBinary, fromBinary);
-
-            expect(result).toEqual(record);
-        });
-
-        it('should handle nested object types', () => {
-            const rt = runType<{user: {name: string; profile: {email: string}}}>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const nested = {
-                user: {
-                    name: 'John',
-                    profile: {
-                        email: 'john@example.com',
-                    },
-                },
-            };
-
-            const result = testRoundtrip(nested, toBinary, fromBinary);
-            expect(result).toEqual(nested);
-            expect(result.user.name).toBe('John');
-            expect(result.user.profile.email).toBe('john@example.com');
-        });
-
-        it('should handle intersection types', () => {
-            type Person = {name: string};
-            type Employee = {id: number};
-            const rt = runType<Person & Employee>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const intersection = {name: 'John', id: 123};
-            const result = testRoundtrip(intersection, toBinary, fromBinary);
-
-            expect(result).toEqual(intersection);
-            expect(result.name).toBe('John');
-            expect(result.id).toBe(123);
-        });
-
-        it('should handle union types', () => {
-            const rt = runType<string | number>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const stringValue: string | number = 'hello';
-            const numberValue: string | number = 42;
-
-            expect(testRoundtrip(stringValue, toBinary, fromBinary)).toBe(stringValue);
-            expect(testRoundtrip(numberValue, toBinary, fromBinary)).toBe(numberValue);
-        });
-
-        it('should handle complex union types', () => {
-            type ComplexUnion = {type: 'user'; name: string} | {type: 'admin'; permissions: string[]};
-            const rt = runType<ComplexUnion>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const user: ComplexUnion = {type: 'user', name: 'John'};
-            const admin: ComplexUnion = {type: 'admin', permissions: ['read', 'write']};
-
-            expect(testRoundtrip(user, toBinary, fromBinary)).toEqual(user);
-            expect(testRoundtrip(admin, toBinary, fromBinary)).toEqual(admin);
-        });
-
-        it('should handle class types', () => {
-            class Person {
-                constructor(
-                    public name: string,
-                    public age: number
-                ) {}
-            }
-
-            const rt = runType<Person>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const person = new Person('John', 30);
-            const result = testRoundtrip(person, toBinary, fromBinary);
-
-            expect(result.name).toBe('John');
-            expect(result.age).toBe(30);
-        });
-
-        it('should handle Date class', () => {
-            const rt = runType<Date>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const date = new Date('2023-12-25T10:30:00.000Z');
-            const result = testRoundtrip(date, toBinary, fromBinary);
-
-            expect(result).toEqual(date);
-            expect(result.getTime()).toBe(date.getTime());
-        });
-
-        it('should handle Map class', () => {
-            const rt = runType<Map<string, number>>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const map = new Map([
-                ['a', 1],
-                ['b', 2],
-                ['c', 3],
-            ]);
-            const result = testRoundtrip(map, toBinary, fromBinary);
-
-            expect(result).toEqual(map);
-            expect(result.get('a')).toBe(1);
-            expect(result.get('b')).toBe(2);
-            expect(result.get('c')).toBe(3);
-        });
-
-        it('should handle Set class', () => {
-            const rt = runType<Set<string>>();
-            const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-            const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-
-            const set = new Set(['a', 'b', 'c']);
-            const result = testRoundtrip(set, toBinary, fromBinary);
-
-            expect(result).toEqual(set);
-            expect(result.has('a')).toBe(true);
-            expect(result.has('b')).toBe(true);
-            expect(result.has('c')).toBe(true);
-            expect(result.has('d')).toBe(false);
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
         });
     });
 
-    describe('Function Parameters and Return Values', () => {
-        // Define function types for testing
-        type SimpleFunction = (name: string, age: number) => string;
-        type OptionalParamsFunction = (a: number, b: boolean, c?: string) => Date;
-        type RestParamsFunction = (prefix: string, ...numbers: number[]) => string;
-        type ComplexFunction = (
-            user: {name: string; age: number},
-            options?: {format: boolean}
-        ) => {result: string; timestamp: Date};
+    it('enum', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.enum.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
 
-        describe('Function Parameters', () => {
-            it('should handle simple function parameters', () => {
-                const rt = runType<SimpleFunction>() as FunctionRunType;
-                const toBinary = rt.createJitParamsFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitParamsFunction(JitFunctions.fromBinary);
-
-                const params: [string, number] = ['John', 30];
-                const result = testRoundtrip(params, toBinary, fromBinary);
-
-                expect(result).toEqual(params);
-                expect(result[0]).toBe('John');
-                expect(result[1]).toBe(30);
-            });
-
-            it('should handle function parameters with optional values', () => {
-                const rt = runType<OptionalParamsFunction>() as FunctionRunType;
-                const toBinary = rt.createJitParamsFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitParamsFunction(JitFunctions.fromBinary);
-
-                const completeParams: [number, boolean, string] = [42, true, 'hello'];
-                const incompleteParams: [number, boolean] = [42, false];
-
-                expect(testRoundtrip(completeParams, toBinary, fromBinary)).toEqual(completeParams);
-                expect(testRoundtrip(incompleteParams, toBinary, fromBinary)).toEqual(incompleteParams);
-            });
-
-            it('should handle function parameters with rest parameters', () => {
-                const rt = runType<RestParamsFunction>() as FunctionRunType;
-                const toBinary = rt.createJitParamsFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitParamsFunction(JitFunctions.fromBinary);
-
-                const restParams: [string, ...number[]] = ['sum:', 1, 2, 3, 4, 5];
-                const minimalParams: [string, ...number[]] = ['empty:'];
-
-                expect(testRoundtrip(restParams, toBinary, fromBinary)).toEqual(restParams);
-                expect(testRoundtrip(minimalParams, toBinary, fromBinary)).toEqual(minimalParams);
-            });
-
-            it('should handle complex function parameters', () => {
-                const rt = runType<ComplexFunction>() as FunctionRunType;
-                const toBinary = rt.createJitParamsFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitParamsFunction(JitFunctions.fromBinary);
-
-                const complexParams: [{name: string; age: number}, {format: boolean}] = [
-                    {name: 'Alice', age: 25},
-                    {format: true},
-                ];
-                const minimalParams: [{name: string; age: number}] = [{name: 'Bob', age: 30}];
-
-                expect(testRoundtrip(complexParams, toBinary, fromBinary)).toEqual(complexParams);
-                expect(testRoundtrip(minimalParams, toBinary, fromBinary)).toEqual(minimalParams);
-            });
-
-            it('should handle array parameters', () => {
-                type ArrayFunction = (items: string[], counts: number[]) => boolean;
-                const rt = runType<ArrayFunction>() as FunctionRunType;
-                const toBinary = rt.createJitParamsFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitParamsFunction(JitFunctions.fromBinary);
-
-                const arrayParams: [string[], number[]] = [
-                    ['apple', 'banana', 'cherry'],
-                    [1, 2, 3],
-                ];
-
-                const result = testRoundtrip(arrayParams, toBinary, fromBinary);
-                expect(result).toEqual(arrayParams);
-                expect(result[0]).toEqual(['apple', 'banana', 'cherry']);
-                expect(result[1]).toEqual([1, 2, 3]);
-            });
-        });
-
-        describe('Function Return Values', () => {
-            it('should handle simple return values', () => {
-                const rt = runType<SimpleFunction>() as FunctionRunType;
-                const toBinary = rt.createJitReturnFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitReturnFunction(JitFunctions.fromBinary);
-
-                const returnValue = 'Hello, John (30 years old)';
-                const result = testRoundtrip(returnValue, toBinary, fromBinary);
-
-                expect(result).toBe(returnValue);
-            });
-
-            it('should handle Date return values', () => {
-                const rt = runType<OptionalParamsFunction>() as FunctionRunType;
-                const toBinary = rt.createJitReturnFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitReturnFunction(JitFunctions.fromBinary);
-
-                const returnValue = new Date('2023-12-25T10:30:00.000Z');
-                const result = testRoundtrip(returnValue, toBinary, fromBinary);
-
-                expect(result).toEqual(returnValue);
-                expect(result.getTime()).toBe(returnValue.getTime());
-            });
-
-            it('should handle complex object return values', () => {
-                const rt = runType<ComplexFunction>() as FunctionRunType;
-                const toBinary = rt.createJitReturnFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitReturnFunction(JitFunctions.fromBinary);
-
-                const returnValue = {
-                    result: 'Processed user: Alice',
-                    timestamp: new Date('2023-12-25T10:30:00.000Z'),
-                };
-
-                const result = testRoundtrip(returnValue, toBinary, fromBinary);
-                expect(result).toEqual(returnValue);
-                expect(result.result).toBe('Processed user: Alice');
-                expect(result.timestamp.getTime()).toBe(returnValue.timestamp.getTime());
-            });
-
-            it('should handle array return values', () => {
-                type ArrayReturnFunction = (input: string) => string[];
-                const rt = runType<ArrayReturnFunction>() as FunctionRunType;
-                const toBinary = rt.createJitReturnFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitReturnFunction(JitFunctions.fromBinary);
-
-                const returnValue = ['hello', 'world', '🚀'];
-                const result = testRoundtrip(returnValue, toBinary, fromBinary);
-
-                expect(result).toEqual(returnValue);
-                expect(result.length).toBe(3);
-                expect(result[2]).toBe('🚀');
-            });
-
-            it('should handle union return values', () => {
-                type UnionReturnFunction = (success: boolean) => string | number;
-                const rt = runType<UnionReturnFunction>() as FunctionRunType;
-                const toBinary = rt.createJitReturnFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitReturnFunction(JitFunctions.fromBinary);
-
-                const stringReturn: string | number = 'success';
-                const numberReturn: string | number = 404;
-
-                expect(testRoundtrip(stringReturn, toBinary, fromBinary)).toBe(stringReturn);
-                expect(testRoundtrip(numberReturn, toBinary, fromBinary)).toBe(numberReturn);
-            });
-
-            it('should handle null and undefined return values', () => {
-                type NullableReturnFunction = (input: string) => string | null | undefined;
-                const rt = runType<NullableReturnFunction>() as FunctionRunType;
-                const toBinary = rt.createJitReturnFunction(JitFunctions.toBinary);
-                const fromBinary = rt.createJitReturnFunction(JitFunctions.fromBinary);
-
-                const nullReturn: string | null | undefined = null;
-                const undefinedReturn: string | null | undefined = undefined;
-                const stringReturn: string | null | undefined = 'valid';
-
-                expect(testRoundtrip(nullReturn, toBinary, fromBinary)).toBe(nullReturn);
-                expect(testRoundtrip(undefinedReturn, toBinary, fromBinary)).toBe(undefinedReturn);
-                expect(testRoundtrip(stringReturn, toBinary, fromBinary)).toBe(stringReturn);
-            });
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
         });
     });
 
-    describe('Error Cases', () => {
-        it('should throw for unknown types', () => {
-            expect(() => {
-                type UnknownType = unknown;
-                const rt = runType<UnknownType>();
-                rt.createJitFunction(JitFunctions.toBinary);
-            }).toThrow('Binary serialization not supported for unknown/any types');
+    it('symbol', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.symbol.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(deserialized.toString()).toEqual(value.toString());
+        });
+    });
+
+    it('object', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.object.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('void', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.void.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+        // json.parse does not support undefined, so we need to skip deserialization
+        const deserializeUndefined = (v: any) => (typeof v === 'undefined' ? undefined : deserialize(v));
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserializeUndefined, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('never', () => {
+        const {rt} = SERIALIZATION_SPEC.ATOMIC.never.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow('Never type cannot be serialized to Binary');
+        expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow('Never type cannot be deserialized from Binary');
+    });
+
+    it('literal string', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.literal_string.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('literal number', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.literal_number.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('literal boolean', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.literal_boolean.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('literal regexp', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ATOMIC.literal_regexp.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.ATOMIC).length;
+        expect(ranTests).toBe(totalTest);
+    });
+});
+
+describe('arrays', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
+    it('array', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.array.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('array of dates', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.array_date.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('undefined in array', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.undefined_in_array.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('multi dimensional array', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.multi_dimensional.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('non serializable items throws an error', () => {
+        const {rt} = SERIALIZATION_SPEC.ARRAYS.non_serializable_in_array.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
+            'Arrays can not have non serializable types, ie: Symbol[], Function[], etc.'
+        );
+        expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
+            'Arrays can not have non serializable types, ie: Symbol[], Function[], etc.'
+        );
+    });
+
+    it('array to strip extra params without fail', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.object_with_circular_array.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('array circular', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.circular.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.ARRAYS).length;
+        expect(ranTests).toBe(totalTest);
+    });
+});
+
+describe('objects', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
+
+    it('interface', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.interface.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.interface.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('undefined in object', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.undefined_in_object.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('class', () => {
+        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.OBJECTS.class.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.class.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(deserialized).toEqual(deserializedValues[i]);
+            // deserialized object is a plain object and not a class instance
+            expect(deserialized.constructor.name).not.toEqual(originalValues[i].constructor.name);
+        });
+    });
+
+    it('serializable class can be deserialized after they are registered', async () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.serializable_class_restored.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.serializable_class_restored.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+            // class has been registered for deserialization so we get a class instance back
+            expect(deserialized.constructor.name).toEqual(originalValues[i].constructor.name);
+        });
+    });
+
+    it('classes can be deserialized suing a deserialize function', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.classes_deserialize_function.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.classes_deserialize_function.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized.constructor.name).toEqual(originalValues[i].constructor.name);
+        });
+    });
+
+    it('extended class', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.extended_class.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.extended_class.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('RpcError class are restored to class by default', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.rpc_error_class.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.rpc_error_class.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized.constructor.name).toEqual(originalValues[i].constructor.name);
+        });
+    });
+
+    it('must set optional properties first in order to work properly', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.optional_properties_order.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.optional_properties_order.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('should work when all fields are optional', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.all_optional_fields.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.all_optional_fields.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('to strip extra params without fail', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.strip_extra_params.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.strip_extra_params.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('interface circular', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.interface_circular.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.interface_circular.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('interface circular array', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.interface_circular_array.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.interface_circular_array.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('interface circular deep', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.interface_circular_deep.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.interface_circular_deep.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('interface root not circular', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.interface_root_not_circular.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.interface_root_not_circular.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('interface multiple circular', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.interface_multiple_circular.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.interface_multiple_circular.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('interface with methods - methods should be excluded', () => {
+        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.OBJECTS.interface_with_methods.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(deserialized).toEqual(deserializedValues[i]);
+        });
+    });
+
+    it('interface circular tuple', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.interface_circular_tuple.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.interface_circular_tuple.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.OBJECTS).length;
+        expect(ranTests).toBe(totalTest);
+    });
+});
+
+describe('records', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
+
+    it('index property', () => {
+        const {rt, values} = SERIALIZATION_SPEC.RECORDS.index_property.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('interfaces with a property and index property', () => {
+        const {rt, values} = SERIALIZATION_SPEC.RECORDS.index_property_and_prop.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.RECORDS.index_property_and_prop.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('index property with extra props', () => {
+        const {rt, values} = SERIALIZATION_SPEC.RECORDS.index_property_extra.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('multiple index properties', () => {
+        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.RECORDS.multiple_index_props.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(deserializedValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('index property nested', () => {
+        const {rt, values} = SERIALIZATION_SPEC.RECORDS.index_property_nested.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('index property nested date', () => {
+        const {rt, values} = SERIALIZATION_SPEC.RECORDS.index_property_nested_date.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('index property with bigint values', () => {
+        const {rt, values} = SERIALIZATION_SPEC.RECORDS.index_property_bigint.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.RECORDS.index_property_bigint.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('index property non-root', () => {
+        const {rt, values} = SERIALIZATION_SPEC.RECORDS.index_property_non_root.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.RECORDS).length;
+        expect(ranTests).toBe(totalTest);
+    });
+});
+
+describe('tuples', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
+
+    it('tuple', () => {
+        const {rt, values} = SERIALIZATION_SPEC.TUPLES.tuple.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.TUPLES.tuple.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('tuple with optional params', () => {
+        const {rt, values} = SERIALIZATION_SPEC.TUPLES.tuple_with_optional.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.TUPLES.tuple_with_optional.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('tuple rest parameter', () => {
+        const {rt, values} = SERIALIZATION_SPEC.TUPLES.tuple_rest_parameter.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.TUPLES.tuple_rest_parameter.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('tuple circular', () => {
+        const {rt, values} = SERIALIZATION_SPEC.TUPLES.tuple_circular.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.TUPLES.tuple_circular.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('tuple with non serializable types are transformed to undefined', () => {
+        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.TUPLES.tuple_with_non_serializable.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(deserializedValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.TUPLES).length;
+        expect(ranTests).toBe(totalTest);
+    });
+});
+
+describe('functions', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
+
+    it('throw errors for functions', () => {
+        const {rt} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_functions.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
+            `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
+        );
+        expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
+            `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
+        );
+    });
+
+    it('parameters', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.parameters.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.parameters.getTestData(true);
+        const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('function with Date parameters', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.function_with_date_parameters.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.function_with_date_parameters.getTestData(true);
+        const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('optional parameters', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.optional_params.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.optional_params.getTestData(true);
+        const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('function return', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.function_return.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.function_return.getTestData(true);
+        const {serialize, deserialize} = createSerializationReturnFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('stringify function with rest parameters', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.function_with_rest_parameters.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.function_with_rest_parameters.getTestData(true);
+        const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('required function return', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.required_function_return.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.required_function_return.getTestData(true);
+        const {serialize, deserialize} = createSerializationReturnFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('stringify function with only rest parameters', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.function_with_only_rest_parameters.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.function_with_only_rest_parameters.getTestData(true);
+        const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('non serializable types', () => {
+        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.FUNCTIONS.non_serializable_params.getTestData();
+        const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(deserializedValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it(`if function's return type is a promise then return type should be the promise's resolvedType`, () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.function_promise_return_type.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.function_promise_return_type.getTestData(true);
+        const {serialize, deserialize} = createSerializationReturnFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it(`if function's return type is a function then return type should be the function's return type`, () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.function_return_type_is_function.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.function_return_type_is_function.getTestData(true);
+        const {serialize, deserialize} = createSerializationReturnFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('should get params runType from a function using reflectFunction', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.reflectFunction_params.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.reflectFunction_params.getTestData(true);
+        const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('should get return runType from a function using reflectFunction', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.reflectFunction_return.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.reflectFunction_return.getTestData(true);
+        const {serialize, deserialize} = createSerializationReturnFn(rt as FunctionRunType);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('slice function params', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.function_slice_params.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.function_slice_params.getTestData(true);
+        const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType, 1);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('call signature params', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.call_signature_params.getTestData();
+        const {serialize, deserialize} = createSerializationCallSignatureParamsFn(rt as InterfaceRunType);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('call signature return', () => {
+        const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.call_signature_return.getTestData();
+        const {serialize, deserialize} = createSerializationCallSignatureReturnFn(rt as InterfaceRunType);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
+    it('throw errors for call signatures', () => {
+        const {rt} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_call_signature.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
+            `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
+        );
+        expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
+            `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
+        );
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.FUNCTIONS).length;
+        expect(ranTests).toBe(totalTest);
+    });
+});
+
+describe('utility-types', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
+
+    it('awaited', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UTILITY_TYPES.awaited.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UTILITY_TYPES.awaited.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('exclude atomic', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UTILITY_TYPES.exclude_atomic.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UTILITY_TYPES.exclude_atomic.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('exclude objects', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UTILITY_TYPES.exclude_objects.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UTILITY_TYPES.exclude_objects.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('required properties', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UTILITY_TYPES.required_properties.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UTILITY_TYPES.required_properties.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('extract atomic', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UTILITY_TYPES.extract_atomic.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UTILITY_TYPES.extract_atomic.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('extract objects', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UTILITY_TYPES.extract_objects.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UTILITY_TYPES.extract_objects.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('partial properties', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UTILITY_TYPES.partial_properties.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UTILITY_TYPES.partial_properties.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('pick properties', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UTILITY_TYPES.pick_properties.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UTILITY_TYPES.pick_properties.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('omit properties', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UTILITY_TYPES.omit_properties.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UTILITY_TYPES.omit_properties.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('record type', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UTILITY_TYPES.record_type.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UTILITY_TYPES.record_type.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.UTILITY_TYPES).length;
+        expect(ranTests).toBe(totalTest);
+    });
+});
+
+describe('unions', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
+
+    it('union', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UNIONS.union.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.union.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('throw errors when serializing/deserializing object not belonging to the union', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_errors.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+        const jsonValues = values.map((item) => JSON.stringify([-1, item])); // invalid union index
+
+        values.forEach((value, i) => {
+            expect(() => serialize(value)).toThrow('Can not json encode union: item does not belong to the union');
+            expect(() => deserialize(jsonValues[i])).toThrow('Can not json decode union: invalid union index');
+        });
+    });
+
+    it('union array', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_array.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.union_array.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
         });
 
-        it('should throw for generic object types', () => {
-            expect(() => {
-                type ObjectType = object;
-                const rt = runType<ObjectType>();
-                rt.createJitFunction(JitFunctions.toBinary);
-            }).toThrow('Binary serialization not supported for generic object types');
+        // ensure code for items that do not
+        const jitSerializeFn = rt.createJitFunction(SERIALIZE_FN);
+        const stringifyCode = jitSerializeFn.toString();
+        expect(stringifyCode).not.toContain('[0,');
+        expect(stringifyCode).not.toContain('[1,');
+        expect(stringifyCode).not.toContain('[2,');
+        expect(stringifyCode).toContain('[3,'); // date must be encoded to tuple [index, type]
+    });
+
+    it('with discriminator', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UNIONS.with_discriminator.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.with_discriminator.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
         });
 
-        it('should throw for never types', () => {
-            expect(() => {
-                type NeverType = never;
-                const rt = runType<NeverType>();
-                rt.createJitFunction(JitFunctions.toBinary);
-            }).toThrow('Never type cannot be serialized to Binary');
-        });
+        // ensure code for items that do not need stringify to tuple is not emitted [index, type]
+        const jitSerializeFn = rt.createJitFunction(SERIALIZE_FN);
+        const stringifyCode = jitSerializeFn.toString();
+        expect(stringifyCode).not.toContain('[0,');
+        expect(stringifyCode).toContain('[1,'); // bigint must be encoded to tuple [index, type]
+        expect(stringifyCode).not.toContain('[2,');
+        expect(stringifyCode).toContain('[3,'); // date must be encoded to tuple [index, type]
+    });
 
-        it('should throw for Promise types', () => {
-            expect(() => {
-                const rt = runType<Promise<string>>();
-                rt.createJitFunction(JitFunctions.toBinary);
-            }).toThrow('Binary serialization not supported for Promise types');
-        });
+    it('union object with discriminator', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_object_with_discriminator.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.union_object_with_discriminator.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
 
-        it('should throw for non-serializable types', () => {
-            expect(() => {
-                // This would be a type marked as non-serializable
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-                const rt = runType<Function>();
-                rt.createJitFunction(JitFunctions.toBinary);
-            }).toThrow();
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
         });
+    });
+
+    it('union with discriminator property', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_with_discriminator_property.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.union_with_discriminator_property.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('union mixed with discriminator', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_mixed_with_discriminator.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.union_mixed_with_discriminator.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('union index property with discriminator', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_index_property_with_discriminator.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.union_index_property_with_discriminator.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('Circular Union with discriminator', () => {
+        const {rt, values} = SERIALIZATION_SPEC.UNIONS.circular_union_with_discriminator.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.circular_union_with_discriminator.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('union with methods - methods should be excluded', () => {
+        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.UNIONS.union_with_methods.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(deserialized).toEqual(deserializedValues[i]);
+        });
+    });
+
+    it('union with non serializable types throws an error', () => {
+        const {rt} = SERIALIZATION_SPEC.UNIONS.union_whit_non_serializable.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
+            'Union can not have non serializable types, ie: Symbol, Function, etc.'
+        );
+        expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
+            'Union can not have non serializable types, ie: Symbol, Function, etc.'
+        );
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.UNIONS).length;
+        expect(ranTests).toBe(totalTest);
+    });
+});
+
+describe('iterables', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
+
+    it('Set', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ITERABLES.set.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.ITERABLES.set.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('Set<SmallObject>', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ITERABLES.set_small_object.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.ITERABLES.set_small_object.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('objects with nested sets', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ITERABLES.objects_with_nested_sets.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.ITERABLES.objects_with_nested_sets.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('Map', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ITERABLES.map.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.ITERABLES.map.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('Map<string, SmallObject>', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ITERABLES.map_string_small_object.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.ITERABLES.map_string_small_object.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('Map<SmallObject, number>', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ITERABLES.map_small_object_number.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.ITERABLES.map_small_object_number.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('Map with bigint keys', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ITERABLES.map_with_bigint_keys.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.ITERABLES.map_with_bigint_keys.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('Map with date values', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ITERABLES.map_with_date_values.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.ITERABLES.map_with_date_values.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('objects with nested maps', () => {
+        const {rt, values} = SERIALIZATION_SPEC.ITERABLES.objects_with_nested_maps.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.ITERABLES.objects_with_nested_maps.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.ITERABLES).length;
+        expect(ranTests).toBe(totalTest);
+    });
+});
+
+describe('circular-references', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
+
+    it('circular types', () => {
+        const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_types.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_types.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('CircularUnion array with discriminator', () => {
+        const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_union_array.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_union_array.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(deserialized.length).toEqual(originalValues[i].length);
+        });
+    });
+
+    it('CircularTuple object with discriminator', () => {
+        const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_tuple.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_tuple.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('CircularIndex object with discriminator', () => {
+        const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_index.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_index.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('CircularDeep object with discriminator', () => {
+        const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_deep.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_deep.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('Circular tuple with complex structure', () => {
+        const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_tuple_complex.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.CIRCULAR_REFS.circular_tuple_complex.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.CIRCULAR_REFS).length;
+        expect(ranTests).toBe(totalTest);
+    });
+});
+
+describe('others', () => {
+    let ranTests = 0;
+    afterEach(() => ranTests++);
+
+    it('should throw error for Promise types', () => {
+        const {rt} = SERIALIZATION_SPEC.OTHERS.promise_jsonStringify_error.getTestData();
+        const errorMessage = `Jit compilation disabled for Non Serializable types.`;
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(errorMessage);
+    });
+
+    it('should throw error for non-serializable atomic types', () => {
+        const {rt} = SERIALIZATION_SPEC.OTHERS.non_serializable.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow();
+    });
+
+    it('should throw error for non-serializable types in interfaces', () => {
+        const {rt} = SERIALIZATION_SPEC.OTHERS.non_serializable_interface.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow();
+    });
+
+    it('should throw error for non-serializable types in arrays', () => {
+        const {rt} = SERIALIZATION_SPEC.OTHERS.non_serializable_array.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow();
+    });
+
+    it('should throw error for non-serializable types in tuples', () => {
+        const {rt} = SERIALIZATION_SPEC.OTHERS.non_serializable_tuple.getTestData();
+        expect(() => rt.createJitFunction(SERIALIZE_FN)()).toThrow();
+    });
+
+    it('all test ran', () => {
+        const totalTest = Object.keys(SERIALIZATION_SPEC.OTHERS).length;
+        expect(ranTests).toBe(totalTest);
     });
 });
