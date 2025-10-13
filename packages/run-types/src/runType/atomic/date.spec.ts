@@ -21,15 +21,6 @@ it('validate Date + errors', () => {
     expect(valWithErrors('hello')).toEqual([{path: [], expected: 'date'}]);
 });
 
-it('encode/decode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const typeValue = new Date();
-    expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual(typeValue);
-});
-
-// Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 123-130)
-
 it('mock', async () => {
     const mocked = await rt.mock();
     expect(mocked instanceof Date).toBe(true);

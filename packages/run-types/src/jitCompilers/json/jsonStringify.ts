@@ -122,6 +122,7 @@ export function _compileJsonStringify(
         // Types that represent members of collections or other structures
         case ReflectionKind.array: {
             const rt = runType as ArrayRunType;
+            rt.checkNonSkipTypes(comp);
             const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
             if (!memberCode) return `JSON.stringify(${comp.vλl})`;
             const jsonItems = `ls${comp.getNestLevel(rt)}`;
@@ -266,6 +267,7 @@ export function _compileJsonStringify(
             throw new Error('Type parameter not implemented.');
         case ReflectionKind.union: {
             const urt = runType as UnionRunType;
+            urt.checkNonSkipTypes(comp);
             const {simpleItems, objectTypes} = urt.getUnionChildren(comp);
             const errName = `uErr${comp.getNestLevel(urt)}`;
             const fail = `throw new Error(${errName});`;

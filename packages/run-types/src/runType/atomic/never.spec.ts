@@ -28,18 +28,6 @@ it('validate never + errors', () => {
     expect(valWithErrors('hello')).toEqual([{path: [], expected: 'never'}]);
 });
 
-it('encode to json should throw an error', () => {
-    expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow('Never type cannot be encoded to JSON.');
-});
-
-it('decode from json should throw an error', () => {
-    expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow('Never type cannot be decoded from JSON.');
-});
-
-it('json stringify', () => {
-    expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow('Never type cannot be stringified.');
-});
-
 it('mock', async () => {
     await expect(() => rt.mock()).rejects.toThrow('Cannot mock never type.');
 });
