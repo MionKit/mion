@@ -351,22 +351,6 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
-        object_with_circular_array: {
-            title: 'array to strip extra params without fail',
-            getTestData: (dataOnly = false) => {
-                const rt = dataOnly ? (null as any) : runType<ObjCircularArr>();
-                const value: ObjCircularArr = {
-                    a: 'hello',
-                    deep: {
-                        b: 'world',
-                        c: 123,
-                    },
-                    d: [{a: 'hello2', deep: {b: 'world2', c: 1234}}],
-                };
-                const values = [value];
-                return {rt, values};
-            },
-        },
         circular: {
             title: 'array circular',
             getTestData: (dataOnly = false) => {
@@ -406,6 +390,29 @@ export const SERIALIZATION_SPEC = {
                     "weird prop name \n?>'\\\t\r": 'hello2',
                 };
                 const values = [value];
+                return {rt, values};
+            },
+        },
+        many_optional_props: {
+            title: 'interface',
+            getTestData: (dataOnly = false) => {
+                type N = number;
+                // prettier-ignore
+                type ManyOptional = {
+                    // First 32 bits of bitmap
+                    a0?: N; a1?: N; a2?: N; a3?: N; a4?: N; a5?: N; a6?: N; a7?: N; a8?: N; a9?: N; a10?: N; a11?: N; a12?: N; a13?: N; a14?: N; a15?: N;
+                    b0?: N; b1?: N; b2?: N; b3?: N; b4?: N; b5?: N; b6?: N; b7?: N; b8?: N; b9?: N; b10?: N; b11?: N; b12?: N; b13?: N; b14?: N; b15?: N;
+                    // Second 32 bits of bitmap
+                    c0?: N; c1?: N; c2?: N; c3?: N; c4?: N; c5?: N; c6?: N; c7?: N; c8?: N; c9?: N; c10?: N; c11?: N; c12?: N; c13?: N; c14?: N; c15?: N;
+                    d0?: N; d1?: N; d2?: N; d3?: N; d4?: N; d5?: N; d6?: N; d7?: N; d8?: N; d9?: N; d10?: N; d11?: N; d12?: N; d13?: N; d14?: N; d15?: N;
+                };
+                const rt = dataOnly ? (null as any) : runType<ManyOptional>();
+                // prettier-ignore
+                const value1: ManyOptional = {a0: 0, a1: 1, b0:16, c0: 32, c15: 47, d15: 63};
+                // prettier-ignore
+                const values2: ManyOptional = {a0: 0, d0: 48};
+                const values3: ManyOptional = {};
+                const values = [value1, values2, values3];
                 return {rt, values};
             },
         },
@@ -1527,6 +1534,22 @@ export const SERIALIZATION_SPEC = {
                 type CircularTupleComplex = [bigint, CircularTupleComplex?];
                 const rt = dataOnly ? (null as any) : runType<CircularTupleComplex>();
                 const values = [[1n, [2n, [3n, [4n]]]], [1n, [2n]], [1n]];
+                return {rt, values};
+            },
+        },
+        object_with_circular_array: {
+            title: 'array to strip extra params without fail',
+            getTestData: (dataOnly = false) => {
+                const rt = dataOnly ? (null as any) : runType<ObjCircularArr>();
+                const value: ObjCircularArr = {
+                    a: 'hello',
+                    deep: {
+                        b: 'world',
+                        c: 123,
+                    },
+                    d: [{a: 'hello2', deep: {b: 'world2', c: 1234}}],
+                };
+                const values = [value];
                 return {rt, values};
             },
         },

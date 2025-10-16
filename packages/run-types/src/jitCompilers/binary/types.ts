@@ -7,12 +7,15 @@
 
 export type StrictArrayBuffer = ArrayBuffer & {buffer?: undefined};
 
+// ############################ IMPORTANT NOTE #####################################
+// DO NOT CHAnGE THE INTERFACE NAMES AS THEY ARE HARDCODED IN THE JIT GENERATED CODE
+// #################################################################################
+
 export interface BinarySerializer {
     index: number;
     buffer: ArrayBuffer;
-    uint32Array: Uint32Array;
-    float32Array: Float32Array;
-    float64Array: Float64Array;
+    uint32: Uint32Array;
+    float64: Float64Array;
     reset: () => void;
     getBuffer: () => StrictArrayBuffer;
     // String encoding and caching
@@ -30,9 +33,8 @@ export interface BinarySerializer {
 export interface BinaryDeserializer {
     index: number;
     buffer: StrictArrayBuffer;
-    uint32Array: Uint32Array;
-    float32Array: Float32Array;
-    float64Array: Float64Array;
+    uint32: Uint32Array;
+    float64: Float64Array;
     setBuffer: (buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) => void;
     // String decoding and caching
     textDecoder: TextDecoder;

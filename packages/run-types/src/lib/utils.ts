@@ -360,8 +360,12 @@ export function createIfElseFn(): (isEnd?: boolean) => string {
 }
 
 export function getJitFnArgCallVarName(parentComp: JitCompiler, rt: BaseRunType, idFnToCall: JitFnID, argKey: string): string {
+    const fnConfig = getJitFnSettings(idFnToCall);
+    const defaultArgVal = fnConfig.jitDefaultArgs[argKey];
     // vλl is a special case because it is the only arg that changes based on the stack
-    if (argKey === 'vλl') return parentComp.getCurrentStackItem().vλl;
+    if (argKey === 'vλl' && fnConfig.noInitialVλl) return 'undefined'; // when no initial vλl is required, we pass undefined
+    if (argKey === 'vλl') return parentComp.getCurrentStackItem().vλl; // when vλl is required we pass the current stack item
+
     // first check if the arg is provided by the context
     const varNameFromContext = parentComp.getChildrenCallArgs(idFnToCall)?.[argKey];
     if (varNameFromContext) return varNameFromContext;
@@ -369,8 +373,6 @@ export function getJitFnArgCallVarName(parentComp: JitCompiler, rt: BaseRunType,
     const varNameFromParent = parentComp.args[argKey];
     if (varNameFromParent) return varNameFromParent;
     // if neither the parent nor the context has the arg, we create a new default value in the context
-    const fnConfig = getJitFnSettings(idFnToCall);
-    const defaultArgVal = fnConfig.jitDefaultArgs[argKey];
     // if there is no default value, we can't call the function
     if (!defaultArgVal)
         throw new Error(

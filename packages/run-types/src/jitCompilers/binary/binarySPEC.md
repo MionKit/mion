@@ -40,15 +40,14 @@ SeqProto doesn't handle object properties, so we define our own property encodin
 
 | Header Type          | Bit Layout                    | Description                                                                                          | Max Values       |
 | -------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------- |
-| **Known Property**   | `[16-bit prop index]`         | Index of the property in the Type definition, optional props that are not defined are not serialized | 65536 properties |
+| **Known Property**   | no header required            | Index of the property in the Type definition, optional props that are not defined are not serialized | 65536 properties |
 | **Unknown Property** | `[length + string prop name]` | Dynamic property name                                                                                | Unlimited        |
 
-### Collection Headers
+### Arrays
 
-| Collection | Bit Layout            | Description                                                               |
-| ---------- | --------------------- | ------------------------------------------------------------------------- |
-| **Array**  | `[length + elements]` | Length as uint32, number of elements                                      |
-| **Object** | `[length + elements]` | Length as uint32, number of elements, elements are `[propHeader + value]` |
+| Collection | Bit Layout            | Description                          |
+| ---------- | --------------------- | ------------------------------------ |
+| **Array**  | `[length + elements]` | Length as uint32, number of elements |
 
 ### Number Types (Type-Aware Encoding)
 
@@ -89,13 +88,20 @@ Following seqproto's number encoding strategy:
 | **Set**    | Serialize as Array of values                                                               | Use seqproto function            |
 | **Class**  | Serialize as data only, functions are not serialized.                                      | Use object function              |
 
+### Object Serialization
+
+Object are serialized with all required props in order, this guarantee fast and simple sequential serialization/deserialization.
+Optional props are serialized as [`optional props bitmap + optional props values`].
+The bitmap for optional props is variable length but determined at compile time depending on the number of optional props min length is 4 bytes, and then the optional props.
+Each bit in the bitmap represents whether the corresponding optional prop is present or not. so the number of optional props corresponds to the number of bits to 1 in the bitmap.
+
 ### Object Properties (32-bit Aligned)
 
-| Property Type          | Bit Layout                   | Encoding                                           | Notes                                              |
-| ---------------------- | ---------------------------- | -------------------------------------------------- | -------------------------------------------------- |
-| **Non Optional props** | `value`                      | `[encode value]`                                   | Serialized in order they are declared in the type. |
-| **Optional props**     | `[propIndex + value]`        | `uint32Array[index++] = propIndex; [encode value]` | Direct property index                              |
-| **Unknown Props**      | `[string prop name + value]` | `serializeString(propName); [encode value]`        | used inIndexSignature or Records                   |
+| Property Type          | Bit Layout                                        | Encoding                                    | Notes                                              |
+| ---------------------- | ------------------------------------------------- | ------------------------------------------- | -------------------------------------------------- |
+| **Non Optional props** | `value`                                           | `[encode value]`                            | Serialized in order they are declared in the type. |
+| **Optional props**     | `[optional props bitmap + optional props values]` |                                             |                                                    |
+| **Unknown Props**      | `[string prop name + value]`                      | `serializeString(propName); [encode value]` | used inIndexSignature or Records                   |
 
 ### TypeScript Features
 

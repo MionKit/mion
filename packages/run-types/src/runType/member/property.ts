@@ -15,6 +15,8 @@ import {type CodeType, JitFunctions} from '../../constants.functions';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     isUnionDiscriminator = false;
+    /** this is set by the parent interface if prop is optional, when optional properties are sorted */
+    optionalIndex = -1;
     getCodeType(fnID: JitFnID): CodeType {
         switch (fnID) {
             case JitFunctions.fromBinary.id:
