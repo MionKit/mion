@@ -12,6 +12,7 @@ import {createBinaryDeserializer, createBinarySerializer} from './binarySerializ
 import type {BinaryDeserializer, BinarySerializer, StrictArrayBuffer} from './types';
 import type {InterfaceRunType} from '../../runType/collection/interface';
 import type {RunType} from '../../types';
+import {runType} from '../../lib/runType';
 
 const serContext: BinarySerializer = createBinarySerializer({bufferSize: 1024});
 const desContext: BinaryDeserializer = createBinaryDeserializer(new ArrayBuffer(0));
@@ -319,6 +320,7 @@ describe('atomic', () => {
 describe('arrays', () => {
     let ranTests = 0;
     afterEach(() => ranTests++);
+
     it('array', () => {
         const {rt, values} = SERIALIZATION_SPEC.ARRAYS.array.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
@@ -369,16 +371,6 @@ describe('arrays', () => {
         );
     });
 
-    it('array to strip extra params without fail', () => {
-        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.object_with_circular_array.getTestData();
-        const {serialize, deserialize} = createSerializationFns(rt);
-
-        values.forEach((value) => {
-            const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(value).toEqual(deserialized);
-        });
-    });
-
     it('array circular', () => {
         const {rt, values} = SERIALIZATION_SPEC.ARRAYS.circular.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
@@ -407,6 +399,16 @@ describe('objects', () => {
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
             expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('interface with many optional props should be compiled correctly', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.many_optional_props.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
         });
     });
 
@@ -1385,6 +1387,16 @@ describe('circular-references', () => {
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
             expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('array to strip extra params without fail', () => {
+        const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.object_with_circular_array.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
         });
     });
 

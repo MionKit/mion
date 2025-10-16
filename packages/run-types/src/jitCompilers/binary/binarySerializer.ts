@@ -22,6 +22,9 @@ const NUM = 2;
 
 // ############## create serializer & deserializer ##############
 
+// These binary serializer should be based in the Uint32Array so everything should be aligned to 4 bytes
+// floats will be stored in 8 bytes and add some padding if needed
+
 export function createBinarySerializer({bufferSize}: CreateSerOption = {}): BinarySerializer {
     const size = bufferSize ?? 2 ** 24;
     if (size >= POW_2_32) throw new Error('bufferSize option must be strictly less than 2 ** 32');
@@ -29,11 +32,10 @@ export function createBinarySerializer({bufferSize}: CreateSerOption = {}): Bina
     const alignedSize = Math.floor(size / 8) * 8;
     const buffer = new ArrayBuffer(alignedSize);
     const Ser: BinarySerializer = {
-        index: 0,
+        index: 0, // index in uint32 (4 bytes)
         buffer,
-        uint32Array: new Uint32Array(buffer),
-        float32Array: new Float32Array(buffer),
-        float64Array: new Float64Array(buffer),
+        uint32: new Uint32Array(buffer),
+        float64: new Float64Array(buffer),
         textEncoder: new TextEncoder(),
         maxStrLength: 64,
         maxCacheSize: 600,
@@ -74,39 +76,39 @@ export function createBinarySerializer({bufferSize}: CreateSerOption = {}): Bina
         },
         serFloat64(n: number): void {
             if (Ser.index % 2 !== 0) {
-                Ser.uint32Array[Ser.index] = 0;
+                Ser.uint32[Ser.index] = 0;
                 Ser.index++;
             }
-            Ser.float64Array[Ser.index / 2] = n;
+            Ser.float64[Ser.index / 2] = n;
             Ser.index += 2;
         },
         serNumber(n: number): void {
             if (!Number.isInteger(n)) {
-                Ser.uint32Array[Ser.index++] = FLOAT64;
+                Ser.uint32[Ser.index++] = FLOAT64;
                 Ser.serFloat64(n);
             } else if (n >= 0) {
                 if (n <= 0xffffffff) {
-                    Ser.uint32Array[Ser.index++] = UINT32;
-                    Ser.uint32Array[Ser.index++] = n;
+                    Ser.uint32[Ser.index++] = UINT32;
+                    Ser.uint32[Ser.index++] = n;
                 } else {
-                    Ser.uint32Array[Ser.index++] = FLOAT64;
+                    Ser.uint32[Ser.index++] = FLOAT64;
                     Ser.serFloat64(n);
                 }
             } else if (n >= -0x80000000) {
-                Ser.uint32Array[Ser.index++] = INT32;
-                Ser.uint32Array[Ser.index++] = POW_2_32 + n;
+                Ser.uint32[Ser.index++] = INT32;
+                Ser.uint32[Ser.index++] = POW_2_32 + n;
             } else {
-                Ser.uint32Array[Ser.index++] = FLOAT64;
+                Ser.uint32[Ser.index++] = FLOAT64;
                 Ser.serFloat64(n);
             }
         },
         serEnum(n: number | string): void {
             if (typeof n === 'number') {
-                Ser.uint32Array[Ser.index++] = NUM;
-                Ser.uint32Array[Ser.index++] = n;
+                Ser.uint32[Ser.index++] = NUM;
+                Ser.uint32[Ser.index++] = n;
                 return;
             }
-            Ser.uint32Array[Ser.index++] = STR;
+            Ser.uint32[Ser.index++] = STR;
             Ser.serString(n);
         },
     };
@@ -114,7 +116,7 @@ export function createBinarySerializer({bufferSize}: CreateSerOption = {}): Bina
 }
 
 function setIndex(ser: BinarySerializer, length: number) {
-    ser.uint32Array[ser.index] = length;
+    ser.uint32[ser.index] = length;
     ser.index += Math.ceil(length / 4) + 1;
 }
 
@@ -122,11 +124,10 @@ export function createBinaryDeserializer(buffer: StrictArrayBuffer): BinaryDeser
     const n32 = Math.floor(buffer.byteLength / 4);
     const n64 = Math.floor(buffer.byteLength / 8);
     const Des: BinaryDeserializer = {
-        index: 0,
+        index: 0, // index in uint32 (4 bytes)
         buffer,
-        uint32Array: new Uint32Array(buffer, 0, n32),
-        float32Array: new Float32Array(buffer, 0, n32),
-        float64Array: new Float64Array(buffer, 0, n64),
+        uint32: new Uint32Array(buffer, 0, n32),
+        float64: new Float64Array(buffer, 0, n64),
         textDecoder: new TextDecoder(),
         maxStrLength: 64,
         maxCacheSize: 600,
@@ -149,21 +150,19 @@ export function createBinaryDeserializer(buffer: StrictArrayBuffer): BinaryDeser
                 const n32 = this.index + Math.ceil(byteLength / 4);
                 const n64 = this.index + Math.ceil(byteLength / 8);
                 this.buffer = buffer;
-                this.uint32Array = new Uint32Array(buffer, 0, n32);
-                this.float32Array = new Float32Array(buffer, 0, n32);
-                this.float64Array = new Float64Array(buffer, 0, n64);
+                this.uint32 = new Uint32Array(buffer, 0, n32);
+                this.float64 = new Float64Array(buffer, 0, n64);
                 return;
             }
             const n32 = Math.floor(buffer.byteLength / 4);
             const n64 = Math.floor(buffer.byteLength / 8);
             this.buffer = buffer;
             this.index = 0;
-            this.uint32Array = new Uint32Array(buffer, 0, n32);
-            this.float32Array = new Float32Array(buffer, 0, n32);
-            this.float64Array = new Float64Array(buffer, 0, n64);
+            this.uint32 = new Uint32Array(buffer, 0, n32);
+            this.float64 = new Float64Array(buffer, 0, n64);
         },
         desString(): string {
-            const len = Des.uint32Array[Des.index++];
+            const len = Des.uint32[Des.index++];
             const bytes = new Uint8Array(Des.buffer, Des.index * 4, len);
             const indexIncrement = Math.ceil(len / 4);
             Des.index += indexIncrement;
@@ -178,26 +177,26 @@ export function createBinaryDeserializer(buffer: StrictArrayBuffer): BinaryDeser
         },
         desFloat64(): number {
             if (Des.index % 2 !== 0) Des.index++;
-            const value = Des.float64Array[Des.index / 2];
+            const value = Des.float64[Des.index / 2];
             Des.index += 2;
             return value;
         },
         desNumber(): number {
-            const type = Des.uint32Array[Des.index++];
+            const type = Des.uint32[Des.index++];
             switch (type) {
                 case UINT32:
-                    return Des.uint32Array[Des.index++];
+                    return Des.uint32[Des.index++];
                 case INT32:
-                    return Des.uint32Array[Des.index++] - POW_2_32;
+                    return Des.uint32[Des.index++] - POW_2_32;
                 case FLOAT64:
                     return Des.desFloat64();
                 default:
-                    throw new Error('Unknown number type: ' + type);
+                    throw new Error(`Unknown number type: ${type} at position ${Des.index - 1}`);
             }
         },
         desEnum(): number | string {
-            const type = Des.uint32Array[Des.index++];
-            if (type === NUM) return Des.uint32Array[Des.index++];
+            const type = Des.uint32[Des.index++];
+            if (type === NUM) return Des.uint32[Des.index++];
             return Des.desString();
         },
     };

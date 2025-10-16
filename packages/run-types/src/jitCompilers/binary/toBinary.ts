@@ -10,10 +10,7 @@ import {ReflectionSubKind} from '../../constants.kind';
 import type {jitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
 import {type BaseCompiler} from '../../lib/jitCompiler';
-import type {LiteralRunType} from '../../runType/atomic/literal';
 import {jitBinarySerializerArgs, JitFunctions} from '../../constants.functions';
-import {Mutable} from '@mionkit/core';
-import {toLiteralInContext} from '../../lib/utils';
 import type {ArrayRunType} from '../../runType/member/array';
 import type {PropertyRunType} from '../../runType/member/property';
 import type {InterfaceRunType} from '../../runType/collection/interface';
@@ -41,9 +38,9 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             return `${sεr}.serString(JSON.stringify(${comp.vλl}))`;
         }
         case ReflectionKind.null:
-            return `${sεr}.uint32Array[${sεr}.index++] = 0`;
+            return `${sεr}.uint32[${sεr}.index++] = 0`;
         case ReflectionKind.boolean:
-            return `${sεr}.uint32Array[${sεr}.index++] = (${comp.vλl}) ? 1 : 0`;
+            return `${sεr}.uint32[${sεr}.index++] = (${comp.vλl}) ? 1 : 0`;
         case ReflectionKind.number: {
             return `${sεr}.serNumber(${comp.vλl})`;
         }
@@ -55,7 +52,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
         }
         case ReflectionKind.undefined:
         case ReflectionKind.void:
-            return `${sεr}.uint32Array[${sεr}.index++] = -1`;
+            return `${sεr}.uint32[${sεr}.index++] = -1`;
         case ReflectionKind.symbol: {
             return `${sεr}.serString(${comp.vλl}.description || '')`;
         }
@@ -75,14 +72,24 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
         case ReflectionKind.templateLiteral:
             throw new Error('Template literals are not supported in Binary serialization');
         case ReflectionKind.literal:
-            return compileLiteral(runType as LiteralRunType, comp);
+            return ''; // literals can be skipped as we restore the value directly from runType in jit code
 
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
         case ReflectionKind.array: {
             const rt = runType as ArrayRunType;
-            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
-            return `${sεr}.uint32Array[${sεr}.index++] = ${comp.vλl}.length; ${rt.traverseCode(comp, memberCode)}`;
+            rt.checkNonSkipTypes(comp);
+            const child = rt.getMemberType()!;
+            const memberCode = child.compile(comp, fnID);
+            if (!memberCode) throw new Error(`Do not know how to serialize Array<${child.getTypeName()}> to Binary.`);
+            const index = rt.getChildVarName(comp);
+            // serialized as [length, items...]
+            return `
+                ${sεr}.uint32[${sεr}.index++] = ${comp.vλl}.length;
+                for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
+                    ${memberCode}
+                }
+            `;
         }
         case ReflectionKind.indexSignature: {
             const rt = runType as IndexSignatureRunType;
@@ -92,17 +99,17 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             if (!memberCode) return undefined;
 
             const propVar = rt.getChildVarName(comp);
-            const {countVar} = getCompileObjectItems(parent, comp);
+            const {bitMIndexVar} = getOptionalPropsItems(parent, comp);
 
             // Serialize entries
             let keySerializationCode: string;
             if (indexKind === ReflectionKind.number) {
-                keySerializationCode = `${sεr}.uint32Array[${sεr}.index++] = Number(${propVar})`;
+                keySerializationCode = `${sεr}.uint32[${sεr}.index++] = Number(${propVar})`;
             } else {
                 keySerializationCode = `${sεr}.serString(${propVar})`;
             }
 
-            return `for (const ${propVar} in ${comp.vλl}) {${keySerializationCode} ${memberCode};  ${countVar}++;}`;
+            return `for (const ${propVar} in ${comp.vλl}) {${keySerializationCode} ${memberCode};  ${bitMIndexVar}++;}`;
         }
 
         case ReflectionKind.function:
@@ -142,14 +149,13 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             if (parent.hasIndexSignature(comp)) return undefined; // all serialization is done by index signature code
 
             const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
-            // Serialize property index + value (known property)
-            const propIndex = rt.getJitChildIndex(comp);
-            const {countVar} = getCompileObjectItems(parent, comp);
+            if (!memberCode) return undefined;
             if (rt.isOptional()) {
-                return `if (${comp.getChildVλl()} !== undefined) {${sεr}.uint32Array[${sεr}.index++] = ${propIndex}; ${memberCode}; ${countVar}++;}`;
+                const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
+                return `if (${comp.getChildVλl()} !== undefined) {${memberCode}; ${sεr}.uint32[${bitMIndexVar}] |= 1 << (${bitIndex})}`;
             }
             // non optional properties rely in the order they are defined in the type so no need to include the index
-            return `${memberCode}; ${countVar}++;`;
+            return `${memberCode};`;
         }
         case ReflectionKind.rest:
             // TODO
@@ -173,13 +179,31 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
                 // we need to ensure non optional properties are serialized first so then we can restore the object correctly
                 // non optional properties are restored as: '{a: deserializeA, b: deserializeB, c: deserializeC};
                 // and must be serialized/deserialized in the same order they are declared in the type
-                const nonOptionalFirst = rt.getJitNonOptionalChildrenFirst(comp);
-                const childrenCode = nonOptionalFirst
+                const {required, optional} = rt.splitJitSplitChildren(comp);
+
+                const requiredPropsCode = required
                     .map((prop) => prop.compile(comp, fnID))
                     .filter(Boolean)
-                    .join(';\n');
-                const {setObjLengthInBuffer, variablesInit} = getCompileObjectItems(rt, comp);
-                return `${variablesInit}\n${childrenCode}\n${setObjLengthInBuffer}`;
+                    .join(';');
+
+                let optionalPropsCode = '';
+                if (optional.length) {
+                    const {variablesInit, bitMIndexVar} = getOptionalPropsItems(rt, comp, optional.length);
+                    const propsCode = optional
+                        .map((prop, i) => {
+                            prop.optionalIndex = i;
+                            const modIndex = i + 1;
+                            const shouldIncreaseBufferIndex = modIndex % 32 === 0;
+                            if (!shouldIncreaseBufferIndex) return prop.compile(comp, fnID);
+                            // every 32 props we need to increase the bitmap index
+                            return `${prop.compile(comp, fnID)} ${bitMIndexVar}++;`;
+                        })
+                        .filter(Boolean)
+                        .join('');
+                    optionalPropsCode = `${variablesInit}\n${propsCode}`;
+                }
+
+                return `${requiredPropsCode}\n${optionalPropsCode}`;
             }
         }
         case ReflectionKind.class:
@@ -219,48 +243,16 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
     }
 }
 
-// TODO, maybe we don't need to serialize literals as we do know the value we can just restore the value from the runType
-
-function compileLiteral(runType: LiteralRunType, comp: BinaryCompiler): jitCode {
-    const src = runType.src as Mutable<typeof src>;
-    // Literal types are serialized as their underlying value
-    const literalValue = src.literal;
-    const originalKind = src.kind;
-    const varName = toLiteralInContext(comp, literalValue);
-    const originalVλl = comp.vλl;
-    comp.vλl = varName;
-    // Handle RegExp literals specially
-    if (literalValue instanceof RegExp) {
-        src.kind = ReflectionKind.regexp;
-    } else if (typeof literalValue === 'string') {
-        src.kind = ReflectionKind.string;
-    } else if (typeof literalValue === 'number') {
-        src.kind = ReflectionKind.number;
-    } else if (typeof literalValue === 'boolean') {
-        src.kind = ReflectionKind.boolean;
-    } else if (typeof literalValue === 'bigint') {
-        src.kind = ReflectionKind.bigint;
-    } else if (typeof literalValue === 'symbol') {
-        src.kind = ReflectionKind.symbol;
-    } else if (literalValue === null) {
-        src.kind = ReflectionKind.null;
-    } else {
-        // Fallback to string for unknown types
-        src.kind = ReflectionKind.string;
-    }
-    // Recursively call the main function with the changed kind
-    const result = _compileToBinary(runType, comp);
-    // Restore the original kind
-    src.kind = originalKind;
-    comp.vλl = originalVλl;
-    return result;
-}
-
-function getCompileObjectItems(rt: InterfaceRunType, comp: BinaryCompiler) {
+function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optionalPropsLength = 0, currentPropIndex = 0) {
+    const sεr = comp.args.sεr;
     const nestLevel = comp.getNestLevel(rt);
-    const countVar = `pL${nestLevel}`;
-    const objectBufferIndexVar = `bufI${nestLevel}`;
-    const variablesInit = `let ${countVar} = 0; const ${objectBufferIndexVar} = ${comp.args.sεr}.index++;`;
-    const setObjLengthInBuffer = `${comp.args.sεr}.uint32Array[${objectBufferIndexVar}] = ${countVar};`;
-    return {countVar, objectBufferIndexVar, setObjLengthInBuffer, variablesInit};
+    const bitMIndexVar = `bimI${nestLevel}`; // index of the optional prop loop
+    const bitmapLength = Math.ceil(optionalPropsLength / 32);
+    const bitIndex = `${currentPropIndex} & 31`; // equivalent to index % 32
+    // initialize bitmap to zero as there could be values left from previous serialization
+    const setBitmapToZero = Array.from({length: bitmapLength})
+        .map(() => `${sεr}.uint32[${sεr}.index++] = 0`)
+        .join(';');
+    const variablesInit = `let ${bitMIndexVar} = ${sεr}.index; ${setBitmapToZero}`;
+    return {bitMIndexVar, bitmapLength, bitIndex, variablesInit};
 }

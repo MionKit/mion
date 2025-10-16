@@ -25,6 +25,13 @@ export interface JitFnSettings {
     jitArgs: JitFnArgs;
     jitDefaultArgs: JitFnArgs;
     returnName: string;
+    /**
+     * When no initial vλl is required by the function.
+     * This is typically used by deserializers, that do not transform the input value but create a new one from other params.
+     * an the initial vλl is used as a variable initialization for the returned values.
+     * ie binary deserialization
+     */
+    noInitialVλl?: true;
     runTimeOptions?: Record<string, {keyName: string; type: 'boolean' | 'number' | 'string'; defaultValue: any}>;
 } // list of available jit functions
 
@@ -36,10 +43,10 @@ export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: '', pλth: '[]', εrr: '[]'} as const;
 export const jitArgsWithOptions = {vλl: 'v', θpts: 'opts'} as const;
 export const jitDefaultArgsWithOptions = {vλl: '', θpts: '{}'} as const;
-export const jitBinarySerializerArgs = {vλl: 'v', sεr: 'Ser'} as const; // v= js value, ser = serializer,
-export const jitBinaryDeserializerArgs = {vλl: 'ret', dεs: 'Des'} as const; // v = deserialized js value (initially undefined), des = deserializer
+export const jitBinarySerializerArgs = {vλl: 'v', sεr: 'Ser'} as const; // vλl = js value to serialize ser = serializer,
+export const jitBinaryDeserializerArgs = {vλl: 'ret', dεs: 'Des'} as const; // vλl is used as return variable ans is assigned the deserialized value, des = deserializer
 export const jitDefaultBinarySerializerArgs = {vλl: '', sεr: ''} as const;
-export const jitDefaultBinaryDeserializerArgs = {vλl: 'undefined', dεs: ''} as const;
+export const jitDefaultBinaryDeserializerArgs = {vλl: '', dεs: ''} as const;
 
 // ######## !IMPORTANT: ALL JIT FUNCTIONS IDs MUST BE UNIQUE and short ########
 
@@ -125,6 +132,7 @@ export const jitSerializationFunctions = {
         jitDefaultArgs: jitDefaultBinaryDeserializerArgs,
         // deserialized value is stored in vλl that is initially undefined
         returnName: jitBinaryDeserializerArgs.vλl,
+        noInitialVλl: true,
     },
     // apply type formatters, ie: lowercase, uppercase, trim, etc
     format: {

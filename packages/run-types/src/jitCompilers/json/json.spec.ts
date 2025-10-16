@@ -367,17 +367,6 @@ describe('arrays', () => {
         );
     });
 
-    it('array to strip extra params without fail', () => {
-        const {rt, values} = SERIALIZATION_SPEC.ARRAYS.object_with_circular_array.getTestData();
-        const {serialize, deserialize} = createSerializationFns(rt);
-
-        values.forEach((value) => {
-            const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-            expect(typeof serialized).toBe('string');
-            expect(value).toEqual(deserialized);
-        });
-    });
-
     it('array circular', () => {
         const {rt, values} = SERIALIZATION_SPEC.ARRAYS.circular.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
@@ -408,6 +397,16 @@ describe('objects', () => {
             const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
             expect(typeof serialized).toBe('string');
             expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
+    it('interface with many optional props should be compiled correctly', () => {
+        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.many_optional_props.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
         });
     });
 
@@ -1414,6 +1413,16 @@ describe('circular-references', () => {
         });
     });
 
+    it('array to strip extra params without fail', () => {
+        const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.object_with_circular_array.getTestData();
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(value).toEqual(deserialized);
+        });
+    });
+
     it('all test ran', () => {
         const totalTest = Object.keys(SERIALIZATION_SPEC.CIRCULAR_REFS).length;
         expect(ranTests).toBe(totalTest);
@@ -1455,6 +1464,8 @@ describe('others', () => {
         expect(ranTests).toBe(totalTest);
     });
 });
+
+// ####################### ADDITIONAL TESTS #######################
 
 it('interface json encode/decode should be marked as noop when there are no actions required', () => {
     interface NoJsonENCDECRequired {
