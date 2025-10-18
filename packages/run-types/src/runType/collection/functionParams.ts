@@ -65,21 +65,20 @@ export class FunctionParamsRunType<
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         const children = this.getParamRunTypes(comp);
-        if (!children.length) return undefined;
+        if (!children.length) return {code: undefined, type: 'S'};
         const code = children
-            .map((p) => p.compileToJsonVal(comp))
+            .map((p) => p.compileToJsonVal(comp)?.code)
             .filter(Boolean)
             .join(';');
-        return code || undefined;
+        return {code: code || undefined, type: 'S'};
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         const children = this.getParamRunTypes(comp);
-        if (!children.length) return undefined;
-        return (
-            children
-                .map((p) => p.compileFromJsonVal(comp))
-                .filter(Boolean)
-                .join(';') || undefined
-        );
+        if (!children.length) return {code: undefined, type: 'S'};
+        const code = children
+            .map((p) => p.compileFromJsonVal(comp)?.code)
+            .filter(Boolean)
+            .join(';');
+        return {code: code || undefined, type: 'S'};
     }
 }
