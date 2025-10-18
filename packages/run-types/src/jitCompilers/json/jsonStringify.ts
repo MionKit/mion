@@ -264,13 +264,13 @@ export function _compileJsonStringify(
         case ReflectionKind.tuple: {
             const rt = runType as TupleRunType;
             const skip = rt.skipJit(comp);
-            if (skip) return '';
-            if (rt.getChildRunTypes().length === 0) return `'[]'`;
+            if (skip) return {code: '', type: 'E'};
+            if (rt.getChildRunTypes().length === 0) return {code: `'[]'`, type: 'E'};
             const paramsCode = rt
                 .getChildRunTypes()
-                .map((p) => p.compile(comp, fnID))
+                .map((p) => p.compile(comp, fnID)?.code)
                 .join('+');
-            return `'['+${paramsCode}+']'`;
+            return {code: `'['+${paramsCode}+']'`, type: 'E'};
         }
         case ReflectionKind.typeParameter:
             // Type parameter has been replaced by tuple member internally so this should never be called
@@ -295,9 +295,9 @@ export function _compileJsonStringify(
                     // we might want to optimize this
                     const encCode = unionItem.compileToJsonVal(comp);
                     const decCode = unionItem.compileFromJsonVal(comp);
-                    const needsTupleEncoding = !!encCode || !!decCode;
-                    const skiEncode = !childCode || childCode === comp.vλl;
-                    const stringifyCode = skiEncode ? comp.vλl : `${childCode}`;
+                    const needsTupleEncoding = !!encCode?.code || !!decCode?.code;
+                    const skiEncode = !childCode?.code || childCode.code === comp.vλl;
+                    const stringifyCode = skiEncode ? comp.vλl : childCode.code;
                     const index = urt.getUnionItemIndex(comp, unionItem);
                     const toTuple = `'[${index},' + ${stringifyCode} + ']'`;
                     const tupleCode = unionItem.getFamily() === 'A' ? `(${toTuple})` : toTuple;
@@ -308,13 +308,13 @@ export function _compileJsonStringify(
             };
 
             const itemsCode = onUnionTypes(simpleItems);
-            if (!objectTypes.length) return `${itemsCode.join('')} else {${fail}}`;
+            if (!objectTypes.length) return {code: `${itemsCode.join('')} else {${fail}}`, type: 'RB'};
             // these need to be in correct order for else if to work properly
             const nonObjectFail = `${ifElse()} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
             const objItemsCode = onUnionTypes(objectTypes);
             const allFail = `${ifElse(true)} {${fail}}`;
             const childrenCode = [...itemsCode, nonObjectFail, ...objItemsCode, allFail].join('');
-            return childrenCode;
+            return {code: childrenCode, type: 'RB'};
         }
         default:
             throw new Error(`Cant ${getOperationName(fnID)} for unsupported RunType: ${runType.getTypeName()}`);
@@ -339,29 +339,29 @@ function getPropName(rt: PropertyRunType, comp: JitCompiler, fnID: JitFnID): str
 }
 
 function _compileJsonStringifyParameter(rt: ParameterRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
-    let childCode = rt.getJitChild(comp)?.compile(comp, fnID);
-    if (!childCode) childCode = `null`; // non serializable types are set to null
-    if (rt.isRest()) return childCode;
+    const childCode = rt.getJitChild(comp)?.compile(comp, fnID);
+    const childCodeStr = childCode?.code || `null`; // non serializable types are set to null
+    if (rt.isRest()) return childCode || {code: `null`, type: 'E'};
     const isFirst = rt.getChildIndex(comp) === 0;
     const sep = isFirst ? '' : `','+`;
-    if (rt.isOptional()) return `(${comp.getChildVλl()} === undefined ? ${sep}'null' : ${sep}${childCode})`;
-    return `${sep}${childCode}`;
+    if (rt.isOptional()) return {code: `(${comp.getChildVλl()} === undefined ? ${sep}'null' : ${sep}${childCodeStr})`, type: 'E'};
+    return {code: `${sep}${childCodeStr}`, type: 'E'};
 }
 
 function _compileJsonStringifyGenericMember(rt: ParameterRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
     const child = rt.getJitChild(comp);
     const argCode = child?.compile(comp, fnID);
-    if (!argCode) return undefined;
+    if (!argCode?.code) return {code: undefined, type: 'E'};
     const isFirst = rt.getChildIndex(comp) === 0;
     const sep = isFirst ? '' : `','+`;
-    if (rt.isOptional()) return `(${comp.getChildVλl()} === undefined ? '': ${sep}${argCode})`;
-    return `${sep}${argCode}`;
+    if (rt.isOptional()) return {code: `(${comp.getChildVλl()} === undefined ? '': ${sep}${argCode.code})`, type: 'E'};
+    return {code: `${sep}${argCode.code}`, type: 'E'};
 }
 
 function _compileJsonStringifyInterface(rt: InterfaceRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
     if (rt.isCallable()) return rt.getCallSignature()!.compile(comp, fnID);
     const children = rt.getJsonStringifySortedChildren(comp);
-    if (children.length === 0) return `''`;
+    if (children.length === 0) return {code: `''`, type: 'E'};
     const allOptional = children.every((prop) => (prop as MemberRunType<any>).isOptional());
     // if all properties are optional,  we can not optimize and use JSON.stringify
     if (allOptional) return _compileInterfaceIntoArray(rt, comp, children, fnID);
@@ -370,11 +370,11 @@ function _compileJsonStringifyInterface(rt: InterfaceRunType, comp: JitCompiler,
             const nexChild = children[i + 1];
             const isLast = !nexChild;
             prop.skipCommas = isLast;
-            return prop.compile(comp, fnID);
+            return prop.compile(comp, fnID)?.code;
         })
         .filter(Boolean)
         .join('+');
-    return `'{'+${childrenCode}+'}'`;
+    return {code: `'{'+${childrenCode}+'}'`, type: 'E'};
 }
 
 function _compileInterfaceIntoArray(
@@ -388,33 +388,33 @@ function _compileInterfaceIntoArray(
         .map((prop) => {
             prop.skipCommas = true;
             const childCode = prop.compile(comp, fnID);
-            if (!childCode) return '';
-            const code = `${arrName}.push(${childCode})`;
+            if (!childCode?.code) return '';
+            const code = `${arrName}.push(${childCode.code})`;
             // makes an extra check to avoid pushing empty strings to the array (childCode also makes the same check but is better than having to filter the array after)
             return prop.isOptional() && prop.tempChildVλl ? `if (${prop.tempChildVλl} !== undefined){${code}}` : `${code};`;
         })
         .filter(Boolean)
         .join('');
 
-    return `(function(){const ${arrName} = [];${childrenCode};return '{'+${arrName}.join(',')+'}'})()`;
+    return {code: `(function(){const ${arrName} = [];${childrenCode};return '{'+${arrName}.join(',')+'}'})()`, type: 'E'};
 }
 
 function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
     switch (runType.src.subKind) {
         case ReflectionSubKind.date:
-            return `'"'+${comp.vλl}.toJSON()+'"'`;
+            return {code: `'"'+${comp.vλl}.toJSON()+'"'`, type: 'E'};
         case ReflectionSubKind.map: {
-            const rt = runType as MapRunType;
-            return _compileJsonStringifyIterable(rt, comp, fnID);
+            const rt = runType as unknown as MapRunType;
+            return _compileJsonStringifyIterable(rt as unknown as IterableRunType, comp, fnID);
         }
         case ReflectionSubKind.set: {
-            const rt = runType as SetRunType;
-            return _compileJsonStringifyIterable(rt, comp, fnID);
+            const rt = runType as unknown as SetRunType;
+            return _compileJsonStringifyIterable(rt as unknown as IterableRunType, comp, fnID);
         }
         case ReflectionSubKind.nonSerializable:
             throw new Error(`Jit compilation disabled for Non Serializable types.`);
         default: {
-            const rt = runType as ClassRunType;
+            const rt = runType as unknown as ClassRunType;
             if (rt.isCallable()) {
                 const callSignature = rt.getCallSignature();
                 if (callSignature) return callSignature.compile(comp, fnID);
@@ -424,17 +424,17 @@ function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnI
             // maybe we need to move that trailing comma compilation to be dynamic
             // but we would need to create a self invoking function for that
             const children = rt.getJsonStringifySortedChildren(comp);
-            if (children.length === 0) return `''`;
+            if (children.length === 0) return {code: `''`, type: 'E'};
             const childrenCode = children
                 .map((prop, i) => {
                     const nexChild = children[i + 1];
                     const isLast = !nexChild;
                     prop.skipCommas = isLast;
-                    return prop.compile(comp, fnID);
+                    return prop.compile(comp, fnID)?.code;
                 })
                 .filter(Boolean)
                 .join('+');
-            return `'{'+${childrenCode}+'}'`;
+            return {code: `'{'+${childrenCode}+'}'`, type: 'E'};
         }
     }
 }
@@ -447,20 +447,23 @@ export function _compileJsonStringifyIterable(
     codePrefix: string = '',
     /** suffix characters to add after the generated array, used when generating code instead json */
     codeSuffix: string = ''
-): string {
+): jitCode {
     const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
     const jitChildren = rt.getJitChildren(comp);
-    const childrenCode = jitChildren.map((c) => c.compile(comp, fnID)).join('+');
-    const jsonItems = `ls${comp.getNestLevel(rt)}`;
-    const resultVal = `res${comp.getNestLevel(rt)}`;
+    const childrenCode = jitChildren.map((c) => c.compile(comp, fnID)?.code).join('+');
+    const jsonItems = `ls${comp.getNestLevel(rt as unknown as BaseRunType)}`;
+    const resultVal = `res${comp.getNestLevel(rt as unknown as BaseRunType)}`;
     const childrenResult = jitChildren.length > 1 ? `'['+${childrenCode}+']'` : childrenCode;
     const earlyReturn = codePrefix && codeSuffix ? `if (!${jsonItems}.length) return '${codePrefix}${codeSuffix}';` : '';
-    return `
+    return {
+        code: `
         const ${jsonItems} = [];
         for (const ${entry} of ${comp.vλl}) {
             const ${resultVal} = ${childrenResult};
             ${jsonItems}.push(${resultVal});
         }
         ${earlyReturn}return '${codePrefix}[' + ${jsonItems}.join(',') + ']${codeSuffix}'
-    `;
+    `,
+        type: 'RB',
+    };
 }
