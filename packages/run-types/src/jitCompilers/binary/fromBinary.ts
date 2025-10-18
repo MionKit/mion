@@ -157,9 +157,9 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
         case ReflectionKind.propertySignature: {
             const rt = runType as PropertyRunType;
             const parent = rt.getParent() as InterfaceRunType;
-            if (parent.hasIndexSignature(comp)) return undefined; // all deserialization is done by index signature code
             const child = rt.getJitChild(comp)!;
             const memberCode = child?.compile(comp, fnID);
+            // console.log(getPropName(rt, comp, true), comp.getChildVλl(), memberCode);
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
                 return `if (${dεs}.view.getUint8(${bitMIndexVar}, 1) & (1 << (${bitIndex}))) {${comp.getChildVλl()} = ${memberCode}}`;

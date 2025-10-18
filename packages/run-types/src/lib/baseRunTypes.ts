@@ -30,7 +30,7 @@ import {CodeType} from '../constants.functions';
 import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
 import type {TypeIndexSignature, TypeProperty, Type, TypeFunction} from '@deepkit/type';
-import {getJitFnArgCallVarName, getPropIndex, memorize, toLiteral} from './utils';
+import {addFullStop, getJitFnArgCallVarName, getPropIndex, memorize, toLiteral} from './utils';
 import {getJITFnHash, createJitCompiler, MockJitCompiler} from './jitCompiler';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
@@ -362,23 +362,21 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return callCode;
     }
 
-    handleReturnValues(comp: JitCompiler, currentOpId: JitFnID, code: string, isCallDependency?: true): jitCode {
+    handleReturnValues(comp: JitCompiler, currentOpId: JitFnID, initialCode: string, isCallDependency?: true): jitCode {
+        const code = initialCode.trim();
         const codeType = isCallDependency ? 'E' : this.getCodeType(currentOpId);
         const isRoot = comp.length === 1;
+        if (this.getJitHash(comp.opts) === 'qI440c' && comp.fnID === 'fBi') {
+            console.log('=====> fBi_qI440c isRoot', isRoot, 'codeType', codeType, code);
+            console.log('comp.stack', comp.getCurrentStackItem());
+        }
         if (isRoot) {
             // root code must ensure values are returned
+            // prettier-ignore
             switch (codeType) {
-                case 'E':
-                    return `return ${code}`;
-                case 'S': {
-                    const lastChar = code.length - 1;
-                    const hasFullStop = code.lastIndexOf(';') === lastChar;
-                    const stopChar = hasFullStop ? '' : ';';
-                    return `${code}${stopChar} return ${comp.returnName}`;
-                }
-                case 'RB': {
-                    return code;
-                }
+                case 'E': return `return ${code}`;
+                case 'S': return `${addFullStop(code)} return ${comp.returnName}`;
+                case 'RB': return code;
             }
         }
 
@@ -391,31 +389,16 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             case expectedType === 'E' && codeType === 'RB':
                 return this.callSelfInvokingFunction(code);
             case expectedType === 'S' && codeType === 'E':
-                // some nodes might return expressions that will be used by the parent statement
+            case expectedType === 'S' && codeType === 'S':
                 return code;
-            case expectedType === 'S' && codeType === 'S': {
-                const lastChar = code.length - 1;
-                const hasFullStop = code.lastIndexOf(';') === lastChar;
-                const stopChar = hasFullStop ? '' : '; ';
-                return `${stopChar}${code}`;
-            }
             case expectedType === 'S' && codeType === 'RB':
                 return this.callSelfInvokingFunction(code);
             case expectedType === 'RB' && codeType === 'E':
                 throw new Error('Expected an block code but got an expression, this should not happen as would be useless code.');
-            case expectedType === 'RB' && codeType === 'S': {
-                const lastChar = code.length - 1;
-                const hasFullStop = code.lastIndexOf(';') === lastChar;
-                const stopChar = hasFullStop ? '' : '; ';
-                return `${stopChar}${code}`;
-            }
-            case expectedType === 'RB' && codeType === 'RB': {
-                // if code is a block and does not have return, we need to make sure
-                const lastChar = code.length - 1;
-                const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
-                const stopChar = hasFullStop ? '' : ';';
-                return `${code}${stopChar} return ${comp.returnName}`;
-            }
+            case expectedType === 'RB' && codeType === 'S':
+                return addFullStop(code);
+            case expectedType === 'RB' && codeType === 'RB':
+                return `${addFullStop(code)} return ${comp.returnName}`;
             default:
                 throw new Error(`Unexpected code type (expected: ${expectedType}, got: ${codeType})`);
         }

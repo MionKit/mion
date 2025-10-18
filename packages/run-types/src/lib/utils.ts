@@ -399,3 +399,13 @@ export function parentIs(rt: BaseRunType, kind: ReflectionKind | ReflectionKind[
     if (Array.isArray(kind) ? kind.includes(parentRT.src.kind) : parentRT.src.kind === kind) return true;
     return false;
 }
+
+/** Add full stop to code if needed */
+export function addFullStop(code: string): string {
+    if (!code) return code;
+    const lastChar = code.length - 1;
+    const hasFullStop = code[lastChar] === ';';
+    if (hasFullStop) return code;
+    const hasBlockClose = code[lastChar] === '}';
+    return hasBlockClose ? code : `${code};`;
+}
