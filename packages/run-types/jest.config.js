@@ -7,5 +7,6 @@ module.exports = {
   coverageDirectory: '.coverage',
   collectCoverageFrom: ['src/**'],
   testMatch: ['**/?(*.)+(spec).ts?(x)'],
+  modulePathIgnorePatterns: ['binarySpec'],
   moduleNameMapper: {'^@mionkit/(.*)$': '<rootDir>/../$1'},
 };
