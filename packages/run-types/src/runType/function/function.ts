@@ -96,10 +96,10 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         const hasOptional = totalParams > minLength;
         const maxLength =
             this.parameterRunTypes.hasRestParameter(comp) || !hasOptional ? '' : ` && ${comp.vλl}.length <= ${totalParams}`;
-        return `(typeof ${comp.vλl} === 'function' && ${comp.vλl}.length >= ${minLength} ${maxLength})`;
+        return {code: `(typeof ${comp.vλl} === 'function' && ${comp.vλl}.length >= ${minLength} ${maxLength})`, type: 'E'};
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)};`;
+        return {code: `if (!(${this._compileIsType(comp)?.code})) ${comp.callJitErr(this)};`, type: 'S'};
     }
     /**
      * json encode a function
@@ -111,16 +111,16 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         throw new Error(`Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`);
     }
     _compileHasUnknownKeys(): jitCode {
-        return '';
+        return {code: '', type: 'E'};
     }
     _compileUnknownKeyErrors(): jitCode {
-        return '';
+        return {code: '', type: 'S'};
     }
     _compileStripUnknownKeys(): jitCode {
-        return '';
+        return {code: '', type: 'S'};
     }
     _compileUnknownKeysToUndefined(): jitCode {
-        return '';
+        return {code: '', type: 'S'};
     }
 
     // TODO: paramsSlice has been removed as options are not jet passed when building the run type. maybe we can pass it to the JitCompileOperation instead

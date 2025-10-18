@@ -77,18 +77,18 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
         const items = simpleItems.map((rt) => this.getChildStrictIsType(rt, comp));
         const checkItems = items.filter(Boolean).join(' || ');
-        if (!objectTypes.length) return `(${checkItems})`;
+        if (!objectTypes.length) return {code: `(${checkItems})`, type: 'E'};
         const objItems = objectTypes.map((rt) => this.getChildStrictIsType(rt, comp));
         const objCode = objItems.filter(Boolean).join(' || ');
         const checkObjs = `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && (${objCode}))`;
-        return `(${[checkItems, checkObjs].filter(Boolean).join(' || ')})`;
+        return {code: `(${[checkItems, checkObjs].filter(Boolean).join(' || ')})`, type: 'E'};
     }
 
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         this.checkNonSkipTypes(comp);
-        const isType = this.compileIsType(comp);
+        const isType = this.compileIsType(comp)?.code;
         const code = `if (!${isType}) ${comp.callJitErr(this)};`;
-        return code;
+        return {code, type: 'S'};
     }
 
     /**
@@ -124,12 +124,12 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         };
 
         const itemsCode = onUnionItems(simpleItems);
-        if (!objectTypes.length) return `${itemsCode.join('')} else {${fail}}`;
+        if (!objectTypes.length) return {code: `${itemsCode.join('')} else {${fail}}`, type: 'RB'};
         // these need to be in correct order for else if to work properly
         const nonObjectFail = `${ifElse()} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
         const objItemsCode = onUnionItems(objectTypes);
         const allFail = `${ifElse(true)} {${fail}}`;
-        return [...itemsCode, nonObjectFail, ...objItemsCode, allFail].join('');
+        return {code: [...itemsCode, nonObjectFail, ...objItemsCode, allFail].join(''), type: 'RB'};
     }
 
     /**
@@ -164,7 +164,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 ${failCode}
             }
         `;
-        return code;
+        return {code, type: 'S'};
     }
 
     getUnionTypeNames(): string {
