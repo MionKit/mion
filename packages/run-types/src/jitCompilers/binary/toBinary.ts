@@ -15,6 +15,7 @@ import type {ArrayRunType} from '../../runType/member/array';
 import type {PropertyRunType} from '../../runType/member/property';
 import type {InterfaceRunType} from '../../runType/collection/interface';
 import type {IndexSignatureRunType} from '../../runType/member/indexProperty';
+import {addFullStop} from '../../lib/utils';
 
 type BinaryCompiler = BaseCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
 
@@ -150,15 +151,14 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             const parent = rt.getParent() as InterfaceRunType;
             if (parent.hasIndexSignature(comp)) return undefined; // all serialization is done by index signature code
 
-            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
-            if (!memberCode) return undefined;
+            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID) || '';
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
                 const setBitMask = `${sεr}.setBitMask(${bitMIndexVar}, ${bitIndex})`;
-                return `if (${comp.getChildVλl()} !== undefined) {${memberCode}; ${setBitMask}}`;
+                return `if (${comp.getChildVλl()} !== undefined) {${addFullStop(memberCode)} ${setBitMask}}`;
             }
             // non optional properties rely in the order they are defined in the type so no need to include the index
-            return `${memberCode};`;
+            return `${memberCode}`;
         }
         case ReflectionKind.rest:
             // TODO
@@ -184,10 +184,8 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
                 // and must be serialized/deserialized in the same order they are declared in the type
                 const {required, optional} = rt.splitJitSplitChildren(comp);
 
-                const requiredPropsCode = required
-                    .map((prop) => prop.compile(comp, fnID))
-                    .filter(Boolean)
-                    .join(';');
+                const requiredProps = required.map((prop) => prop.compile(comp, fnID)).filter(Boolean);
+                const requiredPropsCode = requiredProps.join(';');
 
                 let optionalPropsCode = '';
                 if (optional.length) {
