@@ -133,7 +133,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.stack.push(newStackItem);
     }
     popStack(resultCode: jitCode): void | ((...args: any[]) => any) {
-        if (resultCode) (this as Mutable<BaseCompiler>).code = resultCode;
+        if (resultCode?.code) (this as Mutable<BaseCompiler>).code = resultCode.code;
         this.popItem = this.stack.pop();
         const item = this.stack[this.stack.length - 1];
         this.vλl = item?.vλl || this.args.vλl;
