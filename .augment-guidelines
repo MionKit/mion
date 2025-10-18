@@ -47,5 +47,5 @@
 - Never run `npm run build` during development (only for publishing)
 - Run `npm run clean` before starting work
 - Use `npm run test` to run tests
-- before committing, run `npm run lint` and `npm run format`, to ensure code style and formatting are correct
+- before committing, run `npm run lint` and `npm run format`, to ensure code style and formatting are correct (fix any errors before committing)
 - commit often after small changes
