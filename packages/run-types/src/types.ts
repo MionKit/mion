@@ -11,9 +11,10 @@ import type {JitFunctions} from './constants.functions';
 import type {ReflectionSubKind} from './constants.kind';
 import type {BaseRunTypeFormat} from './lib/baseRunTypeFormat';
 import type {JitCompiler} from './lib/jitCompiler';
+import type {CodeType} from './constants.functions';
 
 export type StrNumber = string | number;
-export type jitCode = string | undefined;
+export type jitCode = {code: string | undefined; type: CodeType};
 
 // ############################################ RunTypes ############################################
 

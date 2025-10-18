@@ -18,6 +18,24 @@ import {isFormatParamMeta} from './guards';
 import {createHashLiteral} from './quickHash';
 import {ReflectionSubKind} from '../constants.kind';
 import {getJitFnSettings} from './jitFnsRegistry';
+import type {jitCode} from '../types';
+import type {BaseCompiler} from './jitCompiler';
+
+/**
+ * Wraps a code string with its code type metadata.
+ * Used to convert string returns from _compile methods into the new jitCode format.
+ */
+export function wrapJitCode(code: string | undefined, fnID: JitFnID): jitCode {
+    if (code === undefined) return {code: undefined, type: getJitFnSettings(fnID).type};
+    return {code, type: getJitFnSettings(fnID).type};
+}
+
+/**
+ * Wraps a code string using the compiler's fnID.
+ */
+export function wrapJitCodeFromCompiler(code: string | undefined, comp: BaseCompiler): jitCode {
+    return wrapJitCode(code, comp.fnID);
+}
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
