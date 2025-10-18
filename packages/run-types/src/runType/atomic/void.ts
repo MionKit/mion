@@ -13,15 +13,15 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 export class VoidRunType extends AtomicRunType<TypeVoid> {
     _getTypeID = () => ReflectionKind.void;
     _compileIsType(comp: JitCompiler): jitCode {
-        return `${comp.vλl} === undefined`;
+        return {code: `${comp.vλl} === undefined`, type: 'E'};
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (${comp.vλl} !== undefined) ${comp.callJitErr(this)}`;
+        return {code: `if (${comp.vλl} !== undefined) ${comp.callJitErr(this)}`, type: 'S'};
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        return `${comp.vλl} = undefined`;
+        return {code: `${comp.vλl} = undefined`, type: 'E'};
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        return `${comp.vλl} = undefined`;
+        return {code: `${comp.vλl} = undefined`, type: 'E'};
     }
 }

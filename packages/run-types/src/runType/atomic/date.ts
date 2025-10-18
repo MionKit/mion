@@ -14,15 +14,15 @@ import {ReflectionSubKind} from '../../constants.kind';
 export class DateRunType extends AtomicRunType<TypeClass> {
     _getTypeID = () => ReflectionSubKind.date;
     _compileIsType(comp: JitCompiler): jitCode {
-        return `(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))`;
+        return {code: `(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))`, type: 'E'};
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
+        return {code: `if (!(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))) ${comp.callJitErr(this)}`, type: 'S'};
     }
     _compileToJsonVal(): jitCode {
-        return undefined;
+        return {code: undefined, type: 'S'};
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        return `new Date(${comp.vλl})`;
+        return {code: `new Date(${comp.vλl})`, type: 'E'};
     }
 }

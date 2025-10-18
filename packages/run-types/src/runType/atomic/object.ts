@@ -13,9 +13,9 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     _getTypeID = () => ReflectionKind.object;
     _compileIsType(comp: JitCompiler): jitCode {
-        return `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)`;
+        return {code: `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)`, type: 'E'};
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
+        return {code: `if (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) ${comp.callJitErr(this)}`, type: 'S'};
     }
 }
