@@ -176,7 +176,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
                 result = this._compileTypeErrors(comp as JitErrorsCompiler, rt);
                 break;
             case JitFunctions.format.id:
-                result = this._compileFormat ? this._compileFormat(comp, rt) : undefined;
+                result = this._compileFormat ? this._compileFormat(comp, rt) : {code: undefined, type: 'S'};
                 break;
             default:
                 throw new Error(`Method not implemented: ${fnID}`);
@@ -193,20 +193,20 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
      * Unlike handleReturnValues in BaseRunType this one is only called in the root of the formatter
      */
     handleReturnValues(rt: BaseRunType, comp: JitCompiler, currentOpId: JitFnID, code: jitCode): string {
-        if (!code) return '';
-        const codeType = this.getCodeType(currentOpId, rt);
+        if (!code?.code) return '';
+        const codeType = code.type || this.getCodeType(currentOpId, rt);
         switch (codeType) {
             case 'E':
-                return `return ${code}`;
+                return `return ${code.code}`;
             case 'RB':
-                return code;
+                return code.code;
             case 'S': {
                 // For non-expressions, add a return statement with the default return value
                 // if the code doesn't already have a return statement
-                const lastChar = code.length - 1;
-                const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
+                const lastChar = code.code.length - 1;
+                const hasFullStop = code.code.lastIndexOf(';') === lastChar || code.code.lastIndexOf('}') === lastChar;
                 const stopChar = hasFullStop ? '' : ';';
-                return `${code}${stopChar} return ${comp.returnName}`;
+                return `${code.code}${stopChar} return ${comp.returnName}`;
             }
         }
     }
