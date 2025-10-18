@@ -286,7 +286,7 @@ export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
 export type ToCodeFn = (value: any) => string;
 export type ToBinaryFn = (value: any) => Uint8Array;
-export type FromBinaryFn = (bson: Uint8Array) => any;
+export type FromBinaryFn = (buffer: Uint8Array) => any;
 
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;
