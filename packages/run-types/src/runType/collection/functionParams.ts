@@ -41,22 +41,27 @@ export class FunctionParamsRunType<
 
     _compileIsType(comp: JitCompiler): jitCode {
         const children = this.getParamRunTypes(comp);
-        if (children.length === 0) return `${comp.vλl}.length === 0`;
+        if (children.length === 0) return {code: `${comp.vλl}.length === 0`, type: 'E'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `${comp.vλl}.length <= ${children.length}`;
         // Only include parameters that require validation
-        const paramsCode = children.map((p) => p.compileIsType(comp)).filter(Boolean);
-        if (paramsCode.length === 0) return lengthCode ? `(${lengthCode})` : undefined;
-        return lengthCode ? `(${lengthCode} && ${paramsCode.join(' && ')})` : `(${paramsCode.join(' && ')})`;
+        const paramsCode = children.map((p) => p.compileIsType(comp)?.code).filter(Boolean);
+        if (paramsCode.length === 0) return lengthCode ? {code: `(${lengthCode})`, type: 'E'} : {code: undefined, type: 'E'};
+        return lengthCode
+            ? {code: `(${lengthCode} && ${paramsCode.join(' && ')})`, type: 'E'}
+            : {code: `(${paramsCode.join(' && ')})`, type: 'E'};
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const children = this.getParamRunTypes(comp);
-        if (children.length === 0) return `if (${comp.vλl}.length !== 0) ${comp.callJitErr(this)}`;
+        if (children.length === 0) return {code: `if (${comp.vλl}.length !== 0) ${comp.callJitErr(this)}`, type: 'S'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `${comp.vλl}.length > ${children.length}`;
 
         // Only include parameters that require validation
-        const paramsCode = children.map((p) => p.compileTypeErrors(comp)).filter(Boolean);
-        if (paramsCode.length === 0) return lengthCode ? `if (${lengthCode}) ${comp.callJitErr(this)}` : undefined;
-        return lengthCode ? `if (${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode.join(';')}}` : paramsCode.join(';');
+        const paramsCode = children.map((p) => p.compileTypeErrors(comp)?.code).filter(Boolean);
+        if (paramsCode.length === 0)
+            return lengthCode ? {code: `if (${lengthCode}) ${comp.callJitErr(this)}`, type: 'S'} : {code: undefined, type: 'S'};
+        return lengthCode
+            ? {code: `if (${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode.join(';')}}`, type: 'S'}
+            : {code: paramsCode.join(';'), type: 'S'};
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         const children = this.getParamRunTypes(comp);

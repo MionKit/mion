@@ -615,12 +615,14 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     }
     _compileToBinary(comp: JitCompiler): jitCode {
         const code = this.getJitChild(comp)?.compileToBinary(comp);
-        if (!code) return undefined;
-        return this.isOptional() ? `(${comp.getChildVλl()} !== undefined ? ${code} : utl.writeBinaryNull())` : code;
+        if (!code?.code) return {code: undefined, type: 'S'};
+        return this.isOptional()
+            ? {code: `(${comp.getChildVλl()} !== undefined ? ${code.code} : utl.writeBinaryNull())`, type: 'S'}
+            : code;
     }
     _compileFromBinary(comp: JitCompiler): jitCode {
         const code = this.getJitChild(comp)?.compileFromBinary(comp);
-        if (!code) return undefined;
+        if (!code?.code) return {code: undefined, type: 'S'};
         return code;
     }
     _getTypeID(stack: BaseRunType[] = []): StrNumber {
