@@ -18,10 +18,10 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         return comp.fnID !== JitFunctions.toJavascript.id;
     }
     _compileIsType(comp: JitCompiler): jitCode {
-        return `typeof ${comp.vλl} === 'symbol'`;
+        return {code: `typeof ${comp.vλl} === 'symbol'`, type: 'E'};
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`;
+        return {code: `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`, type: 'S'};
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         return symbolTransformer._compileToJsonVal(comp);
@@ -36,9 +36,9 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
 export const symbolTransformer = {
     // TODO: transformers might need only one function
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        return `Symbol(${comp.vλl}.substring(7))`;
+        return {code: `Symbol(${comp.vλl}.substring(7))`, type: 'E'};
     },
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        return `'Symbol:' + (${comp.vλl}.description || '')`;
+        return {code: `'Symbol:' + (${comp.vλl}.description || '')`, type: 'E'};
     },
 };
