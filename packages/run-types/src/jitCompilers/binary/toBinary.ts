@@ -30,6 +30,10 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
     const sεr = comp.args.sεr;
     const fnID = comp.fnID;
 
+    // hack is used in some case to increase the index passing an extra argument to view.set methods
+    // ie: view.setUint32(index, value, littleEndian, index += 4);
+    // setUint32 only accepts 3 arguments, but we use the 4rd one to increase the index on a single statement so code can be used as an expression
+
     switch (kind) {
         // ###################### ATOMIC TYPES ######################
         case ReflectionKind.unknown:
@@ -38,11 +42,11 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             return `${sεr}.serString(JSON.stringify(${comp.vλl}))`;
         }
         case ReflectionKind.null:
-            return `${sεr}.uint32[${sεr}.index++] = 0`;
+            return `${sεr}.view.setUint8(${sεr}.index++, 0)`;
         case ReflectionKind.boolean:
-            return `${sεr}.uint32[${sεr}.index++] = (${comp.vλl}) ? 1 : 0`;
+            return `${sεr}.view.setUint8(${sεr}.index++, !!${comp.vλl})`;
         case ReflectionKind.number: {
-            return `${sεr}.serNumber(${comp.vλl})`;
+            return `${sεr}.view.setFloat64(${sεr}.index,${comp.vλl}, 1, (${sεr}.index += 8))`;
         }
         case ReflectionKind.string: {
             return `${sεr}.serString(${comp.vλl})`;
@@ -52,7 +56,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
         }
         case ReflectionKind.undefined:
         case ReflectionKind.void:
-            return `${sεr}.uint32[${sεr}.index++] = -1`;
+            return `${sεr}.view.setUint8(${sεr}.index++, 1)`;
         case ReflectionKind.symbol: {
             return `${sεr}.serString(${comp.vλl}.description || '')`;
         }
@@ -85,10 +89,8 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             const index = rt.getChildVarName(comp);
             // serialized as [length, items...]
             return `
-                ${sεr}.uint32[${sεr}.index++] = ${comp.vλl}.length;
-                for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
-                    ${memberCode}
-                }
+                ${sεr}.view.setUint32(${sεr}.index, ${comp.vλl}.length, 1); ${sεr}.index += 4;
+                for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode}}
             `;
         }
         case ReflectionKind.indexSignature: {
@@ -104,12 +106,12 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             // Serialize entries
             let keySerializationCode: string;
             if (indexKind === ReflectionKind.number) {
-                keySerializationCode = `${sεr}.uint32[${sεr}.index++] = Number(${propVar})`;
+                keySerializationCode = `${sεr}.view.setUint32(${sεr}.index , Number(${propVar}), 1); ${sεr}.index += 4;`;
             } else {
-                keySerializationCode = `${sεr}.serString(${propVar})`;
+                keySerializationCode = `${sεr}.serString(${propVar});`;
             }
 
-            return `for (const ${propVar} in ${comp.vλl}) {${keySerializationCode} ${memberCode};  ${bitMIndexVar}++;}`;
+            return `for (const ${propVar} in ${comp.vλl}) {${keySerializationCode} ${memberCode}; ${bitMIndexVar}++;}`;
         }
 
         case ReflectionKind.function:
@@ -152,7 +154,8 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             if (!memberCode) return undefined;
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
-                return `if (${comp.getChildVλl()} !== undefined) {${memberCode}; ${sεr}.uint32[${bitMIndexVar}] |= 1 << (${bitIndex})}`;
+                const setBitMask = `${sεr}.setBitMask(${bitMIndexVar}, ${bitIndex})`;
+                return `if (${comp.getChildVλl()} !== undefined) {${memberCode}; ${setBitMask}}`;
             }
             // non optional properties rely in the order they are defined in the type so no need to include the index
             return `${memberCode};`;
@@ -188,19 +191,19 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
 
                 let optionalPropsCode = '';
                 if (optional.length) {
-                    const {variablesInit, bitMIndexVar} = getOptionalPropsItems(rt, comp, optional.length);
+                    const {bitMapInit, bitMIndexVar} = getOptionalPropsItems(rt, comp, optional.length);
                     const propsCode = optional
                         .map((prop, i) => {
                             prop.optionalIndex = i;
                             const modIndex = i + 1;
-                            const shouldIncreaseBufferIndex = modIndex % 32 === 0;
+                            const shouldIncreaseBufferIndex = modIndex % 8 === 0;
                             if (!shouldIncreaseBufferIndex) return prop.compile(comp, fnID);
-                            // every 32 props we need to increase the bitmap index
+                            // every 8 props we need to increase the bitmap index
                             return `${prop.compile(comp, fnID)} ${bitMIndexVar}++;`;
                         })
                         .filter(Boolean)
                         .join('');
-                    optionalPropsCode = `${variablesInit}\n${propsCode}`;
+                    optionalPropsCode = `${bitMapInit}\n${propsCode}`;
                 }
 
                 return `${requiredPropsCode}\n${optionalPropsCode}`;
@@ -209,7 +212,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
         case ReflectionKind.class:
             switch (runType.src.subKind) {
                 case ReflectionSubKind.date:
-                    return `${sεr}.serFloat64(${comp.vλl}.getTime())`;
+                    return `${sεr}.view.setFloat64(${sεr}.index, ${comp.vλl}.getTime(), 1, (${sεr}.index += 8))`;
                 case ReflectionSubKind.map:
                     // TODO: Handle Map class
                     break;
@@ -218,9 +221,18 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
                     break;
                 case ReflectionSubKind.nonSerializable:
                     throw new Error('Binary serialization disabled for Non Serializable types');
-                default:
-                    // TODO: Handle regular class
-                    break;
+                default: {
+                    const rt = runType as InterfaceRunType;
+                    if (rt.isCallable()) {
+                        const callSignature = rt.getCallSignature();
+                        if (callSignature) return callSignature.compile(comp, fnID);
+                    }
+                    const originalKind = runType.src.kind;
+                    (runType.src as any).kind = ReflectionKind.objectLiteral;
+                    const result = _compileToBinary(runType, comp);
+                    (runType.src as any).kind = originalKind;
+                    return result;
+                }
             }
             break;
 
@@ -243,16 +255,20 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
     }
 }
 
+// there is a bitmask used to determine which optional props are present
+// the bitmask length increments by 1 byte for every 8 optional props
 function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optionalPropsLength = 0, currentPropIndex = 0) {
     const sεr = comp.args.sεr;
     const nestLevel = comp.getNestLevel(rt);
-    const bitMIndexVar = `bimI${nestLevel}`; // index of the optional prop loop
-    const bitmapLength = Math.ceil(optionalPropsLength / 32);
-    const bitIndex = `${currentPropIndex} & 31`; // equivalent to index % 32
+    const bitMIndexVar = `bmI${nestLevel}`; // index of the optional prop loop
+    const bitmapLength = Math.ceil(optionalPropsLength / 8);
+    const bitIndex = `${currentPropIndex} & 7`; // equivalent to index % 8
     // initialize bitmap to zero as there could be values left from previous serialization
-    const setBitmapToZero = Array.from({length: bitmapLength})
-        .map(() => `${sεr}.uint32[${sεr}.index++] = 0`)
-        .join(';');
-    const variablesInit = `let ${bitMIndexVar} = ${sεr}.index; ${setBitmapToZero}`;
-    return {bitMIndexVar, bitmapLength, bitIndex, variablesInit};
+    const indexVar = `iBl${nestLevel}`;
+    const setBitmapToZero =
+        bitmapLength > 1
+            ? `for (let ${indexVar} = 0; ${indexVar} < ${bitmapLength}; ${indexVar}++) {${sεr}.view.setUint8(${sεr}.index++, 0)}`
+            : `${sεr}.view.setUint8(${sεr}.index++, 0)`;
+    const bitMapInit = `${bitmapLength > 1 ? 'let ' : 'const'} ${bitMIndexVar} = ${sεr}.index; ${setBitmapToZero}`;
+    return {bitMIndexVar, bitmapLength, bitIndex, bitMapInit};
 }

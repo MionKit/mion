@@ -16,7 +16,9 @@ import type {ArrayRunType} from '../../runType/member/array';
 import type {PropertyRunType} from '../../runType/member/property';
 import type {InterfaceRunType} from '../../runType/collection/interface';
 import type {IndexSignatureRunType} from '../../runType/member/indexProperty';
+import type {ClassRunType} from '../../runType/collection/class';
 import {childIsExpression, isSafePropName, toLiteral} from '../../lib/utils';
+import {jitUtils} from '@mionkit/core';
 
 type BinaryCompiler = BaseCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
 
@@ -30,6 +32,10 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
     const dεs = comp.args.dεs;
     const fnID = comp.fnID;
 
+    // hack is used in some case to increase the index passing an extra argument to view.get methods
+    // ie: view.getUint32(index, littleEndian, index += 4);
+    // getUint32 only accepts 2 arguments, but we use the 3rd one to increase the index on a single statement so code can be used as an expression
+
     switch (kind) {
         // ###################### ATOMIC TYPES ######################
         case ReflectionKind.unknown:
@@ -40,9 +46,9 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
         case ReflectionKind.null:
             return `(${dεs}.index++, null)`;
         case ReflectionKind.boolean:
-            return `${dεs}.uint32[${dεs}.index++] === 1`;
+            return `${dεs}.view.getUint8(${dεs}.index++) === 1`;
         case ReflectionKind.number: {
-            return `${dεs}.desNumber()`;
+            return `${dεs}.view.getFloat64(${dεs}.index, 1, (${dεs}.index += 8))`;
         }
         case ReflectionKind.string: {
             return `${dεs}.desString()`;
@@ -87,8 +93,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             // deserialized from [length, items...]
             const lengthVal = `arrL${comp.getNestLevel(rt)}`;
             return `
-                const ${lengthVal} = ${dεs}.uint32[${dεs}.index++];
-                ${comp.vλl} = new Array(${lengthVal});
+                const ${lengthVal} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4; ${comp.vλl} = new Array(${lengthVal});
                 for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${lengthVal}; ${index}++) {${code}}
             `;
         }
@@ -107,15 +112,15 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             let keyDeserializationCode: string;
             if (indexKind === ReflectionKind.number) {
                 // For number indices, deserialize as uint32
-                keyDeserializationCode = `const ${prop} = ${dεs}.uint32[${dεs}.index++];`;
+                keyDeserializationCode = `const ${prop} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4; `;
             } else {
                 // For string indices (default), deserialize as string
-                keyDeserializationCode = `const ${prop} = ${dεs}.desString();`;
+                keyDeserializationCode = `const ${prop} = ${dεs}.desString(); `;
             }
 
-            const deserializeCode = `for (let ${indexVar} = 0; ${indexVar} < ${countVar}; ${indexVar}++) {${keyDeserializationCode} ${comp.vλl}[${prop}] = ${memberCode};}`;
+            const deserializeCode = `for (let ${indexVar} = 0; ${indexVar} < ${countVar}; ${indexVar}++) {${keyDeserializationCode}${comp.vλl}[${prop}] = ${memberCode};}`;
 
-            return `const ${countVar} = ${dεs}.uint32[${dεs}.index++]; ${comp.vλl} = {}; ${deserializeCode}`;
+            return `const ${countVar} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4; ${comp.vλl} = {}; ${deserializeCode}`;
         }
 
         case ReflectionKind.function:
@@ -153,19 +158,18 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             const rt = runType as PropertyRunType;
             const parent = rt.getParent() as InterfaceRunType;
             if (parent.hasIndexSignature(comp)) return undefined; // all deserialization is done by index signature code
-
             const child = rt.getJitChild(comp)!;
             const memberCode = child?.compile(comp, fnID);
-            // TODO, not sure what to do is memberCode is an not an expression, as we need to assign to a variable
-            const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
-            if (!isExpression) throw new Error('Only expression can be used as property value');
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
-                return `if (${dεs}.uint32[${bitMIndexVar}] & (1 << (${bitIndex}))) {${comp.getChildVλl()} = ${memberCode}}`;
+                return `if (${dεs}.view.getUint8(${bitMIndexVar}, 1) & (1 << (${bitIndex}))) {${comp.getChildVλl()} = ${memberCode}}`;
             }
-
-            // non optional props are part of an object constructor {a: deserializeA, b: deserializeB, c: deserializeC}
-            // non optional props does not include the prop index as it is known at compile time
+            // block or statements code are initialized as obj.a = deserializeA; obj.b = deserializeB; after initial object has been created
+            const isExpression = childIsExpression(JitFunctions.fromBinary.id, child);
+            if (!isExpression) {
+                return memberCode; // block statements already include variable assignment
+            }
+            // required props that are simple expressions code are part of an object constructor {a: deserializeA, b: deserializeB, c: deserializeC}
             const propName = getPropName(rt, comp, true);
             return `${propName}:${memberCode}`;
         }
@@ -189,41 +193,42 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             } else {
                 const rt = runType as InterfaceRunType;
 
-                const {required, optional, indexSignatures} = rt.splitJitSplitChildren(comp);
+                const {requiredExpressions, requiredStatements, optional, indexSignatures} = rt.splitJitSplitChildren(comp);
                 if (indexSignatures.length) {
                     return indexSignatures[0].compile(comp, fnID) as string; // index signature code already contains the loop
                 }
 
-                // non optional properties are restored as: '{a: deserializeA, b: deserializeB, c: deserializeC};
-                // and must be serialized/deserialised in the same order they are declared in the type
-                // no index var or anything required as properties are deserialized in the order they are declared
-                const nonOptionalCode = required
+                // required props that are simple expressions are restored as: '{a: deserializeA, b: deserializeB, c: deserializeC};
+                // and are serialized/deserialised in the same order they are declared in the type
+                const expressionsPropsCode = requiredExpressions
                     .map((prop) => prop.compile(comp, fnID))
                     .filter(Boolean)
                     .join(',');
-                const objectCode = `${comp.vλl} = {${nonOptionalCode}};`;
+                const requiredPropsCode = requiredStatements
+                    .map((prop) => prop.compile(comp, fnID))
+                    .filter(Boolean)
+                    .join(';');
+                const objectCode = `${comp.vλl} = {${expressionsPropsCode}};${requiredPropsCode}`;
 
                 // optional props are initialized as obj.a = deserializeA; obj.b = deserializeB; obj.c = deserializeC;
                 // bitmap is used to determine which optional props are present
-                // header format: [bitmap length, bitmap, [prop values]]
-
+                // header format: [bitmap, optional props]
                 let optionalPropsCode = '';
                 if (optional.length) {
                     // optional properties are restored using a loop
-                    const {variablesInit, bitMIndexVar} = getOptionalPropsItems(rt, comp, optional.length);
+                    const {bitMapInit, bitMIndexVar} = getOptionalPropsItems(rt, comp, optional.length);
                     const propsCode = optional
                         .map((prop, i) => {
                             prop.optionalIndex = i;
                             const modIndex = i + 1;
-                            const shouldIncreaseBufferIndex = modIndex % 32 === 0;
+                            const shouldIncreaseBufferIndex = modIndex % 8 === 0;
                             if (!shouldIncreaseBufferIndex) return prop.compile(comp, fnID);
-                            // every 32 props we need to increase the bitmap index
+                            // every 8 props we need to increase the bitmap index
                             return `${prop.compile(comp, fnID)} ${bitMIndexVar}++; `;
                         })
                         .filter(Boolean)
                         .join('');
-
-                    optionalPropsCode = `${variablesInit}\n${propsCode}`;
+                    optionalPropsCode = `${bitMapInit}\n${propsCode}`;
                 }
 
                 return `${objectCode}\n${optionalPropsCode}`;
@@ -232,7 +237,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
         case ReflectionKind.class:
             switch (runType.src.subKind) {
                 case ReflectionSubKind.date:
-                    return `new Date(${dεs}.desFloat64())`;
+                    return `new Date(${dεs}.view.getFloat64(${dεs}.index, 1, (${dεs}.index += 8)))`;
                     break;
                 case ReflectionSubKind.map:
                     // TODO: Handle Map class
@@ -242,9 +247,24 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                     break;
                 case ReflectionSubKind.nonSerializable:
                     throw new Error('Binary deserialization disabled for Non Serializable types');
-                default:
-                    // TODO: Handle regular class
-                    break;
+                default: {
+                    const rt = runType as ClassRunType;
+                    if (rt.isCallable()) {
+                        const callSignature = rt.getCallSignature();
+                        if (callSignature) return callSignature.compile(comp, fnID);
+                    }
+                    const originalKind = rt.src.kind;
+                    (runType.src as any).kind = ReflectionKind.objectLiteral;
+                    const plainObjCode = _compileFromBinary(rt, comp);
+                    (runType.src as any).kind = originalKind;
+                    const desFnVarName = `desFn${comp.getNestLevel(rt)}`;
+                    const desFnInit = `let ${desFnVarName} = utl.${jitUtils.getDeserializeFn.name}(${toLiteral(rt.getClassName())})`;
+                    const desFnCode = `if (${desFnVarName}) {${comp.vλl} = ${desFnVarName}(${comp.vλl})}`;
+                    const desClassCode = `else if (${desFnVarName} = utl.${jitUtils.getSerializeClass.name}(${toLiteral(rt.getClassName())})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}`;
+                    return `${plainObjCode};${desFnInit};${desFnCode} ${desClassCode}`;
+
+                    return plainObjCode;
+                }
             }
             break;
 
@@ -277,9 +297,9 @@ function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optio
     const dεs = comp.args.dεs;
     const nestLevel = comp.getNestLevel(rt);
     const bitMIndexVar = `bimI${nestLevel}`; // index of the optional prop loop
-    const bitmapLength = `(${optionalPropsLength} + 31) >> 5`; // equivalent to Math.ceil(optionalPropsLength / 32)
-    const bitIndex = `${currentPropIndex} & 31`; // equivalent to index % 32
+    const bitmapLength = Math.ceil(optionalPropsLength / 8);
+    const bitIndex = `${currentPropIndex} & 7`; // equivalent to index % 8
     // bitmap for present optional props
-    const variablesInit = `let ${bitMIndexVar} = ${dεs}.index; ${dεs}.index += ${bitmapLength};`;
-    return {bitMIndexVar, bitmapLength, bitIndex, variablesInit};
+    const bitMapInit = `${bitmapLength > 1 ? 'let ' : 'const'} ${bitMIndexVar} = ${dεs}.index; ${dεs}.index += ${bitmapLength};`;
+    return {bitMIndexVar, bitmapLength, bitIndex, bitMapInit};
 }

@@ -8,14 +8,13 @@
 import {SERIALIZATION_SPEC} from '../serialization-suite';
 import {JitFunctions} from '../../constants.functions';
 import {FunctionRunType} from '../../runType/function/function';
-import {createBinaryDeserializer, createBinarySerializer} from './binarySerializer';
-import type {BinaryDeserializer, BinarySerializer, StrictArrayBuffer} from './types';
+import type {DataViewDeserializer, DataViewSerializer, StrictArrayBuffer} from './types';
 import type {InterfaceRunType} from '../../runType/collection/interface';
 import type {RunType} from '../../types';
-import {runType} from '../../lib/runType';
+import {createDataViewDeserializer, createDataViewSerializer} from './binarySerializerDataView';
 
-const serContext: BinarySerializer = createBinarySerializer({bufferSize: 1024});
-const desContext: BinaryDeserializer = createBinaryDeserializer(new ArrayBuffer(0));
+const serContext: DataViewSerializer = createDataViewSerializer({bufferSize: 1024});
+const desContext: DataViewDeserializer = createDataViewDeserializer(new ArrayBuffer(0));
 
 const SERIALIZE_FN = JitFunctions.toBinary;
 const DESERIALIZE_FN = JitFunctions.fromBinary;
@@ -63,31 +62,34 @@ function createSerializationCallSignatureReturnFn(rt: InterfaceRunType) {
     return {serialize, deserialize};
 }
 
+const sizesEntries: any[] = [];
+const valuesEntries: any[] = [];
+
 function roundTrip(
     serialize: (v: any) => StrictArrayBuffer,
     deserialize: (v: StrictArrayBuffer) => any,
     value: any,
-    debug = false
+    debug = true
 ) {
     serContext.reset();
     const serialized = serialize(value);
-    if (debug) {
-        console.log(
-            'Binary length:',
-            serialized.byteLength,
-            'Binary bytes:',
-            Array.from(new Uint32Array(serialized))
-                .map((b) => '0x' + b.toString(16).padStart(8, '0'))
-                .join(' ')
-        );
-    }
+    // console.log('serialized', serialized);
     const deserialized = deserialize(serialized);
     if (debug) {
-        console.log('Original value:', value, 'Deserialized value:', deserialized);
+        let json: number | string = '';
+        try { json = new Blob([JSON.stringify(value)]).size; } catch (e) { json = '-'; } // prettier-ignore
+        const sizes = {name: expect.getState().currentTestName, json, binary: serialized.byteLength};
+        sizesEntries.push(sizes);
+        valuesEntries.push({value, deserialized});
     }
     const result = {serialized, deserialized};
     return result;
 }
+
+afterAll(() => {
+    if (sizesEntries.length) console.table(sizesEntries);
+    if (valuesEntries.length) console.table(valuesEntries);
+});
 
 describe('atomic', () => {
     let ranTests = 0;
@@ -402,7 +404,7 @@ describe('objects', () => {
         });
     });
 
-    it('interface with many optional props should be compiled correctly', () => {
+    it('interface with many optional props', () => {
         const {rt, values} = SERIALIZATION_SPEC.OBJECTS.many_optional_props.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
 
@@ -435,7 +437,7 @@ describe('objects', () => {
         });
     });
 
-    it('serializable class can be deserialized after they are registered', async () => {
+    it('class can be deserialized after registered', async () => {
         const {rt, values} = SERIALIZATION_SPEC.OBJECTS.serializable_class_restored.getTestData();
         const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.serializable_class_restored.getTestData(true);
         const {serialize, deserialize} = createSerializationFns(rt);
@@ -448,7 +450,7 @@ describe('objects', () => {
         });
     });
 
-    it('classes can be deserialized suing a deserialize function', () => {
+    it('deserialize class using a function', () => {
         const {rt, values} = SERIALIZATION_SPEC.OBJECTS.classes_deserialize_function.getTestData();
         const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.classes_deserialize_function.getTestData(true);
         const {serialize, deserialize} = createSerializationFns(rt);
@@ -483,7 +485,7 @@ describe('objects', () => {
         });
     });
 
-    it('must set optional properties first in order to work properly', () => {
+    it('optional properties', () => {
         const {rt, values} = SERIALIZATION_SPEC.OBJECTS.optional_properties_order.getTestData();
         const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.optional_properties_order.getTestData(true);
         const {serialize, deserialize} = createSerializationFns(rt);
@@ -505,14 +507,13 @@ describe('objects', () => {
         });
     });
 
-    it('to strip extra params without fail', () => {
-        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.strip_extra_params.getTestData();
-        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.strip_extra_params.getTestData(true);
+    it('strip extra params', () => {
+        const {rt, values, deserializedValues} = SERIALIZATION_SPEC.OBJECTS.strip_extra_params.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserializedValues[i]).toEqual(deserialized);
         });
     });
 
@@ -556,6 +557,8 @@ describe('objects', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
+            console.log(deserialized);
+            console.log(originalValues[i]);
             expect(originalValues[i]).toEqual(deserialized);
         });
     });
@@ -571,24 +574,13 @@ describe('objects', () => {
         });
     });
 
-    it('interface with methods - methods should be excluded', () => {
+    it('methods should be excluded from interface', () => {
         const {rt, values, deserializedValues} = SERIALIZATION_SPEC.OBJECTS.interface_with_methods.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
             expect(deserialized).toEqual(deserializedValues[i]);
-        });
-    });
-
-    it('interface circular tuple', () => {
-        const {rt, values} = SERIALIZATION_SPEC.OBJECTS.interface_circular_tuple.getTestData();
-        const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.interface_circular_tuple.getTestData(true);
-        const {serialize, deserialize} = createSerializationFns(rt);
-
-        values.forEach((value, i) => {
-            const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
         });
     });
 
@@ -748,6 +740,17 @@ describe('tuples', () => {
         });
     });
 
+    it('interface circular tuple', () => {
+        const {rt, values} = SERIALIZATION_SPEC.TUPLES.interface_circular_tuple.getTestData();
+        const {values: originalValues} = SERIALIZATION_SPEC.TUPLES.interface_circular_tuple.getTestData(true);
+        const {serialize, deserialize} = createSerializationFns(rt);
+
+        values.forEach((value, i) => {
+            const {deserialized} = roundTrip(serialize, deserialize, value);
+            expect(originalValues[i]).toEqual(deserialized);
+        });
+    });
+
     it('all test ran', () => {
         const totalTest = Object.keys(SERIALIZATION_SPEC.TUPLES).length;
         expect(ranTests).toBe(totalTest);
@@ -855,7 +858,7 @@ describe('functions', () => {
         });
     });
 
-    it(`if function's return type is a promise then return type should be the promise's resolvedType`, () => {
+    it(`functions returns a promise`, () => {
         const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.function_promise_return_type.getTestData();
         const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.function_promise_return_type.getTestData(true);
         const {serialize, deserialize} = createSerializationReturnFn(rt as FunctionRunType);
@@ -866,7 +869,7 @@ describe('functions', () => {
         });
     });
 
-    it(`if function's return type is a function then return type should be the function's return type`, () => {
+    it(`return type of a closure`, () => {
         const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.function_return_type_is_function.getTestData();
         const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.function_return_type_is_function.getTestData(true);
         const {serialize, deserialize} = createSerializationReturnFn(rt as FunctionRunType);
@@ -877,7 +880,7 @@ describe('functions', () => {
         });
     });
 
-    it('should get params runType from a function using reflectFunction', () => {
+    it('get params function using reflectFunction', () => {
         const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.reflectFunction_params.getTestData();
         const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.reflectFunction_params.getTestData(true);
         const {serialize, deserialize} = createSerializationParamsFn(rt as FunctionRunType);
@@ -888,7 +891,7 @@ describe('functions', () => {
         });
     });
 
-    it('should get return runType from a function using reflectFunction', () => {
+    it('get return function using reflectFunction', () => {
         const {rt, values} = SERIALIZATION_SPEC.FUNCTIONS.reflectFunction_return.getTestData();
         const {values: originalValues} = SERIALIZATION_SPEC.FUNCTIONS.reflectFunction_return.getTestData(true);
         const {serialize, deserialize} = createSerializationReturnFn(rt as FunctionRunType);
@@ -1081,7 +1084,7 @@ describe('unions', () => {
         });
     });
 
-    it('throw errors when serializing/deserializing object not belonging to the union', () => {
+    it('throw errors when item not belongs to the union', () => {
         const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_errors.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
         const jsonValues = values.map((item) => JSON.stringify([-1, item])); // invalid union index
@@ -1390,7 +1393,7 @@ describe('circular-references', () => {
         });
     });
 
-    it('array to strip extra params without fail', () => {
+    it('array strip extra params', () => {
         const {rt, values} = SERIALIZATION_SPEC.CIRCULAR_REFS.object_with_circular_array.getTestData();
         const {serialize, deserialize} = createSerializationFns(rt);
 
