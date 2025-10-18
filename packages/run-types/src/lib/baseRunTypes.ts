@@ -264,10 +264,10 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             // prettier-ignore
             switch (fnID) {
                 case JitFunctions.isType.id:
-                    code = this.compileFormatter(comp, fnID, ' && ', this._compileIsType(comp).code);
+                    code = this.compileFormatter(comp, fnID, ' && ', this._compileIsType(comp));
                     break;
                 case JitFunctions.typeErrors.id:
-                    code = this.compileFormatter(comp, fnID, ';', this._compileTypeErrors(comp as JitErrorsCompiler).code);
+                    code = this.compileFormatter(comp, fnID, ';', this._compileTypeErrors(comp as JitErrorsCompiler));
                     break;
                 case JitFunctions.toJsonVal.id:
                     code = this._compileToJsonVal(comp);
@@ -306,9 +306,9 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return code;
     }
 
-    private compileFormatter(comp: JitCompiler, fnID: JitFnID, separator: string, code?: string): jitCode {
+    private compileFormatter(comp: JitCompiler, fnID: JitFnID, separator: string, inputCode?: jitCode): jitCode {
         const typeFormatters = getTypeFormats(this);
-        if (!typeFormatters.length) return {code, type: this.getCodeType(fnID)};
+        if (!typeFormatters.length) return inputCode || {code: undefined, type: this.getCodeType(fnID)};
         const formattersCode = typeFormatters
             .map((f) => {
                 // Check if the formatter code can be embedded AND is compatible with the function ID
@@ -333,9 +333,11 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 return depCode?.code;
             })
             .filter(Boolean) as string[];
-        if (!formattersCode.length) return {code, type: this.getCodeType(fnID)};
-        const finalCode = code ? code + separator + formattersCode.join(separator) : formattersCode.join(separator);
-        return {code: finalCode, type: this.getCodeType(fnID)};
+        if (!formattersCode.length) return inputCode || {code: undefined, type: this.getCodeType(fnID)};
+        const finalCode = inputCode?.code
+            ? inputCode.code + separator + formattersCode.join(separator)
+            : formattersCode.join(separator);
+        return {code: finalCode, type: inputCode?.type || this.getCodeType(fnID)};
     }
 
     callDependency(currentComp: JitCompiler, dependencyComp: JitCompiledFn): jitCode {
