@@ -174,7 +174,7 @@ export function _compileJsonStringify(
                 const params = rt.getParamRunTypes(comp);
                 if (params.length === 0) return {code: `'[]'`, type: 'E'};
                 const paramsCode = params.map((p) => p.compile(comp, fnID)?.code).join('+');
-                return `'['+${paramsCode}+']'`;
+                return {code: `'['+${paramsCode}+']'`, type: 'E'};
             } else {
                 throw new Error(
                     `Compile function ${getOperationName(fnID)} not supported, call compileParams or compileReturn instead.`
@@ -196,7 +196,7 @@ export function _compileJsonStringify(
             const rt = runType as PropertyRunType;
             const child = rt.getJitChild(comp);
             const propCode = child?.compile(comp, fnID);
-            if (!child || !propCode) return undefined;
+            if (!child || !propCode?.code) return {code: undefined, type: 'E'};
             // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
             const sep = rt.skipCommas ? '' : '+","';
             // encoding safe property with ':' inside the string saves a little processing
@@ -205,38 +205,42 @@ export function _compileJsonStringify(
             if (rt.src.optional) {
                 rt.tempChildVλl = comp.getChildVλl();
                 // TODO: check if json for an object with first property undefined is valid (maybe the comma must be dynamic too)
-                return `(${rt.tempChildVλl} === undefined ? '' : ${propDef}+${propCode}${sep})`;
+                return {code: `(${rt.tempChildVλl} === undefined ? '' : ${propDef}+${propCode.code}${sep})`, type: 'E'};
             }
-            return `${propDef}+${propCode}${sep}`;
+            return {code: `${propDef}+${propCode.code}${sep}`, type: 'E'};
         }
         case ReflectionKind.rest: {
             const rt = runType as RestParamsRunType;
-            let itemCode = rt.getJitChild(comp)?.compile(comp, fnID);
-            if (!itemCode) itemCode = 'JSON.stringify(' + comp.getChildVλl() + ')';
+            const itemCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            const itemCodeStr = itemCode?.code || 'JSON.stringify(' + comp.getChildVλl() + ')';
             const arrName = `res${comp.getNestLevel(rt)}`;
             const itemName = `its${comp.getNestLevel(rt)}`;
             const index = rt.getChildVarName(comp);
             const isFist = rt.getChildIndex(comp) === 0;
             const sep = isFist ? '' : `','+`;
-            return `
+            return {
+                code: `
                 const ${arrName} = [];
                 for (let ${index} = ${rt.getChildIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
-                    const ${itemName} = ${itemCode};
+                    const ${itemName} = ${itemCodeStr};
                     if(${itemName}) ${arrName}.push(${itemName});
                 }
                 if (!${arrName}.length) {return '';}
                 else {return ${sep}${arrName}.join(',')}
-            `;
+            `,
+                type: 'RB',
+            };
         }
         case ReflectionKind.tupleMember: {
             const rt = runType as ParameterRunType;
-            let childCode = rt.getJitChild(comp)?.compile(comp, fnID);
-            if (!childCode) childCode = `null`; // non serializable types are set to null
-            if (rt.isRest()) return childCode;
+            const childCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            const childCodeStr = childCode?.code || `null`; // non serializable types are set to null
+            if (rt.isRest()) return childCode || {code: `null`, type: 'E'};
             const isFirst = rt.getChildIndex(comp) === 0;
             const sep = isFirst ? '' : `','+`;
-            if (rt.isOptional()) return `(${comp.getChildVλl()} === undefined ? ${sep}'null' : ${sep}${childCode})`;
-            return `${sep}${childCode}`;
+            if (rt.isOptional())
+                return {code: `(${comp.getChildVλl()} === undefined ? ${sep}'null' : ${sep}${childCodeStr})`, type: 'E'};
+            return {code: `${sep}${childCodeStr}`, type: 'E'};
         }
         case ReflectionKind.promise: {
             throw new Error(`Jit compilation disabled for Non Serializable types.`);
