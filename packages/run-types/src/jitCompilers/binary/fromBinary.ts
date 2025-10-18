@@ -41,35 +41,35 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
         case ReflectionKind.unknown:
         case ReflectionKind.any: {
             // any is deserialized from json string
-            return `JSON.parse(${dεs}.desString())`;
+            return {code: `JSON.parse(${dεs}.desString())`, type: 'E'};
         }
         case ReflectionKind.null:
-            return `(${dεs}.index++, null)`;
+            return {code: `(${dεs}.index++, null)`, type: 'E'};
         case ReflectionKind.boolean:
-            return `${dεs}.view.getUint8(${dεs}.index++) === 1`;
+            return {code: `${dεs}.view.getUint8(${dεs}.index++) === 1`, type: 'E'};
         case ReflectionKind.number: {
-            return `${dεs}.view.getFloat64(${dεs}.index, 1, (${dεs}.index += 8))`;
+            return {code: `${dεs}.view.getFloat64(${dεs}.index, 1, (${dεs}.index += 8))`, type: 'E'};
         }
         case ReflectionKind.string: {
-            return `${dεs}.desString()`;
+            return {code: `${dεs}.desString()`, type: 'E'};
         }
         case ReflectionKind.bigint: {
-            return `BigInt(${dεs}.desString())`;
+            return {code: `BigInt(${dεs}.desString())`, type: 'E'};
         }
         case ReflectionKind.undefined:
         case ReflectionKind.void:
-            return `(${dεs}.index++, undefined)`;
+            return {code: `(${dεs}.index++, undefined)`, type: 'E'};
         case ReflectionKind.symbol: {
-            return `Symbol(${dεs}.desString() || undefined)`;
+            return {code: `Symbol(${dεs}.desString() || undefined)`, type: 'E'};
         }
         case ReflectionKind.regexp: {
-            return `new RegExp(${dεs}.desString(), ${dεs}.desString())`;
+            return {code: `new RegExp(${dεs}.desString(), ${dεs}.desString())`, type: 'E'};
         }
         case ReflectionKind.object:
             // similar to any, this is deserialized as json string
-            return `JSON.parse(${dεs}.desString())`;
+            return {code: `JSON.parse(${dεs}.desString())`, type: 'E'};
         case ReflectionKind.enum: {
-            return `${dεs}.desEnum()`;
+            return {code: `${dεs}.desEnum()`, type: 'E'};
         }
         case ReflectionKind.enumMember:
             throw new Error('Binary deserialization not supported for enum member types');
@@ -78,7 +78,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
         case ReflectionKind.templateLiteral:
             throw new Error('Template literals are not supported in Binary deserialization');
         case ReflectionKind.literal:
-            return toLiteral((runType as LiteralRunType).src.literal);
+            return {code: toLiteral((runType as LiteralRunType).src.literal), type: 'E'};
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
         case ReflectionKind.array: {
@@ -86,23 +86,26 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             rt.checkNonSkipTypes(comp);
             const child = rt.getMemberType()!;
             const childCode = child.compile(comp, fnID);
-            if (!childCode) throw new Error(`Do not know how to deserialize Array<${child.getTypeName()}> from Binary.`);
+            if (!childCode?.code) throw new Error(`Do not know how to deserialize Array<${child.getTypeName()}> from Binary.`);
             const index = rt.getChildVarName(comp);
             const isExpression = childIsExpression(JitFunctions.fromBinary.id, child);
-            const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
+            const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
             // deserialized from [length, items...]
             const lengthVal = `arrL${comp.getNestLevel(rt)}`;
-            return `
+            return {
+                code: `
                 const ${lengthVal} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4; ${comp.vλl} = new Array(${lengthVal});
                 for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${lengthVal}; ${index}++) {${code}}
-            `;
+            `,
+                type: 'S',
+            };
         }
 
         case ReflectionKind.indexSignature: {
             const rt = runType as IndexSignatureRunType;
             const indexKind = (rt.src as any).index?.kind;
             const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
-            if (!memberCode) return undefined;
+            if (!memberCode?.code) return {code: undefined, type: 'S'};
 
             const prop = rt.getChildVarName(comp);
             const countVar = `cnt${comp.getNestLevel(rt)}`;
@@ -118,9 +121,12 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                 keyDeserializationCode = `const ${prop} = ${dεs}.desString(); `;
             }
 
-            const deserializeCode = `for (let ${indexVar} = 0; ${indexVar} < ${countVar}; ${indexVar}++) {${keyDeserializationCode}${comp.vλl}[${prop}] = ${memberCode};}`;
+            const deserializeCode = `for (let ${indexVar} = 0; ${indexVar} < ${countVar}; ${indexVar}++) {${keyDeserializationCode}${comp.vλl}[${prop}] = ${memberCode.code};}`;
 
-            return `const ${countVar} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4; ${comp.vλl} = {}; ${deserializeCode}`;
+            return {
+                code: `const ${countVar} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4; ${comp.vλl} = {}; ${deserializeCode}`,
+                type: 'S',
+            };
         }
 
         case ReflectionKind.function:
@@ -162,7 +168,10 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             // console.log(getPropName(rt, comp, true), comp.getChildVλl(), memberCode);
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
-                return `if (${dεs}.view.getUint8(${bitMIndexVar}, 1) & (1 << (${bitIndex}))) {${comp.getChildVλl()} = ${memberCode}}`;
+                return {
+                    code: `if (${dεs}.view.getUint8(${bitMIndexVar}, 1) & (1 << (${bitIndex}))) {${comp.getChildVλl()} = ${memberCode?.code}}`,
+                    type: 'S',
+                };
             }
             // block or statements code are initialized as obj.a = deserializeA; obj.b = deserializeB; after initial object has been created
             const isExpression = childIsExpression(JitFunctions.fromBinary.id, child);
@@ -171,7 +180,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             }
             // required props that are simple expressions code are part of an object constructor {a: deserializeA, b: deserializeB, c: deserializeC}
             const propName = getPropName(rt, comp, true);
-            return `${propName}:${memberCode}`;
+            return {code: `${propName}:${memberCode?.code}`, type: 'E'};
         }
         case ReflectionKind.rest:
             // TODO
@@ -195,17 +204,17 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
 
                 const {requiredExpressions, requiredStatements, optional, indexSignatures} = rt.splitJitSplitChildren(comp);
                 if (indexSignatures.length) {
-                    return indexSignatures[0].compile(comp, fnID) as string; // index signature code already contains the loop
+                    return indexSignatures[0].compile(comp, fnID); // index signature code already contains the loop
                 }
 
                 // required props that are simple expressions are restored as: '{a: deserializeA, b: deserializeB, c: deserializeC};
                 // and are serialized/deserialised in the same order they are declared in the type
                 const expressionsPropsCode = requiredExpressions
-                    .map((prop) => prop.compile(comp, fnID))
+                    .map((prop) => prop.compile(comp, fnID)?.code)
                     .filter(Boolean)
                     .join(',');
                 const requiredPropsCode = requiredStatements
-                    .map((prop) => prop.compile(comp, fnID))
+                    .map((prop) => prop.compile(comp, fnID)?.code)
                     .filter(Boolean)
                     .join(';');
                 const objectCode = `${comp.vλl} = {${expressionsPropsCode}};${requiredPropsCode}`;
@@ -222,22 +231,23 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                             prop.optionalIndex = i;
                             const modIndex = i + 1;
                             const shouldIncreaseBufferIndex = modIndex % 8 === 0;
-                            if (!shouldIncreaseBufferIndex) return prop.compile(comp, fnID);
+                            const propCode = prop.compile(comp, fnID)?.code;
+                            if (!shouldIncreaseBufferIndex) return propCode;
                             // every 8 props we need to increase the bitmap index
-                            return `${prop.compile(comp, fnID)} ${bitMIndexVar}++; `;
+                            return `${propCode} ${bitMIndexVar}++; `;
                         })
                         .filter(Boolean)
                         .join('');
                     optionalPropsCode = `${bitMapInit}\n${propsCode}`;
                 }
 
-                return `${objectCode}\n${optionalPropsCode}`;
+                return {code: `${objectCode}\n${optionalPropsCode}`, type: 'S'};
             }
 
         case ReflectionKind.class:
             switch (runType.src.subKind) {
                 case ReflectionSubKind.date:
-                    return `new Date(${dεs}.view.getFloat64(${dεs}.index, 1, (${dεs}.index += 8)))`;
+                    return {code: `new Date(${dεs}.view.getFloat64(${dεs}.index, 1, (${dεs}.index += 8)))`, type: 'E'};
                     break;
                 case ReflectionSubKind.map:
                     // TODO: Handle Map class
@@ -261,9 +271,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                     const desFnInit = `let ${desFnVarName} = utl.${jitUtils.getDeserializeFn.name}(${toLiteral(rt.getClassName())})`;
                     const desFnCode = `if (${desFnVarName}) {${comp.vλl} = ${desFnVarName}(${comp.vλl})}`;
                     const desClassCode = `else if (${desFnVarName} = utl.${jitUtils.getSerializeClass.name}(${toLiteral(rt.getClassName())})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}`;
-                    return `${plainObjCode};${desFnInit};${desFnCode} ${desClassCode}`;
-
-                    return plainObjCode;
+                    return {code: `${plainObjCode?.code};${desFnInit};${desFnCode} ${desClassCode}`, type: 'S'};
                 }
             }
             break;
