@@ -22,6 +22,7 @@
   - `eslint-plugin`: ESLint plugin for mion
 - Run commands in specific package: `npm run <command> -w @mionkit/<packageName>`
 - Or navigate to package directory and run commands locally
+- all devDependencies should be installed root level not in the packages
 
 ## Testing
 - Uses Jest as testing framework
@@ -47,3 +48,4 @@
 - Run `npm run clean` before starting work
 - Use `npm run test` to run tests
 - before committing, run `npm run lint` and `npm run format`, to ensure code style and formatting are correct
+- commit often after small changes
