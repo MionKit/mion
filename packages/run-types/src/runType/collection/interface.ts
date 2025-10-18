@@ -7,7 +7,7 @@
 import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind} from '@deepkit/type';
 import type {jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {arrayToLiteral, getJitFnArgCallVarName, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
+import {arrayToLiteral, childIsExpression, getJitFnArgCallVarName, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {MethodSignatureRunType} from '../member/methodSignature';
@@ -45,15 +45,28 @@ export class InterfaceRunType<
     }
     /** Split children in two groups: required and optional */
     splitJitSplitChildren(comp: JitCompiler): {
+        /** all required properties */
         required: PropertyRunType[];
+        /** required properties that can be deserialized as an expression */
+        requiredExpressions: PropertyRunType[];
+        /** required properties that require a statement to be deserialized */
+        requiredStatements: PropertyRunType[];
+        /** all optional properties */
         optional: PropertyRunType[];
+        /** all index signatures */
         indexSignatures: IndexSignatureRunType[];
     } {
         const children = super.getJitChildren(comp) as InterfaceMember[];
         const required = children.filter((prop) => !prop.isOptional()) as PropertyRunType[];
         const optional = children.filter((prop) => prop.isOptional() && !isIndexSignatureRunType(prop)) as PropertyRunType[];
         const indexSignatures = children.filter((prop) => isIndexSignatureRunType(prop)) as IndexSignatureRunType[];
-        return {required, optional, indexSignatures};
+        const requiredExpressions = required.filter((prop) =>
+            childIsExpression(JitFunctions.fromBinary.id, prop.getJitChild(comp)!)
+        );
+        const requiredStatements = required.filter(
+            (prop) => !childIsExpression(JitFunctions.fromBinary.id, prop.getJitChild(comp)!)
+        );
+        return {required, requiredExpressions, requiredStatements, optional, indexSignatures};
     }
     isPartOfUnion(): boolean {
         return this.getParent()?.src.kind === ReflectionKind.union;

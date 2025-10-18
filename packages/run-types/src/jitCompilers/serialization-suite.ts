@@ -149,6 +149,9 @@ export const SERIALIZATION_SPEC = {
                     -1,
                     1.1,
                     -1.1,
+                    1988,
+                    2045,
+                    2 ** 31,
                     Number.MAX_SAFE_INTEGER,
                     Number.MIN_SAFE_INTEGER,
                     Number.MIN_VALUE,
@@ -375,7 +378,6 @@ export const SERIALIZATION_SPEC = {
                     name: string;
                     nullValue: null;
                     stringArray: string[];
-                    bigInt: bigint;
                     "weird prop name \n?>'\\\t\r": string;
                     optionalString?: string;
                 };
@@ -386,10 +388,13 @@ export const SERIALIZATION_SPEC = {
                     name: 'hello',
                     nullValue: null,
                     stringArray: ['a', 'b', 'c'],
-                    bigInt: BigInt(123),
                     "weird prop name \n?>'\\\t\r": 'hello2',
                 };
-                const values = [value];
+                const valueWIthOptional: TestInterface = {
+                    ...value,
+                    optionalString: 'hello3',
+                };
+                const values = [value, valueWIthOptional];
                 return {rt, values};
             },
         },
@@ -500,7 +505,7 @@ export const SERIALIZATION_SPEC = {
             },
         },
         optional_properties_order: {
-            title: 'must set optional properties first in order to work properly',
+            title: 'optional properties',
             getTestData: (dataOnly = false) => {
                 type Obj1 = {
                     a: string;
@@ -524,9 +529,9 @@ export const SERIALIZATION_SPEC = {
             },
         },
         strip_extra_params: {
-            title: 'to strip extra params without fail',
+            title: 'strip extra params',
             getTestData: (dataOnly = false) => {
-                type ObjectTypeExtra = {
+                type SomeObject = {
                     startDate: Date;
                     quantity: number;
                     name: string;
@@ -535,14 +540,18 @@ export const SERIALIZATION_SPEC = {
                     bigInt: bigint;
                     optionalString?: string;
                     "weird prop name \n?>'\\\t\r": string;
-                    deep?: {
+                    deep: {
                         a: string;
                         b: number;
                     };
+                    '?other weird p': {
+                        c: string;
+                        d: number;
+                    };
                 };
-                const rt = dataOnly ? (null as any) : runType<ObjectTypeExtra>();
+                const rt = dataOnly ? (null as any) : runType<SomeObject>();
                 const startDate = new Date('2000-08-06T02:13:00.000Z');
-                const value: ObjectTypeExtra = {
+                const noExtraParams: SomeObject = {
                     startDate,
                     quantity: 123,
                     name: 'hello',
@@ -550,13 +559,21 @@ export const SERIALIZATION_SPEC = {
                     stringArray: ['a', 'b', 'c'],
                     bigInt: BigInt(123),
                     "weird prop name \n?>'\\\t\r": 'hello2',
-                    deep: {
-                        a: 'hello',
-                        b: 123,
-                    },
+                    deep: {a: 'hello', b: 123},
+                    '?other weird p': {c: 'hello', d: 123},
                 };
-                const values = [value];
-                return {rt, values};
+                const objectWithExtraParams = {
+                    ...noExtraParams,
+                    startDate: new Date('2000-08-06T02:13:00.000Z'),
+                    deep: {a: 'hello', b: 123, cExtra: true},
+                    '?other weird p': {c: 'hello', d: 123, eExtra: true},
+                    extraA: 'hello',
+                    extraB: 123,
+                    extraC: true,
+                };
+                const values = [objectWithExtraParams];
+                const deserializedValues = [noExtraParams];
+                return {rt, values, deserializedValues};
             },
         },
         interface_circular: {
@@ -609,7 +626,7 @@ export const SERIALIZATION_SPEC = {
             getTestData: (dataOnly = false) => {
                 interface ICircularDeep {
                     name: string;
-                    big: bigint;
+                    date: Date;
                     embedded: {
                         hello: string;
                         child?: ICircularDeep;
@@ -620,14 +637,20 @@ export const SERIALIZATION_SPEC = {
                     ciChild: ICircularDeep;
                 }
                 const rt = dataOnly ? (null as any) : runType<RootNotCircular>();
-                const values = [
-                    {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}},
+                const values: RootNotCircular[] = [
+                    {
+                        isRoot: true,
+                        ciChild: {name: 'hello', date: new Date('2000-08-06T02:13:00.000Z'), embedded: {hello: 'world'}},
+                    },
                     {
                         isRoot: true,
                         ciChild: {
                             name: 'hello',
-                            big: 1n,
-                            embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
+                            date: new Date('2000-08-06T02:13:00.000Z'),
+                            embedded: {
+                                hello: 'world',
+                                child: {name: 'world1', date: new Date('2000-08-06T02:13:00.000Z'), embedded: {hello: 'world2'}},
+                            },
                         },
                     },
                 ];
@@ -654,18 +677,8 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
-        interface_circular_tuple: {
-            title: 'interface circular tuple',
-            getTestData: (dataOnly = false) => {
-                const rt = dataOnly ? (null as any) : runType<ICircularTuple>();
-                const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
-                const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
-                const values = [obj1, obj2];
-                return {rt, values};
-            },
-        },
         interface_with_methods: {
-            title: 'interface with methods - methods should be excluded when serializing',
+            title: 'methods should be excluded from interface when serializing',
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<ObjectWithMethods>();
                 const objWithMethod = {
@@ -859,6 +872,16 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
+        interface_circular_tuple: {
+            title: 'interface circular tuple',
+            getTestData: (dataOnly = false) => {
+                const rt = dataOnly ? (null as any) : runType<ICircularTuple>();
+                const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
+                const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
+                const values = [obj1, obj2];
+                return {rt, values};
+            },
+        },
     },
     FUNCTIONS: {
         throw_errors_for_functions: {
@@ -958,7 +981,7 @@ export const SERIALIZATION_SPEC = {
             },
         },
         function_promise_return_type: {
-            title: `if function's return type is a promise then return type should be the promise's resolvedType`,
+            title: `functions returns a promise`,
             getTestData: (dataOnly = false) => {
                 type TestFunctionPromise = (a: number, b: boolean, c?: string) => Promise<Date>;
                 const rt = dataOnly ? (null as any) : runType<TestFunctionPromise>();
@@ -967,7 +990,7 @@ export const SERIALIZATION_SPEC = {
             },
         },
         function_return_type_is_function: {
-            title: `if function's return type is a function then return type should be the function's return type`,
+            title: `return type of a closure`,
             getTestData: (dataOnly = false) => {
                 type TestFunctionReturnsFunction = (a: number, b: boolean, c?: string) => () => Date;
                 const rt = dataOnly ? (null as any) : runType<TestFunctionReturnsFunction>();
@@ -1538,7 +1561,7 @@ export const SERIALIZATION_SPEC = {
             },
         },
         object_with_circular_array: {
-            title: 'array to strip extra params without fail',
+            title: 'array strip extra params',
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<ObjCircularArr>();
                 const value: ObjCircularArr = {
