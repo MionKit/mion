@@ -30,15 +30,17 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         }
     }
     _compileIsType(comp: JitCompiler): jitCode {
-        if (typeof this.src.literal === 'symbol') return compileIsSymbol(comp, this.src.literal);
-        else if (this.src.literal instanceof RegExp) return compileIsRegExp(comp, this.src.literal);
-        else if (typeof this.src.literal === 'bigint') return compileIsBigInt(comp, this.src.literal);
-        else return compileIsLiteral(comp, this.src.literal);
+        if (typeof this.src.literal === 'symbol') return {code: compileIsSymbol(comp, this.src.literal), type: 'E'};
+        else if (this.src.literal instanceof RegExp) return {code: compileIsRegExp(comp, this.src.literal), type: 'E'};
+        else if (typeof this.src.literal === 'bigint') return {code: compileIsBigInt(comp, this.src.literal), type: 'E'};
+        else return {code: compileIsLiteral(comp, this.src.literal), type: 'E'};
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        if (typeof this.src.literal === 'symbol') return compileTypeErrorsSymbol(comp, this.src.literal, this.getKindName());
-        else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(comp, this.src.literal, this.getKindName());
-        return compileTypeErrorsLiteral(comp, this.src.literal, this.getKindName());
+        if (typeof this.src.literal === 'symbol')
+            return {code: compileTypeErrorsSymbol(comp, this.src.literal, this.getKindName()), type: 'S'};
+        else if (this.src.literal instanceof RegExp)
+            return {code: compileTypeErrorsRegExp(comp, this.src.literal, this.getKindName()), type: 'S'};
+        return {code: compileTypeErrorsLiteral(comp, this.src.literal, this.getKindName()), type: 'S'};
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         return this.getValidator()._compileToJsonVal(comp);
@@ -49,11 +51,11 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
 }
 
 const noEncoder = {
-    _compileFromJsonVal(): undefined {
-        return undefined;
+    _compileFromJsonVal(): jitCode {
+        return {code: undefined, type: 'S'};
     },
-    _compileToJsonVal(): undefined {
-        return undefined;
+    _compileToJsonVal(): jitCode {
+        return {code: undefined, type: 'S'};
     },
 };
 
