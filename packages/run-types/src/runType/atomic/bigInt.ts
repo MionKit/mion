@@ -9,14 +9,15 @@ import {ReflectionKind, type TypeBigInt} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
+import {wrapJitCodeFromCompiler} from '../../lib/utils';
 
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     _getTypeID = () => ReflectionKind.bigint;
     _compileIsType(comp: JitCompiler): jitCode {
-        return `typeof ${comp.vλl} === 'bigint'`;
+        return wrapJitCodeFromCompiler(`typeof ${comp.vλl} === 'bigint'`, comp);
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`;
+        return wrapJitCodeFromCompiler(`if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`, comp);
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         return bigIntTransformer._compileToJsonVal(comp);
@@ -29,9 +30,9 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
 
 export const bigIntTransformer = {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        return `BigInt(${comp.vλl})`;
+        return wrapJitCodeFromCompiler(`BigInt(${comp.vλl})`, comp);
     },
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        return `${comp.vλl}.toString()`;
+        return wrapJitCodeFromCompiler(`${comp.vλl}.toString()`, comp);
     },
 };
