@@ -40,35 +40,35 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
         case ReflectionKind.unknown:
         case ReflectionKind.any: {
             // any is serialized as json string
-            return `${sεr}.serString(JSON.stringify(${comp.vλl}))`;
+            return {code: `${sεr}.serString(JSON.stringify(${comp.vλl}))`, type: 'S'};
         }
         case ReflectionKind.null:
-            return `${sεr}.view.setUint8(${sεr}.index++, 0)`;
+            return {code: `${sεr}.view.setUint8(${sεr}.index++, 0)`, type: 'S'};
         case ReflectionKind.boolean:
-            return `${sεr}.view.setUint8(${sεr}.index++, !!${comp.vλl})`;
+            return {code: `${sεr}.view.setUint8(${sεr}.index++, !!${comp.vλl})`, type: 'S'};
         case ReflectionKind.number: {
-            return `${sεr}.view.setFloat64(${sεr}.index,${comp.vλl}, 1, (${sεr}.index += 8))`;
+            return {code: `${sεr}.view.setFloat64(${sεr}.index,${comp.vλl}, 1, (${sεr}.index += 8))`, type: 'S'};
         }
         case ReflectionKind.string: {
-            return `${sεr}.serString(${comp.vλl})`;
+            return {code: `${sεr}.serString(${comp.vλl})`, type: 'S'};
         }
         case ReflectionKind.bigint: {
-            return `${sεr}.serString(${comp.vλl}.toString())`;
+            return {code: `${sεr}.serString(${comp.vλl}.toString())`, type: 'S'};
         }
         case ReflectionKind.undefined:
         case ReflectionKind.void:
-            return `${sεr}.view.setUint8(${sεr}.index++, 1)`;
+            return {code: `${sεr}.view.setUint8(${sεr}.index++, 1)`, type: 'S'};
         case ReflectionKind.symbol: {
-            return `${sεr}.serString(${comp.vλl}.description || '')`;
+            return {code: `${sεr}.serString(${comp.vλl}.description || '')`, type: 'S'};
         }
         case ReflectionKind.regexp: {
-            return `${sεr}.serString(${comp.vλl}.source);${sεr}.serString(${comp.vλl}.flags)`;
+            return {code: `${sεr}.serString(${comp.vλl}.source);${sεr}.serString(${comp.vλl}.flags)`, type: 'S'};
         }
         case ReflectionKind.object:
             // similar to any, this is serialized as json string
-            return `${sεr}.serString(JSON.stringify(${comp.vλl}))`;
+            return {code: `${sεr}.serString(JSON.stringify(${comp.vλl}))`, type: 'S'};
         case ReflectionKind.enum: {
-            return `${sεr}.serEnum(${comp.vλl})`;
+            return {code: `${sεr}.serEnum(${comp.vλl})`, type: 'S'};
         }
         case ReflectionKind.enumMember:
             throw new Error('Binary serialization not supported for enum member types');
@@ -77,7 +77,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
         case ReflectionKind.templateLiteral:
             throw new Error('Template literals are not supported in Binary serialization');
         case ReflectionKind.literal:
-            return ''; // literals can be skipped as we restore the value directly from runType in jit code
+            return {code: '', type: 'S'}; // literals can be skipped as we restore the value directly from runType in jit code
 
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
@@ -86,20 +86,23 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             rt.checkNonSkipTypes(comp);
             const child = rt.getMemberType()!;
             const memberCode = child.compile(comp, fnID);
-            if (!memberCode) throw new Error(`Do not know how to serialize Array<${child.getTypeName()}> to Binary.`);
+            if (!memberCode?.code) throw new Error(`Do not know how to serialize Array<${child.getTypeName()}> to Binary.`);
             const index = rt.getChildVarName(comp);
             // serialized as [length, items...]
-            return `
+            return {
+                code: `
                 ${sεr}.view.setUint32(${sεr}.index, ${comp.vλl}.length, 1); ${sεr}.index += 4;
-                for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode}}
-            `;
+                for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode.code}}
+            `,
+                type: 'S',
+            };
         }
         case ReflectionKind.indexSignature: {
             const rt = runType as IndexSignatureRunType;
             const parent = rt.getParent() as InterfaceRunType;
             const indexKind = (rt.src as any).index?.kind;
             const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
-            if (!memberCode) return undefined;
+            if (!memberCode?.code) return {code: undefined, type: 'S'};
 
             const propVar = rt.getChildVarName(comp);
             const {bitMIndexVar} = getOptionalPropsItems(parent, comp);
@@ -112,7 +115,10 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
                 keySerializationCode = `${sεr}.serString(${propVar});`;
             }
 
-            return `for (const ${propVar} in ${comp.vλl}) {${keySerializationCode} ${memberCode}; ${bitMIndexVar}++;}`;
+            return {
+                code: `for (const ${propVar} in ${comp.vλl}) {${keySerializationCode} ${memberCode.code}; ${bitMIndexVar}++;}`,
+                type: 'S',
+            };
         }
 
         case ReflectionKind.function:
@@ -149,16 +155,16 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
         case ReflectionKind.propertySignature: {
             const rt = runType as PropertyRunType;
             const parent = rt.getParent() as InterfaceRunType;
-            if (parent.hasIndexSignature(comp)) return undefined; // all serialization is done by index signature code
+            if (parent.hasIndexSignature(comp)) return {code: undefined, type: 'S'}; // all serialization is done by index signature code
 
-            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID) || '';
+            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID)?.code || '';
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
                 const setBitMask = `${sεr}.setBitMask(${bitMIndexVar}, ${bitIndex})`;
-                return `if (${comp.getChildVλl()} !== undefined) {${addFullStop(memberCode)} ${setBitMask}}`;
+                return {code: `if (${comp.getChildVλl()} !== undefined) {${addFullStop(memberCode)} ${setBitMask}}`, type: 'S'};
             }
             // non optional properties rely in the order they are defined in the type so no need to include the index
-            return `${memberCode}`;
+            return {code: `${memberCode}`, type: 'S'};
         }
         case ReflectionKind.rest:
             // TODO
@@ -184,7 +190,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
                 // and must be serialized/deserialized in the same order they are declared in the type
                 const {required, optional} = rt.splitJitSplitChildren(comp);
 
-                const requiredProps = required.map((prop) => prop.compile(comp, fnID)).filter(Boolean);
+                const requiredProps = required.map((prop) => prop.compile(comp, fnID)?.code).filter(Boolean);
                 const requiredPropsCode = requiredProps.join(';');
 
                 let optionalPropsCode = '';
@@ -195,22 +201,26 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
                             prop.optionalIndex = i;
                             const modIndex = i + 1;
                             const shouldIncreaseBufferIndex = modIndex % 8 === 0;
-                            if (!shouldIncreaseBufferIndex) return prop.compile(comp, fnID);
+                            const propCode = prop.compile(comp, fnID)?.code;
+                            if (!shouldIncreaseBufferIndex) return propCode;
                             // every 8 props we need to increase the bitmap index
-                            return `${prop.compile(comp, fnID)} ${bitMIndexVar}++;`;
+                            return `${propCode} ${bitMIndexVar}++;`;
                         })
                         .filter(Boolean)
                         .join('');
                     optionalPropsCode = `${bitMapInit}\n${propsCode}`;
                 }
 
-                return `${requiredPropsCode}\n${optionalPropsCode}`;
+                return {code: `${requiredPropsCode}\n${optionalPropsCode}`, type: 'S'};
             }
         }
         case ReflectionKind.class:
             switch (runType.src.subKind) {
                 case ReflectionSubKind.date:
-                    return `${sεr}.view.setFloat64(${sεr}.index, ${comp.vλl}.getTime(), 1, (${sεr}.index += 8))`;
+                    return {
+                        code: `${sεr}.view.setFloat64(${sεr}.index, ${comp.vλl}.getTime(), 1, (${sεr}.index += 8))`,
+                        type: 'S',
+                    };
                 case ReflectionSubKind.map:
                     // TODO: Handle Map class
                     break;
@@ -251,6 +261,9 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
         default:
             throw new Error(`Binary serialization not supported for ${ReflectionKind[kind]} types`);
     }
+
+    // Default return for cases that break without returning
+    return {code: undefined, type: 'S'};
 }
 
 // there is a bitmask used to determine which optional props are present
