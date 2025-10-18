@@ -44,14 +44,14 @@ export function _compileJsonStringify(
         // Primitive types and other atomic types that don't contain other types
         case ReflectionKind.unknown:
         case ReflectionKind.any:
-            return `JSON.stringify(${comp.vλl})`;
+            return {code: `JSON.stringify(${comp.vλl})`, type: 'E'};
         case ReflectionKind.bigint:
-            return `'"'+${comp.vλl}.toString()+'"'`;
+            return {code: `'"'+${comp.vλl}.toString()+'"'`, type: 'E'};
         case ReflectionKind.boolean:
-            return `(${comp.vλl} ? 'true' : 'false')`;
+            return {code: `(${comp.vλl} ? 'true' : 'false')`, type: 'E'};
         case ReflectionKind.enum:
-            if (src.indexType.kind === ReflectionKind.number) return comp.vλl;
-            return `JSON.stringify(${comp.vλl})`;
+            if (src.indexType.kind === ReflectionKind.number) return {code: comp.vλl, type: 'E'};
+            return {code: `JSON.stringify(${comp.vλl})`, type: 'E'};
         case ReflectionKind.enumMember:
             throw new Error('JsonStringify enum member is not supported.');
         case ReflectionKind.literal: {
@@ -82,7 +82,7 @@ export function _compileJsonStringify(
                     result = _compileJsonStringify(literalRt, comp);
                     break;
                 default:
-                    result = `JSON.stringify(${comp.vλl})`;
+                    result = {code: `JSON.stringify(${comp.vλl})`, type: 'E'};
                     break;
             }
             literalRt.src.kind = originalKind;
@@ -92,31 +92,31 @@ export function _compileJsonStringify(
             throw new Error('Never type cannot be stringified.');
         case ReflectionKind.null: {
             const isRoot = comp.getNestLevel(runType) === 0;
-            return isRoot ? `String(${comp.vλl})` : comp.vλl;
+            return {code: isRoot ? `String(${comp.vλl})` : comp.vλl, type: 'E'};
         }
         case ReflectionKind.number: {
             const isRoot = comp.getNestLevel(runType) === 0;
-            return isRoot ? `String(${comp.vλl})` : comp.vλl;
+            return {code: isRoot ? `String(${comp.vλl})` : comp.vλl, type: 'E'};
         }
         case ReflectionKind.object:
-            return `JSON.stringify(${comp.vλl})`;
+            return {code: `JSON.stringify(${comp.vλl})`, type: 'E'};
         case ReflectionKind.regexp:
-            return `utl.asJSONString(${comp.vλl}.toString())`;
+            return {code: `utl.asJSONString(${comp.vλl}.toString())`, type: 'E'};
         case ReflectionKind.string:
-            return `utl.asJSONString(${comp.vλl})`;
+            return {code: `utl.asJSONString(${comp.vλl})`, type: 'E'};
         case ReflectionKind.symbol:
-            return `JSON.stringify('Symbol:' + (${comp.vλl}.description || ''))`;
+            return {code: `JSON.stringify('Symbol:' + (${comp.vλl}.description || ''))`, type: 'E'};
         case ReflectionKind.templateLiteral:
             throw new Error('Template Literals are not supported.');
         case ReflectionKind.undefined: {
             const isRoot = comp.getNestLevel(runType) === 0;
-            if (isRoot) return `undefined`;
+            if (isRoot) return {code: `undefined`, type: 'E'};
             const parentIsArray = parentIs(runType, ReflectionKind.array);
-            if (parentIsArray) return `'null'`; // we use array.join(',') to serialize arrays, so we need to return null literal (string)
-            return `null`;
+            if (parentIsArray) return {code: `'null'`, type: 'E'}; // we use array.join(',') to serialize arrays, so we need to return null literal (string)
+            return {code: `null`, type: 'E'};
         }
         case ReflectionKind.void:
-            return 'undefined';
+            return {code: 'undefined', type: 'E'};
 
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
@@ -124,38 +124,44 @@ export function _compileJsonStringify(
             const rt = runType as ArrayRunType;
             rt.checkNonSkipTypes(comp);
             const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
-            if (!memberCode) return `JSON.stringify(${comp.vλl})`;
+            if (!memberCode?.code) return {code: `JSON.stringify(${comp.vλl})`, type: 'RB'};
             const jsonItems = `ls${comp.getNestLevel(rt)}`;
             const resultVal = `res${comp.getNestLevel(rt)}`;
             const index = rt.getChildVarName(comp);
-            return `
+            return {
+                code: `
                 const ${jsonItems} = [];
                 for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
-                    const ${resultVal} = ${memberCode};
+                    const ${resultVal} = ${memberCode.code};
                     ${jsonItems}.push(${resultVal});
                 }
                 return '[' + ${jsonItems}.join(',') + ']';
-            `;
+            `,
+                type: 'RB',
+            };
         }
         case ReflectionKind.indexSignature: {
             const rt = runType as IndexSignatureRunType;
             const child = rt.getJitChild(comp);
             const jsonVal = child?.compile(comp, fnID);
-            if (!child || !jsonVal) return undefined;
+            if (!child || !jsonVal?.code) return {code: undefined, type: 'RB'};
             const varName = comp.vλl;
             const prop = rt.getChildVarName(comp);
             const arrName = `ls${comp.getNestLevel(rt)}`;
             const sep = rt.skipCommas ? '' : '+","';
             const skipCode = rt.getSkipCode(comp, prop);
-            return `
+            return {
+                code: `
                 const ${arrName} = [];
                 for (const ${prop} in ${varName}) {
                     ${skipCode}
-                    if (${prop} !== undefined) ${arrName}.push(utl.asJSONString(${prop}) + ':' + ${jsonVal});
+                    if (${prop} !== undefined) ${arrName}.push(utl.asJSONString(${prop}) + ':' + ${jsonVal.code});
                 }
                 if (!${arrName}.length) return '';
                 return ${arrName}.join(',')${sep};
-            `;
+            `,
+                type: 'RB',
+            };
         }
         case ReflectionKind.function:
         case ReflectionKind.method:
@@ -164,10 +170,10 @@ export function _compileJsonStringify(
             if (runType.src.subKind === ReflectionSubKind.params) {
                 const rt = runType as FunctionParamsRunType;
                 const skip = rt.skipJit(comp);
-                if (skip) return '';
+                if (skip) return {code: '', type: 'E'};
                 const params = rt.getParamRunTypes(comp);
-                if (params.length === 0) return `'[]'`;
-                const paramsCode = params.map((p) => p.compile(comp, fnID)).join('+');
+                if (params.length === 0) return {code: `'[]'`, type: 'E'};
+                const paramsCode = params.map((p) => p.compile(comp, fnID)?.code).join('+');
                 return `'['+${paramsCode}+']'`;
             } else {
                 throw new Error(
