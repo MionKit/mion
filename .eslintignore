@@ -8,3 +8,4 @@ coverage
 __snapshots__
 .dist
 build
+xyzSpec

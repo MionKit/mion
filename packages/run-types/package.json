@@ -46,7 +46,7 @@
     "test": "jest",
     "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
     "dev:test": "jest --watch",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src --ext .ts --ignore-pattern xyzSpec",
     "format": "prettier --write src/**/*.ts",
     "build:cjs": "tsc --project tsconfig.cjs.json",
     "build:esm": "tsc --project tsconfig.esm.json",
