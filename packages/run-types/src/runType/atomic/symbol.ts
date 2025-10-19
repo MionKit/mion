@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, type TypeSymbol} from '@deepkit/type';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {JitFunctions} from '../../constants.functions';
@@ -17,16 +17,16 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         if (!comp) return true;
         return comp.fnID !== JitFunctions.toJavascript.id;
     }
-    _compileIsType(comp: JitCompiler): jitCode {
+    _compileIsType(comp: JitCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'symbol'`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
+    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    _compileToJsonVal(comp: JitCompiler): jitCode {
+    _compileToJsonVal(comp: JitCompiler): JitCode {
         return symbolTransformer._compileToJsonVal(comp);
     }
-    _compileFromJsonVal(comp: JitCompiler): jitCode {
+    _compileFromJsonVal(comp: JitCompiler): JitCode {
         return symbolTransformer._compileFromJsonVal(comp);
     }
 }
@@ -35,10 +35,10 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
 
 export const symbolTransformer = {
     // TODO: transformers might need only one function
-    _compileFromJsonVal(comp: JitCompiler): jitCode {
+    _compileFromJsonVal(comp: JitCompiler): JitCode {
         return {code: `Symbol(${comp.vλl}.substring(7))`, type: 'E'};
     },
-    _compileToJsonVal(comp: JitCompiler): jitCode {
+    _compileToJsonVal(comp: JitCompiler): JitCode {
         return {code: `'Symbol:' + (${comp.vλl}.description || '')`, type: 'E'};
     },
 };

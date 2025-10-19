@@ -7,7 +7,7 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
 import {type BaseCompiler} from '../../lib/jitCompiler';
 import type {LiteralRunType} from '../../runType/atomic/literal';
@@ -22,15 +22,16 @@ import {jitUtils} from '@mionkit/core';
 
 type BinaryCompiler = BaseCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
 
+const fnID = JitFunctions.fromBinary.id;
+
 /**
  * Main Binary deserialization compiler function
  * Generates JIT code to deserialize Binary data to JavaScript values
  */
-export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): jitCode {
+export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitCode {
     const src = runType.src;
     const kind = src.kind;
     const dεs = comp.args.dεs;
-    const fnID = comp.fnID;
 
     // hack is used in some case to increase the index passing an extra argument to view.get methods
     // ie: view.getUint32(index, littleEndian, index += 4);
@@ -88,7 +89,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             const childCode = child.compile(comp, fnID);
             if (!childCode?.code) throw new Error(`Do not know how to deserialize Array<${child.getTypeName()}> from Binary.`);
             const index = rt.getChildVarName(comp);
-            const isExpression = childIsExpression(JitFunctions.fromBinary.id, child);
+            const isExpression = childIsExpression(childCode, child);
             const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
             // deserialized from [length, items...]
             const lengthVal = `arrL${comp.getNestLevel(rt)}`;
@@ -164,23 +165,23 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             const rt = runType as PropertyRunType;
             const parent = rt.getParent() as InterfaceRunType;
             const child = rt.getJitChild(comp)!;
-            const memberCode = child?.compile(comp, fnID);
+            const childCode = child?.compile(comp, fnID);
             // console.log(getPropName(rt, comp, true), comp.getChildVλl(), memberCode);
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
                 return {
-                    code: `if (${dεs}.view.getUint8(${bitMIndexVar}, 1) & (1 << (${bitIndex}))) {${comp.getChildVλl()} = ${memberCode?.code}}`,
+                    code: `if (${dεs}.view.getUint8(${bitMIndexVar}, 1) & (1 << (${bitIndex}))) {${comp.getChildVλl()} = ${childCode?.code}}`,
                     type: 'S',
                 };
             }
             // block or statements code are initialized as obj.a = deserializeA; obj.b = deserializeB; after initial object has been created
-            const isExpression = childIsExpression(JitFunctions.fromBinary.id, child);
+            const isExpression = childIsExpression(childCode, child);
             if (!isExpression) {
-                return memberCode; // block statements already include variable assignment
+                return childCode; // block statements already include variable assignment
             }
             // required props that are simple expressions code are part of an object constructor {a: deserializeA, b: deserializeB, c: deserializeC}
             const propName = getPropName(rt, comp, true);
-            return {code: `${propName}:${memberCode?.code}`, type: 'E'};
+            return {code: `${propName}:${childCode?.code}`, type: 'E'};
         }
         case ReflectionKind.rest:
             // TODO
@@ -210,11 +211,11 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                 // required props that are simple expressions are restored as: '{a: deserializeA, b: deserializeB, c: deserializeC};
                 // and are serialized/deserialised in the same order they are declared in the type
                 const expressionsPropsCode = requiredExpressions
-                    .map((prop) => prop.compile(comp, fnID)?.code)
+                    .map((prop) => prop.compile(comp, fnID).code)
                     .filter(Boolean)
                     .join(',');
                 const requiredPropsCode = requiredStatements
-                    .map((prop) => prop.compile(comp, fnID)?.code)
+                    .map((prop) => prop.compile(comp, fnID).code)
                     .filter(Boolean)
                     .join(';');
                 const objectCode = `${comp.vλl} = {${expressionsPropsCode}};${requiredPropsCode}`;
@@ -231,7 +232,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                             prop.optionalIndex = i;
                             const modIndex = i + 1;
                             const shouldIncreaseBufferIndex = modIndex % 8 === 0;
-                            const propCode = prop.compile(comp, fnID)?.code;
+                            const propCode = prop.compile(comp, fnID).code;
                             if (!shouldIncreaseBufferIndex) return propCode;
                             // every 8 props we need to increase the bitmap index
                             return `${propCode} ${bitMIndexVar}++; `;

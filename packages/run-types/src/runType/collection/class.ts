@@ -10,6 +10,7 @@ import {JitCompiler} from '../../lib/jitCompiler';
 import {jitUtils} from '@mionkit/core';
 import {toLiteral} from '../../lib/utils';
 import {isConstructor} from '../../lib/guards';
+import {JitCode} from '../../types';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     getClassName(): string {
@@ -20,12 +21,16 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         const isEmpty = children.every((prop) => !isConstructor(prop) || prop.getParameters().getChildRunTypes().length === 0);
         return isEmpty;
     }
-    _compileFromJsonVal(comp: JitCompiler) {
-        const plainObjCode = super._compileFromJsonVal(comp);
+    _compileFromJsonVal(comp: JitCompiler): JitCode {
+        const objJit = super._compileFromJsonVal(comp);
         const desFnVarName = `desFn${comp.getNestLevel(this)}`;
-        const desFnInit = `let ${desFnVarName} = utl.${jitUtils.getDeserializeFn.name}(${toLiteral(this.getClassName())})`;
-        const desFnCode = `if (${desFnVarName}) {${comp.vλl} = ${desFnVarName}(${comp.vλl})}`;
-        const desClassCode = `else if (${desFnVarName} = utl.${jitUtils.getSerializeClass.name}(${toLiteral(this.getClassName())})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}`;
-        return `${plainObjCode};${desFnInit};${desFnCode} ${desClassCode}`;
+        const classLiteral = toLiteral(this.getClassName());
+        const code = `
+            ${objJit.code};
+            let ${desFnVarName} = utl.${jitUtils.getDeserializeFn.name}(${classLiteral});
+            if (${desFnVarName}) {${comp.vλl} = ${desFnVarName}(${comp.vλl})}
+            else if (${desFnVarName} = utl.${jitUtils.getSerializeClass.name}(${classLiteral})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}
+        `;
+        return {code, type: 'S'};
     }
 }

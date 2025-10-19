@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
 import type {ClassRunType} from '../../runType/collection/class';
 import type {MethodSignatureRunType} from '../../runType/member/methodSignature';
@@ -15,113 +15,121 @@ import {ReflectionSubKind} from '../../constants.kind';
 import {JitFunctions} from '../../constants.functions';
 import {compileAddPureFunctionWithClosure, JitCompiler} from '../../lib/jitCompiler';
 import {isSafePropName} from '../../lib/utils';
-import {_compileJsonStringify, _compileJsonStringifyIterable} from './jsonStringify';
+import {createStringifyCompiler, createStringifyIterable} from './jsonStringify';
 import {registerPureFnClosure} from '../../lib/pureFn';
 
-/**
- * Compiles jit code to generate JavaScript code from data structures that match a Type.
- * Process is similar to transform JS to JSON, but with few differences.
- *
- * 1 - jitFunctions and pureFunctions are emitted as src code
- * 2 - Some native classes are supported and initialized using the new operator, ie: new Map(<data>), new Set(<data>), new Date(<data>), etc...
- *
- * THIS IS MOSTLY USED INTERNALLY FOR AOT CODE GENERATION AND A VERY BASIC IMPLEMENTATION.
- * !!! NOT INTENDED FOR PUBLIC USE !!!
- */
-export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toJavascript.id): jitCode {
-    const src = runType.src;
-    const kind = src.kind;
+export function createToCodeCompiler() {
+    const fnID = JitFunctions.toJavascript.id;
+    const _compileJsonStringify = createStringifyCompiler(fnID);
+    const _compileJsonStringifyIterable = createStringifyIterable(fnID);
 
-    switch (kind) {
-        // ###################### ATOMIC RUNTYPES ######################
-        case ReflectionKind.undefined:
-            return {code: `'undefined'`, type: 'E'};
-        case ReflectionKind.symbol:
-            return {code: `'Symbol('+'"'+${comp.vλl}.description+'"'+')'`, type: 'E'};
-        // ###################### MEMBER RUNTYPES ######################
-        case ReflectionKind.methodSignature: {
-            const rt = runType as MethodSignatureRunType;
-            const srcMS = src as TypeMethodSignature;
-            const accessor = srcMS.name;
-            const name = String(accessor);
-            const isSafe = isSafePropName(accessor);
-            const safeName = isSafe ? name : JSON.stringify(name);
-            const sep = rt.skipCommas ? '' : '+","';
-            if (isCompilingJitFn(rt, comp)) {
-                // special case for JitFunctions that we know should return undefined for fn param
+    /**
+     * Compiles jit code to generate JavaScript code from data structures that match a Type.
+     * Process is similar to transform JS to JSON, but with few differences.
+     *
+     * 1 - jitFunctions and pureFunctions are emitted as src code
+     * 2 - Some native classes are supported and initialized using the new operator, ie: new Map(<data>), new Set(<data>), new Date(<data>), etc...
+     *
+     * THIS IS MOSTLY USED INTERNALLY FOR AOT CODE GENERATION AND A VERY BASIC IMPLEMENTATION.
+     * !!! NOT INTENDED FOR PUBLIC USE !!!
+     */
+    function compileToCode(runType: BaseRunType, comp: JitCompiler): JitCode {
+        const src = runType.src;
+        const kind = src.kind;
+
+        switch (kind) {
+            // ###################### ATOMIC RUNTYPES ######################
+            case ReflectionKind.undefined:
                 return {code: `'undefined'`, type: 'E'};
-            } else if (isCompilingClosureJitFn(rt, comp)) {
-                // This is an special case for JitFunctions where we want to generate the fn from the JitCompiledFnData instead of fn.toString();
-                const fnName = comp.opts.isPureFnCode ? `${comp.vλl}.pureFnHash` : `${comp.vλl}.jitFnHash`;
-                const fnCode = `${comp.vλl}.code`;
-                const closureCode = `'function get_'+${fnName}+'(utl){'+${fnCode}+'}'`;
-                return {code: `'${safeName}:'+${closureCode}${sep}`, type: 'E'};
-            } else if (rt.src.subKind === ReflectionSubKind.params) {
-                const paramsCode = _compileJsonStringify(rt, comp, fnID);
-                if (rt.isOptional())
-                    return {
-                        code: `(${comp.getChildVλl()} === undefined ? "" : '${safeName}:'+${paramsCode?.code}${sep})`,
-                        type: 'E',
-                    };
-                return {code: `'${safeName}:'+${paramsCode?.code}${sep}`, type: 'E'};
-            } else {
-                const fnName = compileAddPureFunctionWithClosure(comp, sanitizeCompiledFn);
-                const parent = srcMS.parent as any as TypePropertySignature;
+            case ReflectionKind.symbol:
+                return {code: `'Symbol('+'"'+${comp.vλl}.description+'"'+')'`, type: 'E'};
+            // ###################### MEMBER RUNTYPES ######################
+            case ReflectionKind.methodSignature: {
+                const rt = runType as MethodSignatureRunType;
+                const srcMS = src as TypeMethodSignature;
+                const accessor = srcMS.name;
+                const name = String(accessor);
+                const isSafe = isSafePropName(accessor);
+                const safeName = isSafe ? name : JSON.stringify(name);
+                const sep = rt.skipCommas ? '' : '+","';
+                if (isCompilingJitFn(rt, comp)) {
+                    // special case for JitFunctions that we know should return undefined for fn param
+                    return {code: `'undefined'`, type: 'E'};
+                } else if (isCompilingClosureJitFn(rt, comp)) {
+                    // This is an special case for JitFunctions where we want to generate the fn from the JitCompiledFnData instead of fn.toString();
+                    const fnName = comp.opts.isPureFnCode ? `${comp.vλl}.pureFnHash` : `${comp.vλl}.jitFnHash`;
+                    const fnCode = `${comp.vλl}.code`;
+                    const closureCode = `'function get_'+${fnName}+'(utl){'+${fnCode}+'}'`;
+                    return {code: `'${safeName}:'+${closureCode}${sep}`, type: 'E'};
+                } else if (rt.src.subKind === ReflectionSubKind.params) {
+                    const paramsCode = _compileJsonStringify(rt, comp);
+                    if (rt.isOptional())
+                        return {
+                            code: `(${comp.getChildVλl()} === undefined ? "" : '${safeName}:'+${paramsCode?.code}${sep})`,
+                            type: 'E',
+                        };
+                    return {code: `'${safeName}:'+${paramsCode?.code}${sep}`, type: 'E'};
+                } else {
+                    const fnName = compileAddPureFunctionWithClosure(comp, sanitizeCompiledFn);
+                    const parent = srcMS.parent as any as TypePropertySignature;
 
-                // in some scenarios the parent is a propertySignature instead the Expected TypeObjectLiteral so we have to handle that
-                // this seems to be a deepkit bug when using omit and then redefining the property @see SrcCodeJitCompiledFn type
-                const isDuplicatedChild = parent?.kind === ReflectionKind.propertySignature && parent?.name === srcMS.name;
-                if (isDuplicatedChild) return {code: `${fnName}(${comp.vλl}.toString())`, type: 'E'};
-                const accessorCode = isSafe ? `.${safeName}` : `[${safeName}]`;
-                const fnCode = `${fnName}(${comp.vλl}${accessorCode}.toString())`;
-                if (rt.isOptional())
-                    return {code: `(${comp.getChildVλl()} === undefined ? "" : '${safeName}:'+${fnCode}${sep})`, type: 'E'};
-                return {code: `'${safeName}:'+${fnCode}${sep}`, type: 'E'};
+                    // in some scenarios the parent is a propertySignature instead the Expected TypeObjectLiteral so we have to handle that
+                    // this seems to be a deepkit bug when using omit and then redefining the property @see SrcCodeJitCompiledFn type
+                    const isDuplicatedChild = parent?.kind === ReflectionKind.propertySignature && parent?.name === srcMS.name;
+                    if (isDuplicatedChild) return {code: `${fnName}(${comp.vλl}.toString())`, type: 'E'};
+                    const accessorCode = isSafe ? `.${safeName}` : `[${safeName}]`;
+                    const fnCode = `${fnName}(${comp.vλl}${accessorCode}.toString())`;
+                    if (rt.isOptional())
+                        return {code: `(${comp.getChildVλl()} === undefined ? "" : '${safeName}:'+${fnCode}${sep})`, type: 'E'};
+                    return {code: `'${safeName}:'+${fnCode}${sep}`, type: 'E'};
+                }
             }
+            case ReflectionKind.function:
+            case ReflectionKind.method:
+            case ReflectionKind.callSignature:
+                if (runType.src.subKind === ReflectionSubKind.params) {
+                    return _compileJsonStringify(runType, comp);
+                } else {
+                    // TODO: we are relying in fn.toString() to generate code, this might not work properly in all js engines
+                    return {code: `${comp.vλl}.toString()`, type: 'E'};
+                }
+            // ###################### COLLECTION RUNTYPES ######################
+            case ReflectionKind.class: {
+                switch (runType.src.subKind) {
+                    case ReflectionSubKind.date:
+                        return {code: `'new Date('+${_compileJsonStringify(runType, comp).code}+')'`, type: 'E'};
+                    case ReflectionSubKind.map: {
+                        return _compileJsonStringifyIterable(runType as unknown as IterableRunType, comp, 'new Map(', ')');
+                    }
+                    case ReflectionSubKind.set: {
+                        return _compileJsonStringifyIterable(runType as unknown as IterableRunType, comp, 'new Set(', ')');
+                    }
+                    case ReflectionSubKind.nonSerializable:
+                        throw new Error(`Can not generate code for Non Serializable types.`);
+                    default: {
+                        const rt = runType as unknown as ClassRunType;
+                        throw new Error(`Can not generate code for classes. Class: ${rt.getClassName()}`);
+                    }
+                }
+            }
+            default:
+                return _compileJsonStringify(runType, comp);
         }
-        case ReflectionKind.function:
-        case ReflectionKind.method:
-        case ReflectionKind.callSignature:
-            if (runType.src.subKind === ReflectionSubKind.params) {
-                return _compileJsonStringify(runType, comp, fnID);
-            } else {
-                // TODO: we are relying in fn.toString() to generate code, this might not work properly in all js engines
-                return {code: `${comp.vλl}.toString()`, type: 'E'};
-            }
-        // ###################### COLLECTION RUNTYPES ######################
-        case ReflectionKind.class: {
-            switch (runType.src.subKind) {
-                case ReflectionSubKind.date:
-                    return {code: `'new Date('+${_compileJsonStringify(runType, comp, fnID)?.code}+')'`, type: 'E'};
-                case ReflectionSubKind.map: {
-                    return _compileJsonStringifyIterable(runType as unknown as IterableRunType, comp, fnID, 'new Map(', ')');
-                }
-                case ReflectionSubKind.set: {
-                    return _compileJsonStringifyIterable(runType as unknown as IterableRunType, comp, fnID, 'new Set(', ')');
-                }
-                case ReflectionSubKind.nonSerializable:
-                    throw new Error(`Can not generate code for Non Serializable types.`);
-                default: {
-                    const rt = runType as unknown as ClassRunType;
-                    throw new Error(`Can not generate code for classes. Class: ${rt.getClassName()}`);
-                }
-            }
-        }
-        default:
-            return _compileJsonStringify(runType, comp, fnID);
     }
-}
 
-function isCompilingClosureJitFn(runType: MethodSignatureRunType, comp: JitCompiler) {
-    if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
-    const isClosure = runType.getChildVarName(comp) === 'closureFn';
-    return isClosure;
-}
+    function isCompilingClosureJitFn(runType: MethodSignatureRunType, comp: JitCompiler) {
+        if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
+        const isClosure = runType.getChildVarName(comp) === 'closureFn';
+        return isClosure;
+    }
 
-function isCompilingJitFn(runType: MethodSignatureRunType, comp: JitCompiler) {
-    if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
-    const isFn = runType.getChildVarName(comp) === 'fn';
-    return isFn;
+    function isCompilingJitFn(runType: MethodSignatureRunType, comp: JitCompiler) {
+        if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
+        const isFn = runType.getChildVarName(comp) === 'fn';
+        return isFn;
+    }
+
+    return compileToCode;
 }
 
 /** @reflection never */
@@ -136,3 +144,11 @@ export function sanitizeCompiledFn() {
 }
 
 registerPureFnClosure(sanitizeCompiledFn);
+
+// lazy loading as this function wont be used often just for (AOT)
+// TODO move to async code loading (but this would need a big refactor of the router)
+let lazyFn: undefined | ((runType: BaseRunType, comp: JitCompiler) => JitCode) = undefined;
+export function _compileToCode(runType: BaseRunType, comp: JitCompiler): JitCode {
+    if (!lazyFn) lazyFn = createToCodeCompiler();
+    return lazyFn(runType, comp);
+}

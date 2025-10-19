@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitCompiler, JitErrorsCompiler, StrNumber, JitFnID, jitCode} from '@mionkit/run-types';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, StrNumber, JitFnID, JitCode} from '@mionkit/run-types';
 import {
     BaseRunTypeFormat,
     TypeFormat,
@@ -59,7 +59,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         }
         return super.canEmbedFormatterCode(fnID, rt);
     }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -95,7 +95,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         `;
         return code;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): jitCode {
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
