@@ -7,7 +7,7 @@
 
 // this code is based on from seqproto library https://github.com/oramasearch/seqproto
 
-import type {BinaryDeserializer, BinarySerializer, StrictArrayBuffer} from './types';
+import type {StrictArrayBuffer, DataViewSerializer, DataViewDeserializer} from './types';
 
 interface CreateSerOption {
     bufferSize?: number;
@@ -16,25 +16,22 @@ interface CreateSerOption {
 const STR = 1;
 const NUM = 2;
 const POW_2_32 = 2 ** 32;
+const LE = true; // always use little endian
 
 // ############## create serializer & deserializer ##############
 
-// These binary serializer should be based in the Uint32Array so everything should be aligned to 4 bytes
-// number will be stored in 8 bytes and add some padding if needed
+// ############## DataView-based serializer & deserializer ##############
+// Uses byte-level precision (1-byte minimum unit) instead of 4-byte units
 
-export function createBinarySerializer({bufferSize}: CreateSerOption = {}): BinarySerializer {
+export function createDataViewSerializer({bufferSize}: CreateSerOption = {}): DataViewSerializer {
     const size = bufferSize ?? 2 ** 24;
     if (size >= POW_2_32) throw new Error('bufferSize option must be strictly less than 2 ** 32');
-    // Ensure buffer size is aligned to 8 bytes for Float64Array compatibility
-    const alignedSize = Math.floor(size / 8) * 8;
-    const buffer = new ArrayBuffer(alignedSize);
-    const Ser: BinarySerializer = {
-        index: 0, // index in uint32 (4 bytes)
+    const buffer = new ArrayBuffer(size);
+    const view = new DataView(buffer);
+    const Ser: DataViewSerializer = {
+        index: 0, // byte offset
         buffer,
-        uint32: new Uint32Array(buffer),
-        int32: new Int32Array(buffer),
-        bigint64: new BigInt64Array(buffer),
-        float64: new Float64Array(buffer),
+        view,
         textEncoder: new TextEncoder(),
         maxStrCacheLength: 64,
         maxCacheSize: 600,
@@ -50,62 +47,65 @@ export function createBinarySerializer({bufferSize}: CreateSerOption = {}): Bina
             this.index = 0;
         },
         getBuffer() {
-            return this.buffer.slice(0, this.index * 4);
+            return this.buffer.slice(0, this.index);
         },
         serString(str: string): void {
             if (str.length >= Ser.maxStrCacheLength) {
-                const targetView = new Uint8Array(Ser.buffer, (Ser.index + 1) * 4);
+                const targetView = new Uint8Array(Ser.buffer, Ser.index + 4);
                 const result = Ser.textEncoder.encodeInto(str, targetView);
-                setIndex(Ser, result.written);
+                Ser.view.setUint32(Ser.index, result.written, LE);
+                Ser.index += 4 + result.written;
                 return;
             }
-            const cached = Ser.stringCache.get(str);
-            if (cached) {
-                const targetView = new Uint8Array(Ser.buffer, (Ser.index + 1) * 4, cached.length);
-                targetView.set(cached);
-                setIndex(Ser, cached.length);
-                return;
-            }
-            const encodedBytes = Ser.textEncoder.encode(str);
-            const targetView = new Uint8Array(Ser.buffer, (Ser.index + 1) * 4, encodedBytes.length);
-            targetView.set(encodedBytes);
-            setIndex(Ser, encodedBytes.length);
-            if (Ser.stringCache.size >= Ser.maxCacheSize) Ser.evictStringCache();
-            Ser.stringCache.set(str, encodedBytes);
+            Ser.serAndCacheString(str);
         },
         serFloat64(n: number): void {
-            if (Ser.index & 1) Ser.uint32[Ser.index++] = 0; // add some padding if needed
-            Ser.float64[Ser.index >> 1] = n;
-            Ser.index += 2;
+            Ser.view.setFloat64(Ser.index, n, LE);
+            Ser.index += 8;
         },
         serEnum(n: number | string): void {
             if (typeof n === 'number') {
-                Ser.uint32[Ser.index++] = NUM;
-                Ser.uint32[Ser.index++] = n;
+                Ser.view.setUint32(Ser.index, NUM, LE);
+                Ser.index += 4;
+                Ser.view.setUint32(Ser.index, n, LE);
+                Ser.index += 4;
                 return;
             }
-            Ser.uint32[Ser.index++] = STR;
+            Ser.view.setUint32(Ser.index, STR, LE);
+            Ser.index += 4;
             Ser.serString(n);
+        },
+        setBitMask(bitMaskIndex: number, bitIndex: number) {
+            const newBitmask = Ser.view.getUint8(bitMaskIndex) | (1 << bitIndex);
+            Ser.view.setUint8(bitMaskIndex, newBitmask);
+        },
+        serAndCacheString(str: string): Uint8Array | undefined {
+            const cached = Ser.stringCache.get(str);
+            if (cached) {
+                const targetView = new Uint8Array(Ser.buffer, Ser.index + 4, cached.length);
+                targetView.set(cached);
+                Ser.view.setUint32(Ser.index, cached.length, LE);
+                Ser.index += 4 + cached.length;
+                return;
+            }
+            const encodedBytes = Ser.textEncoder.encode(str);
+            const targetView = new Uint8Array(Ser.buffer, Ser.index + 4, encodedBytes.length);
+            targetView.set(encodedBytes);
+            Ser.view.setUint32(Ser.index, encodedBytes.length, LE);
+            Ser.index += 4 + encodedBytes.length;
+            if (Ser.stringCache.size >= Ser.maxCacheSize) Ser.evictStringCache();
+            Ser.stringCache.set(str, encodedBytes);
         },
     };
     return Ser;
 }
 
-function setIndex(ser: BinarySerializer, length: number) {
-    ser.uint32[ser.index] = length;
-    ser.index += Math.ceil(length / 4) + 1;
-}
-
-export function createBinaryDeserializer(buffer: StrictArrayBuffer): BinaryDeserializer {
-    const n32 = Math.floor(buffer.byteLength / 4);
-    const n64 = Math.floor(buffer.byteLength / 8);
-    const Des: BinaryDeserializer = {
-        index: 0, // index in uint32 (4 bytes)
+export function createDataViewDeserializer(buffer: StrictArrayBuffer): DataViewDeserializer {
+    const view = new DataView(buffer);
+    const Des: DataViewDeserializer = {
+        index: 0,
         buffer,
-        uint32: new Uint32Array(buffer, 0, n32),
-        int32: new Int32Array(buffer, 0, n32),
-        bigint64: new BigInt64Array(buffer, 0, n64),
-        float64: new Float64Array(buffer, 0, n64),
+        view,
         textDecoder: new TextDecoder(),
         maxStrCacheLength: 64,
         maxCacheSize: 600,
@@ -123,21 +123,15 @@ export function createBinaryDeserializer(buffer: StrictArrayBuffer): BinaryDeser
             return hash;
         },
         setBuffer: function (buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) {
-            const isCustom = typeof byteOffset === 'number' && typeof byteLength === 'number';
-            this.index = isCustom ? Math.floor(byteOffset / 4) : 0;
-            const n32 = isCustom ? this.index + Math.ceil(byteLength / 4) : Math.floor(buffer.byteLength / 4);
-            const n64 = isCustom ? this.index + Math.ceil(byteLength / 8) : Math.floor(buffer.byteLength / 8);
+            this.index = byteOffset ?? 0;
             this.buffer = buffer;
-            this.uint32 = new Uint32Array(buffer, 0, n32);
-            this.int32 = new Int32Array(buffer, 0, n32);
-            this.bigint64 = new BigInt64Array(buffer, 0, n64);
-            this.float64 = new Float64Array(buffer, 0, n64);
+            this.view = new DataView(buffer, byteOffset, byteLength);
         },
         desString(): string {
-            const len = Des.uint32[Des.index++];
-            const bytes = new Uint8Array(Des.buffer, Des.index * 4, len);
-            const indexIncrement = Math.ceil(len / 4);
-            Des.index += indexIncrement;
+            const len = Des.view.getUint32(Des.index, LE);
+            Des.index += 4;
+            const bytes = new Uint8Array(Des.buffer, Des.index, len);
+            Des.index += len;
             if (len >= Des.maxStrCacheLength) return Des.textDecoder.decode(bytes);
             const cacheKey = Des.hashBytes(bytes, len);
             const cached = Des.stringCache.get(cacheKey);
@@ -148,14 +142,18 @@ export function createBinaryDeserializer(buffer: StrictArrayBuffer): BinaryDeser
             return decoded;
         },
         desFloat64(): number {
-            if (Des.index & 1) Des.index++; // skip padding if needed
-            const value = Des.float64[Des.index >> 1];
-            Des.index += 2;
+            const value = Des.view.getFloat64(Des.index, LE);
+            Des.index += 8;
             return value;
         },
         desEnum(): number | string {
-            const type = Des.uint32[Des.index++];
-            if (type === NUM) return Des.uint32[Des.index++];
+            const type = Des.view.getUint32(Des.index, LE);
+            Des.index += 4;
+            if (type === NUM) {
+                const value = Des.view.getUint32(Des.index, LE);
+                Des.index += 4;
+                return value;
+            }
             return Des.desString();
         },
     };
