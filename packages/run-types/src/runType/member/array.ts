@@ -121,27 +121,30 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         this.checkNonSkipTypes(comp);
-        if (this.getMemberType().getFamily() === 'A') return '';
+        if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'S'};
         const memberCode = this.getJitChild(comp)?.compileUnknownKeyErrors(comp);
         return this.traverseCode(comp, memberCode);
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
         this.checkNonSkipTypes(comp);
-        if (this.getMemberType().getFamily() === 'A') return '';
+        if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'S'};
         const memberCode = this.getJitChild(comp)?.compileStripUnknownKeys(comp);
         return this.traverseCode(comp, memberCode);
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         this.checkNonSkipTypes(comp);
-        if (this.getMemberType().getFamily() === 'A') return '';
+        if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'S'};
         const memberCode = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp);
         return this.traverseCode(comp, memberCode);
     }
 
     traverseCode(comp: JitCompiler, memberCode: jitCode): jitCode {
-        if (!memberCode) return undefined;
+        if (!memberCode?.code) return {code: undefined, type: 'S'};
         const index = this.getChildVarName(comp);
-        return `for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode}}`;
+        return {
+            code: `for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode.code}}`,
+            type: 'S',
+        };
     }
 
     checkNonSkipTypes(comp: JitCompiler) {

@@ -48,30 +48,30 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
 
     _compileIsType(comp: JitCompiler): jitCode {
         const itemCode = this.getJitChild(comp)?.compileIsType(comp);
-        if (!itemCode) return undefined;
-        return this.src.optional ? `(${comp.getChildVλl()} === undefined || ${itemCode})` : itemCode;
+        if (!itemCode?.code) return {code: undefined, type: 'E'};
+        return this.src.optional ? {code: `(${comp.getChildVλl()} === undefined || ${itemCode.code})`, type: 'E'} : itemCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const itemCode = this.getJitChild(comp)?.compileTypeErrors(comp);
-        if (!itemCode) return undefined;
-        return this.src.optional ? `if (${comp.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
+        if (!itemCode?.code) return {code: undefined, type: 'S'};
+        return this.src.optional ? {code: `if (${comp.getChildVλl()} !== undefined) {${itemCode.code}}`, type: 'S'} : itemCode;
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         const child = this.getJitChild(comp);
         const childCode = child?.compileToJsonVal(comp);
-        if (!child || !childCode) return undefined;
+        if (!child || !childCode?.code) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
-        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
-        return code;
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
+        if (this.src.optional) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
+        return {code, type: 'S'};
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         const child = this.getJitChild(comp);
         const childCode = child?.compileFromJsonVal(comp);
-        if (!child || !childCode) return undefined;
+        if (!child || !childCode?.code) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
-        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
-        return code;
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
+        if (this.src.optional) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
+        return {code, type: 'S'};
     }
 }
