@@ -10,7 +10,7 @@ import {FunctionRunType} from '../../../runType/function/function';
 import type {DataViewDeserializer, DataViewSerializer, StrictArrayBuffer} from './../types';
 import type {InterfaceRunType} from '../../../runType/collection/interface';
 import type {RunType} from '../../../types';
-import {createDataViewDeserializer, createDataViewSerializer} from './../binarySerializerDataView';
+import {createDataViewDeserializer, createDataViewSerializer} from '../binarySerializer';
 
 const serContext: DataViewSerializer = createDataViewSerializer({bufferSize: 1024});
 const desContext: DataViewDeserializer = createDataViewDeserializer(new ArrayBuffer(0));
