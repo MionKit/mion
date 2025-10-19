@@ -48,66 +48,72 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     // #### jit code ####
     _compileIsType(comp: JitCompiler): jitCode {
         const childCode = this.getJitChild(comp)?.compileIsType(comp);
-        if (!childCode) return undefined;
-        return `for (const ${this.getChildVarName(comp)} in ${comp.vλl}){if (!(${childCode})) return false;} return true;`;
+        if (!childCode?.code) return {code: undefined, type: 'E'};
+        return {
+            code: `for (const ${this.getChildVarName(comp)} in ${comp.vλl}){if (!(${childCode.code})) return false;} return true;`,
+            type: 'RB',
+        };
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const childCode = this.getJitChild(comp)?.compileTypeErrors(comp);
-        if (!childCode) return undefined;
-        return `for (const ${this.getChildVarName(comp)} in ${comp.vλl}) {${childCode}}`;
+        if (!childCode?.code) return {code: undefined, type: 'S'};
+        return {code: `for (const ${this.getChildVarName(comp)} in ${comp.vλl}) {${childCode.code}}`, type: 'S'};
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         const child = this.getJitChild(comp);
         const childCode = child?.compileToJsonVal(comp);
-        if (!child || !childCode) return undefined;
+        if (!child || !childCode?.code) return {code: undefined, type: 'S'};
         const varName = comp.vλl;
         const prop = this.getChildVarName(comp);
         const skipCode = this.getSkipCode(comp, prop);
 
         const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
-        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
+        return {code: `for (const ${prop} in ${varName}){${skipCode} ${code}}`, type: 'S'};
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         const child = this.getJitChild(comp);
         const childCode = child?.compileFromJsonVal(comp);
-        if (!child || !childCode) return undefined;
+        if (!child || !childCode?.code) return {code: undefined, type: 'S'};
         const varName = comp.vλl;
         const prop = this.getChildVarName(comp);
         const skipCode = this.getSkipCode(comp, prop);
 
         const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
-        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
+        return {code: `for (const ${prop} in ${varName}){${skipCode} ${code}}`, type: 'S'};
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
-        if (this.getMemberType().getFamily() === 'A') return undefined;
+        if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'E'};
         const memberCode = this.getJitChild(comp)?.compileHasUnknownKeys(comp);
-        if (!memberCode) return '';
+        if (!memberCode?.code) return {code: '', type: 'E'};
         const varName = comp.vλl;
         const prop = this.getChildVarName(comp);
         const resultVal = `res${comp.getNestLevel(this)}`;
-        return `for (const ${prop} in ${varName}) {const ${resultVal} = ${memberCode};if (${resultVal}) return true;}return false;`;
+        return {
+            code: `for (const ${prop} in ${varName}) {const ${resultVal} = ${memberCode.code};if (${resultVal}) return true;}return false;`,
+            type: 'RB',
+        };
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
-        if (this.getMemberType().getFamily() === 'A') return undefined;
+        if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'S'};
         const memberCode = this.getJitChild(comp)?.compileUnknownKeyErrors(comp);
         return this.traverseCode(comp, memberCode);
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
-        if (this.getMemberType().getFamily() === 'A') return undefined;
+        if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'S'};
         const memberCode = this.getJitChild(comp)?.compileStripUnknownKeys(comp);
         return this.traverseCode(comp, memberCode);
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
-        if (this.getMemberType().getFamily() === 'A') return undefined;
+        if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'S'};
         const memberCode = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp);
         return this.traverseCode(comp, memberCode);
     }
     traverseCode(comp: JitCompiler, memberCode: jitCode): jitCode {
-        if (!memberCode) return undefined;
+        if (!memberCode?.code) return {code: undefined, type: 'S'};
         const prop = this.getChildVarName(comp);
-        return `for (const ${prop} in ${comp.vλl}) {${memberCode}}`;
+        return {code: `for (const ${prop} in ${comp.vλl}) {${memberCode.code}}`, type: 'S'};
     }
     /**
      * if index property should be skipped then it output some code to skip it,
