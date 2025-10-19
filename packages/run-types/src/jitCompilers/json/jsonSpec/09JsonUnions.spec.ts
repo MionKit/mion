@@ -47,9 +47,12 @@ it('union array', () => {
         expect(originalValues[i]).toEqual(deserialized);
     });
 
-    // ensure code for items that do not
+    // ensure code for items that do not need special encoding is not emitted [index, type]
     const jitSerializeFn = rt.createJitFunction(SERIALIZE_FN);
+    const jitDeserializeFn = rt.createJitFunction(DESERIALIZE_FN);
     const stringifyCode = jitSerializeFn.toString();
+    console.log(stringifyCode);
+    console.log(jitDeserializeFn.toString());
     expect(stringifyCode).not.toContain('[0,');
     expect(stringifyCode).not.toContain('[1,');
     expect(stringifyCode).not.toContain('[2,');

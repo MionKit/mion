@@ -14,7 +14,12 @@ import type {JitCompiler} from './lib/jitCompiler';
 import type {CodeType} from './constants.functions';
 
 export type StrNumber = string | number;
-export type jitCode = {code: string | undefined; type: CodeType};
+
+/** Result of a jit compilation, contains the code and metadata about the code */
+export type JitCode = {
+    code: string | undefined;
+    type: CodeType;
+};
 
 // ############################################ RunTypes ############################################
 

@@ -7,21 +7,21 @@
 
 import {ReflectionKind, type TypeNull} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class NullRunType extends AtomicRunType<TypeNull> {
     _getTypeID = () => ReflectionKind.null;
-    _compileIsType(comp: JitCompiler): jitCode {
+    _compileIsType(comp: JitCompiler): JitCode {
         return {code: `${comp.vλl} === null`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
+    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (${comp.vλl} !== null) ${comp.callJitErr(this)}`, type: 'S'};
     }
-    _compileToJsonVal(): jitCode {
+    _compileToJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     }
-    _compileFromJsonVal(): jitCode {
+    _compileFromJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     }
 }

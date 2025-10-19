@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeClass, TypeObjectLiteral} from '@deepkit/type';
-import {jitCode} from '../../types';
+import {JitCode} from '../../types';
 import {InterfaceRunType} from '../collection/interface';
 
 // Non serializable types might not be Atomic but will be skipped so it doesn't matter
@@ -15,28 +15,28 @@ export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral |
         // skip return false so we ensure the compile functions will throw when a NonSerializable type is used
         return false;
     }
-    _compileIsType(): jitCode {
+    _compileIsType(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileTypeErrors(): jitCode {
+    _compileTypeErrors(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileToJsonVal(): jitCode {
+    _compileToJsonVal(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileFromJsonVal(): jitCode {
+    _compileFromJsonVal(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileHasUnknownKeys(): jitCode {
+    _compileHasUnknownKeys(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileUnknownKeyErrors(): jitCode {
+    _compileUnknownKeyErrors(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileStripUnknownKeys(): jitCode {
+    _compileStripUnknownKeys(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileUnknownKeysToUndefined(): jitCode {
+    _compileUnknownKeysToUndefined(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
 }

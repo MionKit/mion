@@ -6,9 +6,8 @@
  * ######## */
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
-import {SrcMember} from '../../types';
+import type {JitCode, SrcMember} from '../../types';
 import {childIsExpression} from '../../lib/utils';
-import {JitFunctions} from '../../constants.functions';
 
 // TODO: investigate is other member types cloud extend this class instead of MemberRunType
 export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> {
@@ -29,34 +28,34 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
     isOptional() {
         return false;
     }
-    _compileIsType(comp: JitCompiler) {
-        const childCode = this.getJitChild(comp)?.compileIsType(comp);
-        if (!childCode) return undefined;
-        if (this.isOptional()) return `${comp.getChildVλl()} === undefined || (${childCode})`;
-        return childCode;
+    _compileIsType(comp: JitCompiler): JitCode {
+        const childJit = this.getJitChild(comp)?.compileIsType(comp, 'E');
+        if (!childJit?.code) return {code: undefined, type: 'E'};
+        if (this.isOptional()) return {code: `${comp.getChildVλl()} === undefined || (${childJit.code})`, type: 'E'};
+        return childJit;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler) {
-        const childCode = this.getJitChild(comp)?.compileTypeErrors(comp);
-        if (!childCode) return undefined;
-        if (this.isOptional()) return `if (${comp.getChildVλl()} !== undefined) {${childCode}}`;
-        return childCode;
+    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+        const childJit = this.getJitChild(comp)?.compileTypeErrors(comp, 'S');
+        if (!childJit?.code) return {code: undefined, type: 'S'};
+        if (this.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'};
+        return childJit;
     }
-    _compileToJsonVal(comp: JitCompiler) {
+    _compileToJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childCode = child?.compileToJsonVal(comp);
-        if (!childCode || !child) return undefined;
-        const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child); // expressions must be assigned to a variable
-        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        if (this.isOptional()) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
-        return code;
+        const childJit = child?.compileToJsonVal(comp, 'S');
+        if (!childJit?.code || !child) return {code: undefined, type: 'S'};
+        const isExpression = childIsExpression(childJit, child); // expressions must be assigned to a variable
+        const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code}` : childJit.code || '';
+        if (this.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
+        return {code, type: 'S'};
     }
-    _compileFromJsonVal(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childCode = child?.compileFromJsonVal(comp);
-        if (!childCode || !child) return undefined;
-        const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
-        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        if (this.isOptional()) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
-        return code;
+        const childJit = child?.compileFromJsonVal(comp, 'S');
+        if (!childJit?.code || !child) return {code: undefined, type: 'S'};
+        const isExpression = childIsExpression(childJit, child);
+        const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
+        if (this.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
+        return {code, type: 'S'};
     }
 }
