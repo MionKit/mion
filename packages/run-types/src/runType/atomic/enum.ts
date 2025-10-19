@@ -6,18 +6,18 @@
  * ######## */
 
 import {ReflectionKind, TypeEnum} from '@deepkit/type';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import {toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     _getTypeID = () => ReflectionKind.enum;
-    _compileIsType(comp: JitCompiler): jitCode {
+    _compileIsType(comp: JitCompiler): JitCode {
         const items = this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`);
         return {code: `(${items.join(' || ')})`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
+    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
         const items = this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`);
         return {code: `if (!(${items.join(' || ')})) ${comp.callJitErr(this)}`, type: 'S'};
     }

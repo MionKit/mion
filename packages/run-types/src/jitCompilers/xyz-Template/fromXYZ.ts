@@ -7,7 +7,7 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
 import type {LiteralRunType} from '../../runType/atomic/literal';
 
@@ -15,7 +15,7 @@ import type {LiteralRunType} from '../../runType/atomic/literal';
  * Main XYZ deserialization compiler function
  * Generates JIT code to deserialize XYZ data to JavaScript values
  */
-function _compileFromXYZ(runType: BaseRunType, comp: JitXYZCompiler): jitCode {
+function _compileFromXYZ(runType: BaseRunType, comp: JitXYZCompiler): JitCode {
     const src = runType.src;
     const kind = src.kind;
 
@@ -179,7 +179,7 @@ function _compileFromXYZ(runType: BaseRunType, comp: JitXYZCompiler): jitCode {
     }
 }
 
-function compileLiteral(runType: LiteralRunType, comp: JitXYZCompiler): jitCode {
+function compileLiteral(runType: LiteralRunType, comp: JitXYZCompiler): JitCode {
     const src = runType.src;
     // Literal types are serialized as their underlying value
     const literalValue = src.literal;

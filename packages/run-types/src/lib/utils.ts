@@ -18,14 +18,14 @@ import {isFormatParamMeta} from './guards';
 import {createHashLiteral} from './quickHash';
 import {ReflectionSubKind} from '../constants.kind';
 import {getJitFnSettings} from './jitFnsRegistry';
-import type {jitCode} from '../types';
+import type {JitCode} from '../types';
 import type {BaseCompiler} from './jitCompiler';
 
 /**
  * Wraps a code string with its code type metadata.
  * Used to convert string returns from _compile methods into the new jitCode format.
  */
-export function wrapJitCode(code: string | undefined, fnID: JitFnID): jitCode {
+export function wrapJitCode(code: string | undefined, fnID: JitFnID): JitCode {
     if (code === undefined) return {code: undefined, type: getJitFnSettings(fnID).type};
     return {code, type: getJitFnSettings(fnID).type};
 }
@@ -33,7 +33,7 @@ export function wrapJitCode(code: string | undefined, fnID: JitFnID): jitCode {
 /**
  * Wraps a code string using the compiler's fnID.
  */
-export function wrapJitCodeFromCompiler(code: string | undefined, comp: BaseCompiler): jitCode {
+export function wrapJitCodeFromCompiler(code: string | undefined, comp: BaseCompiler): JitCode {
     return wrapJitCode(code, comp.fnID);
 }
 
@@ -143,8 +143,8 @@ export function getParamIndex(src: TypeParameter | TypeTupleMember): number {
     return 0;
 }
 
-export function childIsExpression(fnID: JitFnID, child: BaseRunType): boolean {
-    return child.getCodeType(fnID) === 'E' || !child.isJitInlined();
+export function childIsExpression(childJCode: JitCode, child: BaseRunType): boolean {
+    return childJCode.type === 'E' || !child.isJitInlined();
 }
 
 /**

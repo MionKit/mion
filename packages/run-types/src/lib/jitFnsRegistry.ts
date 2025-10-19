@@ -6,7 +6,7 @@
  * ######## */
 
 import type {JitFnID} from '../types';
-import {CodeType, JitFnSettings, jitFunctionList, jitFunctionsById} from '../constants.functions';
+import {JitFnSettings, jitFunctionList, jitFunctionsById} from '../constants.functions';
 
 type resolvedCompiler = {
     jitFnSettings: JitFnSettings;
@@ -48,9 +48,6 @@ export function getJitFnSettings(fnID: JitFnID): JitFnSettings {
     return fnConfig;
 }
 
-export function getCodeType(fnID: JitFnID): CodeType {
-    return getJitFnSettings(fnID).type;
-}
 export function getJITFnName(fnID: JitFnID): string {
     return getJitFnSettings(fnID).name;
 }

@@ -7,7 +7,7 @@
 
 import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, PureFunction, PureFunctionClosure} from '@mionkit/core';
 import {MAX_STACK_DEPTH, getENV, jitUtils} from '@mionkit/core';
-import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOpts} from '../types';
+import type {Mutable, JitFnID, StrNumber, JitCode, RunTypeOptions, JitCompilerOpts} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
 import {maxStackErrorMessage, JIT_STACK_TRACE_MESSAGE} from '../constants';
@@ -132,7 +132,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const newStackItem: StackItem = {vλl: this.vλl, rt: newChild, staticPath: this._accessPathLiterals};
         this.stack.push(newStackItem);
     }
-    popStack(resultCode: jitCode): void | ((...args: any[]) => any) {
+    popStack(resultCode: JitCode): void | ((...args: any[]) => any) {
         if (resultCode?.code) (this as Mutable<BaseCompiler>).code = resultCode.code;
         this.popItem = this.stack.pop();
         const item = this.stack[this.stack.length - 1];

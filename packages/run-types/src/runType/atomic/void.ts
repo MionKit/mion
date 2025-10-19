@@ -6,22 +6,22 @@
  * ######## */
 
 import {ReflectionKind, type TypeVoid} from '@deepkit/type';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 export class VoidRunType extends AtomicRunType<TypeVoid> {
     _getTypeID = () => ReflectionKind.void;
-    _compileIsType(comp: JitCompiler): jitCode {
+    _compileIsType(comp: JitCompiler): JitCode {
         return {code: `${comp.vλl} === undefined`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
+    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (${comp.vλl} !== undefined) ${comp.callJitErr(this)}`, type: 'S'};
     }
-    _compileToJsonVal(comp: JitCompiler): jitCode {
+    _compileToJsonVal(comp: JitCompiler): JitCode {
         return {code: `${comp.vλl} = undefined`, type: 'E'};
     }
-    _compileFromJsonVal(comp: JitCompiler): jitCode {
+    _compileFromJsonVal(comp: JitCompiler): JitCode {
         return {code: `${comp.vλl} = undefined`, type: 'E'};
     }
 }

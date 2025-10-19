@@ -8,9 +8,8 @@
 import type {TypeFormatParams, PureFunctionClosure, TypeFormatValue, JitCompiledFn} from '@mionkit/core';
 import type {BaseRunType} from './baseRunTypes';
 import {compileAddPureFunctionWithClosure, createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitCompiler';
-import type {JitFnID, Mutable, StrNumber, jitCode, RunTypeOptions} from '../types';
-import {getCodeType} from './jitFnsRegistry';
-import {CodeType} from '../constants.functions';
+import type {JitFnID, Mutable, StrNumber, JitCode, RunTypeOptions} from '../types';
+import {type CodeType} from '../constants.functions';
 import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
 import {dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
@@ -29,9 +28,6 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     abstract kind: ReflectionKind;
     abstract name: string;
     rootFormatName: string = '';
-    getCodeType(fnID: JitFnID, _rt: BaseRunType, _params?: P): CodeType {
-        return getCodeType(fnID);
-    }
     /**
      * The jit code for the formatter can be embedded together with the jit code for the type itself.
      * but sometimes is better to create a separate function for code to be reused.
@@ -160,14 +156,14 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         vλl?: string,
         formatName?: string,
         extraPathLiteral?: StrNumber
-    ) {
+    ): JitCode {
         if (this.validateParams) this.validateParams(rt, params || this.getParams(rt));
         (this as Mutable<BaseRunTypeFormat>).extraPathLiteral = extraPathLiteral;
         const v = comp.vλl;
         comp.vλl = vλl || v;
         this.rootFormatName = formatName || this.name;
         this.pushContext(params);
-        let result: jitCode;
+        let result: JitCode;
         switch (fnID) {
             case JitFunctions.isType.id:
                 result = this._compileIsType(comp, rt);
@@ -192,9 +188,9 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
      * Adds return statements if needed
      * Unlike handleReturnValues in BaseRunType this one is only called in the root of the formatter
      */
-    handleReturnValues(rt: BaseRunType, comp: JitCompiler, currentOpId: JitFnID, code: jitCode): string {
+    handleReturnValues(rt: BaseRunType, comp: JitCompiler, currentOpId: JitFnID, code: JitCode): string {
         if (!code?.code) return '';
-        const codeType = code.type || this.getCodeType(currentOpId, rt);
+        const codeType = code.type;
         switch (codeType) {
             case 'E':
                 return `return ${code.code}`;
@@ -212,13 +208,13 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     }
 
     abstract _mock(opts: RunTypeOptions, rt: BaseRunType): any;
-    abstract _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode;
-    abstract _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): jitCode;
+    abstract _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode;
+    abstract _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode;
 
     // ###### optional methods for type formatters ########
 
     /** Optional method to compile the formatter function that transforms/sanitize a value */
-    _compileFormat?(comp: JitCompiler, rt: BaseRunType): jitCode;
+    _compileFormat?(comp: JitCompiler, rt: BaseRunType): JitCode;
 
     /** Throws an error if params are not valid */
     validateParams?(rt: BaseRunType, params: P): void;

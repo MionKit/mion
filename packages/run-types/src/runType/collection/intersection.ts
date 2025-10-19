@@ -7,6 +7,7 @@
 
 import {TypeIntersection} from '@deepkit/type';
 import {InterfaceRunType} from './interface';
+import {type JitCode} from '../../types';
 
 /** IMPORTANT:
  * Intersection are already resolved by deepkit so seems like this runType wont ever be called
@@ -14,16 +15,16 @@ import {InterfaceRunType} from './interface';
  * ie: type NeVer = string & number will be resolved to never
  * */
 export class IntersectionRunType extends InterfaceRunType<TypeIntersection> {
-    compileIsType(): string {
+    compileIsType(): JitCode {
         throw new Error('Intersection validation not supported, should be resolve to other RunTypes');
     }
-    compileTypeErrors(): string {
+    compileTypeErrors(): JitCode {
         throw new Error('Intersection validation not supported, should be resolve to other RunTypes');
     }
-    compileToJsonVal(): string {
+    compileToJsonVal(): JitCode {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
-    compileFromJsonVal(): string {
+    compileFromJsonVal(): JitCode {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
 }

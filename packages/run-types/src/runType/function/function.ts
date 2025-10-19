@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {AnyFunction, SrcType, JitFn, jitCode, RunTypeOptions} from '../../types';
+import type {AnyFunction, SrcType, JitFn, JitCode, RunTypeOptions} from '../../types';
 import {ReflectionKind, TypeFunction} from '@deepkit/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
@@ -90,7 +90,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     // ######## JIT functions (all throw error) ########
 
     // can't know the types of the run type function parameters, neither the return type, so only compare function name and length
-    _compileIsType(comp: JitCompiler): jitCode {
+    _compileIsType(comp: JitCompiler): JitCode {
         const minLength = this.parameterRunTypes.totalRequiredParams(comp);
         const totalParams = this.parameterRunTypes.getParamRunTypes(comp).length;
         const hasOptional = totalParams > minLength;
@@ -98,28 +98,28 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
             this.parameterRunTypes.hasRestParameter(comp) || !hasOptional ? '' : ` && ${comp.vλl}.length <= ${totalParams}`;
         return {code: `(typeof ${comp.vλl} === 'function' && ${comp.vλl}.length >= ${minLength} ${maxLength})`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return {code: `if (!(${this._compileIsType(comp)?.code})) ${comp.callJitErr(this)};`, type: 'S'};
+    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+        return {code: `if (!(${this._compileIsType(comp).code})) ${comp.callJitErr(this)};`, type: 'S'};
     }
     /**
      * json encode a function
      */
-    _compileToJsonVal(): jitCode {
+    _compileToJsonVal(): JitCode {
         throw new Error(`Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`);
     }
-    _compileFromJsonVal(): jitCode {
+    _compileFromJsonVal(): JitCode {
         throw new Error(`Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`);
     }
-    _compileHasUnknownKeys(): jitCode {
+    _compileHasUnknownKeys(): JitCode {
         return {code: '', type: 'E'};
     }
-    _compileUnknownKeyErrors(): jitCode {
+    _compileUnknownKeyErrors(): JitCode {
         return {code: '', type: 'S'};
     }
-    _compileStripUnknownKeys(): jitCode {
+    _compileStripUnknownKeys(): JitCode {
         return {code: '', type: 'S'};
     }
-    _compileUnknownKeysToUndefined(): jitCode {
+    _compileUnknownKeysToUndefined(): JitCode {
         return {code: '', type: 'S'};
     }
 

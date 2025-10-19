@@ -7,24 +7,16 @@
 
 import type {TypeProperty, TypePropertySignature} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {jitCode, JitFnID} from '../../types';
+import type {JitCode} from '../../types';
 import {childIsExpression, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {InterfaceRunType} from '../collection/interface';
-import {type CodeType, JitFunctions} from '../../constants.functions';
+import {JitFunctions} from '../../constants.functions';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     isUnionDiscriminator = false;
     /** this is set by the parent interface if prop is optional, when optional properties are sorted */
     optionalIndex = -1;
-    getCodeType(fnID: JitFnID): CodeType {
-        switch (fnID) {
-            case JitFunctions.fromBinary.id:
-                return 'E';
-            default:
-                return super.getCodeType(fnID);
-        }
-    }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getChildVarName(comp: JitCompiler) {
         return getPropVarName(this.src.name);
@@ -46,31 +38,31 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     }
     // #### jit code ####
 
-    _compileIsType(comp: JitCompiler): jitCode {
-        const itemCode = this.getJitChild(comp)?.compileIsType(comp);
-        if (!itemCode?.code) return {code: undefined, type: 'E'};
-        return this.src.optional ? {code: `(${comp.getChildVλl()} === undefined || ${itemCode.code})`, type: 'E'} : itemCode;
+    _compileIsType(comp: JitCompiler): JitCode {
+        const childJit = this.getJitChild(comp)?.compileIsType(comp, 'E');
+        if (!childJit?.code) return {code: undefined, type: 'E'};
+        return this.src.optional ? {code: `(${comp.getChildVλl()} === undefined || ${childJit.code})`, type: 'E'} : childJit;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        const itemCode = this.getJitChild(comp)?.compileTypeErrors(comp);
-        if (!itemCode?.code) return {code: undefined, type: 'S'};
-        return this.src.optional ? {code: `if (${comp.getChildVλl()} !== undefined) {${itemCode.code}}`, type: 'S'} : itemCode;
+    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+        const childJit = this.getJitChild(comp)?.compileTypeErrors(comp, 'S');
+        if (!childJit?.code) return {code: undefined, type: 'S'};
+        return this.src.optional ? {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'} : childJit;
     }
-    _compileToJsonVal(comp: JitCompiler): jitCode {
+    _compileToJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childCode = child?.compileToJsonVal(comp);
-        if (!child || !childCode?.code) return {code: undefined, type: 'S'};
-        const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
-        const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
+        const childJit = child?.compileToJsonVal(comp, 'S');
+        if (!child || !childJit?.code) return {code: undefined, type: 'S'};
+        const isExpression = childIsExpression(childJit, child);
+        const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
         if (this.src.optional) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
         return {code, type: 'S'};
     }
-    _compileFromJsonVal(comp: JitCompiler): jitCode {
+    _compileFromJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childCode = child?.compileFromJsonVal(comp);
-        if (!child || !childCode?.code) return {code: undefined, type: 'S'};
-        const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
-        const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
+        const childJit = child?.compileFromJsonVal(comp, 'S');
+        if (!child || !childJit?.code) return {code: undefined, type: 'S'};
+        const isExpression = childIsExpression(childJit, child);
+        const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
         if (this.src.optional) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
         return {code, type: 'S'};
     }

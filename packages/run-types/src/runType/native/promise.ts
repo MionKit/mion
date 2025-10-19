@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {ReflectionKind, type TypePromise} from '@deepkit/type';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {JitFunctions} from '../../constants.functions';
 import type {JitCompiler} from '../../lib/jitCompiler';
@@ -15,16 +15,16 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
     skipJit(comp: JitCompiler): boolean {
         return comp?.fnID !== JitFunctions.toJavascript.id;
     }
-    _compileIsType(): jitCode {
+    _compileIsType(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileTypeErrors(): jitCode {
+    _compileTypeErrors(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileToJsonVal(): jitCode {
+    _compileToJsonVal(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileFromJsonVal(): jitCode {
+    _compileFromJsonVal(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     isOptional(): boolean {

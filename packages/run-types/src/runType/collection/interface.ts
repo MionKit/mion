@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind} from '@deepkit/type';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {arrayToLiteral, childIsExpression, getJitFnArgCallVarName, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
+import {arrayToLiteral, getJitFnArgCallVarName, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {MethodSignatureRunType} from '../member/methodSignature';
@@ -47,10 +47,6 @@ export class InterfaceRunType<
     splitJitSplitChildren(comp: JitCompiler): {
         /** all required properties */
         required: PropertyRunType[];
-        /** required properties that can be deserialized as an expression */
-        requiredExpressions: PropertyRunType[];
-        /** required properties that require a statement to be deserialized */
-        requiredStatements: PropertyRunType[];
         /** all optional properties */
         optional: PropertyRunType[];
         /** all index signatures */
@@ -60,13 +56,7 @@ export class InterfaceRunType<
         const required = children.filter((prop) => !prop.isOptional()) as PropertyRunType[];
         const optional = children.filter((prop) => prop.isOptional() && !isIndexSignatureRunType(prop)) as PropertyRunType[];
         const indexSignatures = children.filter((prop) => isIndexSignatureRunType(prop)) as IndexSignatureRunType[];
-        const requiredExpressions = required.filter((prop) =>
-            childIsExpression(JitFunctions.fromBinary.id, prop.getJitChild(comp)!)
-        );
-        const requiredStatements = required.filter(
-            (prop) => !childIsExpression(JitFunctions.fromBinary.id, prop.getJitChild(comp)!)
-        );
-        return {required, requiredExpressions, requiredStatements, optional, indexSignatures};
+        return {required, optional, indexSignatures};
     }
     isPartOfUnion(): boolean {
         return this.getParent()?.src.kind === ReflectionKind.union;
@@ -77,16 +67,16 @@ export class InterfaceRunType<
 
     // #### collection's jit code ####
 
-    _compileIsType(comp: JitCompiler): jitCode {
+    _compileIsType(comp: JitCompiler): JitCode {
         const varName = comp.vλl;
         const children = this.getJitChildren(comp);
         const childrenCode = children
-            .map((prop) => prop.compileIsType(comp)?.code)
+            .map((prop) => prop.compileIsType(comp, 'E').code)
             .filter(Boolean)
             .join(' && ');
         if (this.isCallable())
             return {
-                code: [this.getCallSignature()!._compileIsType(comp)?.code, childrenCode].filter(Boolean).join(' && '),
+                code: [this.getCallSignature()!._compileIsType(comp).code, childrenCode].filter(Boolean).join(' && '),
                 type: 'E',
             };
         const objectCheck = this.isPartOfUnion() ? '' : `typeof ${varName} === 'object' && ${varName} !== null`;
@@ -94,15 +84,15 @@ export class InterfaceRunType<
         return {code: `(${itemsCode})`, type: 'E'};
     }
 
-    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
+    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
         const varName = comp.vλl;
         const children = this.getJitChildren(comp);
         const childrenCode = children
-            .map((prop) => prop.compileTypeErrors(comp)?.code)
+            .map((prop) => prop.compileTypeErrors(comp, 'S').code)
             .filter(Boolean)
             .join(';');
         if (this.isCallable()) {
-            return {code: `${this.getCallSignature()!._compileTypeErrors(comp)?.code} else {${childrenCode}}`, type: 'S'};
+            return {code: `${this.getCallSignature()!._compileTypeErrors(comp).code} else {${childrenCode}}`, type: 'S'};
         }
         const objectCheck = this.isPartOfUnion() ? '' : `typeof ${varName} === 'object' && ${varName} !== null`;
         const isObjectCode = [objectCheck, this.allOptionalCode(comp)].filter(Boolean).join(' && ');
@@ -117,78 +107,78 @@ export class InterfaceRunType<
             type: 'S',
         };
     }
-    _compileToJsonVal(comp: JitCompiler): jitCode {
+    _compileToJsonVal(comp: JitCompiler): JitCode {
         if (this.isCallable()) return this.getCallSignature()!._compileToJsonVal();
         const children = this.getJitChildren(comp);
         const childrenCode = children
-            .map((prop) => prop.compileToJsonVal(comp)?.code)
+            .map((prop) => prop.compileToJsonVal(comp, 'S').code)
             .filter(Boolean)
             .join(';');
-        return {code: childrenCode || undefined, type: 'S'};
+        return {code: childrenCode, type: 'S'};
     }
-    _compileFromJsonVal(comp: JitCompiler): jitCode {
+    _compileFromJsonVal(comp: JitCompiler): JitCode {
         if (this.isCallable()) return this.getCallSignature()!._compileFromJsonVal();
         const children = this.getJitChildren(comp);
         const childrenCode = children
-            .map((prop) => prop.compileFromJsonVal(comp)?.code)
+            .map((prop) => prop.compileFromJsonVal(comp, 'S').code)
             .filter(Boolean)
             .join(';');
-        return {code: childrenCode || undefined, type: 'S'};
+        return {code: childrenCode, type: 'S'};
     }
-    _compileHasUnknownKeys(comp: JitCompiler, children?: BaseRunType[]): jitCode {
-        const jitChildren = children || this.getJitChildren(comp);
+    _compileHasUnknownKeys(comp: JitCompiler): JitCode {
+        const children = this.getJitChildren(comp);
         const allChildren = this.getChildRunTypes().filter((prop) => !isIndexSignatureRunType(prop));
-        const hasIndexProp = jitChildren.some((prop) => isIndexSignatureRunType(prop));
+        const hasIndexProp = children.some((prop) => isIndexSignatureRunType(prop));
         const parentCode = hasIndexProp
             ? ''
-            : callCheckUnknownProperties(this, comp, jitChildren, false, !this.isPartOfUnion(), allChildren);
-        const childrenCode = super._compileHasUnknownKeys(comp)?.code;
+            : callCheckUnknownProperties(this, comp, children, false, !this.isPartOfUnion(), allChildren);
+        const childrenCode = super._compileHasUnknownKeys(comp).code;
         return {code: [parentCode, childrenCode].filter(Boolean).join(' || '), type: 'E'};
     }
-    _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
-        const jitChildren = this.getJitChildren(comp);
+    _compileUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
+        const children = this.getJitChildren(comp);
         const allChildren = this.getChildRunTypes().filter((prop) => !isIndexSignatureRunType(prop));
-        const hasIndexProp = jitChildren.some((prop) => isIndexSignatureRunType(prop));
+        const hasIndexProp = children.some((prop) => isIndexSignatureRunType(prop));
         const unknownVar = `unk${comp.getNestLevel(this)}`;
         const keyVar = `ky${comp.getNestLevel(this)}`;
         const unknownValue = hasIndexProp
             ? undefined
-            : callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion(), allChildren);
+            : callCheckUnknownProperties(this, comp, children, true, !this.isPartOfUnion(), allChildren);
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}) {${comp.callJitErrWithPath('never', keyVar)}}}
         `;
-        const childrenCode = super._compileUnknownKeyErrors(comp)?.code;
+        const childrenCode = super._compileUnknownKeyErrors(comp).code;
         return {code: [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n'), type: 'S'};
     }
-    _compileStripUnknownKeys(comp: JitCompiler): jitCode {
-        const jitChildren = this.getJitChildren(comp);
+    _compileStripUnknownKeys(comp: JitCompiler): JitCode {
+        const children = this.getJitChildren(comp);
         const unknownVar = `unk${comp.getNestLevel(this)}`;
         const keyVar = `ky${comp.getNestLevel(this)}`;
-        const hasIndexProp = jitChildren.some((prop) => isIndexSignatureRunType(prop));
+        const hasIndexProp = children.some((prop) => isIndexSignatureRunType(prop));
         const unknownValue = hasIndexProp
             ? undefined
-            : callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion());
+            : callCheckUnknownProperties(this, comp, children, true, !this.isPartOfUnion());
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){delete ${comp.vλl}[${keyVar}]}}
         `;
-        const childrenCode = super._compileStripUnknownKeys(comp)?.code;
+        const childrenCode = super._compileStripUnknownKeys(comp).code;
         return {code: [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n'), type: 'S'};
     }
-    _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
-        const jitChildren = this.getJitChildren(comp);
+    _compileUnknownKeysToUndefined(comp: JitCompiler): JitCode {
+        const children = this.getJitChildren(comp);
         const unknownVar = `unk${comp.getNestLevel(this)}`;
         const keyVar = `ky${comp.getNestLevel(this)}`;
-        const hasIndexProp = jitChildren.some((prop) => isIndexSignatureRunType(prop));
+        const hasIndexProp = children.some((prop) => isIndexSignatureRunType(prop));
         const unknownValue = hasIndexProp
             ? undefined
-            : callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion());
+            : callCheckUnknownProperties(this, comp, children, true, !this.isPartOfUnion());
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){${comp.vλl}[${keyVar}] = undefined}}
         `;
-        const childrenCode = super._compileUnknownKeysToUndefined(comp)?.code;
+        const childrenCode = super._compileUnknownKeysToUndefined(comp).code;
         return {code: [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n'), type: 'S'};
     }
 
@@ -214,9 +204,9 @@ export class InterfaceRunType<
     }
 
     addObjectPropsToContext(comp: JitCompiler, jitChildrenRunTypes?: BaseRunType[], allChildrenRuntypes?: BaseRunType[]) {
-        const jitChildren = jitChildrenRunTypes || this.getJitChildren(comp);
+        const children = jitChildrenRunTypes || this.getJitChildren(comp);
         const allChildren = allChildrenRuntypes || this.getChildRunTypes();
-        return addObjectPropsToContext(this, comp, jitChildren, allChildren);
+        return addObjectPropsToContext(this, comp, children, allChildren);
     }
 }
 

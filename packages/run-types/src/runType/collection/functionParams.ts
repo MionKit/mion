@@ -7,7 +7,7 @@
 
 import type {TypeFunction, TypeTuple} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {AnyParameterListRunType, SrcType, jitCode} from '../../types';
+import type {AnyParameterListRunType, SrcType, JitCode} from '../../types';
 import {ParameterRunType} from '../member/param';
 import {CollectionRunType} from '../../lib/baseRunTypes';
 import {TupleMemberRunType} from '../member/tupleMember';
@@ -39,46 +39,46 @@ export class FunctionParamsRunType<
     }
     // ####### params #######
 
-    _compileIsType(comp: JitCompiler): jitCode {
+    _compileIsType(comp: JitCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (children.length === 0) return {code: `${comp.vλl}.length === 0`, type: 'E'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `${comp.vλl}.length <= ${children.length}`;
         // Only include parameters that require validation
-        const paramsCode = children.map((p) => p.compileIsType(comp)?.code).filter(Boolean);
+        const paramsCode = children.map((p) => p.compileIsType(comp, 'E').code).filter(Boolean);
         if (paramsCode.length === 0) return lengthCode ? {code: `(${lengthCode})`, type: 'E'} : {code: undefined, type: 'E'};
         return lengthCode
             ? {code: `(${lengthCode} && ${paramsCode.join(' && ')})`, type: 'E'}
             : {code: `(${paramsCode.join(' && ')})`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
+    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (children.length === 0) return {code: `if (${comp.vλl}.length !== 0) ${comp.callJitErr(this)}`, type: 'S'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `${comp.vλl}.length > ${children.length}`;
 
         // Only include parameters that require validation
-        const paramsCode = children.map((p) => p.compileTypeErrors(comp)?.code).filter(Boolean);
+        const paramsCode = children.map((p) => p.compileTypeErrors(comp, 'S').code).filter(Boolean);
         if (paramsCode.length === 0)
             return lengthCode ? {code: `if (${lengthCode}) ${comp.callJitErr(this)}`, type: 'S'} : {code: undefined, type: 'S'};
         return lengthCode
             ? {code: `if (${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode.join(';')}}`, type: 'S'}
             : {code: paramsCode.join(';'), type: 'S'};
     }
-    _compileToJsonVal(comp: JitCompiler): jitCode {
+    _compileToJsonVal(comp: JitCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (!children.length) return {code: undefined, type: 'S'};
         const code = children
-            .map((p) => p.compileToJsonVal(comp)?.code)
+            .map((p) => p.compileToJsonVal(comp, 'S').code)
             .filter(Boolean)
             .join(';');
-        return {code: code || undefined, type: 'S'};
+        return {code: code, type: 'S'};
     }
-    _compileFromJsonVal(comp: JitCompiler): jitCode {
+    _compileFromJsonVal(comp: JitCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (!children.length) return {code: undefined, type: 'S'};
         const code = children
-            .map((p) => p.compileFromJsonVal(comp)?.code)
+            .map((p) => p.compileFromJsonVal(comp, 'S').code)
             .filter(Boolean)
             .join(';');
-        return {code: code || undefined, type: 'S'};
+        return {code: code, type: 'S'};
     }
 }

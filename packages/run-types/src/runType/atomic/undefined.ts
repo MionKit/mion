@@ -7,18 +7,18 @@
 
 import {ReflectionKind, type TypeUndefined} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     _getTypeID = () => ReflectionKind.undefined;
-    _compileIsType(comp: JitCompiler): jitCode {
+    _compileIsType(comp: JitCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'undefined'`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
+    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'undefined') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    _compileFromJsonVal(): jitCode {
+    _compileFromJsonVal(): JitCode {
         return {code: `undefined`, type: 'E'};
     }
 }

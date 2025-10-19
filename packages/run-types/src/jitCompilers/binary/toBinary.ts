@@ -7,7 +7,7 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
 import {type BaseCompiler} from '../../lib/jitCompiler';
 import {jitBinarySerializerArgs, JitFunctions} from '../../constants.functions';
@@ -18,6 +18,7 @@ import type {IndexSignatureRunType} from '../../runType/member/indexProperty';
 import {addFullStop} from '../../lib/utils';
 
 type BinaryCompiler = BaseCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
+const fnID = JitFunctions.toBinary.id;
 
 /**
  * Main Binary serialization compiler function
@@ -25,11 +26,10 @@ type BinaryCompiler = BaseCompiler<typeof jitBinarySerializerArgs, typeof JitFun
  *
  * This function generates JavaScript expressions that return Uint8Array containing Binary bytes.
  */
-export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): jitCode {
+export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCode {
     const src = runType.src;
     const kind = src.kind;
     const sεr = comp.args.sεr;
-    const fnID = comp.fnID;
 
     // hack is used in some case to increase the index passing an extra argument to view.set methods
     // ie: view.setUint32(index, value, littleEndian, index += 4);
@@ -157,7 +157,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
             const parent = rt.getParent() as InterfaceRunType;
             if (parent.hasIndexSignature(comp)) return {code: undefined, type: 'S'}; // all serialization is done by index signature code
 
-            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID)?.code || '';
+            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID).code || '';
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
                 const setBitMask = `${sεr}.setBitMask(${bitMIndexVar}, ${bitIndex})`;
@@ -190,7 +190,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
                 // and must be serialized/deserialized in the same order they are declared in the type
                 const {required, optional} = rt.splitJitSplitChildren(comp);
 
-                const requiredProps = required.map((prop) => prop.compile(comp, fnID)?.code).filter(Boolean);
+                const requiredProps = required.map((prop) => prop.compile(comp, fnID).code).filter(Boolean);
                 const requiredPropsCode = requiredProps.join(';');
 
                 let optionalPropsCode = '';
@@ -201,7 +201,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): ji
                             prop.optionalIndex = i;
                             const modIndex = i + 1;
                             const shouldIncreaseBufferIndex = modIndex % 8 === 0;
-                            const propCode = prop.compile(comp, fnID)?.code;
+                            const propCode = prop.compile(comp, fnID).code;
                             if (!shouldIncreaseBufferIndex) return propCode;
                             // every 8 props we need to increase the bitmap index
                             return `${propCode} ${bitMIndexVar}++;`;

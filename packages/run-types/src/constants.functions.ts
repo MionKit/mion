@@ -7,6 +7,7 @@
 
 import type {JitFnArgs} from '@mionkit/core';
 
+/** Javascript code types */
 export const CodeTypes = {
     expression: 'E', // single expression, that could be concatenated using js operators like + - * && || etc...
     statement: 'S', // one or multiple statements, that could be concatenated using ; to ensure correct syntax

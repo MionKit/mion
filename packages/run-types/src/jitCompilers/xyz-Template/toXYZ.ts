@@ -7,7 +7,7 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
-import type {jitCode} from '../../types';
+import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
 import type {LiteralRunType} from '../../runType/atomic/literal';
 
@@ -17,7 +17,7 @@ import type {LiteralRunType} from '../../runType/atomic/literal';
  *
  * This function generates JavaScript expressions that return Uint8Array containing XYZ bytes.
  */
-export function _compileToXYZ(runType: BaseRunType, comp: JitXYZCompiler): jitCode {
+export function _compileToXYZ(runType: BaseRunType, comp: JitXYZCompiler): JitCode {
     const src = runType.src;
     const kind = src.kind;
 
@@ -184,7 +184,7 @@ export function _compileToXYZ(runType: BaseRunType, comp: JitXYZCompiler): jitCo
     }
 }
 
-function compileLiteral(runType: LiteralRunType, comp: JitXYZCompiler): jitCode {
+function compileLiteral(runType: LiteralRunType, comp: JitXYZCompiler): JitCode {
     const src = runType.src;
     // Literal types are serialized as their underlying value
     const literalValue = src.literal;
