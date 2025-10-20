@@ -103,7 +103,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 const fromJit = childRt.compileFromJsonVal(comp, 'S');
                 const needsTupleEncoding = !!toJit.code || !!fromJit.code;
                 const isExpression = childIsExpression(toJit, childRt);
-                const encodeCode = isExpression && toJit.code ? `${comp.vλl} = ${toJit.code};` : '';
+                const encodeCode = isExpression && toJit.code ? `${comp.vλl} = ${toJit.code};` : toJit.code || '';
                 // item encoded before reassigning varName to [i, item]
                 const index = this.getUnionItemIndex(comp, childRt);
                 const tupleEncode = needsTupleEncoding ? `${comp.vλl} = [${index}, ${comp.vλl}]` : '/*noop*/';
@@ -140,7 +140,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 const childJit = unionItem.compileFromJsonVal(comp, 'S');
                 const isExpression = childIsExpression(childJit, unionItem);
                 const code =
-                    isExpression && childJit && childJit.code !== comp.vλl
+                    isExpression && childJit.code && childJit.code !== comp.vλl
                         ? `${comp.vλl} = ${childJit.code}`
                         : childJit.code || '';
                 // item is decoded before being extracted from the array
