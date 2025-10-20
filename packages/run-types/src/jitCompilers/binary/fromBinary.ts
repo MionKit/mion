@@ -211,17 +211,16 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                 // required props that are simple expressions are restored as: '{a: deserializeA, b: deserializeB, c: deserializeC};
                 // and are serialized/deserialised in the same order they are declared in the type
                 const requiredItemsJit = required.map((prop) => prop.compile(comp, fnID, 'S'));
-                const expressionsPropsCode = requiredItemsJit
+                const expressionItemsJit = requiredItemsJit
                     .filter((childJit, i) => childIsExpression(childJit, required[i]))
                     .map((prop) => prop.code)
+                    .filter(Boolean);
+                const statementItemsCode = requiredItemsJit
                     .filter(Boolean)
-                    .join(',');
-                const requiredPropsCode = requiredItemsJit
                     .filter((childJit, i) => !childIsExpression(childJit, required[i]))
-                    .map((prop) => prop.code)
-                    .filter(Boolean)
-                    .join(';');
-                const objectCode = `${comp.vλl} = {${expressionsPropsCode}};${requiredPropsCode}`;
+                    .map((prop) => prop.code);
+                const expressionsPropsCode = expressionItemsJit.join(',');
+                const requiredPropsCode = statementItemsCode.join(';');
 
                 // optional props are initialized as obj.a = deserializeA; obj.b = deserializeB; obj.c = deserializeC;
                 // bitmap is used to determine which optional props are present
@@ -242,10 +241,13 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                         })
                         .filter(Boolean)
                         .join('');
-                    optionalPropsCode = `${bitMapInit}\n${propsCode}`;
+                    const sep = requiredPropsCode ? ';' : '';
+                    optionalPropsCode = `${sep}\n${bitMapInit}\n${propsCode}`;
                 }
 
-                return {code: `${objectCode}\n${optionalPropsCode}`, type: 'S'};
+                const canBeExpression = !requiredPropsCode && !optionalPropsCode;
+                if (canBeExpression) return {code: `{${expressionsPropsCode}}`, type: 'E'};
+                return {code: `${comp.vλl} = {${expressionsPropsCode}}\n${requiredPropsCode}${optionalPropsCode}`, type: 'S'};
             }
 
         case ReflectionKind.class:
@@ -275,7 +277,8 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                     const desFnInit = `let ${desFnVarName} = utl.${jitUtils.getDeserializeFn.name}(${toLiteral(rt.getClassName())})`;
                     const desFnCode = `if (${desFnVarName}) {${comp.vλl} = ${desFnVarName}(${comp.vλl})}`;
                     const desClassCode = `else if (${desFnVarName} = utl.${jitUtils.getSerializeClass.name}(${toLiteral(rt.getClassName())})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}`;
-                    return {code: `${plainObjCode?.code};${desFnInit};${desFnCode} ${desClassCode}`, type: 'S'};
+                    const initCode = plainObjCode.type === 'E' ? `${comp.vλl} = ${plainObjCode.code}` : plainObjCode.code;
+                    return {code: `${initCode};${desFnInit};${desFnCode} ${desClassCode}`, type: 'S'};
                 }
             }
             break;
