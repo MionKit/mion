@@ -136,7 +136,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         try {
             const formatterCode = this.compileFormat(fnID, newJitCompiler, rt, params, vλl, formatName);
             const withReturn = this.handleReturnValues(rt, newJitCompiler, fnID, formatterCode || '');
-            newJitCompiler.compile(withReturn);
+            newJitCompiler.createJitFunction(withReturn);
             comp?.updateDependencies(newJitCompiler as JitCompiledFn);
         } catch (e) {
             // if something goes wrong during compilation we want to remove the compiler from

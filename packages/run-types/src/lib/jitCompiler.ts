@@ -138,9 +138,6 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const item = this.stack[this.stack.length - 1];
         this.vλl = item?.vλl || this.args.vλl;
         if (isJitErrorsCompiler(this)) this._accessPathLiterals = item?.staticPath || [];
-        if (this.stack.length === 0) {
-            return this.compile();
-        }
     }
     siplePushStack(newChild: BaseRunType): void {
         const newStackItem: StackItem = {vλl: this.vλl, rt: newChild, staticPath: this._accessPathLiterals};
@@ -149,11 +146,14 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     simplePopStack(): void {
         this.popItem = this.stack.pop();
     }
-    compile(overrideCode?: string): (...args: any[]) => any {
+    createJitFunction(overrideCode?: string): (...args: any[]) => any {
         try {
-            if (overrideCode) (this as Mutable<BaseCompiler>).code = overrideCode;
-            this.setIsNoop();
-            return compileFunction(this); // add the compiled function to jit cache
+            if (overrideCode) {
+                (this as Mutable<BaseCompiler>).code = overrideCode;
+                this.isCompiled = false;
+            }
+            this.handleFunctionReturn();
+            return createJitFunction(this); // add the compiled function to jit cache
         } catch (e: any) {
             const fnName = getJITFnName(this.fnID);
             const fnCode = ` Code:\nfunction ${fnName}(){${this.code}}`;
@@ -207,12 +207,14 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     removeFromJitCache(): void {
         jitUtils.removeFromJitCache(this as JitCompiledFn);
     }
+    private isCompiled = false;
     /**
      * Set the isNoop flag based on the code of the operation.
      * must be called before function gets compiled.
      * The isNoop flag is used to avoid calling the function when the result of compilation is an empty function.
      */
-    private setIsNoop(): void {
+    private handleFunctionReturn(): void {
+        if (this.isCompiled) return;
         let isNoop = false;
         // trims code and transforms multiple whitespaces into a single one, does not affect new lines as those can be significant
         let code = this.code.trim().replace(/[ \t]+/g, ' ');
@@ -244,6 +246,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         }
         (this as Mutable<BaseCompiler>).isNoop = isNoop;
         (this as Mutable<BaseCompiler>).code = code;
+        this.isCompiled = true;
     }
     getStackTrace(): string {
         const separator = '.';
@@ -461,7 +464,7 @@ export function compileAddPureFunctionWithClosure(comp: JitCompiler | JitErrorsC
 
 // ################### Other Compiler functions ###################
 /**
- * Creates a function name based on the jitHash of the runType and the id of the function.
+ * Creates a function name/hash based on the jitHash of the runType and the id of the function.
  * it is a valid js variable name.
  * @param id
  * @param rt
@@ -472,7 +475,7 @@ export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts?: RunTypeOptions
     return `${id}_${rt.getJitHash({})}`;
 }
 
-function compileFunction(comp: BaseCompiler): (...args: any[]) => any {
+function createJitFunction(comp: BaseCompiler): (...args: any[]) => any {
     if (comp.fn) return comp.fn;
     if (comp.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
     if (jitUtils.hasJitFn(comp.jitFnHash)) return jitUtils.getJitFn(comp.jitFnHash);
@@ -513,6 +516,7 @@ function createJitFnWithContext(comp: BaseCompiler, fnName: string, fnCode: stri
         fnWithContext = `${context} ${fnCode} ${debugWrapper} return debug_${fnName};`;
     }
     try {
+        // wrapper functions that works as a factory and returns the actual jit function, context contains all constants and heavy to create objects
         const wrapperWithContext = new Function('utl', fnWithContext) as (utl: JITUtils) => (...args: any[]) => any;
         if (getENV('DEBUG_JIT')) console.log(printClosure(fnWithContext, fnName));
         return {closureFn: wrapperWithContext, fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
