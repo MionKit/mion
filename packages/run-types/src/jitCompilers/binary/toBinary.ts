@@ -85,7 +85,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): Ji
             const rt = runType as ArrayRunType;
             rt.checkNonSkipTypes(comp);
             const child = rt.getMemberType()!;
-            const memberCode = child.compile(comp, fnID);
+            const memberCode = child.compile(comp, fnID, 'S');
             if (!memberCode?.code) throw new Error(`Do not know how to serialize Array<${child.getTypeName()}> to Binary.`);
             const index = rt.getChildVarName(comp);
             // serialized as [length, items...]
@@ -101,7 +101,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): Ji
             const rt = runType as IndexSignatureRunType;
             const parent = rt.getParent() as InterfaceRunType;
             const indexKind = (rt.src as any).index?.kind;
-            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID, 'S');
             if (!memberCode?.code) return {code: undefined, type: 'S'};
 
             const propVar = rt.getChildVarName(comp);
@@ -157,7 +157,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): Ji
             const parent = rt.getParent() as InterfaceRunType;
             if (parent.hasIndexSignature(comp)) return {code: undefined, type: 'S'}; // all serialization is done by index signature code
 
-            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID).code || '';
+            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID, 'S').code || '';
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
                 const setBitMask = `${sεr}.setBitMask(${bitMIndexVar}, ${bitIndex})`;
@@ -190,7 +190,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): Ji
                 // and must be serialized/deserialized in the same order they are declared in the type
                 const {required, optional} = rt.splitJitSplitChildren(comp);
 
-                const requiredProps = required.map((prop) => prop.compile(comp, fnID).code).filter(Boolean);
+                const requiredProps = required.map((prop) => prop.compile(comp, fnID, 'S').code);
                 const requiredPropsCode = requiredProps.join(';');
 
                 let optionalPropsCode = '';
@@ -201,7 +201,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): Ji
                             prop.optionalIndex = i;
                             const modIndex = i + 1;
                             const shouldIncreaseBufferIndex = modIndex % 8 === 0;
-                            const propCode = prop.compile(comp, fnID).code;
+                            const propCode = prop.compile(comp, fnID, 'S').code;
                             if (!shouldIncreaseBufferIndex) return propCode;
                             // every 8 props we need to increase the bitmap index
                             return `${propCode} ${bitMIndexVar}++;`;
@@ -233,7 +233,7 @@ export function _compileToBinary(runType: BaseRunType, comp: BinaryCompiler): Ji
                     const rt = runType as InterfaceRunType;
                     if (rt.isCallable()) {
                         const callSignature = rt.getCallSignature();
-                        if (callSignature) return callSignature.compile(comp, fnID);
+                        if (callSignature) return callSignature.compile(comp, fnID, 'S');
                     }
                     const originalKind = runType.src.kind;
                     (runType.src as any).kind = ReflectionKind.objectLiteral;
