@@ -6,7 +6,7 @@
  * ######## */
 
 import type {JITUtils, GenericPureFunction, TypeFormatError, FormatParam} from '@mionkit/core';
-import type {BaseRunType, JitCompiler, JitErrorsCompiler, RunTypeOptions} from '@mionkit/run-types';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, RunTypeOptions, JitCode} from '@mionkit/run-types';
 import {BaseRunTypeFormat, TypeFormat, registerFormatter, registerPureFnClosure, fpVal} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 
@@ -15,11 +15,14 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
     static id = 'ip';
     kind = ReflectionKind.string;
     name = IPRunTypeFormat.id;
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
-        if (params.version === 4) return this.compilePureFunctionCall(comp, rt, mionIsIPV4).callCode;
-        if (params.version === 6) return this.compilePureFunctionCall(comp, rt, mionIsIPV6).callCode;
-        return `${this.compilePureFunctionCall(comp, rt, mionIsIPV4).callCode} || ${this.compilePureFunctionCall(comp, rt, mionIsIPV6).callCode}`;
+        if (params.version === 4) return {code: this.compilePureFunctionCall(comp, rt, mionIsIPV4).callCode, type: 'E'};
+        if (params.version === 6) return {code: this.compilePureFunctionCall(comp, rt, mionIsIPV6).callCode, type: 'E'};
+        return {
+            code: `${this.compilePureFunctionCall(comp, rt, mionIsIPV4).callCode} || ${this.compilePureFunctionCall(comp, rt, mionIsIPV6).callCode}`,
+            type: 'E',
+        };
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType) {
         const params = this.getParams(rt);
@@ -27,15 +30,16 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
         if (params.version === 6) return mockIpV6(params);
         return Math.random() > 0.5 ? mockIpV4(params) : mockIpV6(params);
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        const isTypeCode = this._compileIsType(comp, rt);
-        if (!isTypeCode) return '';
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+        const isTypeCodeObj = this._compileIsType(comp, rt);
+        const isTypeCode = isTypeCodeObj.code;
+        if (!isTypeCode) return {code: '', type: 'S'};
         const params = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
-        return `if (!(${isTypeCode})) ${errFn('version', fpVal(params.version))}`;
+        return {code: `if (!(${isTypeCode})) ${errFn('version', fpVal(params.version))}`, type: 'S'};
     }
-    _compileFormat(comp: JitCompiler) {
-        return `${comp.vλl}.toLowerCase()`; // transform to lowercase in case it is localhost
+    _compileFormat(comp: JitCompiler): JitCode {
+        return {code: `${comp.vλl}.toLowerCase()`, type: 'E'}; // transform to lowercase in case it is localhost
     }
 }
 

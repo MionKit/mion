@@ -7,16 +7,7 @@
 import type {FormatParam} from '@mionkit/core';
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
 import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode} from '@mionkit/run-types';
-import {
-    TypeFormat,
-    JitFnID,
-    RunTypeOptions,
-    BaseRunTypeFormat,
-    registerFormatter,
-    fpVal,
-    CodeType,
-    JitFunctions,
-} from '@mionkit/run-types';
+import {TypeFormat, RunTypeOptions, BaseRunTypeFormat, registerFormatter, fpVal} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {FormatParams_Date, DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype';
 import {DEFAULT_TIME_FORMAT_PARAMS, FormatParams_Time, TimeStringRunTypeFormat} from './time.runtype';
@@ -37,10 +28,6 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
     }
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
-    }
-    getCodeType(fnID: JitFnID, rt: BaseRunType): CodeType {
-        if (fnID === JitFunctions.isType.id) return 'S';
-        return super.getCodeType(fnID, rt);
     }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
@@ -64,11 +51,11 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
             if (${vSplitPos} === -1) return false;
             const ${vDatePart} = ${vλl}.substring(0, ${vSplitPos});
             const ${vTimePart} = ${vλl}.substring(${vSplitPos} + 1);
-            if (!(${dateCode})) return false;
-            if (!(${timeCode})) return false;
+            if (!(${dateCode.code})) return false;
+            if (!(${timeCode.code})) return false;
             ${returnCode}
         `;
-        return code;
+        return {code, type: 'S'};
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
@@ -90,10 +77,10 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
             if (${vSplitPos} === -1) ${errFn('splitChar', splitChar)};
             const ${vDatePart} = ${vλl}.substring(0, ${vSplitPos});
             const ${vTimePart} = ${vλl}.substring(${vSplitPos} + 1);
-            ${dateCode ? `${dateCode};` : ''}
-            ${timeCode ? `${timeCode};` : ''}
+            ${dateCode.code ? `${dateCode.code};` : ''}
+            ${timeCode.code ? `${timeCode.code};` : ''}
         `;
-        return code;
+        return {code, type: 'S'};
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType): string {
         const params = this.getParams(rt);

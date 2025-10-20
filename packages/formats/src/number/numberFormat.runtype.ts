@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitCompiler, JitErrorsCompiler} from '@mionkit/run-types';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode} from '@mionkit/run-types';
 // TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random, fpVal} from '@mionkit/run-types';
@@ -22,7 +22,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
     readonly kind = ReflectionKind.number;
     readonly name = NumberRunTypeFormat.id;
 
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const v = comp.vλl;
 
@@ -62,10 +62,10 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
         }
 
         // Join all conditions with AND operator
-        return conditions.join(' && ');
+        return {code: conditions.join(' && '), type: 'E'};
     }
 
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const v = comp.vλl;
         const errFn = this.getCallJitFormatErr(comp, rt, this, false);
@@ -106,13 +106,13 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
         }
 
         // Join all error conditions with newlines
-        return conditions.join(';');
+        return {code: conditions.join(';'), type: 'S'};
     }
 
     // No format transformation needed for numbers
-    _compileFormat(): string | undefined {
+    _compileFormat(): JitCode {
         // No transformation needed for numbers
-        return undefined;
+        return {code: undefined, type: 'S'};
     }
 
     _mock(opts: RunTypeOptions, rt: BaseRunType): number {
