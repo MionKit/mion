@@ -86,7 +86,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             const rt = runType as ArrayRunType;
             rt.checkNonSkipTypes(comp);
             const child = rt.getMemberType()!;
-            const childCode = child.compile(comp, fnID);
+            const childCode = child.compile(comp, fnID, 'S');
             if (!childCode?.code) throw new Error(`Do not know how to deserialize Array<${child.getTypeName()}> from Binary.`);
             const index = rt.getChildVarName(comp);
             const isExpression = childIsExpression(childCode, child);
@@ -105,7 +105,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
         case ReflectionKind.indexSignature: {
             const rt = runType as IndexSignatureRunType;
             const indexKind = (rt.src as any).index?.kind;
-            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID, 'S');
             if (!memberCode?.code) return {code: undefined, type: 'S'};
 
             const prop = rt.getChildVarName(comp);
@@ -165,7 +165,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             const rt = runType as PropertyRunType;
             const parent = rt.getParent() as InterfaceRunType;
             const child = rt.getJitChild(comp)!;
-            const childCode = child?.compile(comp, fnID);
+            const childCode = child?.compile(comp, fnID, 'S');
             // console.log(getPropName(rt, comp, true), comp.getChildVλl(), memberCode);
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
@@ -203,19 +203,22 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             } else {
                 const rt = runType as InterfaceRunType;
 
-                const {requiredExpressions, requiredStatements, optional, indexSignatures} = rt.splitJitSplitChildren(comp);
+                const {required, optional, indexSignatures} = rt.splitJitSplitChildren(comp);
                 if (indexSignatures.length) {
-                    return indexSignatures[0].compile(comp, fnID); // index signature code already contains the loop
+                    return indexSignatures[0].compile(comp, fnID, 'S'); // index signature code already contains the loop
                 }
 
                 // required props that are simple expressions are restored as: '{a: deserializeA, b: deserializeB, c: deserializeC};
                 // and are serialized/deserialised in the same order they are declared in the type
-                const expressionsPropsCode = requiredExpressions
-                    .map((prop) => prop.compile(comp, fnID).code)
+                const requiredItemsJit = required.map((prop) => prop.compile(comp, fnID, 'S'));
+                const expressionsPropsCode = requiredItemsJit
+                    .filter((childJit, i) => childIsExpression(childJit, required[i]))
+                    .map((prop) => prop.code)
                     .filter(Boolean)
                     .join(',');
-                const requiredPropsCode = requiredStatements
-                    .map((prop) => prop.compile(comp, fnID).code)
+                const requiredPropsCode = requiredItemsJit
+                    .filter((childJit, i) => !childIsExpression(childJit, required[i]))
+                    .map((prop) => prop.code)
                     .filter(Boolean)
                     .join(';');
                 const objectCode = `${comp.vλl} = {${expressionsPropsCode}};${requiredPropsCode}`;
@@ -232,7 +235,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                             prop.optionalIndex = i;
                             const modIndex = i + 1;
                             const shouldIncreaseBufferIndex = modIndex % 8 === 0;
-                            const propCode = prop.compile(comp, fnID).code;
+                            const propCode = prop.compile(comp, fnID, 'S').code;
                             if (!shouldIncreaseBufferIndex) return propCode;
                             // every 8 props we need to increase the bitmap index
                             return `${propCode} ${bitMIndexVar}++; `;
@@ -262,7 +265,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
                     const rt = runType as ClassRunType;
                     if (rt.isCallable()) {
                         const callSignature = rt.getCallSignature();
-                        if (callSignature) return callSignature.compile(comp, fnID);
+                        if (callSignature) return callSignature.compile(comp, fnID, 'S');
                     }
                     const originalKind = rt.src.kind;
                     (runType.src as any).kind = ReflectionKind.objectLiteral;
@@ -294,6 +297,7 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
         default:
             throw new Error(`Binary deserialization not supported for ${ReflectionKind[kind]} types`);
     }
+    throw new Error(`Do not know how to deserialize ${runType.getTypeName()} from Binary.`);
 }
 
 function getPropName(rt: PropertyRunType, comp: BinaryCompiler, isObjectConstructor: boolean): string | number {
