@@ -285,8 +285,10 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                     throw new Error(`Unknown compile operation: ${fnID}`);
             }
             if (jCode?.code) {
-                const handledCode = this.handleReturnValues(comp, jCode, expectedCType);
-                jCode = {code: handledCode.code, type: jCode.type};
+                // endure the child code type is compatible with the parent code type.
+                // ie: a code statement can not be interpolated within an expression
+                const compatibleCode = this.handleCodeInterpolation(comp, jCode, expectedCType);
+                jCode = {code: compatibleCode, type: jCode.type};
             }
         }
         comp.popStack(jCode);
@@ -368,7 +370,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     }
 
     /** Ensures the child code type is compatible with the parent code type */
-    handleReturnValues(comp: JitCompiler, childJCode: JitCode, parentCodeType: CodeType): JitCode {
+    handleCodeInterpolation(comp: JitCompiler, childJCode: JitCode, parentCodeType: CodeType): string {
         const code = (childJCode.code || '').trim();
         const childCodeType = childJCode.type;
         const isRoot = comp.length === 1;
@@ -376,29 +378,30 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         if (isRoot) {
             // prettier-ignore
             switch (childCodeType) {
-                case E: return {code: `return ${code}`, type: RB};
-                case S: return {code: `${addFullStop(code)} return ${comp.returnName}`, type: RB};
-                case RB: return {code, type: RB};
+                case E: return `return ${code}`;
+                case S: return  `${addFullStop(code)} return ${comp.returnName}`;
+                case RB: return code;
             }
         }
         switch (true) {
             case parentCodeType === E && childCodeType === E:
-                return childJCode;
+                return code;
             case parentCodeType === E && childCodeType === S:
                 return this.callSelfInvokingFunction(childJCode);
             case parentCodeType === E && childCodeType === RB:
                 return this.callSelfInvokingFunction(childJCode);
             case parentCodeType === S && childCodeType === E:
+                return code; // no need for full stop, parent should handle it
             case parentCodeType === S && childCodeType === S:
-                return {code: addFullStop(code), type: childCodeType};
+                return addFullStop(code);
             case parentCodeType === S && childCodeType === RB:
                 return this.callSelfInvokingFunction(childJCode);
             case parentCodeType === RB && childCodeType === E:
                 throw new Error('Expected an block code but got an expression, this should not happen as would be useless code.');
             case parentCodeType === RB && childCodeType === S:
-                return {code: addFullStop(code), type: S};
+                return addFullStop(code);
             case parentCodeType === RB && childCodeType === RB:
-                return {code: `${addFullStop(code)} return ${comp.returnName}`, type: RB};
+                return `${addFullStop(code)} return ${comp.returnName}`;
             default:
                 throw new Error(`Unexpected code type (expected: ${parentCodeType}, got: ${childCodeType})`);
         }
@@ -411,15 +414,15 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * IE: comp.selfInvoke(code), this will create a new function in context and call that function instead of self invoking
      * this is specially for atomic types as we can be sure there are no references to children types inside the code block
      */
-    callSelfInvokingFunction(jCode: JitCode): JitCode {
+    callSelfInvokingFunction(jCode: JitCode): string {
         if (jCode.type === E) throw new Error('Javascript expressions never need to be wrapped in a self invoking function.');
-        if (!jCode.code) return {code: '', type: jCode.type};
+        if (!jCode.code) return '';
         const code = jCode.code.trim();
         const isSelfInvoking = code.startsWith('(function()') && code.endsWith(')()');
-        if (isSelfInvoking) return jCode;
+        if (isSelfInvoking) return code;
         const addReturn = jCode.type !== RB;
         const returnCode = addReturn ? `return ` : '';
-        return {code: `(function(){${returnCode}${jCode.code}})()`, type: E};
+        return `(function(){${returnCode}${jCode.code}})()`;
     }
 
     getTypeTraceInfo(comp: JitCompiler): string {
