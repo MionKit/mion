@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitCompiler, JitErrorsCompiler} from '@mionkit/run-types';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode} from '@mionkit/run-types';
 import {TypeFormat, registerFormatter, getToLiteralFn, BaseRunTypeFormat, RunTypeOptions} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {mockString, random, randomItem, fpVal, regexpEscape} from '@mionkit/run-types';
@@ -34,7 +34,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    _compileFormat(comp: JitCompiler, rt: BaseRunType): string | undefined {
+    _compileFormat(comp: JitCompiler, rt: BaseRunType): JitCode {
         const operations: ((v) => string)[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;
@@ -45,9 +45,9 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
         if (p.lowercase) operations.push((v) => `${v}.toLowerCase()`);
         if (p.uppercase) operations.push((v) => `${v}.toUpperCase()`);
         if (p.capitalize) operations.push((v) => `(${v}.charAt(0).toUpperCase() + ${vλl}.slice(1))`);
-        return operations.reduce((acc, op) => op(acc), vλl);
+        return {code: operations.reduce((acc, op) => op(acc), vλl), type: 'E'};
     }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const conditions: string[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;
@@ -72,9 +72,9 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
             const regexp = getDisallowedValuesRegexp(p.disallowedValues.val, p.disallowedValues.ignoreCase);
             conditions.push(`!${literalFn(regexp)}.test(${vλl})`);
         }
-        return conditions.join(' && ');
+        return {code: conditions.join(' && '), type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const conditions: string[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;
@@ -120,7 +120,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
             const errCode = errFn('disallowedValues', getDefaultMessage('disallowedValues', p));
             conditions.push(`if (${literalFn(regexp)}.test(${vλl})) ${errCode}`);
         }
-        return conditions.join(';');
+        return {code: conditions.join(';'), type: 'S'};
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType, params?: StringParams): string {
         const p = params || this.getParams(rt);

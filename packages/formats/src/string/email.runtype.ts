@@ -10,7 +10,6 @@ import {
     TypeFormat,
     RunTypeOptions,
     registerFormatter,
-    CodeType,
     JitFunctions,
     randomItem,
     fpVal,
@@ -45,11 +44,6 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    getCodeType(fnID: JitFnID, rt: BaseRunType, p?: FormatParams_Email): CodeType {
-        const params = p || this.getParams(rt);
-        if (fnID === JitFunctions.isType.id) return params.pattern ? 'E' : 'S';
-        return super.getCodeType(fnID, rt, params);
-    }
     canEmbedFormatterCode(fnID: JitFnID, rt: BaseRunType, p?: FormatParams_Email): boolean {
         const params = p || this.getParams(rt);
         if (fnID === JitFunctions.isType.id || fnID === JitFunctions.typeErrors.id) {
@@ -78,10 +72,11 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         const domainCode = this.domainFormatter.compileFormat(fnID, comp, rt, params.domain, vDomain, fmtName);
 
         // If rootCode is empty, we don't need to emit jit code for it
-        const rootSafeCode = rootCode ? `if (!(${rootCode})) return false;` : '';
+        const rootSafeCode = rootCode.code ? `if (!(${rootCode.code})) return false;` : '';
         const returnCode = this.isRootFormat() ? `return true;` : '';
-        const domainIsExpression = this.domainFormatter.getCodeType(fnID, rt, params.domain) === 'E';
-        const domainSafeCode = domainCode && domainIsExpression ? `if (!(${domainCode})) return false;` : domainCode;
+        const domainIsExpression = domainCode.type === 'E';
+        const domainSafeCode =
+            domainCode.code && domainIsExpression ? `if (!(${domainCode.code})) return false;` : domainCode.code;
 
         const code = `
             ${rootSafeCode}
@@ -89,11 +84,11 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
             if (${vAtPos} === -1) return false;
             const ${vLocalPart} = ${vλl}.substring(0, ${vAtPos});
             const ${vDomain} = ${vλl}.substring(${vAtPos} + 1);
-            if (!(${localPartCode})) return false;
+            if (!(${localPartCode.code})) return false;
             ${domainSafeCode}
             ${returnCode}
         `;
-        return code;
+        return {code, type: 'S'};
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
@@ -115,15 +110,15 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         const domainCode = this.domainFormatter.compileFormat(fnID, comp, rt, params.domain, vDomain, fmtName);
 
         const code = `
-            ${rootCode ? `${rootCode};` : ''}
+            ${rootCode.code ? `${rootCode.code};` : ''}
             const ${vAtPos} = ${vλl}.lastIndexOf('@');
             if (${vAtPos} === -1) ${errFn('@', 'Email missing @ symbol')};
             const ${vLocalPart} = ${vλl}.substring(0, ${vAtPos});
             const ${vDomain} = ${vλl}.substring(${vAtPos} + 1);
-            ${localPartCode ? `${localPartCode};` : ''}
-            ${domainCode ? `${domainCode};` : ''}
+            ${localPartCode.code ? `${localPartCode.code};` : ''}
+            ${domainCode.code ? `${domainCode.code};` : ''}
         `;
-        return code;
+        return {code, type: 'S'};
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType): string {
         const params = this.getParams(rt);
@@ -153,8 +148,8 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
 
         return this.localPartFormatter.mock(opts, rt, defaultParams);
     }
-    _compileFormat(comp: JitCompiler): string {
-        return `${comp.vλl}.toLowerCase()`;
+    _compileFormat(comp: JitCompiler): JitCode {
+        return {code: `${comp.vλl}.toLowerCase()`, type: 'E'};
     }
 
     validateParams(rt: BaseRunType, params: FormatParams_Email) {

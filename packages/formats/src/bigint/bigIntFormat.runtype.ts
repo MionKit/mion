@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitCompiler, JitErrorsCompiler} from '@mionkit/run-types';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode} from '@mionkit/run-types';
 // TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random, fpVal} from '@mionkit/run-types';
@@ -22,7 +22,7 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
     readonly kind = ReflectionKind.bigint;
     readonly name = BigIntRunTypeFormat.id;
 
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const v = comp.vλl;
 
@@ -54,10 +54,10 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
         }
 
         // Join all conditions with AND operator
-        return conditions.length ? conditions.join(' && ') : 'true';
+        return {code: conditions.length ? conditions.join(' && ') : 'true', type: 'E'};
     }
 
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const v = comp.vλl;
         const errFn = this.getCallJitFormatErr(comp, rt, this, false);
@@ -90,13 +90,13 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
         }
 
         // Join all error conditions with newlines
-        return conditions.join(';');
+        return {code: conditions.join(';'), type: 'S'};
     }
 
     // No format transformation needed for bigints
-    _compileFormat(): string | undefined {
+    _compileFormat(): JitCode {
         // No transformation needed for bigints
-        return undefined;
+        return {code: undefined, type: 'S'};
     }
 
     _mock(opts: RunTypeOptions, rt: BaseRunType): bigint {
