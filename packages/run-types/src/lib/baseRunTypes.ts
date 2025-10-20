@@ -173,7 +173,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         const newJitCompiler: JitCompiler = createJitCompiler(this, fnID, parentCop, undefined, undefined, opts) as JitCompiler;
         try {
             this.compile(newJitCompiler, fnID, E);
-            newJitCompiler.compile();
+            newJitCompiler.createJitFunction();
         } catch (e: any) {
             // if something goes wrong during compilation we want to remove the compiler from
             // the cache as this is automatically added to jitUtils cache during compilation
