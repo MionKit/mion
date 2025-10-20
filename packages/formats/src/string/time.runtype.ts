@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {JITUtils, GenericPureFunction, FormatParam} from '@mionkit/core';
-import type {BaseRunType, JitCompiler, JitErrorsCompiler} from '@mionkit/run-types';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode} from '@mionkit/run-types';
 import {
     BaseRunTypeFormat,
     TypeFormat,
@@ -22,17 +22,18 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
     static id = 'time' as const;
     kind = ReflectionKind.string;
     name = TimeStringRunTypeFormat.id;
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const formatFn = this.getFormatPureFn(fpVal(params.format));
-        return this.compilePureFunctionCall(comp, rt, formatFn).callCode;
+        return {code: this.compilePureFunctionCall(comp, rt, formatFn).callCode, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        const isTypeCode = this._compileIsType(comp, rt);
-        if (!isTypeCode) return '';
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+        const isTypeCodeObj = this._compileIsType(comp, rt);
+        const isTypeCode = isTypeCodeObj.code;
+        if (!isTypeCode) return {code: '', type: 'S'};
         const params = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
-        return `if (!(${isTypeCode})) ${errFn('format', fpVal(params.format))}`;
+        return {code: `if (!(${isTypeCode})) ${errFn('format', fpVal(params.format))}`, type: 'S'};
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType) {
         const params = this.getParams(rt);

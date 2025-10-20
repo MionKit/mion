@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {GenericPureFunction, FormatParam} from '@mionkit/core';
-import type {BaseRunType, JitCompiler, JitErrorsCompiler} from '@mionkit/run-types';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode} from '@mionkit/run-types';
 import {registerFormatter, registerPureFnClosure, BaseRunTypeFormat, RunTypeOptions, TypeFormat, fpVal} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {randomUUID_V7} from '@mionkit/core';
@@ -15,17 +15,18 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
     static readonly id = 'uuid' as const;
     readonly kind = ReflectionKind.string;
     readonly name = UUIDRunTypeFormat.id;
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         // version must be set as a string to call pure function isUUID, this is so no transform is needed when comparing with uuid charat
-        return this.compilePureFunctionCall(comp, rt, mionIsUUID, params).callCode;
+        return {code: this.compilePureFunctionCall(comp, rt, mionIsUUID, params).callCode, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
-        const isTypeCode = this._compileIsType(comp, rt);
-        if (!isTypeCode) return '';
+        const isTypeCodeObj = this._compileIsType(comp, rt);
+        const isTypeCode = isTypeCodeObj.code;
+        if (!isTypeCode) return {code: '', type: 'S'};
         const errFn = this.getCallJitFormatErr(comp, rt, this);
-        return `if (!(${isTypeCode})) ${errFn('version', fpVal(params.version))}`;
+        return {code: `if (!(${isTypeCode})) ${errFn('version', fpVal(params.version))}`, type: 'S'};
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType) {
         const params = this.getParams(rt);

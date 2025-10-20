@@ -14,20 +14,21 @@ import {registerFormatter} from './formats';
 import {TypeFormat} from './formats.runtype';
 import {JitFunctions} from '../constants.functions';
 import {JitCompiler, JitErrorsCompiler} from './jitCompiler';
+import {JitCode} from '../types';
 
 type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
 class Max5Formatter extends BaseRunTypeFormat<any> {
     kind = ReflectionKind.string;
     name = 'max5';
     _mock() {}
-    _compileIsType(comp: JitCompiler, rt: BaseRunType) {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const p = this.getParams(rt);
-        return `${comp.vλl}.length <= ${p.maxLength}`;
+        return {code: `${comp.vλl}.length <= ${p.maxLength}`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType) {
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const p = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
-        return `if (${comp.vλl}.length > ${p.maxLength}) ${errFn('maxLength', p.maxLength)}`;
+        return {code: `if (${comp.vλl}.length > ${p.maxLength}) ${errFn('maxLength', p.maxLength)}`, type: 'S'};
     }
 }
 registerFormatter(new Max5Formatter());

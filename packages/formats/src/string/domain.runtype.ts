@@ -13,7 +13,6 @@ import {
     registerFormatter,
     random,
     randomItem,
-    CodeType,
     JitFunctions,
     fpVal,
 } from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
@@ -69,11 +68,6 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         this.nameFormatter = new StringRunTypeFormat(namePath);
         this.tldFormatter = new StringRunTypeFormat(tldPath);
     }
-    getCodeType(fnID: JitFnID, rt: BaseRunType, p?: FormatParams_Domain): CodeType {
-        const params = p || this.getParams(rt);
-        if (fnID === JitFunctions.isType.id) return params.pattern ? 'E' : 'S';
-        return super.getCodeType(fnID, rt, params);
-    }
     canEmbedFormatterCode(fnID: JitFnID, rt: BaseRunType, p?: FormatParams_Domain): boolean {
         const params = p || this.getParams(rt);
         if (fnID === JitFunctions.isType.id || fnID === JitFunctions.typeErrors.id)
@@ -103,17 +97,19 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const maxPartsCode = params.maxParts ? `if (${vCount} > ${params.maxParts}) return false;` : '';
         const minPartsCode = params.minParts ? `if (${vCount} < ${params.minParts}) return false;` : '';
         // if rootCode is empty, we don't need to emit jit code for it
-        const rootSafeCode = rootCode ? `if (!(${rootCode})) return false;` : '';
-        const tldSafeCode = tldCode ? `const ${vTld} = ${vλl}.substring(${vStart}); if (!(${tldCode})) return false;` : '';
+        const rootSafeCode = rootCode.code ? `if (!(${rootCode.code})) return false;` : '';
+        const tldSafeCode = tldCode.code
+            ? `const ${vTld} = ${vλl}.substring(${vStart}); if (!(${tldCode.code})) return false;`
+            : '';
         const returnCode = this.isRootFormat() ? `return true;` : '';
-        const skipCount = !maxPartsCode && !minPartsCode && !tldCode;
+        const skipCount = !maxPartsCode && !minPartsCode && !tldCode.code;
         const code = `
             ${rootSafeCode}
             let ${vCount} = 1; let ${vStart} = 0; let ${vPos}; let ${vName};
             while ((${vPos} = ${vλl}.indexOf('.', ${vStart})) !== -1) {
                 ${vName} = ${vλl}.substring(${vStart}, ${vPos});
                 ${!params.names?.allowedValues ? `if (${vName}.startsWith('-') || ${vName}.endsWith('-')) return false;` : ''}
-                if (!(${nameCode})) return false;
+                if (!(${nameCode.code})) return false;
                 ${vStart} = ${vPos} + 1;
                 ${!skipCount ? `${vCount}++;` : ''}
             }
@@ -122,7 +118,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
             ${tldSafeCode}
             ${returnCode}
         `;
-        return code;
+        return {code, type: 'S'};
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
@@ -149,15 +145,15 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
             ? `if (${vCount} < ${params.minParts}) ${errFn('minParts', fpVal(params.minParts))};`
             : '';
 
-        const tldSafeCode = tldCode ? `const ${vTld} = ${vλl}.substring(${vStart}); ${tldCode};` : '';
-        const skipCount = !maxPartsCode && !minPartsCode && !tldCode;
+        const tldSafeCode = tldCode.code ? `const ${vTld} = ${vλl}.substring(${vStart}); ${tldCode.code};` : '';
+        const skipCount = !maxPartsCode && !minPartsCode && !tldCode.code;
         const code = `
-            ${rootCode};
+            ${rootCode.code};
             let ${vCount} = 0; let ${vStart} = 0; let ${vPos}; let ${vName};
             while ((${vPos} = ${vλl}.indexOf('.', ${vStart})) !== -1) {
                 ${vName} = ${vλl}.substring(${vStart}, ${vPos});
                 ${!params.names?.allowedValues ? `if (${vName}.startsWith('-') || ${vName}.endsWith('-')) ${errFn('hyphen', 'name')};` : ''}
-                ${nameCode};
+                ${nameCode.code};
                 ${vStart} = ${vPos} + 1;
                 ${!skipCount ? `${vCount}++;` : ''}
             }
@@ -166,7 +162,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
             ${minPartsCode}
             ${tldSafeCode};
         `;
-        return code;
+        return {code, type: 'S'};
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType): string {
         const params = this.getParams(rt);
@@ -235,8 +231,8 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         };
         return this.tldFormatter.mock(opts, rt, defaultParams);
     }
-    _compileFormat(comp: JitCompiler): string {
-        return `${comp.vλl}.toLowerCase()`; // all domain are lower case
+    _compileFormat(comp: JitCompiler): JitCode {
+        return {code: `${comp.vλl}.toLowerCase()`, type: 'E'}; // all domain are lower case
     }
     _formatMockedValue(opts: RunTypeOptions, _rt: BaseRunType, val: any): string {
         return val.toLowerCase();
