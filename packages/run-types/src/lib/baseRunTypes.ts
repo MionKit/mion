@@ -57,7 +57,6 @@ const S = CodeTypes.statement;
 const E = CodeTypes.expression;
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
-    // Registry for dynamically loaded functions
     isCircular?: boolean;
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): RunTypeFamily; // Atomic, Collection, Member, Function
@@ -100,13 +99,19 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return createUniqueHash(this.getTypeID().toString() + JSON.stringify(optsCopy));
     }
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
-    getCircularTypeID(stack: RunType[] = []): StrNumber | undefined {
-        const inStackIndex = stack.findIndex((rt) => rt === this); // cant use isSameJitType because it uses getTypeID and would loop forever
+    checkIsCircularAndGetRefId(stack: RunType[] = []): StrNumber | undefined {
+        const inStackIndex = stack.findIndex((rt) => {
+            if (rt === this) return true;
+            // some nodes seems to be different objects in memory but are the same id, so we check by id as well
+            return rt.src.id && this.src.id && rt.src.id === this.src.id;
+        }); // cant use isSameJitType because it uses getTypeID and would loop forever
+        const inStackSrcId = stack.findIndex((rt) => rt.src.id && this.src.id && rt.src.id === this.src.id);
         const isInStack = inStackIndex >= 0; // recursive reference
         if (isInStack) {
             this.isCircular = true;
             const name = this.src.typeName || ''; // todo: not sure if all the circular references will have a name
-            return '$' + this.src.kind + `_${inStackIndex}` + name; // ensures different circular types have different typeID
+            const refId = '$' + this.src.kind + `_${inStackIndex}` + name; // ensures different circular types have different typeID
+            return refId;
         }
     }
     /**
@@ -354,19 +359,18 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
         const callCode = isSelf ? `${varName}(${callArgsCode})` : `${varName}.fn(${callArgsCode})`;
         if (!isSelf) currentComp.setContextItem(varName, `const ${varName} = utl.getJIT(${toLiteral(varName)})`);
-        const codeType = getJitFnSettings(dependencyComp.fnID as JitFnID).type;
         if (isErrorCall) {
             const pathArgs = currentComp.getAccessPathArgs();
             const pathLength = currentComp.getAccessPathLength();
-            if (!pathLength) return {code: callCode, type: codeType};
+            if (!pathLength) return {code: callCode, type: 'E'};
             // increase and decrease the static path before and after calling the dependency function
             // TODO, maybe we can improve performance by using something else than push and splice
             return {
                 code: `${jitErrorArgs.pλth}.push(${pathArgs}); ${callCode}; ${jitErrorArgs.pλth}.splice(-${pathLength});`,
-                type: codeType,
+                type: 'S',
             };
         }
-        return {code: callCode, type: codeType};
+        return {code: callCode, type: 'E'};
     }
 
     /** Ensures the child code type is compatible with the parent code type */
@@ -527,7 +531,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     }
     private getChildrenTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
         if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
-        const circularJitConf = this.getCircularTypeID(stack);
+        const circularJitConf = this.checkIsCircularAndGetRefId(stack);
         if (circularJitConf) return circularJitConf;
         stack.push(this);
         const childrenIds: (string | number)[] = [];
@@ -615,20 +619,21 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     }
     private getMemberTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
         if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
-        const circularJitConf = this.getCircularTypeID(stack);
-        if (circularJitConf) return circularJitConf;
-        // TODO: some properties could be skipped from the JIT ID. so we could implement a mechanism to mark them to be skipped
-        // ie: sample and sampleChars from StringFormat are too large but they do not affect jit code generation as those properties are only used during mocking
-        stack.push(this);
-        const member = this.getMemberType();
-        const memberTypeID = member.getTypeID(stack);
         const optional = this.isOptional() ? '?' : '';
         const kind =
             (this.src as TypeProperty).name?.toString() ||
             (this.src as TypeIndexSignature).index?.kind ||
             this.src.subKind ||
             this.src.kind;
-        const typeID = `${kind}${optional}:${memberTypeID}`;
+        const kindID = `${kind}${optional}`;
+        const circularJitConf = this.checkIsCircularAndGetRefId(stack);
+        if (circularJitConf) return `${kindID}:${circularJitConf}`;
+        // TODO: some properties could be skipped from the JIT ID. so we could implement a mechanism to mark them to be skipped
+        // ie: sample and sampleChars from StringFormat are too large but they do not affect jit code generation as those properties are only used during mocking
+        stack.push(this);
+        const member = this.getMemberType();
+        const memberTypeID = member.getTypeID(stack);
+        const typeID = `${kindID}:${memberTypeID}`;
         stack.pop();
         return typeID;
     });
