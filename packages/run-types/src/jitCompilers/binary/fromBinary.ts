@@ -166,7 +166,6 @@ export function _compileFromBinary(runType: BaseRunType, comp: BinaryCompiler): 
             const parent = rt.getParent() as InterfaceRunType;
             const child = rt.getJitChild(comp)!;
             const childCode = child?.compile(comp, fnID, 'S');
-            // console.log(getPropName(rt, comp, true), comp.getChildVλl(), memberCode);
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
                 return {

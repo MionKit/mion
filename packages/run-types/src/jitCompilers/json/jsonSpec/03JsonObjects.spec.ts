@@ -97,7 +97,7 @@ it('extended class', () => {
     });
 });
 
-it('RpcError class are restored to class by default', () => {
+it('RpcError class is restored to class by default', () => {
     const {rt, values} = SERIALIZATION_SPEC.OBJECTS.rpc_error_class.getTestData();
     const {values: originalValues} = SERIALIZATION_SPEC.OBJECTS.rpc_error_class.getTestData(true);
     const {serialize, deserialize} = createSerializationFns(rt);
