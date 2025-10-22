@@ -191,7 +191,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     abstract visitStripUnknownKeys(comp: JitCompiler, expectedCType: CodeType): JitCode;
     abstract visitUnknownKeysToUndefined(comp: JitCompiler, expectedCType: CodeType): JitCode;
 
-    // ########## Compile Methods, shorthands for compile calls ##########
+    // ########## Compile Methods shorthands ##########
 
     compileIsType(comp: JitCompiler, expectedCType: CodeType): JitCode {
         return comp.compile(this, JitFunctions.isType.id, expectedCType);
