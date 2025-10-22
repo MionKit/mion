@@ -12,10 +12,10 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 export class StringRunType extends AtomicRunType<TypeString> {
     _getTypeID = () => ReflectionKind.string;
-    _compileIsType(comp: JitCompiler): JitCode {
+    visitIsType(comp: JitCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'string'`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'string') ${comp.callJitErr(this)}`, type: 'S'};
     }
 }

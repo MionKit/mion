@@ -166,13 +166,13 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         let result: JitCode;
         switch (fnID) {
             case JitFunctions.isType.id:
-                result = this._compileIsType(comp, rt);
+                result = this.visitIsType(comp, rt);
                 break;
             case JitFunctions.typeErrors.id:
-                result = this._compileTypeErrors(comp as JitErrorsCompiler, rt);
+                result = this.visitIsTypeErrors(comp as JitErrorsCompiler, rt);
                 break;
             case JitFunctions.format.id:
-                result = this._compileFormat ? this._compileFormat(comp, rt) : {code: undefined, type: 'S'};
+                result = this.visitFormat ? this.visitFormat(comp, rt) : {code: undefined, type: 'S'};
                 break;
             default:
                 throw new Error(`Method not implemented: ${fnID}`);
@@ -208,13 +208,13 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     }
 
     abstract _mock(opts: RunTypeOptions, rt: BaseRunType): any;
-    abstract _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode;
-    abstract _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode;
+    abstract visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode;
+    abstract visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode;
 
     // ###### optional methods for type formatters ########
 
     /** Optional method to compile the formatter function that transforms/sanitize a value */
-    _compileFormat?(comp: JitCompiler, rt: BaseRunType): JitCode;
+    visitFormat?(comp: JitCompiler, rt: BaseRunType): JitCode;
 
     /** Throws an error if params are not valid */
     validateParams?(rt: BaseRunType, params: P): void;

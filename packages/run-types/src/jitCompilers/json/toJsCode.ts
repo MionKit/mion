@@ -20,8 +20,8 @@ import {registerPureFnClosure} from '../../lib/pureFn';
 
 export function createToCodeCompiler() {
     const fnID = JitFunctions.toJavascript.id;
-    const _compileJsonStringify = createStringifyCompiler(fnID);
-    const _compileJsonStringifyIterable = createStringifyIterable(fnID);
+    const visitJsonStringify = createStringifyCompiler(fnID);
+    const visitJsonStringifyIterable = createStringifyIterable(fnID);
 
     /**
      * Compiles jit code to generate JavaScript code from data structures that match a Type.
@@ -62,7 +62,7 @@ export function createToCodeCompiler() {
                     const closureCode = `'function get_'+${fnName}+'(utl){'+${fnCode}+'}'`;
                     return {code: `'${safeName}:'+${closureCode}${sep}`, type: 'E'};
                 } else if (rt.src.subKind === ReflectionSubKind.params) {
-                    const paramsCode = _compileJsonStringify(rt, comp);
+                    const paramsCode = visitJsonStringify(rt, comp);
                     if (rt.isOptional())
                         return {
                             code: `(${comp.getChildVλl()} === undefined ? "" : '${safeName}:'+${paramsCode?.code}${sep})`,
@@ -88,7 +88,7 @@ export function createToCodeCompiler() {
             case ReflectionKind.method:
             case ReflectionKind.callSignature:
                 if (runType.src.subKind === ReflectionSubKind.params) {
-                    return _compileJsonStringify(runType, comp);
+                    return visitJsonStringify(runType, comp);
                 } else {
                     // TODO: we are relying in fn.toString() to generate code, this might not work properly in all js engines
                     return {code: `${comp.vλl}.toString()`, type: 'E'};
@@ -97,12 +97,12 @@ export function createToCodeCompiler() {
             case ReflectionKind.class: {
                 switch (runType.src.subKind) {
                     case ReflectionSubKind.date:
-                        return {code: `'new Date('+${_compileJsonStringify(runType, comp).code}+')'`, type: 'E'};
+                        return {code: `'new Date('+${visitJsonStringify(runType, comp).code}+')'`, type: 'E'};
                     case ReflectionSubKind.map: {
-                        return _compileJsonStringifyIterable(runType as unknown as IterableRunType, comp, 'new Map(', ')');
+                        return visitJsonStringifyIterable(runType as unknown as IterableRunType, comp, 'new Map(', ')');
                     }
                     case ReflectionSubKind.set: {
-                        return _compileJsonStringifyIterable(runType as unknown as IterableRunType, comp, 'new Set(', ')');
+                        return visitJsonStringifyIterable(runType as unknown as IterableRunType, comp, 'new Set(', ')');
                     }
                     case ReflectionSubKind.nonSerializable:
                         throw new Error(`Can not generate code for Non Serializable types.`);
@@ -113,7 +113,7 @@ export function createToCodeCompiler() {
                 }
             }
             default:
-                return _compileJsonStringify(runType, comp);
+                return visitJsonStringify(runType, comp);
         }
     }
 
@@ -148,7 +148,7 @@ registerPureFnClosure(sanitizeCompiledFn);
 // lazy loading as this function wont be used often just for (AOT)
 // TODO move to async code loading (but this would need a big refactor of the router)
 let lazyFn: undefined | ((runType: BaseRunType, comp: JitCompiler) => JitCode) = undefined;
-export function _compileToCode(runType: BaseRunType, comp: JitCompiler): JitCode {
+export function visitToCode(runType: BaseRunType, comp: JitCompiler): JitCode {
     if (!lazyFn) lazyFn = createToCodeCompiler();
     return lazyFn(runType, comp);
 }

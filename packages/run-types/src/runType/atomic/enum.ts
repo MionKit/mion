@@ -13,11 +13,11 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     _getTypeID = () => ReflectionKind.enum;
-    _compileIsType(comp: JitCompiler): JitCode {
+    visitIsType(comp: JitCompiler): JitCode {
         const items = this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`);
         return {code: `(${items.join(' || ')})`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         const items = this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`);
         return {code: `if (!(${items.join(' || ')})) ${comp.callJitErr(this)}`, type: 'S'};
     }

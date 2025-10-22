@@ -12,16 +12,16 @@ import {JitCode} from '../../types';
 
 export class NeverRunType extends AtomicRunType<TypeNever> {
     _getTypeID = () => ReflectionKind.never;
-    _compileIsType(): JitCode {
+    visitIsType(): JitCode {
         return {code: 'false', type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `${comp.callJitErr(this)}`, type: 'S'};
     }
-    _compileToJsonVal(): JitCode {
+    visitToJsonVal(): JitCode {
         throw new Error('Never type cannot be encoded to JSON.');
     }
-    _compileFromJsonVal(): JitCode {
+    visitFromJsonVal(): JitCode {
         throw new Error('Never type cannot be decoded from JSON.');
     }
 }

@@ -122,7 +122,7 @@ describe('test array strict modes', () => {
         expect(validate(['hello', 'world', {hello: 'world'}])).toBe(false); // is not string[]
     });
 
-    it('array _compileUnknownKeyErrors', () => {
+    it('array visitUnknownKeyErrors', () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
         const getUnknownKeys = rt.createJitFunction(JitFunctions.unknownKeyErrors);
 
@@ -136,7 +136,7 @@ describe('test array strict modes', () => {
         ]);
     });
 
-    it('simple array _compileUnknownKeyErrors on array with non objects', () => {
+    it('simple array visitUnknownKeyErrors on array with non objects', () => {
         const validate = rtSimple.createJitFunction(JitFunctions.isType);
         const getUnknownKeys = rtSimple.createJitFunction(JitFunctions.unknownKeyErrors);
 
@@ -145,7 +145,7 @@ describe('test array strict modes', () => {
         expect(validate(['hello', 'world', {hello: 'world'}])).toBe(false); // is not string[]
     });
 
-    it('simple array _compileStripUnknownKeys _compileUnknownKeysToUndefined', () => {
+    it('simple array visitStripUnknownKeys visitUnknownKeysToUndefined', () => {
         const stripUnknownKeys = rtSimple.createJitFunction(JitFunctions.stripUnknownKeys);
         const unknownKeysToUndefined = rtSimple.createJitFunction(JitFunctions.unknownKeysToUndefined);
         const validate = rtSimple.createJitFunction(JitFunctions.isType);

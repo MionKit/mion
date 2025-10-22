@@ -57,7 +57,7 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -90,7 +90,7 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         `;
         return {code, type: 'S'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -143,7 +143,7 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
             this.domainFormatter.validateParams(rt, domain);
         }
     }
-    _compileFormat(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitFormat(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         if (!params.domain) return {code: undefined, type: 'S'};
         const vDomain = 'domain' + this.getFormatNestLevel(); // must match var name in code

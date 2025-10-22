@@ -19,7 +19,7 @@ export abstract class IterableRunType extends ClassRunType {
     getChildRunTypes = (): BaseRunType[] => {
         return this.children;
     };
-    _compileIsType(comp: JitCompiler): JitCode {
+    visitIsType(comp: JitCompiler): JitCode {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         const childrenCode = this.getJitChildren(comp)
             .map((c) => `if (!(${c.compileIsType(comp, 'E').code})) return false`)
@@ -32,7 +32,7 @@ export abstract class IterableRunType extends ClassRunType {
             type: 'RB',
         };
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         const childrenCode = this.getJitChildren(comp)
             .map((c) => c.compileTypeErrors(comp, 'S').code)
@@ -46,7 +46,7 @@ export abstract class IterableRunType extends ClassRunType {
             type: 'S',
         };
     }
-    _compileToJsonVal(comp: JitCompiler): JitCode {
+    visitToJsonVal(comp: JitCompiler): JitCode {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         const resName = `ml${comp.getNestLevel(this)}`;
         const childrenCode = this.getJitChildren(comp)
@@ -63,7 +63,7 @@ export abstract class IterableRunType extends ClassRunType {
             type: 'S',
         };
     }
-    _compileFromJsonVal(comp: JitCompiler): JitCode {
+    visitFromJsonVal(comp: JitCompiler): JitCode {
         const children = this.getJitChildren(comp);
         if (!children.length) return {code: `${comp.vλl} = new Map(${comp.vλl})`, type: 'S'};
         const index = this.getCustomVλl(comp)?.vλl || comp.vλl;
@@ -83,7 +83,7 @@ export abstract class IterableRunType extends ClassRunType {
 
     // TODO: Implement the following methods, should just call same compile method for children, look into to array run type
 
-    _compileHasUnknownKeys(comp: JitCompiler): JitCode {
+    visitHasUnknownKeys(comp: JitCompiler): JitCode {
         const childrenCode = this.getJitChildren(comp)
             .map((child) => {
                 const itemJit = child.compileHasUnknownKeys(comp, 'E');
@@ -102,7 +102,7 @@ export abstract class IterableRunType extends ClassRunType {
         };
     }
 
-    _compileUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
+    visitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
         const childrenCode = this.getJitChildren(comp)
             .map((child) => child.compileUnknownKeyErrors(comp, 'S').code)
             .filter(Boolean)
@@ -119,7 +119,7 @@ export abstract class IterableRunType extends ClassRunType {
         };
     }
 
-    _compileStripUnknownKeys(comp: JitCompiler): JitCode {
+    visitStripUnknownKeys(comp: JitCompiler): JitCode {
         const childrenCode = this.getJitChildren(comp)
             .map((child) => child.compileStripUnknownKeys(comp, 'S').code)
             .filter(Boolean)
@@ -135,7 +135,7 @@ export abstract class IterableRunType extends ClassRunType {
         };
     }
 
-    _compileUnknownKeysToUndefined(comp: JitCompiler): JitCode {
+    visitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
         const childrenCode = this.getJitChildren(comp)
             .map((child) => child.compileUnknownKeysToUndefined(comp, 'S').code)
             .filter(Boolean)

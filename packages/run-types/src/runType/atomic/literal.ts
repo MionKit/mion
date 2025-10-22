@@ -29,32 +29,32 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
                 return noEncoder;
         }
     }
-    _compileIsType(comp: JitCompiler): JitCode {
+    visitIsType(comp: JitCompiler): JitCode {
         if (typeof this.src.literal === 'symbol') return {code: compileIsSymbol(comp, this.src.literal), type: 'E'};
         else if (this.src.literal instanceof RegExp) return {code: compileIsRegExp(comp, this.src.literal), type: 'E'};
         else if (typeof this.src.literal === 'bigint') return {code: compileIsBigInt(comp, this.src.literal), type: 'E'};
         else return {code: compileIsLiteral(comp, this.src.literal), type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         if (typeof this.src.literal === 'symbol')
             return {code: compileTypeErrorsSymbol(comp, this.src.literal, this.getKindName()), type: 'S'};
         else if (this.src.literal instanceof RegExp)
             return {code: compileTypeErrorsRegExp(comp, this.src.literal, this.getKindName()), type: 'S'};
         return {code: compileTypeErrorsLiteral(comp, this.src.literal, this.getKindName()), type: 'S'};
     }
-    _compileToJsonVal(comp: JitCompiler): JitCode {
-        return this.getValidator()._compileToJsonVal(comp);
+    visitToJsonVal(comp: JitCompiler): JitCode {
+        return this.getValidator().visitToJsonVal(comp);
     }
-    _compileFromJsonVal(comp: JitCompiler): JitCode {
-        return this.getValidator()._compileFromJsonVal(comp);
+    visitFromJsonVal(comp: JitCompiler): JitCode {
+        return this.getValidator().visitFromJsonVal(comp);
     }
 }
 
 const noEncoder = {
-    _compileFromJsonVal(): JitCode {
+    visitFromJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     },
-    _compileToJsonVal(): JitCode {
+    visitToJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     },
 };

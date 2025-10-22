@@ -39,7 +39,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
     hasDefaultValue(): boolean {
         return !!(this.src as TypeParameter).default;
     }
-    _compileIsType(comp: JitCompiler): JitCode {
+    visitIsType(comp: JitCompiler): JitCode {
         const skipChild = this.getJitChild(comp)?.skipJit(comp);
         const childJit = this.getJitChild(comp)?.compileIsType(comp, 'E');
         const isNonSerializable = skipChild || (!childJit?.code && !this.getJitChild(comp));
@@ -48,7 +48,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         if (this.isRest()) return childJit;
         return this.isOptional() ? {code: `(${comp.getChildVλl()} === undefined || (${childJit.code}))`, type: 'E'} : childJit;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         const skipChild = this.getJitChild(comp)?.skipJit(comp);
         const childJit = this.getJitChild(comp)?.compileTypeErrors(comp, 'S');
         const isNonSerializable = skipChild || (!childJit?.code && !this.getJitChild(comp));
@@ -61,7 +61,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         if (this.isRest()) return childJit;
         return this.isOptional() ? {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'} : childJit;
     }
-    _compileToJsonVal(comp: JitCompiler): JitCode {
+    visitToJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = child?.compileToJsonVal(comp, 'S');
         const optionalCode = `if (${comp.getChildVλl()} === undefined ) {if (${comp.vλl}.length > ${this.getChildIndex(comp)}) ${comp.getChildVλl()} = null}`;
@@ -70,7 +70,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
         return this.isOptional() ? {code: `${optionalCode} else {${code}}`, type: 'S'} : {code, type: 'S'};
     }
-    _compileFromJsonVal(comp: JitCompiler): JitCode {
+    visitFromJsonVal(comp: JitCompiler): JitCode {
         if (!this.getJitChild(comp)) return {code: `${comp.getChildVλl()} = undefined;`, type: 'S'}; // non serializable are restored to undefined
         const child = this.getJitChild(comp);
         const childJit = child?.compileFromJsonVal(comp, 'S');

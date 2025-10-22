@@ -12,10 +12,10 @@ import type {JitCode} from '../../types';
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     _getTypeID = () => ReflectionKind.any;
 
-    _compileIsType(): JitCode {
+    visitIsType(): JitCode {
         return {code: undefined, type: 'E'};
     }
-    _compileTypeErrors(): JitCode {
+    visitTypeErrors(): JitCode {
         return {code: undefined, type: 'S'};
     }
 }

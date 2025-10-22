@@ -28,19 +28,19 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
     isOptional() {
         return false;
     }
-    _compileIsType(comp: JitCompiler): JitCode {
+    visitIsType(comp: JitCompiler): JitCode {
         const childJit = this.getJitChild(comp)?.compileIsType(comp, 'E');
         if (!childJit?.code) return {code: undefined, type: 'E'};
         if (this.isOptional()) return {code: `${comp.getChildVλl()} === undefined || (${childJit.code})`, type: 'E'};
         return childJit;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         const childJit = this.getJitChild(comp)?.compileTypeErrors(comp, 'S');
         if (!childJit?.code) return {code: undefined, type: 'S'};
         if (this.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'};
         return childJit;
     }
-    _compileToJsonVal(comp: JitCompiler): JitCode {
+    visitToJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = child?.compileToJsonVal(comp, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};
@@ -49,7 +49,7 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         if (this.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
         return {code, type: 'S'};
     }
-    _compileFromJsonVal(comp: JitCompiler): JitCode {
+    visitFromJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = child?.compileFromJsonVal(comp, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};

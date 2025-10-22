@@ -48,7 +48,7 @@ export function mockType(runType: BaseRunType, comp: JitCompiler, stack: BaseRun
     const typeTransformers = getRunTypeTransformers(runType);
     if (typeTransformers.length) {
         const compiledFormatters = typeTransformers
-            .filter((t) => !!t._compileFormat)
+            .filter((t) => !!t.visitFormat)
             .map(() => runType.createJitCompiledFunction(JitFunctions.format.id));
         const formatters = compiledFormatters.filter((c) => !c.isNoop).map((c) => c.fn);
         mocked = formatters.reduce((acc, format) => format(acc), mocked);
@@ -353,5 +353,5 @@ function getChildOpts(comp: JitCompiler, mockOpts?: MockOptions): JitCompiler {
 
 function printStackTrace(comp: JitCompiler, stack: BaseRunType[]) {
     const separator = '.';
-    return JIT_STACK_TRACE_MESSAGE + stack.map((rt) => rt.getTypeTraceInfo(comp)).join(separator);
+    return JIT_STACK_TRACE_MESSAGE + stack.map((rt) => comp.getTypeTraceInfo(rt)).join(separator);
 }

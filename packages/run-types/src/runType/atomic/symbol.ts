@@ -17,17 +17,17 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         if (!comp) return true;
         return comp.fnID !== JitFunctions.toJavascript.id;
     }
-    _compileIsType(comp: JitCompiler): JitCode {
+    visitIsType(comp: JitCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'symbol'`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    _compileToJsonVal(comp: JitCompiler): JitCode {
-        return symbolTransformer._compileToJsonVal(comp);
+    visitToJsonVal(comp: JitCompiler): JitCode {
+        return symbolTransformer.visitToJsonVal(comp);
     }
-    _compileFromJsonVal(comp: JitCompiler): JitCode {
-        return symbolTransformer._compileFromJsonVal(comp);
+    visitFromJsonVal(comp: JitCompiler): JitCode {
+        return symbolTransformer.visitFromJsonVal(comp);
     }
 }
 
@@ -35,10 +35,10 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
 
 export const symbolTransformer = {
     // TODO: transformers might need only one function
-    _compileFromJsonVal(comp: JitCompiler): JitCode {
+    visitFromJsonVal(comp: JitCompiler): JitCode {
         return {code: `Symbol(${comp.vλl}.substring(7))`, type: 'E'};
     },
-    _compileToJsonVal(comp: JitCompiler): JitCode {
+    visitToJsonVal(comp: JitCompiler): JitCode {
         return {code: `'Symbol:' + (${comp.vλl}.description || '')`, type: 'E'};
     },
 };
