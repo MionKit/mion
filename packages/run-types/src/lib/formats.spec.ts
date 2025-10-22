@@ -21,11 +21,11 @@ class Max5Formatter extends BaseRunTypeFormat<any> {
     kind = ReflectionKind.string;
     name = 'max5';
     _mock() {}
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const p = this.getParams(rt);
         return {code: `${comp.vλl}.length <= ${p.maxLength}`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const p = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
         return {code: `if (${comp.vλl}.length > ${p.maxLength}) ${errFn('maxLength', p.maxLength)}`, type: 'S'};

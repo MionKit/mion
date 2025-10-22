@@ -22,7 +22,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
     readonly kind = ReflectionKind.number;
     readonly name = NumberRunTypeFormat.id;
 
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const v = comp.vλl;
 
@@ -65,7 +65,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
         return {code: conditions.join(' && '), type: 'E'};
     }
 
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const v = comp.vλl;
         const errFn = this.getCallJitFormatErr(comp, rt, this, false);
@@ -110,7 +110,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
     }
 
     // No format transformation needed for numbers
-    _compileFormat(): JitCode {
+    visitFormat(): JitCode {
         // No transformation needed for numbers
         return {code: undefined, type: 'S'};
     }

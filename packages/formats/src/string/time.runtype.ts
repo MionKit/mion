@@ -22,13 +22,13 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
     static id = 'time' as const;
     kind = ReflectionKind.string;
     name = TimeStringRunTypeFormat.id;
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const formatFn = this.getFormatPureFn(fpVal(params.format));
         return {code: this.compilePureFunctionCall(comp, rt, formatFn).callCode, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
-        const isTypeCodeObj = this._compileIsType(comp, rt);
+    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+        const isTypeCodeObj = this.visitIsType(comp, rt);
         const isTypeCode = isTypeCodeObj.code;
         if (!isTypeCode) return {code: '', type: 'S'};
         const params = this.getParams(rt);

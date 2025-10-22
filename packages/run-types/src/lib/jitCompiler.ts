@@ -7,18 +7,28 @@
 
 import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, PureFunction, PureFunctionClosure} from '@mionkit/core';
 import {MAX_STACK_DEPTH, getENV, jitUtils} from '@mionkit/core';
-import type {Mutable, JitFnID, StrNumber, JitCode, RunTypeOptions, JitCompilerOpts} from '../types';
+import type {TypeFunction} from '@deepkit/type';
+import type {Mutable, JitFnID, StrNumber, JitCode, RunTypeOptions, JitCompilerOpts, RunTypeChildAccessor} from '../types';
 import type {BaseRunType} from './baseRunTypes';
-import type {AnyKindName} from '../constants.kind';
+import type {BaseRunTypeFormat} from './baseRunTypeFormat';
+import {getReflectionName, type AnyKindName} from '../constants.kind';
 import {maxStackErrorMessage, JIT_STACK_TRACE_MESSAGE} from '../constants';
-import {jitErrorArgs, type JitFnSettings} from '../constants.functions';
+import {type CodeType, CodeTypes, jitErrorArgs, type JitFnSettings} from '../constants.functions';
 import {getJITFnName, getJitFnSettings} from './jitFnsRegistry';
 import {JitFunctions} from '../constants.functions';
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
-import {toLiteral, toLiteralInContext} from './utils';
-import type {BaseRunTypeFormat} from './baseRunTypeFormat';
+import {addFullStop, getJitFnArgCallVarName, toLiteral, toLiteralInContext} from './utils';
 import {registerPureFnClosure} from './pureFn';
 import {getPureFunctionKey} from './pureFn';
+import {getTypeFormats} from './formats';
+import {visitJsonStringify} from '../jitCompilers/json/jsonStringify';
+import {visitToBinary} from '../jitCompilers/binary/toBinary';
+import {visitFromBinary} from '../jitCompilers/binary/fromBinary';
+import {visitToCode} from '../jitCompilers/json/toJsCode';
+
+const RB = CodeTypes.returnBlock;
+const S = CodeTypes.statement;
+const E = CodeTypes.expression;
 
 export type StackItem = {
     /** current compile stack full variable accessor */
@@ -36,6 +46,12 @@ export type JitDependencies = Set<string>;
 export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any>
     implements JitCompiledFnData, JitCompilerOpts
 {
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+    /** The Jit Generated function once the compilation is finished */
+    readonly fn: ((...args: any[]) => any) | undefined;
+    readonly closureFn: ((utl: JITUtils) => (...args: any[]) => any) | undefined;
+    private isCompiled = false;
+
     constructor(
         public readonly rootType: BaseRunType,
         // the id of the function to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc)
@@ -67,10 +83,6 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
 
     /** Alternative arguments to use when calling a child function */
     readonly childrenCallArgs: Partial<Record<JitFnID, Partial<JitFnArgs>>> = {};
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    /** The Jit Generated function once the compilation is finished */
-    readonly fn: ((...args: any[]) => any) | undefined;
-    readonly closureFn: ((utl: JITUtils) => (...args: any[]) => any) | undefined;
 
     /** Code for the jit function. after the operation has been compiled */
     readonly code: string = '';
@@ -208,7 +220,178 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     removeFromJitCache(): void {
         jitUtils.removeFromJitCache(this as JitCompiledFn);
     }
-    private isCompiled = false;
+    getStackTrace(): string {
+        const separator = '.';
+        const parentTrace = this.parentCompiler ? this.parentCompiler.getStackTrace() + separator : JIT_STACK_TRACE_MESSAGE;
+        const lastParentItem = this.parentCompiler?.getCurrentStackItem();
+        const filteredStack = lastParentItem ? this.stack.filter((item) => item.rt !== lastParentItem?.rt) : this.stack;
+        return parentTrace + filteredStack.map((item) => this.getTypeTraceInfo(item.rt)).join(separator);
+    }
+    hasStackTrace(errorMessage: string) {
+        return errorMessage.includes(JIT_STACK_TRACE_MESSAGE);
+    }
+
+    /** Set a context code item */
+    setContextItem(key: string, value: string): void {
+        this.contextCodeItems.set(key, value);
+    }
+
+    /** Get a context code item */
+    getContextItem(key: string): string | undefined {
+        return this.contextCodeItems.get(key);
+    }
+
+    /** Check if a context code item exists */
+    hasContextItem(key: string): boolean {
+        return this.contextCodeItems.has(key);
+    }
+
+    /** Get all context code items values */
+    getContextItemValues(): string[] {
+        return Array.from(this.contextCodeItems.values());
+    }
+
+    setChildrenCallArgs(fnID: string, args: Partial<JitFnArgs>): void {
+        this.childrenCallArgs[fnID] = args;
+    }
+
+    getChildrenCallArgs(fnID: string): Partial<JitFnArgs> | undefined {
+        return this.childrenCallArgs[fnID];
+    }
+
+    /**
+     * Compiles the current function.
+     * This function handles the logic to determine if the operation should be compiled and code should be inlined, or called as a dependency.
+     * Note current JitCompiler operation might be different from the passed operation id.
+     * ie: typeErrors might want to compile isType to generate the part of the code that checks for the type.
+     * @param comp current jit compiler operation
+     * @param fnID operation id
+     * @returns
+     */
+    compile(rt: BaseRunType | undefined, fnID: JitFnID, expectedCType: CodeType): JitCode {
+        if (!rt) return {code: undefined, type: expectedCType};
+        let jCode: JitCode;
+        this.pushStack(rt);
+        if (this.shouldCallDependency()) {
+            const compiledOp = rt.createJitCompiledFunction(fnID, this, this.opts);
+            jCode = this.callDependency(rt, compiledOp);
+            this.updateDependencies(compiledOp);
+        } else {
+            // prettier-ignore
+            switch (fnID) {
+                    case JitFunctions.isType.id:
+                        jCode = this.compileFormatter(rt, fnID, rt.visitIsType(this, expectedCType), expectedCType, ' && '); break;
+                    case JitFunctions.typeErrors.id:
+                        jCode = this.compileFormatter(rt, fnID, rt.visitTypeErrors(this as any, expectedCType), expectedCType, ';'); break;
+                    case JitFunctions.toJsonVal.id:
+                        jCode = rt.visitToJsonVal(this, expectedCType); break;
+                    case JitFunctions.fromJsonVal.id:
+                        jCode = rt.visitFromJsonVal(this, expectedCType); break;
+                    case JitFunctions.jsonStringify.id:
+                        jCode = visitJsonStringify(rt, this); break;
+                    case JitFunctions.toBinary.id:
+                        jCode = visitToBinary(rt, this as any); break;
+                    case JitFunctions.fromBinary.id:
+                        jCode = visitFromBinary(rt, this as any); break;
+                    case JitFunctions.toJavascript.id:
+                        jCode = visitToCode(rt, this); break;
+                    case JitFunctions.unknownKeyErrors.id:
+                        jCode = rt.visitUnknownKeyErrors(this as any, expectedCType); break;
+                    case JitFunctions.hasUnknownKeys.id:
+                        jCode = rt.visitHasUnknownKeys(this, expectedCType); break;
+                    case JitFunctions.stripUnknownKeys.id:
+                        jCode = rt.visitStripUnknownKeys(this, expectedCType); break;
+                    case JitFunctions.unknownKeysToUndefined.id:
+                        jCode = rt.visitUnknownKeysToUndefined(this, expectedCType); break;
+                    case JitFunctions.format.id:
+                        jCode = {code: undefined, type: E}; break;
+                    default:
+                        throw new Error(`Unknown compile operation: ${fnID}`);
+                }
+            if (jCode?.code) {
+                // endure the child code type is compatible with the parent code type.
+                // ie: a code statement can not be interpolated within an expression
+                const compatibleCode = this.handleCodeInterpolation(rt, jCode, expectedCType);
+                jCode = {code: compatibleCode, type: jCode.type};
+            }
+        }
+        this.popStack(jCode);
+        return jCode;
+    }
+
+    private compileFormatter(
+        rt: BaseRunType,
+        fnID: JitFnID,
+        childJCode: JitCode,
+        expectedCType: CodeType,
+        separator: string
+    ): JitCode {
+        const typeFormatters = getTypeFormats(rt);
+        if (!typeFormatters.length) return childJCode;
+        const formattersCode = typeFormatters
+            .map((f) => {
+                const formatterCode = f.compileFormat(fnID, this, rt);
+
+                // Check if the formatter code can be embedded AND is compatible with the function ID
+                const canEmbed = f.canEmbedFormatterCode(fnID, rt);
+                const codeType = formatterCode.type;
+                const codeHasReturn = codeType === RB;
+
+                // For isType and similar functions that are expressions, we need to ensure
+                // the formatter code is also an expression or has a return statement
+                const isCompatible = expectedCType === codeType;
+                if (canEmbed && isCompatible && !codeHasReturn) {
+                    return formatterCode.code;
+                }
+
+                // Otherwise, create a separate function
+                const compiled = f.createJitCompiledFormatter(fnID, rt, this, undefined, undefined, undefined, this.opts);
+                if (compiled.isNoop) return;
+                this.updateDependencies(compiled);
+                const depCode = this.callDependency(rt, compiled);
+                return depCode?.code;
+            })
+            .filter(Boolean) as string[];
+        if (!formattersCode.length) return childJCode || {code: undefined, type: expectedCType};
+        const finalCode = childJCode?.code
+            ? childJCode.code + separator + formattersCode.join(separator)
+            : formattersCode.join(separator);
+        return {code: finalCode, type: childJCode?.type};
+    }
+
+    private callDependency(rt: BaseRunType, dependencyComp: JitCompiledFn): JitCode {
+        if (dependencyComp.isNoop) return {code: '', type: E}; // we don't need to call noop functions
+        const isErrorCall =
+            dependencyComp.fnID === JitFunctions.typeErrors.id || dependencyComp.fnID === JitFunctions.unknownKeyErrors.id;
+
+        // Use the dependency's args, not the current compiler's args
+        const depArgs = getJitFnSettings(dependencyComp.fnID as JitFnID).jitArgs;
+        const callArgsCode = Object.keys(depArgs)
+            .map((key) => getJitFnArgCallVarName(this, rt, dependencyComp.fnID as JitFnID, key))
+            .join(',');
+        const isSelf = this.jitFnHash === dependencyComp.jitFnHash;
+        const varName = dependencyComp.jitFnHash;
+        // call local variable instead directly calling jitUtils to avoid lookups.
+        // ie function context (local variable created when compiling the function): const abc = jitUtils.getJIT('abc);
+        // ie calling context variable: abc.fn();
+        // if operation is the same as the current operation we can call the function directly
+
+        const callCode = isSelf ? `${varName}(${callArgsCode})` : `${varName}.fn(${callArgsCode})`;
+        if (!isSelf) this.setContextItem(varName, `const ${varName} = utl.getJIT(${toLiteral(varName)})`);
+        if (isErrorCall) {
+            const pathArgs = this.getAccessPathArgs();
+            const pathLength = this.getAccessPathLength();
+            if (!pathLength) return {code: callCode, type: 'E'};
+            // increase and decrease the static path before and after calling the dependency function
+            // TODO, maybe we can improve performance by using something else than push and splice
+            return {
+                code: `${jitErrorArgs.pλth}.push(${pathArgs}); ${callCode}; ${jitErrorArgs.pλth}.splice(-${pathLength});`,
+                type: 'S',
+            };
+        }
+        return {code: callCode, type: 'E'};
+    }
+
     /**
      * Set the isNoop flag based on the code of the operation.
      * must be called before function gets compiled.
@@ -249,43 +432,73 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         (this as Mutable<BaseCompiler>).code = code;
         this.isCompiled = true;
     }
-    getStackTrace(): string {
-        const separator = '.';
-        const parentTrace = this.parentCompiler ? this.parentCompiler.getStackTrace() + separator : JIT_STACK_TRACE_MESSAGE;
-        const lastParentItem = this.parentCompiler?.getCurrentStackItem();
-        const filteredStack = lastParentItem ? this.stack.filter((item) => item.rt !== lastParentItem?.rt) : this.stack;
-        return parentTrace + filteredStack.map((item) => item.rt.getTypeTraceInfo(this)).join(separator);
-    }
-    hasStackTrace(errorMessage: string) {
-        return errorMessage.includes(JIT_STACK_TRACE_MESSAGE);
+
+    /** Ensures the child code type is compatible with the parent code type */
+    private handleCodeInterpolation(rt: BaseRunType, childJCode: JitCode, parentCodeType: CodeType): string {
+        const code = (childJCode.code || '').trim();
+        const childCodeType = childJCode.type;
+        const isRoot = this.length === 1;
+        // root code must ensure values are returned
+        if (isRoot) {
+            // prettier-ignore
+            switch (childCodeType) {
+                case E: return `return ${code}`;
+                case S: return  `${addFullStop(code)} return ${this.returnName}`;
+                case RB: return code;
+            }
+        }
+        switch (true) {
+            case parentCodeType === E && childCodeType === E:
+                return code;
+            case parentCodeType === E && childCodeType === S:
+                return this.callSelfInvokingFunction(childJCode);
+            case parentCodeType === E && childCodeType === RB:
+                return this.callSelfInvokingFunction(childJCode);
+            case parentCodeType === S && childCodeType === E:
+                return code; // no need for full stop, parent should handle it
+            case parentCodeType === S && childCodeType === S:
+                return addFullStop(code);
+            case parentCodeType === S && childCodeType === RB:
+                return this.callSelfInvokingFunction(childJCode);
+            case parentCodeType === RB && childCodeType === E:
+                throw new Error('Expected an block code but got an expression, rt should not happen as would be useless code.');
+            case parentCodeType === RB && childCodeType === S:
+                return addFullStop(code);
+            case parentCodeType === RB && childCodeType === RB:
+                return `${addFullStop(code)} return ${this.returnName}`;
+            default:
+                throw new Error(`Unexpected code type (expected: ${parentCodeType}, got: ${childCodeType})`);
+        }
     }
 
-    /** Set a context code item */
-    setContextItem(key: string, value: string): void {
-        this.contextCodeItems.set(key, value);
+    /**
+     * If code should be an expression, but code has return a statement, we need to wrap it in a self invoking function to avoid syntax errors
+     * IMPORTANT TODO, WE CAN IMPROVE PERF QUITE A BIT BY CREATING A NEW FUNCTION IN CONTEXT INSTEAD SELF INVOkING
+     * TODO: we could create a new function and cache instead a self invoking function a performance is same but code is not repeated
+     * IE: this.selfInvoke(code), rt will create a new function in context and call that function instead of self invoking
+     * rt is specially for atomic types as we can be sure there are no references to children types inside the code block
+     */
+    private callSelfInvokingFunction(jCode: JitCode): string {
+        if (jCode.type === E) throw new Error('Javascript expressions never need to be wrapped in a self invoking function.');
+        if (!jCode.code) return '';
+        const code = jCode.code.trim();
+        const isSelfInvoking = code.startsWith('(function()') && code.endsWith(')()');
+        if (isSelfInvoking) return code;
+        const addReturn = jCode.type !== RB;
+        const returnCode = addReturn ? `return ` : '';
+        return `(function(){${returnCode}${jCode.code}})()`;
     }
 
-    /** Get a context code item */
-    getContextItem(key: string): string | undefined {
-        return this.contextCodeItems.get(key);
-    }
-
-    /** Check if a context code item exists */
-    hasContextItem(key: string): boolean {
-        return this.contextCodeItems.has(key);
-    }
-
-    /** Get all context code items values */
-    getContextItemValues(): string[] {
-        return Array.from(this.contextCodeItems.values());
-    }
-
-    setChildrenCallArgs(fnID: string, args: Partial<JitFnArgs>): void {
-        this.childrenCallArgs[fnID] = args;
-    }
-
-    getChildrenCallArgs(fnID: string): Partial<JitFnArgs> | undefined {
-        return this.childrenCallArgs[fnID];
+    getTypeTraceInfo(rt: BaseRunType): string {
+        if (rt.getFamily() === 'C') return rt.src.typeName || getReflectionName(rt);
+        if (rt.getFamily() === 'F') return String((rt.src as TypeFunction).name) || getReflectionName(rt);
+        if (rt.getFamily() === 'M') {
+            const rtChild = rt as any as RunTypeChildAccessor;
+            const isRunTypeChildAccessor = !!rtChild.getChildVarName;
+            if (!isRunTypeChildAccessor) return getReflectionName(rt);
+            return String(rtChild.getChildVarName(this));
+        }
+        return getReflectionName(rt);
     }
 }
 

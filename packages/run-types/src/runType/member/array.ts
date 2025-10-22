@@ -30,7 +30,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
 
     // #### jit code ####
-    _compileIsType(comp: JitCompiler): JitCode {
+    visitIsType(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const resultVal = `res${comp.getNestLevel(this)}`;
         const index = this.getChildVarName(comp);
@@ -48,7 +48,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'RB',
         };
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const childJit = this.getJitChild(comp)?.compileTypeErrors(comp, 'S');
@@ -61,7 +61,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    _compileToJsonVal(comp: JitCompiler): JitCode {
+    visitToJsonVal(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
@@ -74,7 +74,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    _compileFromJsonVal(comp: JitCompiler): JitCode {
+    visitFromJsonVal(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
@@ -87,7 +87,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    _compileHasUnknownKeys(comp: JitCompiler): JitCode {
+    visitHasUnknownKeys(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'E'};
         const childJit = this.getJitChild(comp)?.compileHasUnknownKeys(comp, 'E');
@@ -107,19 +107,19 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'RB',
         };
     }
-    _compileUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
+    visitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
         const childJit = this.getJitChild(comp)?.compileUnknownKeyErrors(comp, 'S');
         return this.traverseCode(comp, childJit);
     }
-    _compileStripUnknownKeys(comp: JitCompiler): JitCode {
+    visitStripUnknownKeys(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
         const childJit = this.getJitChild(comp)?.compileStripUnknownKeys(comp, 'S');
         return this.traverseCode(comp, childJit);
     }
-    _compileUnknownKeysToUndefined(comp: JitCompiler): JitCode {
+    visitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
         const childJit = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp, 'S');

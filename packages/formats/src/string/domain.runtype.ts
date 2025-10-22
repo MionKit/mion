@@ -77,7 +77,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -120,7 +120,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         `;
         return {code, type: 'S'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -231,7 +231,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         };
         return this.tldFormatter.mock(opts, rt, defaultParams);
     }
-    _compileFormat(comp: JitCompiler): JitCode {
+    visitFormat(comp: JitCompiler): JitCode {
         return {code: `${comp.vλl}.toLowerCase()`, type: 'E'}; // all domain are lower case
     }
     _formatMockedValue(opts: RunTypeOptions, _rt: BaseRunType, val: any): string {

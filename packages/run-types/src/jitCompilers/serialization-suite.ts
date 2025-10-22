@@ -101,6 +101,11 @@ interface RootNotCircular {
     ciChild: ICircularDeep;
 }
 
+interface ICircularArray {
+    name: string;
+    children?: ICircularArray[];
+}
+
 interface ICircularTuple {
     name: string;
     parent?: [string, ICircularTuple];
@@ -595,10 +600,6 @@ export const SERIALIZATION_SPEC = {
         interface_circular_array: {
             title: 'interface circular array',
             getTestData: (dataOnly = false) => {
-                interface ICircularArray {
-                    name: string;
-                    children?: ICircularArray[];
-                }
                 const rt = dataOnly ? (null as any) : runType<ICircularArray>();
                 const values: ICircularArray[] = [
                     {name: 'hello', children: []},

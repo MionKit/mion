@@ -21,8 +21,8 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         const isEmpty = children.every((prop) => !isConstructor(prop) || prop.getParameters().getChildRunTypes().length === 0);
         return isEmpty;
     }
-    _compileFromJsonVal(comp: JitCompiler): JitCode {
-        const objJit = super._compileFromJsonVal(comp);
+    visitFromJsonVal(comp: JitCompiler): JitCode {
+        const objJit = super.visitFromJsonVal(comp);
         const desFnVarName = `desFn${comp.getNestLevel(this)}`;
         const classLiteral = toLiteral(this.getClassName());
         const code = `

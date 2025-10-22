@@ -116,7 +116,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     }
 
     // #### collection's jit code ####
-    _compileIsType(comp: JitCompiler): JitCode {
+    visitIsType(comp: JitCompiler): JitCode {
         const varName = comp.vλl;
         const childrenCode = this.mergedInterfaces.length
             ? ` && (${this.mergedInterfaces.map((rt) => this.compileIsTypeMergedChildren(comp, rt)).join(' || ')})`
@@ -126,7 +126,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             type: 'E',
         };
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         const varName = comp.vλl;
         const childrenCode = this.mergedInterfaces.length
             ? `if (!${this.compileIsType(comp, 'E').code}) ${comp.callJitErr(this)};`
@@ -142,7 +142,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             type: 'S',
         };
     }
-    _compileToJsonVal(comp: JitCompiler): JitCode {
+    visitToJsonVal(comp: JitCompiler): JitCode {
         const toJsonValMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
         return {
             code: toJsonValMergedList.length
@@ -158,7 +158,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             type: 'S',
         };
     }
-    _compileFromJsonVal(comp: JitCompiler): JitCode {
+    visitFromJsonVal(comp: JitCompiler): JitCode {
         const fromJsonValMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
         return {
             code: fromJsonValMergedList.length

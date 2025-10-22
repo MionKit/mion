@@ -11,14 +11,14 @@ import type {AnyParameterListRunType, JitCode} from '../../types';
 import {FunctionParamsRunType} from './functionParams';
 
 export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple> extends FunctionParamsRunType<ParamList> {
-    _compileIsType(comp: JitCompiler): JitCode {
+    visitIsType(comp: JitCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (children.length === 0) return {code: `Array.isArray(${comp.vλl}) && ${comp.vλl}.length === 0`, type: 'E'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `&& ${comp.vλl}.length <= ${this.getParamRunTypes(comp).length}`;
         const paramsCode = children.map((p) => `(${p.compileIsType(comp, 'E').code})`).join(' && ');
         return {code: `(Array.isArray(${comp.vλl})${lengthCode} && ${paramsCode})`, type: 'E'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): JitCode {
+    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (children.length === 0)
             return {code: `if (!Array.isArray(${comp.vλl}) || && ${comp.vλl}.length === 0) ${comp.callJitErr(this)}`, type: 'S'};

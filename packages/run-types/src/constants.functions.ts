@@ -20,7 +20,7 @@ export interface JitFnSettings {
     name: string;
     type: CodeType;
     /** dynamically imports a single compiler function that is capable of compiling any node
-     * @see {@link ./jitCompilers/jsonStringify.ts#_compileJsonStringify} as example of compiler function
+     * @see {@link ./jitCompilers/jsonStringify.ts#visitJsonStringify} as example of compiler function
      */
     import?: () => Promise<(...args: any[]) => any>;
     jitArgs: JitFnArgs;

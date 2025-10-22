@@ -29,7 +29,7 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -57,7 +57,7 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         `;
         return {code, type: 'S'};
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
