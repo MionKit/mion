@@ -29,20 +29,22 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         return false;
     }
     visitIsType(comp: JitCompiler): JitCode {
-        const childJit = this.getJitChild(comp)?.compileIsType(comp, 'E');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileIsType(child, 'E');
         if (!childJit?.code) return {code: undefined, type: 'E'};
         if (this.isOptional()) return {code: `${comp.getChildVλl()} === undefined || (${childJit.code})`, type: 'E'};
         return childJit;
     }
     visitTypeErrors(comp: JitErrorsCompiler): JitCode {
-        const childJit = this.getJitChild(comp)?.compileTypeErrors(comp, 'S');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileTypeErrors(child, 'S');
         if (!childJit?.code) return {code: undefined, type: 'S'};
         if (this.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'};
         return childJit;
     }
     visitToJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = child?.compileToJsonVal(comp, 'S');
+        const childJit = comp.compileToJsonVal(child, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child); // expressions must be assigned to a variable
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code}` : childJit.code || '';
@@ -51,7 +53,7 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
     }
     visitFromJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = child?.compileFromJsonVal(comp, 'S');
+        const childJit = comp.compileFromJsonVal(child, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';

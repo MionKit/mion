@@ -46,7 +46,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
 
     getChildStrictIsType(rt: BaseRunType, comp: JitCompiler): string {
-        const isTypeCode = rt.compileIsType(comp, 'E').code || '';
+        const isTypeCode = comp.compileIsType(rt, 'E').code || '';
         const isTypeWithProperties =
             isInterfaceRunType(rt) || isClassRunType(rt) || isObjectLiteralRunType(rt) || isIntersectionRunType(rt);
         if (!isTypeWithProperties || rt.getFamily() !== 'C') return isTypeCode;
@@ -58,7 +58,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         comp.setContextItem(hasUnknownKeysOptsVarName, `const ${hasUnknownKeysOptsVarName} = {${checkPropName}: true}`);
         // forces to call hasUnknownKeys with hasUnknownKeysOptsVarName options
         comp.setChildrenCallArgs(JitFunctions.hasUnknownKeys.id, {θpts: hasUnknownKeysOptsVarName});
-        const codeHasUnknown = rt.compileHasUnknownKeys(comp, 'E').code;
+        const codeHasUnknown = comp.compileHasUnknownKeys(rt, 'E').code;
         return codeHasUnknown ? `(${isTypeCode} && !${codeHasUnknown})` : `${isTypeCode}`;
     }
 
@@ -76,7 +76,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
 
     visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         this.checkNonSkipTypes(comp);
-        const isType = this.compileIsType(comp, 'E').code;
+        const isType = comp.compileIsType(this, 'E').code;
         const code = `if (!${isType}) ${comp.callJitErr(this)};`;
         return {code, type: 'S'};
     }
@@ -97,10 +97,10 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const ifElse = createIfElseFn();
         const onUnionItems = (items: BaseRunType[]) => {
             const result = items.map((childRt) => {
-                const toJit = childRt.compileToJsonVal(comp, 'S');
+                const toJit = comp.compileToJsonVal(childRt, 'S');
                 // TODO: calling full decode could be expensive and we calling it only to know if it needs encoding.
                 // we might want to optimize this, call to decode is also being added to the context and should be removed
-                const fromJit = childRt.compileFromJsonVal(comp, 'S');
+                const fromJit = comp.compileFromJsonVal(childRt, 'S');
                 const needsTupleEncoding = !!toJit.code || !!fromJit.code;
                 const isExpression = childIsExpression(toJit, childRt);
                 const encodeCode = isExpression && toJit.code ? `${comp.vλl} = ${toJit.code};` : toJit.code || '';
@@ -137,7 +137,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const ifElse = createIfElseFn();
         const itemsCode = children
             .map((unionItem) => {
-                const childJit = unionItem.compileFromJsonVal(comp, 'S');
+                const childJit = comp.compileFromJsonVal(unionItem, 'S');
                 const isExpression = childIsExpression(childJit, unionItem);
                 const code =
                     isExpression && childJit.code && childJit.code !== comp.vλl

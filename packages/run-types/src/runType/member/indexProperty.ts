@@ -36,7 +36,8 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
 
     // #### jit code ####
     visitIsType(comp: JitCompiler): JitCode {
-        const childJit = this.getJitChild(comp)?.compileIsType(comp, 'E');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileIsType(child, 'E');
         if (!childJit?.code) return {code: undefined, type: 'E'};
         return {
             code: `for (const ${this.getChildVarName(comp)} in ${comp.vλl}){if (!(${childJit.code})) return false;} return true;`,
@@ -44,13 +45,14 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         };
     }
     visitTypeErrors(comp: JitErrorsCompiler): JitCode {
-        const childJit = this.getJitChild(comp)?.compileTypeErrors(comp, 'S');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileTypeErrors(child, 'S');
         if (!childJit?.code) return {code: undefined, type: 'S'};
         return {code: `for (const ${this.getChildVarName(comp)} in ${comp.vλl}) {${childJit.code}}`, type: 'S'};
     }
     visitToJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = child?.compileToJsonVal(comp, 'S');
+        const childJit = comp.compileToJsonVal(child, 'S');
         if (!child || !childJit?.code) return {code: undefined, type: 'S'};
         const varName = comp.vλl;
         const prop = this.getChildVarName(comp);
@@ -61,7 +63,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     visitFromJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = child?.compileFromJsonVal(comp, 'S');
+        const childJit = comp.compileFromJsonVal(child, 'S');
         if (!child || !childJit?.code) return {code: undefined, type: 'S'};
         const varName = comp.vλl;
         const prop = this.getChildVarName(comp);
@@ -72,7 +74,8 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     visitHasUnknownKeys(comp: JitCompiler): JitCode {
         if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'E'};
-        const childJit = this.getJitChild(comp)?.compileHasUnknownKeys(comp, 'E');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileHasUnknownKeys(child, 'E');
         if (!childJit?.code) return {code: '', type: 'E'};
         const varName = comp.vλl;
         const prop = this.getChildVarName(comp);
@@ -84,17 +87,20 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     visitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
         if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'S'};
-        const childJit = this.getJitChild(comp)?.compileUnknownKeyErrors(comp, 'S');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileUnknownKeyErrors(child, 'S');
         return this.traverseCode(comp, childJit);
     }
     visitStripUnknownKeys(comp: JitCompiler): JitCode {
         if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'S'};
-        const childJit = this.getJitChild(comp)?.compileStripUnknownKeys(comp, 'S');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileStripUnknownKeys(child, 'S');
         return this.traverseCode(comp, childJit);
     }
     visitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
         if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'S'};
-        const childJit = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp, 'S');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileUnknownKeysToUndefined(child, 'S');
         return this.traverseCode(comp, childJit);
     }
     traverseCode(comp: JitCompiler, childJit: JitCode | undefined): JitCode {

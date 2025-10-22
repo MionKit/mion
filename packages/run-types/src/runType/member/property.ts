@@ -39,18 +39,20 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     // #### jit code ####
 
     visitIsType(comp: JitCompiler): JitCode {
-        const childJit = this.getJitChild(comp)?.compileIsType(comp, 'E');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileIsType(child, 'E');
         if (!childJit?.code) return {code: undefined, type: 'E'};
         return this.src.optional ? {code: `(${comp.getChildVλl()} === undefined || ${childJit.code})`, type: 'E'} : childJit;
     }
     visitTypeErrors(comp: JitErrorsCompiler): JitCode {
-        const childJit = this.getJitChild(comp)?.compileTypeErrors(comp, 'S');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileTypeErrors(child, 'S');
         if (!childJit?.code) return {code: undefined, type: 'S'};
         return this.src.optional ? {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'} : childJit;
     }
     visitToJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = child?.compileToJsonVal(comp, 'S');
+        const childJit = comp.compileToJsonVal(child, 'S');
         if (!child || !childJit?.code) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
@@ -59,7 +61,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     }
     visitFromJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = child?.compileFromJsonVal(comp, 'S');
+        const childJit = comp.compileFromJsonVal(child, 'S');
         if (!child || !childJit?.code) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';

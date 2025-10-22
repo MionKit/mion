@@ -71,7 +71,7 @@ export class InterfaceRunType<
         const varName = comp.vλl;
         const children = this.getJitChildren(comp);
         const childrenCode = children
-            .map((prop) => prop.compileIsType(comp, 'E').code)
+            .map((prop) => comp.compileIsType(prop, 'E').code)
             .filter(Boolean)
             .join(' && ');
         if (this.isCallable())
@@ -88,7 +88,7 @@ export class InterfaceRunType<
         const varName = comp.vλl;
         const children = this.getJitChildren(comp);
         const childrenCode = children
-            .map((prop) => prop.compileTypeErrors(comp, 'S').code)
+            .map((prop) => comp.compileTypeErrors(prop, 'S').code)
             .filter(Boolean)
             .join(';');
         if (this.isCallable()) {
@@ -111,7 +111,7 @@ export class InterfaceRunType<
         if (this.isCallable()) return this.getCallSignature()!.visitToJsonVal();
         const children = this.getJitChildren(comp);
         const childrenCode = children
-            .map((prop) => prop.compileToJsonVal(comp, 'S').code)
+            .map((prop) => comp.compileToJsonVal(prop, 'S').code)
             .filter(Boolean)
             .join(';');
         return {code: childrenCode, type: 'S'};
@@ -120,7 +120,7 @@ export class InterfaceRunType<
         if (this.isCallable()) return this.getCallSignature()!.visitFromJsonVal();
         const children = this.getJitChildren(comp);
         const childrenCode = children
-            .map((prop) => prop.compileFromJsonVal(comp, 'S').code)
+            .map((prop) => comp.compileFromJsonVal(prop, 'S').code)
             .filter(Boolean)
             .join(';');
         return {code: childrenCode, type: 'S'};
