@@ -180,16 +180,17 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return newJitCompiler as JitCompiledFn;
     }
 
-    // ########## Child visit Methods ##########
+    // ########## emit Methods that generates src code ##########
 
-    abstract visitIsType(comp: JitCompiler, expectedCType: CodeType): JitCode;
-    abstract visitTypeErrors(comp: JitErrorsCompiler, expectedCType: CodeType): JitCode;
-    abstract visitToJsonVal(comp: JitCompiler, expectedCType: CodeType): JitCode;
-    abstract visitFromJsonVal(comp: JitCompiler, expectedCType: CodeType): JitCode;
-    abstract visitHasUnknownKeys(comp: JitCompiler, expectedCType: CodeType): JitCode;
-    abstract visitUnknownKeyErrors(comp: JitErrorsCompiler, expectedCType: CodeType): JitCode;
-    abstract visitStripUnknownKeys(comp: JitCompiler, expectedCType: CodeType): JitCode;
-    abstract visitUnknownKeysToUndefined(comp: JitCompiler, expectedCType: CodeType): JitCode;
+    abstract emitIsType(comp: JitCompiler, expectedCType: CodeType): JitCode;
+    abstract emitTypeErrors(comp: JitErrorsCompiler, expectedCType: CodeType): JitCode;
+    abstract emitHasUnknownKeys(comp: JitCompiler, expectedCType: CodeType): JitCode;
+    abstract emitUnknownKeyErrors(comp: JitErrorsCompiler, expectedCType: CodeType): JitCode;
+    abstract emitStripUnknownKeys(comp: JitCompiler, expectedCType: CodeType): JitCode;
+    abstract emitUnknownKeysToUndefined(comp: JitCompiler, expectedCType: CodeType): JitCode;
+    // todo: maybe we should move these two into a single file like the rest of serializers
+    abstract emitToJsonVal(comp: JitCompiler, expectedCType: CodeType): JitCode;
+    abstract emitFromJsonVal(comp: JitCompiler, expectedCType: CodeType): JitCode;
 }
 
 /**
@@ -200,22 +201,22 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     getFamily(): 'A' {
         return 'A';
     }
-    visitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitCompiler): JitCode {
         return {code: undefined, type: S};
     }
-    visitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitCompiler): JitCode {
         return {code: undefined, type: S};
     }
-    visitHasUnknownKeys(comp: JitCompiler): JitCode {
+    emitHasUnknownKeys(comp: JitCompiler): JitCode {
         return {code: undefined, type: E};
     }
-    visitUnknownKeyErrors(comp: JitCompiler): JitCode {
+    emitUnknownKeyErrors(comp: JitCompiler): JitCode {
         return {code: undefined, type: S};
     }
-    visitStripUnknownKeys(comp: JitCompiler): JitCode {
+    emitStripUnknownKeys(comp: JitCompiler): JitCode {
         return {code: undefined, type: S};
     }
-    visitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
+    emitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
         return {code: undefined, type: S};
     }
 }
@@ -252,25 +253,25 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
                 prop.src.kind === ReflectionKind.indexSignature
         );
     }
-    visitHasUnknownKeys(comp: JitCompiler): JitCode {
+    emitHasUnknownKeys(comp: JitCompiler): JitCode {
         const codes = this.getJitChildren(comp)
             .map((c) => comp.compileHasUnknownKeys(c, E).code)
             .filter((code) => !!code);
         return {code: codes.join(' || '), type: E};
     }
-    visitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
+    emitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
         const codes = this.getJitChildren(comp)
             .map((c) => comp.compileUnknownKeyErrors(c, S).code)
             .filter((code) => !!code);
         return {code: codes.join(';'), type: S};
     }
-    visitStripUnknownKeys(comp: JitCompiler): JitCode {
+    emitStripUnknownKeys(comp: JitCompiler): JitCode {
         const codes = this.getJitChildren(comp)
             .map((c) => comp.compileStripUnknownKeys(c, S).code)
             .filter((code) => !!code);
         return {code: codes.join(';'), type: S};
     }
-    visitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
+    emitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
         const codes = this.getJitChildren(comp)
             .map((c) => comp.compileUnknownKeysToUndefined(c, S).code)
             .filter((code) => !!code);
@@ -327,7 +328,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (member.skipJit(comp)) return undefined;
         return member;
     }
-    visitHasUnknownKeys(comp: JitCompiler): JitCode {
+    emitHasUnknownKeys(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
         const codeResult = comp.compileHasUnknownKeys(child, E);
         if (!codeResult?.code) return {code: undefined, type: E};
@@ -335,21 +336,21 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         const finalCode = this.isOptional() ? `(${childName} !== undefined && ${codeResult.code})` : codeResult.code;
         return {code: finalCode, type: codeResult.type};
     }
-    visitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
+    emitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
         const child = this.getJitChild(comp);
         const codeResult = comp.compileUnknownKeyErrors(child, S);
         if (!codeResult?.code) return {code: undefined, type: S};
         const finalCode = this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${codeResult.code}}` : codeResult.code;
         return {code: finalCode, type: codeResult.type};
     }
-    visitStripUnknownKeys(comp: JitCompiler): JitCode {
+    emitStripUnknownKeys(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
         const codeResult = comp.compileStripUnknownKeys(child, S);
         if (!codeResult?.code) return {code: undefined, type: S};
         const finalCode = this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${codeResult.code}}` : codeResult.code;
         return {code: finalCode, type: codeResult.type};
     }
-    visitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
+    emitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
         const codeResult = comp.compileUnknownKeysToUndefined(child, S);
         if (!codeResult?.code) return {code: undefined, type: S};

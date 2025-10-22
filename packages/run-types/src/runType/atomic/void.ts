@@ -12,16 +12,16 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 
 export class VoidRunType extends AtomicRunType<TypeVoid> {
     _getTypeID = () => ReflectionKind.void;
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         return {code: `${comp.vλl} === undefined`, type: 'E'};
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (${comp.vλl} !== undefined) ${comp.callJitErr(this)}`, type: 'S'};
     }
-    visitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitCompiler): JitCode {
         return {code: `${comp.vλl} = undefined`, type: 'E'};
     }
-    visitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitCompiler): JitCode {
         return {code: `${comp.vλl} = undefined`, type: 'E'};
     }
 }

@@ -15,16 +15,16 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
     skipJit(comp: JitCompiler): boolean {
         return comp?.fnID !== JitFunctions.toJavascript.id;
     }
-    visitIsType(): JitCode {
+    emitIsType(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    visitTypeErrors(): JitCode {
+    emitTypeErrors(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    visitToJsonVal(): JitCode {
+    emitToJsonVal(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    visitFromJsonVal(): JitCode {
+    emitFromJsonVal(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     isOptional(): boolean {

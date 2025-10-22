@@ -12,16 +12,16 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class NullRunType extends AtomicRunType<TypeNull> {
     _getTypeID = () => ReflectionKind.null;
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         return {code: `${comp.vλl} === null`, type: 'E'};
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (${comp.vλl} !== null) ${comp.callJitErr(this)}`, type: 'S'};
     }
-    visitToJsonVal(): JitCode {
+    emitToJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     }
-    visitFromJsonVal(): JitCode {
+    emitFromJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     }
 }

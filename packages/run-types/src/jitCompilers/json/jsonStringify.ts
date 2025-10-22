@@ -466,4 +466,4 @@ export function createStringifyIterable(fnID: Operation) {
     };
 }
 
-export const visitJsonStringify = createStringifyCompiler(JitFunctions.jsonStringify.id);
+export const emitJsonStringify = createStringifyCompiler(JitFunctions.jsonStringify.id);

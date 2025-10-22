@@ -12,13 +12,13 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     _getTypeID = () => ReflectionKind.undefined;
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'undefined'`, type: 'E'};
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'undefined') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    visitFromJsonVal(): JitCode {
+    emitFromJsonVal(): JitCode {
         return {code: `undefined`, type: 'E'};
     }
 }

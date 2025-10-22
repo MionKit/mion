@@ -28,7 +28,7 @@ const fnID = JitFunctions.fromBinary.id;
  * Main Binary deserialization compiler function
  * Generates JIT code to deserialize Binary data to JavaScript values
  */
-export function visitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitCode {
+export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitCode {
     const src = runType.src;
     const kind = src.kind;
     const dεs = comp.args.dεs;
@@ -270,7 +270,7 @@ export function visitFromBinary(runType: BaseRunType, comp: BinaryCompiler): Jit
                     }
                     const originalKind = rt.src.kind;
                     (runType.src as any).kind = ReflectionKind.objectLiteral;
-                    const plainObjCode = visitFromBinary(rt, comp);
+                    const plainObjCode = emitFromBinary(rt, comp);
                     (runType.src as any).kind = originalKind;
                     const desFnVarName = `desFn${comp.getNestLevel(rt)}`;
                     const desFnInit = `let ${desFnVarName} = utl.${jitUtils.getDeserializeFn.name}(${toLiteral(rt.getClassName())})`;

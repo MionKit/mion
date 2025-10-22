@@ -62,7 +62,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return codeHasUnknown ? `(${isTypeCode} && !${codeHasUnknown})` : `${isTypeCode}`;
     }
 
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
         const items = simpleItems.map((rt) => this.getChildStrictIsType(rt, comp));
@@ -74,7 +74,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return {code: `(${[checkItems, checkObjs].filter(Boolean).join(' || ')})`, type: 'E'};
     }
 
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const isType = comp.compileIsType(this, 'E').code;
         const code = `if (!${isType}) ${comp.callJitErr(this)};`;
@@ -87,7 +87,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    visitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
         const errName = `uErr${comp.getNestLevel(this)}`;
@@ -128,7 +128,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    visitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const decVar = `dεc${comp.getNestLevel(this)}`;
         const errVarName = `uErr${comp.getNestLevel(this)}`;

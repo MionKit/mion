@@ -15,28 +15,28 @@ export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral |
         // skip return false so we ensure the compile functions will throw when a NonSerializable type is used
         return false;
     }
-    visitIsType(): JitCode {
+    emitIsType(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    visitTypeErrors(): JitCode {
+    emitTypeErrors(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    visitToJsonVal(): JitCode {
+    emitToJsonVal(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    visitFromJsonVal(): JitCode {
+    emitFromJsonVal(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    visitHasUnknownKeys(): JitCode {
+    emitHasUnknownKeys(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    visitUnknownKeyErrors(): JitCode {
+    emitUnknownKeyErrors(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    visitStripUnknownKeys(): JitCode {
+    emitStripUnknownKeys(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    visitUnknownKeysToUndefined(): JitCode {
+    emitUnknownKeysToUndefined(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
 }

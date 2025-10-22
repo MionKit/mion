@@ -39,7 +39,7 @@ export class FunctionParamsRunType<
     }
     // ####### params #######
 
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (children.length === 0) return {code: `${comp.vλl}.length === 0`, type: 'E'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `${comp.vλl}.length <= ${children.length}`;
@@ -50,7 +50,7 @@ export class FunctionParamsRunType<
             ? {code: `(${lengthCode} && ${paramsCode.join(' && ')})`, type: 'E'}
             : {code: `(${paramsCode.join(' && ')})`, type: 'E'};
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (children.length === 0) return {code: `if (${comp.vλl}.length !== 0) ${comp.callJitErr(this)}`, type: 'S'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `${comp.vλl}.length > ${children.length}`;
@@ -63,7 +63,7 @@ export class FunctionParamsRunType<
             ? {code: `if (${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode.join(';')}}`, type: 'S'}
             : {code: paramsCode.join(';'), type: 'S'};
     }
-    visitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (!children.length) return {code: undefined, type: 'S'};
         const code = children
@@ -72,7 +72,7 @@ export class FunctionParamsRunType<
             .join(';');
         return {code: code, type: 'S'};
     }
-    visitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (!children.length) return {code: undefined, type: 'S'};
         const code = children

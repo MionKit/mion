@@ -38,19 +38,19 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     }
     // #### jit code ####
 
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileIsType(child, 'E');
         if (!childJit?.code) return {code: undefined, type: 'E'};
         return this.src.optional ? {code: `(${comp.getChildVλl()} === undefined || ${childJit.code})`, type: 'E'} : childJit;
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileTypeErrors(child, 'S');
         if (!childJit?.code) return {code: undefined, type: 'S'};
         return this.src.optional ? {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'} : childJit;
     }
-    visitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileToJsonVal(child, 'S');
         if (!child || !childJit?.code) return {code: undefined, type: 'S'};
@@ -59,7 +59,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         if (this.src.optional) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
         return {code, type: 'S'};
     }
-    visitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileFromJsonVal(child, 'S');
         if (!child || !childJit?.code) return {code: undefined, type: 'S'};

@@ -21,10 +21,10 @@ import {addFullStop, getJitFnArgCallVarName, toLiteral, toLiteralInContext} from
 import {registerPureFnClosure} from './pureFn';
 import {getPureFunctionKey} from './pureFn';
 import {getTypeFormats} from './formats';
-import {visitJsonStringify} from '../jitCompilers/json/jsonStringify';
-import {visitToBinary} from '../jitCompilers/binary/toBinary';
-import {visitFromBinary} from '../jitCompilers/binary/fromBinary';
-import {visitToCode} from '../jitCompilers/json/toJsCode';
+import {emitJsonStringify} from '../jitCompilers/json/jsonStringify';
+import {emitToBinary} from '../jitCompilers/binary/toBinary';
+import {emitFromBinary} from '../jitCompilers/binary/fromBinary';
+import {emitToCode} from '../jitCompilers/json/toJsCode';
 import {createJitFunction} from './createJitFunction';
 
 const RB = CodeTypes.returnBlock;
@@ -277,29 +277,29 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
             // prettier-ignore
             switch (fnID) {
                     case JitFunctions.isType.id:
-                        jCode = this.compileFormatter(rt, fnID, rt.visitIsType(this, expectedCType), expectedCType, ' && '); break;
+                        jCode = this.compileFormatter(rt, fnID, rt.emitIsType(this, expectedCType), expectedCType, ' && '); break;
                     case JitFunctions.typeErrors.id:
-                        jCode = this.compileFormatter(rt, fnID, rt.visitTypeErrors(this as any, expectedCType), expectedCType, ';'); break;
+                        jCode = this.compileFormatter(rt, fnID, rt.emitTypeErrors(this as any, expectedCType), expectedCType, ';'); break;
                     case JitFunctions.toJsonVal.id:
-                        jCode = rt.visitToJsonVal(this, expectedCType); break;
+                        jCode = rt.emitToJsonVal(this, expectedCType); break;
                     case JitFunctions.fromJsonVal.id:
-                        jCode = rt.visitFromJsonVal(this, expectedCType); break;
+                        jCode = rt.emitFromJsonVal(this, expectedCType); break;
                     case JitFunctions.jsonStringify.id:
-                        jCode = visitJsonStringify(rt, this); break;
+                        jCode = emitJsonStringify(rt, this); break;
                     case JitFunctions.toBinary.id:
-                        jCode = visitToBinary(rt, this as any); break;
+                        jCode = emitToBinary(rt, this as any); break;
                     case JitFunctions.fromBinary.id:
-                        jCode = visitFromBinary(rt, this as any); break;
+                        jCode = emitFromBinary(rt, this as any); break;
                     case JitFunctions.toJavascript.id:
-                        jCode = visitToCode(rt, this); break;
+                        jCode = emitToCode(rt, this); break;
                     case JitFunctions.unknownKeyErrors.id:
-                        jCode = rt.visitUnknownKeyErrors(this as any, expectedCType); break;
+                        jCode = rt.emitUnknownKeyErrors(this as any, expectedCType); break;
                     case JitFunctions.hasUnknownKeys.id:
-                        jCode = rt.visitHasUnknownKeys(this, expectedCType); break;
+                        jCode = rt.emitHasUnknownKeys(this, expectedCType); break;
                     case JitFunctions.stripUnknownKeys.id:
-                        jCode = rt.visitStripUnknownKeys(this, expectedCType); break;
+                        jCode = rt.emitStripUnknownKeys(this, expectedCType); break;
                     case JitFunctions.unknownKeysToUndefined.id:
-                        jCode = rt.visitUnknownKeysToUndefined(this, expectedCType); break;
+                        jCode = rt.emitUnknownKeysToUndefined(this, expectedCType); break;
                     case JitFunctions.format.id:
                         jCode = {code: undefined, type: E}; break;
                     default:
