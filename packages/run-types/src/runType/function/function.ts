@@ -8,7 +8,7 @@ import type {AnyFunction, SrcType, JitFn, JitCode, RunTypeOptions} from '../../t
 import {ReflectionKind, TypeFunction} from '@deepkit/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
-import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 import {PromiseRunType} from '../native/promise';
 import {ReflectionSubKind} from '../../constants.kind';
 import {FunctionParamsRunType} from '../collection/functionParams';

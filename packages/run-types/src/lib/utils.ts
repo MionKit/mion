@@ -10,7 +10,7 @@ import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from
 import type {FormatParam, FormatParamLiteral, PureFunctionClosure, TypeFormatValue} from '@mionkit/core';
 import type {AnyClass, JitFnID, RunType} from '../types';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from './jitFnCompiler';
 import type {PropertyRunType} from '../runType/member/property';
 import {jitUtils} from '@mionkit/core';
 import {validPropertyNameRegExp} from '../constants';
@@ -19,7 +19,7 @@ import {createHashLiteral} from './quickHash';
 import {ReflectionSubKind} from '../constants.kind';
 import {getJitFnSettings} from './jitFnsRegistry';
 import type {JitCode} from '../types';
-import type {BaseCompiler} from './jitCompiler';
+import type {BaseFnCompiler} from './jitFnCompiler';
 
 /**
  * Wraps a code string with its code type metadata.
@@ -33,7 +33,7 @@ export function wrapJitCode(code: string | undefined, fnID: JitFnID): JitCode {
 /**
  * Wraps a code string using the compiler's fnID.
  */
-export function wrapJitCodeFromCompiler(code: string | undefined, comp: BaseCompiler): JitCode {
+export function wrapJitCodeFromCompiler(code: string | undefined, comp: BaseFnCompiler): JitCode {
     return wrapJitCode(code, comp.fnID);
 }
 

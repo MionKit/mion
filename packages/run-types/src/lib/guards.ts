@@ -44,7 +44,7 @@ import type {PromiseRunType} from '../runType/native/promise';
 import type {ObjectRunType} from '../runType/atomic/object';
 import type {MethodRunType} from '../runType/member/method';
 import type {AtomicRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
-import type {BaseCompiler, JitErrorsCompiler} from './jitCompiler';
+import type {BaseFnCompiler, JitErrorsCompiler} from './jitFnCompiler';
 import type {ClassRunType} from '../runType/collection/class';
 import type {IntersectionRunType} from '../runType/collection/intersection';
 import type {SymbolRunType} from '../runType/atomic/symbol';
@@ -212,7 +212,7 @@ export function isRunType(value: any): value is RunType {
     return typeof value?.src?.kind === 'number' && typeof value?.getTypeID === 'function';
 }
 
-export function isJitErrorsCompiler(value: BaseCompiler): value is JitErrorsCompiler {
+export function isJitErrorsCompiler(value: BaseFnCompiler): value is JitErrorsCompiler {
     return value.fnID === JitFunctions.typeErrors.id || value.fnID === JitFunctions.unknownKeyErrors.id;
 }
 

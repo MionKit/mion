@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeRegexp} from '@deepkit/type';
 import type {JitCode} from '../../types';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class RegexpRunType extends AtomicRunType<TypeRegexp> {

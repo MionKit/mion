@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeTuple} from '@deepkit/type';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 import type {AnyParameterListRunType, JitCode} from '../../types';
 import {FunctionParamsRunType} from './functionParams';
 

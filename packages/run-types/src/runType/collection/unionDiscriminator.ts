@@ -1,5 +1,5 @@
 import type {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
-import type {JitCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler} from '../../lib/jitFnCompiler';
 import type {UnionRunType} from './union';
 import type {PropertyRunType} from '../member/property';
 import {getTotalComplexity, sortRunTypeByComplexity} from '../../lib/utils';

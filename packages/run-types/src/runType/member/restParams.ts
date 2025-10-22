@@ -9,7 +9,7 @@ import type {TypeRest} from '@deepkit/type';
 import type {ParameterRunType} from './param';
 import type {TupleMemberRunType} from './tupleMember';
 import {ArrayRunType} from './array';
-import type {JitCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler} from '../../lib/jitFnCompiler';
 
 export class RestParamsRunType extends ArrayRunType<TypeRest> {
     getChildIndex(comp: JitCompiler): number {

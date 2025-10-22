@@ -25,6 +25,7 @@ import {visitJsonStringify} from '../jitCompilers/json/jsonStringify';
 import {visitToBinary} from '../jitCompilers/binary/toBinary';
 import {visitFromBinary} from '../jitCompilers/binary/fromBinary';
 import {visitToCode} from '../jitCompilers/json/toJsCode';
+import {createJitFunction} from './createJitFunction';
 
 const RB = CodeTypes.returnBlock;
 const S = CodeTypes.statement;
@@ -40,10 +41,14 @@ export type StackItem = {
     staticPath?: StrNumber[];
 };
 
-export type JitCompilerLike = BaseCompiler | JitCompiledFnData;
+export type JitCompilerLike = BaseFnCompiler | JitCompiledFnData;
 export type JitDependencies = Set<string>;
 
-export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any>
+/**
+ * Program to compile a Jit function to be used at runtime.
+ * These jit functions are used to validate, serialize, deserialize, etc... based on runTypes.
+ */
+export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any>
     implements JitCompiledFnData, JitCompilerOpts
 {
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
@@ -57,7 +62,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         // the id of the function to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc)
         public readonly fnID: ID,
         jitFnSettings: JitFnSettings,
-        public readonly parentCompiler?: BaseCompiler,
+        public readonly parentCompiler?: BaseFnCompiler,
         jitFnHash?: string,
         typeID?: StrNumber,
         public readonly opts: RunTypeOptions = {}
@@ -146,7 +151,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.stack.push(newStackItem);
     }
     popStack(resultCode: JitCode): void | ((...args: any[]) => any) {
-        if (resultCode?.code) (this as Mutable<BaseCompiler>).code = resultCode.code;
+        if (resultCode?.code) (this as Mutable<BaseFnCompiler>).code = resultCode.code;
         this.popItem = this.stack.pop();
         const item = this.stack[this.stack.length - 1];
         this.vλl = item?.vλl || this.args.vλl;
@@ -162,7 +167,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     createJitFunction(overrideCode?: string): (...args: any[]) => any {
         try {
             if (overrideCode) {
-                (this as Mutable<BaseCompiler>).code = overrideCode;
+                (this as Mutable<BaseFnCompiler>).code = overrideCode;
                 this.isCompiled = false;
             }
             this.handleFunctionReturn();
@@ -208,14 +213,6 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     updateDependencies(childCop: JitCompiledFnData): void {
         this.dependenciesSet.add(childCop.jitFnHash);
         childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
-    }
-    addPureFnDependency(fn: PureFunction | string): void {
-        const fnHash = getPureFunctionKey(fn);
-        if (!jitUtils.hasPureFn(fnHash))
-            throw new Error(
-                `Pure function with name ${fnHash} can not be added as jit dependency, be sure to register the pure function first by calling jitUtils.addPureFn()`
-            );
-        this.pureFnDependencies.add(fnHash);
     }
     removeFromJitCache(): void {
         jitUtils.removeFromJitCache(this as JitCompiledFn);
@@ -268,7 +265,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
      * @param fnID operation id
      * @returns
      */
-    compile(rt: BaseRunType | undefined, fnID: JitFnID, expectedCType: CodeType): JitCode {
+    compile(rt: BaseRunType | undefined, expectedCType: CodeType, fnID: JitFnID): JitCode {
         if (!rt) return {code: undefined, type: expectedCType};
         let jCode: JitCode;
         this.pushStack(rt);
@@ -428,8 +425,8 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
                 if (isNoop) code = `return ${this.args.vλl}`; // if code is a noop, we need to return the value
                 break;
         }
-        (this as Mutable<BaseCompiler>).isNoop = isNoop;
-        (this as Mutable<BaseCompiler>).code = code;
+        (this as Mutable<BaseFnCompiler>).isNoop = isNoop;
+        (this as Mutable<BaseFnCompiler>).code = code;
         this.isCompiled = true;
     }
 
@@ -504,47 +501,69 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     // ########## Compile Methods shorthands ##########
 
     compileIsType(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.isType.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.isType.id);
     }
     compileTypeErrors(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.typeErrors.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.typeErrors.id);
     }
     compileToJsonVal(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.toJsonVal.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.toJsonVal.id);
     }
     compileFromJsonVal(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.fromJsonVal.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.fromJsonVal.id);
     }
     compileJsonStringify(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.jsonStringify.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.jsonStringify.id);
     }
     compileToBinary(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.toBinary.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.toBinary.id);
     }
     compileFromBinary(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.fromBinary.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.fromBinary.id);
     }
     compileUnknownKeyErrors(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.unknownKeyErrors.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.unknownKeyErrors.id);
     }
     compileHasUnknownKeys(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.hasUnknownKeys.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.hasUnknownKeys.id);
     }
     compileStripUnknownKeys(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.stripUnknownKeys.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.stripUnknownKeys.id);
     }
     compileUnknownKeysToUndefined(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, JitFunctions.unknownKeysToUndefined.id, expectedCType);
+        return this.compile(rt, expectedCType, JitFunctions.unknownKeysToUndefined.id);
+    }
+
+    // ################### Pure Functions Operations ###################
+
+    addPureFunction(pureFn: PureFunctionClosure): string {
+        const fnHash = getPureFunctionKey(pureFn.name);
+        registerPureFnClosure(pureFn); // will throw if there is a different pure function with the same name
+        if (this.hasContextItem(fnHash)) return fnHash;
+        this.addPureFnDependency(pureFn);
+        // Add context code for the pure function and params
+        const pureFunctionCode = `const ${fnHash} = utl.getPureFn(${toLiteral(fnHash)})`;
+        this.setContextItem(fnHash, pureFunctionCode);
+        return fnHash;
+    }
+
+    addPureFnDependency(fn: PureFunction | string): void {
+        const fnHash = getPureFunctionKey(fn);
+        if (!jitUtils.hasPureFn(fnHash))
+            throw new Error(
+                `Pure function with name ${fnHash} can not be added as jit dependency, be sure to register the pure function first by calling jitUtils.addPureFn()`
+            );
+        this.pureFnDependencies.add(fnHash);
     }
 }
 
 // ################### Compile Operations ###################
 
-export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<JitFnArgs, ID> {
+export class JitCompiler<ID extends JitFnID = any> extends BaseFnCompiler<JitFnArgs, ID> {
     constructor(
         rt: BaseRunType,
         fnID: ID,
-        parentCompiler?: BaseCompiler,
+        parentCompiler?: BaseFnCompiler,
         jitFnHash?: string,
         typeID?: StrNumber,
         opts: RunTypeOptions = {}
@@ -554,11 +573,11 @@ export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<JitFnArg
     }
 }
 
-export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitErrorArgs, ID> {
+export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseFnCompiler<typeof jitErrorArgs, ID> {
     constructor(
         rt: BaseRunType,
         fnID: ID,
-        parentCompiler?: BaseCompiler,
+        parentCompiler?: BaseFnCompiler,
         jitFnHash?: string,
         typeID?: StrNumber,
         opts: RunTypeOptions = {}
@@ -647,8 +666,8 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
  * This is an special compiler for mock Function as mock is not technically a jit compiled function
  * but still needs to be created to reuse all jit functionality.
  */
-export class MockJitCompiler extends BaseCompiler<JitFnArgs, 'mock'> {
-    constructor(rt: BaseRunType, opts: RunTypeOptions, parentCompiler?: BaseCompiler, jitFnHash?: string, typeID?: StrNumber) {
+export class MockJitCompiler extends BaseFnCompiler<JitFnArgs, 'mock'> {
+    constructor(rt: BaseRunType, opts: RunTypeOptions, parentCompiler?: BaseFnCompiler, jitFnHash?: string, typeID?: StrNumber) {
         super(rt, JitFunctions.mock.id, JitFunctions.mock, parentCompiler, jitFnHash, typeID, opts);
     }
 }
@@ -658,11 +677,11 @@ export class MockJitCompiler extends BaseCompiler<JitFnArgs, 'mock'> {
 export function createJitCompiler(
     rt: BaseRunType,
     fnID: JitFnID,
-    parent?: BaseCompiler,
+    parent?: BaseFnCompiler,
     jitFnHash?: string,
     typeID?: StrNumber,
     opts: RunTypeOptions = {}
-): BaseCompiler {
+): BaseFnCompiler {
     switch (fnID) {
         case JitFunctions.isType.id:
         case JitFunctions.toJsonVal.id:
@@ -701,17 +720,6 @@ export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnDa
     };
 }
 
-export function compileAddPureFunctionWithClosure(comp: JitCompiler | JitErrorsCompiler, pureFn: PureFunctionClosure): string {
-    const fnHash = getPureFunctionKey(pureFn.name);
-    registerPureFnClosure(pureFn); // will throw if there is a different pure function with the same name
-    if (comp.hasContextItem(fnHash)) return fnHash;
-    comp.addPureFnDependency(pureFn);
-    // Add context code for the pure function and params
-    const pureFunctionCode = `const ${fnHash} = utl.getPureFn(${toLiteral(fnHash)})`;
-    comp.setContextItem(fnHash, pureFunctionCode);
-    return fnHash;
-}
-
 // ################### Other Compiler functions ###################
 /**
  * Creates a function name/hash based on the jitHash of the runType and the id of the function.
@@ -725,19 +733,7 @@ export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts?: RunTypeOptions
     return `${id}_${rt.getJitHash({})}`;
 }
 
-function createJitFunction(comp: BaseCompiler): (...args: any[]) => any {
-    if (comp.fn) return comp.fn;
-    if (comp.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
-    if (jitUtils.hasJitFn(comp.jitFnHash)) return jitUtils.getJitFn(comp.jitFnHash);
-    const {fnCode, fnName, contextCode} = getJitFnCode(comp);
-    const {closureFn, fn, code} = createJitFnWithContext(comp, fnName, fnCode, contextCode);
-    (comp as Mutable<BaseCompiler>).code = code;
-    (comp as Mutable<BaseCompiler>).fn = fn;
-    (comp as Mutable<BaseCompiler>).closureFn = closureFn;
-    return fn;
-}
-
-function getJitFnCode(comp: BaseCompiler): {fnName: string; fnCode: string; contextCode: string} {
+export function getJitFnCode(comp: BaseFnCompiler): {fnName: string; fnCode: string; contextCode: string} {
     const fnName = comp.jitFnHash;
     const fnArgs = getJitFnArgs(comp); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
     const fnCode = `function ${fnName}(${fnArgs}){${comp.code}}`;
@@ -751,7 +747,7 @@ function getJitFnCode(comp: BaseCompiler): {fnName: string; fnCode: string; cont
  * @param fnCode
  * @returns
  */
-function createJitFnWithContext(comp: BaseCompiler, fnName: string, fnCode: string, contextCode?: string) {
+export function createJitFnWithContext(comp: BaseFnCompiler, fnName: string, fnCode: string, contextCode?: string) {
     // this function will have jitUtils as context as is an argument of the enclosing function
     const context = contextCode ? `${contextCode};` : '';
     let fnWithContext = `${context} ${fnCode} return ${fnName};`;
@@ -782,7 +778,7 @@ function printClosure(fnWithContext: string, functionName: string): string {
     return `function get_${functionName}(utl){${fnWithContext}}`;
 }
 
-export function getJitFnArgs(comp: JitCompilerLike, defaultValues = true): string {
+function getJitFnArgs(comp: JitCompilerLike, defaultValues = true): string {
     return Object.entries(comp.args)
         .map(([key, name]) => {
             if (!comp.defaultParamValues[key] || !defaultValues) return name;
@@ -792,7 +788,7 @@ export function getJitFnArgs(comp: JitCompilerLike, defaultValues = true): strin
         .join(',');
 }
 
-function getStackVλl(comp: BaseCompiler): string {
+function getStackVλl(comp: BaseFnCompiler): string {
     let vλl: string = comp.args.vλl;
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;
@@ -807,7 +803,7 @@ function getStackVλl(comp: BaseCompiler): string {
     }
     return vλl;
 }
-function getAccessPath(comp: BaseCompiler): StrNumber[] {
+function getAccessPath(comp: BaseFnCompiler): StrNumber[] {
     const path: StrNumber[] = [];
     const rtName: any = [];
     for (let i = 0; i < comp.stack.length; i++) {

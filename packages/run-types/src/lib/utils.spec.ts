@@ -9,7 +9,7 @@
 import {randomUUID_V7} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
 import type {BaseRunType, CollectionRunType} from './baseRunTypes';
-import {JitCompiler} from './jitCompiler';
+import {JitCompiler} from './jitFnCompiler';
 import {createUniqueHash} from './quickHash';
 import {runType} from './runType';
 import {getTotalComplexity, sortDiscriminatorsFirst, sortRunTypeByComplexity} from './utils';

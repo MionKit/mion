@@ -10,7 +10,7 @@ import type {TypeFormatParams} from '@mionkit/core';
 import type {JitFunctions} from './constants.functions';
 import type {ReflectionSubKind} from './constants.kind';
 import type {BaseRunTypeFormat} from './lib/baseRunTypeFormat';
-import type {JitCompiler} from './lib/jitCompiler';
+import type {JitCompiler} from './lib/jitFnCompiler';
 import type {CodeType} from './constants.functions';
 
 export type StrNumber = string | number;
