@@ -103,6 +103,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         let index = -1;
         this.stack.forEach((item, i) => {
             if (item.rt === rt) index = i;
+            if (item.rt.src.id && item.rt.src.id === rt.src.id) index = i;
         });
         if (index !== -1) return index;
         const fromParent = this.parentCompiler?.getNestLevel(rt);
