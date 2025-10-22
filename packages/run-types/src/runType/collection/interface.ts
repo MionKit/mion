@@ -67,7 +67,7 @@ export class InterfaceRunType<
 
     // #### collection's jit code ####
 
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         const varName = comp.vλl;
         const children = this.getJitChildren(comp);
         const childrenCode = children
@@ -76,7 +76,7 @@ export class InterfaceRunType<
             .join(' && ');
         if (this.isCallable())
             return {
-                code: [this.getCallSignature()!.visitIsType(comp).code, childrenCode].filter(Boolean).join(' && '),
+                code: [this.getCallSignature()!.emitIsType(comp).code, childrenCode].filter(Boolean).join(' && '),
                 type: 'E',
             };
         const objectCheck = this.isPartOfUnion() ? '' : `typeof ${varName} === 'object' && ${varName} !== null`;
@@ -84,7 +84,7 @@ export class InterfaceRunType<
         return {code: `(${itemsCode})`, type: 'E'};
     }
 
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         const varName = comp.vλl;
         const children = this.getJitChildren(comp);
         const childrenCode = children
@@ -92,7 +92,7 @@ export class InterfaceRunType<
             .filter(Boolean)
             .join(';');
         if (this.isCallable()) {
-            return {code: `${this.getCallSignature()!.visitTypeErrors(comp).code} else {${childrenCode}}`, type: 'S'};
+            return {code: `${this.getCallSignature()!.emitTypeErrors(comp).code} else {${childrenCode}}`, type: 'S'};
         }
         const objectCheck = this.isPartOfUnion() ? '' : `typeof ${varName} === 'object' && ${varName} !== null`;
         const isObjectCode = [objectCheck, this.allOptionalCode(comp)].filter(Boolean).join(' && ');
@@ -107,8 +107,8 @@ export class InterfaceRunType<
             type: 'S',
         };
     }
-    visitToJsonVal(comp: JitCompiler): JitCode {
-        if (this.isCallable()) return this.getCallSignature()!.visitToJsonVal();
+    emitToJsonVal(comp: JitCompiler): JitCode {
+        if (this.isCallable()) return this.getCallSignature()!.emitToJsonVal();
         const children = this.getJitChildren(comp);
         const childrenCode = children
             .map((prop) => comp.compileToJsonVal(prop, 'S').code)
@@ -116,8 +116,8 @@ export class InterfaceRunType<
             .join(';');
         return {code: childrenCode, type: 'S'};
     }
-    visitFromJsonVal(comp: JitCompiler): JitCode {
-        if (this.isCallable()) return this.getCallSignature()!.visitFromJsonVal();
+    emitFromJsonVal(comp: JitCompiler): JitCode {
+        if (this.isCallable()) return this.getCallSignature()!.emitFromJsonVal();
         const children = this.getJitChildren(comp);
         const childrenCode = children
             .map((prop) => comp.compileFromJsonVal(prop, 'S').code)
@@ -125,17 +125,17 @@ export class InterfaceRunType<
             .join(';');
         return {code: childrenCode, type: 'S'};
     }
-    visitHasUnknownKeys(comp: JitCompiler): JitCode {
+    emitHasUnknownKeys(comp: JitCompiler): JitCode {
         const children = this.getJitChildren(comp);
         const allChildren = this.getChildRunTypes().filter((prop) => !isIndexSignatureRunType(prop));
         const hasIndexProp = children.some((prop) => isIndexSignatureRunType(prop));
         const parentCode = hasIndexProp
             ? ''
             : callCheckUnknownProperties(this, comp, children, false, !this.isPartOfUnion(), allChildren);
-        const childrenCode = super.visitHasUnknownKeys(comp).code;
+        const childrenCode = super.emitHasUnknownKeys(comp).code;
         return {code: [parentCode, childrenCode].filter(Boolean).join(' || '), type: 'E'};
     }
-    visitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
+    emitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
         const children = this.getJitChildren(comp);
         const allChildren = this.getChildRunTypes().filter((prop) => !isIndexSignatureRunType(prop));
         const hasIndexProp = children.some((prop) => isIndexSignatureRunType(prop));
@@ -148,10 +148,10 @@ export class InterfaceRunType<
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}) {${comp.callJitErrWithPath('never', keyVar)}}}
         `;
-        const childrenCode = super.visitUnknownKeyErrors(comp).code;
+        const childrenCode = super.emitUnknownKeyErrors(comp).code;
         return {code: [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n'), type: 'S'};
     }
-    visitStripUnknownKeys(comp: JitCompiler): JitCode {
+    emitStripUnknownKeys(comp: JitCompiler): JitCode {
         const children = this.getJitChildren(comp);
         const unknownVar = `unk${comp.getNestLevel(this)}`;
         const keyVar = `ky${comp.getNestLevel(this)}`;
@@ -163,10 +163,10 @@ export class InterfaceRunType<
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){delete ${comp.vλl}[${keyVar}]}}
         `;
-        const childrenCode = super.visitStripUnknownKeys(comp).code;
+        const childrenCode = super.emitStripUnknownKeys(comp).code;
         return {code: [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n'), type: 'S'};
     }
-    visitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
+    emitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
         const children = this.getJitChildren(comp);
         const unknownVar = `unk${comp.getNestLevel(this)}`;
         const keyVar = `ky${comp.getNestLevel(this)}`;
@@ -178,7 +178,7 @@ export class InterfaceRunType<
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){${comp.vλl}[${keyVar}] = undefined}}
         `;
-        const childrenCode = super.visitUnknownKeysToUndefined(comp).code;
+        const childrenCode = super.emitUnknownKeysToUndefined(comp).code;
         return {code: [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n'), type: 'S'};
     }
 

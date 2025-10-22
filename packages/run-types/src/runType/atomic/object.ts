@@ -12,10 +12,10 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 
 export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     _getTypeID = () => ReflectionKind.object;
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         return {code: `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)`, type: 'E'};
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) ${comp.callJitErr(this)}`, type: 'S'};
     }
 }

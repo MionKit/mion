@@ -12,16 +12,16 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     _getTypeID = () => ReflectionKind.boolean;
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'boolean'`, type: 'E'};
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'boolean') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    visitToJsonVal(): JitCode {
+    emitToJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     }
-    visitFromJsonVal(): JitCode {
+    emitFromJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     }
 }

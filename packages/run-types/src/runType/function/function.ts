@@ -90,7 +90,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     // ######## JIT functions (all throw error) ########
 
     // can't know the types of the run type function parameters, neither the return type, so only compare function name and length
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         const minLength = this.parameterRunTypes.totalRequiredParams(comp);
         const totalParams = this.parameterRunTypes.getParamRunTypes(comp).length;
         const hasOptional = totalParams > minLength;
@@ -98,28 +98,28 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
             this.parameterRunTypes.hasRestParameter(comp) || !hasOptional ? '' : ` && ${comp.vλl}.length <= ${totalParams}`;
         return {code: `(typeof ${comp.vλl} === 'function' && ${comp.vλl}.length >= ${minLength} ${maxLength})`, type: 'E'};
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
-        return {code: `if (!(${this.visitIsType(comp).code})) ${comp.callJitErr(this)};`, type: 'S'};
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+        return {code: `if (!(${this.emitIsType(comp).code})) ${comp.callJitErr(this)};`, type: 'S'};
     }
     /**
      * json encode a function
      */
-    visitToJsonVal(): JitCode {
+    emitToJsonVal(): JitCode {
         throw new Error(`Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`);
     }
-    visitFromJsonVal(): JitCode {
+    emitFromJsonVal(): JitCode {
         throw new Error(`Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`);
     }
-    visitHasUnknownKeys(): JitCode {
+    emitHasUnknownKeys(): JitCode {
         return {code: '', type: 'E'};
     }
-    visitUnknownKeyErrors(): JitCode {
+    emitUnknownKeyErrors(): JitCode {
         return {code: '', type: 'S'};
     }
-    visitStripUnknownKeys(): JitCode {
+    emitStripUnknownKeys(): JitCode {
         return {code: '', type: 'S'};
     }
-    visitUnknownKeysToUndefined(): JitCode {
+    emitUnknownKeysToUndefined(): JitCode {
         return {code: '', type: 'S'};
     }
 

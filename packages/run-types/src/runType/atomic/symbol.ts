@@ -17,16 +17,16 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         if (!comp) return true;
         return comp.fnID !== JitFunctions.toJavascript.id;
     }
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'symbol'`, type: 'E'};
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    visitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitCompiler): JitCode {
         return symbolTransformer.visitToJsonVal(comp);
     }
-    visitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitCompiler): JitCode {
         return symbolTransformer.visitFromJsonVal(comp);
     }
 }

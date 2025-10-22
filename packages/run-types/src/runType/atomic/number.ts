@@ -12,16 +12,16 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class NumberRunType extends AtomicRunType<TypeNumber> {
     _getTypeID = () => ReflectionKind.number;
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         return {code: `Number.isFinite(${comp.vλl})`, type: 'E'};
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if(!(Number.isFinite(${comp.vλl}))) ${comp.callJitErr(this)}`, type: 'S'};
     }
-    visitToJsonVal(): JitCode {
+    emitToJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     }
-    visitFromJsonVal(): JitCode {
+    emitFromJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     }
 }

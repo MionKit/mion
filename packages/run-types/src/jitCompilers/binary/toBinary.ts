@@ -26,7 +26,7 @@ const fnID = JitFunctions.toBinary.id;
  *
  * This function generates JavaScript expressions that return Uint8Array containing Binary bytes.
  */
-export function visitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCode {
+export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCode {
     const src = runType.src;
     const kind = src.kind;
     const sεr = comp.args.sεr;
@@ -237,7 +237,7 @@ export function visitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCo
                     }
                     const originalKind = runType.src.kind;
                     (runType.src as any).kind = ReflectionKind.objectLiteral;
-                    const result = visitToBinary(runType, comp);
+                    const result = emitToBinary(runType, comp);
                     (runType.src as any).kind = originalKind;
                     return result;
                 }

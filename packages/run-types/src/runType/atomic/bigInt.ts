@@ -12,16 +12,16 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     _getTypeID = () => ReflectionKind.bigint;
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'bigint'`, type: 'E'};
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    visitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitCompiler): JitCode {
         return bigIntTransformer.visitToJsonVal(comp);
     }
-    visitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitCompiler): JitCode {
         return bigIntTransformer.visitFromJsonVal(comp);
     }
 }

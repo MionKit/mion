@@ -148,7 +148,7 @@ registerPureFnClosure(sanitizeCompiledFn);
 // lazy loading as this function wont be used often just for (AOT)
 // TODO move to async code loading (but this would need a big refactor of the router)
 let lazyFn: undefined | ((runType: BaseRunType, comp: JitCompiler) => JitCode) = undefined;
-export function visitToCode(runType: BaseRunType, comp: JitCompiler): JitCode {
+export function emitToCode(runType: BaseRunType, comp: JitCompiler): JitCode {
     if (!lazyFn) lazyFn = createToCodeCompiler();
     return lazyFn(runType, comp);
 }

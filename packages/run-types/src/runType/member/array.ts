@@ -30,7 +30,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
 
     // #### jit code ####
-    visitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const resultVal = `res${comp.getNestLevel(this)}`;
         const index = this.getChildVarName(comp);
@@ -49,7 +49,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'RB',
         };
     }
-    visitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
@@ -63,7 +63,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    visitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
@@ -76,7 +76,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    visitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
@@ -89,7 +89,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    visitHasUnknownKeys(comp: JitCompiler): JitCode {
+    emitHasUnknownKeys(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'E'};
         const child = this.getJitChild(comp);
@@ -110,21 +110,21 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'RB',
         };
     }
-    visitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
+    emitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
         const child = this.getJitChild(comp);
         const childJit = comp.compileUnknownKeyErrors(child, 'S');
         return this.traverseCode(comp, childJit);
     }
-    visitStripUnknownKeys(comp: JitCompiler): JitCode {
+    emitStripUnknownKeys(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
         const child = this.getJitChild(comp);
         const childJit = comp.compileStripUnknownKeys(child, 'S');
         return this.traverseCode(comp, childJit);
     }
-    visitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
+    emitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
         const child = this.getJitChild(comp);

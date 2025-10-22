@@ -15,16 +15,16 @@ export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
     skipJit() {
         return true;
     }
-    visitIsType(): JitCode {
+    emitIsType(): JitCode {
         throw new Error('Enum member operations are not supported');
     }
-    visitTypeErrors(): JitCode {
+    emitTypeErrors(): JitCode {
         throw new Error('Enum member operations are not supported');
     }
-    visitToJsonVal(): JitCode {
+    emitToJsonVal(): JitCode {
         throw new Error('Enum member operations are not supported');
     }
-    visitFromJsonVal(): JitCode {
+    emitFromJsonVal(): JitCode {
         throw new Error('Enum member operations are not supported');
     }
 }
