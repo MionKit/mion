@@ -500,6 +500,42 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         }
         return getReflectionName(rt);
     }
+
+    // ########## Compile Methods shorthands ##########
+
+    compileIsType(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.isType.id, expectedCType);
+    }
+    compileTypeErrors(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.typeErrors.id, expectedCType);
+    }
+    compileToJsonVal(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.toJsonVal.id, expectedCType);
+    }
+    compileFromJsonVal(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.fromJsonVal.id, expectedCType);
+    }
+    compileJsonStringify(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.jsonStringify.id, expectedCType);
+    }
+    compileToBinary(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.toBinary.id, expectedCType);
+    }
+    compileFromBinary(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.fromBinary.id, expectedCType);
+    }
+    compileUnknownKeyErrors(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.unknownKeyErrors.id, expectedCType);
+    }
+    compileHasUnknownKeys(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.hasUnknownKeys.id, expectedCType);
+    }
+    compileStripUnknownKeys(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.stripUnknownKeys.id, expectedCType);
+    }
+    compileUnknownKeysToUndefined(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, JitFunctions.unknownKeysToUndefined.id, expectedCType);
+    }
 }
 
 // ################### Compile Operations ###################

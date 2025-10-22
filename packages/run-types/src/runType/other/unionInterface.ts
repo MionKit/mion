@@ -110,7 +110,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             ? ''
             : ` && !utl.objectHasExtraKeys(${keysID}, ${comp.vλl}, ${arrayToArgumentsLiteral(childrenNames)})`;
         return `(${children
-            .map((prop) => prop.compileIsType(comp, 'E').code)
+            .map((prop) => comp.compileIsType(prop, 'E').code)
             .filter(Boolean)
             .join(' && ')}${noExtraKeys})`;
     }
@@ -129,7 +129,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         const varName = comp.vλl;
         const childrenCode = this.mergedInterfaces.length
-            ? `if (!${this.compileIsType(comp, 'E').code}) ${comp.callJitErr(this)};`
+            ? `if (!${comp.compileIsType(this, 'E').code}) ${comp.callJitErr(this)};`
             : '';
         return {
             code: `
@@ -149,7 +149,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
                 ? toJsonValMergedList
                       .map((rt, i) => {
                           const childIsType = this.compileIsTypeMergedChildren(comp, rt, true);
-                          const childCode = rt.compileToJsonVal(comp, 'S');
+                          const childCode = comp.compileToJsonVal(rt, 'S');
                           const iF = i === 0 ? 'if' : 'else if';
                           return `${iF} (${childIsType}) {${childCode.code}}`;
                       })
@@ -165,7 +165,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
                 ? fromJsonValMergedList
                       .map((rt, i) => {
                           const childIsType = this.compileIsTypeMergedChildren(comp, rt, true);
-                          const childCode = rt.compileFromJsonVal(comp, 'S');
+                          const childCode = comp.compileFromJsonVal(rt, 'S');
                           const iF = i === 0 ? 'if' : 'else if';
                           return `${iF} (${childIsType}) {${childCode.code}}`;
                       })

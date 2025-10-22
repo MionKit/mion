@@ -40,18 +40,20 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         return !!(this.src as TypeParameter).default;
     }
     visitIsType(comp: JitCompiler): JitCode {
-        const skipChild = this.getJitChild(comp)?.skipJit(comp);
-        const childJit = this.getJitChild(comp)?.compileIsType(comp, 'E');
-        const isNonSerializable = skipChild || (!childJit?.code && !this.getJitChild(comp));
+        const child = this.getJitChild(comp);
+        const skipChild = child?.skipJit(comp);
+        const childJit = comp.compileIsType(child, 'E');
+        const isNonSerializable = skipChild || (!childJit?.code && !child);
         if (isNonSerializable) return {code: `${comp.getChildVλl()} === undefined`, type: 'E'}; // non serializable types must be undefined
         if (!childJit?.code) return {code: undefined, type: 'E'};
         if (this.isRest()) return childJit;
         return this.isOptional() ? {code: `(${comp.getChildVλl()} === undefined || (${childJit.code}))`, type: 'E'} : childJit;
     }
     visitTypeErrors(comp: JitErrorsCompiler): JitCode {
-        const skipChild = this.getJitChild(comp)?.skipJit(comp);
-        const childJit = this.getJitChild(comp)?.compileTypeErrors(comp, 'S');
-        const isNonSerializable = skipChild || (!childJit?.code && !this.getJitChild(comp));
+        const child = this.getJitChild(comp);
+        const skipChild = child?.skipJit(comp);
+        const childJit = comp.compileTypeErrors(child, 'S');
+        const isNonSerializable = skipChild || (!childJit?.code && !child);
         if (isNonSerializable)
             return {
                 code: `if (${comp.getChildVλl()} !== undefined) ${comp.callJitErrWithPath('undefined', this.getChildIndex(comp))}`,
@@ -63,7 +65,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
     }
     visitToJsonVal(comp: JitCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = child?.compileToJsonVal(comp, 'S');
+        const childJit = comp.compileToJsonVal(child, 'S');
         const optionalCode = `if (${comp.getChildVλl()} === undefined ) {if (${comp.vλl}.length > ${this.getChildIndex(comp)}) ${comp.getChildVλl()} = null}`;
         if (!child || !childJit?.code) return this.isOptional() ? {code: optionalCode, type: 'S'} : {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
@@ -73,7 +75,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
     visitFromJsonVal(comp: JitCompiler): JitCode {
         if (!this.getJitChild(comp)) return {code: `${comp.getChildVλl()} = undefined;`, type: 'S'}; // non serializable are restored to undefined
         const child = this.getJitChild(comp);
-        const childJit = child?.compileFromJsonVal(comp, 'S');
+        const childJit = comp.compileFromJsonVal(child, 'S');
         const optionalCOde = `if (${comp.getChildVλl()} === null ) {${comp.getChildVλl()} = undefined}`;
         if (!child || !childJit?.code) return this.isOptional() ? {code: optionalCOde, type: 'S'} : {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);

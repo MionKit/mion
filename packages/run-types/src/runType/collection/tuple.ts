@@ -15,7 +15,7 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
         const children = this.getParamRunTypes(comp);
         if (children.length === 0) return {code: `Array.isArray(${comp.vλl}) && ${comp.vλl}.length === 0`, type: 'E'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `&& ${comp.vλl}.length <= ${this.getParamRunTypes(comp).length}`;
-        const paramsCode = children.map((p) => `(${p.compileIsType(comp, 'E').code})`).join(' && ');
+        const paramsCode = children.map((p) => `(${comp.compileIsType(p, 'E').code})`).join(' && ');
         return {code: `(Array.isArray(${comp.vλl})${lengthCode} && ${paramsCode})`, type: 'E'};
     }
     visitTypeErrors(comp: JitErrorsCompiler): JitCode {
@@ -23,7 +23,7 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
         if (children.length === 0)
             return {code: `if (!Array.isArray(${comp.vλl}) || && ${comp.vλl}.length === 0) ${comp.callJitErr(this)}`, type: 'S'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `|| ${comp.vλl}.length > ${this.getParamRunTypes(comp).length}`;
-        const paramsCode = children.map((p) => p.compileTypeErrors(comp, 'S').code).join(';');
+        const paramsCode = children.map((p) => comp.compileTypeErrors(p, 'S').code).join(';');
         return {code: `if (!Array.isArray(${comp.vλl})${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode}}`, type: 'S'};
     }
 }

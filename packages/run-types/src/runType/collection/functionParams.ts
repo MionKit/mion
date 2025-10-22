@@ -44,7 +44,7 @@ export class FunctionParamsRunType<
         if (children.length === 0) return {code: `${comp.vλl}.length === 0`, type: 'E'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `${comp.vλl}.length <= ${children.length}`;
         // Only include parameters that require validation
-        const paramsCode = children.map((p) => p.compileIsType(comp, 'E').code).filter(Boolean);
+        const paramsCode = children.map((p) => comp.compileIsType(p, 'E').code).filter(Boolean);
         if (paramsCode.length === 0) return lengthCode ? {code: `(${lengthCode})`, type: 'E'} : {code: undefined, type: 'E'};
         return lengthCode
             ? {code: `(${lengthCode} && ${paramsCode.join(' && ')})`, type: 'E'}
@@ -56,7 +56,7 @@ export class FunctionParamsRunType<
         const lengthCode = this.hasRestParameter(comp) ? '' : `${comp.vλl}.length > ${children.length}`;
 
         // Only include parameters that require validation
-        const paramsCode = children.map((p) => p.compileTypeErrors(comp, 'S').code).filter(Boolean);
+        const paramsCode = children.map((p) => comp.compileTypeErrors(p, 'S').code).filter(Boolean);
         if (paramsCode.length === 0)
             return lengthCode ? {code: `if (${lengthCode}) ${comp.callJitErr(this)}`, type: 'S'} : {code: undefined, type: 'S'};
         return lengthCode
@@ -67,7 +67,7 @@ export class FunctionParamsRunType<
         const children = this.getParamRunTypes(comp);
         if (!children.length) return {code: undefined, type: 'S'};
         const code = children
-            .map((p) => p.compileToJsonVal(comp, 'S').code)
+            .map((p) => comp.compileToJsonVal(p, 'S').code)
             .filter(Boolean)
             .join(';');
         return {code: code, type: 'S'};
@@ -76,7 +76,7 @@ export class FunctionParamsRunType<
         const children = this.getParamRunTypes(comp);
         if (!children.length) return {code: undefined, type: 'S'};
         const code = children
-            .map((p) => p.compileFromJsonVal(comp, 'S').code)
+            .map((p) => comp.compileFromJsonVal(p, 'S').code)
             .filter(Boolean)
             .join(';');
         return {code: code, type: 'S'};

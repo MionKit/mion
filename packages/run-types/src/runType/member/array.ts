@@ -34,7 +34,8 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         this.checkNonSkipTypes(comp);
         const resultVal = `res${comp.getNestLevel(this)}`;
         const index = this.getChildVarName(comp);
-        const childJit = this.getJitChild(comp)?.compileIsType(comp, 'E');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileIsType(child, 'E');
         if (!childJit?.code) return {code: `Array.isArray(${comp.vλl})`, type: 'E'};
         return {
             code: `
@@ -51,7 +52,8 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     visitTypeErrors(comp: JitErrorsCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
-        const childJit = this.getJitChild(comp)?.compileTypeErrors(comp, 'S');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileTypeErrors(child, 'S');
         if (!childJit?.code) return {code: `if (!Array.isArray(${comp.vλl})) ${comp.callJitErr(this)};`, type: 'S'};
         return {
             code: `
@@ -65,7 +67,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
-        const childJit = child?.compileToJsonVal(comp, 'S');
+        const childJit = comp.compileToJsonVal(child, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
@@ -78,7 +80,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
-        const childJit = child?.compileFromJsonVal(comp, 'S');
+        const childJit = comp.compileFromJsonVal(child, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
@@ -90,7 +92,8 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     visitHasUnknownKeys(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'E'};
-        const childJit = this.getJitChild(comp)?.compileHasUnknownKeys(comp, 'E');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileHasUnknownKeys(child, 'E');
         if (!childJit?.code) return {code: undefined, type: 'E'};
         const resultVal = `res${comp.getNestLevel(this)}`;
         const index = this.getChildVarName(comp);
@@ -110,19 +113,22 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     visitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
-        const childJit = this.getJitChild(comp)?.compileUnknownKeyErrors(comp, 'S');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileUnknownKeyErrors(child, 'S');
         return this.traverseCode(comp, childJit);
     }
     visitStripUnknownKeys(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
-        const childJit = this.getJitChild(comp)?.compileStripUnknownKeys(comp, 'S');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileStripUnknownKeys(child, 'S');
         return this.traverseCode(comp, childJit);
     }
     visitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
-        const childJit = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp, 'S');
+        const child = this.getJitChild(comp);
+        const childJit = comp.compileUnknownKeysToUndefined(child, 'S');
         return this.traverseCode(comp, childJit);
     }
 
