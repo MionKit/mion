@@ -13,7 +13,7 @@ import type {IterableRunType} from '../../runType/native/Iterable';
 import {ReflectionKind, type TypeMethodSignature, type TypePropertySignature} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import {JitFunctions} from '../../constants.functions';
-import {compileAddPureFunctionWithClosure, JitCompiler} from '../../lib/jitCompiler';
+import {JitCompiler} from '../../lib/jitFnCompiler';
 import {isSafePropName} from '../../lib/utils';
 import {createStringifyCompiler, createStringifyIterable} from './jsonStringify';
 import {registerPureFnClosure} from '../../lib/pureFn';
@@ -70,7 +70,7 @@ export function createToCodeCompiler() {
                         };
                     return {code: `'${safeName}:'+${paramsCode?.code}${sep}`, type: 'E'};
                 } else {
-                    const fnName = compileAddPureFunctionWithClosure(comp, sanitizeCompiledFn);
+                    const fnName = comp.addPureFunction(sanitizeCompiledFn);
                     const parent = srcMS.parent as any as TypePropertySignature;
 
                     // in some scenarios the parent is a propertySignature instead the Expected TypeObjectLiteral so we have to handle that

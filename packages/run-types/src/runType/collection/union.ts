@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, type TypeUnion} from '@deepkit/type';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 import type {JitCode} from '../../types';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 import {childIsExpression, createIfElseFn} from '../../lib/utils';

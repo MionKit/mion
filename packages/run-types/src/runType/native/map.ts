@@ -10,7 +10,7 @@ import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, TypeClass} from '@deepkit/type';
 import {IterableRunType} from './Iterable';
 import {JitFunctions} from '../../constants.functions';
-import type {JitCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler} from '../../lib/jitFnCompiler';
 
 export class MapRunType extends IterableRunType {
     keyRT = new MapKeyRunType();

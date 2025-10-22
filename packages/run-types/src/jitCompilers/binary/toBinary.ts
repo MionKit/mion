@@ -9,7 +9,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
-import {type BaseCompiler} from '../../lib/jitCompiler';
+import {type BaseFnCompiler} from '../../lib/jitFnCompiler';
 import {jitBinarySerializerArgs, JitFunctions} from '../../constants.functions';
 import type {ArrayRunType} from '../../runType/member/array';
 import type {PropertyRunType} from '../../runType/member/property';
@@ -17,7 +17,7 @@ import type {InterfaceRunType} from '../../runType/collection/interface';
 import type {IndexSignatureRunType} from '../../runType/member/indexProperty';
 import {addFullStop} from '../../lib/utils';
 
-type BinaryCompiler = BaseCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
+type BinaryCompiler = BaseFnCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
 const fnID = JitFunctions.toBinary.id;
 
 /**
@@ -85,7 +85,7 @@ export function visitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCo
             const rt = runType as ArrayRunType;
             rt.checkNonSkipTypes(comp);
             const child = rt.getMemberType()!;
-            const memberCode = comp.compile(child, fnID, 'S');
+            const memberCode = comp.compile(child, 'S', fnID);
             if (!memberCode?.code) throw new Error(`Do not know how to serialize Array<${child.getTypeName()}> to Binary.`);
             const index = rt.getChildVarName(comp);
             // serialized as [length, items...]
@@ -101,7 +101,7 @@ export function visitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCo
             const rt = runType as IndexSignatureRunType;
             const parent = rt.getParent() as InterfaceRunType;
             const indexKind = (rt.src as any).index?.kind;
-            const memberCode = comp.compile(rt.getJitChild(comp), fnID, 'S');
+            const memberCode = comp.compile(rt.getJitChild(comp), 'S', fnID);
             if (!memberCode?.code) return {code: undefined, type: 'S'};
 
             const propVar = rt.getChildVarName(comp);
@@ -157,7 +157,7 @@ export function visitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCo
             const parent = rt.getParent() as InterfaceRunType;
             if (parent.hasIndexSignature(comp)) return {code: undefined, type: 'S'}; // all serialization is done by index signature code
 
-            const memberCode = comp.compile(rt.getJitChild(comp), fnID, 'S').code || '';
+            const memberCode = comp.compile(rt.getJitChild(comp), 'S', fnID).code || '';
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
                 const setBitMask = `${sεr}.setBitMask(${bitMIndexVar}, ${bitIndex})`;
@@ -190,7 +190,7 @@ export function visitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCo
                 // and must be serialized/deserialized in the same order they are declared in the type
                 const {required, optional} = rt.splitJitSplitChildren(comp);
 
-                const requiredProps = required.map((prop) => comp.compile(prop, fnID, 'S').code);
+                const requiredProps = required.map((prop) => comp.compile(prop, 'S', fnID).code);
                 const requiredPropsCode = requiredProps.join(';');
 
                 let optionalPropsCode = '';
@@ -201,7 +201,7 @@ export function visitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCo
                             prop.optionalIndex = i;
                             const modIndex = i + 1;
                             const shouldIncreaseBufferIndex = modIndex % 8 === 0;
-                            const propCode = comp.compile(prop, fnID, 'S').code;
+                            const propCode = comp.compile(prop, 'S', fnID).code;
                             if (!shouldIncreaseBufferIndex) return propCode;
                             // every 8 props we need to increase the bitmap index
                             return `${propCode} ${bitMIndexVar}++;`;
@@ -233,7 +233,7 @@ export function visitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCo
                     const rt = runType as InterfaceRunType;
                     if (rt.isCallable()) {
                         const callSignature = rt.getCallSignature();
-                        if (callSignature) return comp.compile(callSignature, fnID, 'S');
+                        if (callSignature) return comp.compile(callSignature, 'S', fnID);
                     }
                     const originalKind = runType.src.kind;
                     (runType.src as any).kind = ReflectionKind.objectLiteral;

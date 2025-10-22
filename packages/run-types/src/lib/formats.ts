@@ -10,7 +10,7 @@ import {ReflectionKindName} from '../constants.kind';
 import type {FormatAnnotation} from '../types';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
-import type {JitErrorsCompiler, JitCompiler} from './jitCompiler';
+import type {JitErrorsCompiler, JitCompiler} from './jitFnCompiler';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {toLiteralInContext} from './utils';
 

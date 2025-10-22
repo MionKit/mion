@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, TypeTupleMember, type TypeParameter} from '@deepkit/type';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {JitCode} from '../../types';
 import {childIsExpression, getParamIndex} from '../../lib/utils';

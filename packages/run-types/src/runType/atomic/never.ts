@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeNever} from '@deepkit/type';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {JitErrorsCompiler} from '../../lib/jitCompiler';
+import {JitErrorsCompiler} from '../../lib/jitFnCompiler';
 import {JitCode} from '../../types';
 
 export class NeverRunType extends AtomicRunType<TypeNever> {

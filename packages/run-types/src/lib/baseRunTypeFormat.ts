@@ -7,9 +7,8 @@
  * ######## */
 import type {TypeFormatParams, PureFunctionClosure, TypeFormatValue, JitCompiledFn} from '@mionkit/core';
 import type {BaseRunType} from './baseRunTypes';
-import {compileAddPureFunctionWithClosure, createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitCompiler';
+import {createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitFnCompiler';
 import type {JitFnID, Mutable, StrNumber, JitCode, RunTypeOptions} from '../types';
-import {type CodeType} from '../constants.functions';
 import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
 import {dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
@@ -236,7 +235,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         const paramsName = paramsToLiteral(comp, params || this.getParams(rt), this.getIgnoredProps());
         const dependenciesName = dependenciesToLiteral(comp, dependenciesParams || {});
         const callParams = [val, paramsName, dependenciesName];
-        const fnName = compileAddPureFunctionWithClosure(comp, pureFn);
+        const fnName = comp.addPureFunction(pureFn);
         const callCode = `${fnName}(${callParams.join(',')})`;
         return {callCode, fnName, paramsName, dependenciesName};
     }
@@ -276,7 +275,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         const callParams = [val, path, err, expected, formatName, formatParams, formatPath, deps];
         if (accessPath) callParams.push(accessPath);
 
-        const fnName = compileAddPureFunctionWithClosure(comp, pureFn);
+        const fnName = comp.addPureFunction(pureFn);
         const callCode = `${fnName}(${callParams.join(',')})`;
         return {callCode, fnName, paramsName: formatParams, dependenciesName: deps};
     }

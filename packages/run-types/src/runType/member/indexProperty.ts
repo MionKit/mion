@@ -2,7 +2,7 @@ import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {type JitCode} from '../../types';
 import {JitFunctions} from '../../constants.functions';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 import {InterfaceRunType} from '../collection/interface';
 import {childIsExpression} from '../../lib/utils';
 

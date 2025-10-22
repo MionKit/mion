@@ -13,7 +13,7 @@ import {BaseRunType} from './baseRunTypes';
 import {registerFormatter} from './formats';
 import {TypeFormat} from './formats.runtype';
 import {JitFunctions} from '../constants.functions';
-import {JitCompiler, JitErrorsCompiler} from './jitCompiler';
+import {JitCompiler, JitErrorsCompiler} from './jitFnCompiler';
 import {JitCode} from '../types';
 
 type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;

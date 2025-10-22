@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import type {JitCode, SrcMember} from '../../types';
 import {childIsExpression} from '../../lib/utils';

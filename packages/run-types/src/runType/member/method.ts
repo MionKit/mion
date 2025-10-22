@@ -8,7 +8,7 @@ import {TypeMethod} from '@deepkit/type';
 import {FunctionRunType} from '../function/function';
 import {RunTypeChildAccessor} from '../../types';
 import {getPropIndex, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
-import type {JitCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler} from '../../lib/jitFnCompiler';
 
 export class MethodRunType extends FunctionRunType<TypeMethod> implements RunTypeChildAccessor {
     getChildIndex = (comp: JitCompiler) => {

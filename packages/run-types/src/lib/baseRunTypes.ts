@@ -28,8 +28,8 @@ import {type CodeType, JitFunctions, CodeTypes} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
 import type {TypeIndexSignature, TypeProperty, Type} from '@deepkit/type';
 import {getPropIndex, memorize} from './utils';
-import {getJITFnHash, createJitCompiler, MockJitCompiler} from './jitCompiler';
-import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
+import {getJITFnHash, createJitCompiler, MockJitCompiler} from './jitFnCompiler';
+import type {JitCompiler, JitErrorsCompiler} from './jitFnCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from '@mionkit/core';
 import {createUniqueHash} from './quickHash';
@@ -165,7 +165,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         }
         const newJitCompiler: JitCompiler = createJitCompiler(this, fnID, parentCop, undefined, undefined, opts) as JitCompiler;
         try {
-            newJitCompiler.compile(this, fnID, E);
+            newJitCompiler.compile(this, E, fnID);
             newJitCompiler.createJitFunction();
         } catch (e: any) {
             // if something goes wrong during compilation we want to remove the compiler from

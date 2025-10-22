@@ -8,7 +8,7 @@
 import {ReflectionKind, type TypeVoid} from '@deepkit/type';
 import type {JitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 
 export class VoidRunType extends AtomicRunType<TypeVoid> {
     _getTypeID = () => ReflectionKind.void;

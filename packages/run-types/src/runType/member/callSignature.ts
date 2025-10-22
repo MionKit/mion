@@ -8,7 +8,7 @@ import {TypeCallSignature} from '@deepkit/type';
 import {RunTypeChildAccessor} from '../../types';
 import {getPropIndex} from '../../lib/utils';
 import {FunctionRunType} from '../function/function';
-import type {JitCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler} from '../../lib/jitFnCompiler';
 
 /**
  * Represents a call signature.

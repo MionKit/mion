@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeProperty, TypePropertySignature} from '@deepkit/type';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 import type {JitCode} from '../../types';
 import {childIsExpression, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
 import {MemberRunType} from '../../lib/baseRunTypes';

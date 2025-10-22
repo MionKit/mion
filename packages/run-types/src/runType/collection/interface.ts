@@ -6,7 +6,7 @@
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind} from '@deepkit/type';
 import type {JitCode} from '../../types';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
 import {arrayToLiteral, getJitFnArgCallVarName, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
