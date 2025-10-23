@@ -16,8 +16,7 @@ it('index property', () => {
     const {serialize, deserialize} = createSerializationFns(rt);
 
     values.forEach((value) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(value).toEqual(deserialized);
     });
 });
@@ -28,8 +27,7 @@ it('interfaces with a property and index property', () => {
     const {serialize, deserialize} = createSerializationFns(rt);
 
     values.forEach((value, i) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(originalValues[i]).toEqual(deserialized);
     });
 });
@@ -39,8 +37,7 @@ it('index property with extra props', () => {
     const {serialize, deserialize} = createSerializationFns(rt);
 
     values.forEach((value) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(value).toEqual(deserialized);
     });
 });
@@ -50,8 +47,7 @@ it('multiple index properties', () => {
     const {serialize, deserialize} = createSerializationFns(rt);
 
     values.forEach((value, i) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(deserializedValues[i]).toEqual(deserialized);
     });
 });
@@ -61,8 +57,7 @@ it('index property nested', () => {
     const {serialize, deserialize} = createSerializationFns(rt);
 
     values.forEach((value) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(value).toEqual(deserialized);
     });
 });
@@ -72,8 +67,7 @@ it('index property nested date', () => {
     const {serialize, deserialize} = createSerializationFns(rt);
 
     values.forEach((value) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(value).toEqual(deserialized);
     });
 });
@@ -84,8 +78,7 @@ it('index property with bigint values', () => {
     const {serialize, deserialize} = createSerializationFns(rt);
 
     values.forEach((value, i) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(originalValues[i]).toEqual(deserialized);
     });
 });
@@ -95,8 +88,7 @@ it('index property non-root', () => {
     const {serialize, deserialize} = createSerializationFns(rt);
 
     values.forEach((value) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(value).toEqual(deserialized);
     });
 });

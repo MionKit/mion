@@ -106,7 +106,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             const rt = runType as IndexSignatureRunType;
             const indexKind = (rt.src as any).index?.kind;
             const memberCode = comp.compile(rt.getJitChild(comp), 'S', fnID);
-            if (!memberCode?.code) return {code: undefined, type: 'S'};
+            if (!memberCode?.code) return {code: undefined, type: 'E'};
 
             const prop = rt.getChildVarName(comp);
             const countVar = `cnt${comp.getNestLevel(rt)}`;
@@ -116,13 +116,14 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             let keyDeserializationCode: string;
             if (indexKind === ReflectionKind.number) {
                 // For number indices, deserialize as uint32
-                keyDeserializationCode = `const ${prop} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4; `;
+                keyDeserializationCode = `const ${prop} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4;`;
             } else {
                 // For string indices (default), deserialize as string
-                keyDeserializationCode = `const ${prop} = ${dεs}.desString(); `;
+                keyDeserializationCode = `const ${prop} = ${dεs}.desString();`;
             }
 
-            const deserializeCode = `for (let ${indexVar} = 0; ${indexVar} < ${countVar}; ${indexVar}++) {${keyDeserializationCode}${comp.vλl}[${prop}] = ${memberCode.code};}`;
+            const memberInit = memberCode.type === 'E' ? `${comp.vλl}[${prop}] = ${memberCode.code};` : memberCode.code;
+            const deserializeCode = `for (let ${indexVar} = 0; ${indexVar} < ${countVar}; ${indexVar}++) {${keyDeserializationCode}${memberInit}}`;
 
             return {
                 code: `const ${countVar} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4; ${comp.vλl} = {}; ${deserializeCode}`,
