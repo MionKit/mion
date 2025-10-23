@@ -387,6 +387,7 @@ export const SERIALIZATION_SPEC = {
                     quantity: number;
                     name: string;
                     nullValue: null;
+                    big: bigint;
                     stringArray: string[];
                     "weird prop name \n?>'\\\t\r": string;
                     optionalString?: string;
@@ -397,6 +398,7 @@ export const SERIALIZATION_SPEC = {
                     quantity: 123,
                     name: 'hello',
                     nullValue: null,
+                    big: BigInt(123),
                     stringArray: ['a', 'b', 'c'],
                     "weird prop name \n?>'\\\t\r": 'hello2',
                 };
@@ -818,9 +820,9 @@ export const SERIALIZATION_SPEC = {
         tuple_rest_parameter: {
             title: 'tuple rest parameter',
             getTestData: (dataOnly = false) => {
-                type TupleRest = [number, ...string[]];
+                type TupleRest = [number, ...bigint[]];
                 const rt = dataOnly ? (null as any) : runType<TupleRest>();
-                const values = [[3, 'a', 'b', 'c']];
+                const values: TupleRest[] = [[3, 1n, 2n, 3n], [3]];
                 return {rt, values};
             },
         },

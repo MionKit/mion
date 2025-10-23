@@ -99,13 +99,14 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
         }
         case ReflectionKind.indexSignature: {
             const rt = runType as IndexSignatureRunType;
-            const parent = rt.getParent() as InterfaceRunType;
             const indexKind = (rt.src as any).index?.kind;
             const memberCode = comp.compile(rt.getJitChild(comp), 'S', fnID);
             if (!memberCode?.code) return {code: undefined, type: 'S'};
 
             const propVar = rt.getChildVarName(comp);
-            const {bitMIndexVar} = getOptionalPropsItems(parent, comp);
+            const lengthVar = `cnt${comp.getNestLevel(rt)}`;
+            const indexVar = `piI${comp.getNestLevel(rt)}`;
+            const varsInit = `let ${lengthVar} = 0; const ${indexVar} = ${sεr}.index; ${sεr}.index += 4;`;
 
             // Serialize entries
             let keySerializationCode: string;
@@ -116,7 +117,11 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
             }
 
             return {
-                code: `for (const ${propVar} in ${comp.vλl}) {${keySerializationCode} ${memberCode.code}; ${bitMIndexVar}++;}`,
+                code: `
+                ${varsInit};
+                for (const ${propVar} in ${comp.vλl}) {${keySerializationCode} ${memberCode.code}; ${lengthVar}++;}
+                ${sεr}.view.setUint32(${indexVar}, ${lengthVar}, 1);
+            `,
                 type: 'S',
             };
         }
@@ -188,7 +193,11 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
                 // we need to ensure non optional properties are serialized first so then we can restore the object correctly
                 // non optional properties are restored as: '{a: deserializeA, b: deserializeB, c: deserializeC};
                 // and must be serialized/deserialized in the same order they are declared in the type
-                const {required, optional} = rt.splitJitSplitChildren(comp);
+                const {required, optional, indexSignatures} = rt.splitJitSplitChildren(comp);
+
+                if (indexSignatures.length) {
+                    return comp.compile(indexSignatures[0], 'S', fnID); // index signature code already contains the loop
+                }
 
                 const requiredProps = required.map((prop) => comp.compile(prop, 'S', fnID).code);
                 const requiredPropsCode = requiredProps.join(';');
