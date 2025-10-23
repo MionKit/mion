@@ -8,19 +8,19 @@ import {TypeMethodSignature} from '@deepkit/type';
 import {RunTypeChildAccessor} from '../../types';
 import {FunctionRunType} from '../function/function';
 import {getPropIndex, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
-import type {JitCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 
 export class MethodSignatureRunType extends FunctionRunType<TypeMethodSignature> implements RunTypeChildAccessor {
-    getChildIndex = (comp: JitCompiler) => {
+    getChildIndex = (comp: JitFnCompiler) => {
         const start = comp?.opts?.paramsSlice?.start;
         if (start) return getPropIndex(this.src) - start;
         return getPropIndex(this.src);
     };
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getChildVarName(comp: JitCompiler) {
+    getChildVarName(comp: JitFnCompiler) {
         return getPropVarName(this.src.name);
     }
-    getChildLiteral(comp: JitCompiler) {
+    getChildLiteral(comp: JitFnCompiler) {
         return getPropLiteral(this.getChildVarName(comp));
     }
     useArrayAccessor() {

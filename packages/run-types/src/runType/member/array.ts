@@ -7,19 +7,19 @@
 
 import type {Type, TypeArray} from '@deepkit/type';
 import type {JitCode} from '../../types';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {childIsExpression} from '../../lib/utils';
 
 export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    startIndex(comp: JitCompiler): number {
+    startIndex(comp: JitFnCompiler): number {
         return 0;
     }
-    getChildVarName(comp: JitCompiler): string {
+    getChildVarName(comp: JitFnCompiler): string {
         return `i${comp.getNestLevel(this)}`;
     }
-    getChildLiteral(comp: JitCompiler): string {
+    getChildLiteral(comp: JitFnCompiler): string {
         return this.getChildVarName(comp);
     }
     useArrayAccessor(): true {
@@ -30,7 +30,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
 
     // #### jit code ####
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const resultVal = `res${comp.getNestLevel(this)}`;
         const index = this.getChildVarName(comp);
@@ -49,7 +49,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'RB',
         };
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
@@ -63,7 +63,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    emitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
@@ -76,7 +76,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    emitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
@@ -89,7 +89,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    emitHasUnknownKeys(comp: JitCompiler): JitCode {
+    emitHasUnknownKeys(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: undefined, type: 'E'};
         const child = this.getJitChild(comp);
@@ -110,21 +110,21 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'RB',
         };
     }
-    emitUnknownKeyErrors(comp: JitErrorsCompiler): JitCode {
+    emitUnknownKeyErrors(comp: JitErrorsFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
         const child = this.getJitChild(comp);
         const childJit = comp.compileUnknownKeyErrors(child, 'S');
         return this.traverseCode(comp, childJit);
     }
-    emitStripUnknownKeys(comp: JitCompiler): JitCode {
+    emitStripUnknownKeys(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
         const child = this.getJitChild(comp);
         const childJit = comp.compileStripUnknownKeys(child, 'S');
         return this.traverseCode(comp, childJit);
     }
-    emitUnknownKeysToUndefined(comp: JitCompiler): JitCode {
+    emitUnknownKeysToUndefined(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         if (this.getMemberType().getFamily() === 'A') return {code: '', type: 'E'};
         const child = this.getJitChild(comp);
@@ -132,7 +132,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         return this.traverseCode(comp, childJit);
     }
 
-    traverseCode(comp: JitCompiler, childJit: JitCode | undefined): {code: string | undefined; type: 'S'} {
+    traverseCode(comp: JitFnCompiler, childJit: JitCode | undefined): {code: string | undefined; type: 'S'} {
         if (!childJit?.code) return {code: undefined, type: 'S'};
         const index = this.getChildVarName(comp);
         return {
@@ -141,7 +141,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         };
     }
 
-    checkNonSkipTypes(comp: JitCompiler) {
+    checkNonSkipTypes(comp: JitFnCompiler) {
         const child = this.getMemberType();
         if (child.skipJit(comp)) throw new Error(`Arrays can not have non serializable types, ie: Symbol[], Function[], etc.`);
     }

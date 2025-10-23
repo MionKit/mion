@@ -8,7 +8,7 @@ import {TypeCallSignature} from '@deepkit/type';
 import {RunTypeChildAccessor} from '../../types';
 import {getPropIndex} from '../../lib/utils';
 import {FunctionRunType} from '../function/function';
-import type {JitCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 
 /**
  * Represents a call signature.
@@ -22,7 +22,7 @@ import type {JitCompiler} from '../../lib/jitFnCompiler';
  * So when a call signature is present the parent object literal or interface is considered a function.
  */
 export class CallSignatureRunType extends FunctionRunType<TypeCallSignature> implements RunTypeChildAccessor {
-    getChildIndex = (comp: JitCompiler) => {
+    getChildIndex = (comp: JitFnCompiler) => {
         const start = comp?.opts?.paramsSlice?.start;
         if (start) return getPropIndex(this.src) - start;
         return getPropIndex(this.src);

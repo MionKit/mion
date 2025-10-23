@@ -7,26 +7,26 @@
 
 import {ReflectionKind, type TypeSymbol} from '@deepkit/type';
 import type {JitCode} from '../../types';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {JitFunctions} from '../../constants.functions';
 
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     _getTypeID = () => ReflectionKind.symbol;
-    skipJit(comp: JitCompiler): boolean {
+    skipJit(comp: JitFnCompiler): boolean {
         if (!comp) return true;
         return comp.fnID !== JitFunctions.toJavascript.id;
     }
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'symbol'`, type: 'E'};
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    emitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitFnCompiler): JitCode {
         return symbolTransformer.visitToJsonVal(comp);
     }
-    emitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitFnCompiler): JitCode {
         return symbolTransformer.visitFromJsonVal(comp);
     }
 }
@@ -35,10 +35,10 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
 
 export const symbolTransformer = {
     // TODO: transformers might need only one function
-    visitFromJsonVal(comp: JitCompiler): JitCode {
+    visitFromJsonVal(comp: JitFnCompiler): JitCode {
         return {code: `Symbol(${comp.vλl}.substring(7))`, type: 'E'};
     },
-    visitToJsonVal(comp: JitCompiler): JitCode {
+    visitToJsonVal(comp: JitFnCompiler): JitCode {
         return {code: `'Symbol:' + (${comp.vλl}.description || '')`, type: 'E'};
     },
 };

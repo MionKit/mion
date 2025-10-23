@@ -7,7 +7,7 @@
  * ######## */
 import type {TypeFormatParams, PureFunctionClosure, TypeFormatValue, JitCompiledFn} from '@mionkit/core';
 import type {BaseRunType} from './baseRunTypes';
-import {createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitFnCompiler';
+import {createJitCompiler, type JitFnCompiler, type JitErrorsFnCompiler} from './jitFnCompiler';
 import type {JitFnID, Mutable, StrNumber, JitCode, RunTypeOptions} from '../types';
 import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
@@ -113,7 +113,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     createJitCompiledFormatter(
         fnID: JitFnID,
         rt: BaseRunType,
-        comp?: JitCompiler,
+        comp?: JitFnCompiler,
         params?: P,
         vλl?: string,
         formatName?: string,
@@ -131,7 +131,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
             return jitCompiled;
         }
         // TODO: decide if we should add parent compiler or not as parent to createJitCompiler
-        const newJitCompiler: JitCompiler = createJitCompiler(rt, fnID, undefined, jitFnHash, hash, opts) as JitCompiler;
+        const newJitCompiler: JitFnCompiler = createJitCompiler(rt, fnID, undefined, jitFnHash, hash, opts) as JitFnCompiler;
         try {
             const formatterCode = this.compileFormat(fnID, newJitCompiler, rt, params, vλl, formatName);
             const withReturn = this.handleReturnValues(rt, newJitCompiler, fnID, formatterCode || '');
@@ -149,7 +149,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
 
     compileFormat(
         fnID: JitFnID,
-        comp: JitCompiler,
+        comp: JitFnCompiler,
         rt: BaseRunType,
         params?: P,
         vλl?: string,
@@ -168,7 +168,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
                 result = this.visitIsType(comp, rt);
                 break;
             case JitFunctions.typeErrors.id:
-                result = this.visitIsTypeErrors(comp as JitErrorsCompiler, rt);
+                result = this.visitIsTypeErrors(comp as JitErrorsFnCompiler, rt);
                 break;
             case JitFunctions.format.id:
                 result = this.visitFormat ? this.visitFormat(comp, rt) : {code: undefined, type: 'S'};
@@ -187,7 +187,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
      * Adds return statements if needed
      * Unlike handleReturnValues in BaseRunType this one is only called in the root of the formatter
      */
-    handleReturnValues(rt: BaseRunType, comp: JitCompiler, currentOpId: JitFnID, code: JitCode): string {
+    handleReturnValues(rt: BaseRunType, comp: JitFnCompiler, currentOpId: JitFnID, code: JitCode): string {
         if (!code?.code) return '';
         const codeType = code.type;
         switch (codeType) {
@@ -207,19 +207,19 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     }
 
     abstract _mock(opts: RunTypeOptions, rt: BaseRunType): any;
-    abstract visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode;
-    abstract visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode;
+    abstract visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode;
+    abstract visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode;
 
     // ###### optional methods for type formatters ########
 
     /** Optional method to compile the formatter function that transforms/sanitize a value */
-    visitFormat?(comp: JitCompiler, rt: BaseRunType): JitCode;
+    visitFormat?(comp: JitFnCompiler, rt: BaseRunType): JitCode;
 
     /** Throws an error if params are not valid */
     validateParams?(rt: BaseRunType, params: P): void;
 
     compilePureFunctionCall(
-        comp: JitCompiler,
+        comp: JitFnCompiler,
         rt: BaseRunType,
         pureFn: PureFunctionClosure,
         params?: TypeFormatValue,
@@ -241,7 +241,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     }
 
     compileErrorsPureFunctionCall(
-        comp: JitErrorsCompiler,
+        comp: JitErrorsFnCompiler,
         rt: BaseRunType,
         pureFn: PureFunctionClosure,
         params: TypeFormatValue,
@@ -281,7 +281,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     }
 
     getCallJitFormatErr(
-        comp: JitErrorsCompiler,
+        comp: JitErrorsFnCompiler,
         expected: BaseRunType<any>,
         formatter: BaseRunTypeFormat<any>,
         shouldReturn = false,

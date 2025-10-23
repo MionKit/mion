@@ -9,7 +9,7 @@ import type {JitCode, Mutable, RunTypeChildAccessor, SrcType} from '../../types'
 import {toLiteral, arrayToArgumentsLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {IndexSignatureRunType} from '../member/indexProperty';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {InterfaceRunType} from '../collection/interface';
 import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {UnionRunType} from '../collection/union';
@@ -99,7 +99,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         return unionSrc;
     }
 
-    private compileIsTypeMergedChildren(comp: JitCompiler, rt: InterfaceRunType, skipExtraKeysCheck = false): string {
+    private compileIsTypeMergedChildren(comp: JitFnCompiler, rt: InterfaceRunType, skipExtraKeysCheck = false): string {
         const children = rt.getJitChildren(comp);
         if (!children.length) return '';
         const hasIndexProp = children.some((prop) => prop instanceof IndexSignatureRunType);
@@ -116,7 +116,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     }
 
     // #### collection's jit code ####
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         const varName = comp.vλl;
         const childrenCode = this.mergedInterfaces.length
             ? ` && (${this.mergedInterfaces.map((rt) => this.compileIsTypeMergedChildren(comp, rt)).join(' || ')})`
@@ -126,7 +126,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             type: 'E',
         };
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         const varName = comp.vλl;
         const childrenCode = this.mergedInterfaces.length
             ? `if (!${comp.compileIsType(this, 'E').code}) ${comp.callJitErr(this)};`
@@ -142,7 +142,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             type: 'S',
         };
     }
-    emitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitFnCompiler): JitCode {
         const toJsonValMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
         return {
             code: toJsonValMergedList.length
@@ -158,7 +158,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             type: 'S',
         };
     }
-    emitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitFnCompiler): JitCode {
         const fromJsonValMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
         return {
             code: fromJsonValMergedList.length

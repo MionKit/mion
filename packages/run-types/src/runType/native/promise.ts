@@ -8,11 +8,11 @@ import {ReflectionKind, type TypePromise} from '@deepkit/type';
 import type {JitCode} from '../../types';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {JitFunctions} from '../../constants.functions';
-import type {JitCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
     _getTypeID = () => ReflectionKind.promise;
-    skipJit(comp: JitCompiler): boolean {
+    skipJit(comp: JitFnCompiler): boolean {
         return comp?.fnID !== JitFunctions.toJavascript.id;
     }
     emitIsType(): JitCode {
@@ -31,11 +31,11 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
         return false;
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getChildVarName(comp: JitCompiler): string | number {
+    getChildVarName(comp: JitFnCompiler): string | number {
         return `p${comp.getNestLevel(this)}`;
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getChildLiteral(comp: JitCompiler): string | number {
+    getChildLiteral(comp: JitFnCompiler): string | number {
         return this.getChildVarName(comp);
     }
     useArrayAccessor(): boolean {

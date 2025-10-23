@@ -6,19 +6,19 @@
  * ######## */
 
 import type {TypeTuple} from '@deepkit/type';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import type {AnyParameterListRunType, JitCode} from '../../types';
 import {FunctionParamsRunType} from './functionParams';
 
 export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple> extends FunctionParamsRunType<ParamList> {
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (children.length === 0) return {code: `Array.isArray(${comp.vλl}) && ${comp.vλl}.length === 0`, type: 'E'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `&& ${comp.vλl}.length <= ${this.getParamRunTypes(comp).length}`;
         const paramsCode = children.map((p) => `(${comp.compileIsType(p, 'E').code})`).join(' && ');
         return {code: `(Array.isArray(${comp.vλl})${lengthCode} && ${paramsCode})`, type: 'E'};
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (children.length === 0)
             return {code: `if (!Array.isArray(${comp.vλl}) || && ${comp.vλl}.length === 0) ${comp.callJitErr(this)}`, type: 'S'};

@@ -10,7 +10,7 @@ import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, TypeClass} from '@deepkit/type';
 import {IterableRunType} from './Iterable';
 import {JitFunctions} from '../../constants.functions';
-import type {JitCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 
 export class MapRunType extends IterableRunType {
     keyRT = new MapKeyRunType();
@@ -34,7 +34,7 @@ export class MapRunType extends IterableRunType {
             subKind: ReflectionSubKind.mapValue,
         });
     }
-    getCustomVλl(comp: JitCompiler) {
+    getCustomVλl(comp: JitFnCompiler) {
         // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
         if (comp.fnID === JitFunctions.fromJsonVal.id)
             return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: false, useArrayAccessor: true};
@@ -45,7 +45,7 @@ export class MapRunType extends IterableRunType {
 
 class MapKeyRunType extends GenericMemberRunType<any> {
     index = 0;
-    getStaticPathLiteral(comp: JitCompiler): string | number {
+    getStaticPathLiteral(comp: JitFnCompiler): string | number {
         const parent = this.getParent()! as MapRunType;
         const custom = parent.getCustomVλl(comp)!;
         return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName(comp)},failed:'mapKey'}`;
@@ -54,7 +54,7 @@ class MapKeyRunType extends GenericMemberRunType<any> {
 
 class MapValueRunType extends GenericMemberRunType<any> {
     index = 1;
-    getStaticPathLiteral(comp: JitCompiler): string | number {
+    getStaticPathLiteral(comp: JitFnCompiler): string | number {
         const parent = this.getParent()! as MapRunType;
         const custom = parent.getCustomVλl(comp)!;
         return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName(comp)},failed:'mapVal'}`;

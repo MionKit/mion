@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {FormatParam} from '@mionkit/core';
-import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode, JitFnID, StrNumber} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode, JitFnID, StrNumber} from '@mionkit/run-types';
 import {
     BaseRunTypeFormat,
     RunTypeOptions,
@@ -77,7 +77,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -120,7 +120,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         `;
         return {code, type: 'S'};
     }
-    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -231,7 +231,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         };
         return this.tldFormatter.mock(opts, rt, defaultParams);
     }
-    visitFormat(comp: JitCompiler): JitCode {
+    visitFormat(comp: JitFnCompiler): JitCode {
         return {code: `${comp.vλl}.toLowerCase()`, type: 'E'}; // all domain are lower case
     }
     _formatMockedValue(opts: RunTypeOptions, _rt: BaseRunType, val: any): string {

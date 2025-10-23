@@ -6,7 +6,7 @@
  * ######## */
 import {runType} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
-import {getJITFnHash} from '../../lib/jitFnCompiler';
+import {getJITFnHash} from '../../lib/createJitFunction';
 import {jitUtils} from '@mionkit/core';
 import {NonSerializableRunType} from './nonSerializable';
 import {FunctionRunType} from '../function/function';

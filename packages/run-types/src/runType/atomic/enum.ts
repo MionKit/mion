@@ -9,15 +9,15 @@ import {ReflectionKind, TypeEnum} from '@deepkit/type';
 import type {JitCode} from '../../types';
 import {toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     _getTypeID = () => ReflectionKind.enum;
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         const items = this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`);
         return {code: `(${items.join(' || ')})`, type: 'E'};
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         const items = this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`);
         return {code: `if (!(${items.join(' || ')})) ${comp.callJitErr(this)}`, type: 'S'};
     }

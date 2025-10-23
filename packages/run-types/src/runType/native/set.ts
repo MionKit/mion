@@ -10,14 +10,14 @@ import {ReflectionKind, type TypeClass} from '@deepkit/type';
 import {GenericMemberRunType} from '../member/genericMember';
 import {IterableRunType} from './Iterable';
 import {JitFunctions} from '../../constants.functions';
-import type {JitCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 
 class SetKeyRunType extends GenericMemberRunType<any> {
     index = 0;
     skipSettingAccessor() {
         return true;
     }
-    getStaticPathLiteral(comp: JitCompiler): string {
+    getStaticPathLiteral(comp: JitFnCompiler): string {
         const parent = this.getParent()! as SetRunType;
         const custom = parent.getCustomVλl(comp)!;
         return `{key:utl.safeKey(${custom.vλl}),index:${parent.getIndexVarName(comp)}}`;
@@ -39,7 +39,7 @@ export class SetRunType extends IterableRunType {
             subKind: ReflectionSubKind.setItem,
         });
     }
-    getCustomVλl(comp: JitCompiler) {
+    getCustomVλl(comp: JitFnCompiler) {
         // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
         if (comp.fnID === JitFunctions.fromJsonVal.id)
             return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: false, useArrayAccessor: true};

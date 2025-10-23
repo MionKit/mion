@@ -1,5 +1,5 @@
 import type {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
-import type {JitCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 import type {UnionRunType} from './union';
 import type {PropertyRunType} from '../member/property';
 import {getTotalComplexity, sortRunTypeByComplexity} from '../../lib/utils';
@@ -38,7 +38,7 @@ export type SplitUnionItems = {
  * interface types are types that have properties, simple types are the rest (atomic types, tuples, etc)
  */
 export function splitUnionItems(
-    comp: JitCompiler,
+    comp: JitFnCompiler,
     urt: UnionRunType,
     unionChildren?: BaseRunType[]
 ): {simpleItems: BaseRunType[]; objectTypes: CollectionRunType<any>[]} {
@@ -59,7 +59,7 @@ export function splitUnionItems(
  * @param comp
  * @param urt
  */
-export function markDiscriminators(comp: JitCompiler, urt: UnionRunType, unionItems: BaseRunType[]) {
+export function markDiscriminators(comp: JitFnCompiler, urt: UnionRunType, unionItems: BaseRunType[]) {
     if (urt.hasDiscriminators !== undefined && urt.hasObjectTypes !== undefined) return;
     const objectTypes = unionItems.filter((item) => urt.isTypeWithProperties(item)) as CollectionRunType<any>[];
     const namedDiscriminators = getDiscriminatorProperties(comp, urt, objectTypes, initGetCompiledName());
@@ -75,10 +75,10 @@ type PropUnionItemPair = {prop: PropertyRunType; unionItem: CollectionRunType<an
  * It also marks those properties as discriminator properties so can be sorted later
  */
 function getDiscriminatorProperties(
-    comp: JitCompiler,
+    comp: JitFnCompiler,
     urt: UnionRunType,
     unionTypes: CollectionRunType<any>[],
-    getCompiledName: (comp: JitCompiler, urt: UnionRunType, propTypeID: string | number) => string
+    getCompiledName: (comp: JitFnCompiler, urt: UnionRunType, propTypeID: string | number) => string
 ): FlattenedProp[] {
     if (!unionTypes.length) return [];
     const propByName = new Map<string | number, PropUnionItemPair[]>();
@@ -131,10 +131,10 @@ function getDiscriminatorProperties(
  * It also marks those properties as discriminator properties so can be sorted later.
  * */
 function getUniqueDiscriminatorProperties(
-    comp: JitCompiler,
+    comp: JitFnCompiler,
     urt: UnionRunType,
     unionTypes: CollectionRunType<any>[],
-    getCompiledName: (comp: JitCompiler, urt: UnionRunType, propTypeID: string | number) => string
+    getCompiledName: (comp: JitFnCompiler, urt: UnionRunType, propTypeID: string | number) => string
 ): FlattenedProp[] {
     if (!unionTypes.length) return [];
     const uniquePropByUnionItem = new Map<CollectionRunType<any>, PropUnionItemPair>();
@@ -180,7 +180,7 @@ function getUniqueDiscriminatorProperties(
 
 function initGetCompiledName() {
     const typeIDs = new Map<string | number, number>();
-    return function getCompiledName(comp: JitCompiler, urt: UnionRunType, typeID: string | number): string {
+    return function getCompiledName(comp: JitFnCompiler, urt: UnionRunType, typeID: string | number): string {
         const existingIndex = typeIDs.get(typeID);
         if (existingIndex) return `prp${comp.getNestLevel(urt)}_${existingIndex}`;
         const newIndex = typeIDs.size;

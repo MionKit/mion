@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, TypeTupleMember, type TypeParameter} from '@deepkit/type';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {JitCode} from '../../types';
 import {childIsExpression, getParamIndex} from '../../lib/utils';
@@ -16,15 +16,15 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
     isOptional(): boolean {
         return !!this.src.optional || this.isRest() || this.hasDefaultValue();
     }
-    getChildIndex(comp: JitCompiler): number {
+    getChildIndex(comp: JitFnCompiler): number {
         const start = comp?.opts?.paramsSlice?.start;
         if (start) return getParamIndex(this.src as TypeParameter) - start;
         return getParamIndex(this.src as TypeParameter);
     }
-    getChildVarName(comp: JitCompiler): number {
+    getChildVarName(comp: JitFnCompiler): number {
         return this.getChildIndex(comp);
     }
-    getChildLiteral(comp: JitCompiler): number {
+    getChildLiteral(comp: JitFnCompiler): number {
         return this.getChildIndex(comp);
     }
     useArrayAccessor(): true {
@@ -39,7 +39,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
     hasDefaultValue(): boolean {
         return !!(this.src as TypeParameter).default;
     }
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
         const skipChild = child?.skipJit(comp);
         const childJit = comp.compileIsType(child, 'E');
@@ -49,7 +49,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         if (this.isRest()) return childJit;
         return this.isOptional() ? {code: `(${comp.getChildVλl()} === undefined || (${childJit.code}))`, type: 'E'} : childJit;
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         const child = this.getJitChild(comp);
         const skipChild = child?.skipJit(comp);
         const childJit = comp.compileTypeErrors(child, 'S');
@@ -63,7 +63,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         if (this.isRest()) return childJit;
         return this.isOptional() ? {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'} : childJit;
     }
-    emitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileToJsonVal(child, 'S');
         const optionalCode = `if (${comp.getChildVλl()} === undefined ) {if (${comp.vλl}.length > ${this.getChildIndex(comp)}) ${comp.getChildVλl()} = null}`;
@@ -72,7 +72,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
         return this.isOptional() ? {code: `${optionalCode} else {${code}}`, type: 'S'} : {code, type: 'S'};
     }
-    emitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitFnCompiler): JitCode {
         if (!this.getJitChild(comp)) return {code: `${comp.getChildVλl()} = undefined;`, type: 'S'}; // non serializable are restored to undefined
         const child = this.getJitChild(comp);
         const childJit = comp.compileFromJsonVal(child, 'S');
