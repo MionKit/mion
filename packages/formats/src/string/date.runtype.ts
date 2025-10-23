@@ -6,19 +6,19 @@
  * ######## */
 import type {JITUtils, GenericPureFunction, FormatParam} from '@mionkit/core';
 import {ReflectionKind} from '@deepkit/type';
-import type {JitCompiler, JitErrorsCompiler, BaseRunType, RunTypeOptions, JitCode} from '@mionkit/run-types';
+import type {JitFnCompiler, JitErrorsFnCompiler, BaseRunType, RunTypeOptions, JitCode} from '@mionkit/run-types';
 import {BaseRunTypeFormat, registerFormatter, registerPureFnClosure, TypeFormat, fpVal} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 // Date validator
 export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date> {
     static id = 'date' as const;
     kind = ReflectionKind.string;
     name = DateStringRunTypeFormat.id;
-    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const formatFn = this.getFormatPureFn(fpVal(params.format));
         return {code: this.compilePureFunctionCall(comp, rt, formatFn).callCode, type: 'E'};
     }
-    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const isTypeCodeObj = this.visitIsType(comp, rt);
         const isTypeCode = isTypeCodeObj.code;
         if (!isTypeCode) return {code: '', type: 'S'};

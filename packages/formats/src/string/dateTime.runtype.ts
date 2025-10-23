@@ -6,7 +6,7 @@
  * ######## */
 import type {FormatParam} from '@mionkit/core';
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
-import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 import {TypeFormat, RunTypeOptions, BaseRunTypeFormat, registerFormatter, fpVal} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {FormatParams_Date, DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype';
@@ -29,7 +29,7 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -57,7 +57,7 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         `;
         return {code, type: 'S'};
     }
-    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();

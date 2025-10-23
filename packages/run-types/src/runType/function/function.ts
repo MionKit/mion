@@ -8,7 +8,7 @@ import type {AnyFunction, SrcType, JitFn, JitCode, RunTypeOptions} from '../../t
 import {ReflectionKind, TypeFunction} from '@deepkit/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
-import {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {PromiseRunType} from '../native/promise';
 import {ReflectionSubKind} from '../../constants.kind';
 import {FunctionParamsRunType} from '../collection/functionParams';
@@ -19,7 +19,7 @@ import {JitFunctions} from '../../constants.functions';
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
     parameterRunTypes: FunctionParamsRunType = new FunctionParamsRunType();
-    skipJit(comp: JitCompiler): boolean {
+    skipJit(comp: JitFnCompiler): boolean {
         if (!comp) return true;
         return comp.fnID !== JitFunctions.toJavascript.id;
     }
@@ -90,7 +90,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     // ######## JIT functions (all throw error) ########
 
     // can't know the types of the run type function parameters, neither the return type, so only compare function name and length
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         const minLength = this.parameterRunTypes.totalRequiredParams(comp);
         const totalParams = this.parameterRunTypes.getParamRunTypes(comp).length;
         const hasOptional = totalParams > minLength;
@@ -98,7 +98,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
             this.parameterRunTypes.hasRestParameter(comp) || !hasOptional ? '' : ` && ${comp.vλl}.length <= ${totalParams}`;
         return {code: `(typeof ${comp.vλl} === 'function' && ${comp.vλl}.length >= ${minLength} ${maxLength})`, type: 'E'};
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if (!(${this.emitIsType(comp).code})) ${comp.callJitErr(this)};`, type: 'S'};
     }
     /**

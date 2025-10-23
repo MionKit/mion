@@ -7,15 +7,15 @@
 
 import {ReflectionKind, type TypeBoolean} from '@deepkit/type';
 import type {JitCode} from '../../types';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     _getTypeID = () => ReflectionKind.boolean;
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'boolean'`, type: 'E'};
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'boolean') ${comp.callJitErr(this)}`, type: 'S'};
     }
     emitToJsonVal(): JitCode {

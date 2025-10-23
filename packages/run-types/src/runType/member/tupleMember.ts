@@ -7,14 +7,14 @@
 
 import type {TypeTupleMember} from '@deepkit/type';
 import {ParameterRunType} from './param';
-import {JitCompiler} from '../../lib/jitFnCompiler';
+import {JitFnCompiler} from '../../lib/jitFnCompiler';
 
 export class TupleMemberRunType extends ParameterRunType<TypeTupleMember> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getChildVarName(comp: JitCompiler): number {
+    getChildVarName(comp: JitFnCompiler): number {
         return this.src.parent.types.indexOf(this.src);
     }
-    getChildLiteral(comp: JitCompiler): number {
+    getChildLiteral(comp: JitFnCompiler): number {
         return this.getChildVarName(comp);
     }
 }

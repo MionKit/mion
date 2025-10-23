@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeNever} from '@deepkit/type';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import {JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {JitCode} from '../../types';
 
 export class NeverRunType extends AtomicRunType<TypeNever> {
@@ -15,7 +15,7 @@ export class NeverRunType extends AtomicRunType<TypeNever> {
     emitIsType(): JitCode {
         return {code: 'false', type: 'E'};
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `${comp.callJitErr(this)}`, type: 'S'};
     }
     emitToJsonVal(): JitCode {

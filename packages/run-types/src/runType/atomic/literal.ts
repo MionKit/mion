@@ -7,7 +7,7 @@
 
 import type {TypeLiteral} from '@deepkit/type';
 import type {JitCode} from '../../types';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {memorize, toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {bigIntTransformer} from './bigInt';
@@ -29,23 +29,23 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
                 return noEncoder;
         }
     }
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         if (typeof this.src.literal === 'symbol') return {code: compileIsSymbol(comp, this.src.literal), type: 'E'};
         else if (this.src.literal instanceof RegExp) return {code: compileIsRegExp(comp, this.src.literal), type: 'E'};
         else if (typeof this.src.literal === 'bigint') return {code: compileIsBigInt(comp, this.src.literal), type: 'E'};
         else return {code: compileIsLiteral(comp, this.src.literal), type: 'E'};
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         if (typeof this.src.literal === 'symbol')
             return {code: compileTypeErrorsSymbol(comp, this.src.literal, this.getKindName()), type: 'S'};
         else if (this.src.literal instanceof RegExp)
             return {code: compileTypeErrorsRegExp(comp, this.src.literal, this.getKindName()), type: 'S'};
         return {code: compileTypeErrorsLiteral(comp, this.src.literal, this.getKindName()), type: 'S'};
     }
-    emitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitFnCompiler): JitCode {
         return this.getValidator().visitToJsonVal(comp);
     }
-    emitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitFnCompiler): JitCode {
         return this.getValidator().visitFromJsonVal(comp);
     }
 }
@@ -59,32 +59,32 @@ const noEncoder = {
     },
 };
 
-function compileIsBigInt(comp: JitCompiler, lit: bigint): string {
+function compileIsBigInt(comp: JitFnCompiler, lit: bigint): string {
     return `${comp.vλl} === ${toLiteral(lit)}`;
 }
 
-function compileIsSymbol(comp: JitCompiler, lit: symbol): string {
+function compileIsSymbol(comp: JitFnCompiler, lit: symbol): string {
     return `(typeof ${comp.vλl} === 'symbol' && ${comp.vλl}.description === ${toLiteral(lit.description)})`;
 }
 
-function compileIsRegExp(comp: JitCompiler, lit: RegExp): string {
+function compileIsRegExp(comp: JitFnCompiler, lit: RegExp): string {
     return `String(${comp.vλl}) === String(${lit})`;
 }
 
-function compileIsLiteral(comp: JitCompiler, lit: Exclude<TypeLiteral['literal'], symbol>): string {
+function compileIsLiteral(comp: JitFnCompiler, lit: Exclude<TypeLiteral['literal'], symbol>): string {
     return `${comp.vλl} === ${toLiteral(lit)}`;
 }
 
-function compileTypeErrorsSymbol(comp: JitErrorsCompiler, lit: symbol, name: AnyKindName): string {
+function compileTypeErrorsSymbol(comp: JitErrorsFnCompiler, lit: symbol, name: AnyKindName): string {
     return `if (typeof ${comp.vλl} !== 'symbol' || ${comp.vλl}.description !== ${toLiteral(lit.description)}) {${comp.callJitErr(name)}}`;
 }
 
-function compileTypeErrorsRegExp(comp: JitErrorsCompiler, lit: RegExp, name: AnyKindName): string {
+function compileTypeErrorsRegExp(comp: JitErrorsFnCompiler, lit: RegExp, name: AnyKindName): string {
     return `if (String(${comp.vλl}) !== String(${lit})) ${comp.callJitErr(name)}`;
 }
 
 function compileTypeErrorsLiteral(
-    comp: JitErrorsCompiler,
+    comp: JitErrorsFnCompiler,
     lit: Exclude<TypeLiteral['literal'], symbol>,
     name: AnyKindName
 ): string {

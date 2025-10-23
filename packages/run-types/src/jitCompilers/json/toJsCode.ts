@@ -13,7 +13,7 @@ import type {IterableRunType} from '../../runType/native/Iterable';
 import {ReflectionKind, type TypeMethodSignature, type TypePropertySignature} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import {JitFunctions} from '../../constants.functions';
-import {JitCompiler} from '../../lib/jitFnCompiler';
+import {JitFnCompiler} from '../../lib/jitFnCompiler';
 import {isSafePropName} from '../../lib/utils';
 import {createStringifyCompiler, createStringifyIterable} from './jsonStringify';
 import {registerPureFnClosure} from '../../lib/pureFn';
@@ -33,7 +33,7 @@ export function createToCodeCompiler() {
      * THIS IS MOSTLY USED INTERNALLY FOR AOT CODE GENERATION AND A VERY BASIC IMPLEMENTATION.
      * !!! NOT INTENDED FOR PUBLIC USE !!!
      */
-    function compileToCode(runType: BaseRunType, comp: JitCompiler): JitCode {
+    function compileToCode(runType: BaseRunType, comp: JitFnCompiler): JitCode {
         const src = runType.src;
         const kind = src.kind;
 
@@ -117,13 +117,13 @@ export function createToCodeCompiler() {
         }
     }
 
-    function isCompilingClosureJitFn(runType: MethodSignatureRunType, comp: JitCompiler) {
+    function isCompilingClosureJitFn(runType: MethodSignatureRunType, comp: JitFnCompiler) {
         if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
         const isClosure = runType.getChildVarName(comp) === 'closureFn';
         return isClosure;
     }
 
-    function isCompilingJitFn(runType: MethodSignatureRunType, comp: JitCompiler) {
+    function isCompilingJitFn(runType: MethodSignatureRunType, comp: JitFnCompiler) {
         if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
         const isFn = runType.getChildVarName(comp) === 'fn';
         return isFn;
@@ -147,8 +147,8 @@ registerPureFnClosure(sanitizeCompiledFn);
 
 // lazy loading as this function wont be used often just for (AOT)
 // TODO move to async code loading (but this would need a big refactor of the router)
-let lazyFn: undefined | ((runType: BaseRunType, comp: JitCompiler) => JitCode) = undefined;
-export function emitToCode(runType: BaseRunType, comp: JitCompiler): JitCode {
+let lazyFn: undefined | ((runType: BaseRunType, comp: JitFnCompiler) => JitCode) = undefined;
+export function emitToCode(runType: BaseRunType, comp: JitFnCompiler): JitCode {
     if (!lazyFn) lazyFn = createToCodeCompiler();
     return lazyFn(runType, comp);
 }

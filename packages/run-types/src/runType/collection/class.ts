@@ -6,7 +6,7 @@
  * ######## */
 import {TypeClass} from '@deepkit/type';
 import {InterfaceMember, InterfaceRunType} from './interface';
-import {JitCompiler} from '../../lib/jitFnCompiler';
+import {JitFnCompiler} from '../../lib/jitFnCompiler';
 import {jitUtils} from '@mionkit/core';
 import {toLiteral} from '../../lib/utils';
 import {isConstructor} from '../../lib/guards';
@@ -21,7 +21,7 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         const isEmpty = children.every((prop) => !isConstructor(prop) || prop.getParameters().getChildRunTypes().length === 0);
         return isEmpty;
     }
-    emitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitFnCompiler): JitCode {
         const objJit = super.emitFromJsonVal(comp);
         const desFnVarName = `desFn${comp.getNestLevel(this)}`;
         const classLiteral = toLiteral(this.getClassName());

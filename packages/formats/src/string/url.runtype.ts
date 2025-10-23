@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode, StrNumber} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode, StrNumber} from '@mionkit/run-types';
 import {
     registerFormatter,
     BaseRunTypeFormat,
@@ -57,7 +57,7 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -90,7 +90,7 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         `;
         return {code, type: 'S'};
     }
-    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -143,7 +143,7 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
             this.domainFormatter.validateParams(rt, domain);
         }
     }
-    visitFormat(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitFormat(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         if (!params.domain) return {code: undefined, type: 'S'};
         const vDomain = 'domain' + this.getFormatNestLevel(); // must match var name in code

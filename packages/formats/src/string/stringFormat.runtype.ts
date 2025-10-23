@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 import {TypeFormat, registerFormatter, getToLiteralFn, BaseRunTypeFormat, RunTypeOptions} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {mockString, random, randomItem, fpVal, regexpEscape} from '@mionkit/run-types';
@@ -34,7 +34,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    visitFormat(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitFormat(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const operations: ((v) => string)[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;
@@ -47,7 +47,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
         if (p.capitalize) operations.push((v) => `(${v}.charAt(0).toUpperCase() + ${vλl}.slice(1))`);
         return {code: operations.reduce((acc, op) => op(acc), vλl), type: 'E'};
     }
-    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const conditions: string[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;
@@ -74,7 +74,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
         }
         return {code: conditions.join(' && '), type: 'E'};
     }
-    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const conditions: string[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;

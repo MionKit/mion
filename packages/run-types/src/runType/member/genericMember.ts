@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import type {JitCode, SrcMember} from '../../types';
 import {childIsExpression} from '../../lib/utils';
@@ -16,10 +16,10 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         return this.index;
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getChildVarName(comp: JitCompiler): string | number {
+    getChildVarName(comp: JitFnCompiler): string | number {
         return this.index;
     }
-    getChildLiteral(comp: JitCompiler) {
+    getChildLiteral(comp: JitFnCompiler) {
         return this.getChildVarName(comp);
     }
     useArrayAccessor() {
@@ -28,21 +28,21 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
     isOptional() {
         return false;
     }
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileIsType(child, 'E');
         if (!childJit?.code) return {code: undefined, type: 'E'};
         if (this.isOptional()) return {code: `${comp.getChildVλl()} === undefined || (${childJit.code})`, type: 'E'};
         return childJit;
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileTypeErrors(child, 'S');
         if (!childJit?.code) return {code: undefined, type: 'S'};
         if (this.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'};
         return childJit;
     }
-    emitToJsonVal(comp: JitCompiler): JitCode {
+    emitToJsonVal(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileToJsonVal(child, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};
@@ -51,7 +51,7 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         if (this.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
         return {code, type: 'S'};
     }
-    emitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileFromJsonVal(child, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};

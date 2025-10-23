@@ -6,7 +6,7 @@
  * ######## */
 
 import type {JITUtils, GenericPureFunction, TypeFormatError, FormatParam} from '@mionkit/core';
-import type {BaseRunType, JitCompiler, JitErrorsCompiler, RunTypeOptions, JitCode} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, RunTypeOptions, JitCode} from '@mionkit/run-types';
 import {BaseRunTypeFormat, TypeFormat, registerFormatter, registerPureFnClosure, fpVal} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 
@@ -15,7 +15,7 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
     static id = 'ip';
     kind = ReflectionKind.string;
     name = IPRunTypeFormat.id;
-    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         if (params.version === 4) return {code: this.compilePureFunctionCall(comp, rt, mionIsIPV4).callCode, type: 'E'};
         if (params.version === 6) return {code: this.compilePureFunctionCall(comp, rt, mionIsIPV6).callCode, type: 'E'};
@@ -30,7 +30,7 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
         if (params.version === 6) return mockIpV6(params);
         return Math.random() > 0.5 ? mockIpV4(params) : mockIpV6(params);
     }
-    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const isTypeCodeObj = this.visitIsType(comp, rt);
         const isTypeCode = isTypeCodeObj.code;
         if (!isTypeCode) return {code: '', type: 'S'};
@@ -38,7 +38,7 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
         const errFn = this.getCallJitFormatErr(comp, rt, this);
         return {code: `if (!(${isTypeCode})) ${errFn('version', fpVal(params.version))}`, type: 'S'};
     }
-    visitFormat(comp: JitCompiler): JitCode {
+    visitFormat(comp: JitFnCompiler): JitCode {
         return {code: `${comp.vλl}.toLowerCase()`, type: 'E'}; // transform to lowercase in case it is localhost
     }
 }

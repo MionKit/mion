@@ -9,7 +9,7 @@
 import {randomUUID_V7} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
 import type {BaseRunType, CollectionRunType} from './baseRunTypes';
-import {JitCompiler} from './jitFnCompiler';
+import {JitFnCompiler} from './jitFnCompiler';
 import {createUniqueHash} from './quickHash';
 import {runType} from './runType';
 import {getTotalComplexity, sortDiscriminatorsFirst, sortRunTypeByComplexity} from './utils';
@@ -18,7 +18,7 @@ import type {PropertyRunType} from '../runType/member/property';
 
 const anyRT = runType<any>() as BaseRunType;
 // the compiled is just requires to get compiler opts, so we can use same compiler for all tests
-const comp = new JitCompiler(anyRT, JitFunctions.isType.id);
+const comp = new JitFnCompiler(anyRT, JitFunctions.isType.id);
 
 it('sort by total complexity preserving order of appearance', () => {
     // atomic

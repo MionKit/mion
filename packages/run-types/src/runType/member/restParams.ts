@@ -9,14 +9,14 @@ import type {TypeRest} from '@deepkit/type';
 import type {ParameterRunType} from './param';
 import type {TupleMemberRunType} from './tupleMember';
 import {ArrayRunType} from './array';
-import type {JitCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 
 export class RestParamsRunType extends ArrayRunType<TypeRest> {
-    getChildIndex(comp: JitCompiler): number {
+    getChildIndex(comp: JitFnCompiler): number {
         const parent = this.getParent() as ParameterRunType | TupleMemberRunType;
         return parent.getChildIndex(comp);
     }
-    startIndex(comp: JitCompiler): number {
+    startIndex(comp: JitFnCompiler): number {
         return this.getChildIndex(comp);
     }
 }

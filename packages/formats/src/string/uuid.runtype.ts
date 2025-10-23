@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {GenericPureFunction, FormatParam} from '@mionkit/core';
-import type {BaseRunType, JitCompiler, JitErrorsCompiler, JitCode} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 import {registerFormatter, registerPureFnClosure, BaseRunTypeFormat, RunTypeOptions, TypeFormat, fpVal} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {randomUUID_V7} from '@mionkit/core';
@@ -15,12 +15,12 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
     static readonly id = 'uuid' as const;
     readonly kind = ReflectionKind.string;
     readonly name = UUIDRunTypeFormat.id;
-    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         // version must be set as a string to call pure function isUUID, this is so no transform is needed when comparing with uuid charat
         return {code: this.compilePureFunctionCall(comp, rt, mionIsUUID, params).callCode, type: 'E'};
     }
-    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const isTypeCodeObj = this.visitIsType(comp, rt);
         const isTypeCode = isTypeCodeObj.code;

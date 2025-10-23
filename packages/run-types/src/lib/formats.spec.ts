@@ -13,7 +13,7 @@ import {BaseRunType} from './baseRunTypes';
 import {registerFormatter} from './formats';
 import {TypeFormat} from './formats.runtype';
 import {JitFunctions} from '../constants.functions';
-import {JitCompiler, JitErrorsCompiler} from './jitFnCompiler';
+import {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
 import {JitCode} from '../types';
 
 type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
@@ -21,11 +21,11 @@ class Max5Formatter extends BaseRunTypeFormat<any> {
     kind = ReflectionKind.string;
     name = 'max5';
     _mock() {}
-    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const p = this.getParams(rt);
         return {code: `${comp.vλl}.length <= ${p.maxLength}`, type: 'E'};
     }
-    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const p = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
         return {code: `if (${comp.vλl}.length > ${p.maxLength}) ${errFn('maxLength', p.maxLength)}`, type: 'S'};

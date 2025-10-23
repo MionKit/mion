@@ -8,7 +8,7 @@
 import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import {JitFunctions} from '../../constants.functions';
-import {JitCompiler} from '../../lib/jitFnCompiler';
+import {JitFnCompiler} from '../../lib/jitFnCompiler';
 import {createIfElseFn, isSafePropName, parentIs} from '../../lib/utils';
 import type {IndexSignatureRunType} from '../../runType/member/indexProperty';
 import type {JitCode} from '../../types';
@@ -33,7 +33,7 @@ type Operation = typeof JitFunctions.jsonStringify.id | typeof JitFunctions.toJa
 export function createStringifyCompiler(fnID: Operation) {
     const compileStringifyIterable = createStringifyIterable(fnID);
     /** Centralized compile jit function with a switch statement that handles all node types. */
-    function compileStringify(runType: BaseRunType, comp: JitCompiler): JitCode {
+    function compileStringify(runType: BaseRunType, comp: JitFnCompiler): JitCode {
         const src = runType.src;
         const kind = src.kind;
 
@@ -330,13 +330,13 @@ export function createStringifyCompiler(fnID: Operation) {
         }
     }
 
-    function getPropName(rt: PropertyRunType, comp: JitCompiler): string {
+    function getPropName(rt: PropertyRunType, comp: JitFnCompiler): string {
         if (!isSafePropName(rt.src.name)) return `${JSON.stringify(rt.getChildLiteral(comp) as string)}+':'`;
         if (fnID === JitFunctions.toJavascript.id) return `'${rt.getChildVarName(comp)}:'`;
         return `'"${rt.getChildVarName(comp)}":'`;
     }
 
-    function compileStringifyParameter(rt: ParameterRunType, comp: JitCompiler): JitCode {
+    function compileStringifyParameter(rt: ParameterRunType, comp: JitFnCompiler): JitCode {
         const childJit = comp.compile(rt.getJitChild(comp), 'E', fnID);
         const childCodeStr = childJit?.code || `null`; // non serializable types are set to null
         if (rt.isRest()) return childJit || {code: `null`, type: 'E'};
@@ -347,7 +347,7 @@ export function createStringifyCompiler(fnID: Operation) {
         return {code: `${sep}${childCodeStr}`, type: 'E'};
     }
 
-    function compileStringifyGenericMember(rt: ParameterRunType, comp: JitCompiler): JitCode {
+    function compileStringifyGenericMember(rt: ParameterRunType, comp: JitFnCompiler): JitCode {
         const child = rt.getJitChild(comp);
         const argCode = comp.compile(child, 'E', fnID);
         if (!argCode?.code) return {code: undefined, type: 'E'};
@@ -357,7 +357,7 @@ export function createStringifyCompiler(fnID: Operation) {
         return {code: `${sep}${argCode.code}`, type: 'E'};
     }
 
-    function compileStringifyInterface(rt: InterfaceRunType, comp: JitCompiler): JitCode {
+    function compileStringifyInterface(rt: InterfaceRunType, comp: JitFnCompiler): JitCode {
         if (rt.isCallable()) return comp.compile(rt.getCallSignature(), 'E', fnID);
         const children = rt.getJsonStringifySortedChildren(comp);
         if (children.length === 0) return {code: `''`, type: 'E'};
@@ -376,7 +376,7 @@ export function createStringifyCompiler(fnID: Operation) {
         return {code: `'{'+${childrenCode}+'}'`, type: 'E'};
     }
 
-    function compileInterfaceIntoArray(rt: InterfaceRunType, comp: JitCompiler, children: MemberRunType<any>[]): JitCode {
+    function compileInterfaceIntoArray(rt: InterfaceRunType, comp: JitFnCompiler, children: MemberRunType<any>[]): JitCode {
         const arrName = `ns${comp.getNestLevel(rt)}`;
         const childrenCode = children
             .map((prop) => {
@@ -393,7 +393,7 @@ export function createStringifyCompiler(fnID: Operation) {
         return {code: `(function(){const ${arrName} = [];${childrenCode};return '{'+${arrName}.join(',')+'}'})()`, type: 'E'};
     }
 
-    function compileStringifyClass(runType: BaseRunType, comp: JitCompiler): JitCode {
+    function compileStringifyClass(runType: BaseRunType, comp: JitFnCompiler): JitCode {
         switch (runType.src.subKind) {
             case ReflectionSubKind.date:
                 return {code: `'"'+${comp.vλl}.toJSON()+'"'`, type: 'E'};
@@ -439,7 +439,7 @@ export function createStringifyCompiler(fnID: Operation) {
 export function createStringifyIterable(fnID: Operation) {
     return function compileStringifyIterable(
         rt: IterableRunType,
-        comp: JitCompiler,
+        comp: JitFnCompiler,
         /** prefix characters to add before the generated array, used when generating code instead json */
         codePrefix: string = '',
         /** suffix characters to add after the generated array, used when generating code instead json */

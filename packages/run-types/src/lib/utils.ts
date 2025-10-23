@@ -10,7 +10,7 @@ import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from
 import type {FormatParam, FormatParamLiteral, PureFunctionClosure, TypeFormatValue} from '@mionkit/core';
 import type {AnyClass, JitFnID, RunType} from '../types';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from './jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
 import type {PropertyRunType} from '../runType/member/property';
 import {jitUtils} from '@mionkit/core';
 import {validPropertyNameRegExp} from '../constants';
@@ -94,7 +94,7 @@ export function isSameJitType(a: RunType, b: RunType): boolean {
     return a.getTypeID() === b.getTypeID();
 }
 
-export function isSameJitCompiler(a: JitCompiler, b: JitCompiler): boolean {
+export function isSameJitCompiler(a: JitFnCompiler, b: JitFnCompiler): boolean {
     return a.fnID === b.fnID && isSameJitType(a.rootType, b.rootType);
 }
 
@@ -178,7 +178,7 @@ const maxStringLength = 10;
  */
 export function toLiteralInContext(
     // if compiled is passed it is assumed that the params are dependencies and will be transformed into code
-    comp: JitCompiler | JitErrorsCompiler,
+    comp: JitFnCompiler | JitErrorsFnCompiler,
     params: TypeFormatValue | Record<string, string | PureFunctionClosure>,
     // TODO: somewhere the ignoreProps are not passed and we still outputting 'samples' and 'sampleChars' to jit code were is not needed
     ignoreProps: string[] = [],
@@ -238,7 +238,7 @@ export function toLiteralInContext(
     }
 }
 
-export function dependencyValueToLiteral(comp: JitCompiler | JitErrorsCompiler | undefined, propVal: any): string {
+export function dependencyValueToLiteral(comp: JitFnCompiler | JitErrorsFnCompiler | undefined, propVal: any): string {
     if (typeof propVal === 'function') {
         if (!comp) throw new Error('Dependencies must be pure functions or code');
         comp.addPureFnDependency(propVal);
@@ -313,7 +313,7 @@ const subTypesComplexity = {
  * There might be better options to get the type complexity, as this also depends on the runtime operation and the compiled operation.
  * but this is an initial approximation.
  */
-export function getTotalComplexity(comp: JitCompiler, rt: BaseRunType, stack: BaseRunType[] = []): number {
+export function getTotalComplexity(comp: JitFnCompiler, rt: BaseRunType, stack: BaseRunType[] = []): number {
     if (!rt) return 0;
     if (stack.includes(rt)) return 0;
     stack.push(rt);
@@ -344,7 +344,7 @@ export function getTotalComplexity(comp: JitCompiler, rt: BaseRunType, stack: Ba
  * Sort runTypes by complexity, ascending. this way less complex code can be executed first.
  * This could help to fail fast and avoid unnecessary checks.
  */
-export function sortRunTypeByComplexity(comp: JitCompiler, a: BaseRunType, b: BaseRunType): number {
+export function sortRunTypeByComplexity(comp: JitFnCompiler, a: BaseRunType, b: BaseRunType): number {
     if (a.getFamily() === 'M' && b.getFamily() === 'M') {
         const aIsDiscriminator = (a as PropertyRunType).isUnionDiscriminator;
         const bIsDiscriminator = (b as PropertyRunType).isUnionDiscriminator;
@@ -377,7 +377,7 @@ export function createIfElseFn(): (isEnd?: boolean) => string {
     };
 }
 
-export function getJitFnArgCallVarName(parentComp: JitCompiler, rt: BaseRunType, idFnToCall: JitFnID, argKey: string): string {
+export function getJitFnArgCallVarName(parentComp: JitFnCompiler, rt: BaseRunType, idFnToCall: JitFnID, argKey: string): string {
     const fnConfig = getJitFnSettings(idFnToCall);
     const defaultArgVal = fnConfig.jitDefaultArgs[argKey];
     // vλl is a special case because it is the only arg that changes based on the stack

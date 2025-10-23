@@ -6,7 +6,7 @@
  * ######## */
 
 import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, PureFunction, PureFunctionClosure} from '@mionkit/core';
-import {MAX_STACK_DEPTH, getENV, jitUtils} from '@mionkit/core';
+import {MAX_STACK_DEPTH, jitUtils} from '@mionkit/core';
 import type {TypeFunction} from '@deepkit/type';
 import type {Mutable, JitFnID, StrNumber, JitCode, RunTypeOptions, JitCompilerOpts, RunTypeChildAccessor} from '../types';
 import type {BaseRunType} from './baseRunTypes';
@@ -25,7 +25,7 @@ import {emitJsonStringify} from '../jitCompilers/json/jsonStringify';
 import {emitToBinary} from '../jitCompilers/binary/toBinary';
 import {emitFromBinary} from '../jitCompilers/binary/fromBinary';
 import {emitToCode} from '../jitCompilers/json/toJsCode';
-import {createJitFunction} from './createJitFunction';
+import {createJitFunction, getJITFnHash} from './createJitFunction';
 
 const RB = CodeTypes.returnBlock;
 const S = CodeTypes.statement;
@@ -559,7 +559,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
 
 // ################### Compile Operations ###################
 
-export class JitCompiler<ID extends JitFnID = any> extends BaseFnCompiler<JitFnArgs, ID> {
+export class JitFnCompiler<ID extends JitFnID = any> extends BaseFnCompiler<JitFnArgs, ID> {
     constructor(
         rt: BaseRunType,
         fnID: ID,
@@ -573,7 +573,7 @@ export class JitCompiler<ID extends JitFnID = any> extends BaseFnCompiler<JitFnA
     }
 }
 
-export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseFnCompiler<typeof jitErrorArgs, ID> {
+export class JitErrorsFnCompiler<ID extends JitFnID = any> extends BaseFnCompiler<typeof jitErrorArgs, ID> {
     constructor(
         rt: BaseRunType,
         fnID: ID,
@@ -694,10 +694,10 @@ export function createJitCompiler(
         case JitFunctions.toJavascript.id:
         case JitFunctions.toBinary.id:
         case JitFunctions.fromBinary.id:
-            return new JitCompiler(rt, fnID, parent, jitFnHash, typeID, opts);
+            return new JitFnCompiler(rt, fnID, parent, jitFnHash, typeID, opts);
         case JitFunctions.typeErrors.id:
         case JitFunctions.unknownKeyErrors.id:
-            return new JitErrorsCompiler(rt, fnID, parent, jitFnHash, typeID, opts);
+            return new JitErrorsFnCompiler(rt, fnID, parent, jitFnHash, typeID, opts);
         case JitFunctions.mock.id:
             return new MockJitCompiler(rt, opts, parent, jitFnHash, typeID);
         default:
@@ -720,73 +720,11 @@ export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnDa
     };
 }
 
-// ################### Other Compiler functions ###################
-/**
- * Creates a function name/hash based on the jitHash of the runType and the id of the function.
- * it is a valid js variable name.
- * @param id
- * @param rt
- * @returns
- */
-export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts?: RunTypeOptions): string {
-    if (opts) return `${id}_${rt.getJitHash(opts)}`;
-    return `${id}_${rt.getJitHash({})}`;
-}
-
-export function getJitFnCode(comp: BaseFnCompiler): {fnName: string; fnCode: string; contextCode: string} {
-    const fnName = comp.jitFnHash;
-    const fnArgs = getJitFnArgs(comp); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
-    const fnCode = `function ${fnName}(${fnArgs}){${comp.code}}`;
-    return {fnName, fnCode, contextCode: comp.getContextItemValues().join(';\n')};
-}
-
-/**
- * Create a JIT function that has jitUtils (and possibly other required variables) in the context,
- * This way jitUtils ca be used without passing them as arguments to every atomic jit function (kind of global variables).
- * @param varName
- * @param fnCode
- * @returns
- */
-export function createJitFnWithContext(comp: BaseFnCompiler, fnName: string, fnCode: string, contextCode?: string) {
-    // this function will have jitUtils as context as is an argument of the enclosing function
-    const context = contextCode ? `${contextCode};` : '';
-    let fnWithContext = `${context} ${fnCode} return ${fnName};`;
-    if (getENV('DEBUG_RUN_TIME')) {
-        const fnArgs = getJitFnArgs(comp);
-        const argsCall = getJitFnArgs(comp, false);
-        const debugWrapper = `function debug_${fnName}(${fnArgs}){
-            const resp = ${fnName}(${argsCall});
-            console.log('${fnName} ${getJITFnName(comp.fnID)} ${comp.rootType.getTypeName()}', 'result:', resp, ' value:', ${argsCall});
-            return resp;
-        }`;
-        fnWithContext = `${context} ${fnCode} ${debugWrapper} return debug_${fnName};`;
-    }
-    try {
-        // wrapper functions that works as a factory and returns the actual jit function, context contains all constants and heavy to create objects
-        const wrapperWithContext = new Function('utl', fnWithContext) as (utl: JITUtils) => (...args: any[]) => any;
-        if (getENV('DEBUG_JIT')) console.log(printClosure(fnWithContext, fnName));
-        return {closureFn: wrapperWithContext, fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
-    } catch (e: any) {
-        if (getENV('DEBUG_JIT')) {
-            console.warn('Error creating jit function with context code:\n', printClosure(fnWithContext, fnName));
-        }
-        throw e;
-    }
-}
-
-function printClosure(fnWithContext: string, functionName: string): string {
+export function printClosure(fnWithContext: string, functionName: string): string {
     return `function get_${functionName}(utl){${fnWithContext}}`;
 }
 
-function getJitFnArgs(comp: JitCompilerLike, defaultValues = true): string {
-    return Object.entries(comp.args)
-        .map(([key, name]) => {
-            if (!comp.defaultParamValues[key] || !defaultValues) return name;
-            const value = comp.defaultParamValues[key];
-            return `${name}=${value}`;
-        })
-        .join(',');
-}
+// ################### utils ###################
 
 function getStackVλl(comp: BaseFnCompiler): string {
     let vλl: string = comp.args.vλl;

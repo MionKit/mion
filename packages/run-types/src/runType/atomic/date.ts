@@ -7,22 +7,22 @@
 
 import {type TypeClass} from '@deepkit/type';
 import type {JitCode} from '../../types';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitFnCompiler';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {ReflectionSubKind} from '../../constants.kind';
 
 export class DateRunType extends AtomicRunType<TypeClass> {
     _getTypeID = () => ReflectionSubKind.date;
-    emitIsType(comp: JitCompiler): JitCode {
+    emitIsType(comp: JitFnCompiler): JitCode {
         return {code: `(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))`, type: 'E'};
     }
-    emitTypeErrors(comp: JitErrorsCompiler): JitCode {
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if (!(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))) ${comp.callJitErr(this)}`, type: 'S'};
     }
     emitToJsonVal(): JitCode {
         return {code: undefined, type: 'S'};
     }
-    emitFromJsonVal(comp: JitCompiler): JitCode {
+    emitFromJsonVal(comp: JitFnCompiler): JitCode {
         return {code: `new Date(${comp.vλl})`, type: 'E'};
     }
 }

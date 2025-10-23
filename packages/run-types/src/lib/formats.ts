@@ -10,7 +10,7 @@ import {ReflectionKindName} from '../constants.kind';
 import type {FormatAnnotation} from '../types';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
-import type {JitErrorsCompiler, JitCompiler} from './jitFnCompiler';
+import type {JitErrorsFnCompiler, JitFnCompiler} from './jitFnCompiler';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {toLiteralInContext} from './utils';
 
@@ -128,11 +128,11 @@ export const defaultIgnoreFormatProps = ['mockSamples'];
  * @param ignoreProps
  * @returns
  */
-export function paramsToLiteral(comp: JitCompiler | JitErrorsCompiler, params: TypeFormatValue, ignoreProps?: string[]) {
+export function paramsToLiteral(comp: JitFnCompiler | JitErrorsFnCompiler, params: TypeFormatValue, ignoreProps?: string[]) {
     return toLiteralInContext(comp, params, ignoreProps, false);
 }
 
-export function getToLiteralFn(comp: JitCompiler | JitErrorsCompiler, ignoreProps?: string[]) {
+export function getToLiteralFn(comp: JitFnCompiler | JitErrorsFnCompiler, ignoreProps?: string[]) {
     return (params: TypeFormatValue) => paramsToLiteral(comp, params, ignoreProps);
 }
 
@@ -147,7 +147,7 @@ export function getToLiteralFn(comp: JitCompiler | JitErrorsCompiler, ignoreProp
  * @returns
  */
 export function dependenciesToLiteral(
-    comp: JitCompiler | JitErrorsCompiler,
+    comp: JitFnCompiler | JitErrorsFnCompiler,
     params: Record<string, string | PureFunctionClosure>,
     ignoreProps: string[] = []
 ) {

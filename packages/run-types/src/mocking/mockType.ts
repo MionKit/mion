@@ -30,20 +30,20 @@ import {JIT_STACK_TRACE_MESSAGE} from '../constants';
 import {JitFunctions} from '../constants.functions';
 import type {ArrayRunType} from '../runType/member/array';
 import {jitUtils} from '@mionkit/core';
-import {MockJitCompiler, type JitCompiler} from '../lib/jitFnCompiler';
+import {MockJitCompiler, type JitFnCompiler} from '../lib/jitFnCompiler';
 
-export function mockType(runType: BaseRunType, comp: JitCompiler, stack: BaseRunType[] = []): any {
+export function mockType(runType: BaseRunType, comp: JitFnCompiler, stack: BaseRunType[] = []): any {
     // TODO: we could use JitCompiler functionality here to controls the stack etc
     stack.push(runType);
     const mockNestLevel = stack.filter((rt) => rt === runType).length;
     const rtOpts = comp.opts;
     const updatedOps = mockNestLevel ? getMockOptionsForNestedElements(rtOpts, mockNestLevel) : comp.opts;
-    (comp as Mutable<JitCompiler>).opts = updatedOps;
+    (comp as Mutable<JitFnCompiler>).opts = updatedOps;
     // Just one type validator allowed per type, and is responsible to mock the value,
     // ie: email and uuid should contain the logic to generate a valid value
     const typeValidator = getRunTypeFormatter(runType);
     let mocked = typeValidator ? typeValidator.mock(updatedOps, runType) : _mockType(runType, comp, stack);
-    (comp as Mutable<JitCompiler>).opts = rtOpts;
+    (comp as Mutable<JitFnCompiler>).opts = rtOpts;
     // once mocked multiple type transformers can be applied to the mocked value
     const typeTransformers = getRunTypeTransformers(runType);
     if (typeTransformers.length) {
@@ -95,7 +95,7 @@ function getMockOptionsForNestedElements(opts: RunTypeOptions, nestLevel: number
  * Centralized mock function with a giant switch statement that handles all node types.
  * This function is similar to createRunType in runType.ts but for mocking.
  */
-function _mockType(runType: BaseRunType, comp: JitCompiler, stack: BaseRunType[]): any {
+function _mockType(runType: BaseRunType, comp: JitFnCompiler, stack: BaseRunType[]): any {
     // Handle circular references
     const mOps = comp.opts.mock as MockOptions;
     const recursionLevel = stack.filter((rt) => rt === runType).length;
@@ -288,7 +288,7 @@ function _mockType(runType: BaseRunType, comp: JitCompiler, stack: BaseRunType[]
     }
 }
 
-function _mockClass(runType: BaseRunType, comp: JitCompiler, stack: BaseRunType[]) {
+function _mockClass(runType: BaseRunType, comp: JitFnCompiler, stack: BaseRunType[]) {
     const mOps = comp.opts.mock as MockOptions;
     switch (runType.src.subKind) {
         case ReflectionSubKind.date:
@@ -345,13 +345,13 @@ function _mockClass(runType: BaseRunType, comp: JitCompiler, stack: BaseRunType[
     }
 }
 
-function getChildOpts(comp: JitCompiler, mockOpts?: MockOptions): JitCompiler {
+function getChildOpts(comp: JitFnCompiler, mockOpts?: MockOptions): JitFnCompiler {
     if (!mockOpts) return comp;
     const newOpts = {...comp.opts, mock: mockOpts};
     return new MockJitCompiler(comp.rootType, newOpts, comp, comp.jitFnHash, comp.typeID);
 }
 
-function printStackTrace(comp: JitCompiler, stack: BaseRunType[]) {
+function printStackTrace(comp: JitFnCompiler, stack: BaseRunType[]) {
     const separator = '.';
     return JIT_STACK_TRACE_MESSAGE + stack.map((rt) => comp.getTypeTraceInfo(rt)).join(separator);
 }

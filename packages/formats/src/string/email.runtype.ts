@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitCompiler, JitErrorsCompiler, StrNumber, JitFnID, JitCode} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, StrNumber, JitFnID, JitCode} from '@mionkit/run-types';
 import {
     BaseRunTypeFormat,
     TypeFormat,
@@ -53,7 +53,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         }
         return super.canEmbedFormatterCode(fnID, rt);
     }
-    visitIsType(comp: JitCompiler, rt: BaseRunType): JitCode {
+    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -90,7 +90,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         `;
         return {code, type: 'S'};
     }
-    visitIsTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): JitCode {
+    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -148,7 +148,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
 
         return this.localPartFormatter.mock(opts, rt, defaultParams);
     }
-    visitFormat(comp: JitCompiler): JitCode {
+    visitFormat(comp: JitFnCompiler): JitCode {
         return {code: `${comp.vλl}.toLowerCase()`, type: 'E'};
     }
 
