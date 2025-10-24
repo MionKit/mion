@@ -804,7 +804,8 @@ export const SERIALIZATION_SPEC = {
             getTestData: (dataOnly = false) => {
                 type TestTuple = [Date, number, string, null, string[], bigint];
                 const rt = dataOnly ? (null as any) : runType<TestTuple>();
-                const values = [[new Date('2000-08-06T02:13:00.000Z'), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)]];
+                const tuple: TestTuple = [new Date('2000-08-06T02:13:00.000Z'), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
+                const values = [tuple];
                 return {rt, values};
             },
         },
@@ -813,7 +814,7 @@ export const SERIALIZATION_SPEC = {
             getTestData: (dataOnly = false) => {
                 type TupleWithOptionals = [number, bigint?, boolean?, number?];
                 const rt = dataOnly ? (null as any) : runType<TupleWithOptionals>();
-                const values = [[3, undefined, true, 4], [3]];
+                const values = [[3, undefined, true, 4], [446]];
                 return {rt, values};
             },
         },
@@ -822,7 +823,7 @@ export const SERIALIZATION_SPEC = {
             getTestData: (dataOnly = false) => {
                 type TupleRest = [number, ...bigint[]];
                 const rt = dataOnly ? (null as any) : runType<TupleRest>();
-                const values: TupleRest[] = [[3, 1n, 2n, 3n], [3]];
+                const values: TupleRest[] = [[34567, 1n, 2n, 3n], [3]];
                 return {rt, values};
             },
         },

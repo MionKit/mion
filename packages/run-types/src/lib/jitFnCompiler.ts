@@ -115,6 +115,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         if (this.parentCompiler) return this.stack.length + this.parentCompiler.totalLength;
         return this.stack.length;
     }
+    /** The variable name for the current item in the stack. */
     vλl: string = '';
     getNestLevel(rt: BaseRunType<any>) {
         let index = -1;
@@ -398,7 +399,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         if (this.isCompiled) return;
         let isNoop = false;
         // trims code and transforms multiple whitespaces into a single one, does not affect new lines as those can be significant
-        let code = this.code.trim().replace(/[ \t]+/g, ' ');
+        let code = this.code.replace(/[ \t]+/g, ' ').replace(/;+/g, ';');
         switch (this.fnID) {
             case JitFunctions.isType.id:
                 isNoop = !this.code || this.code === 'true' || this.code === 'return true';
@@ -432,7 +433,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
 
     /** Ensures the child code type is compatible with the parent code type */
     private handleCodeInterpolation(rt: BaseRunType, childJCode: JitCode, parentCodeType: CodeType): string {
-        const code = (childJCode.code || '').trim();
+        const code = childJCode.code || '';
         const childCodeType = childJCode.type;
         const isRoot = this.length === 1;
         // root code must ensure values are returned
