@@ -135,9 +135,7 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
             if (runType.src.subKind === ReflectionSubKind.params) {
                 return emitToBinaryAs(runType, comp, ReflectionKind.tuple);
             } else {
-                throw new Error(
-                    'Binary serialization not supported for function types, call compileParams or compileReturn instead'
-                );
+                throw new Error('Binary serialization not supported for functions, call compileParams or compileReturn instead.');
             }
         case ReflectionKind.parameter:
             switch (src.subKind) {
@@ -190,10 +188,11 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
         // Types that contain other types as members
         case ReflectionKind.objectLiteral:
         case ReflectionKind.intersection: {
+            const rt = runType as InterfaceRunType;
+            if (rt.isCallable()) return comp.compile(rt.getCallSignature(), 'S', fnID);
             if (runType.src.subKind === ReflectionSubKind.nonSerializable) {
                 throw new Error('Binary serialization is disabled for Non Serializable types');
             } else {
-                const rt = runType as InterfaceRunType;
                 // we need to ensure non optional properties are serialized first so then we can restore the object correctly
                 // non optional properties are restored as: '{a: deserializeA, b: deserializeB, c: deserializeC};
                 // and must be serialized/deserialized in the same order they are declared in the type
