@@ -5,12 +5,38 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeTuple} from '@deepkit/type';
+import type {TypeFunction, TypeTuple} from '@deepkit/type';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import type {AnyParameterListRunType, JitCode} from '../../types';
-import {FunctionParamsRunType} from './functionParams';
+import type {AnyParameterListRunType, SrcType, JitCode} from '../../types';
+import {ParameterRunType} from '../member/param';
+import {CollectionRunType} from '../../lib/baseRunTypes';
+import {TupleMemberRunType} from '../member/tupleMember';
 
-export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple> extends FunctionParamsRunType<ParamList> {
+type AnyParamRunType = ParameterRunType | TupleMemberRunType;
+
+export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple> extends CollectionRunType<ParamList> {
+    getChildRunTypes = (): AnyParamRunType[] => {
+        const childTypes = ((this.src as TypeFunction).parameters || (this.src as TypeTuple).types || []) as SrcType[];
+        return childTypes.map((t) => t._rt as AnyParamRunType);
+    };
+    getParamRunTypes(comp: JitFnCompiler): AnyParamRunType[] {
+        const start = comp.opts?.paramsSlice?.start;
+        const end = comp.opts?.paramsSlice?.end;
+        const children = this.getChildRunTypes();
+        if (!start && !end) return children;
+        // Get all child run types first without using comp to avoid recursion
+        return children.slice(start, end);
+    }
+    hasRestParameter(comp: JitFnCompiler): boolean {
+        return (
+            !!this.getParamRunTypes(comp).length && this.getParamRunTypes(comp)[this.getParamRunTypes(comp).length - 1].isRest()
+        );
+    }
+    totalRequiredParams(comp: JitFnCompiler): number {
+        return this.getParamRunTypes(comp).filter((p) => !p.isOptional() && !p.isRest()).length;
+    }
+    // ####### params #######
+
     emitIsType(comp: JitFnCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (children.length === 0) return {code: `Array.isArray(${comp.vλl}) && ${comp.vλl}.length === 0`, type: 'E'};
@@ -25,5 +51,23 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
         const lengthCode = this.hasRestParameter(comp) ? '' : `|| ${comp.vλl}.length > ${this.getParamRunTypes(comp).length}`;
         const paramsCode = children.map((p) => comp.compileTypeErrors(p, 'S').code).join(';');
         return {code: `if (!Array.isArray(${comp.vλl})${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode}}`, type: 'S'};
+    }
+    emitToJsonVal(comp: JitFnCompiler): JitCode {
+        const children = this.getParamRunTypes(comp);
+        if (!children.length) return {code: undefined, type: 'S'};
+        const code = children
+            .map((p) => comp.compileToJsonVal(p, 'S').code)
+            .filter(Boolean)
+            .join(';');
+        return {code: code, type: 'S'};
+    }
+    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+        const children = this.getParamRunTypes(comp);
+        if (!children.length) return {code: undefined, type: 'S'};
+        const code = children
+            .map((p) => comp.compileFromJsonVal(p, 'S').code)
+            .filter(Boolean)
+            .join(';');
+        return {code: code, type: 'S'};
     }
 }
