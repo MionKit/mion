@@ -8,6 +8,8 @@
 import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import {jitBinarySerializerArgs, JitFunctions} from '../../constants.functions';
+import {createIfElseFn} from '../../lib/utils';
+import {MAX_UNION_ITEMS} from '../../constants';
 import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
 import type {BaseFnCompiler} from '../../lib/jitFnCompiler';
@@ -17,6 +19,8 @@ import type {InterfaceRunType} from '../../runType/collection/interface';
 import type {IndexSignatureRunType} from '../../runType/member/indexProperty';
 import type {ParameterRunType} from '../../runType/member/param';
 import type {TupleRunType} from '../../runType/collection/tuple';
+import type {UnionRunType} from '../../runType/collection/union';
+import type {IterableRunType} from '../../runType/native/Iterable';
 
 type BinaryCompiler = BaseFnCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
 const fnID = JitFunctions.toBinary.id;
@@ -137,18 +141,18 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
             } else {
                 throw new Error('Binary serialization not supported for functions, call compileParams or compileReturn instead.');
             }
-        case ReflectionKind.parameter:
+        case ReflectionKind.parameter: {
+            const rt = runType as ParameterRunType;
             switch (src.subKind) {
                 case ReflectionSubKind.mapKey:
                 case ReflectionSubKind.mapValue:
                 case ReflectionSubKind.setItem:
-                    // TODO: Handle regular parameter
-                    break;
+                    return emitToBinaryGenericMember(rt, comp);
                 default: {
                     return emitToBinaryAs(runType, comp, ReflectionKind.tupleMember);
                 }
             }
-            break;
+        }
         case ReflectionKind.property:
         case ReflectionKind.propertySignature: {
             const rt = runType as PropertyRunType;
@@ -234,11 +238,10 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
                         type: 'S',
                     };
                 case ReflectionSubKind.map:
-                    // TODO: Handle Map class
-                    break;
-                case ReflectionSubKind.set:
-                    // TODO: Handle Set class
-                    break;
+                case ReflectionSubKind.set: {
+                    const rt = runType as IterableRunType;
+                    return emitToBinaryIterable(rt as unknown as IterableRunType, comp);
+                }
                 case ReflectionSubKind.nonSerializable:
                     throw new Error('Binary serialization disabled for Non Serializable types');
                 default: {
@@ -271,9 +274,49 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
         case ReflectionKind.typeParameter:
             throw new Error('Type parameter not implemented in Binary serialization');
 
-        case ReflectionKind.union:
-            // TODO
-            break;
+        case ReflectionKind.union: {
+            const rt = runType as UnionRunType;
+            rt.checkNonSkipTypes(comp);
+            const {simpleItems, objectTypes} = rt.getUnionChildren(comp);
+            const totalLength = simpleItems.length + objectTypes.length;
+            if (totalLength > MAX_UNION_ITEMS) {
+                throw new Error(
+                    `Binary serialization not supported for Union with more than ${MAX_UNION_ITEMS} items.` +
+                        ` Found ${totalLength} in ${rt.getUnionTypeNames()}`
+                );
+            }
+
+            const errName = `uErr${comp.getNestLevel(rt)}`;
+            const fail = `throw new Error(${errName});`;
+            comp.setContextItem(
+                errName,
+                `const ${errName} = "Can not encode union to binary: item does not belong to the union"`
+            );
+
+            const ifElse = createIfElseFn();
+            const onUnionItems = (items: BaseRunType[]) => {
+                const result = items.map((childRt) => {
+                    const toJit = comp.compile(childRt, 'S', fnID);
+                    const encodeCode = toJit.code || '';
+                    const index = rt.getUnionItemIndex(comp, childRt);
+                    const isUint16 = index > 255;
+                    const writeIndex = isUint16
+                        ? `${sεr}.view.setUint16(${sεr}.index, ${index}, 1, (${sεr}.index += 2))`
+                        : `${sεr}.view.setUint8(${sεr}.index++, ${index})`;
+                    const isTypeCode = rt.getChildStrictIsType(childRt, comp);
+                    return `${ifElse()} (${isTypeCode}) {${writeIndex};${encodeCode}}`;
+                });
+                return result.filter(Boolean);
+            };
+
+            const itemsCode = onUnionItems(simpleItems);
+            if (!objectTypes.length) return {code: `${itemsCode.join('')} else {${fail}}`, type: 'S'};
+            // these need to be in correct order for else if to work properly
+            const nonObjectFail = `${ifElse()} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
+            const objItemsCode = onUnionItems(objectTypes);
+            const allFail = `${ifElse(true)} {${fail}}`;
+            return {code: [...itemsCode, nonObjectFail, ...objItemsCode, allFail].join(''), type: 'S'};
+        }
 
         default:
             throw new Error(`Binary serialization not supported for ${ReflectionKind[kind]} types`);
@@ -299,6 +342,35 @@ function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optio
             : `${sεr}.view.setUint8(${sεr}.index++, 0)`;
     const bitMapInit = `${bitmapLength > 1 ? 'let ' : 'const'} ${bitMIndexVar} = ${sεr}.index; ${setBitmapToZero}`;
     return {bitMIndexVar, bitmapLength, bitIndex, bitMapInit};
+}
+
+function emitToBinaryIterable(rt: IterableRunType, comp: BinaryCompiler): JitCode {
+    const sεr = comp.args.sεr;
+    const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
+    const jitChildren = rt.getJitChildren(comp);
+    const childrenCode = jitChildren
+        .map((c) => comp.compile(c, 'S', fnID).code)
+        .filter(Boolean)
+        .join(';');
+
+    // Serialize length at the beginning, then iterate and serialize items
+    return {
+        code: `
+        ${sεr}.view.setUint32(${sεr}.index, ${comp.vλl}.size, 1); ${sεr}.index += 4;
+        for (const ${entry} of ${comp.vλl}) {${childrenCode}}
+    `,
+        type: 'S',
+    };
+}
+
+function emitToBinaryGenericMember(rt: ParameterRunType, comp: BinaryCompiler): JitCode {
+    const child = rt.getJitChild(comp);
+    const childJit = comp.compile(child, 'S', fnID);
+    if (!childJit?.code) return {code: undefined, type: 'S'};
+    if (rt.isOptional()) {
+        return {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'};
+    }
+    return childJit;
 }
 
 function emitToBinaryAs(rt: BaseRunType, comp: BinaryCompiler, kind: ReflectionKind): JitCode {

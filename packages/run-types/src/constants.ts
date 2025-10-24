@@ -82,3 +82,4 @@ export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 export const maxStackErrorMessage =
     'Max compilation nested level reached, either you have a very deeply nested type or there is an error related to circular references un the types.';
 export const JIT_STACK_TRACE_MESSAGE = '\nJIT runType trace => ';
+export const MAX_UNION_ITEMS = 2 ** 16 - 1;
