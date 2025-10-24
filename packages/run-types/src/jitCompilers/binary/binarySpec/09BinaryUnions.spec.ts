@@ -7,7 +7,7 @@
 
 import {SERIALIZATION_SPEC} from '../../serialization-suite';
 import {JitFunctions} from '../../../constants.functions';
-import {createSerializationFns, roundTrip} from './binaryHelpers';
+import {createSerializationFns, roundTrip, serContext} from './binaryHelpers';
 
 const SERIALIZE_FN = JitFunctions.toBinary;
 const DESERIALIZE_FN = JitFunctions.fromBinary;
@@ -29,13 +29,48 @@ it('union', () => {
 it('throw errors when item not belongs to the union', () => {
     const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_errors.getTestData();
     const {serialize, deserialize} = createSerializationFns(rt);
-    const jsonValues = values.map((item) => JSON.stringify([-1, item])); // invalid union index
 
-    values.forEach((value, i) => {
-        expect(() => serialize(value)).toThrow('Can not json encode union: item does not belong to the union');
-        expect(() => deserialize(jsonValues[i])).toThrow('Can not json decode union: invalid union index');
+    values.forEach((value) => {
+        expect(() => serialize(value)).toThrow('Can not encode union to binary: item does not belong to the union');
     });
+
+    serContext.reset();
+    const invalidUnionIndex = 20; // any number greater than the number of union items
+    serContext.view.setUint8(0, invalidUnionIndex);
+    serContext.view.setFloat64(1, 123); // set any valid value for the union (number)
+    expect(() => deserialize(serContext.buffer)).toThrow('Can not binary decode union: invalid union index');
 });
+
+function get_tBi_EOEKMK(utl) {
+    const uErr0 = 'Can not encode union to binary: item does not belong to the union';
+    const tBi_Ei8qua = utl.getJIT('tBi_Ei8qua');
+    const is_Ei8qua = utl.getJIT('is_Ei8qua');
+    const tBi_JH3nFt = utl.getJIT('tBi_JH3nFt');
+    const is_JH3nFt = utl.getJIT('is_JH3nFt');
+    const tBi_O6YoMM = utl.getJIT('tBi_O6YoMM');
+    const is_O6YoMM = utl.getJIT('is_O6YoMM');
+    const tBi_uMGimS = utl.getJIT('tBi_uMGimS');
+    const is_uMGimS = utl.getJIT('is_uMGimS');
+    function tBi_EOEKMK(v, Ser) {
+        if (is_Ei8qua.fn(v)) {
+            Ser.view.setUint8(Ser.index++, 0);
+            tBi_Ei8qua.fn(v, Ser);
+        } else if (is_JH3nFt.fn(v)) {
+            Ser.view.setUint8(Ser.index++, 1);
+            tBi_JH3nFt.fn(v, Ser);
+        } else if (is_O6YoMM.fn(v)) {
+            Ser.view.setUint8(Ser.index++, 2);
+            tBi_O6YoMM.fn(v, Ser);
+        } else if (is_uMGimS.fn(v)) {
+            Ser.view.setUint8(Ser.index++, 3);
+            tBi_uMGimS.fn(v, Ser);
+        } else {
+            throw new Error(uErr0);
+        }
+        return Ser;
+    }
+    return tBi_EOEKMK;
+}
 
 it('union array', () => {
     const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_array.getTestData();
@@ -46,14 +81,6 @@ it('union array', () => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(originalValues[i]).toEqual(deserialized);
     });
-
-    // ensure code for items that do not
-    const jitSerializeFn = rt.createJitFunction(SERIALIZE_FN);
-    const stringifyCode = jitSerializeFn.toString();
-    expect(stringifyCode).not.toContain('[0,');
-    expect(stringifyCode).not.toContain('[1,');
-    expect(stringifyCode).not.toContain('[2,');
-    expect(stringifyCode).toContain('[3,'); // date must be encoded to tuple [index, type]
 });
 
 it('with discriminator', () => {
@@ -65,14 +92,6 @@ it('with discriminator', () => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(originalValues[i]).toEqual(deserialized);
     });
-
-    // ensure code for items that do not need stringify to tuple is not emitted [index, type]
-    const jitSerializeFn = rt.createJitFunction(SERIALIZE_FN);
-    const stringifyCode = jitSerializeFn.toString();
-    expect(stringifyCode).not.toContain('[0,');
-    expect(stringifyCode).toContain('[1,'); // bigint must be encoded to tuple [index, type]
-    expect(stringifyCode).not.toContain('[2,');
-    expect(stringifyCode).toContain('[3,'); // date must be encoded to tuple [index, type]
 });
 
 it('union object with discriminator', () => {
