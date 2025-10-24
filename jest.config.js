@@ -6,7 +6,7 @@ const config = {
   collectCoverage: false,
   // jest only runs .spec.ts files, test.ts are reserved for bun test
   testMatch: ['**/?(*.)+(spec).ts?(x)'],
-  modulePathIgnorePatterns: ['xyz-Template', 'binarySpec'],
+  modulePathIgnorePatterns: ['xyz-Template'],
   // @see https://kulshekhar.github.io/ts-jest/docs/getting-started/paths-mapping/
   moduleNameMapper: {'^@mionkit/(.*)$': '<rootDir>/packages/$1'},
 };

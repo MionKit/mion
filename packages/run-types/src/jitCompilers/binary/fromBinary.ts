@@ -145,7 +145,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
                 return emitFromBinaryAs(runType, comp, ReflectionKind.tuple);
             } else {
                 throw new Error(
-                    'Binary deserialization not supported for function types, call compileParams or compileReturn instead'
+                    'Binary deserialization not supported for functions, call compileParams or compileReturn instead.'
                 );
             }
 
@@ -204,12 +204,12 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
         // ###################### COLLECTION RUNTYPES ######################
         // Types that contain other types as members
         case ReflectionKind.objectLiteral:
-        case ReflectionKind.intersection:
+        case ReflectionKind.intersection: {
+            const rt = runType as InterfaceRunType;
+            if (rt.isCallable()) return comp.compile(rt.getCallSignature(), 'S', fnID);
             if (runType.src.subKind === ReflectionSubKind.nonSerializable) {
                 throw new Error('Binary deserialization is disabled for Non Serializable types');
             } else {
-                const rt = runType as InterfaceRunType;
-
                 const {required, optional, indexSignatures} = rt.splitJitSplitChildren(comp);
                 if (indexSignatures.length) {
                     return comp.compile(indexSignatures[0], 'S', fnID); // index signature code already contains the loop
@@ -256,7 +256,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
                 if (canBeExpression) return {code: `{${expressionsPropsCode}}`, type: 'E'};
                 return {code: `${comp.vλl} = {${expressionsPropsCode}}\n${requiredPropsCode}${optionalPropsCode}`, type: 'S'};
             }
-
+        }
         case ReflectionKind.class:
             switch (runType.src.subKind) {
                 case ReflectionSubKind.date:

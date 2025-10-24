@@ -26,10 +26,10 @@ afterEach(() => ranTests++);
 it('throw errors for functions', () => {
     const {rt} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_functions.getTestData();
     expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
-        `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
+        `Binary serialization not supported for functions, call compileParams or compileReturn instead.`
     );
     expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
-        `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
+        `Binary deserialization not supported for functions, call compileParams or compileReturn instead.`
     );
 });
 
@@ -180,8 +180,7 @@ it('call signature params', () => {
     const {serialize, deserialize} = createSerializationCallSignatureParamsFn(rt as InterfaceRunType);
 
     values.forEach((value) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(value).toEqual(deserialized);
     });
 });
@@ -191,8 +190,7 @@ it('call signature return', () => {
     const {serialize, deserialize} = createSerializationCallSignatureReturnFn(rt as InterfaceRunType);
 
     values.forEach((value) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(value).toEqual(deserialized);
     });
 });
@@ -200,10 +198,10 @@ it('call signature return', () => {
 it('throw errors for call signatures', () => {
     const {rt} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_call_signature.getTestData();
     expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
-        `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
+        `Binary serialization not supported for functions, call compileParams or compileReturn instead.`
     );
     expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
-        `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
+        `Binary deserialization not supported for functions, call compileParams or compileReturn instead.`
     );
 });
 
