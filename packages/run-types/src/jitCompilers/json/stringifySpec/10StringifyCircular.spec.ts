@@ -18,7 +18,7 @@ it('circular types', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -40,7 +40,7 @@ it('CircularTuple object with discriminator', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -51,7 +51,7 @@ it('CircularIndex object with discriminator', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -62,7 +62,7 @@ it('CircularDeep object with discriminator', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -73,7 +73,7 @@ it('Circular tuple with complex structure', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 

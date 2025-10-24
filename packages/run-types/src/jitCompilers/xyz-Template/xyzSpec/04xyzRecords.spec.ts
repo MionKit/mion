@@ -30,7 +30,7 @@ it('interfaces with a property and index property', () => {
     values.forEach((value, i) => {
         const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
         expect(typeof serialized).toBe('string');
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -86,7 +86,7 @@ it('index property with bigint values', () => {
     values.forEach((value, i) => {
         const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
         expect(typeof serialized).toBe('string');
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
