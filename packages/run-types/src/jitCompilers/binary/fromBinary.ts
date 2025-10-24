@@ -6,19 +6,22 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
+import {jitUtils} from '@mionkit/core';
 import {ReflectionSubKind} from '../../constants.kind';
+import {childIsExpression, isSafePropName, toLiteral} from '../../lib/utils';
+import {jitBinaryDeserializerArgs, JitFunctions} from '../../constants.functions';
 import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
 import {type BaseFnCompiler} from '../../lib/jitFnCompiler';
 import type {LiteralRunType} from '../../runType/atomic/literal';
-import {jitBinaryDeserializerArgs, JitFunctions} from '../../constants.functions';
 import type {ArrayRunType} from '../../runType/member/array';
 import type {PropertyRunType} from '../../runType/member/property';
 import type {InterfaceRunType} from '../../runType/collection/interface';
 import type {IndexSignatureRunType} from '../../runType/member/indexProperty';
 import type {ClassRunType} from '../../runType/collection/class';
-import {childIsExpression, isSafePropName, toLiteral} from '../../lib/utils';
-import {jitUtils} from '@mionkit/core';
+import type {TupleRunType} from '../../runType/collection/tuple';
+import type {ParameterRunType} from '../../runType/member/param';
+import type {RestParamsRunType} from '../../runType/member/restParams';
 
 type BinaryCompiler = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
 
@@ -82,20 +85,23 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             return {code: toLiteral((runType as LiteralRunType).src.literal), type: 'E'};
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
+        case ReflectionKind.rest: // rest params are deserialized as array but start at rest item index
         case ReflectionKind.array: {
-            const rt = runType as ArrayRunType;
+            const rt = runType as ArrayRunType | RestParamsRunType;
             rt.checkNonSkipTypes(comp);
             const child = rt.getMemberType()!;
             const childCode = comp.compile(child, 'S', fnID);
             if (!childCode?.code) throw new Error(`Do not know how to deserialize Array<${child.getTypeName()}> from Binary.`);
+            const isRest = rt.src.kind === ReflectionKind.rest;
             const index = rt.getChildVarName(comp);
             const isExpression = childIsExpression(childCode, child);
             const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
             // deserialized from [length, items...]
             const lengthVal = `arrL${comp.getNestLevel(rt)}`;
+            const arrayInit = isRest ? '' : `${comp.vλl} = new Array(${lengthVal})`; // res array already initialized in parent
             return {
                 code: `
-                const ${lengthVal} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4; ${comp.vλl} = new Array(${lengthVal});
+                const ${lengthVal} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4; ${arrayInit};
                 for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${lengthVal}; ${index}++) {${code}}
             `,
                 type: 'S',
@@ -136,8 +142,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
         case ReflectionKind.methodSignature:
         case ReflectionKind.callSignature:
             if (runType.src.subKind === ReflectionSubKind.params) {
-                // TODO: Handle function parameters
-                break;
+                return emitFromBinaryAs(runType, comp, ReflectionKind.tuple);
             } else {
                 throw new Error(
                     'Binary deserialization not supported for function types, call compileParams or compileReturn instead'
@@ -147,17 +152,11 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
         case ReflectionKind.parameter:
             switch (src.subKind) {
                 case ReflectionSubKind.mapKey:
-                    // TODO: Handle map key parameter
-                    break;
                 case ReflectionSubKind.mapValue:
-                    // TODO: Handle map value parameter
-                    break;
                 case ReflectionSubKind.setItem:
-                    // TODO: Handle set item parameter
                     break;
                 default:
-                    // TODO: Handle regular parameter
-                    break;
+                    return emitFromBinaryAs(runType, comp, ReflectionKind.tupleMember);
             }
             break;
 
@@ -166,31 +165,39 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             const rt = runType as PropertyRunType;
             const parent = rt.getParent() as InterfaceRunType;
             const child = rt.getJitChild(comp)!;
-            const childCode = comp.compile(child, 'S', fnID);
+            const childJit = comp.compile(child, 'S', fnID);
             if (rt.isOptional()) {
                 const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
+                const initCode = childJit.type === 'E' ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code;
                 return {
-                    code: `if (${dεs}.view.getUint8(${bitMIndexVar}, 1) & (1 << (${bitIndex}))) {${comp.getChildVλl()} = ${childCode?.code}}`,
+                    code: `if (${dεs}.view.getUint8(${bitMIndexVar}, 1) & (1 << (${bitIndex}))) {${initCode}}`,
                     type: 'S',
                 };
             }
             // block or statements code are initialized as obj.a = deserializeA; obj.b = deserializeB; after initial object has been created
-            const isExpression = childIsExpression(childCode, child);
+            const isExpression = childIsExpression(childJit, child);
             if (!isExpression) {
-                return childCode; // block statements already include variable assignment
+                return childJit; // block statements already include variable assignment
             }
             // required props that are simple expressions code are part of an object constructor {a: deserializeA, b: deserializeB, c: deserializeC}
             const propName = getPropName(rt, comp, true);
-            return {code: `${propName}:${childCode?.code}`, type: 'E'};
+            return {code: `${propName}:${childJit?.code}`, type: 'E'};
         }
-        case ReflectionKind.rest:
-            // TODO
-            break;
 
-        case ReflectionKind.tupleMember:
-            // TODO
-            break;
-
+        case ReflectionKind.tupleMember: {
+            const rt = runType as ParameterRunType;
+            const childJit = comp.compile(rt.getJitChild(comp), 'S', fnID);
+            const nullJIt = emitFromBinaryAs(rt, comp, ReflectionKind.undefined);
+            const itemJit = childJit?.code ? childJit : nullJIt; // if child is not serializable, we serialize null as need to fill the space in the tuple
+            const initCode = itemJit.type === 'E' ? `${comp.getChildVλl()} = ${itemJit.code}` : itemJit.code;
+            if (rt.isRest()) return itemJit;
+            if (rt.isOptional()) {
+                // todo, we could optimize this by using bitmap mask to use a single bit per optional param (similar to what we do for properties)
+                const code = `if (${dεs}.view.getUint8(${dεs}.index++) === 1){${initCode}}`;
+                return {code, type: 'S'};
+            }
+            return {code: initCode, type: 'S'};
+        }
         case ReflectionKind.promise:
             throw new Error('Binary deserialization not supported for Promise types');
 
@@ -286,10 +293,17 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
         case ReflectionKind.infer:
             throw new Error('Infer is not supported in Binary deserialization');
 
-        case ReflectionKind.tuple:
-            // TODO
-            break;
-
+        case ReflectionKind.tuple: {
+            const rt = runType as TupleRunType;
+            const skip = rt.skipJit(comp);
+            if (skip) return {code: undefined, type: 'S'};
+            const params = rt.getParamRunTypes(comp);
+            const hasFixedSize = params.every((p) => !p.isOptional() && !p.isRest());
+            const initTuple = hasFixedSize ? `${comp.vλl} = new Array(${params.length});` : `${comp.vλl} = [];`;
+            if (params.length === 0) return {code: initTuple, type: 'S'};
+            const paramsCode = params.map((p) => comp.compile(p, 'S', fnID).code || '').join(';');
+            return {code: `${initTuple}${paramsCode}`, type: 'S'};
+        }
         case ReflectionKind.typeParameter:
             throw new Error('Type parameter not implemented in Binary deserialization');
 
@@ -318,4 +332,12 @@ function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optio
     // bitmap for present optional props
     const bitMapInit = `${bitmapLength > 1 ? 'let ' : 'const'} ${bitMIndexVar} = ${dεs}.index; ${dεs}.index += ${bitmapLength};`;
     return {bitMIndexVar, bitmapLength, bitIndex, bitMapInit};
+}
+
+function emitFromBinaryAs(rt: BaseRunType, comp: BinaryCompiler, kind: ReflectionKind): JitCode {
+    const originalKind = rt.src.kind;
+    (rt.src as any).kind = kind;
+    const result = emitFromBinary(rt, comp);
+    (rt.src as any).kind = originalKind;
+    return result;
 }

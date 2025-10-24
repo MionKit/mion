@@ -81,7 +81,8 @@ export interface RunTypeChildAccessor extends RunType {
     useArrayAccessor(): boolean;
     /** Returns true if the property is optional */
     isOptional(): boolean;
-    /** In Some situation (rest params) the access logic might be set in the child node instead the parent
+    /** Some runType nodes might have some logic or being par of the AST, but we might not want to modify current stack variable vλl.
+     * Ie: (Rest params) is alway a child of a tupleMember, in this case we want vλl to point to the rest param and not the tuple member.
      * so we want to skip setting the accessor in the parent.  */
     skipSettingAccessor?(): boolean;
     /** used to compile json stringify, items with the flag set will omit outputting comma after the item */

@@ -40,7 +40,7 @@ it('tuple rest parameter', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -71,8 +71,7 @@ it('interface circular tuple', () => {
     const {serialize, deserialize} = createSerializationFns(rt);
 
     values.forEach((value, i) => {
-        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
-        expect(typeof serialized).toBe('string');
+        const {deserialized} = roundTrip(serialize, deserialize, value);
         expect(originalValues[i]).toEqual(deserialized);
     });
 });

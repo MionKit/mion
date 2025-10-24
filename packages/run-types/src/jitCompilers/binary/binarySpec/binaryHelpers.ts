@@ -11,6 +11,11 @@ import type {DataViewDeserializer, DataViewSerializer, StrictArrayBuffer} from '
 import type {InterfaceRunType} from '../../../runType/collection/interface';
 import type {RunType} from '../../../types';
 import {createDataViewDeserializer, createDataViewSerializer} from '../binarySerializer';
+import {getENV} from '@mionkit/core';
+
+const DEBUG = getENV('DEBUG_JIT') === 'print';
+/** maps a binary serializer to json serializer */
+const toJsonSerializers: Map<(v: any) => any, (v: any) => string> = new Map();
 
 const serContext: DataViewSerializer = createDataViewSerializer({bufferSize: 1024});
 const desContext: DataViewDeserializer = createDataViewDeserializer(new ArrayBuffer(0));
@@ -23,6 +28,11 @@ export function createSerializationFns(rt: RunType) {
     const fromBinary = rt.createJitFunction(DESERIALIZE_FN);
     const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
     const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
+    if (DEBUG) {
+        const toJson = rt.createJitFunction(JitFunctions.toJsonVal);
+        const stringify = (v: any) => JSON.stringify(toJson(v));
+        toJsonSerializers.set(serialize, stringify);
+    }
     return {serialize, deserialize};
 }
 
@@ -32,6 +42,11 @@ export function createSerializationParamsFn(rt: FunctionRunType, sliceStart?: nu
     const fromBinary = rt.createJitParamsFunction(DESERIALIZE_FN, params);
     const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
     const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
+    if (DEBUG) {
+        const toJson = rt.createJitParamsFunction(JitFunctions.toJsonVal, params);
+        const stringify = (v: any) => JSON.stringify(toJson(v));
+        toJsonSerializers.set(serialize, stringify);
+    }
     return {serialize, deserialize};
 }
 
@@ -40,6 +55,11 @@ export function createSerializationReturnFn(rt: FunctionRunType) {
     const fromBinary = rt.createJitReturnFunction(DESERIALIZE_FN);
     const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
     const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
+    if (DEBUG) {
+        const toJson = rt.createJitReturnFunction(JitFunctions.toJsonVal);
+        const stringify = (v: any) => JSON.stringify(toJson(v));
+        toJsonSerializers.set(serialize, stringify);
+    }
     return {serialize, deserialize};
 }
 
@@ -49,6 +69,11 @@ export function createSerializationCallSignatureParamsFn(rt: InterfaceRunType) {
     const fromBinary = callSignature.createJitParamsFunction(DESERIALIZE_FN);
     const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
     const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
+    if (DEBUG) {
+        const toJson = callSignature.createJitParamsFunction(JitFunctions.toJsonVal);
+        const stringify = (v: any) => JSON.stringify(toJson(v));
+        toJsonSerializers.set(serialize, stringify);
+    }
     return {serialize, deserialize};
 }
 
@@ -58,26 +83,26 @@ export function createSerializationCallSignatureReturnFn(rt: InterfaceRunType) {
     const fromBinary = callSignature.createJitReturnFunction(DESERIALIZE_FN);
     const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
     const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
+    if (DEBUG) {
+        const toJson = callSignature.createJitReturnFunction(JitFunctions.toJsonVal);
+        const stringify = (v: any) => JSON.stringify(toJson(v));
+        toJsonSerializers.set(serialize, stringify);
+    }
     return {serialize, deserialize};
 }
 
 const sizesEntries: any[] = [];
 const valuesEntries: any[] = [];
 
-export function roundTrip(
-    serialize: (v: any) => StrictArrayBuffer,
-    deserialize: (v: StrictArrayBuffer) => any,
-    value: any,
-    debug = false
-) {
+export function roundTrip(serialize: (v: any) => StrictArrayBuffer, deserialize: (v: StrictArrayBuffer) => any, value: any) {
     serContext.reset();
     const serialized = serialize(value);
-    // console.log('serialized', serialized);
     const deserialized = deserialize(serialized);
-    if (debug) {
+    if (DEBUG) {
+        const stringify = toJsonSerializers.get(serialize)!;
         let json: number | string = '';
         // eslint-disable-next-line
-        try { json = new Blob([JSON.stringify(value)]).size; } catch (e) { json = '-'; } // prettier-ignore
+        try { json = new Blob([stringify(value)]).size; } catch (e) { json = '-'; } // prettier-ignore
         const sizes = {name: expect.getState().currentTestName, json, binary: serialized.byteLength};
         sizesEntries.push(sizes);
         valuesEntries.push({value, deserialized});
