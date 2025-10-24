@@ -22,7 +22,7 @@ it('union', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -44,7 +44,7 @@ it('union array', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 
     // ensure code for items that do not
@@ -63,7 +63,7 @@ it('with discriminator', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 
     // ensure code for items that do not need stringify to tuple is not emitted [index, type]
@@ -82,7 +82,7 @@ it('union object with discriminator', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -93,7 +93,7 @@ it('union with discriminator property', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -104,7 +104,7 @@ it('union mixed with discriminator', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -115,7 +115,7 @@ it('union index property with discriminator', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -126,7 +126,7 @@ it('Circular Union with discriminator', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 

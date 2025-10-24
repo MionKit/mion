@@ -19,7 +19,7 @@ describe('utility-types', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized).toEqual(originalValues[i]);
         });
     });
 
@@ -30,7 +30,7 @@ describe('utility-types', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized).toEqual(originalValues[i]);
         });
     });
 
@@ -41,7 +41,7 @@ describe('utility-types', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized).toEqual(originalValues[i]);
         });
     });
 
@@ -52,7 +52,7 @@ describe('utility-types', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized).toEqual(originalValues[i]);
         });
     });
 
@@ -63,7 +63,7 @@ describe('utility-types', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized).toEqual(originalValues[i]);
         });
     });
 
@@ -74,7 +74,7 @@ describe('utility-types', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized).toEqual(originalValues[i]);
         });
     });
 
@@ -85,7 +85,7 @@ describe('utility-types', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized).toEqual(originalValues[i]);
         });
     });
 
@@ -96,7 +96,7 @@ describe('utility-types', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized).toEqual(originalValues[i]);
         });
     });
 
@@ -107,7 +107,7 @@ describe('utility-types', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized).toEqual(originalValues[i]);
         });
     });
 
@@ -118,7 +118,7 @@ describe('utility-types', () => {
 
         values.forEach((value, i) => {
             const {deserialized} = roundTrip(serialize, deserialize, value);
-            expect(originalValues[i]).toEqual(deserialized);
+            expect(deserialized).toEqual(originalValues[i]);
         });
     });
 

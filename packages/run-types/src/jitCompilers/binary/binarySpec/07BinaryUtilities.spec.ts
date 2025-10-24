@@ -18,7 +18,7 @@ it('awaited', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -29,7 +29,7 @@ it('exclude atomic', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -40,7 +40,7 @@ it('exclude objects', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -51,7 +51,7 @@ it('required properties', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -62,7 +62,7 @@ it('extract atomic', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -73,7 +73,7 @@ it('extract objects', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -84,7 +84,7 @@ it('partial properties', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -95,7 +95,7 @@ it('pick properties', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -106,7 +106,7 @@ it('omit properties', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -117,7 +117,7 @@ it('record type', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 

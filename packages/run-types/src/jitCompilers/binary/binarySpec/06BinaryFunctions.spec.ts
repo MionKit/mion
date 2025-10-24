@@ -40,7 +40,7 @@ it('parameters', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -51,7 +51,7 @@ it('function with Date parameters', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -62,7 +62,7 @@ it('optional parameters', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -73,7 +73,7 @@ it('function return', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -84,7 +84,7 @@ it('stringify function with rest parameters', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -95,7 +95,7 @@ it('required function return', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -106,7 +106,7 @@ it('stringify function with only rest parameters', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -127,7 +127,7 @@ it(`functions returns a promise`, () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -138,7 +138,7 @@ it(`return type of a closure`, () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -149,7 +149,7 @@ it('get params function using reflectFunction', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -160,7 +160,7 @@ it('get return function using reflectFunction', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
@@ -171,7 +171,7 @@ it('slice function params', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(originalValues[i]).toEqual(deserialized);
+        expect(deserialized).toEqual(originalValues[i]);
     });
 });
 
