@@ -190,7 +190,7 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
         }
 
         case ReflectionKind.promise:
-            throw new Error('Binary serialization not supported for Promise types');
+            throw new Error('Jit compilation disabled for Non Serializable types.');
 
         // ###################### COLLECTION RUNTYPES ######################
         // Types that contain other types as members

@@ -25,7 +25,7 @@ import type {ParameterRunType} from '../../runType/member/param';
 import type {RestParamsRunType} from '../../runType/member/restParams';
 import type {UnionRunType} from '../../runType/collection/union';
 import type {IterableRunType} from '../../runType/native/Iterable';
-import type {MapRunType} from '../../runType/native/map';
+import type {MapValueRunType} from '../../runType/native/map';
 
 type BinaryCompiler = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
 
@@ -165,20 +165,20 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
                         throw new Error(`Do not know how to deserialize ${rt.getTypeName()} from Binary.`);
                     const parent = rt.getParent()!;
                     const parentVλl = parent.getCustomVλl(comp)?.vλl || comp.vλl;
-                    const vλl = comp.vλl;
+                    const vλl = rt.getCustomVλl(comp)?.vλl;
                     const isExpression = childIsExpression(childJit, child);
-                    const code = isExpression ? `${vλl} = ${childJit.code};` : childJit.code || '';
+                    const code = isExpression ? `const ${vλl} = ${childJit.code};` : childJit.code || '';
                     let setOperation = '';
                     switch (rt.src.subKind) {
                         case ReflectionSubKind.mapKey:
-                            break; //we set map item once we have the key and value
+                            break; // we set map item once we have the key and value
                         case ReflectionSubKind.mapValue: {
-                            const mapKey = (parent as MapRunType).keyRT.getCustomVλl(comp)!.vλl;
-                            setOperation = `${parentVλl}.set(${mapKey}, ${comp.vλl})`;
+                            const mapKey = (rt as any as MapValueRunType).getMapKeyVλl(comp); // not the best solution but works
+                            setOperation = `${parentVλl}.set(${mapKey}, ${vλl})`;
                             break;
                         }
                         case ReflectionSubKind.setItem:
-                            setOperation = `${parentVλl}.add(${comp.vλl})`;
+                            setOperation = `${parentVλl}.add(${vλl})`;
                             break;
                     }
                     return {code: `${code}; ${setOperation};`, type: 'S'};
@@ -227,7 +227,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             return {code: initCode, type: 'S'};
         }
         case ReflectionKind.promise:
-            throw new Error('Binary deserialization not supported for Promise types');
+            throw new Error('Jit compilation disabled for Non Serializable types.');
 
         // ###################### COLLECTION RUNTYPES ######################
         // Types that contain other types as members
@@ -302,7 +302,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
                         .join(';');
                     if (!childrenCode) return {code: initCode, type: 'E'};
                     const index = `itI${comp.getNestLevel(rt)}`;
-                    const lengthVar = `itl${comp.getNestLevel(rt)}`;
+                    const lengthVar = `itL${comp.getNestLevel(rt)}`;
                     const readLength = `const ${lengthVar} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4`;
                     return {
                         code: `${initCode}; ${readLength}; for (let ${index} = 0; ${index} < ${lengthVar}; ${index}++) {${childrenCode}} ${comp.vλl} = ${vλl};`,
