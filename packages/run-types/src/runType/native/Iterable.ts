@@ -12,7 +12,7 @@ import {BaseRunType} from '../../lib/baseRunTypes';
 // This is the base class for all iterable run types, like SetRunType and MapRunType
 export abstract class IterableRunType extends ClassRunType {
     abstract children: BaseRunType[];
-    abstract instance: string;
+    abstract constructorName: string;
     getIndexVarName(comp: JitFnCompiler): string {
         return `e${comp.getNestLevel(this)}`;
     }
@@ -26,7 +26,7 @@ export abstract class IterableRunType extends ClassRunType {
             .join(';');
         return {
             code: `
-            if (!(${comp.vλl} instanceof ${this.instance})) return false;
+            if (!(${comp.vλl} instanceof ${this.constructorName})) return false;
             for (const ${entry} of ${comp.vλl}) {${childrenCode}} return true;
         `,
             type: 'RB',
@@ -40,7 +40,7 @@ export abstract class IterableRunType extends ClassRunType {
         const index = this.getIndexVarName(comp);
         return {
             code: `
-            if (!(${comp.vλl} instanceof ${this.instance})){${comp.callJitErr(this)}}
+            if (!(${comp.vλl} instanceof ${this.constructorName})){${comp.callJitErr(this)}}
             else {let ${index} = 0;for (const ${entry} of ${comp.vλl}) {${childrenCode}; ${index}++}}
         `,
             type: 'S',
@@ -71,11 +71,11 @@ export abstract class IterableRunType extends ClassRunType {
             .map((c) => comp.compileFromJsonVal(c, 'S').code)
             .filter(Boolean)
             .join(';');
-        if (!childrenCode) return {code: `${comp.vλl} = new ${this.instance}(${comp.vλl})`, type: 'S'};
+        if (!childrenCode) return {code: `${comp.vλl} = new ${this.constructorName}(${comp.vλl})`, type: 'S'};
         return {
             code: `
             for (let ${index} = 0; ${index} < ${comp.vλl}.length; ${index}++) {${childrenCode}}
-            ${comp.vλl} = new ${this.instance}(${comp.vλl})
+            ${comp.vλl} = new ${this.constructorName}(${comp.vλl})
         `,
             type: 'S',
         };
@@ -95,7 +95,7 @@ export abstract class IterableRunType extends ClassRunType {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         return {
             code: `
-            if (!(${comp.vλl} instanceof ${this.instance})) return false;
+            if (!(${comp.vλl} instanceof ${this.constructorName})) return false;
             for (const ${entry} of ${comp.vλl}) {${childrenCode}} return false;
         `,
             type: 'RB',
@@ -112,7 +112,7 @@ export abstract class IterableRunType extends ClassRunType {
         const index = this.getIndexVarName(comp);
         return {
             code: `
-            if (!(${comp.vλl} instanceof ${this.instance})) return;
+            if (!(${comp.vλl} instanceof ${this.constructorName})) return;
             let ${index} = 0; for (const ${entry} of ${comp.vλl}) {${childrenCode}; ${index}++}
         `,
             type: 'S',
@@ -128,7 +128,7 @@ export abstract class IterableRunType extends ClassRunType {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         return {
             code: `
-            if (!(${comp.vλl} instanceof ${this.instance})) return;
+            if (!(${comp.vλl} instanceof ${this.constructorName})) return;
             for (const ${entry} of ${comp.vλl}) {${childrenCode}}
         `,
             type: 'S',
@@ -144,7 +144,7 @@ export abstract class IterableRunType extends ClassRunType {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         return {
             code: `
-            if (!(${comp.vλl} instanceof ${this.instance})) return;
+            if (!(${comp.vλl} instanceof ${this.constructorName})) return;
             for (const ${entry} of ${comp.vλl}) {${childrenCode}}
         `,
             type: 'S',

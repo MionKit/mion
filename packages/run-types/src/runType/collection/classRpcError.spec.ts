@@ -11,7 +11,7 @@
 import {RpcError} from '@mionkit/core';
 import {DataOnly} from '@mionkit/core';
 import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../lib/runType';
+import {runType} from '../../lib/createRunType';
 
 it('can validate RpcError class', () => {
     const rt = runType<RpcError<'test-error'>>();

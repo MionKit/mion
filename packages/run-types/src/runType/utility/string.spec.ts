@@ -6,7 +6,7 @@
  * ######## */
 
 import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../lib/runType';
+import {runType} from '../../lib/createRunType';
 
 // Intrinsic String Manipulation Types: these are typescript native utility types but require a runtime implementation
 // Uppercase<StringType>, Lowercase<StringType>, Capitalize<StringType>, Uncapitalize<StringType>

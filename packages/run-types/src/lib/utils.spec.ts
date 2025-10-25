@@ -11,7 +11,7 @@ import {JitFunctions} from '../constants.functions';
 import type {BaseRunType, CollectionRunType} from './baseRunTypes';
 import {JitFnCompiler} from './jitFnCompiler';
 import {createUniqueHash} from './quickHash';
-import {runType} from './runType';
+import {runType} from './createRunType';
 import {getTotalComplexity, sortDiscriminatorsFirst, sortRunTypeByComplexity} from './utils';
 import {mockNumber} from '../mocking/mockUtils';
 import type {PropertyRunType} from '../runType/member/property';

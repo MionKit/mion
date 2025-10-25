@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {runType} from '../../lib/runType';
+import {runType} from '../../lib/createRunType';
 
 // TODO: ATM we can't correctly identify this types, the generated deepkit type does not have anything to indicate the type is a native type
 // some types could be identified by the typeName property, but not all of them.

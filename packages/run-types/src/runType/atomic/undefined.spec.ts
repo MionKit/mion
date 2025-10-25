@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {runType} from '../../lib/runType';
+import {runType} from '../../lib/createRunType';
 import {JitFunctions} from '../../constants.functions';
 
 const rt = runType<undefined>();

@@ -7,7 +7,7 @@
  * ######## */
 
 import {DataOnly, jitUtils, RpcError} from '@mionkit/core';
-import {reflectFunction, runType} from '../lib/runType';
+import {reflectFunction, runType} from '../lib/createRunType';
 import {mockRegExpsList} from '../mocking/constants.mock';
 import {type RunType} from '../types';
 

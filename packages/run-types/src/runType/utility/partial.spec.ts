@@ -6,7 +6,7 @@
  * ######## */
 
 import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../lib/runType';
+import {runType} from '../../lib/createRunType';
 
 // Deepkit already implements all logic for Partial
 

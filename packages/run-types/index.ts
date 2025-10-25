@@ -20,7 +20,7 @@ export * from './src/lib/guards';
 export * from './src/lib/jitFnCompiler';
 export * from './src/lib/jitFnsRegistry';
 export * from './src/lib/quickHash';
-export * from './src/lib/runType';
+export * from './src/lib/createRunType';
 export * from './src/lib/utils';
 export * from './src/mocking/constants.mock';
 export * from './src/mocking/mockRegistry';

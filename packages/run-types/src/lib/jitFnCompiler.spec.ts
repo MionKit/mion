@@ -7,7 +7,7 @@
 
 import {RpcError} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
-import {runType} from './runType';
+import {runType} from './createRunType';
 import {JitCompiledFnData, PureFunctionData} from '@mionkit/core';
 
 interface PublicMethod {

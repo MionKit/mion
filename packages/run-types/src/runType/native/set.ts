@@ -27,7 +27,7 @@ class SetKeyRunType extends GenericMemberRunType<any> {
 export class SetRunType extends IterableRunType {
     keyRT = new SetKeyRunType();
     children = [this.keyRT];
-    instance = 'Set';
+    constructorName = 'Set';
     onCreated(src: SrcType<TypeClass>): void {
         const types = src.arguments;
         if (!types || types.length !== 1) throw new Error(`Set expects 1 type argument: ie: Set<number>`);
@@ -43,6 +43,8 @@ export class SetRunType extends IterableRunType {
         // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
         if (comp.fnID === JitFunctions.fromJsonVal.id)
             return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: false, useArrayAccessor: true};
+        else if (comp.fnID === JitFunctions.fromBinary.id)
+            return {vλl: `sI${comp.getNestLevel(this)}`, isStandalone: true, useArrayAccessor: false};
         // other operations use an special case for vλl where all parents are skipped
         return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: true};
     }
