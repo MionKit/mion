@@ -117,7 +117,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
     }
     /** The variable name for the current item in the stack. */
     vλl: string = '';
-    getNestLevel(rt: BaseRunType<any>) {
+    getNestLevel(rt: BaseRunType<any>): number {
         let index = -1;
         this.stack.forEach((item, i) => {
             if (item.rt === rt) index = i;
@@ -125,8 +125,8 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         });
         if (index !== -1) return index;
         const fromParent = this.parentCompiler?.getNestLevel(rt);
-        if (fromParent !== -1) return fromParent;
-        throw new Error(`Type ${rt.getTypeName()} not found in stack, so can't get nest level`);
+        if (fromParent && fromParent !== -1) return fromParent;
+        return -1; // not found
     }
     /**
      * The path to the current item in the stack,

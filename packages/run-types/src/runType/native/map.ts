@@ -43,7 +43,7 @@ export class MapRunType extends IterableRunType {
     }
 }
 
-class MapKeyRunType extends GenericMemberRunType<any> {
+export class MapKeyRunType extends GenericMemberRunType<any> {
     index = 0;
     getStaticPathLiteral(comp: JitFnCompiler): string | number {
         const parent = this.getParent()! as MapRunType;
@@ -53,12 +53,12 @@ class MapKeyRunType extends GenericMemberRunType<any> {
     getCustomVλl(comp: JitFnCompiler) {
         // temp variable to assign mapKey
         if (comp.fnID === JitFunctions.fromBinary.id)
-            return {vλl: `mpk${comp.getNestLevel(this)}`, isStandalone: true, useArrayAccessor: false};
+            return {vλl: getMapKeyName(comp.getNestLevel(this)), isStandalone: true, useArrayAccessor: false};
         return undefined;
     }
 }
 
-class MapValueRunType extends GenericMemberRunType<any> {
+export class MapValueRunType extends GenericMemberRunType<any> {
     index = 1;
     getStaticPathLiteral(comp: JitFnCompiler): string | number {
         const parent = this.getParent()! as MapRunType;
@@ -71,4 +71,11 @@ class MapValueRunType extends GenericMemberRunType<any> {
             return {vλl: `mpV${comp.getNestLevel(this)}`, isStandalone: true, useArrayAccessor: false};
         return undefined;
     }
+    getMapKeyVλl(comp: JitFnCompiler) {
+        return getMapKeyName(comp.getNestLevel(this));
+    }
+}
+
+function getMapKeyName(nestLevel: number) {
+    return `mpk${nestLevel}`;
 }
