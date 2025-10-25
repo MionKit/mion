@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../lib/runType';
+import {runType} from '../../lib/createRunType';
 
 function cloneMap<K, V>(map: Map<K, V>): Map<K, V> {
     const copyEntries = Array.from(map.entries()).map(([k, v]) => [structuredClone(k), structuredClone(v)] as [K, V]);

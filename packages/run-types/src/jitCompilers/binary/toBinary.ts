@@ -146,8 +146,12 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
             switch (src.subKind) {
                 case ReflectionSubKind.mapKey:
                 case ReflectionSubKind.mapValue:
-                case ReflectionSubKind.setItem:
-                    return emitToBinaryGenericMember(rt, comp);
+                case ReflectionSubKind.setItem: {
+                    const child = rt.getJitChild(comp);
+                    const childJit = comp.compile(child, 'S', fnID);
+                    if (!childJit?.code) throw new Error(`Do not know how to serialize ${rt.getTypeName()} to Binary.`);
+                    return childJit;
+                }
                 default: {
                     return emitToBinaryAs(runType, comp, ReflectionKind.tupleMember);
                 }
@@ -240,7 +244,19 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
                 case ReflectionSubKind.map:
                 case ReflectionSubKind.set: {
                     const rt = runType as IterableRunType;
-                    return emitToBinaryIterable(rt as unknown as IterableRunType, comp);
+                    const sεr = comp.args.sεr;
+                    const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
+                    const jitChildren = rt.getJitChildren(comp);
+                    const childrenCode = jitChildren
+                        .map((c) => comp.compile(c, 'S', fnID).code)
+                        .filter(Boolean)
+                        .join(';');
+                    // Serialize length at the beginning, then iterate and serialize items
+                    const setLength = `${sεr}.view.setUint32(${sεr}.index, ${comp.vλl}.size, 1); ${sεr}.index += 4;`;
+                    return {
+                        code: `${setLength} for (const ${entry} of ${comp.vλl}) {${childrenCode}}`,
+                        type: 'S',
+                    };
                 }
                 case ReflectionSubKind.nonSerializable:
                     throw new Error('Binary serialization disabled for Non Serializable types');
@@ -342,35 +358,6 @@ function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optio
             : `${sεr}.view.setUint8(${sεr}.index++, 0)`;
     const bitMapInit = `${bitmapLength > 1 ? 'let ' : 'const'} ${bitMIndexVar} = ${sεr}.index; ${setBitmapToZero}`;
     return {bitMIndexVar, bitmapLength, bitIndex, bitMapInit};
-}
-
-function emitToBinaryIterable(rt: IterableRunType, comp: BinaryCompiler): JitCode {
-    const sεr = comp.args.sεr;
-    const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
-    const jitChildren = rt.getJitChildren(comp);
-    const childrenCode = jitChildren
-        .map((c) => comp.compile(c, 'S', fnID).code)
-        .filter(Boolean)
-        .join(';');
-
-    // Serialize length at the beginning, then iterate and serialize items
-    return {
-        code: `
-        ${sεr}.view.setUint32(${sεr}.index, ${comp.vλl}.size, 1); ${sεr}.index += 4;
-        for (const ${entry} of ${comp.vλl}) {${childrenCode}}
-    `,
-        type: 'S',
-    };
-}
-
-function emitToBinaryGenericMember(rt: ParameterRunType, comp: BinaryCompiler): JitCode {
-    const child = rt.getJitChild(comp);
-    const childJit = comp.compile(child, 'S', fnID);
-    if (!childJit?.code) return {code: undefined, type: 'S'};
-    if (rt.isOptional()) {
-        return {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'};
-    }
-    return childJit;
 }
 
 function emitToBinaryAs(rt: BaseRunType, comp: BinaryCompiler, kind: ReflectionKind): JitCode {

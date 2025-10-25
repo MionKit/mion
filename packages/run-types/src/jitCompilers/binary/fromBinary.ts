@@ -10,6 +10,7 @@ import {jitUtils} from '@mionkit/core';
 import {ReflectionSubKind} from '../../constants.kind';
 import {childIsExpression, createIfElseFn, isSafePropName, toLiteral} from '../../lib/utils';
 import {jitBinaryDeserializerArgs, JitFunctions} from '../../constants.functions';
+import {MAX_UNION_ITEMS} from '../../constants';
 import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
 import {type BaseFnCompiler} from '../../lib/jitFnCompiler';
@@ -22,11 +23,9 @@ import type {ClassRunType} from '../../runType/collection/class';
 import type {TupleRunType} from '../../runType/collection/tuple';
 import type {ParameterRunType} from '../../runType/member/param';
 import type {RestParamsRunType} from '../../runType/member/restParams';
-import {UnionRunType} from '../../runType/collection/union';
-import {MAX_UNION_ITEMS} from '../../constants';
-import type {MapRunType} from '../../runType/native/map';
-import type {SetRunType} from '../../runType/native/set';
+import type {UnionRunType} from '../../runType/collection/union';
 import type {IterableRunType} from '../../runType/native/Iterable';
+import type {MapRunType} from '../../runType/native/map';
 
 type BinaryCompiler = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
 
@@ -159,8 +158,31 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             switch (src.subKind) {
                 case ReflectionSubKind.mapKey:
                 case ReflectionSubKind.mapValue:
-                case ReflectionSubKind.setItem:
-                    return emitFromBinaryGenericMember(rt, comp);
+                case ReflectionSubKind.setItem: {
+                    const child = rt.getJitChild(comp);
+                    const childJit = comp.compile(child, 'S', fnID);
+                    if (!childJit?.code || !child)
+                        throw new Error(`Do not know how to deserialize ${rt.getTypeName()} from Binary.`);
+                    const parent = rt.getParent()!;
+                    const parentVλl = parent.getCustomVλl(comp)?.vλl || comp.vλl;
+                    const vλl = comp.vλl;
+                    const isExpression = childIsExpression(childJit, child);
+                    const code = isExpression ? `${vλl} = ${childJit.code};` : childJit.code || '';
+                    let setOperation = '';
+                    switch (rt.src.subKind) {
+                        case ReflectionSubKind.mapKey:
+                            break; //we set map item once we have the key and value
+                        case ReflectionSubKind.mapValue: {
+                            const mapKey = (parent as MapRunType).keyRT.getCustomVλl(comp)!.vλl;
+                            setOperation = `${parentVλl}.set(${mapKey}, ${comp.vλl})`;
+                            break;
+                        }
+                        case ReflectionSubKind.setItem:
+                            setOperation = `${parentVλl}.add(${comp.vλl})`;
+                            break;
+                    }
+                    return {code: `${code}; ${setOperation};`, type: 'S'};
+                }
                 default:
                     return emitFromBinaryAs(runType, comp, ReflectionKind.tupleMember);
             }
@@ -267,14 +289,25 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             switch (runType.src.subKind) {
                 case ReflectionSubKind.date:
                     return {code: `new Date(${dεs}.view.getFloat64(${dεs}.index, 1, (${dεs}.index += 8)))`, type: 'E'};
-                    break;
-                case ReflectionSubKind.map: {
-                    const rt = runType as unknown as MapRunType;
-                    return emitFromBinaryIterable(rt as unknown as IterableRunType, comp);
-                }
+                case ReflectionSubKind.map:
                 case ReflectionSubKind.set: {
-                    const rt = runType as unknown as SetRunType;
-                    return emitFromBinaryIterable(rt as unknown as IterableRunType, comp);
+                    const rt = runType as IterableRunType;
+                    const children = rt.getJitChildren(comp);
+                    const vλl = rt.getCustomVλl(comp)?.vλl || comp.vλl;
+                    const initCode = `const ${vλl} = new ${rt.constructorName}()`;
+                    if (!children.length) return {code: `new ${rt.constructorName}()`, type: 'E'};
+                    const childrenCode = children
+                        .map((c) => comp.compile(c, 'S', fnID).code)
+                        .filter(Boolean)
+                        .join(';');
+                    if (!childrenCode) return {code: initCode, type: 'E'};
+                    const index = `itI${comp.getNestLevel(rt)}`;
+                    const lengthVar = `itl${comp.getNestLevel(rt)}`;
+                    const readLength = `const ${lengthVar} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4`;
+                    return {
+                        code: `${initCode}; ${readLength}; for (let ${index} = 0; ${index} < ${lengthVar}; ${index}++) {${childrenCode}} ${comp.vλl} = ${vλl};`,
+                        type: 'S',
+                    };
                 }
                 case ReflectionSubKind.nonSerializable:
                     throw new Error('Binary deserialization disabled for Non Serializable types');
@@ -377,62 +410,6 @@ function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optio
     // bitmap for present optional props
     const bitMapInit = `${bitmapLength > 1 ? 'let ' : 'const'} ${bitMIndexVar} = ${dεs}.index; ${dεs}.index += ${bitmapLength};`;
     return {bitMIndexVar, bitmapLength, bitIndex, bitMapInit};
-}
-
-function emitFromBinaryIterable(rt: IterableRunType, comp: BinaryCompiler): JitCode {
-    const dεs = comp.args.dεs;
-    const children = rt.getJitChildren(comp);
-
-    // If no children need deserialization, just read the length and construct the iterable
-    if (!children.length) {
-        return {
-            code: `
-        const len${comp.getNestLevel(rt as unknown as BaseRunType)} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4;
-        ${comp.vλl} = new ${rt.instance}(${comp.vλl})
-    `,
-            type: 'S',
-        };
-    }
-
-    // Compile all children deserialization code
-    const childrenCode = children
-        .map((c) => comp.compile(c, 'S', fnID).code)
-        .filter(Boolean)
-        .join(';');
-
-    // If no children code, just read length and construct
-    if (!childrenCode) {
-        return {
-            code: `
-        const len${comp.getNestLevel(rt as unknown as BaseRunType)} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4;
-        ${comp.vλl} = new ${rt.instance}(${comp.vλl})
-    `,
-            type: 'S',
-        };
-    }
-
-    // Read length, iterate and deserialize each item, then construct the iterable
-    const lengthVar = `len${comp.getNestLevel(rt as unknown as BaseRunType)}`;
-    const indexVar = `i${comp.getNestLevel(rt as unknown as BaseRunType)}`;
-
-    return {
-        code: `
-        const ${lengthVar} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4;
-        for (let ${indexVar} = 0; ${indexVar} < ${lengthVar}; ${indexVar}++) {${childrenCode}}
-        ${comp.vλl} = new ${rt.instance}(${comp.vλl})
-    `,
-        type: 'S',
-    };
-}
-
-function emitFromBinaryGenericMember(rt: ParameterRunType, comp: BinaryCompiler): JitCode {
-    const child = rt.getJitChild(comp);
-    const childJit = comp.compile(child, 'S', fnID);
-    if (!childJit?.code || !child) return {code: undefined, type: 'S'};
-    const isExpression = childIsExpression(childJit, child);
-    const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
-    if (rt.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
-    return {code, type: 'S'};
 }
 
 function emitFromBinaryAs(rt: BaseRunType, comp: BinaryCompiler, kind: ReflectionKind): JitCode {

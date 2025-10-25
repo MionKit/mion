@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {reflectFunction, runType} from '../../lib/runType';
+import {reflectFunction, runType} from '../../lib/createRunType';
 import {JitFunctions} from '../../constants.functions';
 import {FunctionRunType} from './function';
 

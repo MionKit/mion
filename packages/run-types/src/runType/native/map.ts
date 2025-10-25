@@ -16,7 +16,7 @@ export class MapRunType extends IterableRunType {
     keyRT = new MapKeyRunType();
     valueRT = new MapValueRunType();
     children = [this.keyRT, this.valueRT];
-    instance = 'Map';
+    constructorName = 'Map';
     onCreated(src: SrcType<TypeClass>): void {
         const types = src.arguments;
         if (!types || types.length !== 2) throw new Error(`Map expects 2 type arguments: ie: Map<string, number>`);
@@ -50,6 +50,12 @@ class MapKeyRunType extends GenericMemberRunType<any> {
         const custom = parent.getCustomVλl(comp)!;
         return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName(comp)},failed:'mapKey'}`;
     }
+    getCustomVλl(comp: JitFnCompiler) {
+        // temp variable to assign mapKey
+        if (comp.fnID === JitFunctions.fromBinary.id)
+            return {vλl: `mpk${comp.getNestLevel(this)}`, isStandalone: true, useArrayAccessor: false};
+        return undefined;
+    }
 }
 
 class MapValueRunType extends GenericMemberRunType<any> {
@@ -58,5 +64,11 @@ class MapValueRunType extends GenericMemberRunType<any> {
         const parent = this.getParent()! as MapRunType;
         const custom = parent.getCustomVλl(comp)!;
         return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName(comp)},failed:'mapVal'}`;
+    }
+    getCustomVλl(comp: JitFnCompiler) {
+        // temp variable to assign mapKey
+        if (comp.fnID === JitFunctions.fromBinary.id)
+            return {vλl: `mpV${comp.getNestLevel(this)}`, isStandalone: true, useArrayAccessor: false};
+        return undefined;
     }
 }

@@ -6,7 +6,7 @@
  * ######## */
 
 import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../lib/runType';
+import {runType} from '../../lib/createRunType';
 
 describe('Record  typescript utility type', () => {
     type MyType = Record<string, {a: string; b: number; c: Date}>; // note how record does not check the type of keys

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../lib/runType';
+import {runType} from '../../lib/createRunType';
 
 function cloneSet<T>(set: Set<T>): Set<T> {
     const copyValues = Array.from(set.values()).map((v) => structuredClone(v));

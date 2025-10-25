@@ -7,7 +7,7 @@
 import {UnionRunType} from './union';
 import {JitFunctions} from '../../constants.functions';
 import {BaseRunType} from '../../lib/baseRunTypes';
-import {runType} from '../../lib/runType';
+import {runType} from '../../lib/createRunType';
 
 describe('Atomic Union', () => {
     type AtomicUnion = Date | number | string | null | bigint;
