@@ -18,10 +18,10 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if(!(Number.isFinite(${comp.vλl}))) ${comp.callJitErr(this)}`, type: 'S'};
     }
-    emitToJsonVal(): JitCode {
+    emitPrepareForJson(): JitCode {
         return {code: undefined, type: 'S'};
     }
-    emitFromJsonVal(): JitCode {
+    emitRestoreFromJson(): JitCode {
         return {code: undefined, type: 'S'};
     }
 }

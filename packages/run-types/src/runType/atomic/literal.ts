@@ -42,19 +42,19 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
             return {code: compileTypeErrorsRegExp(comp, this.src.literal, this.getKindName()), type: 'S'};
         return {code: compileTypeErrorsLiteral(comp, this.src.literal, this.getKindName()), type: 'S'};
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
-        return this.getValidator().visitToJsonVal(comp);
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
+        return this.getValidator().visitPrepareForJson(comp);
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
-        return this.getValidator().visitFromJsonVal(comp);
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
+        return this.getValidator().visitRestoreFromJson(comp);
     }
 }
 
 const noEncoder = {
-    visitFromJsonVal(): JitCode {
+    visitRestoreFromJson(): JitCode {
         return {code: undefined, type: 'S'};
     },
-    visitToJsonVal(): JitCode {
+    visitPrepareForJson(): JitCode {
         return {code: undefined, type: 'S'};
     },
 };

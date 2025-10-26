@@ -59,7 +59,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
 
     constructor(
         public readonly rootType: BaseRunType,
-        // the id of the function to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc)
+        // the id of the function to be compiled (isType, typeErrors, prepareForJson, restoreFromJson, etc)
         public readonly fnID: ID,
         jitFnSettings: JitFnSettings,
         public readonly parentCompiler?: BaseFnCompiler,
@@ -98,7 +98,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
     readonly contextCodeItems = new Map<string, string>();
     /**
      * This flag is set to true when the result of a jit compilation is a no operation (empty function).
-     * Some jit compiled functions could execute no operations (ie: string, boolean and numbers does not require toJsonVal/fromJsonVal)
+     * Some jit compiled functions could execute no operations (ie: string, boolean and numbers does not require prepareForJson/restoreFromJson)
      */
     readonly isNoop?: boolean = false;
     /** The list of all jit functions that are used by this function and it's children. */
@@ -281,10 +281,10 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
                         jCode = this.compileFormatter(rt, fnID, rt.emitIsType(this, expectedCType), expectedCType, ' && '); break;
                     case JitFunctions.typeErrors.id:
                         jCode = this.compileFormatter(rt, fnID, rt.emitTypeErrors(this as any, expectedCType), expectedCType, ';'); break;
-                    case JitFunctions.toJsonVal.id:
-                        jCode = rt.emitToJsonVal(this, expectedCType); break;
-                    case JitFunctions.fromJsonVal.id:
-                        jCode = rt.emitFromJsonVal(this, expectedCType); break;
+                    case JitFunctions.prepareForJson.id:
+                        jCode = rt.emitPrepareForJson(this, expectedCType); break;
+                    case JitFunctions.restoreFromJson.id:
+                        jCode = rt.emitRestoreFromJson(this, expectedCType); break;
                     case JitFunctions.jsonStringify.id:
                         jCode = emitJsonStringify(rt, this); break;
                     case JitFunctions.toBinary.id:
@@ -409,8 +409,8 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
                 isNoop = !this.code || this.code === 'false' || this.code === 'return false';
                 if (isNoop) code = `return false`; // if code is a noop, we still need return false
                 break;
-            case JitFunctions.toJsonVal.id:
-            case JitFunctions.fromJsonVal.id:
+            case JitFunctions.prepareForJson.id:
+            case JitFunctions.restoreFromJson.id:
             case JitFunctions.stripUnknownKeys.id:
             case JitFunctions.unknownKeysToUndefined.id:
                 isNoop = !this.code || this.code === this.args.vλl || this.code === `return ${this.args.vλl}`;
@@ -507,11 +507,11 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
     compileTypeErrors(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
         return this.compile(rt, expectedCType, JitFunctions.typeErrors.id);
     }
-    compileToJsonVal(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, expectedCType, JitFunctions.toJsonVal.id);
+    compilePrepareForJson(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, expectedCType, JitFunctions.prepareForJson.id);
     }
-    compileFromJsonVal(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, expectedCType, JitFunctions.fromJsonVal.id);
+    compileRestoreFromJson(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
+        return this.compile(rt, expectedCType, JitFunctions.restoreFromJson.id);
     }
     compileJsonStringify(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
         return this.compile(rt, expectedCType, JitFunctions.jsonStringify.id);
@@ -685,8 +685,8 @@ export function createJitCompiler(
 ): BaseFnCompiler {
     switch (fnID) {
         case JitFunctions.isType.id:
-        case JitFunctions.toJsonVal.id:
-        case JitFunctions.fromJsonVal.id:
+        case JitFunctions.prepareForJson.id:
+        case JitFunctions.restoreFromJson.id:
         case JitFunctions.jsonStringify.id:
         case JitFunctions.hasUnknownKeys.id:
         case JitFunctions.stripUnknownKeys.id:

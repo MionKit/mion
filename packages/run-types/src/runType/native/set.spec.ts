@@ -221,8 +221,8 @@ describe('SerRunType with nested sets', () => {
     });
 
     it('encode/decode objects with nested sets to json', () => {
-        const toJsonVal = rtDeepWithSet.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rtDeepWithSet.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = rtDeepWithSet.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rtDeepWithSet.createJitFunction(JitFunctions.restoreFromJson);
 
         const set1: DeepWithSet['b'] = new Set([
             {s: 'a', arr: [1, 2, 3]},
@@ -233,9 +233,9 @@ describe('SerRunType with nested sets', () => {
             b: set1,
         };
         const objCopy = structuredClone(obj);
-        const encoded = toJsonVal(objCopy);
+        const encoded = prepareForJson(objCopy);
         const stringified = JSON.stringify(encoded);
-        const decoded = fromJsonVal(JSON.parse(stringified));
+        const decoded = restoreFromJson(JSON.parse(stringified));
 
         expect(decoded).toEqual(obj);
     });

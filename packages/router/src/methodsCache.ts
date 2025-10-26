@@ -53,13 +53,13 @@ function restorePersistedMethod(method: MethodData, handler: AnyHandler): NonRaw
 function restorePersistedJitFunctions(jitFns: JitFunctionsHashes): JitCompiledFunctions {
     const isType = jitUtils.getJIT(jitFns.isType);
     const typeErrors = jitUtils.getJIT(jitFns.typeErrors);
-    const toJsonVal = jitUtils.getJIT(jitFns.toJsonVal);
-    const fromJsonVal = jitUtils.getJIT(jitFns.fromJsonVal);
+    const prepareForJson = jitUtils.getJIT(jitFns.prepareForJson);
+    const restoreFromJson = jitUtils.getJIT(jitFns.restoreFromJson);
     const jsonStringify = jitUtils.getJIT(jitFns.jsonStringify);
-    if (!isType || !typeErrors || !toJsonVal || !fromJsonVal || !jsonStringify) {
+    if (!isType || !typeErrors || !prepareForJson || !restoreFromJson || !jsonStringify) {
         throw new Error(`Can't restore persisted JIT functions, some jit functions are missing: ${JSON.stringify(jitFns)}`);
     }
-    return {isType, typeErrors, toJsonVal, fromJsonVal, jsonStringify};
+    return {isType, typeErrors, prepareForJson, restoreFromJson, jsonStringify};
 }
 
 function shouldCompile() {

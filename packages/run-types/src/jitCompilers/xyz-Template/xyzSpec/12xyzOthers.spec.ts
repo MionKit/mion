@@ -8,7 +8,7 @@
 import {SERIALIZATION_SPEC} from '../../serialization-suite';
 import {JitFunctions} from '../../../constants.functions';
 
-const SERIALIZE_FN = JitFunctions.toJsonVal;
+const SERIALIZE_FN = JitFunctions.prepareForJson;
 
 let ranTests = 0;
 afterEach(() => ranTests++);

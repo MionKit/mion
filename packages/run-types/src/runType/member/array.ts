@@ -63,11 +63,11 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
-        const childJit = comp.compileToJsonVal(child, 'S');
+        const childJit = comp.compilePrepareForJson(child, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
@@ -76,11 +76,11 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             type: 'S',
         };
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
-        const childJit = comp.compileFromJsonVal(child, 'S');
+        const childJit = comp.compileRestoreFromJson(child, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';

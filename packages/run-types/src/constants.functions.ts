@@ -82,17 +82,17 @@ export const jitValidationFunctions = {
 } as const satisfies JitFunctionsGroup;
 
 export const jitSerializationFunctions = {
-    toJsonVal: {
+    prepareForJson: {
         id: 'tj',
-        name: 'toJsonVal',
+        name: 'prepareForJson',
         type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
     },
-    fromJsonVal: {
+    restoreFromJson: {
         id: 'fj',
-        name: 'fromJsonVal',
+        name: 'restoreFromJson',
         type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,

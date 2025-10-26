@@ -61,8 +61,8 @@ describe('PublicMethods run type functionality', () => {
         const publicMethod = getSerializableMethod(executable!);
         const rt = runType<PublicMethod>();
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(publicMethod)));
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
+        const roundTrip = restoreFromJson(JSON.parse(jsonStringify(publicMethod)));
         // handler method does not match it's type, so we need to replace it when comparing deserialized values
         roundTrip.handler = () => 'something';
         expect(roundTrip).toEqual({
@@ -129,11 +129,11 @@ describe('PublicMethods run type functionality', () => {
         };
         const rt = runType<ClientReturn>();
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const error = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error', type: 'test-error'});
         const errorClone = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error', type: 'test-error'});
         // operations modify the original object so we need to clone it before serializing
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(errorClone)));
+        const roundTrip = restoreFromJson(JSON.parse(jsonStringify(errorClone)));
         expect(roundTrip instanceof RpcError).toBeTruthy();
         expect(roundTrip).toEqual(error);
 
@@ -144,7 +144,7 @@ describe('PublicMethods run type functionality', () => {
             purFnDeps: {},
         };
         const jsonStr = jsonStringify(responseClone);
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStr));
+        const roundTrip2 = restoreFromJson(JSON.parse(jsonStr));
         // we need to remove the function handler before comparing and is not restored after round trip
         delete (publicMethod as any).handler;
         expect(roundTrip2).toEqual(response);
@@ -188,15 +188,15 @@ describe('Client Routes should', () => {
             paramsJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             returnJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             paramNames: [],
@@ -209,15 +209,15 @@ describe('Client Routes should', () => {
             paramsJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             returnJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             paramNames: [],
@@ -230,15 +230,15 @@ describe('Client Routes should', () => {
             paramsJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             returnJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             paramNames: [],
@@ -251,15 +251,15 @@ describe('Client Routes should', () => {
             paramsJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             returnJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             paramNames: [],
@@ -272,15 +272,15 @@ describe('Client Routes should', () => {
             paramsJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             returnJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             paramNames: [],
@@ -293,15 +293,15 @@ describe('Client Routes should', () => {
             paramsJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             returnJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             paramNames: ['token'],
@@ -313,15 +313,15 @@ describe('Client Routes should', () => {
             paramsJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             returnJitHashes: {
                 isType: expect.any(String),
                 typeErrors: expect.any(String),
-                toJsonVal: expect.any(String),
-                fromJsonVal: expect.any(String),
+                prepareForJson: expect.any(String),
+                restoreFromJson: expect.any(String),
                 jsonStringify: expect.any(String),
             },
             paramNames: [],

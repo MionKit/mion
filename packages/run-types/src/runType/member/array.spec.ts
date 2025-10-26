@@ -159,25 +159,25 @@ describe('test array strict modes', () => {
     });
 
     it('stripUnknownKeys and unknownKeysToUndefined', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
         const unknownKeysToUndefined = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
         const stripUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
-            return fromJsonVal(val);
+            return restoreFromJson(val);
         };
         const fromJsonSafeUndefined = (val) => {
             unknownKeysToUndefined(val);
-            return fromJsonVal(val);
+            return restoreFromJson(val);
         };
         const fromJsonSafeStrip = (val) => {
             stripUnknownKeys(val);
-            return fromJsonVal(val);
+            return restoreFromJson(val);
         };
 
-        const jsonString2 = JSON.stringify(toJsonVal(structuredClone(arrWithExtraDeep)));
+        const jsonString2 = JSON.stringify(prepareForJson(structuredClone(arrWithExtraDeep)));
         const copyD1 = JSON.parse(jsonString2);
         const copyD2 = JSON.parse(jsonString2);
         const copyD3 = JSON.parse(jsonString2);
@@ -234,25 +234,25 @@ describe('test array strict modes + circular reference', () => {
     });
 
     it('stripUnknownKeys and unknownKeysToUndefined', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
         const unknownKeysToUndefined = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
         const stripUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
-            return fromJsonVal(val);
+            return restoreFromJson(val);
         };
         const fromJsonSafeUndefined = (val) => {
             unknownKeysToUndefined(val);
-            return fromJsonVal(val);
+            return restoreFromJson(val);
         };
         const fromJsonSafeStrip = (val) => {
             stripUnknownKeys(val);
-            return fromJsonVal(val);
+            return restoreFromJson(val);
         };
 
-        const jsonString = JSON.stringify(toJsonVal(structuredClone(objWithExtra)));
+        const jsonString = JSON.stringify(prepareForJson(structuredClone(objWithExtra)));
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = JSON.parse(jsonString);
         const copy2 = JSON.parse(jsonString);
@@ -265,32 +265,32 @@ describe('test array strict modes + circular reference', () => {
         const extraWithStrip = structuredClone(objWithExtra) as any;
         delete extraWithStrip.extraA;
 
-        expect(fromJsonVal(copy1)).toEqual(objWithExtra);
+        expect(restoreFromJson(copy1)).toEqual(objWithExtra);
         expect(() => fromJsonSafeThrow(copy2)).toThrow('Unknown properties in JSON');
         expect(fromJsonSafeUndefined(copy3)).toEqual(extraWithUndefined);
         expect(fromJsonSafeStrip(copy4)).toEqual(extraWithStrip);
     });
 
     it('stripUnknownKeys and unknownKeysToUndefined deep', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
         const unknownKeysToUndefined = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
         const stripUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
-            return fromJsonVal(val);
+            return restoreFromJson(val);
         };
         const fromJsonSafeUndefined = (val) => {
             unknownKeysToUndefined(val);
-            return fromJsonVal(val);
+            return restoreFromJson(val);
         };
         const fromJsonSafeStrip = (val) => {
             stripUnknownKeys(val);
-            return fromJsonVal(val);
+            return restoreFromJson(val);
         };
 
-        const jsonString2 = JSON.stringify(toJsonVal(structuredClone(objWithExtraDeep)));
+        const jsonString2 = JSON.stringify(prepareForJson(structuredClone(objWithExtraDeep)));
         const copyD1 = JSON.parse(jsonString2);
         const copyD2 = JSON.parse(jsonString2);
         const copyD3 = JSON.parse(jsonString2);

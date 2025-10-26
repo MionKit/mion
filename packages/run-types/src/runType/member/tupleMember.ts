@@ -69,19 +69,19 @@ export class TupleMemberRunType<T extends TupleMemberT = TypeTupleMember> extend
         if (this.isRest()) return childJit;
         return this.isOptional() ? {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'} : childJit;
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = comp.compileToJsonVal(child, 'S');
+        const childJit = comp.compilePrepareForJson(child, 'S');
         const optionalCode = `if (${comp.getChildVλl()} === undefined ) {if (${comp.vλl}.length > ${this.getChildIndex(comp)}) ${comp.getChildVλl()} = null}`;
         if (!child || !childJit?.code) return this.isOptional() ? {code: optionalCode, type: 'S'} : {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
         return this.isOptional() ? {code: `${optionalCode} else {${code}}`, type: 'S'} : {code, type: 'S'};
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         if (!this.getJitChild(comp)) return {code: `${comp.getChildVλl()} = undefined;`, type: 'S'}; // non serializable are restored to undefined
         const child = this.getJitChild(comp);
-        const childJit = comp.compileFromJsonVal(child, 'S');
+        const childJit = comp.compileRestoreFromJson(child, 'S');
         const optionalCOde = `if (${comp.getChildVλl()} === null ) {${comp.getChildVλl()} = undefined}`;
         if (!child || !childJit?.code) return this.isOptional() ? {code: optionalCOde, type: 'S'} : {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);

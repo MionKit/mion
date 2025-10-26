@@ -242,15 +242,15 @@ it('should compile router methods cache to code', () => {
         paramsJitHashes: {
             isType: expect.any(String),
             typeErrors: expect.any(String),
-            toJsonVal: expect.any(String),
-            fromJsonVal: expect.any(String),
+            prepareForJson: expect.any(String),
+            restoreFromJson: expect.any(String),
             jsonStringify: expect.any(String),
         },
         returnJitHashes: {
             isType: expect.any(String),
             typeErrors: expect.any(String),
-            toJsonVal: expect.any(String),
-            fromJsonVal: expect.any(String),
+            prepareForJson: expect.any(String),
+            restoreFromJson: expect.any(String),
             jsonStringify: expect.any(String),
         },
     };

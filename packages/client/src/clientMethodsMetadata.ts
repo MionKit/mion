@@ -284,15 +284,15 @@ function createRemoteJItFunctions(
             params: {
                 isType: jitUtils.getJIT(methodMeta.paramsJitHashes.isType)!,
                 typeErrors: jitUtils.getJIT(methodMeta.paramsJitHashes.typeErrors)!,
-                toJsonVal: jitUtils.getJIT(methodMeta.paramsJitHashes.toJsonVal)!,
-                fromJsonVal: jitUtils.getJIT(methodMeta.paramsJitHashes.fromJsonVal)!,
+                prepareForJson: jitUtils.getJIT(methodMeta.paramsJitHashes.prepareForJson)!,
+                restoreFromJson: jitUtils.getJIT(methodMeta.paramsJitHashes.restoreFromJson)!,
                 jsonStringify: jitUtils.getJIT(methodMeta.paramsJitHashes.jsonStringify)!,
             },
             return: {
                 isType: jitUtils.getJIT(methodMeta.returnJitHashes.isType)!,
                 typeErrors: jitUtils.getJIT(methodMeta.returnJitHashes.typeErrors)!,
-                toJsonVal: jitUtils.getJIT(methodMeta.returnJitHashes.toJsonVal)!,
-                fromJsonVal: jitUtils.getJIT(methodMeta.returnJitHashes.fromJsonVal)!,
+                prepareForJson: jitUtils.getJIT(methodMeta.returnJitHashes.prepareForJson)!,
+                restoreFromJson: jitUtils.getJIT(methodMeta.returnJitHashes.restoreFromJson)!,
                 jsonStringify: jitUtils.getJIT(methodMeta.returnJitHashes.jsonStringify)!,
             },
         };

@@ -104,11 +104,11 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     /**
      * json encode a function
      */
-    emitToJsonVal(): JitCode {
-        throw new Error(`Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`);
+    emitPrepareForJson(): JitCode {
+        throw new Error(`Compile function PrepareForJson not supported, call compileParams or compileReturn instead.`);
     }
-    emitFromJsonVal(): JitCode {
-        throw new Error(`Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`);
+    emitRestoreFromJson(): JitCode {
+        throw new Error(`Compile function RestoreFromJson not supported, call compileParams or compileReturn instead.`);
     }
     emitHasUnknownKeys(): JitCode {
         return {code: '', type: 'E'};

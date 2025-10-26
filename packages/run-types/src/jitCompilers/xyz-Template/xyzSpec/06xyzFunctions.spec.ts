@@ -17,8 +17,8 @@ import {
     roundTrip,
 } from './xyzHelpers';
 
-const SERIALIZE_FN = JitFunctions.toJsonVal;
-const DESERIALIZE_FN = JitFunctions.fromJsonVal;
+const SERIALIZE_FN = JitFunctions.prepareForJson;
+const DESERIALIZE_FN = JitFunctions.restoreFromJson;
 
 let ranTests = 0;
 afterEach(() => ranTests++);
@@ -26,10 +26,10 @@ afterEach(() => ranTests++);
 it('throw errors for functions', () => {
     const {rt} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_functions.getTestData();
     expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
-        `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
+        `Compile function PrepareForJson not supported, call compileParams or compileReturn instead.`
     );
     expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
-        `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
+        `Compile function RestoreFromJson not supported, call compileParams or compileReturn instead.`
     );
 });
 
@@ -200,10 +200,10 @@ it('call signature return', () => {
 it('throw errors for call signatures', () => {
     const {rt} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_call_signature.getTestData();
     expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
-        `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
+        `Compile function PrepareForJson not supported, call compileParams or compileReturn instead.`
     );
     expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
-        `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
+        `Compile function RestoreFromJson not supported, call compileParams or compileReturn instead.`
     );
 });
 

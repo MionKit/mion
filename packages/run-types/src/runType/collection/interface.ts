@@ -107,20 +107,20 @@ export class InterfaceRunType<
             type: 'S',
         };
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
-        if (this.isCallable()) return this.getCallSignature()!.emitToJsonVal();
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
+        if (this.isCallable()) return this.getCallSignature()!.emitPrepareForJson();
         const children = this.getJitChildren(comp);
         const childrenCode = children
-            .map((prop) => comp.compileToJsonVal(prop, 'S').code)
+            .map((prop) => comp.compilePrepareForJson(prop, 'S').code)
             .filter(Boolean)
             .join(';');
         return {code: childrenCode, type: 'S'};
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
-        if (this.isCallable()) return this.getCallSignature()!.emitFromJsonVal();
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
+        if (this.isCallable()) return this.getCallSignature()!.emitRestoreFromJson();
         const children = this.getJitChildren(comp);
         const childrenCode = children
-            .map((prop) => comp.compileFromJsonVal(prop, 'S').code)
+            .map((prop) => comp.compileRestoreFromJson(prop, 'S').code)
             .filter(Boolean)
             .join(';');
         return {code: childrenCode, type: 'S'};

@@ -23,11 +23,11 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
-        return symbolTransformer.visitToJsonVal(comp);
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
+        return symbolTransformer.visitPrepareForJson(comp);
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
-        return symbolTransformer.visitFromJsonVal(comp);
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
+        return symbolTransformer.visitRestoreFromJson(comp);
     }
 }
 
@@ -35,10 +35,10 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
 
 export const symbolTransformer = {
     // TODO: transformers might need only one function
-    visitFromJsonVal(comp: JitFnCompiler): JitCode {
+    visitRestoreFromJson(comp: JitFnCompiler): JitCode {
         return {code: `Symbol(${comp.vλl}.substring(7))`, type: 'E'};
     },
-    visitToJsonVal(comp: JitFnCompiler): JitCode {
+    visitPrepareForJson(comp: JitFnCompiler): JitCode {
         return {code: `'Symbol:' + (${comp.vλl}.description || '')`, type: 'E'};
     },
 };

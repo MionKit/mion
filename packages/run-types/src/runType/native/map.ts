@@ -35,8 +35,8 @@ export class MapRunType extends IterableRunType {
         });
     }
     getCustomVλl(comp: JitFnCompiler) {
-        // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
-        if (comp.fnID === JitFunctions.fromJsonVal.id)
+        // restoreFromJson is decoding a regular array so no need to use an special case for vλl as other operations
+        if (comp.fnID === JitFunctions.restoreFromJson.id)
             return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: false, useArrayAccessor: true};
         // other operations use an special case for vλl where all parents are skipped
         return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: true};

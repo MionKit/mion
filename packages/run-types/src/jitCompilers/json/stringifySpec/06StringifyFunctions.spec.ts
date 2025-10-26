@@ -18,7 +18,7 @@ import {
 } from './stringifyHelpers';
 
 const SERIALIZE_FN = JitFunctions.jsonStringify;
-const DESERIALIZE_FN = JitFunctions.fromJsonVal;
+const DESERIALIZE_FN = JitFunctions.restoreFromJson;
 
 let ranTests = 0;
 afterEach(() => ranTests++);
@@ -29,7 +29,7 @@ it('throw errors for functions', () => {
         `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
     );
     expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
-        `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
+        `Compile function RestoreFromJson not supported, call compileParams or compileReturn instead.`
     );
 });
 
@@ -203,7 +203,7 @@ it('throw errors for call signatures', () => {
         `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
     );
     expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
-        `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
+        `Compile function RestoreFromJson not supported, call compileParams or compileReturn instead.`
     );
 });
 

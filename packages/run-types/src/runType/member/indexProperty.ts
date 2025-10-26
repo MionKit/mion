@@ -50,9 +50,9 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (!childJit?.code) return {code: undefined, type: 'S'};
         return {code: `for (const ${this.getChildVarName(comp)} in ${comp.vλl}) {${childJit.code}}`, type: 'S'};
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = comp.compileToJsonVal(child, 'S');
+        const childJit = comp.compilePrepareForJson(child, 'S');
         if (!child || !childJit?.code) return {code: undefined, type: 'S'};
         const varName = comp.vλl;
         const prop = this.getChildVarName(comp);
@@ -61,9 +61,9 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
         return {code: `for (const ${prop} in ${varName}){${skipCode} ${code}}`, type: 'S'};
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = comp.compileFromJsonVal(child, 'S');
+        const childJit = comp.compileRestoreFromJson(child, 'S');
         if (!child || !childJit?.code) return {code: undefined, type: 'S'};
         const varName = comp.vλl;
         const prop = this.getChildVarName(comp);

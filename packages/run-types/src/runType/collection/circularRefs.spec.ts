@@ -57,15 +57,15 @@ describe('Circular object', () => {
     });
 
     it('should encode/decode objects with circular references', () => {
-        const toJsonVal = rtCircular.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rtCircular.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = rtCircular.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rtCircular.createJitFunction(JitFunctions.restoreFromJson);
 
         const copy1 = structuredClone(c1);
         const copy2 = structuredClone(c2);
         const copy3 = structuredClone(c3);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(c1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(c2);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(c3);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy1))))).toEqual(c1);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy2))))).toEqual(c2);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy3))))).toEqual(c3);
     });
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 329-336)
@@ -115,16 +115,16 @@ describe('Circular array + union', () => {
     });
 
     it('encode/decode CircularUnion array to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
 
         const copy1: CuArray = [date, 123, 'hello', ['a', 'b', 'c']];
         const copy2: CuArray = [date, 123, 'hello', ['a', 2, 'c'], [date, 123, 'hello', ['a', 'b', 'c']]];
         const copy3: CuArray = [];
 
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(cu1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(cu2);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(cu3);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy1))))).toEqual(cu1);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy2))))).toEqual(cu2);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy3))))).toEqual(cu3);
     });
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 743-754)
@@ -184,16 +184,16 @@ describe('Circular object with tuple', () => {
     });
 
     it('encode/decode CircularTuple object to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
 
         const copy1: CircularTuple = {tuple: [1n, {tuple: [2n, {tuple: [3n, {tuple: [4n]}]}]}]};
         const copy2: CircularTuple = {tuple: [1n, {tuple: [2n]}]};
         const copy3: CircularTuple = {tuple: [1n]};
 
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(c1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(c2);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(c3);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy1))))).toEqual(c1);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy2))))).toEqual(c2);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy3))))).toEqual(c3);
     });
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 766-777)
@@ -250,16 +250,16 @@ describe('Circular Object with index property', () => {
     });
 
     it('encode/decode CircularIndex object to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
 
         const copy1: CircularIndex = {index: {a: {index: {b: {index: {}}}}}};
         const copy2: CircularIndex = {index: {a: {index: {}}}};
         const copy3: CircularIndex = {index: {}};
 
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(c1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(c2);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(c3);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy1))))).toEqual(c1);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy2))))).toEqual(c2);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy3))))).toEqual(c3);
     });
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 790-801)
@@ -320,14 +320,14 @@ describe('Circular Object with deep nested properties', () => {
     });
 
     it('encode/decode CircularDeep object to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
 
         const copy1: CircularDeep = {deep1: {deep2: {deep3: {deep4: {deep1: {deep2: {deep3: {}}}}}}}};
         const copy2: CircularDeep = {deep1: {deep2: {deep3: {}}}};
 
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(c1);
-        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(c2);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy1))))).toEqual(c1);
+        expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy2))))).toEqual(c2);
     });
 
     // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 813-822)

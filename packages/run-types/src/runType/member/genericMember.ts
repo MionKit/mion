@@ -42,18 +42,18 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         if (this.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'};
         return childJit;
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = comp.compileToJsonVal(child, 'S');
+        const childJit = comp.compilePrepareForJson(child, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child); // expressions must be assigned to a variable
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code}` : childJit.code || '';
         if (this.isOptional()) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
         return {code, type: 'S'};
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = comp.compileFromJsonVal(child, 'S');
+        const childJit = comp.compileRestoreFromJson(child, 'S');
         if (!childJit?.code || !child) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';

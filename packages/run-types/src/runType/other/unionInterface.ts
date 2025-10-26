@@ -18,7 +18,7 @@ import {MethodSignatureRunType} from '../member/methodSignature';
 
 type anySrcInterface = TypeObjectLiteral | TypeClass | TypeIntersection;
 
-// TODO: THIS IS A WORK IN PROGRESS, not used atm. need to investigate how to improve union isType and toJsonVal
+// TODO: THIS IS A WORK IN PROGRESS, not used atm. need to investigate how to improve union isType and prepareForJson
 // https://github.com/orgs/MionKit/projects/3/views/1?pane=issue&itemId=88057141
 
 /** Merges multiple interfaces into one. */
@@ -142,14 +142,14 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             type: 'S',
         };
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
-        const toJsonValMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
+        const prepareForJsonMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
         return {
-            code: toJsonValMergedList.length
-                ? toJsonValMergedList
+            code: prepareForJsonMergedList.length
+                ? prepareForJsonMergedList
                       .map((rt, i) => {
                           const childIsType = this.compileIsTypeMergedChildren(comp, rt, true);
-                          const childCode = comp.compileToJsonVal(rt, 'S');
+                          const childCode = comp.compilePrepareForJson(rt, 'S');
                           const iF = i === 0 ? 'if' : 'else if';
                           return `${iF} (${childIsType}) {${childCode.code}}`;
                       })
@@ -158,14 +158,14 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             type: 'S',
         };
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
-        const fromJsonValMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
+        const restoreFromJsonMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
         return {
-            code: fromJsonValMergedList.length
-                ? fromJsonValMergedList
+            code: restoreFromJsonMergedList.length
+                ? restoreFromJsonMergedList
                       .map((rt, i) => {
                           const childIsType = this.compileIsTypeMergedChildren(comp, rt, true);
-                          const childCode = comp.compileFromJsonVal(rt, 'S');
+                          const childCode = comp.compileRestoreFromJson(rt, 'S');
                           const iF = i === 0 ? 'if' : 'else if';
                           return `${iF} (${childIsType}) {${childCode.code}}`;
                       })
