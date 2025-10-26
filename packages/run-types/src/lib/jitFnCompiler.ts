@@ -128,6 +128,15 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         if (fromParent && fromParent !== -1) return fromParent;
         return -1; // not found
     }
+    private varNameindex: Map<BaseRunType<any> | number, number> = new Map();
+    getLocalVarName(prefix: string, rt: BaseRunType<any>): string {
+        const key = rt.src.id || rt; // duplicated elements might have same index (that means they are the same deepkit type)
+        const index = this.varNameindex.get(key);
+        if (index !== undefined) return `${prefix}${index}`;
+        const newIndex = this.varNameindex.size;
+        this.varNameindex.set(key, newIndex);
+        return `${prefix}${newIndex}`;
+    }
     /**
      * The path to the current item in the stack,
      * This path can contain prop names array indexes or event literal variable values, ie: if parsing an array the path item would be the name if the index variable.

@@ -160,5 +160,7 @@ function getSerializableJitHashes(jitFns: JitCompiledFunctions): SerializableJit
         prepareForJson: jitFns.prepareForJson.jitFnHash,
         restoreFromJson: jitFns.restoreFromJson.jitFnHash,
         jsonStringify: jitFns.jsonStringify.jitFnHash,
+        toBinary: jitFns.toBinary.jitFnHash,
+        fromBinary: jitFns.fromBinary.jitFnHash,
     };
 }

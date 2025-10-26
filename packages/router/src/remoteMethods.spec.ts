@@ -11,15 +11,17 @@ import {CallContext} from './types/context';
 import {Routes} from './types/general';
 import {HandlerType} from './types/remoteMethods';
 import {hook, rawHook, route} from './handlers';
-import {jitUtils} from '@mionkit/core';
+import {jitUtils, SerializableJitHashes} from '@mionkit/core';
 
-function hasSerializableHashes(paramNames?: string[]) {
+function hasSerializableHashes(paramNames?: string[]): SerializableJitHashes {
     return {
         isType: expect.any(String),
         typeErrors: expect.any(String),
         prepareForJson: expect.any(String),
         restoreFromJson: expect.any(String),
         jsonStringify: expect.any(String),
+        toBinary: expect.any(String),
+        fromBinary: expect.any(String),
     };
 }
 

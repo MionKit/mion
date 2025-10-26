@@ -23,7 +23,7 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
     }
     emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         const objJit = super.emitRestoreFromJson(comp);
-        const desFnVarName = `desFn${comp.getNestLevel(this)}`;
+        const desFnVarName = comp.getLocalVarName('desFn', this);
         const classLiteral = toLiteral(this.getClassName());
         const code = `
             ${objJit.code};

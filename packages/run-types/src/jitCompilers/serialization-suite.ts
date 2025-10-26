@@ -1381,16 +1381,22 @@ export const SERIALIZATION_SPEC = {
         objects_with_nested_sets: {
             title: 'objects with nested sets',
             getTestData: (dataOnly = false) => {
+                type Set1 = Set<{s: string; arr: number[]}>;
                 interface DeepWithSet {
                     a: string;
-                    b: Set<{s: string; arr: number[]}>;
+                    b: Set1;
+                    c: Set1;
                 }
                 const rt = dataOnly ? (null as any) : runType<DeepWithSet>();
-                const set1: DeepWithSet['b'] = new Set([
+                const setB: DeepWithSet['b'] = new Set([
                     {s: 'a', arr: [1, 2, 3]},
                     {s: 'b', arr: [4, 5, 6]},
                 ]);
-                const values = [{a: 'a', b: set1}];
+                const setC: DeepWithSet['c'] = new Set([
+                    {s: 'a', arr: [1, 2, 3]},
+                    {s: 'b', arr: [4, 5, 6]},
+                ]);
+                const values = [{a: 'a', b: setB, c: setC}];
                 return {rt, values};
             },
         },

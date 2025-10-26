@@ -110,8 +110,8 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
             if (!memberJit?.code) return {code: undefined, type: 'S'};
 
             const propVar = rt.getChildVarName(comp);
-            const lengthVar = `cnt${comp.getNestLevel(rt)}`;
-            const indexVar = `piI${comp.getNestLevel(rt)}`;
+            const lengthVar = comp.getLocalVarName('cnt', rt);
+            const indexVar = comp.getLocalVarName('piI', rt);
             const varsInit = `let ${lengthVar} = 0; const ${indexVar} = ${sεr}.index; ${sεr}.index += 4;`;
 
             // Serialize entries
@@ -302,7 +302,7 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
                 );
             }
 
-            const errName = `uErr${comp.getNestLevel(rt)}`;
+            const errName = comp.getLocalVarName('uErr', rt);
             const fail = `throw new Error(${errName});`;
             comp.setContextItem(
                 errName,
@@ -346,12 +346,11 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
 // the bitmask length increments by 1 byte for every 8 optional props
 function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optionalPropsLength = 0, currentPropIndex = 0) {
     const sεr = comp.args.sεr;
-    const nestLevel = comp.getNestLevel(rt);
-    const bitMIndexVar = `bmI${nestLevel}`; // index of the optional prop loop
+    const bitMIndexVar = comp.getLocalVarName('bmI', rt); // index of the optional prop loop
     const bitmapLength = Math.ceil(optionalPropsLength / 8);
     const bitIndex = `${currentPropIndex} & 7`; // equivalent to index % 8
     // initialize bitmap to zero as there could be values left from previous serialization
-    const indexVar = `iBl${nestLevel}`;
+    const indexVar = comp.getLocalVarName('iBl', rt);
     const setBitmapToZero =
         bitmapLength > 1
             ? `for (let ${indexVar} = 0; ${indexVar} < ${bitmapLength}; ${indexVar}++) {${sεr}.view.setUint8(${sεr}.index++, 0)}`

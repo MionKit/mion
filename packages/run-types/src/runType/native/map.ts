@@ -37,13 +37,19 @@ export class MapRunType extends IterableRunType {
     getCustomVλl(comp: JitFnCompiler) {
         // restoreFromJson is decoding a regular array so no need to use an special case for vλl as other operations
         if (comp.fnID === JitFunctions.restoreFromJson.id)
-            return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: false, useArrayAccessor: true};
+            return {vλl: comp.getLocalVarName('it', this), isStandalone: false, useArrayAccessor: true};
         // other operations use an special case for vλl where all parents are skipped
-        return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: true};
+        return {vλl: comp.getLocalVarName('it', this), isStandalone: true};
+    }
+    getMapKeyVλl(comp: JitFnCompiler) {
+        return comp.getLocalVarName('mpk', this);
+    }
+    getMapValueVλl(comp: JitFnCompiler) {
+        return comp.getLocalVarName('mpV', this);
     }
 }
 
-export class MapKeyRunType extends GenericMemberRunType<any> {
+class MapKeyRunType extends GenericMemberRunType<any> {
     index = 0;
     getStaticPathLiteral(comp: JitFnCompiler): string | number {
         const parent = this.getParent()! as MapRunType;
@@ -53,12 +59,16 @@ export class MapKeyRunType extends GenericMemberRunType<any> {
     getCustomVλl(comp: JitFnCompiler) {
         // temp variable to assign mapKey
         if (comp.fnID === JitFunctions.fromBinary.id)
-            return {vλl: getMapKeyName(comp.getNestLevel(this)), isStandalone: true, useArrayAccessor: false};
+            return {
+                vλl: (this.getParent()! as MapRunType).getMapKeyVλl(comp),
+                isStandalone: true,
+                useArrayAccessor: false,
+            };
         return undefined;
     }
 }
 
-export class MapValueRunType extends GenericMemberRunType<any> {
+class MapValueRunType extends GenericMemberRunType<any> {
     index = 1;
     getStaticPathLiteral(comp: JitFnCompiler): string | number {
         const parent = this.getParent()! as MapRunType;
@@ -68,14 +78,11 @@ export class MapValueRunType extends GenericMemberRunType<any> {
     getCustomVλl(comp: JitFnCompiler) {
         // temp variable to assign mapKey
         if (comp.fnID === JitFunctions.fromBinary.id)
-            return {vλl: `mpV${comp.getNestLevel(this)}`, isStandalone: true, useArrayAccessor: false};
+            return {
+                vλl: (this.getParent()! as MapRunType).getMapValueVλl(comp),
+                isStandalone: true,
+                useArrayAccessor: false,
+            };
         return undefined;
     }
-    getMapKeyVλl(comp: JitFnCompiler) {
-        return getMapKeyName(comp.getNestLevel(this));
-    }
-}
-
-function getMapKeyName(nestLevel: number) {
-    return `mpk${nestLevel}`;
 }

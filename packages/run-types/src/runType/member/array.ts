@@ -17,7 +17,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         return 0;
     }
     getChildVarName(comp: JitFnCompiler): string {
-        return `i${comp.getNestLevel(this)}`;
+        return comp.getLocalVarName('i', this);
     }
     getChildLiteral(comp: JitFnCompiler): string {
         return this.getChildVarName(comp);
@@ -32,7 +32,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     // #### jit code ####
     emitIsType(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
-        const resultVal = `res${comp.getNestLevel(this)}`;
+        const resultVal = comp.getLocalVarName('res', this);
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
         const childJit = comp.compileIsType(child, 'E');
@@ -95,7 +95,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         const child = this.getJitChild(comp);
         const childJit = comp.compileHasUnknownKeys(child, 'E');
         if (!childJit?.code) return {code: undefined, type: 'E'};
-        const resultVal = `res${comp.getNestLevel(this)}`;
+        const resultVal = comp.getLocalVarName('res', this);
         const index = this.getChildVarName(comp);
 
         return {

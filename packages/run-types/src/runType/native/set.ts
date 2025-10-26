@@ -29,9 +29,9 @@ export class SetRunType extends IterableRunType {
     getCustomVλl(comp: JitFnCompiler) {
         // restoreFromJson is decoding a regular array so no need to use an special case for vλl as other operations
         if (comp.fnID === JitFunctions.restoreFromJson.id)
-            return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: false, useArrayAccessor: true};
+            return {vλl: comp.getLocalVarName('it', this), isStandalone: false, useArrayAccessor: true};
         // other operations use an special case for vλl where all parents are skipped
-        return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: true};
+        return {vλl: comp.getLocalVarName('it', this), isStandalone: true};
     }
 }
 
@@ -47,7 +47,7 @@ export class SetKeyRunType extends GenericMemberRunType<any> {
     }
     getCustomVλl(comp: JitFnCompiler) {
         if (comp.fnID === JitFunctions.fromBinary.id)
-            return {vλl: `sK${comp.getNestLevel(this)}`, isStandalone: true, useArrayAccessor: false};
+            return {vλl: comp.getLocalVarName('sK', this), isStandalone: true, useArrayAccessor: false};
         // other operations use an special case for vλl where all parents are skipped
         return undefined;
     }
