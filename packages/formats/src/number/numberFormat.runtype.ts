@@ -4,11 +4,23 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
+import type {
+    BaseRunType,
+    JitFnCompiler,
+    JitErrorsFnCompiler,
+    JitCode,
+    jitBinarySerializerArgs,
+    JitFunctions,
+    BaseFnCompiler,
+    jitBinaryDeserializerArgs,
+} from '@mionkit/run-types';
 // TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random, fpVal} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
+
+type BinarySerializer = BaseFnCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
+type BinaryDeserializer = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
 
 // ############### Number Format ###############
 
@@ -22,7 +34,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
     readonly kind = ReflectionKind.number;
     readonly name = NumberRunTypeFormat.id;
 
-    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
+    emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const v = comp.vλl;
 
@@ -65,7 +77,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
         return {code: conditions.join(' && '), type: 'E'};
     }
 
-    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
+    emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const v = comp.vλl;
         const errFn = this.getCallJitFormatErr(comp, rt, this, false);
@@ -110,9 +122,69 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
     }
 
     // No format transformation needed for numbers
-    visitFormat(): JitCode {
+    emitFormat(): JitCode {
         // No transformation needed for numbers
         return {code: undefined, type: 'S'};
+    }
+
+    emitToBinary(comp: BinarySerializer, rt: BaseRunType): JitCode {
+        const type = 'S';
+        const sεr = comp.args.sεr;
+        const params = this.getParams(rt);
+        const isFloat = params.float !== undefined ? fpVal(params.float) : false;
+        const floatCode = `${sεr}.view.setFloat64(${sεr}.index,${comp.vλl}, 1, (${sεr}.index += 8))`;
+        if (isFloat) return {code: floatCode, type};
+        const isInt = params.integer !== undefined ? fpVal(params.integer) : false;
+        if (isInt) {
+            const {isUint8, isUint16, isUint32, isInt8, isInt16, isInt32} = getIntegerType(params);
+            switch (true) {
+                case isUint8:
+                    return {code: `${sεr}.view.setUint8(${sεr}.index++, ${comp.vλl})`, type};
+                case isUint16:
+                    return {code: `${sεr}.view.setUint16(${sεr}.index, ${comp.vλl}, 1, ${sεr}.index += 2)`, type};
+                case isUint32:
+                    return {code: `${sεr}.view.setUint32(${sεr}.index, ${comp.vλl}, 1, ${sεr}.index += 4)`, type};
+                case isInt8:
+                    return {code: `${sεr}.view.setInt8(${sεr}.index++, ${comp.vλl})`, type};
+                case isInt16:
+                    return {code: `${sεr}.view.setInt16(${sεr}.index, ${comp.vλl}, 1, ${sεr}.index += 2)`, type};
+                case isInt32:
+                    return {code: `${sεr}.view.setInt32(${sεr}.index, ${comp.vλl}, 1, ${sεr}.index += 4)`, type};
+                default:
+                    return {code: floatCode, type};
+            }
+        }
+        return {code: floatCode, type: 'S'};
+    }
+
+    emitFromBinary(comp: BinaryDeserializer, rt: BaseRunType): JitCode {
+        const type = 'E';
+        const dεs = comp.args.dεs;
+        const params = this.getParams(rt);
+        const isFloat = params.float !== undefined ? fpVal(params.float) : false;
+        const floatCode = `${dεs}.view.getFloat64(${dεs}.index, 1, (${dεs}.index += 8))`;
+        if (isFloat) return {code: floatCode, type};
+        const isInt = params.integer !== undefined ? fpVal(params.integer) : false;
+        if (isInt) {
+            const {isUint8, isUint16, isUint32, isInt8, isInt16, isInt32} = getIntegerType(params);
+            switch (true) {
+                case isUint8:
+                    return {code: `${dεs}.view.getUint8(${dεs}.index++)`, type};
+                case isUint16:
+                    return {code: `${dεs}.view.getUint16(${dεs}.index, 1, ${dεs}.index += 2)`, type};
+                case isUint32:
+                    return {code: `${dεs}.view.getUint32(${dεs}.index, 1, ${dεs}.index += 4)`, type};
+                case isInt8:
+                    return {code: `${dεs}.view.getInt8(${dεs}.index++)`, type};
+                case isInt16:
+                    return {code: `${dεs}.view.getInt16(${dεs}.index, 1, ${dεs}.index += 2)`, type};
+                case isInt32:
+                    return {code: `${dεs}.view.getInt32(${dεs}.index, 1, ${dεs}.index += 4)`, type};
+                default:
+                    return {code: floatCode, type};
+            }
+        }
+        return {code: floatCode, type};
     }
 
     _mock(opts: RunTypeOptions, rt: BaseRunType): number {
@@ -206,6 +278,18 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
             }
         }
     }
+}
+
+function getIntegerType(params: any) {
+    const min = params.min !== undefined ? fpVal(params.min) : Number.MIN_SAFE_INTEGER;
+    const max = params.max !== undefined ? fpVal(params.max) : Number.MAX_SAFE_INTEGER;
+    const isUint8 = min >= 0 && max !== undefined && max <= 255;
+    const isUint16 = min >= 0 && max !== undefined && max <= 65535;
+    const isUint32 = min >= 0 && max !== undefined && max <= 4294967295;
+    const isInt8 = min >= -128 && max !== undefined && max <= 127;
+    const isInt16 = min >= -32768 && max !== undefined && max <= 32767;
+    const isInt32 = min >= -2147483648 && max !== undefined && max <= 2147483647;
+    return {isUint8, isUint16, isUint32, isInt8, isInt16, isInt32};
 }
 
 // ############### Register runtypes ###############

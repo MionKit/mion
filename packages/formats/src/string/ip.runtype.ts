@@ -15,7 +15,7 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
     static id = 'ip';
     kind = ReflectionKind.string;
     name = IPRunTypeFormat.id;
-    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
+    emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         if (params.version === 4) return {code: this.compilePureFunctionCall(comp, rt, mionIsIPV4).callCode, type: 'E'};
         if (params.version === 6) return {code: this.compilePureFunctionCall(comp, rt, mionIsIPV6).callCode, type: 'E'};
@@ -30,15 +30,15 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
         if (params.version === 6) return mockIpV6(params);
         return Math.random() > 0.5 ? mockIpV4(params) : mockIpV6(params);
     }
-    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
-        const isTypeCodeObj = this.visitIsType(comp, rt);
+    emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
+        const isTypeCodeObj = this.emitIsType(comp, rt);
         const isTypeCode = isTypeCodeObj.code;
         if (!isTypeCode) return {code: '', type: 'S'};
         const params = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
         return {code: `if (!(${isTypeCode})) ${errFn('version', fpVal(params.version))}`, type: 'S'};
     }
-    visitFormat(comp: JitFnCompiler): JitCode {
+    emitFormat(comp: JitFnCompiler): JitCode {
         return {code: `${comp.vλl}.toLowerCase()`, type: 'E'}; // transform to lowercase in case it is localhost
     }
 }

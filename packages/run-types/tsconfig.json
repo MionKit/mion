@@ -7,6 +7,6 @@
   },
   "references": [{"path": "../core"}],
   "reflection": true,
-  "include": ["."],
+  "include": [".", "../core/src/binarySerializer.ts", "../core/src/binaryTypes.ts"],
   "exclude": ["node_modules", "examples", ".dist", "src/jitCompilers/XYZ/**"]
 }

@@ -34,7 +34,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    visitFormat(comp: JitFnCompiler, rt: BaseRunType): JitCode {
+    emitFormat(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const operations: ((v) => string)[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;
@@ -47,7 +47,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
         if (p.capitalize) operations.push((v) => `(${v}.charAt(0).toUpperCase() + ${vλl}.slice(1))`);
         return {code: operations.reduce((acc, op) => op(acc), vλl), type: 'E'};
     }
-    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
+    emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const conditions: string[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;
@@ -74,7 +74,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
         }
         return {code: conditions.join(' && '), type: 'E'};
     }
-    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
+    emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const conditions: string[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;

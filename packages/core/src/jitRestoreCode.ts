@@ -6,7 +6,7 @@
  * ######## */
 
 import {jitUtils} from './jitUtils';
-import type {JitCompiledFn, JitFunctionsCache, Mutable, PureFunctionsCache} from './types';
+import type {JitCompiledFn, JitFunctionsCache, Mutable, PureFunctionsCache} from '@mionkit/core/src/binaryTypes';
 
 /**
  * Restores the full state of a compiled jit functions cache,

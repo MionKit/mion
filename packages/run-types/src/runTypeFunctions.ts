@@ -9,7 +9,16 @@ import {JitFunctions} from './constants.functions';
 import {ReceiveType} from '@deepkit/type';
 import {runType} from './lib/createRunType';
 import {RunTypeOptions} from './types';
-import {IsTypeFn, ToCodeFn, TypeErrorsFn} from '@mionkit/core';
+import {
+    FromBinaryFn,
+    IsTypeFn,
+    JsonStringifyFn,
+    PrepareForJsonFn,
+    RestoreFromJsonFn,
+    ToBinaryFn,
+    ToCodeFn,
+    TypeErrorsFn,
+} from '@mionkit/core';
 import {BaseRunType} from './lib/baseRunTypes';
 import {registerJitFunctionCompiler} from './lib/jitFnsRegistry';
 
@@ -36,15 +45,55 @@ export async function isStrictTypeFn<T>(opts?: RunTypeOptions, type?: ReceiveTyp
     return rt.createJitFunction(JitFunctions.isTypeStrict, opts);
 }
 
+/**
+ * Returns a function that prepares a javascript type to be compatible with json.stringify.
+ * Allows json.stringify special types like dates, bigints, maps, set, etc... that are not supported by json.stringify
+ */
+export async function prepareForJsonFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): Promise<PrepareForJsonFn> {
+    const rt = runType(type);
+    return rt.createJitFunction(JitFunctions.prepareForJson, opts);
+}
+
+/**
+ * Returns a function that restores a javascript type from json.parse.
+ * Allows restoring special types like dates, bigints, maps, set, etc... that are not supported by json.parse
+ * */
+export async function restoreFromJsonFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): Promise<RestoreFromJsonFn> {
+    const rt = runType(type);
+    return rt.createJitFunction(JitFunctions.restoreFromJson, opts);
+}
+
+/**
+ * Returns a function that stringifies a javascript value to a json string.
+ * Stringifies special types like dates, bigints, maps, set, etc...
+ * Is equivalent to calling prepareForJson and then json.stringify but more efficient.
+ */
+export async function jsonStringifyFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): Promise<JsonStringifyFn> {
+    const rt = runType(type);
+    return rt.createJitFunction(JitFunctions.jsonStringify, opts);
+}
+
+/** Returns a function that serializes any type value to a binary format. */
+export async function toBinaryFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): Promise<ToBinaryFn> {
+    const rt = runType(type);
+    return rt.createJitFunction(JitFunctions.toBinary, opts);
+}
+
+/** Returns a function that deserializes a binary value to the specified type. */
+export async function fromBinaryFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): Promise<FromBinaryFn> {
+    const rt = runType(type);
+    return rt.createJitFunction(JitFunctions.fromBinary, opts);
+}
+
+/** Returns a function that mocks a value of the specified type. */
+export function toJavascriptFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): ToCodeFn {
+    const rt = runType(type);
+    return rt.createJitFunction(JitFunctions.toJavascript, opts);
+}
+
 /** Returns a function that mocks a value of the specified type. */
 export async function mockTypeFn<T>(type?: ReceiveType<T>): Promise<(opts?: Partial<RunTypeOptions>) => T> {
     const rt = runType(type) as BaseRunType;
     await registerJitFunctionCompiler(JitFunctions.mock);
     return (opts?: Partial<RunTypeOptions>) => rt.mockType(opts) as T;
-}
-
-/** Returns a function that mocks a value of the specified type. */
-export function toJavascriptFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): ToCodeFn {
-    const rt = runType(type) as BaseRunType;
-    return rt.createJitFunction(JitFunctions.toJavascript, opts);
 }

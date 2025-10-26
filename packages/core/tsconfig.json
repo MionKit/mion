@@ -6,6 +6,6 @@
     "rootDir": "."
   },
   "reflection": true,
-  "include": ["."],
+  "include": [".", "src/binaryTypes.ts"],
   "exclude": ["node_modules", ".dist"]
 }
