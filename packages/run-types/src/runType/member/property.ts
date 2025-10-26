@@ -50,18 +50,18 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         if (!childJit?.code) return {code: undefined, type: 'S'};
         return this.src.optional ? {code: `if (${comp.getChildVλl()} !== undefined) {${childJit.code}}`, type: 'S'} : childJit;
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = comp.compileToJsonVal(child, 'S');
+        const childJit = comp.compilePrepareForJson(child, 'S');
         if (!child || !childJit?.code) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';
         if (this.src.optional) return {code: `if (${comp.getChildVλl()} !== undefined) {${code}}`, type: 'S'};
         return {code, type: 'S'};
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
-        const childJit = comp.compileFromJsonVal(child, 'S');
+        const childJit = comp.compileRestoreFromJson(child, 'S');
         if (!child || !childJit?.code) return {code: undefined, type: 'S'};
         const isExpression = childIsExpression(childJit, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childJit.code};` : childJit.code || '';

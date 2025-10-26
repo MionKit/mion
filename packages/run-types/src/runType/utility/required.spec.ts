@@ -49,10 +49,10 @@ describe('Required typescript utility type makes all properties required', () =>
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
-        const encodeMaybe = rtRequired.createJitFunction(JitFunctions.toJsonVal);
-        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const decodeMaybe = rtRequired.createJitFunction(JitFunctions.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.prepareForJson);
+        const encodeMaybe = rtRequired.createJitFunction(JitFunctions.prepareForJson);
+        const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
+        const decodeMaybe = rtRequired.createJitFunction(JitFunctions.restoreFromJson);
 
         expect(decode(JSON.parse(JSON.stringify(encode(person))))).toEqual({name: 'John', age: 30, createdAt});
         expect(decodeMaybe(JSON.parse(JSON.stringify(encodeMaybe(maybePerson))))).toEqual({createdAt});

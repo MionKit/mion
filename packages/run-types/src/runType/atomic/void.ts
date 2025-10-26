@@ -18,10 +18,10 @@ export class VoidRunType extends AtomicRunType<TypeVoid> {
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if (${comp.vλl} !== undefined) ${comp.callJitErr(this)}`, type: 'S'};
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
         return {code: `${comp.vλl} = undefined`, type: 'E'};
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         return {code: `${comp.vλl} = undefined`, type: 'E'};
     }
 }

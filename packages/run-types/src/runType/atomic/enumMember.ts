@@ -21,10 +21,10 @@ export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
     emitTypeErrors(): JitCode {
         throw new Error('Enum member operations are not supported');
     }
-    emitToJsonVal(): JitCode {
+    emitPrepareForJson(): JitCode {
         throw new Error('Enum member operations are not supported');
     }
-    emitFromJsonVal(): JitCode {
+    emitRestoreFromJson(): JitCode {
         throw new Error('Enum member operations are not supported');
     }
 }

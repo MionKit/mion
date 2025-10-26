@@ -9,8 +9,8 @@ import {SERIALIZATION_SPEC} from '../../serialization-suite';
 import {JitFunctions} from '../../../constants.functions';
 import {createSerializationFns, roundTrip} from './jsonHelpers';
 
-const SERIALIZE_FN = JitFunctions.toJsonVal;
-const DESERIALIZE_FN = JitFunctions.fromJsonVal;
+const SERIALIZE_FN = JitFunctions.prepareForJson;
+const DESERIALIZE_FN = JitFunctions.restoreFromJson;
 
 let ranTests = 0;
 afterEach(() => ranTests++);

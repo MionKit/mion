@@ -13,8 +13,8 @@ it('all jit compile function should throw and error', () => {
     const errorMessage = `Jit compilation disabled for Non Serializable types.`;
     expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow(errorMessage);
     expect(() => rt.createJitFunction(JitFunctions.typeErrors)).toThrow(errorMessage);
-    expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow(errorMessage);
-    expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow(errorMessage);
+    expect(() => rt.createJitFunction(JitFunctions.prepareForJson)).toThrow(errorMessage);
+    expect(() => rt.createJitFunction(JitFunctions.restoreFromJson)).toThrow(errorMessage);
     // jsonStringify test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1845-1847)
 });
 

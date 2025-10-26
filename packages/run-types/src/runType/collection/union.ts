@@ -87,7 +87,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
         const errName = `uErr${comp.getNestLevel(this)}`;
@@ -97,10 +97,10 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const ifElse = createIfElseFn();
         const onUnionItems = (items: BaseRunType[]) => {
             const result = items.map((childRt) => {
-                const toJit = comp.compileToJsonVal(childRt, 'S');
+                const toJit = comp.compilePrepareForJson(childRt, 'S');
                 // TODO: calling full decode could be expensive and we calling it only to know if it needs encoding.
                 // we might want to optimize this, call to decode is also being added to the context and should be removed
-                const fromJit = comp.compileFromJsonVal(childRt, 'S');
+                const fromJit = comp.compileRestoreFromJson(childRt, 'S');
                 const needsTupleEncoding = !!toJit.code || !!fromJit.code;
                 const isExpression = childIsExpression(toJit, childRt);
                 const encodeCode = isExpression && toJit.code ? `${comp.vλl} = ${toJit.code};` : toJit.code || '';
@@ -128,7 +128,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const decVar = `dεc${comp.getNestLevel(this)}`;
         const errVarName = `uErr${comp.getNestLevel(this)}`;
@@ -137,7 +137,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const ifElse = createIfElseFn();
         const itemsCode = children
             .map((unionItem) => {
-                const childJit = comp.compileFromJsonVal(unionItem, 'S');
+                const childJit = comp.compileRestoreFromJson(unionItem, 'S');
                 const isExpression = childIsExpression(childJit, unionItem);
                 const code =
                     isExpression && childJit.code && childJit.code !== comp.vλl

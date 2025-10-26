@@ -21,10 +21,10 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
     emitTypeErrors(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    emitToJsonVal(): JitCode {
+    emitPrepareForJson(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    emitFromJsonVal(): JitCode {
+    emitRestoreFromJson(): JitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     isOptional(): boolean {

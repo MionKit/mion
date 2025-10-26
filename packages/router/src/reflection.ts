@@ -21,8 +21,8 @@ export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions)
     const paramFunctions: JitCompiledFunctions = {
         isType: rt.createJitCompiledParamsFunction(JitFunctions.isType, opts),
         typeErrors: rt.createJitCompiledParamsFunction(JitFunctions.typeErrors, opts),
-        toJsonVal: rt.createJitCompiledParamsFunction(JitFunctions.toJsonVal, opts),
-        fromJsonVal: rt.createJitCompiledParamsFunction(JitFunctions.fromJsonVal, opts),
+        prepareForJson: rt.createJitCompiledParamsFunction(JitFunctions.prepareForJson, opts),
+        restoreFromJson: rt.createJitCompiledParamsFunction(JitFunctions.restoreFromJson, opts),
         jsonStringify: rt.createJitCompiledParamsFunction(JitFunctions.jsonStringify, opts),
     };
     return paramFunctions;
@@ -34,8 +34,8 @@ export function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions)
     const returnFunctions: JitCompiledFunctions = {
         isType: rt.createJitCompiledReturnFunction(JitFunctions.isType, opts),
         typeErrors: rt.createJitCompiledReturnFunction(JitFunctions.typeErrors, opts),
-        toJsonVal: rt.createJitCompiledReturnFunction(JitFunctions.toJsonVal, opts),
-        fromJsonVal: rt.createJitCompiledReturnFunction(JitFunctions.fromJsonVal, opts),
+        prepareForJson: rt.createJitCompiledReturnFunction(JitFunctions.prepareForJson, opts),
+        restoreFromJson: rt.createJitCompiledReturnFunction(JitFunctions.restoreFromJson, opts),
         jsonStringify: rt.createJitCompiledReturnFunction(JitFunctions.jsonStringify, opts),
     };
     return returnFunctions;
@@ -45,8 +45,8 @@ export function getSerializableJitFunctions(jitCompFns: JitCompiledFunctions): S
     return {
         isType: getSerializableJitCompiler(jitCompFns.isType),
         typeErrors: getSerializableJitCompiler(jitCompFns.typeErrors),
-        toJsonVal: getSerializableJitCompiler(jitCompFns.toJsonVal),
-        fromJsonVal: getSerializableJitCompiler(jitCompFns.fromJsonVal),
+        prepareForJson: getSerializableJitCompiler(jitCompFns.prepareForJson),
+        restoreFromJson: getSerializableJitCompiler(jitCompFns.restoreFromJson),
         jsonStringify: getSerializableJitCompiler(jitCompFns.jsonStringify),
     };
 }
@@ -64,8 +64,8 @@ export function getJitHashes(jitFns: JitCompiledFunctions): JitFunctionsHashes {
     return {
         isType: jitFns.isType.jitFnHash,
         typeErrors: jitFns.typeErrors.jitFnHash,
-        toJsonVal: jitFns.toJsonVal.jitFnHash,
-        fromJsonVal: jitFns.fromJsonVal.jitFnHash,
+        prepareForJson: jitFns.prepareForJson.jitFnHash,
+        restoreFromJson: jitFns.restoreFromJson.jitFnHash,
         jsonStringify: jitFns.jsonStringify.jitFnHash,
     };
 }

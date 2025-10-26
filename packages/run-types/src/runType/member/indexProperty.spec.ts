@@ -103,12 +103,12 @@ describe('IndexType', () => {
             [Symbol('key4')]: new Date(),
         }; // symbol keys should be skipped from jit
 
-        const toJsonVal = multipleIndex.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = multipleIndex.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = multipleIndex.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = multipleIndex.createJitFunction(JitFunctions.restoreFromJson);
         const stringify = multipleIndex.createJitFunction(JitFunctions.jsonStringify);
 
-        expect(toJsonVal(obj)).toEqual(obj);
-        expect(fromJsonVal({key1: 'value1', key2: 'value2'})).toEqual({key1: 'value1', key2: 'value2'});
+        expect(prepareForJson(obj)).toEqual(obj);
+        expect(restoreFromJson({key1: 'value1', key2: 'value2'})).toEqual({key1: 'value1', key2: 'value2'});
         expect(stringify(obj)).toEqual(JSON.stringify(obj));
     });
 });

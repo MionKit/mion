@@ -221,7 +221,7 @@ export type JitFnArgs = {
 
 export interface JitCompiledFnData {
     readonly typeName: string;
-    /** The id of the function (operation) to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc) */
+    /** The id of the function (operation) to be compiled (isType, typeErrors, prepareForJson, restoreFromJson, etc) */
     readonly fnID: string;
     /** Unique id of the function */
     readonly jitFnHash: string;
@@ -255,8 +255,8 @@ export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnDa
 export interface JitCompiledFunctions {
     isType: JitCompiledFn<IsTypeFn>;
     typeErrors: JitCompiledFn<TypeErrorsFn>;
-    toJsonVal: JitCompiledFn<ToJsonValFn>;
-    fromJsonVal: JitCompiledFn<FromJsonValFn>;
+    prepareForJson: JitCompiledFn<PrepareForJsonFn>;
+    restoreFromJson: JitCompiledFn<RestoreFromJsonFn>;
     jsonStringify: JitCompiledFn<JsonStringifyFn>;
     toBinary: JitCompiledFn<ToBinaryFn>;
     fromBinary: JitCompiledFn<FromBinaryFn>;
@@ -264,8 +264,8 @@ export interface JitCompiledFunctions {
 export interface SerializableJITFunctions {
     isType: JitCompiledFnData;
     typeErrors: JitCompiledFnData;
-    toJsonVal: JitCompiledFnData;
-    fromJsonVal: JitCompiledFnData;
+    prepareForJson: JitCompiledFnData;
+    restoreFromJson: JitCompiledFnData;
     jsonStringify: JitCompiledFnData;
     toBinary: JitCompiledFnData;
     fromBinary: JitCompiledFnData;
@@ -273,15 +273,15 @@ export interface SerializableJITFunctions {
 export interface JitFunctionsHashes {
     isType: string;
     typeErrors: string;
-    toJsonVal: string;
-    fromJsonVal: string;
+    prepareForJson: string;
+    restoreFromJson: string;
     jsonStringify: string;
     toBinary: string;
     fromBinary: string;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
-export type FromJsonValFn = (value: JSONValue) => any;
-export type ToJsonValFn = (value: any) => JSONValue;
+export type RestoreFromJsonFn = (value: JSONValue) => any;
+export type PrepareForJsonFn = (value: any) => JSONValue;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
 export type ToCodeFn = (value: any) => string;
@@ -324,8 +324,8 @@ export type SrcCodePureFunctionsCache = Record<string, SrcCodeCompiledPureFuncti
 export type SerializableJitHashes = {
     isType: string;
     typeErrors: string;
-    toJsonVal: string;
-    fromJsonVal: string;
+    prepareForJson: string;
+    restoreFromJson: string;
     jsonStringify: string;
     toBinary: string;
     fromBinary: string;

@@ -18,10 +18,10 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'boolean') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    emitToJsonVal(): JitCode {
+    emitPrepareForJson(): JitCode {
         return {code: undefined, type: 'S'};
     }
-    emitFromJsonVal(): JitCode {
+    emitRestoreFromJson(): JitCode {
         return {code: undefined, type: 'S'};
     }
 }

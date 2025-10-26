@@ -10,7 +10,7 @@ import {JitFunctions} from '../../../constants.functions';
 import {roundTrip, createSerializationFns} from './stringifyHelpers';
 
 const SERIALIZE_FN = JitFunctions.jsonStringify;
-const DESERIALIZE_FN = JitFunctions.fromJsonVal;
+const DESERIALIZE_FN = JitFunctions.restoreFromJson;
 
 let ranTests = 0;
 afterEach(() => ranTests++);

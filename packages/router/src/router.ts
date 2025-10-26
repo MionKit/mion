@@ -339,8 +339,8 @@ export function getExecutableFromHook(
             hookId,
             routerOptions
         );
-        const skipParamsDecode = paramsJitFns.fromJsonVal.isNoop;
-        const skipReturnEncode = returnJitFns.toJsonVal.isNoop;
+        const skipParamsDecode = paramsJitFns.restoreFromJson.isNoop;
+        const skipReturnEncode = returnJitFns.prepareForJson.isNoop;
         executable = {
             id: hookId,
             type: inHeader ? HandlerType.headerHook : HandlerType.hook,
@@ -375,7 +375,13 @@ export function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[]
     const hookId = getRouterItemId(hookPointer);
     const existing = rawHooksById.get(hookId);
     if (existing) return existing as RawMethod;
-    const nullJitHashes: JitFunctionsHashes = {isType: '', typeErrors: '', toJsonVal: '', fromJsonVal: '', jsonStringify: ''};
+    const nullJitHashes: JitFunctionsHashes = {
+        isType: '',
+        typeErrors: '',
+        prepareForJson: '',
+        restoreFromJson: '',
+        jsonStringify: '',
+    };
     const executable: RawMethod = {
         type: HandlerType.rawHook,
         id: hookId,
@@ -417,8 +423,8 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
             routeId,
             routerOptions
         );
-        const skipParamsDecode = paramsJitFns.fromJsonVal.isNoop;
-        const skipReturnEncode = returnJitFns.toJsonVal.isNoop;
+        const skipParamsDecode = paramsJitFns.restoreFromJson.isNoop;
+        const skipReturnEncode = returnJitFns.prepareForJson.isNoop;
         executable = {
             type: HandlerType.route,
             id: routeId,

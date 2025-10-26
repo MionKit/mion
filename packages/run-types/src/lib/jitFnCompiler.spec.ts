@@ -48,23 +48,23 @@ describe('JitCompiler', () => {
         expect(typeErrors(methodsData)).toEqual([]);
     });
 
-    it('toJsonVal / fromJsonVal', () => {
+    it('prepareForJson / restoreFromJson', () => {
         const rt = runType<MethodsData>();
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const clone = mockData();
-        const jsonString = JSON.stringify(toJsonVal(clone));
-        const restored = fromJsonVal(JSON.parse(jsonString));
+        const jsonString = JSON.stringify(prepareForJson(clone));
+        const restored = restoreFromJson(JSON.parse(jsonString));
         expect(restored).toEqual(restoredMethodsData);
     });
 
     it('jsonStringify', () => {
         const rt = runType<MethodsData>();
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const clone = mockData();
         const jsonString = jsonStringify(clone);
-        const restored = fromJsonVal(JSON.parse(jsonString));
+        const restored = restoreFromJson(JSON.parse(jsonString));
         expect(restored).toEqual(restoredMethodsData);
     });
 });
@@ -84,37 +84,37 @@ describe('JitCompiler on union', () => {
         expect(typeErrors(methodsData)).toEqual([]);
     });
 
-    it('toJsonVal /fromJsonVal', () => {
+    it('prepareForJson /restoreFromJson', () => {
         const rt = runType<MethodsResponse>();
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
+        const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
 
         const rpcError = new RpcError({type: 'error', statusCode: 400, publicMessage: 'error', message: 'error'});
         const rpcErrorClone = new RpcError({type: 'error', statusCode: 400, publicMessage: 'error', message: 'error'});
-        const jsonStringRpcError = JSON.stringify(toJsonVal(rpcErrorClone));
-        const restoredRpcError = fromJsonVal(JSON.parse(jsonStringRpcError));
+        const jsonStringRpcError = JSON.stringify(prepareForJson(rpcErrorClone));
+        const restoredRpcError = restoreFromJson(JSON.parse(jsonStringRpcError));
         expect(restoredRpcError).toEqual(rpcError);
 
         const methodsDataClone = mockData();
-        const jsonStringMethodsData = JSON.stringify(toJsonVal(methodsDataClone));
-        const restoredMethodsData = fromJsonVal(JSON.parse(jsonStringMethodsData));
+        const jsonStringMethodsData = JSON.stringify(prepareForJson(methodsDataClone));
+        const restoredMethodsData = restoreFromJson(JSON.parse(jsonStringMethodsData));
         expect(restoredMethodsData).toEqual(restoredMethodsData);
     });
 
     it('jsonStringify', () => {
         const rt = runType<MethodsResponse>();
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
 
         const rpcError = new RpcError({type: 'error', statusCode: 400, publicMessage: 'error', message: 'error'});
         const rpcErrorClone = new RpcError({type: 'error', statusCode: 400, publicMessage: 'error', message: 'error'});
         const jsonStringRpcError = jsonStringify(rpcErrorClone);
-        const restoredRpcError = fromJsonVal(JSON.parse(jsonStringRpcError));
+        const restoredRpcError = restoreFromJson(JSON.parse(jsonStringRpcError));
         expect(restoredRpcError).toEqual(rpcError);
 
         const clone = mockData();
         const jsonString = jsonStringify(clone);
-        const restored = fromJsonVal(JSON.parse(jsonString));
+        const restored = restoreFromJson(JSON.parse(jsonString));
         expect(restored).toEqual(restoredMethodsData);
     });
 });
@@ -130,15 +130,15 @@ function mockData(isRestored?: boolean): MethodsData {
         paramsJitHashes: {
             isType: 'isType',
             typeErrors: 'typeErrors',
-            toJsonVal: 'toJsonVal',
-            fromJsonVal: 'fromJsonVal',
+            prepareForJson: 'prepareForJson',
+            restoreFromJson: 'restoreFromJson',
             jsonStringify: 'jsonStringify',
         },
         returnJitHashes: {
             isType: 'isType',
             typeErrors: 'typeErrors',
-            toJsonVal: 'toJsonVal',
-            fromJsonVal: 'fromJsonVal',
+            prepareForJson: 'prepareForJson',
+            restoreFromJson: 'restoreFromJson',
             jsonStringify: 'jsonStringify',
         },
     };
@@ -154,11 +154,11 @@ function mockData(isRestored?: boolean): MethodsData {
     };
     const compiledFnData2: JitCompiledFnData = {
         typeName: 'string',
-        fnID: JitFunctions.toJsonVal.id,
-        jitFnHash: 'toJsonVal',
+        fnID: JitFunctions.prepareForJson.id,
+        jitFnHash: 'prepareForJson',
         args: {vλl: 'v', θpts: 'opts', εrr: 'er', someOther: 'so'},
         defaultParamValues: {vλl: '', θpts: '{}', εrr: '[]', someOther: ''},
-        code: 'function toJsonVal(v) {return v;} return toJsonVal;',
+        code: 'function prepareForJson(v) {return v;} return prepareForJson;',
         dependenciesSet: new Set<string>(),
         pureFnDependencies: new Set<string>(['addNumbers']),
     };
@@ -180,7 +180,7 @@ function mockData(isRestored?: boolean): MethodsData {
         },
         deps: {
             isType: compiledFnData1,
-            toJsonVal: compiledFnData2,
+            prepareForJson: compiledFnData2,
         },
         purFnDeps: {
             addNumbers: pureFunctionData1,

@@ -197,8 +197,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     abstract emitStripUnknownKeys(comp: JitFnCompiler, expectedCType: CodeType): JitCode;
     abstract emitUnknownKeysToUndefined(comp: JitFnCompiler, expectedCType: CodeType): JitCode;
     // todo: maybe we should move these two into a single file like the rest of serializers
-    abstract emitToJsonVal(comp: JitFnCompiler, expectedCType: CodeType): JitCode;
-    abstract emitFromJsonVal(comp: JitFnCompiler, expectedCType: CodeType): JitCode;
+    abstract emitPrepareForJson(comp: JitFnCompiler, expectedCType: CodeType): JitCode;
+    abstract emitRestoreFromJson(comp: JitFnCompiler, expectedCType: CodeType): JitCode;
 }
 
 /**
@@ -209,10 +209,10 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     getFamily(): 'A' {
         return 'A';
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
         return {code: undefined, type: S};
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         return {code: undefined, type: S};
     }
     emitHasUnknownKeys(comp: JitFnCompiler): JitCode {

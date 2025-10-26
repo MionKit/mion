@@ -18,10 +18,10 @@ export class NeverRunType extends AtomicRunType<TypeNever> {
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `${comp.callJitErr(this)}`, type: 'S'};
     }
-    emitToJsonVal(): JitCode {
+    emitPrepareForJson(): JitCode {
         throw new Error('Never type cannot be encoded to JSON.');
     }
-    emitFromJsonVal(): JitCode {
+    emitRestoreFromJson(): JitCode {
         throw new Error('Never type cannot be decoded from JSON.');
     }
 }

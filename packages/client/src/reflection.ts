@@ -123,9 +123,9 @@ function serializeParameters(
     paramsJit?: JitCompiledFunctions
 ): any[] | RpcError<'serialization-error'> {
     if (!paramsJit) return params;
-    if (params.length && paramsJit && !paramsJit.toJsonVal.isNoop) {
+    if (params.length && paramsJit && !paramsJit.prepareForJson.isNoop) {
         try {
-            params = paramsJit.toJsonVal.fn(params) as JSONValue[];
+            params = paramsJit.prepareForJson.fn(params) as JSONValue[];
         } catch (e: any | Error) {
             return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -168,11 +168,11 @@ function deSerializeReturn(
     method: PublicMethod,
     returnJit?: JitCompiledFunctions
 ): any | RpcError<'serialization-error'> {
-    if (!returnJit || returnJit.fromJsonVal.isNoop || !response) return response;
+    if (!returnJit || returnJit.restoreFromJson.isNoop || !response) return response;
     try {
         if (response instanceof RpcError) return response;
         if (isRpcError(response)) return new RpcError(response);
-        const ret = returnJit.fromJsonVal.fn(response);
+        const ret = returnJit.restoreFromJson.fn(response);
         return ret;
     } catch (e: any) {
         return new RpcError({

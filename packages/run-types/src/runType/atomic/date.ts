@@ -19,10 +19,10 @@ export class DateRunType extends AtomicRunType<TypeClass> {
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if (!(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))) ${comp.callJitErr(this)}`, type: 'S'};
     }
-    emitToJsonVal(): JitCode {
+    emitPrepareForJson(): JitCode {
         return {code: undefined, type: 'S'};
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         return {code: `new Date(${comp.vλl})`, type: 'E'};
     }
 }

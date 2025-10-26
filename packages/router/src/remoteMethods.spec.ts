@@ -17,8 +17,8 @@ function hasSerializableHashes(paramNames?: string[]) {
     return {
         isType: expect.any(String),
         typeErrors: expect.any(String),
-        toJsonVal: expect.any(String),
-        fromJsonVal: expect.any(String),
+        prepareForJson: expect.any(String),
+        restoreFromJson: expect.any(String),
         jsonStringify: expect.any(String),
     };
 }
@@ -102,16 +102,16 @@ describe('Public Methods should', () => {
         const api = registerRoutes(testR);
 
         const compiledIsType = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.isType)!;
-        const compiledFromJsonVal = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.fromJsonVal)!;
-        const compiledToJsonVal = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.toJsonVal)!;
+        const compiledRestoreFromJson = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.restoreFromJson)!;
+        const compiledPrepareForJson = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.prepareForJson)!;
 
         const isTypeClosure = new Function('utl', compiledIsType.code);
-        const fromJsonValClosure = new Function('utl', compiledFromJsonVal.code);
-        const toJsonValClosure = new Function('utl', compiledToJsonVal.code);
+        const restoreFromJsonClosure = new Function('utl', compiledRestoreFromJson.code);
+        const prepareForJsonClosure = new Function('utl', compiledPrepareForJson.code);
 
         const isType = isTypeClosure(jitUtils);
-        const fromJsonVal = fromJsonValClosure(jitUtils);
-        const toJsonVal = toJsonValClosure(jitUtils);
+        const restoreFromJson = restoreFromJsonClosure(jitUtils);
+        const prepareForJson = prepareForJsonClosure(jitUtils);
 
         const date = new Date('2022-12-19T00:24:00.00');
 
@@ -122,11 +122,11 @@ describe('Public Methods should', () => {
         expect(isType(['noNumber', new Date('noDate')])).toEqual(false);
 
         // ###### Serialization ######
-        const deserialized = fromJsonVal([123, '2022-12-19T00:24:00.00']);
+        const deserialized = restoreFromJson([123, '2022-12-19T00:24:00.00']);
         expect(deserialized).toEqual([123, date]);
 
         // ###### Deserialization ######
-        const serialized = toJsonVal([123, date]);
+        const serialized = prepareForJson([123, date]);
         expect(serialized).toEqual([123, date]);
     });
 

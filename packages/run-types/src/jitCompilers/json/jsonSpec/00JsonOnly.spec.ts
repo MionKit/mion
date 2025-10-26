@@ -23,10 +23,10 @@ it('interface json encode/decode should be marked as noop when there are no acti
 
     const rtNoop = runType<NoJsonENCDECRequired>() as BaseRunType;
     const rtEncRequired = runType<sonENCDECRequired>() as BaseRunType;
-    expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
-    expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
-    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.prepareForJson.id).isNoop).toBe(true);
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.restoreFromJson.id).isNoop).toBe(true);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.prepareForJson.id).isNoop).toBe(false);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.restoreFromJson.id).isNoop).toBe(false);
 });
 
 it('tuple json encode/decode should be marked as noop when there are no actions required', () => {
@@ -35,10 +35,10 @@ it('tuple json encode/decode should be marked as noop when there are no actions 
 
     const rtNoop = runType<NoJsonENCDECRequired>() as BaseRunType;
     const rtEncRequired = runType<sonENCDECRequired>() as BaseRunType;
-    expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
-    expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
-    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.prepareForJson.id).isNoop).toBe(true);
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.restoreFromJson.id).isNoop).toBe(true);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.prepareForJson.id).isNoop).toBe(false);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.restoreFromJson.id).isNoop).toBe(false);
 });
 
 it('json encode/decode should never be marked as noop as encoding/decoding is always required', () => {
@@ -47,8 +47,8 @@ it('json encode/decode should never be marked as noop as encoding/decoding is al
 
     const rtNoop = runType<atomicNoEncRequired>() as BaseRunType;
     const rtEncRequired = runType<atomicEncRequired>() as BaseRunType;
-    expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-    expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
-    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.prepareForJson.id).isNoop).toBe(false);
+    expect(rtNoop.createJitCompiledFunction(JitFunctions.restoreFromJson.id).isNoop).toBe(false);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.prepareForJson.id).isNoop).toBe(false);
+    expect(rtEncRequired.createJitCompiledFunction(JitFunctions.restoreFromJson.id).isNoop).toBe(false);
 });

@@ -18,10 +18,10 @@ export class NullRunType extends AtomicRunType<TypeNull> {
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if (${comp.vλl} !== null) ${comp.callJitErr(this)}`, type: 'S'};
     }
-    emitToJsonVal(): JitCode {
+    emitPrepareForJson(): JitCode {
         return {code: undefined, type: 'S'};
     }
-    emitFromJsonVal(): JitCode {
+    emitRestoreFromJson(): JitCode {
         return {code: undefined, type: 'S'};
     }
 }

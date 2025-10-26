@@ -44,10 +44,10 @@ describe('Parameters & ReturnType typescript utility type', () => {
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
-        const encodeReturn = rtReturn.createJitFunction(JitFunctions.toJsonVal);
-        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const decodeReturn = rtReturn.createJitFunction(JitFunctions.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.prepareForJson);
+        const encodeReturn = rtReturn.createJitFunction(JitFunctions.prepareForJson);
+        const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
+        const decodeReturn = rtReturn.createJitFunction(JitFunctions.restoreFromJson);
 
         const params1 = [...params];
         expect(decode(JSON.parse(JSON.stringify(encode(params1))))).toEqual(params);
@@ -57,8 +57,8 @@ describe('Parameters & ReturnType typescript utility type', () => {
     it('json stringify', () => {
         const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
         const stringifyReturn = rtReturn.createJitFunction(JitFunctions.jsonStringify);
-        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const decodeReturn = rtReturn.createJitFunction(JitFunctions.fromJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
+        const decodeReturn = rtReturn.createJitFunction(JitFunctions.restoreFromJson);
 
         const params1 = [...params];
         expect(decode(JSON.parse(stringify(params1)))).toEqual(params);
@@ -105,8 +105,8 @@ describe('ConstructorParameter typescript utility type', () => {
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
-        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.prepareForJson);
+        const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
 
         const params1 = [...params];
         expect(decode(JSON.parse(JSON.stringify(encode(params1))))).toEqual(params);
@@ -114,7 +114,7 @@ describe('ConstructorParameter typescript utility type', () => {
 
     it('json stringify', () => {
         const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
 
         const params1 = [...params];
         expect(decode(JSON.parse(stringify(params1)))).toEqual(params);

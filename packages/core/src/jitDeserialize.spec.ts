@@ -60,7 +60,7 @@ describe('jitDeserialize', () => {
 
         const jitFunctionData: JitCompiledFnData = {
             typeName: 'string',
-            fnID: 'toJsonVal',
+            fnID: 'prepareForJson',
             jitFnHash: 'testJitFn',
             args: {vλl: 'v'},
             defaultParamValues: {vλl: ''},
@@ -134,7 +134,7 @@ describe('jitDeserialize', () => {
         // JIT function that depends on the chain
         const jitFn: JitCompiledFnData = {
             typeName: 'number',
-            fnID: 'toJsonVal',
+            fnID: 'prepareForJson',
             jitFnHash: 'chainJitFn',
             args: {vλl: 'v'},
             defaultParamValues: {vλl: ''},
@@ -175,7 +175,7 @@ describe('jitDeserialize', () => {
     it('should deserialize all functions in deps collection', () => {
         const referencedJitFn: JitCompiledFnData = {
             typeName: 'string',
-            fnID: 'toJsonVal',
+            fnID: 'prepareForJson',
             jitFnHash: 'referencedJitFn',
             args: {vλl: 'v'},
             defaultParamValues: {vλl: ''},
@@ -186,7 +186,7 @@ describe('jitDeserialize', () => {
 
         const unreferencedJitFn: JitCompiledFnData = {
             typeName: 'string',
-            fnID: 'toJsonVal',
+            fnID: 'prepareForJson',
             jitFnHash: 'unreferencedJitFn',
             args: {vλl: 'v'},
             defaultParamValues: {vλl: ''},

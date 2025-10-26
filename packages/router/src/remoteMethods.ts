@@ -157,8 +157,8 @@ function getSerializableJitHashes(jitFns: JitCompiledFunctions): SerializableJit
     return {
         isType: jitFns.isType.jitFnHash,
         typeErrors: jitFns.typeErrors.jitFnHash,
-        toJsonVal: jitFns.toJsonVal.jitFnHash,
-        fromJsonVal: jitFns.fromJsonVal.jitFnHash,
+        prepareForJson: jitFns.prepareForJson.jitFnHash,
+        restoreFromJson: jitFns.restoreFromJson.jitFnHash,
         jsonStringify: jitFns.jsonStringify.jitFnHash,
     };
 }

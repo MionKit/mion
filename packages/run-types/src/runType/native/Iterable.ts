@@ -46,11 +46,11 @@ export abstract class IterableRunType extends ClassRunType {
             type: 'S',
         };
     }
-    emitToJsonVal(comp: JitFnCompiler): JitCode {
+    emitPrepareForJson(comp: JitFnCompiler): JitCode {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         const resName = `ml${comp.getNestLevel(this)}`;
         const childrenCode = this.getJitChildren(comp)
-            .map((c) => comp.compileToJsonVal(c, 'S').code)
+            .map((c) => comp.compilePrepareForJson(c, 'S').code)
             .filter(Boolean)
             .join(';');
         if (!childrenCode) return {code: `${comp.vλl} = Array.from(${comp.vλl})`, type: 'S'};
@@ -63,12 +63,12 @@ export abstract class IterableRunType extends ClassRunType {
             type: 'S',
         };
     }
-    emitFromJsonVal(comp: JitFnCompiler): JitCode {
+    emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         const children = this.getJitChildren(comp);
         if (!children.length) return {code: `${comp.vλl} = new Map(${comp.vλl})`, type: 'S'};
         const index = this.getCustomVλl(comp)?.vλl || comp.vλl;
         const childrenCode = children
-            .map((c) => comp.compileFromJsonVal(c, 'S').code)
+            .map((c) => comp.compileRestoreFromJson(c, 'S').code)
             .filter(Boolean)
             .join(';');
         if (!childrenCode) return {code: `${comp.vλl} = new ${this.constructorName}(${comp.vλl})`, type: 'S'};

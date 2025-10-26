@@ -291,8 +291,8 @@ export function createStringifyCompiler(fnID: Operation) {
                         const childJit = comp.compile(unionItem, 'E', fnID);
                         // TODO: calling full encode/decode could be expensive and we calling it only to know if it needs encoding.
                         // we might want to optimize this
-                        const encJit = comp.compileToJsonVal(unionItem, 'E');
-                        const decJit = comp.compileFromJsonVal(unionItem, 'E');
+                        const encJit = comp.compilePrepareForJson(unionItem, 'E');
+                        const decJit = comp.compileRestoreFromJson(unionItem, 'E');
                         const needsTupleEncoding = !!encJit?.code || !!decJit?.code;
                         const skiEncode = !childJit?.code || childJit.code === comp.vλl;
                         const stringifyCode = skiEncode ? comp.vλl : childJit.code;

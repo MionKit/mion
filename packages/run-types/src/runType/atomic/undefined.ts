@@ -18,7 +18,7 @@ export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         return {code: `if (typeof ${comp.vλl} !== 'undefined') ${comp.callJitErr(this)}`, type: 'S'};
     }
-    emitFromJsonVal(): JitCode {
+    emitRestoreFromJson(): JitCode {
         return {code: `undefined`, type: 'E'};
     }
 }

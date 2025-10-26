@@ -31,8 +31,8 @@ describe.skip('Uppercase typescript utility type', () => {
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
-        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.prepareForJson);
+        const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
         const encoded = encode(upperString);
         const decoded = decode(JSON.parse(JSON.stringify(encoded)));
         expect(decoded).toEqual(upperString);

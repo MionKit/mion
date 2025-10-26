@@ -29,7 +29,7 @@ export function createSerializationFns(rt: RunType) {
     const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
     const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
     if (DEBUG) {
-        const toJson = rt.createJitFunction(JitFunctions.toJsonVal);
+        const toJson = rt.createJitFunction(JitFunctions.prepareForJson);
         const stringify = (v: any) => JSON.stringify(toJson(v));
         toJsonSerializers.set(serialize, stringify);
     }
@@ -43,7 +43,7 @@ export function createSerializationParamsFn(rt: FunctionRunType, sliceStart?: nu
     const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
     const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
     if (DEBUG) {
-        const toJson = rt.createJitParamsFunction(JitFunctions.toJsonVal, params);
+        const toJson = rt.createJitParamsFunction(JitFunctions.prepareForJson, params);
         const stringify = (v: any) => JSON.stringify(toJson(v));
         toJsonSerializers.set(serialize, stringify);
     }
@@ -56,7 +56,7 @@ export function createSerializationReturnFn(rt: FunctionRunType) {
     const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
     const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
     if (DEBUG) {
-        const toJson = rt.createJitReturnFunction(JitFunctions.toJsonVal);
+        const toJson = rt.createJitReturnFunction(JitFunctions.prepareForJson);
         const stringify = (v: any) => JSON.stringify(toJson(v));
         toJsonSerializers.set(serialize, stringify);
     }
@@ -70,7 +70,7 @@ export function createSerializationCallSignatureParamsFn(rt: InterfaceRunType) {
     const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
     const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
     if (DEBUG) {
-        const toJson = callSignature.createJitParamsFunction(JitFunctions.toJsonVal);
+        const toJson = callSignature.createJitParamsFunction(JitFunctions.prepareForJson);
         const stringify = (v: any) => JSON.stringify(toJson(v));
         toJsonSerializers.set(serialize, stringify);
     }
@@ -84,7 +84,7 @@ export function createSerializationCallSignatureReturnFn(rt: InterfaceRunType) {
     const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
     const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
     if (DEBUG) {
-        const toJson = callSignature.createJitReturnFunction(JitFunctions.toJsonVal);
+        const toJson = callSignature.createJitReturnFunction(JitFunctions.prepareForJson);
         const stringify = (v: any) => JSON.stringify(toJson(v));
         toJsonSerializers.set(serialize, stringify);
     }
