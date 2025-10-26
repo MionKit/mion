@@ -7,7 +7,7 @@
 // ###################### Types FORMATS #####################
 
 import {ReflectionKind} from '@deepkit/type';
-import {runType} from './createRunType';
+import {runType} from '../createRunType';
 import {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {BaseRunType} from './baseRunTypes';
 import {registerFormatter} from './formats';

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types';
+import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
 import {RunTypeError} from '@mionkit/core';
 import {StrTime} from './time.runtype';
 
@@ -14,7 +14,7 @@ import {StrTime} from './time.runtype';
 type HHmmss = StrTime<{format: 'HH:mm:ss'}>;
 
 it('validate time with format HH:mm:ss', async () => {
-    const isType = await isTypeFn<HHmmss>();
+    const isType = await createIsTypeFn<HHmmss>();
     // valid time
     expect(isType('00:00:00')).toBe(true);
     expect(isType('23:59:59')).toBe(true);
@@ -36,7 +36,7 @@ it('validate time with format HH:mm:ss', async () => {
     expect(isType('00:00:61')).toBe(false);
 });
 it('get time errors for format HH:mm:ss', async () => {
-    const typeErrors = await typeErrorsFn<HHmmss>();
+    const typeErrors = await createTypeErrorsFn<HHmmss>();
     const timeError: RunTypeError = {
         expected: 'string',
         path: [],
@@ -63,8 +63,8 @@ it('get time errors for format HH:mm:ss', async () => {
     expect(typeErrors('00:00:61')).toEqual([timeError]);
 });
 it('mock time with format HH:mm:ss', async () => {
-    const mockType = await mockTypeFn<HHmmss>();
-    const isType = await isTypeFn<HHmmss>();
+    const mockType = await createMockTypeFn<HHmmss>();
+    const isType = await createIsTypeFn<HHmmss>();
     const matchRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -78,7 +78,7 @@ it('mock time with format HH:mm:ss', async () => {
 type HHmm = StrTime<{format: 'HH:mm'}>;
 
 it('validate time with format HH:mm', async () => {
-    const isType = await isTypeFn<HHmm>();
+    const isType = await createIsTypeFn<HHmm>();
     // valid time
     expect(isType('00:00')).toBe(true);
     expect(isType('23:59')).toBe(true);
@@ -93,7 +93,7 @@ it('validate time with format HH:mm', async () => {
     expect(isType('00:00:00')).toBe(false);
 });
 it('get time errors for format HH:mm', async () => {
-    const typeErrors = await typeErrorsFn<HHmm>();
+    const typeErrors = await createTypeErrorsFn<HHmm>();
     const timeError: RunTypeError = {expected: 'string', path: [], format: {name: 'time', formatPath: ['format'], val: 'HH:mm'}};
     // valid time
     expect(typeErrors('00:00')).toEqual([]);
@@ -109,8 +109,8 @@ it('get time errors for format HH:mm', async () => {
     expect(typeErrors('00:00:00')).toEqual([timeError]);
 });
 it('mock time with format HH:mm', async () => {
-    const mockType = await mockTypeFn<HHmm>();
-    const isType = await isTypeFn<HHmm>();
+    const mockType = await createMockTypeFn<HHmm>();
+    const isType = await createIsTypeFn<HHmm>();
     const matchRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -124,7 +124,7 @@ it('mock time with format HH:mm', async () => {
 type mmss = StrTime<{format: 'mm:ss'}>;
 
 it('validate time with format mm:ss', async () => {
-    const isType = await isTypeFn<mmss>();
+    const isType = await createIsTypeFn<mmss>();
     // valid time
     expect(isType('00:00')).toBe(true);
     expect(isType('59:59')).toBe(true);
@@ -139,7 +139,7 @@ it('validate time with format mm:ss', async () => {
     expect(isType('00:00:00')).toBe(false);
 });
 it('get time errors for format mm:ss', async () => {
-    const typeErrors = await typeErrorsFn<mmss>();
+    const typeErrors = await createTypeErrorsFn<mmss>();
     const timeError: RunTypeError = {expected: 'string', path: [], format: {name: 'time', formatPath: ['format'], val: 'mm:ss'}};
     // valid time
     expect(typeErrors('00:00')).toEqual([]);
@@ -155,8 +155,8 @@ it('get time errors for format mm:ss', async () => {
     expect(typeErrors('00:00:00')).toEqual([timeError]);
 });
 it('mock time with format mm:ss', async () => {
-    const mockType = await mockTypeFn<mmss>();
-    const isType = await isTypeFn<mmss>();
+    const mockType = await createMockTypeFn<mmss>();
+    const isType = await createIsTypeFn<mmss>();
     const matchRegex = /^([0-5]\d):([0-5]\d)$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -170,7 +170,7 @@ it('mock time with format mm:ss', async () => {
 type HH = StrTime<{format: 'HH'}>;
 
 it('validate time with format HH', async () => {
-    const isType = await isTypeFn<HH>();
+    const isType = await createIsTypeFn<HH>();
     // valid time
     expect(isType('00')).toBe(true);
     expect(isType('23')).toBe(true);
@@ -182,7 +182,7 @@ it('validate time with format HH', async () => {
     expect(isType('00:00')).toBe(false);
 });
 it('get time errors for format HH', async () => {
-    const typeErrors = await typeErrorsFn<HH>();
+    const typeErrors = await createTypeErrorsFn<HH>();
     const timeError: RunTypeError = {expected: 'string', path: [], format: {name: 'time', formatPath: ['format'], val: 'HH'}};
     // valid time
     expect(typeErrors('00')).toEqual([]);
@@ -195,8 +195,8 @@ it('get time errors for format HH', async () => {
     expect(typeErrors('00:00')).toEqual([timeError]);
 });
 it('mock time with format HH', async () => {
-    const mockType = await mockTypeFn<HH>();
-    const isType = await isTypeFn<HH>();
+    const mockType = await createMockTypeFn<HH>();
+    const isType = await createIsTypeFn<HH>();
     const matchRegex = /^([01]\d|2[0-3])$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -210,7 +210,7 @@ it('mock time with format HH', async () => {
 type mm = StrTime<{format: 'mm'}>;
 
 it('validate time with format mm', async () => {
-    const isType = await isTypeFn<mm>();
+    const isType = await createIsTypeFn<mm>();
     // valid time
     expect(isType('00')).toBe(true);
     expect(isType('59')).toBe(true);
@@ -222,7 +222,7 @@ it('validate time with format mm', async () => {
     expect(isType('00:00')).toBe(false);
 });
 it('get time errors for format mm', async () => {
-    const typeErrors = await typeErrorsFn<mm>();
+    const typeErrors = await createTypeErrorsFn<mm>();
     const timeError: RunTypeError = {expected: 'string', path: [], format: {name: 'time', formatPath: ['format'], val: 'mm'}};
     // valid time
     expect(typeErrors('00')).toEqual([]);
@@ -235,8 +235,8 @@ it('get time errors for format mm', async () => {
     expect(typeErrors('00:00')).toEqual([timeError]);
 });
 it('mock time with format mm', async () => {
-    const mockType = await mockTypeFn<mm>();
-    const isType = await isTypeFn<mm>();
+    const mockType = await createMockTypeFn<mm>();
+    const isType = await createIsTypeFn<mm>();
     const matchRegex = /^([0-5]\d)$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -250,7 +250,7 @@ it('mock time with format mm', async () => {
 type ss = StrTime<{format: 'ss'}>;
 
 it('validate time with format ss', async () => {
-    const isType = await isTypeFn<ss>();
+    const isType = await createIsTypeFn<ss>();
     // valid time
     expect(isType('00')).toBe(true);
     expect(isType('59')).toBe(true);
@@ -262,7 +262,7 @@ it('validate time with format ss', async () => {
     expect(isType('00:00')).toBe(false);
 });
 it('get time errors for format ss', async () => {
-    const typeErrors = await typeErrorsFn<ss>();
+    const typeErrors = await createTypeErrorsFn<ss>();
     const timeError: RunTypeError = {expected: 'string', path: [], format: {name: 'time', formatPath: ['format'], val: 'ss'}};
     // valid time
     expect(typeErrors('00')).toEqual([]);
@@ -275,8 +275,8 @@ it('get time errors for format ss', async () => {
     expect(typeErrors('00:00')).toEqual([timeError]);
 });
 it('mock time with format ss', async () => {
-    const mockType = await mockTypeFn<ss>();
-    const isType = await isTypeFn<ss>();
+    const mockType = await createMockTypeFn<ss>();
+    const isType = await createIsTypeFn<ss>();
     const matchRegex = /^([0-5]\d)$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -292,7 +292,7 @@ type ISOtime = StrTime<{format: 'ISO'}>; // same as StringTime<{format: 'HH:mm:s
 
 it('validate time with format HH:mm:ss[.mmm]TZ', async () => {
     // must include timezone but milliseconds are optiona
-    const isType = await isTypeFn<ISOtime>();
+    const isType = await createIsTypeFn<ISOtime>();
     // valid time
     expect(isType('00:00:00Z')).toBe(true);
     expect(isType('23:59:59Z')).toBe(true);
@@ -327,7 +327,7 @@ it('validate time with format HH:mm:ss[.mmm]TZ', async () => {
     expect(isType('00:00:00:00')).toBe(false);
 });
 it('get time errors for format HH:mm:ss[.mmm]TZ', async () => {
-    const typeErrors = await typeErrorsFn<ISOtime>();
+    const typeErrors = await createTypeErrorsFn<ISOtime>();
     const timeError: RunTypeError = {expected: 'string', path: [], format: {name: 'time', formatPath: ['format'], val: 'ISO'}};
     // valid time
     expect(typeErrors('00:00:00Z')).toEqual([]);
@@ -363,8 +363,8 @@ it('get time errors for format HH:mm:ss[.mmm]TZ', async () => {
     expect(typeErrors('00:00:00:00')).toEqual([timeError]);
 });
 it('mock time with format HH:mm:ss[.mmm]TZ', async () => {
-    const mockType = await mockTypeFn<ISOtime>();
-    const isType = await isTypeFn<ISOtime>();
+    const mockType = await createMockTypeFn<ISOtime>();
+    const isType = await createIsTypeFn<ISOtime>();
     const matchRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(\.\d{3})?[+-]([01]\d|2[0-3]):([0-5]\d)$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {

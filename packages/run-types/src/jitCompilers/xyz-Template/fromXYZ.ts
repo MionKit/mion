@@ -9,7 +9,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
-import type {LiteralRunType} from '../../runType/atomic/literal';
+import type {LiteralRunType} from '../../nodes/atomic/literal';
 
 /**
  * Main XYZ deserialization compiler function

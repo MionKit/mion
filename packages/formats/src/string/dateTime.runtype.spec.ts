@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types';
+import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
 import {RunTypeError} from '@mionkit/core';
 import {StrDateTime} from './dateTime.runtype';
 
@@ -14,7 +14,7 @@ import {StrDateTime} from './dateTime.runtype';
 type ISODateTime = StrDateTime<{date: {format: 'ISO'}; time: {format: 'ISO'}}>;
 
 it('validate datetime with format ISO', async () => {
-    const isType = await isTypeFn<ISODateTime>();
+    const isType = await createIsTypeFn<ISODateTime>();
     // valid datetime
     expect(isType('2023-01-01T00:00:00Z')).toBe(true);
     expect(isType('0000-12-31T23:59:59Z')).toBe(true);
@@ -34,7 +34,7 @@ it('validate datetime with format ISO', async () => {
 });
 
 it('get datetime errors for format ISO', async () => {
-    const typeErrors = await typeErrorsFn<ISODateTime>();
+    const typeErrors = await createTypeErrorsFn<ISODateTime>();
     const dateError: RunTypeError = {
         expected: 'string',
         path: [],
@@ -71,8 +71,8 @@ it('get datetime errors for format ISO', async () => {
 });
 
 it('mock datetime with format ISO', async () => {
-    const mockType = await mockTypeFn<ISODateTime>();
-    const isType = await isTypeFn<ISODateTime>();
+    const mockType = await createMockTypeFn<ISODateTime>();
+    const isType = await createIsTypeFn<ISODateTime>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(isType(item)).toBe(true);
@@ -84,7 +84,7 @@ it('mock datetime with format ISO', async () => {
 type MMDDTHH = StrDateTime<{date: {format: 'MM-DD'}; time: {format: 'HH'}}>;
 
 it('validate datetime with format MM-DDTHH', async () => {
-    const isType = await isTypeFn<MMDDTHH>();
+    const isType = await createIsTypeFn<MMDDTHH>();
     // valid datetime
     expect(isType('01-01T00')).toBe(true);
     expect(isType('12-31T23')).toBe(true);
@@ -101,7 +101,7 @@ it('validate datetime with format MM-DDTHH', async () => {
 });
 
 it('get datetime errors for format MM-DDTHH', async () => {
-    const typeErrors = await typeErrorsFn<MMDDTHH>();
+    const typeErrors = await createTypeErrorsFn<MMDDTHH>();
     const dateError: RunTypeError = {
         expected: 'string',
         path: [],
@@ -133,8 +133,8 @@ it('get datetime errors for format MM-DDTHH', async () => {
 });
 
 it('mock datetime with format MM-DDTHH', async () => {
-    const mockType = await mockTypeFn<MMDDTHH>();
-    const isType = await isTypeFn<MMDDTHH>();
+    const mockType = await createMockTypeFn<MMDDTHH>();
+    const isType = await createIsTypeFn<MMDDTHH>();
     const matchRegex = /^\d{2}-\d{2}T\d{2}$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {

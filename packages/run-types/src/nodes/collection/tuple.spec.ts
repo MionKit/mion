@@ -1,0 +1,201 @@
+/* ########
+ * 2024 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+import {runType} from '../../createRunType';
+import {JitFunctions} from '../../constants.functions';
+import {BaseRunType} from '../../lib/baseRunTypes';
+
+describe('TupleRunType', () => {
+    type TupleType = [Date, number, string, null, string[], bigint];
+    type TupleWithOptionals = [number, bigint?, boolean?, number?];
+
+    const rt = runType<TupleType>() as BaseRunType;
+
+    it('validate tuple', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)])).toBe(true);
+        expect(validate([new Date(), 123, 'hello', null, [], BigInt(123)])).toBe(true);
+        expect(validate([new Date(), 123, 'hello', null, ['a', 'b', 'c']])).toBe(false);
+        expect(validate([new Date(), 123, 'hello', null])).toBe(false);
+        expect(validate([new Date(), 123, 'hello'])).toBe(false);
+        expect(validate([new Date(), 123])).toBe(false);
+        expect(validate([new Date()])).toBe(false);
+        expect(validate([])).toBe(false);
+        expect(validate({})).toBe(false);
+        expect(validate('hello')).toBe(false);
+        // extra elements in the tuple
+        expect(validate([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), 34])).toBe(false);
+    });
+
+    it('validate tuple with optional parameters', () => {
+        const validate = runType<TupleWithOptionals>().createJitFunction(JitFunctions.isType);
+        expect(validate([3, undefined, true, 4])).toBe(true);
+        expect(validate([3, undefined, undefined, 4])).toBe(true);
+        expect(validate([3, 2n, true, 4])).toBe(true);
+        expect(validate([3])).toBe(true);
+        // invalid scenarios
+        expect(validate([])).toBe(false);
+        expect(validate([3, '2', true, 4])).toBe(false);
+    });
+
+    it('validate tuple + errors', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)])).toEqual([]);
+        expect(valWithErrors([new Date(), 123, 'hello', null, [], BigInt(123)])).toEqual([]);
+        expect(valWithErrors([new Date(), 123, 'hello', null])).toEqual([
+            {path: [4], expected: 'array'},
+            {path: [5], expected: 'bigint'},
+        ]);
+        expect(valWithErrors([new Date(), 123, 'hello'])).toEqual([
+            {path: [3], expected: 'null'},
+            {path: [4], expected: 'array'},
+            {path: [5], expected: 'bigint'},
+        ]);
+        expect(valWithErrors([new Date(), 123])).toEqual([
+            {path: [2], expected: 'string'},
+            {path: [3], expected: 'null'},
+            {path: [4], expected: 'array'},
+            {path: [5], expected: 'bigint'},
+        ]);
+        expect(valWithErrors([new Date()])).toEqual([
+            {path: [1], expected: 'number'},
+            {path: [2], expected: 'string'},
+            {path: [3], expected: 'null'},
+            {path: [4], expected: 'array'},
+            {path: [5], expected: 'bigint'},
+        ]);
+        expect(valWithErrors([])).toEqual([
+            {path: [0], expected: 'date'},
+            {path: [1], expected: 'number'},
+            {path: [2], expected: 'string'},
+            {path: [3], expected: 'null'},
+            {path: [4], expected: 'array'},
+            {path: [5], expected: 'bigint'},
+        ]);
+        expect(valWithErrors({})).toEqual([{path: [], expected: 'tuple'}]);
+        // extra elements in the tuple
+        expect(valWithErrors([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), 34])).toEqual([
+            {path: [], expected: 'tuple'},
+        ]);
+    });
+
+    it('validate tuple with optional parameters + errors', () => {
+        const valWithErrors = runType<TupleWithOptionals>().createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors([3, undefined, true, 4])).toEqual([]);
+        expect(valWithErrors([3, undefined, undefined, 4])).toEqual([]);
+        expect(valWithErrors([3, 2n, true, 4])).toEqual([]);
+        expect(valWithErrors([3])).toEqual([]);
+        // invalid scenarios
+        expect(valWithErrors([])).toEqual([{path: [0], expected: 'number'}]);
+        expect(valWithErrors([3, '2', true, 4])).toEqual([{path: [1], expected: 'bigint'}]);
+    });
+
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        expect(mocked).toHaveLength(6);
+        expect(mocked[0]).toBeInstanceOf(Date);
+        expect(typeof mocked[1]).toBe('number');
+        expect(typeof mocked[2]).toBe('string');
+        expect(mocked[3]).toBeNull();
+        expect(Array.isArray(mocked[4])).toBe(true);
+        expect(typeof mocked[5]).toBe('bigint');
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate(mocked)).toBe(true);
+    });
+
+    it('mock  tuple with optional params', async () => {
+        const mocked = await runType<TupleWithOptionals>().mock();
+        expect(mocked.length).toBeLessThanOrEqual(4);
+        expect(typeof mocked[0]).toBe('number');
+        expect(typeof mocked[1] === 'bigint' || typeof mocked[1] === 'undefined').toBeTruthy();
+        expect(typeof mocked[2] === 'boolean' || typeof mocked[2] === 'undefined').toBeTruthy();
+        expect(typeof mocked[3] === 'number' || typeof mocked[3] === 'undefined').toBeTruthy();
+        const validate = runType<TupleWithOptionals>().createJitFunction(JitFunctions.isType);
+        expect(validate(mocked)).toBe(true);
+    });
+});
+
+describe('TupleRunType with circular type definitions', () => {
+    type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
+
+    const rt = runType<TupleCircular>();
+
+    it('validate tuple with circular type definitions', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
+        const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
+        const typeValueWrong = [null, 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
+        expect(validate(typeValue)).toBe(true);
+        expect(validate(typeValueWrong)).toBe(false);
+    });
+
+    it('validate tuple with circular type definitions + errors', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
+        const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
+        const typeValueWrong = [null, 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), null];
+        expect(valWithErrors(typeValue)).toEqual([]);
+        expect(valWithErrors(typeValueWrong)).toEqual([
+            {path: [0], expected: 'date'},
+            {path: [6], expected: 'tuple'},
+        ]);
+    });
+
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const expectMocked = (mocked: TupleCircular) => {
+            expect(mocked.length).toBeLessThanOrEqual(7);
+            expect(mocked.length).toBeGreaterThanOrEqual(6);
+            expect(mocked[0]).toBeInstanceOf(Date);
+            expect(typeof mocked[1]).toBe('number');
+            expect(typeof mocked[2]).toBe('string');
+            expect(mocked[3]).toBeNull();
+            expect(Array.isArray(mocked[4])).toBe(true);
+            expect(typeof mocked[5]).toBe('bigint');
+            expect(mocked[6] === undefined || Array.isArray(mocked[6])).toBeTruthy();
+            if (mocked[6]) {
+                expectMocked(mocked[6]);
+            }
+        };
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate(mocked)).toBe(true);
+        expectMocked(mocked);
+    });
+});
+
+describe('TupleRunType with rest parameter', () => {
+    type TupleRest = [number, ...string[]];
+    const rt = runType<TupleRest>();
+
+    it('validate tuple with rest parameter', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate([3, 'a', 'b', 'c'])).toBe(true);
+        expect(validate([3])).toBe(true);
+        expect(validate([3, 'a'])).toBe(true);
+        expect(validate([3, 'a', 'b'])).toBe(true);
+        expect(validate([3, 'a', 'b', 4])).toBe(false);
+    });
+
+    it('validate tuple with rest parameter + errors', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors([3, 'a', 'b', 'c'])).toEqual([]);
+        expect(valWithErrors([3])).toEqual([]);
+        expect(valWithErrors([3, 'a'])).toEqual([]);
+        expect(valWithErrors([3, 'a', 'b'])).toEqual([]);
+        expect(valWithErrors([3, 'a', 'b', 4])).toEqual([{path: [3], expected: 'string'}]);
+    });
+
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        expect(mocked.length >= 1).toBe(true);
+        expect(typeof mocked[0]).toBe('number');
+        for (let i = 1; i < mocked.length; i++) {
+            expect(typeof mocked[i]).toBe('string');
+        }
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate(mocked)).toBe(true);
+    });
+});
