@@ -123,8 +123,8 @@ export function createStringifyCompiler(fnID: Operation) {
                 rt.checkNonSkipTypes(comp);
                 const childJit = comp.compile(rt.getJitChild(comp), 'E', fnID);
                 if (!childJit?.code) return {code: `JSON.stringify(${comp.vλl})`, type: 'RB'};
-                const jsonItems = `ls${comp.getNestLevel(rt)}`;
-                const resultVal = `res${comp.getNestLevel(rt)}`;
+                const jsonItems = comp.getLocalVarName('ls', rt);
+                const resultVal = comp.getLocalVarName('res', rt);
                 const index = rt.getChildVarName(comp);
                 return {
                     code: `
@@ -145,7 +145,7 @@ export function createStringifyCompiler(fnID: Operation) {
                 if (!child || !childJit?.code) return {code: undefined, type: 'RB'};
                 const varName = comp.vλl;
                 const prop = rt.getChildVarName(comp);
-                const arrName = `ls${comp.getNestLevel(rt)}`;
+                const arrName = comp.getLocalVarName('ls', rt);
                 const sep = rt.skipCommas ? '' : '+","';
                 const skipCode = rt.getSkipCode(comp, prop);
                 return {
@@ -211,8 +211,8 @@ export function createStringifyCompiler(fnID: Operation) {
                 const rt = runType as RestParamsRunType;
                 const childJit = comp.compile(rt.getJitChild(comp), 'E', fnID);
                 const itemCodeStr = childJit?.code || 'JSON.stringify(' + comp.getChildVλl() + ')';
-                const arrName = `res${comp.getNestLevel(rt)}`;
-                const itemName = `its${comp.getNestLevel(rt)}`;
+                const arrName = comp.getLocalVarName('res', rt);
+                const itemName = comp.getLocalVarName('its', rt);
                 const index = rt.getChildVarName(comp);
                 const isFist = rt.getChildIndex(comp) === 0;
                 const sep = isFist ? '' : `','+`;
@@ -277,7 +277,7 @@ export function createStringifyCompiler(fnID: Operation) {
                 const urt = runType as UnionRunType;
                 urt.checkNonSkipTypes(comp);
                 const {simpleItems, objectTypes} = urt.getUnionChildren(comp);
-                const errName = `uErr${comp.getNestLevel(urt)}`;
+                const errName = comp.getLocalVarName('uErr', urt);
                 const fail = `throw new Error(${errName});`;
                 comp.setContextItem(
                     errName,
@@ -377,7 +377,7 @@ export function createStringifyCompiler(fnID: Operation) {
     }
 
     function compileInterfaceIntoArray(rt: InterfaceRunType, comp: JitFnCompiler, children: MemberRunType<any>[]): JitCode {
-        const arrName = `ns${comp.getNestLevel(rt)}`;
+        const arrName = comp.getLocalVarName('ns', rt);
         const childrenCode = children
             .map((prop) => {
                 prop.skipCommas = true;
@@ -448,8 +448,8 @@ export function createStringifyIterable(fnID: Operation) {
         const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
         const jitChildren = rt.getJitChildren(comp);
         const childrenCode = jitChildren.map((c) => comp.compile(c, 'E', fnID).code).join('+');
-        const jsonItems = `ls${comp.getNestLevel(rt as unknown as BaseRunType)}`;
-        const resultVal = `res${comp.getNestLevel(rt as unknown as BaseRunType)}`;
+        const jsonItems = comp.getLocalVarName('ls', rt);
+        const resultVal = comp.getLocalVarName('res', rt);
         const childrenResult = jitChildren.length > 1 ? `'['+${childrenCode}+']'` : childrenCode;
         const earlyReturn = codePrefix && codeSuffix ? `if (!${jsonItems}.length) return '${codePrefix}${codeSuffix}';` : '';
         return {

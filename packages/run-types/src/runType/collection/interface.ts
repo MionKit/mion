@@ -139,8 +139,8 @@ export class InterfaceRunType<
         const children = this.getJitChildren(comp);
         const allChildren = this.getChildRunTypes().filter((prop) => !isIndexSignatureRunType(prop));
         const hasIndexProp = children.some((prop) => isIndexSignatureRunType(prop));
-        const unknownVar = `unk${comp.getNestLevel(this)}`;
-        const keyVar = `ky${comp.getNestLevel(this)}`;
+        const unknownVar = comp.getLocalVarName('unk', this);
+        const keyVar = comp.getLocalVarName('ky', this);
         const unknownValue = hasIndexProp
             ? undefined
             : callCheckUnknownProperties(this, comp, children, true, !this.isPartOfUnion(), allChildren);
@@ -153,8 +153,8 @@ export class InterfaceRunType<
     }
     emitStripUnknownKeys(comp: JitFnCompiler): JitCode {
         const children = this.getJitChildren(comp);
-        const unknownVar = `unk${comp.getNestLevel(this)}`;
-        const keyVar = `ky${comp.getNestLevel(this)}`;
+        const unknownVar = comp.getLocalVarName('unk', this);
+        const keyVar = comp.getLocalVarName('ky', this);
         const hasIndexProp = children.some((prop) => isIndexSignatureRunType(prop));
         const unknownValue = hasIndexProp
             ? undefined
@@ -168,8 +168,8 @@ export class InterfaceRunType<
     }
     emitUnknownKeysToUndefined(comp: JitFnCompiler): JitCode {
         const children = this.getJitChildren(comp);
-        const unknownVar = `unk${comp.getNestLevel(this)}`;
-        const keyVar = `ky${comp.getNestLevel(this)}`;
+        const unknownVar = comp.getLocalVarName('unk', this);
+        const keyVar = comp.getLocalVarName('ky', this);
         const hasIndexProp = children.some((prop) => isIndexSignatureRunType(prop));
         const unknownValue = hasIndexProp
             ? undefined

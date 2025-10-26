@@ -24,6 +24,8 @@ export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions)
         prepareForJson: rt.createJitCompiledParamsFunction(JitFunctions.prepareForJson, opts),
         restoreFromJson: rt.createJitCompiledParamsFunction(JitFunctions.restoreFromJson, opts),
         jsonStringify: rt.createJitCompiledParamsFunction(JitFunctions.jsonStringify, opts),
+        toBinary: rt.createJitCompiledParamsFunction(JitFunctions.toBinary, opts),
+        fromBinary: rt.createJitCompiledParamsFunction(JitFunctions.fromBinary, opts),
     };
     return paramFunctions;
 }
@@ -37,6 +39,8 @@ export function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions)
         prepareForJson: rt.createJitCompiledReturnFunction(JitFunctions.prepareForJson, opts),
         restoreFromJson: rt.createJitCompiledReturnFunction(JitFunctions.restoreFromJson, opts),
         jsonStringify: rt.createJitCompiledReturnFunction(JitFunctions.jsonStringify, opts),
+        toBinary: rt.createJitCompiledReturnFunction(JitFunctions.toBinary, opts),
+        fromBinary: rt.createJitCompiledReturnFunction(JitFunctions.fromBinary, opts),
     };
     return returnFunctions;
 }
@@ -48,6 +52,8 @@ export function getSerializableJitFunctions(jitCompFns: JitCompiledFunctions): S
         prepareForJson: getSerializableJitCompiler(jitCompFns.prepareForJson),
         restoreFromJson: getSerializableJitCompiler(jitCompFns.restoreFromJson),
         jsonStringify: getSerializableJitCompiler(jitCompFns.jsonStringify),
+        toBinary: getSerializableJitCompiler(jitCompFns.toBinary),
+        fromBinary: getSerializableJitCompiler(jitCompFns.fromBinary),
     };
 }
 
@@ -67,6 +73,8 @@ export function getJitHashes(jitFns: JitCompiledFunctions): JitFunctionsHashes {
         prepareForJson: jitFns.prepareForJson.jitFnHash,
         restoreFromJson: jitFns.restoreFromJson.jitFnHash,
         jsonStringify: jitFns.jsonStringify.jitFnHash,
+        toBinary: jitFns.toBinary.jitFnHash,
+        fromBinary: jitFns.fromBinary.jitFnHash,
     };
 }
 

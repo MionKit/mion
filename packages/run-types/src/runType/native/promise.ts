@@ -32,7 +32,7 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getChildVarName(comp: JitFnCompiler): string | number {
-        return `p${comp.getNestLevel(this)}`;
+        return comp.getLocalVarName('p', this);
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getChildLiteral(comp: JitFnCompiler): string | number {

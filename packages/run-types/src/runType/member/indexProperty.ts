@@ -18,7 +18,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         return true;
     }
     getChildVarName(comp: JitFnCompiler): string {
-        return `p${comp.getNestLevel(this)}`;
+        return comp.getLocalVarName('p', this);
     }
     getChildLiteral(comp: JitFnCompiler): string {
         return this.getChildVarName(comp);
@@ -79,7 +79,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (!childJit?.code) return {code: '', type: 'E'};
         const varName = comp.vλl;
         const prop = this.getChildVarName(comp);
-        const resultVal = `res${comp.getNestLevel(this)}`;
+        const resultVal = comp.getLocalVarName('res', this);
         return {
             code: `for (const ${prop} in ${varName}) {const ${resultVal} = ${childJit.code};if (${resultVal}) return true;}return false;`,
             type: 'RB',

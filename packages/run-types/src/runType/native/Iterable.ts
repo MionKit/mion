@@ -14,7 +14,7 @@ export abstract class IterableRunType extends ClassRunType {
     abstract children: BaseRunType[];
     abstract constructorName: string;
     getIndexVarName(comp: JitFnCompiler): string {
-        return `e${comp.getNestLevel(this)}`;
+        return comp.getLocalVarName('e', this);
     }
     getChildRunTypes = (): BaseRunType[] => {
         return this.children;
@@ -48,7 +48,7 @@ export abstract class IterableRunType extends ClassRunType {
     }
     emitPrepareForJson(comp: JitFnCompiler): JitCode {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
-        const resName = `ml${comp.getNestLevel(this)}`;
+        const resName = comp.getLocalVarName('ml', this);
         const childrenCode = this.getJitChildren(comp)
             .map((c) => comp.compilePrepareForJson(c, 'S').code)
             .filter(Boolean)

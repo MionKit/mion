@@ -381,6 +381,8 @@ export function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[]
         prepareForJson: '',
         restoreFromJson: '',
         jsonStringify: '',
+        toBinary: '',
+        fromBinary: '',
     };
     const executable: RawMethod = {
         type: HandlerType.rawHook,

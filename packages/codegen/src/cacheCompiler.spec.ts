@@ -9,6 +9,7 @@ import {compileTypeToJs} from './cacheCompiler';
 import {AOTConfig} from './types';
 import {
     JitCompiledFn,
+    SerializableJitHashes,
     SrcCodeJITCompiledFnsCache,
     SrcCodePureFunctionsCache,
     getFnCaches,
@@ -220,6 +221,18 @@ it('should compile router methods cache to code', () => {
     initRouter();
     registerRoutes(testRoutes);
 
+    function getExpectedJitHashes(): SerializableJitHashes {
+        return {
+            isType: expect.any(String),
+            typeErrors: expect.any(String),
+            prepareForJson: expect.any(String),
+            restoreFromJson: expect.any(String),
+            jsonStringify: expect.any(String),
+            toBinary: expect.any(String),
+            fromBinary: expect.any(String),
+        };
+    }
+
     // Verify that methods were persisted
     const persistedMethods = getPersistedMethods();
     const getUserMethodMetadata = persistedMethods.getUser;
@@ -239,20 +252,8 @@ it('should compile router methods cache to code', () => {
             serializeReturn: false,
             isAsync: false,
         },
-        paramsJitHashes: {
-            isType: expect.any(String),
-            typeErrors: expect.any(String),
-            prepareForJson: expect.any(String),
-            restoreFromJson: expect.any(String),
-            jsonStringify: expect.any(String),
-        },
-        returnJitHashes: {
-            isType: expect.any(String),
-            typeErrors: expect.any(String),
-            prepareForJson: expect.any(String),
-            restoreFromJson: expect.any(String),
-            jsonStringify: expect.any(String),
-        },
+        paramsJitHashes: getExpectedJitHashes(),
+        returnJitHashes: getExpectedJitHashes(),
     };
 
     // Create AOT config for router methods

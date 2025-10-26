@@ -182,9 +182,9 @@ function initGetCompiledName() {
     const typeIDs = new Map<string | number, number>();
     return function getCompiledName(comp: JitFnCompiler, urt: UnionRunType, typeID: string | number): string {
         const existingIndex = typeIDs.get(typeID);
-        if (existingIndex) return `prp${comp.getNestLevel(urt)}_${existingIndex}`;
+        if (existingIndex) return comp.getLocalVarName('prop', urt) + `_${existingIndex}`;
         const newIndex = typeIDs.size;
         typeIDs.set(typeID, newIndex);
-        return `prp${comp.getNestLevel(urt)}_${newIndex}`;
+        return comp.getLocalVarName('prop', urt) + `_${newIndex}`;
     };
 }

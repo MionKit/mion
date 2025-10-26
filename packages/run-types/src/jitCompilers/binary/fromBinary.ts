@@ -25,7 +25,7 @@ import type {ParameterRunType} from '../../runType/member/param';
 import type {RestParamsRunType} from '../../runType/member/restParams';
 import type {UnionRunType} from '../../runType/collection/union';
 import type {IterableRunType} from '../../runType/native/Iterable';
-import type {MapValueRunType} from '../../runType/native/map';
+import type {MapRunType} from '../../runType/native/map';
 
 type BinaryCompiler = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
 
@@ -101,7 +101,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             const isExpression = childIsExpression(childCode, child);
             const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
             // deserialized from [length, items...]
-            const lengthVal = `arrL${comp.getNestLevel(rt)}`;
+            const lengthVal = comp.getLocalVarName('arrL', rt);
             const arrayInit = isRest ? '' : `${comp.vλl} = new Array(${lengthVal})`; // res array already initialized in parent
             return {
                 code: `
@@ -119,8 +119,8 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             if (!memberCode?.code) return {code: undefined, type: 'E'};
 
             const prop = rt.getChildVarName(comp);
-            const countVar = `cnt${comp.getNestLevel(rt)}`;
-            const indexVar = `prI${comp.getNestLevel(rt)}`;
+            const countVar = comp.getLocalVarName('cnt', rt);
+            const indexVar = comp.getLocalVarName('propI', rt);
 
             // Deserialize key based on index type
             let keyDeserializationCode: string;
@@ -173,7 +173,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
                         case ReflectionSubKind.mapKey:
                             break; // we set map item once we have the key and value
                         case ReflectionSubKind.mapValue: {
-                            const mapKey = (rt as any as MapValueRunType).getMapKeyVλl(comp); // not the best solution but works
+                            const mapKey = (parent as MapRunType).getMapKeyVλl(comp); // not the best solution but works
                             setOperation = `${parentVλl}.set(${mapKey}, ${vλl})`;
                             break;
                         }
@@ -301,8 +301,8 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
                         .filter(Boolean)
                         .join(';');
                     if (!childrenCode) return {code: initCode, type: 'E'};
-                    const index = `itI${comp.getNestLevel(rt)}`;
-                    const lengthVar = `itL${comp.getNestLevel(rt)}`;
+                    const index = comp.getLocalVarName('itI', rt);
+                    const lengthVar = comp.getLocalVarName('itL', rt);
                     const readLength = `const ${lengthVar} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4`;
                     return {
                         code: `${initCode}; ${readLength}; for (let ${index} = 0; ${index} < ${lengthVar}; ${index}++) {${childrenCode}} ${comp.vλl} = ${vλl};`,
@@ -321,7 +321,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
                     (runType.src as any).kind = ReflectionKind.objectLiteral;
                     const plainObjCode = emitFromBinary(rt, comp);
                     (runType.src as any).kind = originalKind;
-                    const desFnVarName = `desFn${comp.getNestLevel(rt)}`;
+                    const desFnVarName = comp.getLocalVarName('desFn', rt);
                     const desFnInit = `let ${desFnVarName} = utl.${jitUtils.getDeserializeFn.name}(${toLiteral(rt.getClassName())})`;
                     const desFnCode = `if (${desFnVarName}) {${comp.vλl} = ${desFnVarName}(${comp.vλl})}`;
                     const desClassCode = `else if (${desFnVarName} = utl.${jitUtils.getSerializeClass.name}(${toLiteral(rt.getClassName())})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}`;
@@ -351,8 +351,8 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
         case ReflectionKind.union: {
             const rt = runType as UnionRunType;
             rt.checkNonSkipTypes(comp);
-            const decVar = `dεc${comp.getNestLevel(rt)}`;
-            const errVarName = `uErr${comp.getNestLevel(rt)}`;
+            const decVar = comp.getLocalVarName('dec', rt);
+            const errVarName = comp.getLocalVarName('uErr', rt);
             comp.setContextItem(errVarName, `const ${errVarName} = "Can not binary decode union: invalid union index"`);
             const children = rt.getJitChildren(comp);
             if (children.length > MAX_UNION_ITEMS) {
@@ -403,8 +403,7 @@ function getPropName(rt: PropertyRunType, comp: BinaryCompiler, isObjectConstruc
 
 function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optionalPropsLength = 0, currentPropIndex = 0) {
     const dεs = comp.args.dεs;
-    const nestLevel = comp.getNestLevel(rt);
-    const bitMIndexVar = `bimI${nestLevel}`; // index of the optional prop loop
+    const bitMIndexVar = comp.getLocalVarName('bimI', rt); // index of the optional prop loop
     const bitmapLength = Math.ceil(optionalPropsLength / 8);
     const bitIndex = `${currentPropIndex} & 7`; // equivalent to index % 8
     // bitmap for present optional props

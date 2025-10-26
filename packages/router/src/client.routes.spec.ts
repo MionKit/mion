@@ -7,7 +7,7 @@
 
 import {MionHeaders} from './types/context';
 import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from './router';
-import {getRoutePath, PublicRpcError} from '@mionkit/core';
+import {getRoutePath, PublicRpcError, SerializableJitHashes} from '@mionkit/core';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core';
 import {hook, rawHook, route} from './handlers';
 import {Routes} from './types/general';
@@ -25,6 +25,18 @@ type RawRequest = {
     headers: MionHeaders;
     body: string;
 };
+
+function getExpectedJitHashes(): SerializableJitHashes {
+    return {
+        isType: expect.any(String),
+        typeErrors: expect.any(String),
+        prepareForJson: expect.any(String),
+        restoreFromJson: expect.any(String),
+        jsonStringify: expect.any(String),
+        fromBinary: expect.any(String),
+        toBinary: expect.any(String),
+    };
+}
 
 describe('PublicMethods run type functionality', () => {
     const route1 = route((ctx): string => 'something');
@@ -185,20 +197,8 @@ describe('Client Routes should', () => {
             type: HandlerType.route,
             id: 'users/getUser',
             handler: 'users.getUser' as any,
-            paramsJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
-            returnJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
+            paramsJitHashes: getExpectedJitHashes(),
+            returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
             hookIds: ['auth', 'last'],
         },
@@ -206,20 +206,8 @@ describe('Client Routes should', () => {
             type: HandlerType.route,
             id: 'users/setUser',
             handler: 'users.setUser' as any,
-            paramsJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
-            returnJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
+            paramsJitHashes: getExpectedJitHashes(),
+            returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
             hookIds: ['auth', 'last'],
         },
@@ -227,20 +215,8 @@ describe('Client Routes should', () => {
             type: HandlerType.route,
             id: 'users/pets/getUserPet',
             handler: 'users.pets.getUserPet' as any,
-            paramsJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
-            returnJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
+            paramsJitHashes: getExpectedJitHashes(),
+            returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
             hookIds: ['auth', 'last'],
         },
@@ -248,20 +224,8 @@ describe('Client Routes should', () => {
             type: HandlerType.route,
             id: 'pets/getPet',
             handler: 'pets.getPet' as any,
-            paramsJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
-            returnJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
+            paramsJitHashes: getExpectedJitHashes(),
+            returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
             hookIds: ['auth', 'last'],
         },
@@ -269,20 +233,8 @@ describe('Client Routes should', () => {
             type: HandlerType.route,
             id: 'pets/setPet',
             handler: 'pets.setPet' as any,
-            paramsJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
-            returnJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
+            paramsJitHashes: getExpectedJitHashes(),
+            returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
             hookIds: ['auth', 'last'],
         },
@@ -290,40 +242,16 @@ describe('Client Routes should', () => {
             type: HandlerType.hook,
             id: 'auth',
             handler: 'auth' as any,
-            paramsJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
-            returnJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
+            paramsJitHashes: getExpectedJitHashes(),
+            returnJitHashes: getExpectedJitHashes(),
             paramNames: ['token'],
         },
         last: {
             type: HandlerType.hook,
             id: 'last',
             handler: 'last' as any,
-            paramsJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
-            returnJitHashes: {
-                isType: expect.any(String),
-                typeErrors: expect.any(String),
-                prepareForJson: expect.any(String),
-                restoreFromJson: expect.any(String),
-                jsonStringify: expect.any(String),
-            },
+            paramsJitHashes: getExpectedJitHashes(),
+            returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
         },
     } satisfies PublicMethods;

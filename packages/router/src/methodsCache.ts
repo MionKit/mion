@@ -56,10 +56,12 @@ function restorePersistedJitFunctions(jitFns: JitFunctionsHashes): JitCompiledFu
     const prepareForJson = jitUtils.getJIT(jitFns.prepareForJson);
     const restoreFromJson = jitUtils.getJIT(jitFns.restoreFromJson);
     const jsonStringify = jitUtils.getJIT(jitFns.jsonStringify);
-    if (!isType || !typeErrors || !prepareForJson || !restoreFromJson || !jsonStringify) {
+    const toBinary = jitUtils.getJIT(jitFns.toBinary);
+    const fromBinary = jitUtils.getJIT(jitFns.fromBinary);
+    if (!isType || !typeErrors || !prepareForJson || !restoreFromJson || !jsonStringify || !toBinary || !fromBinary) {
         throw new Error(`Can't restore persisted JIT functions, some jit functions are missing: ${JSON.stringify(jitFns)}`);
     }
-    return {isType, typeErrors, prepareForJson, restoreFromJson, jsonStringify};
+    return {isType, typeErrors, prepareForJson, restoreFromJson, jsonStringify, toBinary, fromBinary};
 }
 
 function shouldCompile() {
