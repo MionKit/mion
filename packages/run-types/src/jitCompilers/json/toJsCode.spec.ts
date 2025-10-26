@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {runType} from '../../lib/createRunType';
+import {runType} from '../../createRunType';
 import {JitFunctions} from '../../constants.functions';
 
 it('toJavascript should transform functions to code using toString()', () => {

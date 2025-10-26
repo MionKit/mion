@@ -6,9 +6,9 @@
  * ######## */
 
 import {JitFunctions} from '../../../constants.functions';
-import {FunctionRunType} from '../../../runType/function/function';
+import {FunctionRunType} from '../../../nodes/function/function';
 import type {DataViewDeserializer, DataViewSerializer, StrictArrayBuffer} from '@mionkit/core';
-import type {InterfaceRunType} from '../../../runType/collection/interface';
+import type {InterfaceRunType} from '../../../nodes/collection/interface';
 import type {RunType} from '../../../types';
 import {createDataViewDeserializer, createDataViewSerializer} from '@mionkit/core';
 import {getENV} from '@mionkit/core';

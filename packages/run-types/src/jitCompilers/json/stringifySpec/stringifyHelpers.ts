@@ -6,8 +6,8 @@
  * ######## */
 
 import {JitFunctions} from '../../../constants.functions';
-import type {InterfaceRunType} from '../../../runType/collection/interface';
-import type {FunctionRunType} from '../../../runType/function/function';
+import type {InterfaceRunType} from '../../../nodes/collection/interface';
+import type {FunctionRunType} from '../../../nodes/function/function';
 import type {RunType} from '../../../types';
 
 const SERIALIZE_FN = JitFunctions.jsonStringify;

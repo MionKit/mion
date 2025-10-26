@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {toBinaryFn, fromBinaryFn, JitFunctions, type RunType, runType} from '@mionkit/run-types';
+import {createToBinaryFn, createFromBinaryFn, JitFunctions, type RunType, runType} from '@mionkit/run-types';
 import {
     NumInteger,
     NumFloat,

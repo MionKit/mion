@@ -7,9 +7,9 @@
 
 import type {JitCode} from '../../types';
 import type {BaseRunType} from '../../lib/baseRunTypes';
-import type {ClassRunType} from '../../runType/collection/class';
-import type {MethodSignatureRunType} from '../../runType/member/methodSignature';
-import type {IterableRunType} from '../../runType/native/Iterable';
+import type {ClassRunType} from '../../nodes/collection/class';
+import type {MethodSignatureRunType} from '../../nodes/member/methodSignature';
+import type {IterableRunType} from '../../nodes/native/Iterable';
 import {ReflectionKind, type TypeMethodSignature, type TypePropertySignature} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind';
 import {JitFunctions} from '../../constants.functions';

@@ -6,7 +6,7 @@
  * ######## */
 
 import {JitFunctions} from '../../../constants.functions';
-import {runType} from '../../../lib/createRunType';
+import {runType} from '../../../createRunType';
 import type {BaseRunType} from '../../../lib/baseRunTypes';
 
 // ####################### ADDITIONAL TESTS SPECIFIC ONLY TO JSON #######################

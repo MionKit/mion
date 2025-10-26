@@ -11,7 +11,7 @@ import type {FormatParam, FormatParamLiteral, PureFunctionClosure, TypeFormatVal
 import type {AnyClass, JitFnID, RunType} from '../types';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
-import type {PropertyRunType} from '../runType/member/property';
+import type {PropertyRunType} from '../nodes/member/property';
 import {jitUtils} from '@mionkit/core';
 import {validPropertyNameRegExp} from '../constants';
 import {isFormatParamMeta} from './guards';
