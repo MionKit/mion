@@ -291,17 +291,17 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
                     case JitFunctions.typeErrors.id:
                         jCode = this.compileFormatter(rt, fnID, rt.emitTypeErrors(this as any, expectedCType), expectedCType, ';'); break;
                     case JitFunctions.prepareForJson.id:
-                        jCode = rt.emitPrepareForJson(this, expectedCType); break;
+                        jCode = this.compileFormatter(rt, fnID,rt.emitPrepareForJson(this, expectedCType), expectedCType, ';'); break;
                     case JitFunctions.restoreFromJson.id:
-                        jCode = rt.emitRestoreFromJson(this, expectedCType); break;
+                        jCode = this.compileFormatter(rt, fnID,rt.emitRestoreFromJson(this, expectedCType), expectedCType, ';'); break;
                     case JitFunctions.jsonStringify.id:
-                        jCode = emitJsonStringify(rt, this); break;
+                        jCode = this.compileFormatter(rt, fnID,emitJsonStringify(rt, this), expectedCType, ';'); break;
                     case JitFunctions.toBinary.id:
-                        jCode = emitToBinary(rt, this as any); break;
+                        jCode = this.compileFormatter(rt, fnID,emitToBinary(rt, this as any), expectedCType, ';'); break;
                     case JitFunctions.fromBinary.id:
-                        jCode = emitFromBinary(rt, this as any); break;
+                        jCode = this.compileFormatter(rt, fnID,emitFromBinary(rt, this as any), expectedCType, ';'); break;
                     case JitFunctions.toJavascript.id:
-                        jCode = emitToCode(rt, this); break;
+                        jCode =this.compileFormatter(rt, fnID, emitToCode(rt, this), expectedCType, ';'); break;
                     case JitFunctions.unknownKeyErrors.id:
                         jCode = rt.emitUnknownKeyErrors(this as any, expectedCType); break;
                     case JitFunctions.hasUnknownKeys.id:
