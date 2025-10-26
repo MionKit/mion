@@ -13,13 +13,13 @@ export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date
     static id = 'date' as const;
     kind = ReflectionKind.string;
     name = DateStringRunTypeFormat.id;
-    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
+    emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const formatFn = this.getFormatPureFn(fpVal(params.format));
         return {code: this.compilePureFunctionCall(comp, rt, formatFn).callCode, type: 'E'};
     }
-    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
-        const isTypeCodeObj = this.visitIsType(comp, rt);
+    emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
+        const isTypeCodeObj = this.emitIsType(comp, rt);
         const isTypeCode = isTypeCodeObj.code;
         if (!isTypeCode) return {code: '', type: 'S'};
         const params = this.getParams(rt);

@@ -7,7 +7,7 @@
 
 // this code is based on from seqproto library https://github.com/oramasearch/seqproto
 
-import type {StrictArrayBuffer, DataViewSerializer, DataViewDeserializer} from './types';
+import type {StrictArrayBuffer, DataViewSerializer, DataViewDeserializer} from './binaryTypes';
 
 interface CreateSerOption {
     bufferSize?: number;

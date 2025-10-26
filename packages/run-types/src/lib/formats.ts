@@ -65,7 +65,7 @@ export function getRunTypeFormatter(rt: BaseRunType): BaseRunTypeFormat | undefi
 }
 
 export function getRunTypeTransformers(rt: BaseRunType): BaseRunTypeFormat[] {
-    return getTypeFormats(rt).filter((f) => !!f.visitFormat) as BaseRunTypeFormat[];
+    return getTypeFormats(rt).filter((f) => !!f.emitFormat) as BaseRunTypeFormat[];
 }
 
 export function getFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {

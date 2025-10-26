@@ -53,7 +53,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         }
         return super.canEmbedFormatterCode(fnID, rt);
     }
-    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
+    emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -90,7 +90,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         `;
         return {code, type: 'S'};
     }
-    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
+    emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
@@ -148,7 +148,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
 
         return this.localPartFormatter.mock(opts, rt, defaultParams);
     }
-    visitFormat(comp: JitFnCompiler): JitCode {
+    emitFormat(comp: JitFnCompiler): JitCode {
         return {code: `${comp.vλl}.toLowerCase()`, type: 'E'};
     }
 

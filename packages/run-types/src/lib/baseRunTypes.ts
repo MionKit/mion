@@ -173,7 +173,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             opts
         ) as JitFnCompiler;
         try {
-            newJitCompiler.compile(this, E, fnID);
+            const codeType = this.getFamily() === 'A' ? E : S;
+            newJitCompiler.compile(this, codeType, fnID);
             newJitCompiler.createJitFunction();
         } catch (e: any) {
             // if something goes wrong during compilation we want to remove the compiler from

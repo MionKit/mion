@@ -15,14 +15,14 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
     static readonly id = 'uuid' as const;
     readonly kind = ReflectionKind.string;
     readonly name = UUIDRunTypeFormat.id;
-    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
+    emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         // version must be set as a string to call pure function isUUID, this is so no transform is needed when comparing with uuid charat
         return {code: this.compilePureFunctionCall(comp, rt, mionIsUUID, params).callCode, type: 'E'};
     }
-    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
+    emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
-        const isTypeCodeObj = this.visitIsType(comp, rt);
+        const isTypeCodeObj = this.emitIsType(comp, rt);
         const isTypeCode = isTypeCodeObj.code;
         if (!isTypeCode) return {code: '', type: 'S'};
         const errFn = this.getCallJitFormatErr(comp, rt, this);
@@ -37,7 +37,7 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
             throw new Error(`Invalid UUID version: ${params.version}, must be either 4 or 7`);
         }
     }
-    visitFormat?; // no format needed
+    emitFormat?; // no format needed
 }
 
 // ############### Pure Functions ###############

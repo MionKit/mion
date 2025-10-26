@@ -287,7 +287,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
             // prettier-ignore
             switch (fnID) {
                     case JitFunctions.isType.id:
-                        jCode = this.compileFormatter(rt, fnID, rt.emitIsType(this, expectedCType), expectedCType, ' && '); break;
+                        jCode = this.compileFormatter(rt, fnID, rt.emitIsType(this, expectedCType), expectedCType, '&&'); break;
                     case JitFunctions.typeErrors.id:
                         jCode = this.compileFormatter(rt, fnID, rt.emitTypeErrors(this as any, expectedCType), expectedCType, ';'); break;
                     case JitFunctions.prepareForJson.id:
@@ -331,39 +331,46 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         fnID: JitFnID,
         childJCode: JitCode,
         expectedCType: CodeType,
-        separator: string
+        separator: ';' | '&&'
     ): JitCode {
+        const expectedCT = childJCode.code ? childJCode.type : expectedCType;
         const typeFormatters = getTypeFormats(rt);
         if (!typeFormatters.length) return childJCode;
-        const formattersCode = typeFormatters
+        const formattersJit: JitCode[] = typeFormatters
             .map((f) => {
                 const formatterCode = f.compileFormat(fnID, this, rt);
 
                 // Check if the formatter code can be embedded AND is compatible with the function ID
                 const canEmbed = f.canEmbedFormatterCode(fnID, rt);
-                const codeType = formatterCode.type;
-                const codeHasReturn = codeType === RB;
+                const ct = formatterCode.type;
+                const codeHasReturn = ct === RB;
 
                 // For isType and similar functions that are expressions, we need to ensure
                 // the formatter code is also an expression or has a return statement
-                const isCompatible = expectedCType === codeType;
+                const isCompatible = expectedCT === ct;
                 if (canEmbed && isCompatible && !codeHasReturn) {
-                    return formatterCode.code;
+                    return formatterCode;
                 }
 
                 // Otherwise, create a separate function
                 const compiled = f.createJitCompiledFormatter(fnID, rt, this, undefined, undefined, undefined, this.opts);
-                if (compiled.isNoop) return;
+                if (compiled.isNoop) return {code: undefined, type: 'E'} as JitCode;
                 this.updateDependencies(compiled);
                 const depCode = this.callDependency(rt, compiled);
-                return depCode?.code;
+                return depCode;
             })
-            .filter(Boolean) as string[];
-        if (!formattersCode.length) return childJCode || {code: undefined, type: expectedCType};
-        const finalCode = childJCode?.code
-            ? childJCode.code + separator + formattersCode.join(separator)
-            : formattersCode.join(separator);
-        return {code: finalCode, type: childJCode?.type};
+            .filter((jc) => !!jc.code);
+        if (!formattersJit.length) return childJCode;
+        const shouldReplace = getJitFnSettings(fnID).formatShouldReplaceJitCode;
+        const joiner = separator === '&&' ? ' && ' : '; ';
+        const formattersCode = formattersJit.map((jc) => jc.code).join(joiner);
+        if (shouldReplace) {
+            const typeFromSeparator = separator === '&&' ? 'E' : 'S';
+            const type = formattersJit.length == 1 ? formattersJit[0].type : typeFromSeparator;
+            return {code: formattersCode, type};
+        }
+        const finalCode = childJCode?.code ? childJCode.code + joiner + formattersCode : formattersCode;
+        return {code: finalCode, type: expectedCT};
     }
 
     private callDependency(rt: BaseRunType, dependencyComp: JitCompiledFn): JitCode {

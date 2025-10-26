@@ -48,7 +48,7 @@ export function mockType(runType: BaseRunType, comp: JitFnCompiler, stack: BaseR
     const typeTransformers = getRunTypeTransformers(runType);
     if (typeTransformers.length) {
         const compiledFormatters = typeTransformers
-            .filter((t) => !!t.visitFormat)
+            .filter((t) => !!t.emitFormat)
             .map(() => runType.createJitCompiledFunction(JitFunctions.format.id));
         const formatters = compiledFormatters.filter((c) => !c.isNoop).map((c) => c.fn);
         mocked = formatters.reduce((acc, format) => format(acc), mocked);

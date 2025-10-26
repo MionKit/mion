@@ -22,7 +22,7 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
     readonly kind = ReflectionKind.bigint;
     readonly name = BigIntRunTypeFormat.id;
 
-    visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
+    emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const v = comp.vλl;
 
@@ -57,7 +57,7 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
         return {code: conditions.length ? conditions.join(' && ') : 'true', type: 'E'};
     }
 
-    visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
+    emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         const v = comp.vλl;
         const errFn = this.getCallJitFormatErr(comp, rt, this, false);
@@ -94,7 +94,7 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
     }
 
     // No format transformation needed for bigints
-    visitFormat(): JitCode {
+    emitFormat(): JitCode {
         // No transformation needed for bigints
         return {code: undefined, type: 'S'};
     }

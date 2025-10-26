@@ -165,13 +165,19 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         let result: JitCode;
         switch (fnID) {
             case JitFunctions.isType.id:
-                result = this.visitIsType(comp, rt);
+                result = this.emitIsType(comp, rt);
                 break;
             case JitFunctions.typeErrors.id:
-                result = this.visitIsTypeErrors(comp as JitErrorsFnCompiler, rt);
+                result = this.emitIsTypeErrors(comp as JitErrorsFnCompiler, rt);
                 break;
             case JitFunctions.format.id:
-                result = this.visitFormat ? this.visitFormat(comp, rt) : {code: undefined, type: 'S'};
+                result = this.emitFormat ? this.emitFormat(comp, rt) : {code: undefined, type: 'S'};
+                break;
+            case JitFunctions.toBinary.id:
+                result = this.emitToBinary ? this.emitToBinary(comp, rt) : {code: undefined, type: 'S'};
+                break;
+            case JitFunctions.fromBinary.id:
+                result = this.emitFromBinary ? this.emitFromBinary(comp, rt) : {code: undefined, type: 'S'};
                 break;
             default:
                 throw new Error(`Method not implemented: ${fnID}`);
@@ -207,13 +213,18 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     }
 
     abstract _mock(opts: RunTypeOptions, rt: BaseRunType): any;
-    abstract visitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode;
-    abstract visitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode;
+    abstract emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode;
+    abstract emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode;
 
     // ###### optional methods for type formatters ########
 
     /** Optional method to compile the formatter function that transforms/sanitize a value */
-    visitFormat?(comp: JitFnCompiler, rt: BaseRunType): JitCode;
+    emitFormat?(comp: JitFnCompiler, rt: BaseRunType): JitCode;
+
+    /** Optional method that customizes the binary serialization */
+    emitToBinary?(comp: JitFnCompiler, rt: BaseRunType): JitCode;
+    /** Optional method that customizes the binary deserialization */
+    emitFromBinary?(comp: JitFnCompiler, rt: BaseRunType): JitCode;
 
     /** Throws an error if params are not valid */
     validateParams?(rt: BaseRunType, params: P): void;

@@ -18,7 +18,6 @@ export type CodeType = (typeof CodeTypes)[keyof typeof CodeTypes];
 export interface JitFnSettings {
     id: string;
     name: string;
-    type: CodeType;
     /** dynamically imports a single compiler function that is capable of compiling any node
      * @see {@link ./jitCompilers/jsonStringify.ts#visitJsonStringify} as example of compiler function
      */
@@ -34,6 +33,11 @@ export interface JitFnSettings {
      */
     noInitialVλl?: true;
     runTimeOptions?: Record<string, {keyName: string; type: 'boolean' | 'number' | 'string'; defaultValue: any}>;
+    /**
+     * When set to true, the format code should replace the jit code for the function.
+     * This is used when the format code is more efficient than the default code.
+     */
+    formatShouldReplaceJitCode?: true;
 } // list of available jit functions
 
 // variable names used in jit functions
@@ -57,7 +61,6 @@ export const jitValidationFunctions = {
     isType: {
         id: 'is',
         name: 'isType',
-        type: CodeTypes.expression,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
@@ -65,7 +68,6 @@ export const jitValidationFunctions = {
     typeErrors: {
         id: 'te',
         name: 'typeErrors',
-        type: CodeTypes.statement,
         jitArgs: jitErrorArgs,
         jitDefaultArgs: jitDefaultErrorArgs,
         returnName: jitErrorArgs.εrr,
@@ -74,7 +76,6 @@ export const jitValidationFunctions = {
     isTypeStrict: {
         id: 'isNF',
         name: 'isTypeStrict',
-        type: CodeTypes.expression,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
@@ -85,7 +86,6 @@ export const jitSerializationFunctions = {
     prepareForJson: {
         id: 'tj',
         name: 'prepareForJson',
-        type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
@@ -93,7 +93,6 @@ export const jitSerializationFunctions = {
     restoreFromJson: {
         id: 'fj',
         name: 'restoreFromJson',
-        type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
@@ -101,7 +100,6 @@ export const jitSerializationFunctions = {
     jsonStringify: {
         id: 'js',
         name: 'jsonStringify',
-        type: CodeTypes.expression,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
@@ -110,7 +108,6 @@ export const jitSerializationFunctions = {
     toJavascript: {
         id: 'tc',
         name: 'toJavascript',
-        type: CodeTypes.expression,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
@@ -119,27 +116,26 @@ export const jitSerializationFunctions = {
     toBinary: {
         id: 'tBi',
         name: 'toBinary',
-        type: CodeTypes.statement,
         jitArgs: jitBinarySerializerArgs,
         jitDefaultArgs: jitDefaultBinarySerializerArgs,
         // returns the serializer buffer
         returnName: jitBinarySerializerArgs.sεr,
+        formatShouldReplaceJitCode: true,
     },
     fromBinary: {
         id: 'fBi',
         name: 'fromBinary',
-        type: CodeTypes.statement,
         jitArgs: jitBinaryDeserializerArgs,
         jitDefaultArgs: jitDefaultBinaryDeserializerArgs,
         // deserialized value is stored in vλl that is initially undefined
         returnName: jitBinaryDeserializerArgs.vλl,
         noInitialVλl: true,
+        formatShouldReplaceJitCode: true,
     },
     // apply type formatters, ie: lowercase, uppercase, trim, etc
     format: {
         id: 'fmt',
         name: 'format',
-        type: CodeTypes.expression,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
@@ -152,7 +148,6 @@ export const JitFunctions = {
     unknownKeyErrors: {
         id: 'uk',
         name: 'unknownKeyErrors',
-        type: CodeTypes.statement,
         jitArgs: jitErrorArgs,
         jitDefaultArgs: jitDefaultErrorArgs,
         returnName: jitErrorArgs.εrr,
@@ -160,7 +155,6 @@ export const JitFunctions = {
     hasUnknownKeys: {
         id: 'hk',
         name: 'hasUnknownKeys',
-        type: CodeTypes.expression,
         jitArgs: jitArgsWithOptions,
         jitDefaultArgs: jitDefaultArgsWithOptions,
         runTimeOptions: {checkNonJitProps: {keyName: 'checkNonJitProps', type: 'boolean', defaultValue: false}},
@@ -169,7 +163,6 @@ export const JitFunctions = {
     stripUnknownKeys: {
         id: 'sk',
         name: 'stripUnknownKeys',
-        type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
@@ -177,7 +170,6 @@ export const JitFunctions = {
     unknownKeysToUndefined: {
         id: 'ku',
         name: 'unknownKeysToUndefined',
-        type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
@@ -185,7 +177,6 @@ export const JitFunctions = {
     aux: {
         id: 'aux',
         name: 'aux',
-        type: CodeTypes.returnBlock,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
@@ -194,7 +185,6 @@ export const JitFunctions = {
     mock: {
         id: 'mock',
         name: 'mockType',
-        type: CodeTypes.returnBlock,
         import: () => import('./mocking/mockType').then((m) => m.mockType),
         jitArgs,
         jitDefaultArgs,
@@ -204,7 +194,6 @@ export const JitFunctions = {
     pureFunction: {
         id: 'pf',
         name: 'pureFunction',
-        type: CodeTypes.statement,
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
