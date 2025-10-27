@@ -1,0 +1,1 @@
+{"data":{"x":"x","columns":[["x","Req (R/s)"],["mion.bun",63724],["http-node",39481],["fastify",39065],["mion",33488],["hono",29306],["hapi",26155],["restify",10475],["express",8172]],"type":"bar","labels":true},"axis":{"x":{"type":"category","labels":{"rotate":75}}},"transition":{"duration":0}}
