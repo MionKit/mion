@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions, AnyErrorParams, PublicRpcError, DataOnly, StrNumber, TypedErrorParams} from '@mionkit/core/src/binaryTypes';
+import {CoreOptions, AnyErrorParams, PublicRpcError, DataOnly, StrNumber, TypedErrorParams} from './types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from './utils';
 import {jitUtils} from './jitUtils';

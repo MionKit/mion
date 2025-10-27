@@ -7,7 +7,7 @@
 
 import {deserializeMethods} from './jitDeserialize';
 import {jitUtils} from './jitUtils';
-import type {SerializableMethodsData, JitCompiledFnData, PureFunctionData} from './binaryTypes';
+import type {SerializableMethodsData, JitCompiledFnData, PureFunctionData} from './types';
 
 describe('jitDeserialize', () => {
     it('should deserialize pure functions with dependencies', () => {

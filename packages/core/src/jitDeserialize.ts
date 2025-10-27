@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitCompiledFnData, PureFunctionData, CompiledPureFunction, JitCompiledFn, JITUtils} from '@mionkit/core/src/binaryTypes';
+import {JitCompiledFnData, PureFunctionData, CompiledPureFunction, JitCompiledFn, JITUtils} from './types';
 import {jitUtils} from './jitUtils';
 
 /**
