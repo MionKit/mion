@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions} from '@mionkit/core/src/binaryTypes';
+import {CoreOptions} from './types';
 
 export const DEFAULT_CORE_OPTIONS: CoreOptions = {
     /** automatically generate and uuid */

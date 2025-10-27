@@ -131,10 +131,10 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
             return jitCompiled;
         }
         // TODO: decide if we should add parent compiler or not as parent to createJitCompiler
-        const newJitCompiler: JitFnCompiler = createJitCompiler(rt, fnID, undefined, jitFnHash, hash, opts) as JitFnCompiler;
+        const newJitCompiler: JitFnCompiler = createJitCompiler(rt, fnID, undefined, jitFnHash, hash, opts);
         try {
             const formatterCode = this.compileFormat(fnID, newJitCompiler, rt, params, vλl, formatName);
-            const withReturn = this.handleReturnValues(rt, newJitCompiler, fnID, formatterCode || '');
+            const withReturn = this.handleReturnValues(rt, newJitCompiler, formatterCode);
             newJitCompiler.createJitFunction(withReturn);
             comp?.updateDependencies(newJitCompiler as JitCompiledFn);
         } catch (e) {
@@ -193,21 +193,21 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
      * Adds return statements if needed
      * Unlike handleReturnValues in BaseRunType this one is only called in the root of the formatter
      */
-    handleReturnValues(rt: BaseRunType, comp: JitFnCompiler, currentOpId: JitFnID, code: JitCode): string {
-        if (!code?.code) return '';
-        const codeType = code.type;
+    handleReturnValues(rt: BaseRunType, comp: JitFnCompiler, jitC: JitCode): string {
+        if (!jitC?.code) return '';
+        const codeType = jitC.type;
         switch (codeType) {
             case 'E':
-                return `return ${code.code}`;
+                return `return ${jitC.code}`;
             case 'RB':
-                return code.code;
+                return jitC.code;
             case 'S': {
                 // For non-expressions, add a return statement with the default return value
                 // if the code doesn't already have a return statement
-                const lastChar = code.code.length - 1;
-                const hasFullStop = code.code.lastIndexOf(';') === lastChar || code.code.lastIndexOf('}') === lastChar;
+                const lastChar = jitC.code.length - 1;
+                const hasFullStop = jitC.code.lastIndexOf(';') === lastChar || jitC.code.lastIndexOf('}') === lastChar;
                 const stopChar = hasFullStop ? '' : ';';
-                return `${code.code}${stopChar} return ${comp.returnName}`;
+                return `${jitC.code}${stopChar} return ${comp.returnName}`;
             }
         }
     }

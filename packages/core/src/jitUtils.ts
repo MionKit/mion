@@ -17,7 +17,7 @@ import type {
     SerializableClass,
     StrNumber,
     JITUtils,
-} from '@mionkit/core/src/binaryTypes';
+} from './types';
 import {MAX_UNKNOWN_KEYS} from './constants';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
 import {restoreCompiledJitFns} from './jitRestoreCode';

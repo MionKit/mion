@@ -10,7 +10,7 @@ import {join, resolve} from 'path';
 import {writeCachesToFiles, type CacheData} from './aot-compile';
 import {initAOT} from './cli-init-aot';
 import {initRouter, registerRoutes, resetRouter} from '@mionkit/router';
-import {getFnCaches, resetFnCaches} from '@mionkit/core';
+import {getFnCaches, resetFnCaches, getENV} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
 import {hook, route} from '@mionkit/router';
 

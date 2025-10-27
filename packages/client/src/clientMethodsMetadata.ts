@@ -287,6 +287,8 @@ function createRemoteJItFunctions(
                 prepareForJson: jitUtils.getJIT(methodMeta.paramsJitHashes.prepareForJson)!,
                 restoreFromJson: jitUtils.getJIT(methodMeta.paramsJitHashes.restoreFromJson)!,
                 jsonStringify: jitUtils.getJIT(methodMeta.paramsJitHashes.jsonStringify)!,
+                toBinary: jitUtils.getJIT(methodMeta.paramsJitHashes.toBinary)!,
+                fromBinary: jitUtils.getJIT(methodMeta.paramsJitHashes.fromBinary)!,
             },
             return: {
                 isType: jitUtils.getJIT(methodMeta.returnJitHashes.isType)!,
@@ -294,6 +296,8 @@ function createRemoteJItFunctions(
                 prepareForJson: jitUtils.getJIT(methodMeta.returnJitHashes.prepareForJson)!,
                 restoreFromJson: jitUtils.getJIT(methodMeta.returnJitHashes.restoreFromJson)!,
                 jsonStringify: jitUtils.getJIT(methodMeta.returnJitHashes.jsonStringify)!,
+                toBinary: jitUtils.getJIT(methodMeta.returnJitHashes.toBinary)!,
+                fromBinary: jitUtils.getJIT(methodMeta.returnJitHashes.fromBinary)!,
             },
         };
         jitFunctionsById.set(id, remoteMethodsJit);
