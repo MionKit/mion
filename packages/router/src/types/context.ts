@@ -69,6 +69,8 @@ export interface MionHeaders {
     entries(): IterableIterator<[string, SingleHeaderValue]>;
     keys(): IterableIterator<string>;
     values(): IterableIterator<SingleHeaderValue>;
+    /** Get all set-cookie values as an array */
+    getSetCookie?(): string[];
 }
 
 /** Header string value, it can be a coma separated list of headers */

@@ -16,6 +16,7 @@ import {Mutable, AnyObject} from '@mionkit/core';
 import {handleRpcErrors} from './errors';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
+import {HttpHeader, Cookie} from './types/http-params';
 
 // ############# PUBLIC METHODS #############
 
@@ -155,10 +156,13 @@ export async function runRouteOrHook(
     const result = await executable.handler(context, ...params);
     if (result instanceof Error || result instanceof RpcError) throw result;
 
-    if (executable.options.hasReturnData && result !== undefined) {
+    // Process return value to handle HttpHeader and Cookie instances
+    const processedResult = processReturnValue(result, response);
+
+    if (executable.options.hasReturnData && processedResult !== undefined) {
         (response.body as Mutable<AnyObject>)[executable.id] = executable.options.serializeReturn
-            ? (executable as NonRawMethod).returnJitFns.prepareForJson.fn(result)
-            : result;
+            ? (executable as NonRawMethod).returnJitFns.prepareForJson.fn(processedResult)
+            : processedResult;
     }
 }
 
@@ -200,4 +204,37 @@ function validateParametersOrThrow(params: any[], executable: NonRawMethod): voi
             errorData: executable.paramsJitFns.typeErrors.fn(params),
         });
     }
+}
+
+function processReturnValue(result: any, response: MionResponse): any {
+    // Handle HttpHeader and Cookie instances in return values
+    if (result instanceof HttpHeader) {
+        response.headers.set(result.name, result.value);
+        return undefined;
+    }
+
+    if (result instanceof Cookie) {
+        // Set as Set-Cookie header with proper format
+        const cookieString = `${result.name}=${result.value}`;
+        response.headers.append('set-cookie', cookieString);
+        return undefined;
+    }
+
+    // Handle arrays that might contain HttpHeader or Cookie instances
+    if (Array.isArray(result)) {
+        const processed: any[] = [];
+        for (const item of result) {
+            if (item instanceof HttpHeader) {
+                response.headers.set(item.name, item.value);
+            } else if (item instanceof Cookie) {
+                const cookieString = `${item.name}=${item.value}`;
+                response.headers.append('set-cookie', cookieString);
+            } else {
+                processed.push(item);
+            }
+        }
+        return processed.length > 0 ? processed : undefined;
+    }
+
+    return result;
 }
