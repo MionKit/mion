@@ -22,8 +22,8 @@ export interface MethodData {
     // pointer to the src Hook or Route definition within the original Routers object, ie: ['users','getUser']
     pointer: string[];
     nestLevel: number;
-    paramNames?: string[];
-    headerNames?: string[];
+    params?: ParamInfo[]; // Changed from paramNames?: string[]
+    headerNames?: string[]; // Keep for backward compatibility
     options: MethodOptions;
     paramsJitHashes: JitFunctionsHashes;
     returnJitHashes: JitFunctionsHashes;

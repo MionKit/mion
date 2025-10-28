@@ -39,19 +39,36 @@ export function headersFromRecord(headersObj: Record<string, SingleHeaderValue>,
         },
         delete: (name: string) => {
             const nl = name.toLowerCase();
-            if (nl in headers) delete headers[nl];
+            if (nl === 'set-cookie') {
+                _setCookies.length = 0;
+            } else if (nl in headers) {
+                delete headers[nl];
+            }
         },
-        get: (name: string) => headers[name.toLowerCase()],
+        get: (name: string) => {
+            const nl = name.toLowerCase();
+            if (nl === 'set-cookie') {
+                return _setCookies.length > 0 ? _setCookies[0] : undefined;
+            }
+            return headers[nl];
+        },
         set: (name: string, value: MultiHeaderValue) => {
             const ln = name.toLowerCase();
-            if (ln === 'set-cookie') return setCookie(value, _setCookies);
+            if (ln === 'set-cookie') {
+                _setCookies.length = 0;
+                return setCookie(value, _setCookies);
+            }
             headers[ln] = value as string;
         },
-        has: (name: string) => !!headers[name.toLowerCase()],
+        has: (name: string) => {
+            const nl = name.toLowerCase();
+            if (nl === 'set-cookie') return _setCookies.length > 0;
+            return !!headers[nl];
+        },
         entries: () => new Map(Object.entries(headers)).entries(),
         keys: () => new Map(Object.entries(headers)).keys(),
         values: () => new Map(Object.entries(headers)).values(),
-        // getSetCookie: () => _setCookies,
+        getSetCookie: () => _setCookies,
     } satisfies MionHeaders;
 
     return mionHeaders;

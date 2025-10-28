@@ -30,6 +30,22 @@ export function hook<H extends Handler>(handler: H, opts?: HookOptions) {
     return method;
 }
 
+/**
+ * @deprecated Use `hook()` with `HttpHeader<'name'>` typed parameters instead.
+ *
+ * Migration guide:
+ * ```ts
+ * // Old way
+ * headersHook(['authorization'], (ctx, token: string): void => {
+ *   // ...
+ * })
+ *
+ * // New way
+ * hook((ctx, token: HttpHeader<'authorization'>): void => {
+ *   // ...
+ * })
+ * ```
+ */
 export function headersHook<S extends string[], H extends HeaderHandler>(headerNames: S, handler: H, opts?: HeaderHookOptions) {
     if (headerNames.length !== handler.length - 1)
         throw new Error('Header Names must match the number of handler parameters minus the context parameter.');
