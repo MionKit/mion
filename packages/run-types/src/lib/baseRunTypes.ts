@@ -33,7 +33,7 @@ import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from '@mionkit/core';
 import {createUniqueHash} from './quickHash';
-import {initFormatAnnotations, getRunTypeFormatter, defaultIgnoreFormatProps} from './formats';
+import {initFormatAnnotations, getRunTypeFormat, defaultIgnoreFormatProps} from './formats';
 import {typeParamsToString} from './utils';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core';
@@ -70,7 +70,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return false;
     }
     getFormatTypeID = memorize((): string | undefined => {
-        const formatter = getRunTypeFormatter(this);
+        const formatter = getRunTypeFormat(this);
         if (!formatter) return;
         return `<${typeParamsToString(formatter.getParams(this), defaultIgnoreFormatProps)}>`;
     });
