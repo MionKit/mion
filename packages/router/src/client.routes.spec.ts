@@ -244,7 +244,7 @@ describe('Client Routes should', () => {
             handler: 'auth' as any,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
-            paramNames: ['token'],
+            paramNames: [{name: 'token'}],
         },
         last: {
             type: HandlerType.hook,

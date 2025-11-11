@@ -14,12 +14,15 @@ import {TupleMemberRunType} from '../member/tupleMember';
 
 type AnyParamRunType = ParameterRunType | TupleMemberRunType;
 
-export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple> extends CollectionRunType<ParamList> {
-    getChildRunTypes = (): AnyParamRunType[] => {
+export class TupleRunType<
+    ParamList extends AnyParameterListRunType = TypeTuple,
+    ParamType extends AnyParamRunType = TupleMemberRunType,
+> extends CollectionRunType<ParamList> {
+    getChildRunTypes = (): ParamType[] => {
         const childTypes = ((this.src as TypeFunction).parameters || (this.src as TypeTuple).types || []) as SrcType[];
-        return childTypes.map((t) => t._rt as AnyParamRunType);
+        return childTypes.map((t) => t._rt as ParamType);
     };
-    getParamRunTypes(comp: JitFnCompiler): AnyParamRunType[] {
+    getParamRunTypes(comp: JitFnCompiler): ParamType[] {
         const start = comp.opts?.paramsSlice?.start;
         const end = comp.opts?.paramsSlice?.end;
         const children = this.getChildRunTypes();

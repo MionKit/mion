@@ -21,20 +21,22 @@ export * from './src/lib/guards';
 export * from './src/lib/jitFnCompiler';
 export * from './src/lib/jitFnsRegistry';
 export * from './src/lib/quickHash';
-
 export * from './src/lib/utils';
 export * from './src/mocking/constants.mock';
 export * from './src/mocking/mockRegistry';
 export * from './src/mocking/mockType';
 export * from './src/mocking/mockUtils';
-export * from './src/nodes/function/function';
 export * from './src/jitCompilers/json/jsonStringify';
 export * from './src/jitCompilers/json/toJsCode';
-export * from './src/nodes/member/array';
-export * from './src/nodes/member/property';
+
+// TODO: decide if we want to export all nodes or not
+export * from './src/nodes/function/function';
 export * from './src/nodes/atomic/literal';
 export * from './src/nodes/native/Iterable';
 export * from './src/nodes/collection/union';
 export * from './src/nodes/collection/class';
 export * from './src/nodes/collection/interface';
+export * from './src/nodes/collection/tuple';
+export * from './src/nodes/member/array';
+export * from './src/nodes/member/property';
 export * from './src/nodes/member/methodSignature';

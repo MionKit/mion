@@ -11,6 +11,7 @@ import {getENV} from '@mionkit/core';
 export const IS_TEST_ENV = getENV('JEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
 
 export const ROUTE_DEFAULT_PARAMS = ['context'];
+export const HEADER_HOOK_DEFAULT_PARAMS = ['context', 'headers'];
 
 export const DEFAULT_ROUTE_OPTIONS = {
     /** Prefix for all routes, i.e: api/v1.

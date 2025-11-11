@@ -51,17 +51,13 @@ export function getFormatterKey(prefix: string, kind: string | number, name: str
 }
 
 export function getTypeFormats(rt: BaseRunType): BaseRunTypeFormat[] {
-    const parsedAnnotations = typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
-    return parsedAnnotations.map((a) => a.formatter).flat();
+    return getFormatAnnotations(rt).map((a) => a.formatter);
 }
 
 /** Returns the validator for a given type. ATM only one validator is allowed for each type */
 export function getRunTypeFormatter(rt: BaseRunType): BaseRunTypeFormat | undefined {
-    const parsedAnnotations = typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
-    for (const annotation of parsedAnnotations) {
-        return annotation.formatter;
-    }
-    return undefined;
+    const formatAnnotations = getFormatAnnotations(rt);
+    return formatAnnotations[0]?.formatter;
 }
 
 export function getRunTypeTransformers(rt: BaseRunType): BaseRunTypeFormat[] {
@@ -69,7 +65,9 @@ export function getRunTypeTransformers(rt: BaseRunType): BaseRunTypeFormat[] {
 }
 
 export function getFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
-    return typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
+    const parsedAnnotations = typeAnnotation.getAnnotations(rt.src);
+    const formatAnnotations = parsedAnnotations.filter((a) => (a as FormatAnnotation).formatter);
+    return formatAnnotations as FormatAnnotation[];
 }
 
 // ################# ANNOTATIONS  #################
@@ -82,33 +80,29 @@ export function getFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
 export function initFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
     const annotations = typeAnnotation.getAnnotations(rt.src);
     if (annotations.length === 0) return annotations as FormatAnnotation[];
-    if (annotations.length > 1) throw new Error(`Only one type annotation is allowed for ${rt.getTypeName()}`);
+    if (annotations.length > 1)
+        throw new Error(`Only one type annotation is allowed for runTypes and ${rt.getTypeName()} has ${annotations.length}`);
     for (const annotation of annotations) {
         if (!annotation.name) throw new Error(`Type annotation must have a name for ${rt.getTypeName()}`);
-
         const params = annotation.options;
         const formatter = getFormatterFromCache(rt.src.kind, annotation.name);
-        if (params.kind !== ReflectionKind.objectLiteral)
-            throw new Error(`Type annotation must be an object literal for ${rt.getTypeName()}`);
-        if (!formatter) throw new Error(`Type Formatter ${annotation.name} not found for ${rt.getTypeName()}`);
-        (annotation as FormatAnnotation).formatter = formatter;
+        // formatter property is only added to registered formatters, this allows using other type annotations that are not formatters
+        if (formatter && params.kind === ReflectionKind.objectLiteral) {
+            (annotation as FormatAnnotation).formatter = formatter;
+        }
     }
     return annotations as FormatAnnotation[];
 }
 
-export function getAnnotationParams(annotation: FormatAnnotation, rt: BaseRunType): TypeFormatParams {
-    if (annotation.params) return annotation.params;
-    annotation.params = typeAnnotation.getOption(rt.src, annotation.name) as TypeFormatParams;
-    return annotation.params;
-}
-
 /** Returns the params for a given type formatter */
 export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, fmtName: string): P {
-    const annotations = rt.getFormatAnnotations().filter((a) => a.name === fmtName);
+    const annotations = getFormatAnnotations(rt).filter((a) => a.name === fmtName);
     for (const annotation of annotations) {
         const formatter = annotation.formatter;
         if (!formatter) continue;
-        return getAnnotationParams(annotation, rt) as P;
+        if (annotation.params) return annotation.params as P;
+        annotation.params = typeAnnotation.getOption(rt.src, annotation.name) as P;
+        return annotation.params as P;
     }
     throw new Error(`Type Formatter ${fmtName} not found for ${rt.getTypeName()}`);
 }

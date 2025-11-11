@@ -55,7 +55,7 @@ export function isRawExecutable(entry: Method): entry is RawMethod {
 }
 
 export function isPublicExecutable(entry: Method): entry is Method {
-    return entry.options.hasReturnData || entry.type === HandlerType.route || !!entry.paramNames?.length;
+    return entry.hasReturnData || entry.type === HandlerType.route || !!entry.paramNames?.length;
 }
 
 export function isNotFoundExecutable(entry: Method): entry is NotFoundMethod {

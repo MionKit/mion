@@ -7,7 +7,7 @@
  * ######## */
 
 import type {Type, TypeClass, TypeMethod, TypeObjectLiteral, TypeParameter} from '@deepkit/type';
-import type {FormatParamMeta, TypeFormatValue} from '@mionkit/core';
+import type {AnyClass, FormatParamMeta, TypeFormatValue} from '@mionkit/core';
 import {isType, ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {nativeUtilityStringTypes, nonSerializableClasses, nonSerializableGlobals} from '../constants';
@@ -117,8 +117,10 @@ export function isObjectLiteralRunType(rt: RunType): rt is InterfaceRunType {
     return rt.src.kind === ReflectionKind.objectLiteral;
 }
 
-export function isClassRunType(rt: RunType): rt is ClassRunType {
-    return rt.src.kind === ReflectionKind.class && rt.src.subKind !== ReflectionSubKind.date;
+export function isClassRunType(rt: RunType, cls?: string | AnyClass): rt is ClassRunType {
+    const isClassRt = rt.src.kind === ReflectionKind.class && rt.src.subKind !== ReflectionSubKind.date;
+    if (!cls) return isClassRt;
+    return isClassRt && (rt.src.classType === cls || rt.src.classType.name === cls);
 }
 
 export function isIntersectionRunType(rt: RunType): rt is IntersectionRunType {

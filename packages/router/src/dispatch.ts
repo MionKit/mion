@@ -7,7 +7,7 @@
 
 import type {CallContext, MionResponse, MionRequest, MionHeaders} from './types/context';
 import {type RouterOptions} from './types/general';
-import {HeaderMethod, NonRawMethod, RawMethod, type Method} from './types/remoteMethods';
+import {HeaderMethod, Method, RawMethod} from './types/remoteMethods';
 import {HandlerType} from './types/remoteMethods';
 import {isNotFoundExecutable} from './types/guards';
 import {getRouteExecutionPath, getRouterOptions} from './router';
@@ -16,7 +16,6 @@ import {Mutable, AnyObject} from '@mionkit/core';
 import {handleRpcErrors} from './errors';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
-import {HttpHeader, Cookie} from './types/http-params';
 
 // ############# PUBLIC METHODS #############
 
@@ -130,14 +129,16 @@ export async function runHeaderHook(
     request: MionRequest,
     response: MionResponse
 ) {
-    const params = (executable as HeaderMethod).headerNames.map((name) => request.headers.get(name));
+    const headerNames = executable.headersParam.headerNames;
+    const headerValues = headerNames.map((name) => request.headers.get(name));
+    const params = deserializeBodyParams(request, executable as Method);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderMethod);
 
-    const result = await executable.handler(context, ...params);
+    const result = await executable.handler(context, headerValues, ...params);
     if (result instanceof Error || result instanceof RpcError) throw result;
 
     if (result !== undefined) {
-        (executable as HeaderMethod).headerNames.forEach((name, i) => {
+        executable.headersParam.headerNames.forEach((name, i) => {
             if (!result[i]) return;
             response.headers.set(name, result[i]);
         });
@@ -150,19 +151,16 @@ export async function runRouteOrHook(
     request: MionRequest,
     response: MionResponse
 ) {
-    const params = deserializeBodyParams(request, executable as NonRawMethod);
-    if (executable.options.validateParams) validateParametersOrThrow(params, executable as NonRawMethod);
+    const params = deserializeBodyParams(request, executable as Method);
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable as Method);
 
     const result = await executable.handler(context, ...params);
     if (result instanceof Error || result instanceof RpcError) throw result;
 
-    // Process return value to handle HttpHeader and Cookie instances
-    const processedResult = processReturnValue(result, response);
-
-    if (executable.options.hasReturnData && processedResult !== undefined) {
+    if (executable.hasReturnData && result !== undefined) {
         (response.body as Mutable<AnyObject>)[executable.id] = executable.options.serializeReturn
-            ? (executable as NonRawMethod).returnJitFns.prepareForJson.fn(processedResult)
-            : processedResult;
+            ? (executable as Method).returnJitFns.prepareForJson.fn(result)
+            : result;
     }
 }
 
@@ -178,7 +176,7 @@ function getMethodCaller(executable: Method) {
     return executable.methodCaller;
 }
 
-function deserializeBodyParams(request: MionRequest, executable: NonRawMethod): any[] {
+function deserializeBodyParams(request: MionRequest, executable: Method): any[] {
     const params: any[] = (request.body[executable.id] as any[]) || [];
     if (!executable.options.deserializeParams) return params;
     try {
@@ -195,7 +193,7 @@ function deserializeBodyParams(request: MionRequest, executable: NonRawMethod): 
     }
 }
 
-function validateParametersOrThrow(params: any[], executable: NonRawMethod): void {
+function validateParametersOrThrow(params: any[], executable: Method): void {
     if (!executable.paramsJitFns.isType.fn(params)) {
         throw new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
@@ -204,37 +202,4 @@ function validateParametersOrThrow(params: any[], executable: NonRawMethod): voi
             errorData: executable.paramsJitFns.typeErrors.fn(params),
         });
     }
-}
-
-function processReturnValue(result: any, response: MionResponse): any {
-    // Handle HttpHeader and Cookie instances in return values
-    if (result instanceof HttpHeader) {
-        response.headers.set(result.name, result.value);
-        return undefined;
-    }
-
-    if (result instanceof Cookie) {
-        // Set as Set-Cookie header with proper format
-        const cookieString = `${result.name}=${result.value}`;
-        response.headers.append('set-cookie', cookieString);
-        return undefined;
-    }
-
-    // Handle arrays that might contain HttpHeader or Cookie instances
-    if (Array.isArray(result)) {
-        const processed: any[] = [];
-        for (const item of result) {
-            if (item instanceof HttpHeader) {
-                response.headers.set(item.name, item.value);
-            } else if (item instanceof Cookie) {
-                const cookieString = `${item.name}=${item.value}`;
-                response.headers.append('set-cookie', cookieString);
-            } else {
-                processed.push(item);
-            }
-        }
-        return processed.length > 0 ? processed : undefined;
-    }
-
-    return result;
 }

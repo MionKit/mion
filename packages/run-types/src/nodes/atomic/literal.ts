@@ -48,6 +48,9 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     emitRestoreFromJson(comp: JitFnCompiler): JitCode {
         return this.getValidator().visitRestoreFromJson(comp);
     }
+    getLiteralValue() {
+        return this.src.literal;
+    }
 }
 
 const noEncoder = {

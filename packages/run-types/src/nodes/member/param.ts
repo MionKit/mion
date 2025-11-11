@@ -10,6 +10,9 @@ import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 import {TupleMemberRunType} from './tupleMember';
 
 export class ParameterRunType<T extends TypeParameter = TypeParameter> extends TupleMemberRunType<T> {
+    getParamName() {
+        return this.src.name;
+    }
     getChildVarName(comp: JitFnCompiler): number {
         return this.getChildIndex(comp);
     }

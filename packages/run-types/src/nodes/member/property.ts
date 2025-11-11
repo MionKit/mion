@@ -18,11 +18,14 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     /** this is set by the parent interface if prop is optional, when optional properties are sorted */
     optionalIndex = -1;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getChildVarName(comp: JitFnCompiler) {
+    getPropertyName() {
         return getPropVarName(this.src.name);
     }
-    getChildLiteral(comp: JitFnCompiler) {
-        return getPropLiteral(this.getChildVarName(comp));
+    getChildVarName() {
+        return getPropVarName(this.src.name);
+    }
+    getChildLiteral() {
+        return getPropLiteral(this.getChildVarName());
     }
     useArrayAccessor() {
         return useArrayAccessorForProp(this.src.name);

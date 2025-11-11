@@ -133,10 +133,10 @@ export function isRpcError(error: any): error is RpcError<any> {
     );
 }
 
-jitUtils.setDeserializeFn(TypedError, (serializedItem: DataOnly<TypedError<any>>) => {
-    return new TypedError(serializedItem);
+jitUtils.setDeserializeFn(TypedError, (data: DataOnly<TypedError<any>>) => {
+    return new TypedError(data);
 });
 
-jitUtils.setDeserializeFn(RpcError, (serializedItem: DataOnly<RpcError<any>>) => {
-    return new RpcError(serializedItem);
+jitUtils.setDeserializeFn(RpcError, (data: DataOnly<RpcError<any>>) => {
+    return new RpcError(data);
 });

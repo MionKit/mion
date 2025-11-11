@@ -30,7 +30,7 @@ export type HookDef<H extends Handler = any> = Pick<HookMethod<H>, 'type' | 'han
 };
 
 /** Header Hook definition, used to handle header params */
-export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderMethod<H>, 'type' | 'handler' | 'headerNames'> & {
+export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderMethod<H>, 'type' | 'handler'> & {
     options?: HeaderHookOptions;
 };
 
@@ -41,3 +41,5 @@ export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderMethod<H>,
 export type RawHookDef<H extends RawHookHandler = any> = Pick<RawMethod<H>, 'type' | 'handler'> & {
     options?: RawHookOptions;
 };
+
+export type AnyHandlerDef = RouteDef | HookDef | HeaderHookDef | RawHookDef;

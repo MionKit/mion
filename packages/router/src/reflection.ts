@@ -5,22 +5,127 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyFn, JitCompiledFunctions, JitFunctionsHashes, SerializableJITFunctions} from '@mionkit/core';
+import type {AnyFn, JitCompiledFunctions, JitFunctionsHashes} from '@mionkit/core';
 import {
+    type FunctionRunType,
+    type BaseRunType,
+    type MemberRunType,
+    type ArrayRunType,
     JitFunctions,
     RunTypeOptions,
     reflectFunction,
-    getSerializableJitCompiler,
-    type FunctionRunType,
-    type SrcType,
+    isLiteralRunType,
+    isArrayRunType,
+    JitFnCompiler,
+    getRunTypeAnnotations,
+    runType,
+    isTupleRunType,
 } from '@mionkit/run-types';
-import {ReflectionKind} from '@deepkit/type';
 import {Handler} from './types/handlers';
 import {RouterOptions} from './types/general';
-import {HeaderOptions, CookieOptions} from './types/http-params';
-import {DEFAULT_ROUTE_OPTIONS} from './constants';
+import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from './constants';
+import {type MethodReflection} from './types/remoteMethods';
+import {HeaderList} from './types/context';
+export {getSerializableJitCompiler} from '@mionkit/run-types';
 
-export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCompiledFunctions {
+// ############ This file should be the only one importing '@mionkit/run-types' within the router ########
+// TODO: in the future we can load things from cache and load run types only when needed
+
+type MethodReflect = Omit<MethodReflection, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
+
+// TODO: we do not want to use runtypes directly but compiled functions so we can take advantage
+// of precompiled functions without having to generate JIT functions
+// this way we also do not need to use new Function which is not allowed in some environments
+export function getHandlerReflection(
+    handler: Handler,
+    routeId: string,
+    routerOptions: RouterOptions,
+    isHeaderHook: boolean = false
+): MethodReflect {
+    const reflectionItems: Partial<MethodReflect> = {};
+    let handlerRunType: FunctionRunType;
+    try {
+        handlerRunType = reflectFunction(handler);
+    } catch (error: any) {
+        throw new Error(`Can not get RunType of handler for route/hook ${routeId}. Error: ${error?.message}`);
+    }
+    const originalParamsSlice = routerOptions.runTypeOptions?.paramsSlice;
+    try {
+        // paramsJitFns contains all run type functionality for the parameters, it compiles the when the property is first accessed
+        const runTypeOptions = routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions;
+        runTypeOptions.paramsSlice = isHeaderHook
+            ? {start: HEADER_HOOK_DEFAULT_PARAMS.length}
+            : {start: ROUTE_DEFAULT_PARAMS.length};
+        reflectionItems.paramNames = handlerRunType.getParameterNames(routerOptions.runTypeOptions);
+        reflectionItems.paramsJitFns = getParamsJitFns(handler, runTypeOptions);
+    } catch (error: any) {
+        throw new Error(`Can not compile Jit Functions for Parameters of route/hook ${routeId}. Error: ${error?.message}`);
+    }
+
+    if (isHeaderHook) {
+        const headersRunType = getHeadersRunType(handlerRunType, routeId, routerOptions);
+        const runTypeOptions = routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions;
+        runTypeOptions.paramsSlice = {start: HEADER_HOOK_DEFAULT_PARAMS.length - 1, end: HEADER_HOOK_DEFAULT_PARAMS.length};
+        const headerNames: string[] = extractHeaderNames(headersRunType, routeId, routerOptions);
+
+        try {
+            const jitFns: JitCompiledFunctions = getParamsJitFns(handler, routerOptions.runTypeOptions);
+            const jitHashes: JitFunctionsHashes = getJitHashes(jitFns);
+            reflectionItems.headersParam = {headerNames, jitFns, jitHashes};
+        } catch (error: any) {
+            throw new Error(`Can not compile Jit Functions for Headers of header hook ${routeId}. Error: ${error?.message}`);
+        }
+    }
+
+    const returnHeadersRunType = getReturnHeadersRunType(handlerRunType);
+    if (returnHeadersRunType) {
+        const headerNames: string[] = extractHeaderNames(returnHeadersRunType, routeId, routerOptions);
+        const jitFns: JitCompiledFunctions = getReturnJitFns(handler, routerOptions.runTypeOptions);
+        const jitHashes: JitFunctionsHashes = getJitHashes(jitFns);
+        reflectionItems.headersReturn = {headerNames, jitFns, jitHashes};
+    }
+
+    try {
+        // returnJitFns contains all run type functionality for the return value, it compiles the when the property is first accessed
+        reflectionItems.returnJitFns = getReturnJitFns(handler);
+    } catch (error: any) {
+        throw new Error(`Can not get Jit Functions for Return of route/hook ${routeId}. Error: ${error?.message}`);
+    }
+
+    // Validate that routes don't use HttpHeader, HttpCookie, or HeadersList as return types
+    reflectionItems.paramsJitHashes = getJitHashes(reflectionItems.paramsJitFns);
+    reflectionItems.returnJitHashes = getJitHashes(reflectionItems.returnJitFns);
+    reflectionItems.hasReturnData = handlerRunType.hasReturnData();
+    reflectionItems.isAsync = handlerRunType.isAsync();
+
+    if (originalParamsSlice) routerOptions.runTypeOptions.paramsSlice = originalParamsSlice;
+    return reflectionItems as MethodReflect;
+}
+
+/**
+ * Raw hooks don't use reflection, but must comply with the Method interface
+ * @returns
+ */
+export function getRawMethodReflection(handler: Handler, routeId: string): MethodReflect {
+    let handlerRunType: FunctionRunType;
+    try {
+        handlerRunType = reflectFunction(handler);
+    } catch (error: any) {
+        throw new Error(`Can not get RunType of handler for route/hook ${routeId}. Error: ${error?.message}`);
+    }
+    const reflectionItems: MethodReflect = {
+        paramNames: [],
+        paramsJitFns: nullJitFns,
+        returnJitFns: nullJitFns,
+        paramsJitHashes: nullJitHashes,
+        returnJitHashes: nullJitHashes,
+        hasReturnData: false,
+        isAsync: handlerRunType.isAsync(),
+    };
+    return reflectionItems;
+}
+
+function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCompiledFunctions {
     const rt = reflectFunction(fn);
     const paramFunctions: JitCompiledFunctions = {
         isType: rt.createJitCompiledParamsFunction(JitFunctions.isType, opts),
@@ -34,7 +139,7 @@ export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions)
     return paramFunctions;
 }
 
-export function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCompiledFunctions {
+function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCompiledFunctions {
     const rt = reflectFunction(fn);
 
     const returnFunctions: JitCompiledFunctions = {
@@ -49,42 +154,7 @@ export function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions)
     return returnFunctions;
 }
 
-export function getSerializableJitFunctions(jitCompFns: JitCompiledFunctions): SerializableJITFunctions {
-    return {
-        isType: getSerializableJitCompiler(jitCompFns.isType),
-        typeErrors: getSerializableJitCompiler(jitCompFns.typeErrors),
-        prepareForJson: getSerializableJitCompiler(jitCompFns.prepareForJson),
-        restoreFromJson: getSerializableJitCompiler(jitCompFns.restoreFromJson),
-        jsonStringify: getSerializableJitCompiler(jitCompFns.jsonStringify),
-        toBinary: getSerializableJitCompiler(jitCompFns.toBinary),
-        fromBinary: getSerializableJitCompiler(jitCompFns.fromBinary),
-    };
-}
-
-export interface ParamInfo {
-    name: string;
-    header?: {
-        name: string;
-        options?: HeaderOptions;
-    };
-    cookie?: {
-        name: string;
-        options?: CookieOptions;
-    };
-    isBodyParam?: boolean;
-}
-
-interface MethodReflectionItems {
-    paramsJitHashes: JitFunctionsHashes;
-    returnJitHashes: JitFunctionsHashes;
-    handlerRunType: FunctionRunType;
-    paramsJitFns: JitCompiledFunctions;
-    returnJitFns: JitCompiledFunctions;
-    params: ParamInfo[];
-    paramNames: string[];
-}
-
-export function getJitHashes(jitFns: JitCompiledFunctions): JitFunctionsHashes {
+function getJitHashes(jitFns: JitCompiledFunctions): JitFunctionsHashes {
     return {
         isType: jitFns.isType.jitFnHash,
         typeErrors: jitFns.typeErrors.jitFnHash,
@@ -96,114 +166,74 @@ export function getJitHashes(jitFns: JitCompiledFunctions): JitFunctionsHashes {
     };
 }
 
-function extractParamInfo(handlerRunType: FunctionRunType, routerOptions?: RouterOptions): ParamInfo[] {
-    const runTypeOptions = routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions;
-    // Create a mock compiler object with just the opts property needed by getParamRunTypes.
-    // getParamRunTypes() requires a JitFnCompiler but we only need the opts property to slice parameters.
-    // This is a workaround to avoid creating a full compiler instance. If getParamRunTypes() signature
-    // changes to accept RunTypeOptions directly, this can be simplified.
-    const mockCompiler = {opts: runTypeOptions} as any;
-    const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(mockCompiler);
-    const paramNames = handlerRunType.getParameterNames(runTypeOptions);
+function getHeadersRunType(handlerRunType: FunctionRunType, routeId: string, routerOptions: RouterOptions): ArrayRunType {
+    const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getMockCompiler(routerOptions));
+    const headersArray = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // headers tuple is always index 1 after context
+    if (!isHeaderListRunType(headersArray)) {
+        throw new Error(`Header Hook '${routeId}' first parameter must be a tuple of HttpHeader.`);
+    }
+    return headersArray;
+}
 
-    return paramRunTypes.map((paramRT: any, index: number) => {
-        const paramInfo: ParamInfo = {
-            name: paramNames[index],
-            isBodyParam: true, // default
-        };
+function getReturnHeadersRunType(handlerRunType: FunctionRunType): ArrayRunType | undefined {
+    const returnRunType = handlerRunType.getReturnType();
+    if (!isHeaderListRunType(returnRunType)) return undefined;
+    return returnRunType;
+}
 
-        // Check if parameter is HttpHeader<Name, Value>
-        // The paramRT.src is the actual type, we need to check if it's a class type
-        const src = paramRT.src as any;
-        if (src.kind === ReflectionKind.class && src.classType?.name === 'HttpHeader') {
-            const typeArgs = src.typeArguments;
-            if (typeArgs && typeArgs.length > 0) {
-                const headerName = extractLiteralValue(typeArgs[0]);
-                paramInfo.header = {
-                    name: headerName,
-                    options: extractHeaderOptions(),
-                };
-                paramInfo.isBodyParam = false;
-            }
-        }
+function isHeaderListRunType(rt: BaseRunType | undefined): rt is ArrayRunType {
+    if (!rt) return false;
+    const headersListRt = runType<HeaderList<[]>>() as BaseRunType;
+    return isArrayRunType(rt) && rt.getTypeName() === headersListRt.getTypeName();
+}
 
-        // Check if parameter is Cookie<Name>
-        if (src.kind === ReflectionKind.class && src.classType?.name === 'Cookie') {
-            const typeArgs = src.typeArguments;
-            if (typeArgs && typeArgs.length > 0) {
-                const cookieName = extractLiteralValue(typeArgs[0]);
-                paramInfo.cookie = {
-                    name: cookieName,
-                    options: extractCookieOptions(),
-                };
-                paramInfo.isBodyParam = false;
-            }
-        }
-
-        // Check if parameter is BodyParam<T>
-        if (src.kind === ReflectionKind.class && src.classType?.name === 'BodyParam') {
-            // BodyParam is explicitly a body parameter
-            paramInfo.isBodyParam = true;
-        }
-
-        return paramInfo;
+function extractHeaderNames(headersRT: ArrayRunType, routeId: string, routerOptions: RouterOptions): string[] {
+    const comp = getMockCompiler(routerOptions);
+    const annotations = getRunTypeAnnotations(headersRT);
+    const headerAnnotation = annotations.find((a) => a.name === 'headerNames');
+    if (!headerAnnotation)
+        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeaderList<['Authorization']>.`);
+    const headerTuple = headerAnnotation.options;
+    if (!isTupleRunType(headerTuple))
+        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeaderList<['Authorization']>.`);
+    const headerNames = headerTuple.getJitChildren(comp).map((tupleMember) => {
+        const literalRt = (tupleMember as MemberRunType<any>)?.getMemberType?.();
+        if (isLiteralRunType(literalRt)) return literalRt.getLiteralValue() as string;
+        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeaderList<['Authorization']>.`);
     });
+    return headerNames;
 }
 
-function extractLiteralValue(type: SrcType | undefined): string {
-    if (!type) return '';
-    if (type.kind === ReflectionKind.literal) {
-        return type.literal as string;
-    }
-    return '';
+// Create a mock compiler object with just the opts property needed by getParamRunTypes.
+// getParamRunTypes() requires a JitFnCompiler but we only need the opts property to slice parameters.
+// This is a workaround to avoid updating getParamRunTypes() signature
+function getMockCompiler(routerOptions: RouterOptions): JitFnCompiler {
+    return {opts: routerOptions} as any as JitFnCompiler;
 }
 
-function extractHeaderOptions(): HeaderOptions | undefined {
-    // For now, we don't extract header options from type arguments
-    // This can be extended in the future if needed
-    return undefined;
-}
+const nullJitHashes: JitFunctionsHashes = {
+    isType: '',
+    typeErrors: '',
+    prepareForJson: '',
+    restoreFromJson: '',
+    jsonStringify: '',
+    toBinary: '',
+    fromBinary: '',
+};
 
-function extractCookieOptions(): CookieOptions | undefined {
-    // For now, we don't extract cookie options from type arguments
-    // This can be extended in the future if needed
-    return undefined;
-}
+// prettier-ignore
+const nullJitFns: JitCompiledFunctions = {
+    isType: fakeJitFn(),
+    typeErrors: fakeJitFn(),
+    prepareForJson: fakeJitFn(),
+    restoreFromJson: fakeJitFn(),
+    jsonStringify: fakeJitFn(),
+    toBinary: fakeJitFn(),
+    fromBinary: fakeJitFn(),
+} as any;
 
-// TODO: we do not want to use runtypes directly but compiled functions so we can take advantage
-// of precompiled functions without having to generate JIT functions
-// this way we also do not need to use new Function which is not allowed in some environments
-export function getHandlerReflection(handler: Handler, routeId: string, routerOptions: RouterOptions): MethodReflectionItems {
-    const reflectionItems: Partial<MethodReflectionItems> = {};
-    let handlerRunType: FunctionRunType;
-    try {
-        handlerRunType = reflectFunction(handler);
-        reflectionItems.handlerRunType = handlerRunType;
-    } catch (error: any) {
-        throw new Error(`Can not get RunType of handler for route/hook ${routeId}. Error: ${error?.message}`);
-    }
-
-    try {
-        // paramsJitFns contains all run type functionality for the parameters, it compiles the when the property is first accessed
-        const runTypeOptions = routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions;
-        reflectionItems.paramsJitFns = getParamsJitFns(handler, runTypeOptions);
-        // Extract parameter info to detect HttpHeader, Cookie, and BodyParam types
-        // Note: extractParamInfo uses a mock compiler object to call getParamRunTypes() with the runTypeOptions
-        // If getParamRunTypes() signature changes in the future, this may need to be updated
-        reflectionItems.params = extractParamInfo(handlerRunType, routerOptions);
-        reflectionItems.paramNames = reflectionItems.params.map((p) => p.name);
-    } catch (error: any) {
-        throw new Error(`Can not compile Jit Functions for Parameters of route/hook ${routeId}. Error: ${error?.message}`);
-    }
-
-    try {
-        // returnJitFns contains all run type functionality for the return value, it compiles the when the property is first accessed
-        reflectionItems.returnJitFns = getReturnJitFns(handler);
-    } catch (error: any) {
-        console.error(error);
-        throw new Error(`Can not get Jit Functions for Return of route/hook ${routeId}. Error: ${error?.message}`);
-    }
-    reflectionItems.paramsJitHashes = getJitHashes(reflectionItems.paramsJitFns);
-    reflectionItems.returnJitHashes = getJitHashes(reflectionItems.returnJitFns);
-    return reflectionItems as MethodReflectionItems;
+function fakeJitFn(): (...args: any[]) => any {
+    return () => {
+        throw new Error('Raw hooks do not have params or return types and are not supposed to be uses as rpc methods.');
+    };
 }
