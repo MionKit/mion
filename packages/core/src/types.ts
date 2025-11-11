@@ -331,15 +331,34 @@ export type SerializableJitHashes = {
     fromBinary: string;
 };
 
+/**
+ * Options for HTTP headers
+ */
+export interface HeaderOptions {
+    [key: string]: any;
+}
+
+/**
+ * Options for HTTP cookies
+ */
+export interface CookieOptions {
+    maxAge?: number;
+    expires?: Date;
+    path?: string;
+    domain?: string;
+    secure?: boolean;
+    httpOnly?: boolean;
+    sameSite?: 'Strict' | 'Lax' | 'None';
+    [key: string]: any;
+}
+
 /** Shared interface for PublicMethod that can be used between client and server without handler dependencies */
 export interface SerializablePublicMethod {
     /** Method type identifier */
     type: number;
     /** Unique identifier for the method */
     id: string;
-    /** Names of header parameters if this is a header method */
-    headerNames?: string[];
-    /** Names of method parameters */
+    /** Information about method parameters including their names and sources (headers, cookies, body) */
     paramNames?: string[];
     /** Hashes of JIT functions used by the method parameters */
     paramsJitHashes: SerializableJitHashes;
@@ -349,6 +368,12 @@ export interface SerializablePublicMethod {
     hookIds?: string[];
     /** Path pointers for nested route structures */
     pathPointers?: string[][];
+    headers?: {
+        /** http headers names */
+        headerNames: string[];
+        /** Hashes of JIT functions used by the headers param */
+        jitHashes: Pick<JitFunctionsHashes, 'isType' | 'typeErrors'>;
+    };
 }
 
 export interface SerializableMethodsData {

@@ -9,8 +9,12 @@ import type {TypeFunction} from '@deepkit/type';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import type {AnyParameterListRunType, JitCode} from '../../types';
 import {TupleRunType} from './tuple';
+import {ParameterRunType} from '../member/param';
 
-export class FunctionParamsRunType<ParamList extends AnyParameterListRunType = TypeFunction> extends TupleRunType<ParamList> {
+export class FunctionParamsRunType<ParamList extends AnyParameterListRunType = TypeFunction> extends TupleRunType<
+    ParamList,
+    ParameterRunType
+> {
     emitIsType(comp: JitFnCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
         if (children.length === 0) return {code: `${comp.vλl}.length === 0`, type: 'E'};

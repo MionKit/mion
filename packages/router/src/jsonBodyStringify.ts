@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {NonRawMethod, Method, HandlerType} from './types/remoteMethods';
+import {Method, HandlerType} from './types/remoteMethods';
 import {getRouteExecutionPath} from './router';
 import {getNotFoundExecutionPath} from './notFound';
 import {RpcError} from '@mionkit/core';
@@ -34,9 +34,7 @@ export function getStringifyFnForExecutionPath(
 function _getExecutionPathStringifyFn(
     executionPath: Method[]
 ): (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError<any>>} {
-    const returnMethods = executionPath.filter(
-        (p) => p.options.hasReturnData && p.type !== HandlerType.headerHook
-    ) as NonRawMethod[];
+    const returnMethods = executionPath.filter((p) => p.hasReturnData && p.type !== HandlerType.headerHook) as Method[];
     return (respBody: PublicResponses): {body: string; stringifyErrors: Record<string, RpcError<any>>} => {
         const props: string[] = [];
         const stringifyErrors: Record<string, RpcError<any>> = {};

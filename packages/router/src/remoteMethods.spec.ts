@@ -13,7 +13,7 @@ import {HandlerType} from './types/remoteMethods';
 import {hook, rawHook, route} from './handlers';
 import {jitUtils, SerializableJitHashes} from '@mionkit/core';
 
-function hasSerializableHashes(paramNames?: string[]): SerializableJitHashes {
+function hasSerializableHashes(): SerializableJitHashes {
     return {
         isType: expect.any(String),
         typeErrors: expect.any(String),
@@ -80,7 +80,7 @@ describe('Public Methods should', () => {
                 id: 'auth',
                 paramsJitHashes: hasSerializableHashes(['s']),
                 returnJitHashes: hasSerializableHashes(),
-                paramNames: ['s'],
+                params: [{name: 's'}],
             })
         );
 
@@ -91,7 +91,7 @@ describe('Public Methods should', () => {
                 id: 'routes/route1',
                 paramsJitHashes: hasSerializableHashes([]),
                 returnJitHashes: hasSerializableHashes(),
-                paramNames: [],
+                params: [],
             })
         );
     });
@@ -214,6 +214,13 @@ describe('Public Methods should', () => {
             sayHello: route((ctx: CallContext, name: string): string => `Hello ${name}`),
         };
         const api = registerRoutes(routes);
-        expect(api.sayHello.paramNames?.length).toEqual(1);
+        expect(api.sayHello).toEqual(
+            expect.objectContaining({
+                type: HandlerType.route,
+                id: 'sayHello',
+                handler: 'sayHello',
+                params: [{name: 'name'}],
+            })
+        );
     });
 });
