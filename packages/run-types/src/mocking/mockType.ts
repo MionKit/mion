@@ -25,7 +25,7 @@ import type {RestParamsRunType} from '../nodes/member/restParams';
 import {ReflectionSubKind} from '../constants.kind';
 import {NonSerializableRunType} from '../nodes/native/nonSerializable';
 import {IndexSignatureRunType} from '../nodes/member/indexProperty';
-import {getRunTypeFormatter, getRunTypeTransformers} from '../lib/formats';
+import {getRunTypeFormat, getRunTypeTransformer} from '../lib/formats';
 import {JIT_STACK_TRACE_MESSAGE} from '../constants';
 import {JitFunctions} from '../constants.functions';
 import type {ArrayRunType} from '../nodes/member/array';
@@ -41,17 +41,14 @@ export function mockType(runType: BaseRunType, comp: JitFnCompiler, stack: BaseR
     (comp as Mutable<JitFnCompiler>).opts = updatedOps;
     // Just one type validator allowed per type, and is responsible to mock the value,
     // ie: email and uuid should contain the logic to generate a valid value
-    const typeValidator = getRunTypeFormatter(runType);
+    const typeValidator = getRunTypeFormat(runType);
     let mocked = typeValidator ? typeValidator.mock(updatedOps, runType) : _mockType(runType, comp, stack);
     (comp as Mutable<JitFnCompiler>).opts = rtOpts;
     // once mocked multiple type transformers can be applied to the mocked value
-    const typeTransformers = getRunTypeTransformers(runType);
-    if (typeTransformers.length) {
-        const compiledFormatters = typeTransformers
-            .filter((t) => !!t.emitFormat)
-            .map(() => runType.createJitCompiledFunction(JitFunctions.format.id));
-        const formatters = compiledFormatters.filter((c) => !c.isNoop).map((c) => c.fn);
-        mocked = formatters.reduce((acc, format) => format(acc), mocked);
+    const typeTransformer = getRunTypeTransformer(runType);
+    if (typeTransformer) {
+        const compiledFormatter = runType.createJitCompiledFunction(JitFunctions.format.id);
+        mocked = compiledFormatter.isNoop ? mocked : compiledFormatter.fn(mocked);
     }
     stack.pop();
     return mocked;

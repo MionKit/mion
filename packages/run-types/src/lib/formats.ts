@@ -7,7 +7,7 @@
 
 import {PureFunctionClosure, TypeFormatParams, TypeFormatValue} from '@mionkit/core';
 import {ReflectionKindName} from '../constants.kind';
-import type {FormatAnnotation} from '../types';
+import type {FormatAnnotation, RunType, RunTypeAnnotation, SrcType} from '../types';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
 import type {JitErrorsFnCompiler, JitFnCompiler} from './jitFnCompiler';
@@ -50,24 +50,15 @@ export function getFormatterKey(prefix: string, kind: string | number, name: str
     return `${prefix}:${kind}:${name}`;
 }
 
-export function getTypeFormats(rt: BaseRunType): BaseRunTypeFormat[] {
-    return getFormatAnnotations(rt).map((a) => a.formatter);
-}
-
 /** Returns the validator for a given type. ATM only one validator is allowed for each type */
-export function getRunTypeFormatter(rt: BaseRunType): BaseRunTypeFormat | undefined {
-    const formatAnnotations = getFormatAnnotations(rt);
-    return formatAnnotations[0]?.formatter;
+export function getRunTypeFormat(rt: BaseRunType): BaseRunTypeFormat | undefined {
+    return getFormatAnnotation(rt)?.formatter;
 }
 
-export function getRunTypeTransformers(rt: BaseRunType): BaseRunTypeFormat[] {
-    return getTypeFormats(rt).filter((f) => !!f.emitFormat) as BaseRunTypeFormat[];
-}
-
-export function getFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
-    const parsedAnnotations = typeAnnotation.getAnnotations(rt.src);
-    const formatAnnotations = parsedAnnotations.filter((a) => (a as FormatAnnotation).formatter);
-    return formatAnnotations as FormatAnnotation[];
+export function getRunTypeTransformer(rt: BaseRunType): BaseRunTypeFormat | undefined {
+    const rtFormat = getRunTypeFormat(rt);
+    if (rtFormat?.emitFormat) return rtFormat;
+    return undefined;
 }
 
 // ################# ANNOTATIONS  #################
@@ -77,34 +68,49 @@ export function getFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
  * @param rt
  * @returns
  */
-export function initFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
+export function initFormatAnnotations(rt: BaseRunType): FormatAnnotation | undefined {
     const annotations = typeAnnotation.getAnnotations(rt.src);
-    if (annotations.length === 0) return annotations as FormatAnnotation[];
+    if (annotations.length === 0) return;
     if (annotations.length > 1)
         throw new Error(`Only one type annotation is allowed for runTypes and ${rt.getTypeName()} has ${annotations.length}`);
-    for (const annotation of annotations) {
-        if (!annotation.name) throw new Error(`Type annotation must have a name for ${rt.getTypeName()}`);
-        const params = annotation.options;
-        const formatter = getFormatterFromCache(rt.src.kind, annotation.name);
-        // formatter property is only added to registered formatters, this allows using other type annotations that are not formatters
-        if (formatter && params.kind === ReflectionKind.objectLiteral) {
-            (annotation as FormatAnnotation).formatter = formatter;
-        }
+    const annotation = annotations[0] as FormatAnnotation;
+    if (!annotation.name) throw new Error(`Type annotation must have a name for ${rt.getTypeName()}`);
+    const params = annotation.options;
+    const formatter = getFormatterFromCache(rt.src.kind, annotation.name);
+    // formatter property is only added to registered formatters, this allows using other type annotations that are not formatters
+    if (formatter && params.kind === ReflectionKind.objectLiteral) {
+        annotation.formatter = formatter;
+        return annotation;
     }
-    return annotations as FormatAnnotation[];
+    return annotation as FormatAnnotation;
 }
 
 /** Returns the params for a given type formatter */
 export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, fmtName: string): P {
-    const annotations = getFormatAnnotations(rt).filter((a) => a.name === fmtName);
-    for (const annotation of annotations) {
-        const formatter = annotation.formatter;
-        if (!formatter) continue;
+    const annotation = getFormatAnnotation(rt);
+    if (annotation?.name === fmtName) {
         if (annotation.params) return annotation.params as P;
         annotation.params = typeAnnotation.getOption(rt.src, annotation.name) as P;
         return annotation.params as P;
     }
     throw new Error(`Type Formatter ${fmtName} not found for ${rt.getTypeName()}`);
+}
+
+export function getFormatAnnotation(rt: BaseRunType): FormatAnnotation | undefined {
+    const parsedAnnotations = typeAnnotation.getAnnotations(rt.src);
+    const formatAnnotations = parsedAnnotations.filter((a) => (a as FormatAnnotation).formatter);
+    return formatAnnotations[0] as FormatAnnotation | undefined;
+}
+
+export function getRunTypeAnnotations(rt: RunType): RunTypeAnnotation[] {
+    const annotations = typeAnnotation.getAnnotations(rt.src);
+    return annotations.map((a) => {
+        const annotation: RunTypeAnnotation = {
+            name: a.name,
+            options: (a.options as SrcType)._rt as RunType,
+        };
+        return annotation;
+    });
 }
 
 // ################# COMPILING  #################

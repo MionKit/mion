@@ -20,7 +20,7 @@ import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {addFullStop, getJitFnArgCallVarName, toLiteral, toLiteralInContext} from './utils';
 import {registerPureFnClosure} from './pureFn';
 import {getPureFunctionKey} from './pureFn';
-import {getTypeFormats} from './formats';
+import {getRunTypeFormat} from './formats';
 import {emitJsonStringify} from '../jitCompilers/json/jsonStringify';
 import {emitToBinary} from '../jitCompilers/binary/toBinary';
 import {emitFromBinary} from '../jitCompilers/binary/fromBinary';
@@ -334,42 +334,34 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         separator: ';' | '&&'
     ): JitCode {
         const expectedCT = childJCode.code ? childJCode.type : expectedCType;
-        const typeFormatters = getTypeFormats(rt);
-        if (!typeFormatters.length) return childJCode;
-        const formattersJit: JitCode[] = typeFormatters
-            .map((f) => {
-                const formatterCode = f.compileFormat(fnID, this, rt);
+        const typeFormatter = getRunTypeFormat(rt);
+        if (!typeFormatter) return childJCode;
+        let jitCode: JitCode | undefined = undefined;
+        const formatterCode = typeFormatter.compileFormat(fnID, this, rt);
+        // Check if the formatter code can be embedded AND is compatible with the function ID
+        const canEmbed = typeFormatter.canEmbedFormatterCode(fnID, rt);
+        const codeHasReturn = formatterCode.type === RB;
 
-                // Check if the formatter code can be embedded AND is compatible with the function ID
-                const canEmbed = f.canEmbedFormatterCode(fnID, rt);
-                const ct = formatterCode.type;
-                const codeHasReturn = ct === RB;
-
-                // For isType and similar functions that are expressions, we need to ensure
-                // the formatter code is also an expression or has a return statement
-                const isCompatible = expectedCT === ct;
-                if (canEmbed && isCompatible && !codeHasReturn) {
-                    return formatterCode;
-                }
-
-                // Otherwise, create a separate function
-                const compiled = f.createJitCompiledFormatter(fnID, rt, this, undefined, undefined, undefined, this.opts);
-                if (compiled.isNoop) return {code: undefined, type: 'E'} as JitCode;
+        // For isType and similar functions that are expressions, we need to ensure
+        // the formatter code is also an expression or has a return statement
+        const isCompatible = formatterCode.type === expectedCT;
+        if (canEmbed && isCompatible && !codeHasReturn) {
+            jitCode = formatterCode;
+        } else {
+            // Otherwise, create a separate function
+            const compiled = typeFormatter.createJitCompiledFormatter(fnID, rt, this, undefined, undefined, undefined, this.opts);
+            if (!compiled.isNoop) {
                 this.updateDependencies(compiled);
-                const depCode = this.callDependency(rt, compiled);
-                return depCode;
-            })
-            .filter((jc) => !!jc.code);
-        if (!formattersJit.length) return childJCode;
+                jitCode = this.callDependency(rt, compiled);
+            }
+        }
+        if (!jitCode?.code) return childJCode;
         const shouldReplace = getJitFnSettings(fnID).formatShouldReplaceJitCode;
         const joiner = separator === '&&' ? ' && ' : '; ';
-        const formattersCode = formattersJit.map((jc) => jc.code).join(joiner);
         if (shouldReplace) {
-            const typeFromSeparator = separator === '&&' ? 'E' : 'S';
-            const type = formattersJit.length == 1 ? formattersJit[0].type : typeFromSeparator;
-            return {code: formattersCode, type};
+            return jitCode;
         }
-        const finalCode = childJCode?.code ? childJCode.code + joiner + formattersCode : formattersCode;
+        const finalCode = childJCode?.code ? childJCode.code + joiner + jitCode.code : jitCode.code;
         return {code: finalCode, type: expectedCT};
     }
 

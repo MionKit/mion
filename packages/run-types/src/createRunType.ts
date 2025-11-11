@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunType, Mutable, SrcType, RunTypeAnnotation} from './types';
+import type {RunType, Mutable, SrcType} from './types';
 import type {BaseRunType} from './lib/baseRunTypes';
 import type {TypeClass, Type} from '@deepkit/type';
 import {ReflectionKind, resolveReceiveType, ReceiveType, reflect, typeAnnotation, stringifyType} from '@deepkit/type';
@@ -78,17 +78,6 @@ export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn): Fun
     const src = reflect(fn) as SrcType;
     runType(src);
     return src._rt as FunctionRunType;
-}
-
-export function getRunTypeAnnotations(rt: RunType): RunTypeAnnotation[] {
-    const annotations = typeAnnotation.getAnnotations(rt.src);
-    return annotations.map((a) => {
-        const annotation: RunTypeAnnotation = {
-            name: a.name,
-            options: (a.options as SrcType)._rt as RunType,
-        };
-        return annotation;
-    });
 }
 
 // We need to traverse all possible associated nodes to create all the runTypes
