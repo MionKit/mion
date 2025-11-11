@@ -8,6 +8,7 @@
 import type {AnyObject} from '@mionkit/core';
 import type {PublicResponses} from './publicMethods';
 import type {RpcError} from '@mionkit/core';
+import {TypeAnnotation} from '@deepkit/core';
 
 // ####### Call Context #######
 
@@ -61,23 +62,19 @@ export interface MionResponse {
  * When a header has multiple values it returns an array instead a coma separated string;
  */
 export interface MionHeaders {
-    append(name: string, value: MultiHeaderValue): void;
+    append(name: string, value: string): void;
     delete(name: string): void;
-    set(name: string, value: MultiHeaderValue): void;
-    get(name: string): SingleHeaderValue | undefined | null;
+    set(name: string, value: string): void;
+    get(name: string): string | undefined | null;
     has(name: string): boolean;
-    entries(): IterableIterator<[string, SingleHeaderValue]>;
+    entries(): IterableIterator<[string, string]>;
     keys(): IterableIterator<string>;
-    values(): IterableIterator<SingleHeaderValue>;
-    /** Get all set-cookie values as an array */
-    getSetCookie?(): string[];
+    values(): IterableIterator<string>;
 }
-
-/** Header string value, it can be a coma separated list of headers */
-export type SingleHeaderValue = string;
-
-/** Multi Header value, this is used when multiple headers are sent in the http response with the same header name (Mostly Set-Cookie) */
-export type MultiHeaderValue = SingleHeaderValue | SingleHeaderValue[];
 
 /** Function used to create the context data object on each route call  */
 export type ContextDataFactory<ContextData extends Record<string, any>> = () => ContextData;
+
+// IMPORTANT DO NOT CHANGE THE INTERFACE NAMES OR TYPE ANNOTATIONS AS THEY ARE HARDCODED IN THE JIT GENERATED CODE
+/** List of headers to be used in remote handler parameters */
+export type HeaderList<Names extends [...args: string[]]> = string[] & TypeAnnotation<'headerNames', Names>;

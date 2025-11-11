@@ -9,6 +9,60 @@ import type {MultiHeaderValue, MionHeaders, SingleHeaderValue} from './types/con
 
 // ############# PUBLIC METHODS #############
 
+type HeadersRecord = Record<string, SingleHeaderValue>;
+
+/**
+ * Reusable class for managing HTTP headers with case-insensitive access
+ * Similar to the fetch Headers API but optimized for performance
+ * https://developer.mozilla.org/en-US/docs/Web/API/Headers
+ */
+class MionHeadersImpl implements MionHeaders {
+    constructor(private headers: HeadersRecord) {}
+
+    append(name: string, value: MultiHeaderValue): void {
+        const nl = name.toLowerCase();
+        const existing = this.headers[nl];
+        const headerValue = toSingleHeader(value);
+        if (existing) {
+            this.headers[nl] = `${existing}, ${headerValue}`;
+        } else {
+            this.headers[nl] = headerValue;
+        }
+    }
+
+    delete(name: string): void {
+        const nl = name.toLowerCase();
+        delete this.headers[nl];
+    }
+
+    get(name: string): SingleHeaderValue | undefined | null {
+        const nl = name.toLowerCase();
+        return this.headers[nl];
+    }
+
+    set(name: string, value: MultiHeaderValue): void {
+        const ln = name.toLowerCase();
+        this.headers[ln] = value as string;
+    }
+
+    has(name: string): boolean {
+        const nl = name.toLowerCase();
+        return !!this.headers[nl];
+    }
+
+    entries(): IterableIterator<[string, SingleHeaderValue]> {
+        return new Map(Object.entries(this.headers)).entries();
+    }
+
+    keys(): IterableIterator<string> {
+        return new Map(Object.entries(this.headers)).keys();
+    }
+
+    values(): IterableIterator<SingleHeaderValue> {
+        return new Map(Object.entries(this.headers)).values();
+    }
+}
+
 /**
  * Return a Headers Like object from a Headers Record structure (Record<string, string | string[]>)
  * Returned Headers object is similar to the fetch Headers object but not exactly the same
@@ -25,53 +79,8 @@ import type {MultiHeaderValue, MionHeaders, SingleHeaderValue} from './types/con
  */
 export function headersFromRecord(headersObj: Record<string, SingleHeaderValue>, skipToLower = false): MionHeaders {
     // lazy load headers map
-    const _setCookies: string[] = [];
-    const headers = initHeadersMap(headersObj, _setCookies, skipToLower);
-
-    const mionHeaders = {
-        append: (name: string, value: MultiHeaderValue) => {
-            const nl = name.toLowerCase();
-            if (nl === 'set-cookie') return setCookie(value, _setCookies);
-            const existing = headers[nl];
-            const headerValue = toSingleHeader(value);
-            if (existing) headers[nl] = `${existing}, ${headerValue}`;
-            else headers[nl] = headerValue;
-        },
-        delete: (name: string) => {
-            const nl = name.toLowerCase();
-            if (nl === 'set-cookie') {
-                _setCookies.length = 0;
-            } else if (nl in headers) {
-                delete headers[nl];
-            }
-        },
-        get: (name: string) => {
-            const nl = name.toLowerCase();
-            if (nl === 'set-cookie') {
-                return _setCookies.length > 0 ? _setCookies[0] : undefined;
-            }
-            return headers[nl];
-        },
-        set: (name: string, value: MultiHeaderValue) => {
-            const ln = name.toLowerCase();
-            if (ln === 'set-cookie') {
-                _setCookies.length = 0;
-                return setCookie(value, _setCookies);
-            }
-            headers[ln] = value as string;
-        },
-        has: (name: string) => {
-            const nl = name.toLowerCase();
-            if (nl === 'set-cookie') return _setCookies.length > 0;
-            return !!headers[nl];
-        },
-        entries: () => new Map(Object.entries(headers)).entries(),
-        keys: () => new Map(Object.entries(headers)).keys(),
-        values: () => new Map(Object.entries(headers)).values(),
-        getSetCookie: () => _setCookies,
-    } satisfies MionHeaders;
-
-    return mionHeaders;
+    const headers = parseHeaders(headersObj, skipToLower);
+    return new MionHeadersImpl(headers);
 }
 
 function toSingleHeader(value: MultiHeaderValue | number): SingleHeaderValue {
@@ -79,35 +88,15 @@ function toSingleHeader(value: MultiHeaderValue | number): SingleHeaderValue {
     return value as string;
 }
 
-function setCookie(value: MultiHeaderValue, _setCookies: string[]) {
-    if (Array.isArray(value)) _setCookies.push(...value);
-    else _setCookies.push(value);
-}
-
-function initHeadersMap(
-    headersObj: Record<string, SingleHeaderValue>,
-    _setCookies: string[],
-    skipToLower = false
-): Record<string, SingleHeaderValue> {
+function parseHeaders(headersObj: Record<string, SingleHeaderValue>, skipToLower = false): HeadersRecord {
     if (skipToLower) return headersObj;
     const entries = Object.entries(headersObj);
-    const headers: Record<string, SingleHeaderValue> = {};
-
+    const headers: HeadersRecord = {};
     for (let i = 0; i < entries.length; i++) {
         const [name, value] = entries[i];
         if (!value) continue;
-
         const ln = name.toLowerCase();
-        if (ln === 'set-cookie') {
-            if (Array.isArray(value)) {
-                _setCookies.push(...value);
-            } else {
-                _setCookies.push(value);
-            }
-        } else {
-            headers[ln] = toSingleHeader(value);
-        }
+        headers[ln] = toSingleHeader(value);
     }
-
     return headers;
 }

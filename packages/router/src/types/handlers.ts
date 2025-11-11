@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CallContext, SingleHeaderValue} from './context';
+import {CallContext, HeaderList} from './context';
 import {RouterOptions} from './general';
 import {ErrorReturn} from './publicMethods';
 
@@ -13,7 +13,7 @@ import {ErrorReturn} from './publicMethods';
 
 /** Route or Hook Handler  */
 
-export type Handler<Context extends CallContext = any, Ret = any, Params extends any[] = any[]> = (
+export type Handler<Context extends CallContext = any, Params extends any[] = any[], Ret = any> = (
     /** Call Context */
     context: Context,
     /** Remote Call parameters */
@@ -21,13 +21,19 @@ export type Handler<Context extends CallContext = any, Ret = any, Params extends
 ) => Ret | Promise<Ret>;
 
 /** Header Hook Handler, hook handler for when params are sent in the header  */
-type HeaderResponse = SingleHeaderValue[] | void;
-export type HeaderHandler<Context extends CallContext = any> = (
+export type HeaderHandler<
+    Context extends CallContext = any,
+    ExpectedHeaders extends HeaderList<string[]> = HeaderList<string[]>,
+    Params extends any[] = any[],
+    Ret = any,
+> = (
     /** Call Context */
     context: Context,
+    /** Remote Call Headers */
+    headers: ExpectedHeaders,
     /** Remote Call parameters */
-    ...headerValues: SingleHeaderValue[]
-) => HeaderResponse | Promise<HeaderResponse>;
+    ...parameters: Params
+) => Ret | Promise<Ret>;
 
 /** Handler to use with raw hooks to get access to raw request and response */
 export type RawHookHandler<
@@ -38,4 +44,4 @@ export type RawHookHandler<
 > = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
 
 // Handler technically covers any of the other handlers
-export type AnyHandler<Context extends CallContext = any, Ret = any, Params extends any[] = any> = Handler<Context, Ret, Params>;
+export type AnyHandler<Context extends CallContext = any, Params extends any[] = any, Ret = any> = Handler<Context, Params, Ret>;

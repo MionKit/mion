@@ -15,7 +15,6 @@ import type {
     SrcCollection,
     CustomVλl,
     JitFn,
-    FormatAnnotation,
     JitCode,
     RunTypeOptions,
     StrNumber,
@@ -34,7 +33,7 @@ import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from '@mionkit/core';
 import {createUniqueHash} from './quickHash';
-import {initFormatAnnotations, getFormatAnnotations, getRunTypeFormatter, defaultIgnoreFormatProps} from './formats';
+import {initFormatAnnotations, getRunTypeFormatter, defaultIgnoreFormatProps} from './formats';
 import {typeParamsToString} from './utils';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core';
@@ -67,7 +66,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     };
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();
-    getFormatAnnotations = (): FormatAnnotation[] => getFormatAnnotations(this);
     skipJit(comp: JitFnCompiler): boolean {
         return false;
     }

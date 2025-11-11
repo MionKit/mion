@@ -173,6 +173,11 @@ export type FormatAnnotation = DKAnnotation & {
     formatter: BaseRunTypeFormat;
 };
 
+export type RunTypeAnnotation = {
+    name: string;
+    options: RunType;
+};
+
 // ############################################ OTHERS ############################################
 
 /** Any Class */

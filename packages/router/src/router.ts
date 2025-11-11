@@ -6,18 +6,14 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
-import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
 import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
-import type {MethodsExecutionList, RawMethod} from './types/remoteMethods';
-import type {HeaderMethod} from './types/remoteMethods';
-import type {HookMethod} from './types/remoteMethods';
-import type {RouteMethod} from './types/remoteMethods';
-import type {Method} from './types/remoteMethods';
-import {HandlerType} from './types/remoteMethods';
+import type {Method, MethodsExecutionList, RawMethod, HeaderMethod, HookMethod, RouteMethod} from './types/remoteMethods';
 import type {PublicApi, PrivateDef, HooksCollection} from './types/publicMethods';
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
-import {getHandlerReflection} from './reflection';
+import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
+import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
+import {HandlerType} from './types/remoteMethods';
+import {getRawMethodReflection, getHandlerReflection} from './reflection';
 import {bodyParserHooks} from './jsonBodyParser.routes';
 import {getRouterItemId, getRoutePath, getENV} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
@@ -25,7 +21,6 @@ import {getPublicApi, resetRemoteMethodsMetadata} from './remoteMethods';
 import {clientRoutes} from './client.routes';
 import {getNotFoundExecutionPath} from './notFound';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './methodsCache';
-import {JitFunctionsHashes} from '@mionkit/core';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -158,7 +153,7 @@ export function isPrivateExecutable(executable: Method): boolean {
     if (executable.type === HandlerType.rawHook) return true;
     if (executable.type === HandlerType.route) return false;
     const hasPublicParams = !!executable.paramNames?.length;
-    return !hasPublicParams && !executable.options.hasReturnData;
+    return !hasPublicParams && !executable.hasReturnData;
 }
 
 export function getTotalExecutables(): number {
@@ -319,7 +314,7 @@ export function getExecutableFromHook(
     hookPointer: string[],
     nestLevel: number
 ): HookMethod | HeaderMethod {
-    const inHeader = isHeaderHookDef(hook);
+    const isHeader = isHeaderHookDef(hook);
     // todo fix header id should be same as any other one and then maybe map from id to header name
     const hookId = getRouterItemId(hookPointer);
     const existing = hooksById.get(hookId);
@@ -334,34 +329,23 @@ export function getExecutableFromHook(
     if (compiledMethod) {
         executable = compiledMethod as MixedHook;
     } else {
-        const {handlerRunType, paramsJitFns, returnJitFns, paramNames, paramsJitHashes, returnJitHashes} = getHandlerReflection(
-            hook.handler,
-            hookId,
-            routerOptions
-        );
-        const skipParamsDecode = paramsJitFns.restoreFromJson.isNoop;
-        const skipReturnEncode = returnJitFns.prepareForJson.isNoop;
+        const reflectionData = getHandlerReflection(hook.handler, hookId, routerOptions, isHeader);
+        const skipParamsDecode = reflectionData.paramsJitFns.restoreFromJson.isNoop;
+        const skipReturnEncode = reflectionData.returnJitFns.prepareForJson.isNoop;
         executable = {
             id: hookId,
-            type: inHeader ? HandlerType.headerHook : HandlerType.hook,
+            type: isHeader ? HandlerType.headerHook : HandlerType.hook,
             nestLevel,
             handler: hook.handler,
-            paramsJitHashes,
-            returnJitHashes,
-            paramsJitFns,
-            returnJitFns,
-            paramNames,
             pointer: hookPointer,
-            headerNames: inHeader ? (hook as HeaderHookDef).headerNames.map((name) => name.toLowerCase()) : undefined,
+            ...reflectionData,
             options: {
                 runOnError: !!hook.options?.runOnError,
-                hasReturnData: handlerRunType.hasReturnData(),
                 validateParams: hook.options?.validateParams ?? true,
                 deserializeParams: (hook.options?.deserializeParams ?? true) && !skipParamsDecode,
                 validateReturn: hook.options?.validateReturn ?? false,
                 serializeReturn: (hook.options?.serializeReturn ?? true) && !skipReturnEncode && !routerOptions.useJitStringify, // if we are using jit stringify we skip serialization as encoding is done inside stringify function
                 description: hook.options?.description,
-                isAsync: !!hook.options?.isAsync || handlerRunType.isAsync(),
             },
         };
         addToPersistedMethods(hookId, executable);
@@ -375,35 +359,21 @@ export function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[]
     const hookId = getRouterItemId(hookPointer);
     const existing = rawHooksById.get(hookId);
     if (existing) return existing as RawMethod;
-    const nullJitHashes: JitFunctionsHashes = {
-        isType: '',
-        typeErrors: '',
-        prepareForJson: '',
-        restoreFromJson: '',
-        jsonStringify: '',
-        toBinary: '',
-        fromBinary: '',
-    };
+    const reflectionData = getRawMethodReflection(hook.handler, hookId);
     const executable: RawMethod = {
-        type: HandlerType.rawHook,
         id: hookId,
+        type: HandlerType.rawHook,
         nestLevel,
         handler: hook.handler,
-        paramsJitHashes: nullJitHashes,
-        returnJitHashes: nullJitHashes,
-        paramsJitFns: undefined,
-        returnJitFns: undefined,
-        paramNames: undefined,
         pointer: hookPointer,
+        ...reflectionData,
         options: {
             runOnError: !!hook.options?.runOnError,
-            hasReturnData: false,
             validateParams: false,
             deserializeParams: false,
             validateReturn: false,
             serializeReturn: false,
             description: hook.options?.description,
-            isAsync: !!hook.options?.isAsync,
         },
     };
     rawHooksById.set(hookId, executable);
@@ -420,33 +390,23 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
     if (compiledMethod) {
         executable = compiledMethod as RouteMethod;
     } else {
-        const {handlerRunType, paramsJitFns, returnJitFns, paramNames, paramsJitHashes, returnJitHashes} = getHandlerReflection(
-            route.handler,
-            routeId,
-            routerOptions
-        );
-        const skipParamsDecode = paramsJitFns.restoreFromJson.isNoop;
-        const skipReturnEncode = returnJitFns.prepareForJson.isNoop;
+        const reflectionData = getHandlerReflection(route.handler, routeId, routerOptions);
+        const skipParamsDecode = reflectionData.paramsJitFns.restoreFromJson.isNoop;
+        const skipReturnEncode = reflectionData.returnJitFns.prepareForJson.isNoop;
         executable = {
-            type: HandlerType.route,
             id: routeId,
+            type: HandlerType.route,
             nestLevel,
             handler: route.handler,
-            paramsJitHashes,
-            returnJitHashes,
-            paramsJitFns,
-            returnJitFns,
-            paramNames,
             pointer: routePointer,
+            ...reflectionData,
             options: {
                 runOnError: false,
-                hasReturnData: handlerRunType.hasReturnData(),
                 validateParams: route.options?.validateParams ?? true,
                 deserializeParams: (route.options?.deserializeParams ?? true) && !skipParamsDecode,
                 validateReturn: route.options?.validateReturn ?? false,
                 serializeReturn: (route.options?.serializeReturn ?? true) && !skipReturnEncode && !routerOptions.useJitStringify, // if we are using jit stringify we skip serialization as encoding is done inside stringify function
                 description: route.options?.description,
-                isAsync: !!route.options?.isAsync || handlerRunType.isAsync(),
             },
         };
         addToPersistedMethods(routeId, executable);

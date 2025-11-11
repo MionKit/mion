@@ -7,7 +7,7 @@
 
 import type {Handler} from './types/handlers';
 import {type RouterEntry, type Routes} from './types/general';
-import {NonRawMethod, type Method} from './types/remoteMethods';
+import {type Method} from './types/remoteMethods';
 import {HandlerType} from './types/remoteMethods';
 import type {PublicApi, PublicHandler, PublicMethod} from './types/publicMethods';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
@@ -19,10 +19,10 @@ import {
     isPrivateDefinition,
     shouldFullGenerateSpec,
 } from './router';
+import {getSerializableJitCompiler} from './reflection';
 import type {AnyObject, JitCompiledFnData, JitCompiledFunctions, PureFunctionData, SerializableJitHashes} from '@mionkit/core';
 import {getRoutePath, getRouterItemId} from '@mionkit/core';
 import {jitUtils} from '@mionkit/core';
-import {getSerializableJitCompiler} from '@mionkit/run-types';
 import {MAX_STACK_DEPTH} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
@@ -59,7 +59,7 @@ function recursiveGetSerializableRoutes<R extends Routes>(
             const executable = getHookExecutable(id) || getRouteExecutable(id);
             if (!executable)
                 throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);
-            publicData[key] = getSerializableMethod(executable as NonRawMethod);
+            publicData[key] = getSerializableMethod(executable as Method);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
             publicData[key] = recursiveGetSerializableRoutes(subRoutes, itemPointer);
@@ -69,7 +69,7 @@ function recursiveGetSerializableRoutes<R extends Routes>(
     return publicData;
 }
 
-export function getSerializableMethod<H extends Handler>(executable: NonRawMethod): PublicMethod<H> {
+export function getSerializableMethod<H extends Handler>(executable: Method): PublicMethod<H> {
     const existing = publicMethods.get(executable.id);
     if (existing) return existing as PublicMethod<H>;
 
@@ -83,10 +83,7 @@ export function getSerializableMethod<H extends Handler>(executable: NonRawMetho
         returnJitHashes: getSerializableJitHashes(executable.returnJitFns),
         paramNames: executable.paramNames,
     };
-
-    // initialized separately so the property `headerName` is not included in the object in case is undefined
-    if (executable.headerNames) newRemoteMethod.headerNames = executable.headerNames;
-
+    if (executable.headersParam) newRemoteMethod.headers = executable.headersParam;
     if (executable.type === HandlerType.route) {
         const path = getRoutePath(executable.pointer, getRouterOptions());
         const pathPointers =

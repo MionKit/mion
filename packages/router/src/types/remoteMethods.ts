@@ -7,27 +7,50 @@ import {PublicResponses} from './publicMethods';
 
 export interface MethodOptions {
     runOnError?: boolean;
-    hasReturnData?: boolean;
     validateParams?: boolean;
     deserializeParams?: boolean;
     validateReturn?: boolean;
     serializeReturn?: boolean;
     description?: string;
-    isAsync?: boolean;
 }
 
-export interface MethodData {
+export interface MethodBase {
     type: number;
     id: string;
     // pointer to the src Hook or Route definition within the original Routers object, ie: ['users','getUser']
     pointer: string[];
     nestLevel: number;
-    params?: ParamInfo[]; // Changed from paramNames?: string[]
-    headerNames?: string[]; // Keep for backward compatibility
     options: MethodOptions;
+}
+
+export interface HeadersMethodData {
+    headerNames: string[];
+    jitHashes: Pick<JitFunctionsHashes, 'isType' | 'typeErrors'>;
+}
+
+export interface HeadersMethodReflection extends HeadersMethodData {
+    jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
+}
+
+export interface MethodData extends MethodBase {
+    paramNames: string[];
     paramsJitHashes: JitFunctionsHashes;
     returnJitHashes: JitFunctionsHashes;
+    headersParam?: HeadersMethodData;
+    headersReturn?: HeadersMethodData;
 }
+
+export interface MethodReflection extends MethodData {
+    isAsync: boolean;
+    hasReturnData: boolean;
+    paramsJitFns: JitCompiledFunctions;
+    returnJitFns: JitCompiledFunctions;
+    paramNames: string[];
+    headersParam?: HeadersMethodReflection;
+    headersReturn?: HeadersMethodReflection;
+}
+
+export type RawMethodData = MethodBase;
 
 /** Record of all persisted methods */
 export type MethodsCache = Record<string, MethodData>;
@@ -40,55 +63,32 @@ export enum HandlerType {
 }
 
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
-export interface Method<H extends AnyHandler = AnyHandler> extends MethodData {
-    paramsJitFns?: JitCompiledFunctions;
-    returnJitFns?: JitCompiledFunctions;
+export interface Method<H extends AnyHandler = AnyHandler> extends MethodReflection {
     handler: H;
     methodCaller?: (...args: any[]) => void;
 }
 
-export interface NonRawMethod<H extends Handler = Handler> extends Method<H> {
-    paramsJitFns: JitCompiledFunctions;
-    returnJitFns: JitCompiledFunctions;
-    paramNames: string[];
-}
 export interface RouteMethod<H extends Handler = any> extends Method<H> {
     type: HandlerType.route;
-    handler: H;
-    paramsJitFns: JitCompiledFunctions;
-    returnJitFns: JitCompiledFunctions;
-    paramNames: string[];
     options: MethodOptions & {runOnError: false};
 }
 export interface HookMethod<H extends Handler = any> extends Method<H> {
     type: HandlerType.hook;
-    handler: H;
-    paramsJitFns: JitCompiledFunctions;
-    returnJitFns: JitCompiledFunctions;
-    paramNames: string[];
 }
 export interface HeaderMethod<H extends HeaderHandler = any> extends Method<H> {
     type: HandlerType.headerHook;
-    handler: H;
-    headerNames: string[];
-    paramsJitFns: JitCompiledFunctions;
-    returnJitFns: JitCompiledFunctions;
-    paramNames: string[];
+    headersParam: HeadersMethodReflection;
 }
 export interface RawMethod<H extends RawHookHandler = any> extends Method<H> {
     type: HandlerType.rawHook;
-    handler: H;
-    paramsJitFns: undefined;
-    returnJitFns: undefined;
-    paramNames: undefined;
     options: MethodOptions & {
-        hasReturnData: false;
         validateParams: false;
         deserializeParams: false;
         validateReturn?: false;
         serializeReturn?: false;
     };
 }
+
 export interface NotFoundMethod extends Method {
     is404: true;
 }
@@ -99,24 +99,21 @@ export type CompiledMethod = Omit<Method, 'handler' | 'methodCaller'> & {
 };
 
 export type RouteOptions = Partial<
-    Pick<
-        RouteMethod['options'],
-        'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn' | 'isAsync'
-    >
+    Pick<RouteMethod['options'], 'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn'>
 >;
 export type HookOptions = Partial<
     Pick<
         HookMethod['options'],
-        'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn' | 'runOnError' | 'isAsync'
+        'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn' | 'runOnError'
     >
 >;
 export type HeaderHookOptions = Partial<
     Pick<
         HeaderMethod['options'],
-        'description' | 'validateParams' | 'deserializeParams' | 'runOnError' | 'validateReturn' | 'serializeReturn' | 'isAsync'
+        'description' | 'validateParams' | 'deserializeParams' | 'runOnError' | 'validateReturn' | 'serializeReturn'
     >
 >;
-export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError' | 'isAsync'>>;
+export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>;
 
 export interface MethodsExecutionList {
     routeIndex: number;

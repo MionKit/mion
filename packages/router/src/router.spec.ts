@@ -156,9 +156,9 @@ describe('Create routes should', () => {
                 id: 'first',
                 nestLevel: 0,
                 type: HandlerType.hook,
+                hasReturnData: false,
                 options: expect.objectContaining({
                     runOnError: false,
-                    hasReturnData: false,
                 }),
             })
         );
@@ -168,9 +168,9 @@ describe('Create routes should', () => {
                 id: 'second',
                 nestLevel: 0,
                 type: HandlerType.hook,
+                hasReturnData: true,
                 options: expect.objectContaining({
                     runOnError: false,
-                    hasReturnData: true,
                 }),
             })
         );
@@ -186,9 +186,9 @@ describe('Create routes should', () => {
                 id: 'sayHello',
                 nestLevel: 0,
                 type: HandlerType.route,
+                hasReturnData: true,
                 options: expect.objectContaining({
                     runOnError: false,
-                    hasReturnData: true,
                 }),
             })
         );
@@ -311,12 +311,12 @@ describe('Create routes should', () => {
         };
         registerRoutes(defaultRouteValues);
 
-        expect(getRouteExecutable('sayHello')?.options.isAsync).toEqual(false);
-        expect(getRouteExecutable('asyncSayHello')?.options.isAsync).toEqual(true);
+        expect(getRouteExecutable('sayHello')?.isAsync).toEqual(false);
+        expect(getRouteExecutable('asyncSayHello')?.isAsync).toEqual(true);
 
         // when there is no return type we assume the function is async.
         // this is done so await is enforced in case we don't know the return type
-        expect(getRouteExecutable('noReturnType')?.options.isAsync).toEqual(true);
+        expect(getRouteExecutable('noReturnType')?.isAsync).toEqual(true);
     });
 
     it('add start and end global hooks', () => {

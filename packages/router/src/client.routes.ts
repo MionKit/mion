@@ -22,7 +22,7 @@ import {route} from './handlers';
 import {PublicMethod} from './types/publicMethods';
 import {RouterOptions, Routes} from './types/general';
 import {getSerializableMethod, serializeMethodDeps} from './remoteMethods';
-import {NonRawMethod, Method} from './types/remoteMethods';
+import {Method} from './types/remoteMethods';
 
 // TODO, investigate if we can use SharedPublicMethod that do not include the handler instead of PublicMethod
 export type PublicMethods = Record<string, PublicMethod>;
@@ -50,7 +50,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: MethodsData, error
     }
     if (isPrivateExecutable(executable)) return;
 
-    const method = getSerializableMethod(executable as NonRawMethod);
+    const method = getSerializableMethod(executable as Method);
     methods[id] = method;
     method.hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
     serializeMethodDeps(method, deps, purFnDeps);
