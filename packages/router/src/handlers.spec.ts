@@ -9,7 +9,7 @@ import {Routes} from './types/general';
 import {registerRoutes, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
 import {route, headersHook, hook, rawHook} from './handlers';
-import {HeaderList, MionHeaders} from './types/context';
+import {HeadersList, MionHeaders} from './types/context';
 import {headersFromRecord} from './headers';
 import {HandlerType} from './types/remoteMethods';
 
@@ -20,7 +20,7 @@ describe('route & hooks init functions', () => {
     };
 
     const routes = {
-        auth: headersHook((ctx, headers: HeaderList<['Authorization']>): string[] => [`auth: ${headers[0]}`]),
+        auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): string[] => [`auth: ${token}`]),
         timestamp: hook((ctx, time: number): string => `time: ${time}`),
         nothing: rawHook((ctx, req: unknown, resp: unknown): void => undefined),
         print: route((ctx, name: string): string => `name: ${name}`),

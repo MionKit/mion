@@ -1,6 +1,6 @@
 import {AnyObject} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
-import {initMionRouter, Routes, CallContext, route, headersHook, rawHook, hook} from '@mionkit/router';
+import {initMionRouter, Routes, CallContext, route, headersHook, rawHook, hook, HeadersList} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 
 export type HttpRequest = IncomingMessage & {body: string};
@@ -19,7 +19,7 @@ const routes = {
 } satisfies Routes;
 
 const hooks = {
-    auth: headersHook(['Authorization'], (c: Context, token: string): void => {
+    auth: headersHook((c: Context, [token]: HeadersList<['Authorization']>): void => {
         // do something
     }),
     parser: rawHook((c: Context, req: HttpRequest, resp, opts): void => undefined),

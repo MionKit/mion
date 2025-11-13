@@ -8,6 +8,7 @@
 import {headersHook, hook, route} from './handlers';
 import {getStringifyFnForExecutionPath} from './jsonBodyStringify';
 import {initMionRouter, resetRouter} from './router';
+import {HeadersList} from './types/context';
 import {Routes} from './types/general';
 describe('getStringifyFnForExecutionPath', () => {
     const lastActivity = new Date();
@@ -31,7 +32,7 @@ describe('getStringifyFnForExecutionPath', () => {
     }
 
     const routes = {
-        auth: headersHook(['auth'], (ctx, token: string): void => {}),
+        auth: headersHook((ctx, [token]: HeadersList<['auth']>): void => {}),
         users: {
             updateUser: route((ctx, user: User): User => ({...user, lastActivity})),
         },

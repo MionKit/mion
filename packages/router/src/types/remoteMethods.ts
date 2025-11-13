@@ -1,6 +1,12 @@
 // ####### Executables #######
 
-import {JitCompiledFunctions, SerializableJITFunctions, JitFunctionsHashes} from '@mionkit/core'; // do not import type only
+import {
+    JitCompiledFunctions,
+    SerializableJITFunctions,
+    JitFunctionsHashes,
+    HeadersMethodData,
+    SerializablePublicMethod,
+} from '@mionkit/core'; // do not import type only
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
 import {RpcError} from '@mionkit/core';
 import {PublicResponses} from './publicMethods';
@@ -14,43 +20,36 @@ export interface MethodOptions {
     description?: string;
 }
 
-export interface MethodBase {
+export interface MethodData extends SerializablePublicMethod {
     type: number;
     id: string;
-    // pointer to the src Hook or Route definition within the original Routers object, ie: ['users','getUser']
-    pointer: string[];
-    nestLevel: number;
-    options: MethodOptions;
-}
-
-export interface HeadersMethodData {
-    headerNames: string[];
-    jitHashes: Pick<JitFunctionsHashes, 'isType' | 'typeErrors'>;
-}
-
-export interface HeadersMethodReflection extends HeadersMethodData {
-    jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
-}
-
-export interface MethodData extends MethodBase {
     paramNames: string[];
     paramsJitHashes: JitFunctionsHashes;
     returnJitHashes: JitFunctionsHashes;
     headersParam?: HeadersMethodData;
     headersReturn?: HeadersMethodData;
-}
-
-export interface MethodReflection extends MethodData {
+    // non required by SerializablePublicMethod
+    pointer: string[];
+    nestLevel: number;
+    options: MethodOptions;
     isAsync: boolean;
     hasReturnData: boolean;
-    paramsJitFns: JitCompiledFunctions;
-    returnJitFns: JitCompiledFunctions;
-    paramNames: string[];
-    headersParam?: HeadersMethodReflection;
-    headersReturn?: HeadersMethodReflection;
+
+    // removed from SerializablePublicMethod
+    hookIds: never;
+    pathPointers: never;
 }
 
-export type RawMethodData = MethodBase;
+export interface MethodWithJitFns extends MethodData {
+    paramsJitFns: JitCompiledFunctions;
+    returnJitFns: JitCompiledFunctions;
+    headersParam?: HeadersMethodWithJitFns;
+    headersReturn?: HeadersMethodWithJitFns;
+}
+
+export interface HeadersMethodWithJitFns extends HeadersMethodData {
+    jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
+}
 
 /** Record of all persisted methods */
 export type MethodsCache = Record<string, MethodData>;
@@ -63,7 +62,7 @@ export enum HandlerType {
 }
 
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
-export interface Method<H extends AnyHandler = AnyHandler> extends MethodReflection {
+export interface Method<H extends AnyHandler = AnyHandler> extends MethodWithJitFns {
     handler: H;
     methodCaller?: (...args: any[]) => void;
 }
@@ -77,7 +76,7 @@ export interface HookMethod<H extends Handler = any> extends Method<H> {
 }
 export interface HeaderMethod<H extends HeaderHandler = any> extends Method<H> {
     type: HandlerType.headerHook;
-    headersParam: HeadersMethodReflection;
+    headersParam: HeadersMethodWithJitFns;
 }
 export interface RawMethod<H extends RawHookHandler = any> extends Method<H> {
     type: HandlerType.rawHook;

@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MultiHeaderValue, MionHeaders, SingleHeaderValue} from './types/context';
+import type {MionHeaders} from './types/context';
 
 // ############# PUBLIC METHODS #############
 
-type HeadersRecord = Record<string, SingleHeaderValue>;
+type HeadersRecord = Record<string, string>;
 
 /**
  * Reusable class for managing HTTP headers with case-insensitive access
@@ -19,7 +19,7 @@ type HeadersRecord = Record<string, SingleHeaderValue>;
 class MionHeadersImpl implements MionHeaders {
     constructor(private headers: HeadersRecord) {}
 
-    append(name: string, value: MultiHeaderValue): void {
+    append(name: string, value: string): void {
         const nl = name.toLowerCase();
         const existing = this.headers[nl];
         const headerValue = toSingleHeader(value);
@@ -35,12 +35,12 @@ class MionHeadersImpl implements MionHeaders {
         delete this.headers[nl];
     }
 
-    get(name: string): SingleHeaderValue | undefined | null {
+    get(name: string): string | undefined | null {
         const nl = name.toLowerCase();
         return this.headers[nl];
     }
 
-    set(name: string, value: MultiHeaderValue): void {
+    set(name: string, value: string): void {
         const ln = name.toLowerCase();
         this.headers[ln] = value as string;
     }
@@ -50,7 +50,7 @@ class MionHeadersImpl implements MionHeaders {
         return !!this.headers[nl];
     }
 
-    entries(): IterableIterator<[string, SingleHeaderValue]> {
+    entries(): IterableIterator<[string, string]> {
         return new Map(Object.entries(this.headers)).entries();
     }
 
@@ -58,7 +58,7 @@ class MionHeadersImpl implements MionHeaders {
         return new Map(Object.entries(this.headers)).keys();
     }
 
-    values(): IterableIterator<SingleHeaderValue> {
+    values(): IterableIterator<string> {
         return new Map(Object.entries(this.headers)).values();
     }
 }
@@ -77,18 +77,18 @@ class MionHeadersImpl implements MionHeaders {
  * @param headersObj
  * @returns
  */
-export function headersFromRecord(headersObj: Record<string, SingleHeaderValue>, skipToLower = false): MionHeaders {
+export function headersFromRecord(headersObj: Record<string, string>, skipToLower = false): MionHeaders {
     // lazy load headers map
     const headers = parseHeaders(headersObj, skipToLower);
     return new MionHeadersImpl(headers);
 }
 
-function toSingleHeader(value: MultiHeaderValue | number): SingleHeaderValue {
+function toSingleHeader(value: string | number): string {
     if (Array.isArray(value)) return value.join(', ');
     return value as string;
 }
 
-function parseHeaders(headersObj: Record<string, SingleHeaderValue>, skipToLower = false): HeadersRecord {
+function parseHeaders(headersObj: Record<string, string>, skipToLower = false): HeadersRecord {
     if (skipToLower) return headersObj;
     const entries = Object.entries(headersObj);
     const headers: HeadersRecord = {};

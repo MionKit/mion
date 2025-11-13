@@ -1,6 +1,6 @@
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
-import {initMionRouter, route} from '@mionkit/router';
+import {HeadersList, initMionRouter, route} from '@mionkit/router';
 import {headersHook, rawHook, hook, Routes} from '@mionkit/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app';
 import {User} from '@mionkit/codegen/src/test/myApi.types';
@@ -25,7 +25,7 @@ const deleteUser = route((ctx: Context, id: number): User => {
     return deleted;
 });
 
-const auth = headersHook(['Authorization'], (ctx: Context, token: string): void => {
+const auth = headersHook((ctx: Context, [token]: HeadersList<['Authorization']>): void => {
     if (!myApp.auth.isAuthorized(token))
         throw new RpcError({statusCode: StatusCodes.FORBIDDEN, publicMessage: 'Not Authorized', type: 'not-authorized'});
     ctx.shared.me = myApp.auth.getIdentity(token) as User;

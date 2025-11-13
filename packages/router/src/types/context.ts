@@ -57,9 +57,10 @@ export interface MionResponse {
     readonly hasErrors: boolean;
 }
 
-/** Similar to Fetch API Headers https://developer.mozilla.org/en-US/docs/Web/API/Headers
+/**
+ * Similar to Fetch API Headers.
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Headers
  * Headers names must be case insensitive.
- * When a header has multiple values it returns an array instead a coma separated string;
  */
 export interface MionHeaders {
     append(name: string, value: string): void;
@@ -77,4 +78,4 @@ export type ContextDataFactory<ContextData extends Record<string, any>> = () => 
 
 // IMPORTANT DO NOT CHANGE THE INTERFACE NAMES OR TYPE ANNOTATIONS AS THEY ARE HARDCODED IN THE JIT GENERATED CODE
 /** List of headers to be used in remote handler parameters */
-export type HeaderList<Names extends [...args: string[]]> = string[] & TypeAnnotation<'headerNames', Names>;
+export type HeadersList<Names extends [...args: string[]]> = string[] & TypeAnnotation<'headerNames', Names>;
