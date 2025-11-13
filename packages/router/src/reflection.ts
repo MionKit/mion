@@ -24,14 +24,14 @@ import {
 import {Handler} from './types/handlers';
 import {RouterOptions} from './types/general';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from './constants';
-import {type MethodReflection} from './types/remoteMethods';
-import {HeaderList} from './types/context';
+import {type MethodWithJitFns} from './types/remoteMethods';
+import {HeadersList} from './types/context';
 export {getSerializableJitCompiler} from '@mionkit/run-types';
 
 // ############ This file should be the only one importing '@mionkit/run-types' within the router ########
 // TODO: in the future we can load things from cache and load run types only when needed
 
-type MethodReflect = Omit<MethodReflection, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
+type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
 
 // TODO: we do not want to use runtypes directly but compiled functions so we can take advantage
 // of precompiled functions without having to generate JIT functions
@@ -63,13 +63,13 @@ export function getHandlerReflection(
     }
 
     if (isHeaderHook) {
-        const headersRunType = getHeadersRunType(handlerRunType, routeId, routerOptions);
+        const headersRunType = getParamsHeadersRunType(handlerRunType, routeId, routerOptions);
         const runTypeOptions = routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions;
         runTypeOptions.paramsSlice = {start: HEADER_HOOK_DEFAULT_PARAMS.length - 1, end: HEADER_HOOK_DEFAULT_PARAMS.length};
         const headerNames: string[] = extractHeaderNames(headersRunType, routeId, routerOptions);
 
         try {
-            const jitFns: JitCompiledFunctions = getParamsJitFns(handler, routerOptions.runTypeOptions);
+            const jitFns: JitCompiledFunctions = getJitFunctions(headersRunType, routerOptions.runTypeOptions);
             const jitHashes: JitFunctionsHashes = getJitHashes(jitFns);
             reflectionItems.headersParam = {headerNames, jitFns, jitHashes};
         } catch (error: any) {
@@ -125,6 +125,64 @@ export function getRawMethodReflection(handler: Handler, routeId: string): Metho
     return reflectionItems;
 }
 
+function getParamsHeadersRunType(handlerRunType: FunctionRunType, routeId: string, routerOptions: RouterOptions): ArrayRunType {
+    const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getFakeCompiler(routerOptions));
+    const headersArray = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // headers tuple is always index 1 after context
+    if (!isHeaderListRunType(headersArray)) {
+        throw new Error(`Header Hook '${routeId}' first parameter must be a tuple of HttpHeader.`);
+    }
+    return headersArray;
+}
+
+function getReturnHeadersRunType(handlerRunType: FunctionRunType): ArrayRunType | undefined {
+    const returnRunType = handlerRunType.getReturnType();
+    if (!isHeaderListRunType(returnRunType)) return undefined;
+    return returnRunType;
+}
+
+function isHeaderListRunType(rt: BaseRunType | undefined): rt is ArrayRunType {
+    if (!rt) return false;
+    const headersListRt = runType<HeadersList<[]>>() as BaseRunType;
+    return isArrayRunType(rt) && rt.getTypeName() === headersListRt.getTypeName();
+}
+
+function extractHeaderNames(headersRT: ArrayRunType, routeId: string, routerOptions: RouterOptions): string[] {
+    const comp = getFakeCompiler(routerOptions);
+    const annotations = getRunTypeAnnotations(headersRT);
+    const headerAnnotation = annotations.find((a) => a.name === 'headerNames');
+    if (!headerAnnotation)
+        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeadersList<['Authorization']>.`);
+    const headerTuple = headerAnnotation.options;
+    if (!isTupleRunType(headerTuple))
+        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeadersList<['Authorization']>.`);
+    const headerNames = headerTuple.getJitChildren(comp).map((tupleMember) => {
+        const literalRt = (tupleMember as MemberRunType<any>)?.getMemberType?.();
+        if (isLiteralRunType(literalRt)) return literalRt.getLiteralValue() as string;
+        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeadersList<['Authorization']>.`);
+    });
+    return headerNames;
+}
+
+// Create a fake compiler object with just the opts property needed by getParamRunTypes.
+// getParamRunTypes() requires a JitFnCompiler but we only need the opts property to slice parameters.
+// This is a workaround to avoid updating getParamRunTypes() signature
+function getFakeCompiler(routerOptions: RouterOptions): JitFnCompiler {
+    return {opts: routerOptions} as any as JitFnCompiler;
+}
+
+function getJitFunctions(rt: BaseRunType, opts?: RunTypeOptions): JitCompiledFunctions {
+    const jitFns: JitCompiledFunctions = {
+        isType: rt.createJitCompiledFunction(JitFunctions.isType.id, undefined, opts),
+        typeErrors: rt.createJitCompiledFunction(JitFunctions.typeErrors.id, undefined, opts),
+        prepareForJson: rt.createJitCompiledFunction(JitFunctions.prepareForJson.id, undefined, opts),
+        restoreFromJson: rt.createJitCompiledFunction(JitFunctions.restoreFromJson.id, undefined, opts),
+        jsonStringify: rt.createJitCompiledFunction(JitFunctions.jsonStringify.id, undefined, opts),
+        toBinary: rt.createJitCompiledFunction(JitFunctions.toBinary.id, undefined, opts),
+        fromBinary: rt.createJitCompiledFunction(JitFunctions.fromBinary.id, undefined, opts),
+    };
+    return jitFns;
+}
+
 function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCompiledFunctions {
     const rt = reflectFunction(fn);
     const paramFunctions: JitCompiledFunctions = {
@@ -164,51 +222,6 @@ function getJitHashes(jitFns: JitCompiledFunctions): JitFunctionsHashes {
         toBinary: jitFns.toBinary.jitFnHash,
         fromBinary: jitFns.fromBinary.jitFnHash,
     };
-}
-
-function getHeadersRunType(handlerRunType: FunctionRunType, routeId: string, routerOptions: RouterOptions): ArrayRunType {
-    const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getMockCompiler(routerOptions));
-    const headersArray = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // headers tuple is always index 1 after context
-    if (!isHeaderListRunType(headersArray)) {
-        throw new Error(`Header Hook '${routeId}' first parameter must be a tuple of HttpHeader.`);
-    }
-    return headersArray;
-}
-
-function getReturnHeadersRunType(handlerRunType: FunctionRunType): ArrayRunType | undefined {
-    const returnRunType = handlerRunType.getReturnType();
-    if (!isHeaderListRunType(returnRunType)) return undefined;
-    return returnRunType;
-}
-
-function isHeaderListRunType(rt: BaseRunType | undefined): rt is ArrayRunType {
-    if (!rt) return false;
-    const headersListRt = runType<HeaderList<[]>>() as BaseRunType;
-    return isArrayRunType(rt) && rt.getTypeName() === headersListRt.getTypeName();
-}
-
-function extractHeaderNames(headersRT: ArrayRunType, routeId: string, routerOptions: RouterOptions): string[] {
-    const comp = getMockCompiler(routerOptions);
-    const annotations = getRunTypeAnnotations(headersRT);
-    const headerAnnotation = annotations.find((a) => a.name === 'headerNames');
-    if (!headerAnnotation)
-        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeaderList<['Authorization']>.`);
-    const headerTuple = headerAnnotation.options;
-    if (!isTupleRunType(headerTuple))
-        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeaderList<['Authorization']>.`);
-    const headerNames = headerTuple.getJitChildren(comp).map((tupleMember) => {
-        const literalRt = (tupleMember as MemberRunType<any>)?.getMemberType?.();
-        if (isLiteralRunType(literalRt)) return literalRt.getLiteralValue() as string;
-        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeaderList<['Authorization']>.`);
-    });
-    return headerNames;
-}
-
-// Create a mock compiler object with just the opts property needed by getParamRunTypes.
-// getParamRunTypes() requires a JitFnCompiler but we only need the opts property to slice parameters.
-// This is a workaround to avoid updating getParamRunTypes() signature
-function getMockCompiler(routerOptions: RouterOptions): JitFnCompiler {
-    return {opts: routerOptions} as any as JitFnCompiler;
 }
 
 const nullJitHashes: JitFunctionsHashes = {

@@ -1,6 +1,6 @@
 // This file demonstrates the strong-typed-routes ESLint rule
 // The rule is disabled for this file so you can see both valid and invalid examples
-import {route, hook, headersHook, Handler, HeaderHandler} from '@mionkit/router';
+import {route, hook, headersHook, Handler, HeaderHandler, CallContext, HeadersList} from '@mionkit/router';
 
 // ========================================
 // ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
@@ -11,7 +11,7 @@ route((ctx, name: string): string => `hello ${name}`);
 hook((ctx, data: number): void => {
     console.log(data);
 });
-headersHook(['auth'], (ctx, token: string): void => {
+headersHook((c: CallContext, [token]: HeadersList<['auth']>): void => {
     // do something
 });
 
@@ -25,13 +25,13 @@ route(validArrowHandler);
 
 // 3. Type annotations
 const typedHandler: Handler = (ctx, name: string): string => `hello ${name}`;
-const typedHeaderHandler: HeaderHandler = (ctx, token: string): void => {
+const typedHeaderHandler: HeaderHandler = (c: CallContext, [token]: HeadersList<['auth']>): void => {
     console.log(token);
 };
 
 // 4. Satisfies expressions
 const satisfiesHandler = ((ctx, name: string): string => `hello ${name}`) satisfies Handler;
-const satisfiesHeaderHandler = ((ctx, token: string): void => {
+const satisfiesHeaderHandler = ((c: CallContext, [token]: HeadersList<['auth']>): void => {
     console.log(token);
 }) satisfies HeaderHandler;
 
@@ -53,7 +53,7 @@ const hookWithJSDoc = (ctx, data: number): void => {
 /**
  * @mion:headersHook
  */
-function headersHookWithJSDoc(ctx, token: string): void {
+function headersHookWithJSDoc(c: CallContext, [token]: HeadersList<['auth']>): void {
     console.log(token);
 }
 
@@ -68,7 +68,7 @@ route((ctx, name) => `hello ${name}`); // Missing both param type and return typ
 hook((ctx, data: number) => {
     console.log(data);
 }); // Missing return type
-headersHook(['auth'], (ctx, token): void => {
+headersHook((c: CallContext, [token]): void => {
     // do something
 }); // Missing param type
 
@@ -82,13 +82,13 @@ route(invalidArrowHandler); // Should error: missing both types
 
 // 3. Type annotations missing types
 const invalidTypedHandler: Handler = (ctx, name) => `hello ${name}`; // Missing both types
-const invalidTypedHeaderHandler: HeaderHandler = (ctx, token: string) => {
+const invalidTypedHeaderHandler: HeaderHandler = (c: CallContext, [token]: HeadersList<['auth']>) => {
     console.log(token);
 }; // Missing return type
 
 // 4. Satisfies expressions missing types
 const invalidSatisfiesHandler = ((ctx, name) => `hello ${name}`) satisfies Handler; // Missing both types
-const invalidSatisfiesHeaderHandler = ((ctx, token): void => {
+const invalidSatisfiesHeaderHandler = ((c: CallContext, [token]): void => {
     console.log(token);
 }) satisfies HeaderHandler; // Missing param type
 
@@ -110,7 +110,7 @@ const invalidHookJSDoc = (ctx, data: number) => {
 /**
  * @mion:headersHook
  */
-function invalidHeadersHookJSDoc(ctx, token): void {
+function invalidHeadersHookJSDoc(c: CallContext, [token]): void {
     console.log(token);
 } // Missing param type
 

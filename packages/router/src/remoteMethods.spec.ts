@@ -9,9 +9,10 @@ import {getPublicApi} from './remoteMethods';
 import {registerRoutes, initRouter, resetRouter} from './router';
 import {CallContext} from './types/context';
 import {Routes} from './types/general';
-import {HandlerType} from './types/remoteMethods';
+import {HandlerType, HookMethod, RouteMethod} from './types/remoteMethods';
 import {hook, rawHook, route} from './handlers';
 import {jitUtils, SerializableJitHashes} from '@mionkit/core';
+import {HookDef} from './types/definitions';
 
 function hasSerializableHashes(): SerializableJitHashes {
     return {
@@ -78,10 +79,10 @@ describe('Public Methods should', () => {
                 type: HandlerType.hook,
                 handler: 'auth', // to be used by codegen so need to be a valid js syntax
                 id: 'auth',
-                paramsJitHashes: hasSerializableHashes(['s']),
+                paramsJitHashes: hasSerializableHashes(),
                 returnJitHashes: hasSerializableHashes(),
-                params: [{name: 's'}],
-            })
+                paramNames: ['s'],
+            } as Partial<HookMethod>)
         );
 
         expect(api.routes.route1).toEqual(
@@ -89,10 +90,10 @@ describe('Public Methods should', () => {
                 type: HandlerType.route,
                 handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
                 id: 'routes/route1',
-                paramsJitHashes: hasSerializableHashes([]),
+                paramsJitHashes: hasSerializableHashes(),
                 returnJitHashes: hasSerializableHashes(),
-                params: [],
-            })
+                paramNames: [],
+            } as Partial<RouteMethod>)
         );
     });
 
@@ -219,8 +220,8 @@ describe('Public Methods should', () => {
                 type: HandlerType.route,
                 id: 'sayHello',
                 handler: 'sayHello',
-                params: [{name: 'name'}],
-            })
+                paramNames: ['name'],
+            } as Partial<RouteMethod>)
         );
     });
 });
