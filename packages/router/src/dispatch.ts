@@ -98,7 +98,7 @@ async function runExecutionPath(
         if (response.hasErrors && !executable.options.runOnError) continue;
 
         try {
-            const methodCaller = getMethodCaller(executable);
+            const methodCaller = executable.methodCaller || getMethodCaller(executable);
             // method caller is not type safe so we need to be sure we always passing correct parameters
             // runRawHook , runHeaderHook & runRouteOrHook must always accept the same parameters in the same order
             await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
@@ -132,6 +132,7 @@ export async function runHeaderHook(
     const headerNames = executable.headersParam.headerNames;
     const headerValues = headerNames.map((name) => request.headers.get(name));
     const params = deserializeBodyParams(request, executable as Method);
+    validateHeaderParamsOrThrow(headerValues as string[], executable as HeaderMethod);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderMethod);
 
     const result = await executable.handler(context, headerValues, ...params);
@@ -165,7 +166,6 @@ export async function runRouteOrHook(
 }
 
 function getMethodCaller(executable: Method) {
-    if (executable.methodCaller) return executable.methodCaller;
     if (executable.type === HandlerType.rawHook) {
         executable.methodCaller = runRawHook;
     } else if (executable.type === HandlerType.headerHook) {
@@ -200,6 +200,17 @@ function validateParametersOrThrow(params: any[], executable: Method): void {
             type: 'validation-error',
             publicMessage: `Invalid params in '${executable.id}', validation failed.`,
             errorData: executable.paramsJitFns.typeErrors.fn(params),
+        });
+    }
+}
+
+function validateHeaderParamsOrThrow(headers: string[], executable: HeaderMethod): void {
+    if (!executable.headersParam.jitFns.isType.fn(headers)) {
+        throw new RpcError({
+            statusCode: StatusCodes.BAD_REQUEST,
+            type: 'validation-error',
+            publicMessage: `Invalid headers in '${executable.id}', validation failed.`,
+            errorData: executable.headersParam.jitFns.typeErrors.fn(headers),
         });
     }
 }

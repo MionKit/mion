@@ -352,7 +352,10 @@ export interface CookieOptions {
     [key: string]: any;
 }
 
-/** Shared interface for PublicMethod that can be used between client and server without handler dependencies */
+/**
+ * Shared interface for PublicMethod that can be used between client and server without handler dependencies
+ * Serializable version of MethodData in @/router/types/remoteMethods
+ */
 export interface SerializablePublicMethod {
     /** Method type identifier */
     type: number;
@@ -364,16 +367,21 @@ export interface SerializablePublicMethod {
     paramsJitHashes: SerializableJitHashes;
     /** Hashes of JIT functions used by the method return value */
     returnJitHashes: SerializableJitHashes;
+    /** Information about headers used by the method */
+    headersParam?: HeadersMethodData;
+    /** Information about headers returned by the method */
+    headersReturn?: HeadersMethodData;
+
+    // ##### public methods only #####
     /** Array of hook IDs associated with this method */
     hookIds?: string[];
     /** Path pointers for nested route structures */
     pathPointers?: string[][];
-    headers?: {
-        /** http headers names */
-        headerNames: string[];
-        /** Hashes of JIT functions used by the headers param */
-        jitHashes: Pick<JitFunctionsHashes, 'isType' | 'typeErrors'>;
-    };
+}
+
+export interface HeadersMethodData {
+    headerNames: string[];
+    jitHashes: Pick<JitFunctionsHashes, 'isType' | 'typeErrors'>;
 }
 
 export interface SerializableMethodsData {

@@ -7,7 +7,7 @@
 
 import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
-import {CallContext, MionHeaders} from './types/context';
+import {CallContext, MionHeaders, HeadersList} from './types/context';
 import {Routes} from './types/general';
 import {PublicRpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
@@ -49,7 +49,7 @@ describe('Dispatch routes', () => {
         return data;
     });
 
-    const auth = headersHook(['Authorization'], (ctx, token: string): void => {
+    const auth = headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
         if (token !== '1234') throw {statusCode: StatusCodes.FORBIDDEN, message: 'invalid auth token'};
     });
 
@@ -125,7 +125,7 @@ describe('Dispatch routes', () => {
 
         it('headers are case insensitive, returned headers alway lowercase', async () => {
             initRouter({contextDataFactory: getSharedData});
-            const auth = headersHook(['Authorization'], (ctx, token: string): string[] =>
+            const auth = headersHook((ctx, [token]: HeadersList<['Authorization']>): string[] =>
                 token === '1234' ? ['MyUser'] : ['Unknown']
             );
             registerRoutes({auth, changeUserName});
@@ -254,7 +254,7 @@ describe('Dispatch routes', () => {
                 isΣrrθr: true,
                 statusCode: 400,
                 type: 'validation-error',
-                message: `Invalid params in 'auth', validation failed.`,
+                message: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),
             } satisfies PublicRpcError<'validation-error'>);
         });
