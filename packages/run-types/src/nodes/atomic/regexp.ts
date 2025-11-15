@@ -19,22 +19,12 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
         return {code: `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(this)}`, type: 'S'};
     }
     emitPrepareForJson(comp: JitFnCompiler): JitCode {
-        return regexpTransformer.visitPrepareForJson(comp);
+        return {code: `${comp.vλl}.toString()`, type: 'E'};
     }
     emitRestoreFromJson(comp: JitFnCompiler): JitCode {
-        return regexpTransformer.visitRestoreFromJson(comp);
-    }
-}
-
-// regexpTransformer (used internally only so no need to register in JitUtils)
-export const regexpTransformer = {
-    visitRestoreFromJson(comp: JitFnCompiler): JitCode {
         return {
             code: `(function(){const parts = ${comp.vλl}.match(/\\/(.*)\\/(.*)?/) ;return new RegExp(parts[1], parts[2] || '')})()`,
             type: 'E',
         };
-    },
-    visitPrepareForJson(comp: JitFnCompiler): JitCode {
-        return {code: `${comp.vλl}.toString()`, type: 'E'};
-    },
-};
+    }
+}

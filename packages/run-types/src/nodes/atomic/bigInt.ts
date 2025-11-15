@@ -19,19 +19,9 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return {code: `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`, type: 'S'};
     }
     emitPrepareForJson(comp: JitFnCompiler): JitCode {
-        return bigIntTransformer.visitPrepareForJson(comp);
+        return {code: `${comp.vλl}.toString()`, type: 'E'};
     }
     emitRestoreFromJson(comp: JitFnCompiler): JitCode {
-        return bigIntTransformer.visitRestoreFromJson(comp);
+        return {code: `BigInt(${comp.vλl})`, type: 'E'};
     }
 }
-// bigintTransformer (used internally only so no need to register in JitUtils)
-
-export const bigIntTransformer = {
-    visitRestoreFromJson(comp: JitFnCompiler): JitCode {
-        return {code: `BigInt(${comp.vλl})`, type: 'E'};
-    },
-    visitPrepareForJson(comp: JitFnCompiler): JitCode {
-        return {code: `${comp.vλl}.toString()`, type: 'E'};
-    },
-};

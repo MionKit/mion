@@ -21,6 +21,7 @@ import type {ParameterRunType} from '../../nodes/member/param';
 import type {TupleRunType} from '../../nodes/collection/tuple';
 import type {UnionRunType} from '../../nodes/collection/union';
 import type {IterableRunType} from '../../nodes/native/Iterable';
+import type {LiteralRunType} from '../../nodes/atomic/literal';
 
 type BinaryCompiler = BaseFnCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
 const fnID = JitFunctions.toBinary.id;
@@ -81,8 +82,27 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
             throw new Error('Never type cannot be serialized to Binary');
         case ReflectionKind.templateLiteral:
             throw new Error('Template literals are not supported in Binary serialization');
-        case ReflectionKind.literal:
+        case ReflectionKind.literal: {
+            if (comp.opts.noLiterals) {
+                const lit = (runType as LiteralRunType).src.literal;
+                if (lit instanceof RegExp) return emitToBinaryAs(runType, comp, ReflectionKind.regexp);
+                switch (typeof lit) {
+                    case 'string':
+                        return emitToBinaryAs(runType, comp, ReflectionKind.string);
+                    case 'number':
+                        return emitToBinaryAs(runType, comp, ReflectionKind.number);
+                    case 'boolean':
+                        return emitToBinaryAs(runType, comp, ReflectionKind.boolean);
+                    case 'bigint':
+                        return emitToBinaryAs(runType, comp, ReflectionKind.bigint);
+                    case 'symbol':
+                        return emitToBinaryAs(runType, comp, ReflectionKind.symbol);
+                    default:
+                        throw new Error(`Unsupported literal type ${typeof lit}`);
+                }
+            }
             return {code: '', type: 'S'}; // literals can be skipped as we restore the value directly from runType in jit code
+        }
 
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
