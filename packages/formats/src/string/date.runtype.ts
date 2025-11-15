@@ -7,7 +7,9 @@
 import type {JITUtils, GenericPureFunction, FormatParam} from '@mionkit/core';
 import {ReflectionKind} from '@deepkit/type';
 import type {JitFnCompiler, JitErrorsFnCompiler, BaseRunType, RunTypeOptions, JitCode} from '@mionkit/run-types';
-import {BaseRunTypeFormat, registerFormatter, registerPureFnClosure, TypeFormat, fpVal} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {BaseRunTypeFormat, registerFormatter, registerPureFnClosure, TypeFormat} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {paramVal} from '../utils';
+
 // Date validator
 export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date> {
     static id = 'date' as const;
@@ -15,7 +17,7 @@ export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date
     name = DateStringRunTypeFormat.id;
     emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
-        const formatFn = this.getFormatPureFn(fpVal(params.format));
+        const formatFn = this.getFormatPureFn(paramVal(params.format));
         return {code: this.compilePureFunctionCall(comp, rt, formatFn).callCode, type: 'E'};
     }
     emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
@@ -24,7 +26,7 @@ export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date
         if (!isTypeCode) return {code: '', type: 'S'};
         const params = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
-        return {code: `if (!(${isTypeCode})) ${errFn('format', fpVal(params.format))}`, type: 'S'};
+        return {code: `if (!(${isTypeCode})) ${errFn('format', paramVal(params.format))}`, type: 'S'};
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType) {
         const params = this.getParams(rt);
@@ -34,7 +36,7 @@ export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date
         const year = String(yy).padStart(4, '0');
         const month = String(mm).padStart(2, '0');
         const day = String(dd).padStart(2, '0');
-        switch (fpVal(params.format)) {
+        switch (paramVal(params.format)) {
             case 'ISO':
             case 'YYYY-MM-DD':
                 return `${year}-${month}-${day}`;
@@ -49,7 +51,7 @@ export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date
             case 'DD-MM':
                 return `${day}-${month}`;
             default:
-                throw new Error(`Invalid date format: ${fpVal(params.format)}`);
+                throw new Error(`Invalid date format: ${paramVal(params.format)}`);
         }
     }
     getFormatPureFn(format: DateFmt) {

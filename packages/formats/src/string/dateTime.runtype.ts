@@ -7,11 +7,12 @@
 import type {FormatParam} from '@mionkit/core';
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
-import {TypeFormat, RunTypeOptions, BaseRunTypeFormat, registerFormatter, fpVal} from '@mionkit/run-types';
+import {TypeFormat, RunTypeOptions, BaseRunTypeFormat, registerFormatter} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {FormatParams_Date, DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype';
 import {DEFAULT_TIME_FORMAT_PARAMS, FormatParams_Time, TimeStringRunTypeFormat} from './time.runtype';
 import {stringIgnoreProps} from './stringFormat.runtype';
+import {paramVal} from '../utils';
 
 // DateTime validator
 export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTime> {
@@ -34,7 +35,7 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
         const vλl = comp.vλl;
-        const splitChar = fpVal(params.splitChar);
+        const splitChar = paramVal(params.splitChar);
         const vDatePart = 'datePart' + this.getFormatNestLevel(); // Variable for date part
         const vTimePart = 'timePart' + this.getFormatNestLevel(); // Variable for time part
         const vSplitPos = 'splitPos' + this.getFormatNestLevel(); // Position of split character
@@ -61,7 +62,7 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
-        const splitChar = fpVal(params.splitChar);
+        const splitChar = paramVal(params.splitChar);
         const errFn = this.getCallJitFormatErr(comp, rt, this, false);
         const vλl = comp.vλl;
         const vDatePart = 'datePart'; // Variable for date part
@@ -84,7 +85,7 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        const splitChar = fpVal(params.splitChar);
+        const splitChar = paramVal(params.splitChar);
 
         // Generate date part
         const datePart = this.dateFormatter.mock(opts, rt, params.date);

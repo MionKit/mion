@@ -16,8 +16,9 @@ import type {
 } from '@mionkit/run-types';
 // TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random, fpVal} from '@mionkit/run-types';
+import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
+import {paramVal} from '../utils';
 
 type BinarySerializer = BaseFnCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
 type BinaryDeserializer = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
@@ -50,25 +51,25 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
 
         // Check range constraints
         if (params.max !== undefined) {
-            const maxVal = fpVal(params.max);
+            const maxVal = paramVal(params.max);
             conditions.push(`${v} <= ${maxVal}`);
         }
         if (params.min !== undefined) {
-            const minVal = fpVal(params.min);
+            const minVal = paramVal(params.min);
             conditions.push(`${v} >= ${minVal}`);
         }
         if (params.lt !== undefined) {
-            const ltVal = fpVal(params.lt);
+            const ltVal = paramVal(params.lt);
             conditions.push(`${v} < ${ltVal}`);
         }
         if (params.gt !== undefined) {
-            const gtVal = fpVal(params.gt);
+            const gtVal = paramVal(params.gt);
             conditions.push(`${v} > ${gtVal}`);
         }
 
         // Check multipleOf constraint
         if (params.multipleOf !== undefined) {
-            const multipleOfVal = fpVal(params.multipleOf);
+            const multipleOfVal = paramVal(params.multipleOf);
             // multipleOf is enforced to be an integer in validateParams, so we can use simple modulo
             conditions.push(`(${v} % ${multipleOfVal} === 0)`);
         }
@@ -94,25 +95,25 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
 
         // Check range constraints
         if (params.max !== undefined) {
-            const maxVal = fpVal(params.max);
+            const maxVal = paramVal(params.max);
             conditions.push(`if (${v} > ${maxVal}) ${errFn('max', maxVal)}`);
         }
         if (params.min !== undefined) {
-            const minVal = fpVal(params.min);
+            const minVal = paramVal(params.min);
             conditions.push(`if (${v} < ${minVal}) ${errFn('min', minVal)}`);
         }
         if (params.lt !== undefined) {
-            const ltVal = fpVal(params.lt);
+            const ltVal = paramVal(params.lt);
             conditions.push(`if (${v} >= ${ltVal}) ${errFn('lt', ltVal)}`);
         }
         if (params.gt !== undefined) {
-            const gtVal = fpVal(params.gt);
+            const gtVal = paramVal(params.gt);
             conditions.push(`if (${v} <= ${gtVal}) ${errFn('gt', gtVal)}`);
         }
 
         // Check multipleOf constraint
         if (params.multipleOf !== undefined) {
-            const multipleOfVal = fpVal(params.multipleOf);
+            const multipleOfVal = paramVal(params.multipleOf);
             // multipleOf is enforced to be an integer in validateParams, so we can use simple modulo
             conditions.push(`if ((${v} % ${multipleOfVal} !== 0)) ${errFn('multipleOf', multipleOfVal)}`);
         }
@@ -131,10 +132,10 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
         const type = 'S';
         const sεr = comp.args.sεr;
         const params = this.getParams(rt);
-        const isFloat = params.float !== undefined ? fpVal(params.float) : false;
+        const isFloat = params.float !== undefined ? paramVal(params.float) : false;
         const floatCode = `${sεr}.view.setFloat64(${sεr}.index,${comp.vλl}, 1, (${sεr}.index += 8))`;
         if (isFloat) return {code: floatCode, type};
-        const isInt = params.integer !== undefined ? fpVal(params.integer) : false;
+        const isInt = params.integer !== undefined ? paramVal(params.integer) : false;
         if (isInt) {
             const {isUint8, isUint16, isUint32, isInt8, isInt16, isInt32} = getIntegerType(params);
             switch (true) {
@@ -161,10 +162,10 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
         const type = 'E';
         const dεs = comp.args.dεs;
         const params = this.getParams(rt);
-        const isFloat = params.float !== undefined ? fpVal(params.float) : false;
+        const isFloat = params.float !== undefined ? paramVal(params.float) : false;
         const floatCode = `${dεs}.view.getFloat64(${dεs}.index, 1, (${dεs}.index += 8))`;
         if (isFloat) return {code: floatCode, type};
-        const isInt = params.integer !== undefined ? fpVal(params.integer) : false;
+        const isInt = params.integer !== undefined ? paramVal(params.integer) : false;
         if (isInt) {
             const {isUint8, isUint16, isUint32, isInt8, isInt16, isInt32} = getIntegerType(params);
             switch (true) {
@@ -189,18 +190,18 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
 
     _mock(opts: RunTypeOptions, rt: BaseRunType): number {
         const params = this.getParams(rt);
-        let min = params.min !== undefined ? fpVal(params.min) : -99999;
-        let max = params.max !== undefined ? fpVal(params.max) : 99999;
+        let min = params.min !== undefined ? paramVal(params.min) : -99999;
+        let max = params.max !== undefined ? paramVal(params.max) : 99999;
 
         // Adjust for exclusive bounds
         if (params.gt !== undefined) {
             const epsilon = params.float ? 0.01 : 1;
-            const gtVal = fpVal(params.gt);
+            const gtVal = paramVal(params.gt);
             min = Math.max(min, gtVal + epsilon);
         }
         if (params.lt !== undefined) {
             const epsilon = params.float ? 0.01 : 1;
-            const ltVal = fpVal(params.lt);
+            const ltVal = paramVal(params.lt);
             max = Math.min(max, ltVal - epsilon);
         }
 
@@ -219,7 +220,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
 
         // Handle multipleOf constraint
         if (params.multipleOf !== undefined) {
-            const multipleOfVal = fpVal(params.multipleOf);
+            const multipleOfVal = paramVal(params.multipleOf);
             // Find the largest multiple of multipleOfVal that is <= result
             const factor = Math.floor(result / multipleOfVal);
             result = factor * multipleOfVal;
@@ -247,17 +248,17 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
         }
 
         // Check for valid ranges
-        if (params.min && params.max && fpVal(params.min) > fpVal(params.max)) {
+        if (params.min && params.max && paramVal(params.min) > paramVal(params.max)) {
             throw new Error(`min cannot be greater than max in ${this.printPath(rt)}`);
         }
 
-        if (params.gt && params.lt && fpVal(params.gt) >= fpVal(params.lt)) {
+        if (params.gt && params.lt && paramVal(params.gt) >= paramVal(params.lt)) {
             throw new Error(`gt cannot be greater than or equal to lt in ${this.printPath(rt)}`);
         }
 
         // Check for multipleOf > 0 and must be integer
         if (params.multipleOf !== undefined) {
-            const multipleOfVal = fpVal(params.multipleOf);
+            const multipleOfVal = paramVal(params.multipleOf);
 
             if (multipleOfVal <= 0) {
                 throw new Error(`multipleOf must be greater than 0 in ${this.printPath(rt)}`);
@@ -281,8 +282,8 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
 }
 
 function getIntegerType(params: any) {
-    const min = params.min !== undefined ? fpVal(params.min) : Number.MIN_SAFE_INTEGER;
-    const max = params.max !== undefined ? fpVal(params.max) : Number.MAX_SAFE_INTEGER;
+    const min = params.min !== undefined ? paramVal(params.min) : Number.MIN_SAFE_INTEGER;
+    const max = params.max !== undefined ? paramVal(params.max) : Number.MAX_SAFE_INTEGER;
     const isUint8 = min >= 0 && max !== undefined && max <= 255;
     const isUint16 = min >= 0 && max !== undefined && max <= 65535;
     const isUint32 = min >= 0 && max !== undefined && max <= 4294967295;

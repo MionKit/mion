@@ -5,20 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, StrNumber, JitFnID, JitCode} from '@mionkit/run-types';
-import {
-    BaseRunTypeFormat,
-    TypeFormat,
-    RunTypeOptions,
-    registerFormatter,
-    JitFunctions,
-    randomItem,
-    fpVal,
-} from '@mionkit/run-types';
+import {BaseRunTypeFormat, TypeFormat, RunTypeOptions, registerFormatter, JitFunctions, randomItem} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {DEFAULT_STRICT_DOMAIN_PARAMS, FormatParams_Domain} from './domain.runtype';
 import {StringRunTypeFormat, stringIgnoreProps, StringValidators, Samples} from './stringFormat.runtype';
 import {DomainRunTypeFormat} from './domain.runtype';
 import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock'; // do not import using type
+import {paramVal} from '../utils';
 
 // Email pattern, allows punycode domains
 export const EMAIL_PATTERN = /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/;
@@ -161,9 +154,9 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
             throw new Error(`Email can only have either pattern or (localPart and domain) in type ${this.printPath(rt)}`);
         if ((params.localPart && !params.domain) || (!params.localPart && params.domain))
             throw new Error(`Email localPart and domain must be used together in type ${this.printPath(rt)}`);
-        if (params.maxLength && fpVal(params.maxLength) > 254)
+        if (params.maxLength && paramVal(params.maxLength) > 254)
             throw new Error(`Email maxLength cannot be greater than 254 in type ${this.printPath(rt, 'maxLength')}`);
-        if (params.minLength && fpVal(params.minLength) < 7)
+        if (params.minLength && paramVal(params.minLength) < 7)
             throw new Error(`Email minLength cannot be less than 7 in type ${this.printPath(rt, 'minLength')}`);
 
         this.rootFormatter.validateParams(rt, params);
@@ -171,11 +164,11 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         if (params.localPart) {
             if (Object.values(params.localPart).length === 0)
                 throw new Error(`Email localPart must have at least one validator in type ${this.printPath(rt, 'localPart')}`);
-            if (params.localPart.maxLength && fpVal(params.localPart.maxLength) > 64)
+            if (params.localPart.maxLength && paramVal(params.localPart.maxLength) > 64)
                 throw new Error(
                     `Email localPart.maxLength cannot be greater than 64 in type ${this.printPath(rt, 'localPart.maxLength')}`
                 );
-            if (params.localPart.minLength && fpVal(params.localPart.minLength) < 1)
+            if (params.localPart.minLength && paramVal(params.localPart.minLength) < 1)
                 throw new Error(
                     `Email localPart.minLength cannot be less than 1 in type ${this.printPath(rt, 'localPart.minLength')}`
                 );

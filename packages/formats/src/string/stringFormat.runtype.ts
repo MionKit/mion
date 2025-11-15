@@ -4,10 +4,12 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 import {TypeFormat, registerFormatter, getToLiteralFn, BaseRunTypeFormat, RunTypeOptions} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
-import {mockString, random, randomItem, fpVal, regexpEscape} from '@mionkit/run-types';
+import {mockString, random, randomItem} from '@mionkit/run-types';
+import {paramVal, regexpEscape} from '../utils';
 
 const defaultMessages = {
     allowedChars: 'Invalid characters',
@@ -81,18 +83,18 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
         const literalFn = getToLiteralFn(comp, this.getIgnoredProps());
         const errFn = this.getCallJitFormatErr(comp, rt, this, false);
         if (p.maxLength !== undefined) {
-            const maxL = fpVal(p.maxLength);
+            const maxL = paramVal(p.maxLength);
             const errCode = errFn('maxLength', maxL);
             conditions.push(`if (${vλl}.length > ${maxL}) ${errCode}`);
         }
 
         if (p.minLength !== undefined) {
-            const minL = fpVal(p.minLength);
+            const minL = paramVal(p.minLength);
             const errCode = errFn('minLength', minL);
             conditions.push(`if (${vλl}.length < ${minL}) ${errCode}`);
         }
         if (p.length !== undefined) {
-            const length = fpVal(p.length);
+            const length = paramVal(p.length);
             const errCode = errFn('length', length);
             conditions.push(`if (${vλl}.length !== ${length}) ${errCode}`);
         }
@@ -148,13 +150,13 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
     private mockString(p: StringParams, allowedChars: string | undefined, disallowedChars: string | undefined): string {
         switch (true) {
             case p.length !== undefined:
-                return mockString(fpVal(p.length), allowedChars, disallowedChars);
+                return mockString(paramVal(p.length), allowedChars, disallowedChars);
             case p.maxLength !== undefined && p.minLength !== undefined:
-                return mockString(random(fpVal(p.minLength), fpVal(p.maxLength)), allowedChars, disallowedChars);
+                return mockString(random(paramVal(p.minLength), paramVal(p.maxLength)), allowedChars, disallowedChars);
             case p.maxLength !== undefined:
-                return mockString(random(0, fpVal(p.maxLength)), allowedChars, disallowedChars);
+                return mockString(random(0, paramVal(p.maxLength)), allowedChars, disallowedChars);
             case p.minLength !== undefined: {
-                const minLength = fpVal(p.minLength);
+                const minLength = paramVal(p.minLength);
                 return mockString(random(minLength, minLength + random(1, 1 + minLength * 2)), allowedChars, disallowedChars);
             }
             default:
