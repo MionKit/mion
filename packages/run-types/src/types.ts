@@ -98,16 +98,22 @@ export interface RunTypeOptions {
     /** Slice parameters when parsing functions, so some parameter can be omitted from jit generation */
     paramsSlice?: {start?: number; end?: number};
     /**
-     * Set to when compiling objects that contain jit functions,
-     * this will generate the function's code from JitCompiler instead of calling function.toString()
+     * Used when compiling objects that contain jit functions,
+     * this will generate the function's code from JitCompiler data instead of calling function.toString()
+     * TODO: we could skip this and instead check runType is JitCompiler
      */
     isJitFnCode?: boolean;
     /**
-     * Set to when compiling objects that contain pure functions,
+     * Used whe compiling objects that contain pure functions,
      * this will generate the function's code from JitCompiler instead of calling function.toString()
      */
     isPureFnCode?: boolean;
     mock?: MockOptions;
+    /**
+     * When compiling literals will use the  Literal's type instead of the literal value.
+     * ie `type A = 'a'`  will be compiled as it was `type A = string` so will accept any string value not only 'a'
+     */
+    noLiterals?: boolean;
 }
 
 export type PartialRunTypeOptions = DeepPartial<RunTypeOptions>;

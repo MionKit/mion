@@ -24,21 +24,9 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         return {code: `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`, type: 'S'};
     }
     emitPrepareForJson(comp: JitFnCompiler): JitCode {
-        return symbolTransformer.visitPrepareForJson(comp);
+        return {code: `'Symbol:' + (${comp.vλl}.description || '')`, type: 'E'};
     }
     emitRestoreFromJson(comp: JitFnCompiler): JitCode {
-        return symbolTransformer.visitRestoreFromJson(comp);
+        return {code: `Symbol(${comp.vλl}.substring(7))`, type: 'E'};
     }
 }
-
-// symbolTransformer (used internally only so no need to register in JitUtils)
-
-export const symbolTransformer = {
-    // TODO: transformers might need only one function
-    visitRestoreFromJson(comp: JitFnCompiler): JitCode {
-        return {code: `Symbol(${comp.vλl}.substring(7))`, type: 'E'};
-    },
-    visitPrepareForJson(comp: JitFnCompiler): JitCode {
-        return {code: `'Symbol:' + (${comp.vλl}.description || '')`, type: 'E'};
-    },
-};

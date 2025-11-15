@@ -85,8 +85,28 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             throw new Error('Never type cannot be deserialized from Binary');
         case ReflectionKind.templateLiteral:
             throw new Error('Template literals are not supported in Binary deserialization');
-        case ReflectionKind.literal:
+        case ReflectionKind.literal: {
+            if (comp.opts.noLiterals) {
+                const lit = (runType as LiteralRunType).src.literal;
+                if (lit instanceof RegExp) return emitFromBinaryAs(runType, comp, ReflectionKind.regexp);
+                switch (typeof lit) {
+                    case 'string':
+                        return emitFromBinaryAs(runType, comp, ReflectionKind.string);
+                    case 'number':
+                        return emitFromBinaryAs(runType, comp, ReflectionKind.number);
+                    case 'boolean':
+                        return emitFromBinaryAs(runType, comp, ReflectionKind.boolean);
+                    case 'bigint':
+                        return emitFromBinaryAs(runType, comp, ReflectionKind.bigint);
+                    case 'symbol':
+                        return emitFromBinaryAs(runType, comp, ReflectionKind.symbol);
+                    default:
+                        throw new Error(`Unsupported literal type ${typeof lit}`);
+                }
+            }
             return {code: toLiteral((runType as LiteralRunType).src.literal), type: 'E'};
+        }
+
         // ###################### MEMBER RUNTYPES ######################
         // Types that represent members of collections or other structures
         case ReflectionKind.rest: // rest params are deserialized as array but start at rest item index
@@ -397,8 +417,8 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
 
 function getPropName(rt: PropertyRunType, comp: BinaryCompiler, isObjectConstructor: boolean): string | number {
     const isSafe = isSafePropName(rt.src.name);
-    if (isObjectConstructor) return isSafe ? rt.getChildVarName(comp) : rt.getChildLiteral(comp);
-    return isSafe ? `.${rt.getChildVarName(comp)}` : `[${rt.getChildLiteral(comp)}]`;
+    if (isObjectConstructor) return isSafe ? rt.getChildVarName() : rt.getChildLiteral();
+    return isSafe ? `.${rt.getChildVarName()}` : `[${rt.getChildLiteral()}]`;
 }
 
 function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optionalPropsLength = 0, currentPropIndex = 0) {
