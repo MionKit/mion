@@ -7,14 +7,13 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
-import type {FormatParam, FormatParamLiteral, PureFunctionClosure, TypeFormatValue} from '@mionkit/core';
+import type {PureFunctionClosure, TypeFormatValue} from '@mionkit/core';
 import type {AnyClass, JitFnID, RunType} from '../types';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
 import type {PropertyRunType} from '../nodes/member/property';
 import {jitUtils} from '@mionkit/core';
 import {validPropertyNameRegExp} from '../constants';
-import {isFormatParamMeta} from './guards';
 import {createHashLiteral} from './quickHash';
 import {ReflectionSubKind} from '../constants.kind';
 import {getJitFnSettings} from './jitFnsRegistry';
@@ -128,16 +127,6 @@ export function getParamIndex(src: TypeParameter | TypeTupleMember): number {
 
 export function childIsExpression(childJCode: JitCode, child: BaseRunType): boolean {
     return childJCode.type === 'E' || !child.isJitInlined();
-}
-
-/**
- * Escapes special characters in a regular expression.
- * Should be the same as https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/escape
- * @param val
- * @returns
- */
-export function regexpEscape(val: string): string {
-    return val.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
 // ######### To literal with context ########
@@ -263,11 +252,6 @@ export function getFormatterHash(rt: BaseRunType): string {
     const literal = rt.getFormatTypeID();
     if (!literal) throw new Error('Formatter JIT ID not found');
     return createHashLiteral(literal);
-}
-
-/** Returns the literal value of a FormatParam */
-export function fpVal<L extends FormatParamLiteral>(p: FormatParam<L>): L {
-    return isFormatParamMeta(p) ? p.val : p;
 }
 
 /** Complexity of each type family, we can add more types and weights here if we want to optimize further */

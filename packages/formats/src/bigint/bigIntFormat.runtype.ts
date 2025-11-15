@@ -7,8 +7,9 @@
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 // TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random, fpVal} from '@mionkit/run-types';
+import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
+import {paramVal} from '../utils';
 
 // ############### BigInt Format ###############
 
@@ -31,25 +32,25 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
 
         // Check range constraints
         if (params.max !== undefined) {
-            const maxVal = fpVal(params.max);
+            const maxVal = paramVal(params.max);
             conditions.push(`${v} <= ${maxVal}n`);
         }
         if (params.min !== undefined) {
-            const minVal = fpVal(params.min);
+            const minVal = paramVal(params.min);
             conditions.push(`${v} >= ${minVal}n`);
         }
         if (params.lt !== undefined) {
-            const ltVal = fpVal(params.lt);
+            const ltVal = paramVal(params.lt);
             conditions.push(`${v} < ${ltVal}n`);
         }
         if (params.gt !== undefined) {
-            const gtVal = fpVal(params.gt);
+            const gtVal = paramVal(params.gt);
             conditions.push(`${v} > ${gtVal}n`);
         }
 
         // Check multipleOf constraint
         if (params.multipleOf !== undefined) {
-            const multipleOfVal = fpVal(params.multipleOf);
+            const multipleOfVal = paramVal(params.multipleOf);
             conditions.push(`(${v} % ${multipleOfVal}n === 0n)`);
         }
 
@@ -67,25 +68,25 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
 
         // Check range constraints
         if (params.max !== undefined) {
-            const maxVal = fpVal(params.max);
+            const maxVal = paramVal(params.max);
             conditions.push(`if (${v} > ${maxVal}n) ${errFn('max', maxVal)}`);
         }
         if (params.min !== undefined) {
-            const minVal = fpVal(params.min);
+            const minVal = paramVal(params.min);
             conditions.push(`if (${v} < ${minVal}n) ${errFn('min', minVal)}`);
         }
         if (params.lt !== undefined) {
-            const ltVal = fpVal(params.lt);
+            const ltVal = paramVal(params.lt);
             conditions.push(`if (${v} >= ${ltVal}n) ${errFn('lt', ltVal)}`);
         }
         if (params.gt !== undefined) {
-            const gtVal = fpVal(params.gt);
+            const gtVal = paramVal(params.gt);
             conditions.push(`if (${v} <= ${gtVal}n) ${errFn('gt', gtVal)}`);
         }
 
         // Check multipleOf constraint
         if (params.multipleOf !== undefined) {
-            const multipleOfVal = fpVal(params.multipleOf);
+            const multipleOfVal = paramVal(params.multipleOf);
             conditions.push(`if ((${v} % ${multipleOfVal}n !== 0n)) ${errFn('multipleOf', multipleOfVal)}`);
         }
 
@@ -101,16 +102,16 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
 
     _mock(opts: RunTypeOptions, rt: BaseRunType): bigint {
         const params = this.getParams(rt);
-        let min = params.min !== undefined ? (fpVal(params.min) as bigint) : -99999n;
-        let max = params.max !== undefined ? (fpVal(params.max) as bigint) : 99999n;
+        let min = params.min !== undefined ? (paramVal(params.min) as bigint) : -99999n;
+        let max = params.max !== undefined ? (paramVal(params.max) as bigint) : 99999n;
 
         // Adjust for exclusive bounds
         if (params.gt !== undefined) {
-            const gtVal = fpVal(params.gt) as bigint;
+            const gtVal = paramVal(params.gt) as bigint;
             min = gtVal + 1n;
         }
         if (params.lt !== undefined) {
-            const ltVal = fpVal(params.lt) as bigint;
+            const ltVal = paramVal(params.lt) as bigint;
             max = ltVal - 1n;
         }
 
@@ -124,7 +125,7 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
 
         // Handle multipleOf constraint
         if (params.multipleOf !== undefined) {
-            const multipleOfVal = fpVal(params.multipleOf) as bigint;
+            const multipleOfVal = paramVal(params.multipleOf) as bigint;
             // Find the largest multiple of multipleOfVal that is <= result
             const factor = result / multipleOfVal;
             result = factor * multipleOfVal;
@@ -147,17 +148,17 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
         }
 
         // Check for valid ranges
-        if (params.min && params.max && fpVal(params.min) > fpVal(params.max)) {
+        if (params.min && params.max && paramVal(params.min) > paramVal(params.max)) {
             throw new Error(`min cannot be greater than max in ${this.printPath(rt)}`);
         }
 
-        if (params.gt && params.lt && fpVal(params.gt) >= fpVal(params.lt)) {
+        if (params.gt && params.lt && paramVal(params.gt) >= paramVal(params.lt)) {
             throw new Error(`gt cannot be greater than or equal to lt in ${this.printPath(rt)}`);
         }
 
         // Check for multipleOf > 0
         if (params.multipleOf !== undefined) {
-            const multipleOfVal = fpVal(params.multipleOf);
+            const multipleOfVal = paramVal(params.multipleOf);
 
             if (multipleOfVal <= 0) {
                 throw new Error(`multipleOf must be greater than 0 in ${this.printPath(rt)}`);

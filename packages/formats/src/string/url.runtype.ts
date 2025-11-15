@@ -5,15 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode, StrNumber} from '@mionkit/run-types';
-import {
-    registerFormatter,
-    BaseRunTypeFormat,
-    TypeFormat,
-    RunTypeOptions,
-    JitFunctions,
-    fpVal,
-    randomItem,
-} from '@mionkit/run-types';
+import {registerFormatter, BaseRunTypeFormat, TypeFormat, RunTypeOptions, JitFunctions, randomItem} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {StringRunTypeFormat, stringIgnoreProps, StringParams} from './stringFormat.runtype';
 import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
@@ -26,6 +18,7 @@ import {
     SOCIAL_MEDIA_DOMAINS_SAMPLES,
     INTERNET_PROTOCOLS,
 } from '../constants.mock'; // do not import using type
+import {paramVal} from '../utils';
 
 export const URL_REGEXP = /^(?:https?|ftps?|wss?):\/\/[^\s/$.?#-][^\s]*$/i;
 export const URL_FILE_REGEXP = /^file:\/\/\/?(?:[a-zA-Z]:)?[^\s/$.?#-][^\s]*$/i;
@@ -131,8 +124,8 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         return url;
     }
     validateParams(rt: BaseRunType, params: FormatParams_Url): void {
-        if (params.maxLength && fpVal(params.maxLength) > 2048) throw new Error('URL maxLength cannot be greater than 2048');
-        if (params.minLength && fpVal(params.minLength) < 5) throw new Error('URL minLength cannot be less than 5');
+        if (params.maxLength && paramVal(params.maxLength) > 2048) throw new Error('URL maxLength cannot be greater than 2048');
+        if (params.minLength && paramVal(params.minLength) < 5) throw new Error('URL minLength cannot be less than 5');
 
         this.urlFormatter.validateParams(rt, params);
 

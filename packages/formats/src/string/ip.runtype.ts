@@ -7,8 +7,9 @@
 
 import type {JITUtils, GenericPureFunction, TypeFormatError, FormatParam} from '@mionkit/core';
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, RunTypeOptions, JitCode} from '@mionkit/run-types';
-import {BaseRunTypeFormat, TypeFormat, registerFormatter, registerPureFnClosure, fpVal} from '@mionkit/run-types';
+import {BaseRunTypeFormat, TypeFormat, registerFormatter, registerPureFnClosure} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
+import {paramVal} from '../utils';
 
 // IP validator
 export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
@@ -36,7 +37,7 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
         if (!isTypeCode) return {code: '', type: 'S'};
         const params = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
-        return {code: `if (!(${isTypeCode})) ${errFn('version', fpVal(params.version))}`, type: 'S'};
+        return {code: `if (!(${isTypeCode})) ${errFn('version', paramVal(params.version))}`, type: 'S'};
     }
     emitFormat(comp: JitFnCompiler): JitCode {
         return {code: `${comp.vλl}.toLowerCase()`, type: 'E'}; // transform to lowercase in case it is localhost
