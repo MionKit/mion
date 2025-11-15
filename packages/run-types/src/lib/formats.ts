@@ -7,7 +7,7 @@
 
 import {PureFunctionClosure, TypeFormatParams, TypeFormatValue} from '@mionkit/core';
 import {ReflectionKindName} from '../constants.kind';
-import type {FormatAnnotation, RunType, RunTypeAnnotation, SrcType} from '../types';
+import type {FormatAnnotation} from '../types';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
 import type {JitErrorsFnCompiler, JitFnCompiler} from './jitFnCompiler';
@@ -100,17 +100,6 @@ export function getFormatAnnotation(rt: BaseRunType): FormatAnnotation | undefin
     const parsedAnnotations = typeAnnotation.getAnnotations(rt.src);
     const formatAnnotations = parsedAnnotations.filter((a) => (a as FormatAnnotation).formatter);
     return formatAnnotations[0] as FormatAnnotation | undefined;
-}
-
-export function getRunTypeAnnotations(rt: RunType): RunTypeAnnotation[] {
-    const annotations = typeAnnotation.getAnnotations(rt.src);
-    return annotations.map((a) => {
-        const annotation: RunTypeAnnotation = {
-            name: a.name,
-            options: (a.options as SrcType)._rt as RunType,
-        };
-        return annotation;
-    });
 }
 
 // ################# COMPILING  #################

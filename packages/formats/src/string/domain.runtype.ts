@@ -14,7 +14,6 @@ import {
     random,
     randomItem,
     JitFunctions,
-    fpVal,
 } from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {
@@ -26,6 +25,7 @@ import {
     Samples,
 } from './stringFormat.runtype';
 import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock';
+import {paramVal} from '../utils';
 
 // latin domain names each domain part must be 61 chars max, tld only supports latin chars
 export const DOMAIN_PATTERN = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/;
@@ -139,10 +139,10 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const nameCode = this.nameFormatter.compileFormat(fnID, comp, rt, params.names, vName, fmtName, vCount);
         const tldCode = this.tldFormatter.compileFormat(fnID, comp, rt, params.tld, vTld, fmtName);
         const maxPartsCode = params.maxParts
-            ? `if (${vCount} > ${params.maxParts}) ${errFn('maxParts', fpVal(params.maxParts))};`
+            ? `if (${vCount} > ${params.maxParts}) ${errFn('maxParts', paramVal(params.maxParts))};`
             : '';
         const minPartsCode = params.minParts
-            ? `if (${vCount} < ${params.minParts}) ${errFn('minParts', fpVal(params.minParts))};`
+            ? `if (${vCount} < ${params.minParts}) ${errFn('minParts', paramVal(params.minParts))};`
             : '';
 
         const tldSafeCode = tldCode.code ? `const ${vTld} = ${vλl}.substring(${vStart}); ${tldCode.code};` : '';
@@ -168,10 +168,10 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const params = this.getParams(rt);
         if (params.pattern) return this.rootFormatter.mock(opts, rt, params);
 
-        const maxParts = fpVal(params.maxParts || 6);
-        const minParts = fpVal(params.minParts || 2);
-        const maxLength = fpVal(params.maxLength || 253);
-        const minLength = fpVal(params.minLength || 3);
+        const maxParts = paramVal(params.maxParts || 6);
+        const minParts = paramVal(params.minParts || 2);
+        const maxLength = paramVal(params.maxLength || 253);
+        const minLength = paramVal(params.minLength || 3);
         let tld = this.mockTld(opts, rt, params.tld as FormatParams_Tld);
         const tldParts = tld.split('.');
         // ensure tld is not too long
@@ -183,7 +183,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         // reduce probability of generating many subdomains
         const noNormalMax = Math.random() < 0.2 ? maxParts : singleNameMax;
         const maxRandom = noNormalMax - tldParts.length;
-        const minRandom = minParts - fpVal(tldParts.length);
+        const minRandom = minParts - paramVal(tldParts.length);
         const maxRandomParts = random(minRandom, maxRandom);
         const parts: string[] = [];
 
@@ -241,21 +241,21 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const onlyOne = [params.names, params.pattern].filter(Boolean);
         if (onlyOne.length > 1)
             throw new Error(`Domain can only have one of (names & tld), pattern or allowedValues in type ${this.printPath(rt)}`);
-        if (params.maxLength && fpVal(params.maxLength) > 253)
+        if (params.maxLength && paramVal(params.maxLength) > 253)
             throw new Error(`Domain maxLength cannot be greater than 253 in type ${this.printPath(rt, 'maxLength')}`);
-        if (params.minLength && fpVal(params.minLength) < 3)
+        if (params.minLength && paramVal(params.minLength) < 3)
             throw new Error(`Domain minLength cannot be less than 3 in type ${this.printPath(rt, 'minLength')}`);
-        if (params.minParts && fpVal(params.minParts) < 2)
+        if (params.minParts && paramVal(params.minParts) < 2)
             throw new Error(`Domain minParts cannot be less than 2 in type ${this.printPath(rt, 'minParts')}`);
-        if (params.maxParts && fpVal(params.maxParts) < 2)
+        if (params.maxParts && paramVal(params.maxParts) < 2)
             throw new Error(`Domain maxParts cannot be less than 2 in type ${this.printPath(rt, 'maxParts')}`);
         if ((params.names && !params.tld) || (!params.names && params.tld))
             throw new Error(`Domain names and tld must be used together in type ${this.printPath(rt, 'maxParts')}`);
-        if (params.tld && params.tld.minLength && fpVal(params.tld.minLength) < 2)
+        if (params.tld && params.tld.minLength && paramVal(params.tld.minLength) < 2)
             throw new Error(`Domain tld.minLength cannot be less than 2 in type ${this.printPath(rt, 'tld.minLength')}`);
-        if (params.tld && params.tld.maxLength && fpVal(params.tld.maxLength) > 63)
+        if (params.tld && params.tld.maxLength && paramVal(params.tld.maxLength) > 63)
             throw new Error(`Domain tld.maxLength cannot be greater than 63 in type ${this.printPath(rt, 'tld.maxLength')}`);
-        if (params.names && params.names.maxLength && fpVal(params.names.maxLength) > 63)
+        if (params.names && params.names.maxLength && paramVal(params.names.maxLength) > 63)
             throw new Error(`Domain names.maxLength cannot be greater than 63 in type ${this.printPath(rt, 'names.maxLength')}`);
 
         this.rootFormatter.validateParams(rt, params);

@@ -12,9 +12,8 @@ import type {JitFnID, Mutable, StrNumber, JitCode, RunTypeOptions} from '../type
 import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
 import {dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
-import {jitUtils} from '@mionkit/core';
 import {getFormatterHash} from './utils';
-import {getENV} from '@mionkit/core';
+import {getENV, jitUtils} from '@mionkit/core';
 
 /**
  * Base class for all RunType formatters.

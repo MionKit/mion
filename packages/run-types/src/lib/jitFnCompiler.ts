@@ -714,21 +714,6 @@ export function createJitCompiler(
     }
 }
 
-export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {
-    return {
-        typeName: comp.typeName,
-        fnID: comp.fnID,
-        jitFnHash: comp.jitFnHash,
-        args: structuredClone(comp.args),
-        isNoop: comp.isNoop,
-        defaultParamValues: structuredClone(comp.defaultParamValues),
-        code: comp.code,
-        dependenciesSet: new Set(comp.dependenciesSet),
-        pureFnDependencies: new Set(comp.pureFnDependencies),
-        ...(comp.paramNames ? {paramNames: structuredClone(comp.paramNames)} : {}),
-    };
-}
-
 export function printClosure(fnWithContext: string, functionName: string): string {
     return `function get_${functionName}(utl){${fnWithContext}}`;
 }

@@ -13,9 +13,9 @@ import {
     registerFormatter,
     registerPureFnClosuresGroup,
     registerPureFnClosure,
-    fpVal,
 } from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
+import {paramVal} from '../utils';
 
 // Time validator
 export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time> {
@@ -24,7 +24,7 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
     name = TimeStringRunTypeFormat.id;
     emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
-        const formatFn = this.getFormatPureFn(fpVal(params.format));
+        const formatFn = this.getFormatPureFn(paramVal(params.format));
         return {code: this.compilePureFunctionCall(comp, rt, formatFn).callCode, type: 'E'};
     }
     emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
@@ -33,14 +33,14 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
         if (!isTypeCode) return {code: '', type: 'S'};
         const params = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
-        return {code: `if (!(${isTypeCode})) ${errFn('format', fpVal(params.format))}`, type: 'S'};
+        return {code: `if (!(${isTypeCode})) ${errFn('format', paramVal(params.format))}`, type: 'S'};
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType) {
         const params = this.getParams(rt);
         const hours = String(Math.floor(Math.random() * 24)).padStart(2, '0');
         const minutes = String(Math.floor(Math.random() * 60)).padStart(2, '0');
         const seconds = String(Math.floor(Math.random() * 60)).padStart(2, '0');
-        switch (fpVal(params.format)) {
+        switch (paramVal(params.format)) {
             case 'ISO': // ISO
             case 'HH:mm:ss[.mmm]TZ': // 'HH:mm:ss[.mmm]TZ'
                 return `${hours}:${minutes}:${seconds}${mockMilliseconds()}${mockTimeZone()}`;
@@ -59,7 +59,7 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
             case 'ss': // 'ss'
                 return seconds;
             default:
-                throw new Error(`Invalid time format: ${fpVal(params.format)}`);
+                throw new Error(`Invalid time format: ${paramVal(params.format)}`);
         }
     }
     getFormatPureFn(format: StrTime) {
