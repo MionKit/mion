@@ -332,27 +332,6 @@ export type SerializableJitHashes = {
 };
 
 /**
- * Options for HTTP headers
- */
-export interface HeaderOptions {
-    [key: string]: any;
-}
-
-/**
- * Options for HTTP cookies
- */
-export interface CookieOptions {
-    maxAge?: number;
-    expires?: Date;
-    path?: string;
-    domain?: string;
-    secure?: boolean;
-    httpOnly?: boolean;
-    sameSite?: 'Strict' | 'Lax' | 'None';
-    [key: string]: any;
-}
-
-/**
  * Shared interface for PublicMethod that can be used between client and server without handler dependencies
  * Serializable version of MethodData in @/router/types/remoteMethods
  */
