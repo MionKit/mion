@@ -42,17 +42,21 @@ export class TupleRunType<
 
     emitIsType(comp: JitFnCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
+        if (children.length === 0 && comp.opts.noIsArrayCheck) return {code: undefined, type: 'E'};
         if (children.length === 0) return {code: `Array.isArray(${comp.vλl}) && ${comp.vλl}.length === 0`, type: 'E'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `&& ${comp.vλl}.length <= ${this.getParamRunTypes(comp).length}`;
         const paramsCode = children.map((p) => `(${comp.compileIsType(p, 'E').code})`).join(' && ');
-        return {code: `(Array.isArray(${comp.vλl})${lengthCode} && ${paramsCode})`, type: 'E'};
+        const checkIsArrayCode = comp.opts.noIsArrayCheck ? '' : `Array.isArray(${comp.vλl})${lengthCode} && `;
+        return {code: `(${checkIsArrayCode} ${paramsCode})`, type: 'E'};
     }
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         const children = this.getParamRunTypes(comp);
+        if (children.length === 0 && comp.opts.noIsArrayCheck) return {code: undefined, type: 'S'};
         if (children.length === 0)
             return {code: `if (!Array.isArray(${comp.vλl}) || && ${comp.vλl}.length === 0) ${comp.callJitErr(this)}`, type: 'S'};
         const lengthCode = this.hasRestParameter(comp) ? '' : `|| ${comp.vλl}.length > ${this.getParamRunTypes(comp).length}`;
         const paramsCode = children.map((p) => comp.compileTypeErrors(p, 'S').code).join(';');
+        if (comp.opts.noIsArrayCheck) return {code: paramsCode, type: 'S'};
         return {code: `if (!Array.isArray(${comp.vλl})${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode}}`, type: 'S'};
     }
     emitPrepareForJson(comp: JitFnCompiler): JitCode {

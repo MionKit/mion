@@ -17,15 +17,15 @@ import {handleRpcErrors} from './errors';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 
-// ############# PUBLIC METHODS #############
-
 /*
- * NOTE:
+ * PERFORMANCE PROFILING NOTE:
  * different options has been tested to improve performance but were discarded due to worst or no noticeable improvements
  * - using promisify(setImmediate): worst or no improvement
  * - using queueMicrotask instead of setImmediate: definitely worst
  * - using callback instead promises: seems to be more slow but use less memory in some scenarios.
  */
+
+// ############# PUBLIC METHODS #############
 
 export async function dispatchRoute<Req, Resp>(
     path: string,
@@ -83,6 +83,7 @@ export function getEmptyCallContext(
 }
 
 // ############# PRIVATE METHODS #############
+
 // runs the execution path of a route
 async function runExecutionPath(
     context: CallContext,
@@ -97,11 +98,30 @@ async function runExecutionPath(
         const executable = executables[i];
         if (response.hasErrors && !executable.options.runOnError) continue;
 
+        // TODO, we should try to avoid throwing errors and instead returning them,
+        // try catch should only be for unexpected fatal errors
+
         try {
             const methodCaller = executable.methodCaller || getMethodCaller(executable);
             // method caller is not type safe so we need to be sure we always passing correct parameters
             // runRawHook , runHeaderHook & runRouteOrHook must always accept the same parameters in the same order
-            await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+            const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+
+            // handle result
+            if (result instanceof Error || result instanceof RpcError) throw result;
+            // TODO: when returning headerList on an union there could be another types that are array but not HeaderList
+            // Not sure we this scenario can be easily fixed maybe returning a class or something that adds a unique prop to the returned data
+            else if (executable.headersReturn && Array.isArray(result)) {
+                executable.headersReturn.headerNames.forEach((name: string, i: string | number) => {
+                    const headerValue = result[i];
+                    if (!headerValue) return;
+                    response.headers.set(name, headerValue);
+                });
+            } else if (executable.hasReturnData && result !== undefined) {
+                (response.body as Mutable<AnyObject>)[executable.id] = executable.options.serializeReturn
+                    ? (executable as Method).returnJitFns.prepareForJson.fn(result)
+                    : result;
+            }
         } catch (err: any | RpcError<any> | Error) {
             const path = isNotFoundExecutable(executable) ? context.path : executable.id;
             handleRpcErrors(path, request, response, err, i);
@@ -110,25 +130,20 @@ async function runExecutionPath(
     return context.response;
 }
 
-export async function runRawHook(
+async function runRawHook(
     context: CallContext,
     executable: RawMethod,
-    request: MionRequest,
-    response: MionResponse,
+    req,
+    resp,
     opts: RouterOptions,
     rawRequest: unknown,
     rawResponse: unknown
 ) {
     const result = await executable.handler(context, rawRequest, rawResponse, opts);
-    if (result instanceof Error || result instanceof RpcError) throw result;
+    return result;
 }
 
-export async function runHeaderHook(
-    context: CallContext,
-    executable: HeaderMethod,
-    request: MionRequest,
-    response: MionResponse
-) {
+async function runHeaderHook(context: CallContext, executable: HeaderMethod, request: MionRequest) {
     const headerNames = executable.headersParam.headerNames;
     const headerValues = headerNames.map((name) => request.headers.get(name));
     const params = deserializeBodyParams(request, executable as Method);
@@ -136,33 +151,14 @@ export async function runHeaderHook(
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderMethod);
 
     const result = await executable.handler(context, headerValues, ...params);
-    if (result instanceof Error || result instanceof RpcError) throw result;
-
-    if (result !== undefined) {
-        executable.headersParam.headerNames.forEach((name, i) => {
-            if (!result[i]) return;
-            response.headers.set(name, result[i]);
-        });
-    }
+    return result;
 }
 
-export async function runRouteOrHook(
-    context: CallContext,
-    executable: HeaderMethod,
-    request: MionRequest,
-    response: MionResponse
-) {
+async function runRouteOrHook(context: CallContext, executable: HeaderMethod, request: MionRequest) {
     const params = deserializeBodyParams(request, executable as Method);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as Method);
-
     const result = await executable.handler(context, ...params);
-    if (result instanceof Error || result instanceof RpcError) throw result;
-
-    if (executable.hasReturnData && result !== undefined) {
-        (response.body as Mutable<AnyObject>)[executable.id] = executable.options.serializeReturn
-            ? (executable as Method).returnJitFns.prepareForJson.fn(result)
-            : result;
-    }
+    return result;
 }
 
 function getMethodCaller(executable: Method) {
@@ -208,7 +204,7 @@ function validateHeaderParamsOrThrow(headers: string[], executable: HeaderMethod
     if (!executable.headersParam.jitFns.isType.fn(headers)) {
         throw new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
-            type: 'validation-error',
+            type: 'headers-validation-error',
             publicMessage: `Invalid headers in '${executable.id}', validation failed.`,
             errorData: executable.headersParam.jitFns.typeErrors.fn(headers),
         });

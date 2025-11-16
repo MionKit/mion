@@ -11,22 +11,20 @@ import {
     type BaseRunType,
     type MemberRunType,
     type ArrayRunType,
+    type RunTypeOptions,
     JitFunctions,
-    RunTypeOptions,
     reflectFunction,
-    isLiteralRunType,
-    isArrayRunType,
-    JitFnCompiler,
-    getRunTypeAnnotations,
-    runType,
     isTupleRunType,
+    JitFnCompiler,
+    runType,
+    getParsedAnnotationOptions,
+    isUnionRunType,
 } from '@mionkit/run-types';
 import {Handler} from './types/handlers';
 import {RouterOptions} from './types/general';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from './constants';
 import {type MethodWithJitFns} from './types/remoteMethods';
 import {HeadersList} from './types/context';
-export {getSerializableJitCompiler} from '@mionkit/run-types';
 
 // ############ This file should be the only one importing '@mionkit/run-types' within the router ########
 // TODO: in the future we can load things from cache and load run types only when needed
@@ -44,43 +42,44 @@ export function getHandlerReflection(
 ): MethodReflect {
     const reflectionItems: Partial<MethodReflect> = {};
     let handlerRunType: FunctionRunType;
+    const runTypeOptions = routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions;
     try {
         handlerRunType = reflectFunction(handler);
     } catch (error: any) {
-        throw new Error(`Can not get RunType of handler for route/hook ${routeId}. Error: ${error?.message}`);
+        throw new Error(`Can not get RunType of handler for route/hook "${routeId}." Error: ${error?.message}`);
     }
-    const originalParamsSlice = routerOptions.runTypeOptions?.paramsSlice;
     try {
-        // paramsJitFns contains all run type functionality for the parameters, it compiles the when the property is first accessed
-        const runTypeOptions = routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions;
-        runTypeOptions.paramsSlice = isHeaderHook
-            ? {start: HEADER_HOOK_DEFAULT_PARAMS.length}
-            : {start: ROUTE_DEFAULT_PARAMS.length};
+        const paramsSlice = isHeaderHook ? {start: HEADER_HOOK_DEFAULT_PARAMS.length} : {start: ROUTE_DEFAULT_PARAMS.length};
+        const opts: RunTypeOptions = {...runTypeOptions, paramsSlice};
         reflectionItems.paramNames = handlerRunType.getParameterNames(routerOptions.runTypeOptions);
-        reflectionItems.paramsJitFns = getParamsJitFns(handler, runTypeOptions);
+        reflectionItems.paramsJitFns = getParamsJitFns(handler, opts);
     } catch (error: any) {
-        throw new Error(`Can not compile Jit Functions for Parameters of route/hook ${routeId}. Error: ${error?.message}`);
+        throw new Error(`Can not compile Jit Functions for Parameters of route/hook "${routeId}." Error: ${error?.message}`);
     }
 
     if (isHeaderHook) {
         const headersRunType = getParamsHeadersRunType(handlerRunType, routeId, routerOptions);
-        const runTypeOptions = routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions;
-        runTypeOptions.paramsSlice = {start: HEADER_HOOK_DEFAULT_PARAMS.length - 1, end: HEADER_HOOK_DEFAULT_PARAMS.length};
-        const headerNames: string[] = extractHeaderNames(headersRunType, routeId, routerOptions);
+        const headerNames: string[] = getHeaderNames(headersRunType, routeId);
 
         try {
-            const jitFns: JitCompiledFunctions = getJitFunctions(headersRunType, routerOptions.runTypeOptions);
+            const opts: RunTypeOptions = {
+                ...runTypeOptions,
+                paramsSlice: undefined,
+                noIsArrayCheck: true,
+            };
+            const jitFns: JitCompiledFunctions = getJitFunctions(headersRunType, opts);
             const jitHashes: JitFunctionsHashes = getJitHashes(jitFns);
             reflectionItems.headersParam = {headerNames, jitFns, jitHashes};
         } catch (error: any) {
-            throw new Error(`Can not compile Jit Functions for Headers of header hook ${routeId}. Error: ${error?.message}`);
+            throw new Error(`Can not compile Jit Functions for Headers of header hook "${routeId}." Error: ${error?.message}`);
         }
     }
 
     const returnHeadersRunType = getReturnHeadersRunType(handlerRunType);
     if (returnHeadersRunType) {
-        const headerNames: string[] = extractHeaderNames(returnHeadersRunType, routeId, routerOptions);
-        const jitFns: JitCompiledFunctions = getReturnJitFns(handler, routerOptions.runTypeOptions);
+        const opts: RunTypeOptions = {};
+        const headerNames: string[] = getHeaderNames(returnHeadersRunType, routeId);
+        const jitFns: JitCompiledFunctions = getReturnJitFns(handler, opts);
         const jitHashes: JitFunctionsHashes = getJitHashes(jitFns);
         reflectionItems.headersReturn = {headerNames, jitFns, jitHashes};
     }
@@ -89,16 +88,16 @@ export function getHandlerReflection(
         // returnJitFns contains all run type functionality for the return value, it compiles the when the property is first accessed
         reflectionItems.returnJitFns = getReturnJitFns(handler);
     } catch (error: any) {
-        throw new Error(`Can not get Jit Functions for Return of route/hook ${routeId}. Error: ${error?.message}`);
+        throw new Error(`Can not get Jit Functions for Return of route/hook "${routeId}." Error: ${error?.message}`);
     }
 
     // Validate that routes don't use HttpHeader, HttpCookie, or HeadersList as return types
     reflectionItems.paramsJitHashes = getJitHashes(reflectionItems.paramsJitFns);
     reflectionItems.returnJitHashes = getJitHashes(reflectionItems.returnJitFns);
+    // If the return type is HeadersList or if it's a headersHook with array return, don't treat it as return data
     reflectionItems.hasReturnData = handlerRunType.hasReturnData();
     reflectionItems.isAsync = handlerRunType.isAsync();
 
-    if (originalParamsSlice) routerOptions.runTypeOptions.paramsSlice = originalParamsSlice;
     return reflectionItems as MethodReflect;
 }
 
@@ -111,7 +110,7 @@ export function getRawMethodReflection(handler: Handler, routeId: string): Metho
     try {
         handlerRunType = reflectFunction(handler);
     } catch (error: any) {
-        throw new Error(`Can not get RunType of handler for route/hook ${routeId}. Error: ${error?.message}`);
+        throw new Error(`Can not get RunType of handler for route/hook "${routeId}." Error: ${error?.message}`);
     }
     const reflectionItems: MethodReflect = {
         paramNames: [],
@@ -127,15 +126,20 @@ export function getRawMethodReflection(handler: Handler, routeId: string): Metho
 
 function getParamsHeadersRunType(handlerRunType: FunctionRunType, routeId: string, routerOptions: RouterOptions): ArrayRunType {
     const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getFakeCompiler(routerOptions));
-    const headersArray = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // headers tuple is always index 1 after context
-    if (!isHeaderListRunType(headersArray)) {
+    const headersTuple = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // headers tuple is always index 1 after context
+    if (!isHeaderListRunType(headersTuple)) {
         throw new Error(`Header Hook '${routeId}' first parameter must be a tuple of HttpHeader.`);
     }
-    return headersArray;
+    return headersTuple;
 }
 
 function getReturnHeadersRunType(handlerRunType: FunctionRunType): ArrayRunType | undefined {
     const returnRunType = handlerRunType.getReturnType();
+    if (isUnionRunType(returnRunType)) {
+        const headerList = returnRunType.getChildRunTypes().find(isHeaderListRunType);
+        if (!headerList) return undefined;
+        return headerList;
+    }
     if (!isHeaderListRunType(returnRunType)) return undefined;
     return returnRunType;
 }
@@ -143,23 +147,13 @@ function getReturnHeadersRunType(handlerRunType: FunctionRunType): ArrayRunType 
 function isHeaderListRunType(rt: BaseRunType | undefined): rt is ArrayRunType {
     if (!rt) return false;
     const headersListRt = runType<HeadersList<[]>>() as BaseRunType;
-    return isArrayRunType(rt) && rt.getTypeName() === headersListRt.getTypeName();
+    return isTupleRunType(rt) && rt.getTypeName() === headersListRt.getTypeName();
 }
 
-function extractHeaderNames(headersRT: ArrayRunType, routeId: string, routerOptions: RouterOptions): string[] {
-    const comp = getFakeCompiler(routerOptions);
-    const annotations = getRunTypeAnnotations(headersRT);
-    const headerAnnotation = annotations.find((a) => a.name === 'headerNames');
-    if (!headerAnnotation)
-        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeadersList<['Authorization']>.`);
-    const headerTuple = headerAnnotation.options;
-    if (!isTupleRunType(headerTuple))
-        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeadersList<['Authorization']>.`);
-    const headerNames = headerTuple.getJitChildren(comp).map((tupleMember) => {
-        const literalRt = (tupleMember as MemberRunType<any>)?.getMemberType?.();
-        if (isLiteralRunType(literalRt)) return literalRt.getLiteralValue() as string;
-        throw new Error(`Header Hook '${routeId}' invalid headers type, correct usage: HeadersList<['Authorization']>.`);
-    });
+function getHeaderNames(rt: BaseRunType, routeId): string[] {
+    const headerNames = getParsedAnnotationOptions(rt)[0];
+    if (!Array.isArray(headerNames)) throw new Error(`Header names must be an array of strings in route/hook ${routeId}`);
+    if (headerNames.length === 0) throw new Error(`Header names array cannot be empty in route/hook ${routeId}`);
     return headerNames;
 }
 

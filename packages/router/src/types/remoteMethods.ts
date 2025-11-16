@@ -20,7 +20,7 @@ export interface MethodOptions {
     description?: string;
 }
 
-export interface MethodData extends SerializablePublicMethod {
+export interface MethodData extends Omit<SerializablePublicMethod, 'hookIds' | 'pathPointers'> {
     type: number;
     id: string;
     paramNames: string[];
@@ -34,10 +34,6 @@ export interface MethodData extends SerializablePublicMethod {
     options: MethodOptions;
     isAsync: boolean;
     hasReturnData: boolean;
-
-    // removed from SerializablePublicMethod
-    hookIds: never;
-    pathPointers: never;
 }
 
 export interface MethodWithJitFns extends MethodData {
@@ -64,7 +60,7 @@ export enum HandlerType {
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
 export interface Method<H extends AnyHandler = AnyHandler> extends MethodWithJitFns {
     handler: H;
-    methodCaller?: (...args: any[]) => void;
+    methodCaller?: (...args: any[]) => any;
 }
 
 export interface RouteMethod<H extends Handler = any> extends Method<H> {

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicApi, Routes, initRouter, registerRoutes, route, headersHook, hook} from '@mionkit/router';
+import {PublicApi, Routes, initRouter, registerRoutes, route, headersHook, hook, HeadersList} from '@mionkit/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
 import {RpcError} from '@mionkit/core';
 
@@ -15,7 +15,7 @@ type Product = {id: string; name: string; price: number};
 
 const routes = {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    auth: headersHook(['Authorization'], (ctx, token: string): void => {
+    auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
     sayHello: route((_ctx, user: User): string | RpcError<'some-error'> => `Hello ${user.name} ${user.surname}`),

@@ -19,8 +19,14 @@ import {
     isPrivateDefinition,
     shouldFullGenerateSpec,
 } from './router';
-import {getSerializableJitCompiler} from './reflection';
-import type {AnyObject, JitCompiledFnData, JitCompiledFunctions, PureFunctionData, SerializableJitHashes} from '@mionkit/core';
+import type {
+    AnyObject,
+    JitCompiledFn,
+    JitCompiledFnData,
+    JitCompiledFunctions,
+    PureFunctionData,
+    SerializableJitHashes,
+} from '@mionkit/core';
 import {getRoutePath, getRouterItemId} from '@mionkit/core';
 import {jitUtils} from '@mionkit/core';
 import {MAX_STACK_DEPTH} from '@mionkit/core';
@@ -159,5 +165,20 @@ function getSerializableJitHashes(jitFns: JitCompiledFunctions): SerializableJit
         jsonStringify: jitFns.jsonStringify.jitFnHash,
         toBinary: jitFns.toBinary.jitFnHash,
         fromBinary: jitFns.fromBinary.jitFnHash,
+    };
+}
+
+function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {
+    return {
+        typeName: comp.typeName,
+        fnID: comp.fnID,
+        jitFnHash: comp.jitFnHash,
+        args: structuredClone(comp.args),
+        isNoop: comp.isNoop,
+        defaultParamValues: structuredClone(comp.defaultParamValues),
+        code: comp.code,
+        dependenciesSet: new Set(comp.dependenciesSet),
+        pureFnDependencies: new Set(comp.pureFnDependencies),
+        ...(comp.paramNames ? {paramNames: structuredClone(comp.paramNames)} : {}),
     };
 }

@@ -23,7 +23,7 @@ export type Handler<Context extends CallContext = any, Params extends any[] = an
 /** Header Hook Handler, hook handler for when params are sent in the header  */
 export type HeaderHandler<
     Context extends CallContext = any,
-    ExpectedHeaders extends HeadersList<string[]> = HeadersList<string[]>,
+    ExpectedHeaders extends HeadersList<any> = any,
     Params extends any[] = any[],
     Ret = any,
 > = (
