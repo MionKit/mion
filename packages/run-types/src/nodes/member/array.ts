@@ -36,10 +36,12 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
         const childJit = comp.compileIsType(child, 'E');
+        if (!childJit?.code && comp.opts.noIsArrayCheck) return {code: undefined, type: 'E'};
         if (!childJit?.code) return {code: `Array.isArray(${comp.vλl})`, type: 'E'};
+        const isArrayCheckCode = comp.opts.noIsArrayCheck ? '' : `if (!Array.isArray(${comp.vλl})) return false;`;
         return {
             code: `
-            if (!Array.isArray(${comp.vλl})) return false;
+            ${isArrayCheckCode}
             for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
                 const ${resultVal} = ${childJit.code};
                 if (!(${resultVal})) return false;
@@ -54,12 +56,12 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
         const childJit = comp.compileTypeErrors(child, 'S');
+        if (!childJit?.code && comp.opts.noIsArrayCheck) return {code: undefined, type: 'E'};
         if (!childJit?.code) return {code: `if (!Array.isArray(${comp.vλl})) ${comp.callJitErr(this)};`, type: 'S'};
+        const itemsCode = `for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${childJit.code}}`;
+        if (comp.opts.noIsArrayCheck) return {code: itemsCode, type: 'S'};
         return {
-            code: `
-            if (!Array.isArray(${comp.vλl})) ${comp.callJitErr(this)};
-            else {for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${childJit.code}}}
-        `,
+            code: `if (!Array.isArray(${comp.vλl})) {${comp.callJitErr(this)}} else {${itemsCode}}`,
             type: 'S',
         };
     }

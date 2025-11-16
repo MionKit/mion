@@ -85,7 +85,7 @@ describe('Dispatch routes', () => {
 
             const request: RawRequest = {
                 headers: headersFromRecord({Authorization: '1234'}),
-                body: JSON.stringify({['changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
+                body: JSON.stringify({changeUserName: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
 
             const response = await dispatchRoute(
@@ -97,7 +97,7 @@ describe('Dispatch routes', () => {
                 {}
             );
             expect(response.hasErrors).toBeFalsy();
-            expect(response.body).toEqual({['changeUserName']: {name: 'LOREM', surname: 'Tungsten'}});
+            expect(response.body).toEqual({changeUserName: {name: 'LOREM', surname: 'Tungsten'}});
         });
 
         // when the body is an array we assume it's a single route call and we have to reconstruct the body
@@ -123,16 +123,17 @@ describe('Dispatch routes', () => {
             expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
-        it('headers are case insensitive, returned headers alway lowercase', async () => {
+        it('request and response headers are case insensitive', async () => {
             initRouter({contextDataFactory: getSharedData});
-            const auth = headersHook((ctx, [token]: HeadersList<['Authorization']>): string[] =>
-                token === '1234' ? ['MyUser'] : ['Unknown']
+            const auth = headersHook(
+                (ctx, [token]: HeadersList<['Authorization']>): HeadersList<['User-Id']> =>
+                    token === '1234' ? ['MyUser-Id'] : ['Unknown']
             );
             registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
                 headers: headersFromRecord({AuThoriZatioN: '1234'}),
-                body: JSON.stringify({['changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
+                body: JSON.stringify({changeUserName: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
 
             const response = await dispatchRoute(
@@ -144,7 +145,32 @@ describe('Dispatch routes', () => {
                 {}
             );
             expect(response.hasErrors).toBeFalsy();
-            expect(response.headers.get('authorization')).toEqual('MyUser');
+            expect(response.headers.get('user-id')).toEqual('MyUser-Id');
+        });
+
+        it('should be able to accept request headers and regular rpc params', async () => {
+            initRouter({contextDataFactory: getSharedData});
+            const auth = headersHook((ctx, [token]: HeadersList<['Authorization']>, userId: string): string => userId);
+            registerRoutes({auth, changeUserName});
+
+            const request: RawRequest = {
+                headers: headersFromRecord({AuThoriZatioN: 'bearer-token-1234'}),
+                body: JSON.stringify({
+                    auth: ['user-1234'],
+                    changeUserName: [{name: 'Leo', surname: 'Tungsten'}],
+                }),
+            };
+
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
+            expect(response.hasErrors).toBeFalsy();
+            expect(response.body.auth).toEqual('user-1234');
         });
 
         it('if there are no params input field can be omitted', async () => {
@@ -253,10 +279,10 @@ describe('Dispatch routes', () => {
             expect(error).toEqual({
                 isΣrrθr: true,
                 statusCode: 400,
-                type: 'validation-error',
+                type: 'headers-validation-error',
                 message: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),
-            } satisfies PublicRpcError<'validation-error'>);
+            } satisfies PublicRpcError<'headers-validation-error'>);
         });
 
         it('return an error if body is not the correct type', async () => {
@@ -320,7 +346,7 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const error = response.body['changeUserName'];
+            const error = response.body.changeUserName;
             expect(error).toEqual({
                 isΣrrθr: true,
                 statusCode: 400,
@@ -376,7 +402,7 @@ describe('Dispatch routes', () => {
                 message: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [{expected: 'string', path: [0, 'name']}],
             };
-            const error = response.body['changeUserName'];
+            const error = response.body.changeUserName;
             expect(error).toEqual(expected);
         });
 
@@ -404,7 +430,7 @@ describe('Dispatch routes', () => {
                     {expected: 'string', path: [0, 'surname']},
                 ],
             };
-            const error = response.body['changeUserName'];
+            const error = response.body.changeUserName;
             expect(error).toEqual(expected);
         });
 
@@ -513,7 +539,7 @@ describe('Dispatch routes', () => {
                 {},
                 parsedBody
             );
-            expect(response.body['changeUserName']).toEqual({name: 'LOREM', surname: 'Tungsten'});
+            expect(response.body.changeUserName).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
         it('fallback to parsing rawBody when parsedBody is not provided', async () => {

@@ -1,5 +1,5 @@
 import {RpcError} from '@mionkit/core';
-import {RouterOptions, initMionRouter, headersHook, hook, route} from '@mionkit/router';
+import {RouterOptions, initMionRouter, headersHook, hook, route, HeadersList} from '@mionkit/router';
 
 export type User = {id: string; name: string; surname: string};
 
@@ -8,8 +8,9 @@ export const routerOptions: Partial<RouterOptions> = {prefix: 'api/v1'};
 export const myApi = initMionRouter(
     // all function parameters will be automatically validated before the function is called
     {
-        auth: headersHook('authorization', (ctx, token: string): void => {
-            if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized'});
+        auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void | RpcError<'not-authorized'> => {
+            if (!token)
+                return new RpcError<'not-authorized'>({statusCode: 401, message: 'Not Authorized', type: 'not-authorized'});
         }),
         users: {
             sayHello: route((ctx, user: User): string => `Hello ${user.name} ${user.surname}`),
