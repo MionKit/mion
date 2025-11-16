@@ -20,7 +20,7 @@ describe('route & hooks init functions', () => {
     };
 
     const routes = {
-        auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): string[] => [`auth: ${token}`]),
+        auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): HeadersList<['x-user-id']> => [`user-1234`]),
         timestamp: hook((ctx, time: number): string => `time: ${time}`),
         nothing: rawHook((ctx, req: unknown, resp: unknown): void => undefined),
         print: route((ctx, name: string): string => `name: ${name}`),
@@ -69,7 +69,7 @@ describe('route & hooks init functions', () => {
 
         const response = await dispatchRoute('/print', request.body, request.headers, headersFromRecord({}), request, {});
         expect(response.body).toEqual({timestamp: 'time: 123', print: 'name: John'});
-        expect(response.headers.get('Authorization')).toEqual('auth: Bearer 123');
+        expect(response.headers.get('x-user-id')).toEqual('user-1234');
 
         // send all incorrect parameters and all of them should fail
         const wrongRequest: RawRequest = {
@@ -88,7 +88,7 @@ describe('route & hooks init functions', () => {
             wrongRequest,
             {}
         );
-        expect(wrongResponse.body.auth).toEqual(expect.objectContaining({type: 'validation-error', statusCode: 400}));
+        expect(wrongResponse.body.auth).toEqual(expect.objectContaining({type: 'headers-validation-error', statusCode: 400}));
         expect(wrongResponse.headers.get('Authorization')).toEqual(undefined);
     });
 });

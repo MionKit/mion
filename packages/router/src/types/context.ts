@@ -77,5 +77,13 @@ export interface MionHeaders {
 export type ContextDataFactory<ContextData extends Record<string, any>> = () => ContextData;
 
 // IMPORTANT DO NOT CHANGE THE INTERFACE NAMES OR TYPE ANNOTATIONS AS THEY ARE HARDCODED IN THE JIT GENERATED CODE
+// Note that we will be using the types of the Names itself to generate JIT functions and not string[],
+// This is so we can allow string formats and optional Headers
 /** List of headers to be used in remote handler parameters */
-export type HeadersList<Names extends [...args: string[]]> = string[] & TypeAnnotation<'headerNames', Names>;
+export type HeadersList<Names extends [...args: (string | undefined)[]]> = {
+    [K in keyof Names]: Names[K] extends string ? string : string | undefined;
+} & TypeAnnotation<'headerNames', Names>;
+
+// type MyHeaders = HeadersList<['Authorization', 'User-Id'?]>;
+// const [token, userId]: MyHeaders = ['ABCD', undefined];
+// const [token, userId]: MyHeaders = [undefined, 'user-1234']; // error token is not optional

@@ -114,6 +114,12 @@ export interface RunTypeOptions {
      * ie `type A = 'a'`  will be compiled as it was `type A = string` so will accept any string value not only 'a'
      */
     noLiterals?: boolean;
+
+    /**
+     * Skip checking array and just check for items type
+     * this speeds up isType and typeErrors functions but will not validate array length.
+     */
+    noIsArrayCheck?: boolean;
 }
 
 export type PartialRunTypeOptions = DeepPartial<RunTypeOptions>;
