@@ -1,11 +1,3 @@
-/* ########
- * 2025 mion
- * Author: Ma-jerez
- * License: MIT
- * The software is provided "as is", without warranty of any kind.
- * ######## */
-import { loadPersistedCaches } from '@mionkit/core';
-import { loadCompiledMethods } from '@mionkit/router';
 import { routerCache } from './router.cache';
 import { jitFnsCache } from './jitFns.cache';
 import { pureFnsCache } from './pureFns.cache';
@@ -32,11 +24,5 @@ import { pureFnsCache } from './pureFns.cache';
  * registerRoutes(myRoutes);
  * ```
  */
-export function loadAOTCaches() {
-    // Load core caches (JIT and pure functions)
-    loadPersistedCaches(jitFnsCache, pureFnsCache);
-    // Load router methods cache
-    loadCompiledMethods(routerCache);
-}
-// Re-export cache objects for advanced use cases
+export declare function loadAOTCaches(): void;
 export { routerCache, jitFnsCache, pureFnsCache };

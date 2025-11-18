@@ -21,11 +21,12 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     getPropertyName() {
         return getPropVarName(this.src.name);
     }
-    getChildVarName() {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    getChildVarName(comp: JitFnCompiler) {
         return getPropVarName(this.src.name);
     }
-    getChildLiteral() {
-        return getPropLiteral(this.getChildVarName());
+    getChildLiteral(comp: JitFnCompiler) {
+        return getPropLiteral(this.getChildVarName(comp));
     }
     useArrayAccessor() {
         return useArrayAccessorForProp(this.src.name);

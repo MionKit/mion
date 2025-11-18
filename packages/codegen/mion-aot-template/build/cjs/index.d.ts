@@ -26,4 +26,3 @@ import { pureFnsCache } from './pureFns.cache';
  */
 export declare function loadAOTCaches(): void;
 export { routerCache, jitFnsCache, pureFnsCache };
-//# sourceMappingURL=index.d.ts.map

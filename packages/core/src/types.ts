@@ -205,6 +205,10 @@ export interface CompiledPureFunction extends PureFunctionData {
     fn?: PureFunction;
 }
 
+export interface PersistedPureFunction extends CompiledPureFunction {
+    fn: undefined;
+}
+
 // ########################################### COMPILER ##########################################
 
 export type AnyFn = (...args: any[]) => any;
@@ -252,6 +256,11 @@ export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnDa
     readonly fn: Fn;
 }
 
+export interface PersistedJitFn extends Omit<JitCompiledFn, 'fn'> {
+    /** The Jit Generated function once the compilation is finished */
+    readonly fn: undefined;
+}
+
 export interface JitCompiledFunctions {
     isType: JitCompiledFn<IsTypeFn>;
     typeErrors: JitCompiledFn<TypeErrorsFn>;
@@ -290,6 +299,8 @@ export type FromBinaryFn = (buffer: Uint8Array) => any;
 
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;
+export type PersistedJitFunctionsCache = Record<string, PersistedJitFn>;
+export type PersistedPureFunctionsCache = Record<string, PersistedPureFunction>;
 
 // ########################################### JIT SRC CODE ####################################
 

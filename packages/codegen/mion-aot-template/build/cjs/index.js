@@ -41,10 +41,7 @@ Object.defineProperty(exports, "pureFnsCache", { enumerable: true, get: function
  */
 function loadAOTCaches() {
     // Load core caches (JIT and pure functions)
-    (0, core_1.loadCompiledCaches)({
-        jitFnsCache: jitFns_cache_1.jitFnsCache,
-        pureFnsCache: pureFns_cache_1.pureFnsCache,
-    });
+    (0, core_1.loadPersistedCaches)(jitFns_cache_1.jitFnsCache, pureFns_cache_1.pureFnsCache);
     // Load router methods cache
     (0, router_1.loadCompiledMethods)(router_cache_1.routerCache);
 }

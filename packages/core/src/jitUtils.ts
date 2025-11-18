@@ -17,6 +17,8 @@ import type {
     SerializableClass,
     StrNumber,
     JITUtils,
+    PersistedJitFunctionsCache,
+    PersistedPureFunctionsCache,
 } from './types';
 import {MAX_UNKNOWN_KEYS} from './constants';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
@@ -224,7 +226,7 @@ export const jitUtils: JITUtils = {
  * This function merges the provided cache data into the existing caches without overwriting existing entries.
  * @param caches - Object containing JIT and pure function cache data to merge
  */
-export function loadCompiledCaches(caches: {jitFnsCache?: JitFunctionsCache; pureFnsCache?: PureFunctionsCache}) {
+export function loadJitCachesCaches(caches: {jitFnsCache?: JitFunctionsCache; pureFnsCache?: PureFunctionsCache}) {
     if (caches.jitFnsCache) {
         for (const [key, value] of Object.entries(caches.jitFnsCache)) {
             if (!(key in jitFnsCache)) {
@@ -239,6 +241,19 @@ export function loadCompiledCaches(caches: {jitFnsCache?: JitFunctionsCache; pur
             }
         }
     }
+}
+
+/**
+ * Loads persisted JIT and pure functions into the respective caches.
+ * @param persistedJitFnsCache
+ * @param persistedPureFnsCache
+ */
+export function loadPersistedCaches(
+    persistedJitFnsCache: PersistedJitFunctionsCache,
+    persistedPureFnsCache: PersistedPureFunctionsCache
+) {
+    const restoredJitFns = restoreCompiledJitFns(persistedJitFnsCache, persistedPureFnsCache);
+    loadJitCachesCaches({jitFnsCache: restoredJitFns, pureFnsCache: persistedPureFnsCache});
 }
 
 /**
