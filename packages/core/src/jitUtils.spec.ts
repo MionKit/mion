@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {loadCompiledCaches, getFnCaches} from './jitUtils';
+import {loadJitCachesCaches, getFnCaches} from './jitUtils';
 
 describe('jitUtils', () => {
     it('should load compiled JIT functions cache from cache data', () => {
@@ -30,7 +30,7 @@ describe('jitUtils', () => {
         const initialJitCacheSize = Object.keys(initialCaches.jitFnsCache).length;
 
         // Load the compiled cache
-        loadCompiledCaches({jitFnsCache: testJitCache});
+        loadJitCachesCaches({jitFnsCache: testJitCache});
 
         // Verify the cache was loaded
         const updatedCaches = getFnCaches();
@@ -58,7 +58,7 @@ describe('jitUtils', () => {
         const initialPureCacheSize = Object.keys(initialCaches.pureFnsCache).length;
 
         // Load the compiled cache
-        loadCompiledCaches({pureFnsCache: testPureCache});
+        loadJitCachesCaches({pureFnsCache: testPureCache});
 
         // Verify the cache was loaded
         const updatedCaches = getFnCaches();
@@ -70,9 +70,9 @@ describe('jitUtils', () => {
 
     it('should handle empty cache data gracefully', () => {
         // This should not throw an error
-        expect(() => loadCompiledCaches({})).not.toThrow();
-        expect(() => loadCompiledCaches({jitFnsCache: {}})).not.toThrow();
-        expect(() => loadCompiledCaches({pureFnsCache: {}})).not.toThrow();
+        expect(() => loadJitCachesCaches({})).not.toThrow();
+        expect(() => loadJitCachesCaches({jitFnsCache: {}})).not.toThrow();
+        expect(() => loadJitCachesCaches({pureFnsCache: {}})).not.toThrow();
     });
 
     it('should not overwrite existing cache entries', () => {
@@ -121,14 +121,14 @@ describe('jitUtils', () => {
         };
 
         // Load first cache
-        loadCompiledCaches({jitFnsCache: firstCache});
+        loadJitCachesCaches({jitFnsCache: firstCache});
 
         const cachesAfterFirst = getFnCaches();
         expect(cachesAfterFirst.jitFnsCache).toHaveProperty('testFn1');
         expect(cachesAfterFirst.jitFnsCache.testFn1?.typeName).toBe('TestType1');
 
         // Load second cache - should not overwrite testFn1 but should add testFn2
-        loadCompiledCaches({jitFnsCache: secondCache});
+        loadJitCachesCaches({jitFnsCache: secondCache});
 
         const cachesAfterSecond = getFnCaches();
         expect(cachesAfterSecond.jitFnsCache).toHaveProperty('testFn1');

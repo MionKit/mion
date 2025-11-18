@@ -89,7 +89,7 @@ export function getSerializableMethod<H extends Handler>(executable: Method): Pu
         returnJitHashes: getSerializableJitHashes(executable.returnJitFns),
         paramNames: executable.paramNames,
     };
-    if (executable.headersParam) newRemoteMethod.headers = executable.headersParam;
+    if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
     if (executable.type === HandlerType.route) {
         const path = getRoutePath(executable.pointer, getRouterOptions());
         const pathPointers =

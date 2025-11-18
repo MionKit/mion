@@ -8,7 +8,9 @@
 import {compileTypeToJs} from './cacheCompiler';
 import {AOTConfig} from './types';
 import {
+    HeadersMethodData,
     JitCompiledFn,
+    RpcError,
     SerializableJitHashes,
     SrcCodeJITCompiledFnsCache,
     SrcCodePureFunctionsCache,
@@ -17,7 +19,17 @@ import {
     resetFnCaches,
 } from '@mionkit/core';
 import {BaseRunType, JitFunctions, registerPureFnClosure, runType} from '@mionkit/run-types';
-import {getPersistedMethods, initRouter, MethodsCache, registerRoutes, route, Routes} from '@mionkit/router';
+import {
+    getPersistedMethods,
+    headersHook,
+    HeadersList,
+    initRouter,
+    MethodData,
+    MethodsCache,
+    registerRoutes,
+    route,
+    Routes,
+} from '@mionkit/router';
 
 afterEach(() => resetFnCaches());
 
@@ -214,6 +226,16 @@ it('should compile router methods cache to code', () => {
 
     type User = {name: string; age: number};
     const testRoutes = {
+        auth: headersHook(
+            (
+                ctx,
+                [token]: HeadersList<['Authorization']>, // testing headers serialization
+                userid: string // ensure we accept extra regular params
+            ): HeadersList<['x-user-id']> => {
+                if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', type: 'not-authorized'});
+                return [userid];
+            }
+        ),
         getUser: route((_ctx: any, name: string): User => ({name, age: 30})),
     } satisfies Routes;
 
@@ -233,24 +255,58 @@ it('should compile router methods cache to code', () => {
         };
     }
 
+    function getExpectedHeadersJitHashes(): HeadersMethodData['jitHashes'] {
+        return {
+            isType: expect.any(String),
+            typeErrors: expect.any(String),
+        };
+    }
+
     // Verify that methods were persisted
     const persistedMethods = getPersistedMethods();
+    const authMethodMetadata = persistedMethods.auth;
     const getUserMethodMetadata = persistedMethods.getUser;
-    const mockCache = {getUser: getUserMethodMetadata};
-    const expectedMethodData = {
-        paramNames: ['name'],
-        type: 1,
-        id: 'getUser',
-        pointer: ['getUser'],
+    const mockCache = {auth: authMethodMetadata, getUser: getUserMethodMetadata};
+    const expectedAuthMethodData: MethodData = {
+        type: 3,
+        id: 'auth',
         nestLevel: 0,
+        hasReturnData: true,
+        isAsync: false,
+        pointer: ['auth'],
+        paramNames: ['param1', 'userid'],
         options: {
             runOnError: false,
-            hasReturnData: true,
             validateParams: true,
             deserializeParams: false,
             validateReturn: false,
             serializeReturn: false,
-            isAsync: false,
+        },
+        paramsJitHashes: getExpectedJitHashes(),
+        returnJitHashes: getExpectedJitHashes(),
+        headersParam: {
+            headerNames: ['Authorization'],
+            jitHashes: getExpectedHeadersJitHashes(),
+        },
+        headersReturn: {
+            headerNames: ['x-user-id'],
+            jitHashes: getExpectedHeadersJitHashes(),
+        },
+    };
+    const expectedGetUserMethodData: MethodData = {
+        type: 1,
+        id: 'getUser',
+        nestLevel: 0,
+        hasReturnData: true,
+        isAsync: false,
+        pointer: ['getUser'],
+        paramNames: ['name'],
+        options: {
+            runOnError: false,
+            validateParams: true,
+            deserializeParams: false,
+            validateReturn: false,
+            serializeReturn: false,
         },
         paramsJitHashes: getExpectedJitHashes(),
         returnJitHashes: getExpectedJitHashes(),
@@ -275,7 +331,8 @@ it('should compile router methods cache to code', () => {
         expect(compiledMock).toContain(esmExportPattern);
         const evalCode = compiledMock.replace(esmExportPattern, '').replace(/;\s*$/, '').trim();
         const evalResult = eval(`(${evalCode})`);
-        expect(evalResult.getUser).toEqual(expectedMethodData);
+        expect(evalResult.auth).toEqual(expectedAuthMethodData);
+        expect(evalResult.getUser).toEqual(expectedGetUserMethodData);
 
         // guarantees cache in core package can be compiled
         // this contains any router methods that are used by core package or mion packages
@@ -303,7 +360,8 @@ it('should compile router methods cache to code', () => {
         const endIndex = compiledMock.lastIndexOf(' };');
         const evalCode = compiledMock.substring(startIndex, endIndex).trim();
         const evalResult = eval(`(${evalCode})`);
-        expect(evalResult.getUser).toEqual(expectedMethodData);
+        expect(evalResult.auth).toEqual(expectedAuthMethodData);
+        expect(evalResult.getUser).toEqual(expectedGetUserMethodData);
 
         // guarantees cache in core package can be compiled
         const compiledCorePackage = compileTypeToJs<MethodsCache>(persistedMethods as any, cjsConfig, cjsConfig.caches.router);

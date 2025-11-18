@@ -4,4 +4,3 @@ import type { MethodsCache } from '@mionkit/router';
  * when the AOT compilation process runs.
  */
 export declare const routerCache: MethodsCache;
-//# sourceMappingURL=router.cache.d.ts.map

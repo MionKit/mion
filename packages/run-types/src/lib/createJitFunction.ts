@@ -44,7 +44,7 @@ export function createJitFunction(comp: BaseFnCompiler): (...args: any[]) => any
 function createJitFnWithContext(comp: BaseFnCompiler, fnName: string, fnCode: string, contextCode?: string) {
     // this function will have jitUtils as context as is an argument of the enclosing function
     const context = contextCode ? `${contextCode};` : '';
-    let fnWithContext = `${context} ${fnCode} return ${fnName};`;
+    let fnWithContext = `${context} return ${fnCode}`;
     if (getENV('DEBUG_RUN_TIME')) {
         const fnArgs = getJitFnArgs(comp);
         const argsCall = getJitFnArgs(comp, false);
