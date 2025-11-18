@@ -8,19 +8,23 @@
 import {ReceiveType} from '@deepkit/type';
 import {existsSync, writeFileSync, mkdirSync, readFileSync} from 'fs';
 import {dirname} from 'path';
-import {JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
+import {JitFunctionsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
 import {AOTConfig, compiledCacheConfig} from './types';
 import {MethodsCache} from '@mionkit/router';
 
 /** Saves jit compiled functions to a dist file in the core package, this should be run after typescript has been compiled */
 export function compileAndWriteJitFunctions(cache: JitFunctionsCache, config: AOTConfig) {
-    return compileAndWriteRunType<JitFunctionsCache>(cache, config, config.caches.jit);
+    return compileAndWriteRunType<PersistedJitFunctionsCache>(
+        cache as any as PersistedJitFunctionsCache,
+        config,
+        config.caches.jit
+    );
 }
 
 /** Saves pure functions to a dist file in the core package, this should be run after typescript has been compiled */
 export function compileAndWritePureFunctions(cache: PureFunctionsCache, config: AOTConfig) {
-    return compileAndWriteRunType<PureFunctionsCache>(cache, config, config.caches.pure);
+    return compileAndWriteRunType<PersistedPureFunctionsCache>(cache as PersistedPureFunctionsCache, config, config.caches.pure);
 }
 
 /** Saves router methods to a dist file, this should be run after typescript has been compiled */

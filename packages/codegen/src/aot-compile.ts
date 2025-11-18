@@ -7,9 +7,10 @@
 
 import {resolve, join} from 'path';
 import {compileAndWriteJitFunctions, compileAndWritePureFunctions, compileAndWriteRouterMethods} from './cacheCompiler';
-import {getFnCaches} from '@mionkit/core';
+import {getFnCaches, JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
 import {isTest} from './constants';
+import {JitFnID, JitFunctions} from '@mionkit/run-types';
 
 export interface CacheData {
     jitFnsCache: Record<string, any>;
@@ -22,6 +23,9 @@ export interface AOTCompileOptions {
     aotDir: string;
 }
 
+export const EXCLUDED_FNS: JitFnID[] = [JitFunctions.toJavascript.id];
+export const EXCLUDED_PURE_FNS: string[] = ['pf_sanitizeCompiledFn'];
+
 /**
  * AOT Compilation Function
  *
@@ -29,7 +33,11 @@ export interface AOTCompileOptions {
  * It runs the user's start script with MION_COMPILE=true to populate caches,
  * then compiles and writes those caches to the AOT package files.
  */
-export async function compileAOT(options: AOTCompileOptions): Promise<void> {
+export async function compileAOT(
+    options: AOTCompileOptions,
+    excludedFns: JitFnID[] = EXCLUDED_FNS,
+    excludedPureFns: string[] = EXCLUDED_PURE_FNS
+): Promise<void> {
     const {startScriptPath, aotDir} = options;
 
     const resolvedStartScript = resolve(startScriptPath);
@@ -66,7 +74,7 @@ export async function compileAOT(options: AOTCompileOptions): Promise<void> {
     const routerCache = getPersistedMethods();
 
     // Write the caches to files
-    writeCachesToFiles({jitFnsCache, pureFnsCache, routerCache}, aotDir);
+    writeAOTCachesToFiles({jitFnsCache, pureFnsCache, routerCache}, aotDir, excludedFns, excludedPureFns);
 
     if (!isTest) {
         console.log('✅ AOT compilation completed successfully!');
@@ -82,8 +90,15 @@ Cache files updated in both CJS and ESM formats:
  * Write cache data to AOT package files
  * Separated from compileAOT for testing purposes
  */
-export function writeCachesToFiles(cacheData: CacheData, aotDir: string): void {
+export function writeAOTCachesToFiles(
+    cacheData: CacheData,
+    aotDir: string,
+    excludedFns: JitFnID[] = EXCLUDED_FNS,
+    excludedPureFns: string[] = EXCLUDED_PURE_FNS
+): void {
     const {jitFnsCache, pureFnsCache, routerCache} = cacheData;
+    const filteredJitFnsCache = filterJitFns(jitFnsCache, excludedFns);
+    const filteredPureFnsCache = filterPureFns(pureFnsCache, excludedPureFns);
 
     // Write to both CJS and ESM builds
     const moduleFormats = ['cjs', 'esm'] as const;
@@ -117,16 +132,26 @@ export function writeCachesToFiles(cacheData: CacheData, aotDir: string): void {
         if (!isTest) {
             console.log(`Writing JIT functions cache (${moduleFormat})...`);
         }
-        compileAndWriteJitFunctions(jitFnsCache, aotConfig);
+        compileAndWriteJitFunctions(filteredJitFnsCache, aotConfig);
 
         if (!isTest) {
             console.log(`Writing pure functions cache (${moduleFormat})...`);
         }
-        compileAndWritePureFunctions(pureFnsCache, aotConfig);
+        compileAndWritePureFunctions(filteredPureFnsCache, aotConfig);
 
         if (!isTest) {
             console.log(`Writing router methods cache (${moduleFormat})...`);
         }
         compileAndWriteRouterMethods(routerCache, aotConfig);
     }
+}
+
+export function filterJitFns(jitFnsCache: JitFunctionsCache, excludedFns: JitFnID[] = EXCLUDED_FNS) {
+    if (!excludedFns.length) return jitFnsCache;
+    return Object.fromEntries(Object.entries(jitFnsCache).filter(([, value]) => !excludedFns.includes(value.fnID as JitFnID)));
+}
+
+export function filterPureFns(pureFnsCache: PureFunctionsCache, excludedPureFns: string[] = EXCLUDED_PURE_FNS) {
+    if (!excludedPureFns.length) return pureFnsCache;
+    return Object.fromEntries(Object.entries(pureFnsCache).filter(([, value]) => !excludedPureFns.includes(value.pureFnHash)));
 }

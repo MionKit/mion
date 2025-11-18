@@ -7,10 +7,10 @@
 
 import {existsSync, rmSync, mkdirSync} from 'fs';
 import {join, resolve} from 'path';
-import {writeCachesToFiles, type CacheData} from './aot-compile';
+import {writeAOTCachesToFiles, type CacheData} from './aot-compile';
 import {initAOT} from './cli-init-aot';
-import {initRouter, registerRoutes, resetRouter} from '@mionkit/router';
-import {getFnCaches, resetFnCaches, getENV} from '@mionkit/core';
+import {headersHook, HeadersList, initRouter, registerRoutes, resetRouter} from '@mionkit/router';
+import {getFnCaches, resetFnCaches} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
 import {hook, route} from '@mionkit/router';
 
@@ -67,6 +67,13 @@ describe('AOT Cache Compilation E2E', () => {
         initRouter();
 
         const testRoutes = {
+            auth: headersHook(
+                (
+                    ctx,
+                    [token]: HeadersList<['Authorization']>, // testing headers serialization
+                    userid: string // ensure we accept extra params
+                ): HeadersList<['x-user-id']> => [userid]
+            ),
             users: {
                 getUser: route((id: string): string => `User ${id}`),
                 setUser: route((id: string, name: string): string => `Set user ${id} to ${name}`),
@@ -99,7 +106,7 @@ describe('AOT Cache Compilation E2E', () => {
         expect(originalRouterKeys).not.toHaveLength(0);
 
         // Step 4: Write caches to files
-        writeCachesToFiles(originalCacheData, resolve(testAotDir));
+        writeAOTCachesToFiles(originalCacheData, resolve(testAotDir));
 
         // Step 5: Reset caches
         resetRouter();

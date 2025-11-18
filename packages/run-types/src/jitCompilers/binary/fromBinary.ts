@@ -417,8 +417,8 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
 
 function getPropName(rt: PropertyRunType, comp: BinaryCompiler, isObjectConstructor: boolean): string | number {
     const isSafe = isSafePropName(rt.src.name);
-    if (isObjectConstructor) return isSafe ? rt.getChildVarName() : rt.getChildLiteral();
-    return isSafe ? `.${rt.getChildVarName()}` : `[${rt.getChildLiteral()}]`;
+    if (isObjectConstructor) return isSafe ? rt.getChildVarName(comp) : rt.getChildLiteral(comp);
+    return isSafe ? `.${rt.getChildVarName(comp)}` : `[${rt.getChildLiteral(comp)}]`;
 }
 
 function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optionalPropsLength = 0, currentPropIndex = 0) {

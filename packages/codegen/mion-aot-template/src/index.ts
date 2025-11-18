@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {loadCompiledCaches} from '@mionkit/core';
+import {loadPersistedCaches} from '@mionkit/core';
 import {loadCompiledMethods} from '@mionkit/router';
 import {routerCache} from './router.cache';
 import {jitFnsCache} from './jitFns.cache';
@@ -36,11 +36,7 @@ import {pureFnsCache} from './pureFns.cache';
  */
 export function loadAOTCaches(): void {
     // Load core caches (JIT and pure functions)
-    loadCompiledCaches({
-        jitFnsCache,
-        pureFnsCache,
-    });
-
+    loadPersistedCaches(jitFnsCache, pureFnsCache);
     // Load router methods cache
     loadCompiledMethods(routerCache);
 }
