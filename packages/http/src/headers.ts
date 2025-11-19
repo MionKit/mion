@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MultiHeaderValue, MionHeaders, headersFromRecord, SingleHeaderValue} from '@mionkit/router';
+import {MionHeaders, headersFromRecord} from '@mionkit/router';
 import {IncomingMessage, ServerResponse} from 'http';
 
 export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHeaders {
@@ -19,27 +19,24 @@ export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHea
 class ServerResponseHeadersImpl implements MionHeaders {
     constructor(private resp: ServerResponse) {}
 
-    append(name: string, value: MultiHeaderValue): void {
+    append(name: string, value: string): void {
         this.resp.appendHeader(name, value);
     }
 
     delete(name: string): void {
         this.resp.removeHeader(name);
     }
-
-    get(name: string): SingleHeaderValue | undefined | null {
+    get(name: string): string | undefined | null {
         return toSingleHeader(this.resp.getHeader(name));
     }
-
     has(name: string): boolean {
         return this.resp.hasHeader(name);
     }
-
-    set(name: string, value: MultiHeaderValue): void {
+    set(name: string, value: string): void {
         this.resp.setHeader(name, value);
     }
 
-    entries(): IterableIterator<[string, SingleHeaderValue]> {
+    entries(): IterableIterator<[string, string]> {
         return getSingleHeadersObj(this.resp).entries();
     }
 
@@ -47,20 +44,17 @@ class ServerResponseHeadersImpl implements MionHeaders {
         return getSingleHeadersObj(this.resp).values();
     }
 
-    values(): IterableIterator<SingleHeaderValue> {
+    values(): IterableIterator<string> {
         return getSingleHeadersObj(this.resp).values();
     }
 }
 
-export function headersFromServerResponse(
-    resp: ServerResponse,
-    initialHeaders: Record<string, MultiHeaderValue> | null
-): MionHeaders {
+export function headersFromServerResponse(resp: ServerResponse, initialHeaders: Record<string, string> | null): MionHeaders {
     if (initialHeaders) Object.entries(initialHeaders).forEach(([name, value]) => resp.setHeader(name, value));
     return new ServerResponseHeadersImpl(resp);
 }
 
-function toSingleHeader(value: string | number | string[] | undefined): SingleHeaderValue | undefined {
+function toSingleHeader(value: string | number | string[] | undefined): string | undefined {
     if (!value) return undefined;
     if (Array.isArray(value)) return value.join(', ');
     return value as string;
