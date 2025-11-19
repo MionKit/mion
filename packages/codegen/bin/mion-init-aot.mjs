@@ -7,7 +7,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {mionInitAot} from '../.dist/esm/cli-init-aot.js';
+import {mionInitAot} from '../.dist/esm/src/cli-init-aot.js';
 
 try {
   mionInitAot();

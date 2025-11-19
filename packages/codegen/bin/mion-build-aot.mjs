@@ -7,7 +7,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {mionBuildAot} from '../.dist/esm/cli-build-aot.js';
+import {mionBuildAot} from '../.dist/esm/src/cli-build-aot.js';
 
 try {
   await mionBuildAot();
