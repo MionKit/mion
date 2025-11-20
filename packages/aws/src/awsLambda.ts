@@ -35,7 +35,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     const rawBody = rawRequest.body || '';
     const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
     const rawRespHeaders: Record<string, string> = {
-        server: '@mionkit/aws',
+        server: '@mionkit',
         ...lambdaOptions.defaultResponseHeaders,
     };
     const respHeaders = headersFromRecord(rawRespHeaders, true);

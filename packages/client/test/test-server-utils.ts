@@ -175,6 +175,19 @@ export class TestServerManager {
             }
         );
 
+        // Always pipe output to console for debugging
+        if (this.serverProcess.stdout) {
+            this.serverProcess.stdout.on('data', (data) => {
+                process.stdout.write(`[SERVER] ${data}`);
+            });
+        }
+
+        if (this.serverProcess.stderr) {
+            this.serverProcess.stderr.on('data', (data) => {
+                process.stderr.write(`[SERVER ERROR] ${data}`);
+            });
+        }
+
         // Set up basic error handling
         return new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(() => {

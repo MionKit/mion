@@ -39,7 +39,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     const parsedBody = typeof rawRequest.body === 'object' ? rawRequest.body : undefined;
 
     // TODO use its own express headers wrapper instead headers from record
-    rawResponse.setHeader('server', '@mionkit/gcf');
+    rawResponse.setHeader('server', '@mionkit');
     const reqHeaders = headersFromIncomingMessage(rawRequest);
     const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
 

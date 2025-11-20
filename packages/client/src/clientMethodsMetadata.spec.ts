@@ -10,10 +10,9 @@ import {ClientOptions, JitFunctionsById} from './types';
 import {PublicMethod} from '@mionkit/router';
 import {getFnCaches} from '@mionkit/core';
 import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
+import Storage from 'dom-storage';
 
 // Setup real localStorage for testing
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-const Storage = require('dom-storage');
 global.localStorage = new Storage(null, {strict: true});
 global.sessionStorage = new Storage(null, {strict: true});
 

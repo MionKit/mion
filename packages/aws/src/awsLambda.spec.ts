@@ -90,7 +90,7 @@ describe('serverless router should', () => {
         expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('47');
-        expect(headers['server']).toEqual('@mionkit/aws');
+        expect(headers['server']).toEqual('@mionkit');
     });
 
     it('should get an error when sending invalid parameters', async () => {
@@ -111,7 +111,7 @@ describe('serverless router should', () => {
         expect(parsedResponse).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('180');
-        expect(headers['server']).toEqual('@mionkit/aws');
+        expect(headers['server']).toEqual('@mionkit');
     });
 
     it('should set response headers from route response', async () => {
@@ -156,6 +156,6 @@ describe('serverless router should', () => {
         expect(headers['x-instance-id']).toEqual('3089');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('47');
-        expect(headers['server']).toEqual('@mionkit/aws');
+        expect(headers['server']).toEqual('@mionkit');
     });
 });
