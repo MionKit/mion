@@ -14,10 +14,10 @@
     "lib": ["es6", "ES2023"],
     "outDir": ".dist/cjs",
     "composite": true,
-    "declaration": false,
+    "declaration": true,
     "declarationMap": false,
     "incremental": true,
-    "sourceMap": false,
+    "sourceMap": true,
     "isolatedModules": true,
     "rewriteRelativeImportExtensions": true,
     "paths": {

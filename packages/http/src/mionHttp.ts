@@ -12,7 +12,7 @@ import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {NodeHttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {MionResponse} from '@mionkit/router';
+import type {MionHeaders, MionResponse} from '@mionkit/router';
 import {getENV, StatusCodes} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
@@ -87,50 +87,26 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     let size = 0;
     const bodyChunks: any[] = [];
 
-    httpResponse.setHeader('server', '@mionkit/http');
+    httpResponse.setHeader('server', '@mionkit');
     const reqHeaders = headersFromIncomingMessage(httpReq);
     const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
-
-    const dispatchReply = (routeResponse: MionResponse) => {
-        if (replied || httpResponse.writableEnded) return;
-        replied = true;
-        reply(httpResponse, routeResponse.rawBody, routeResponse.statusCode);
-    };
-
-    // only called whe there is an htt error or weird unhandled route errors
-    const fail = (
-        e?: Error | RpcError<string>,
-        statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
-        message = 'Unknown Error',
-        type: string = 'unknown-error'
-    ) => {
-        if (replied || httpResponse.writableEnded) return;
-        replied = true;
-        const error = e instanceof RpcError ? e : new RpcError({statusCode, publicMessage: message, originalError: e, type});
-        const routeResponse = getResponseFromError(
-            'httpRequest',
-            'dispatch',
-            '',
-            httpReq,
-            httpResponse,
-            error,
-            reqHeaders,
-            respHeaders
-        );
-        reply(httpResponse, routeResponse.rawBody, routeResponse.statusCode);
-    };
 
     httpReq.on('data', (data) => {
         bodyChunks.push(data);
         const chunkLength = bodyChunks[bodyChunks.length - 1].length;
         size += chunkLength;
-        if (size > httpOptions.maxBodySize) {
-            fail(undefined, StatusCodes.REQUEST_TOO_LONG, 'Payload Too Large', 'request-payload-too-large');
+        if (size > httpOptions.maxBodySize && !replied) {
+            replied = true;
+            // prettier-ignore
+            fail( httpReq, httpResponse, reqHeaders, respHeaders, undefined, StatusCodes.REQUEST_TOO_LONG, 'Payload Too Large', 'request-payload-too-large');
         }
     });
 
     httpReq.on('error', (e) => {
-        fail(e, StatusCodes.BAD_REQUEST, 'Connection Error', 'request-connection-error');
+        if (replied) return;
+        replied = true;
+        // prettier-ignore
+        fail(httpReq, httpResponse, reqHeaders, respHeaders, e, StatusCodes.BAD_REQUEST, 'Connection Error', 'request-connection-error');
     });
 
     httpReq.on('end', () => {
@@ -138,13 +114,52 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const reqRawBody = Buffer.concat(bodyChunks).toString();
 
         dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse)
-            .then((routeResponse) => dispatchReply(routeResponse))
-            .catch((e) => fail(e));
+            .then((routeResponse: MionResponse) => {
+                if (replied || httpResponse.writableEnded) return;
+                replied = true;
+                reply(httpResponse, routeResponse.rawBody, routeResponse.statusCode);
+            })
+            .catch((e) => {
+                // this is only called when there is an unhandled error in the dispatchRoute
+                // which is a pretty unlikely scenario
+                if (replied) return;
+                replied = true;
+                fail(httpReq, httpResponse, reqHeaders, respHeaders, e);
+            });
     });
 
     httpResponse.on('error', (e) => {
-        fail(e, StatusCodes.INTERNAL_SERVER_ERROR, 'Connection Error', 'response-connection-error');
+        if (replied) return;
+        replied = true;
+        // prettier-ignore
+        fail( httpReq, httpResponse, reqHeaders, respHeaders, e, StatusCodes.INTERNAL_SERVER_ERROR, 'Connection Error', 'response-connection-error');
     });
+}
+
+// only called when there is an http error or weird unhandled route errors
+function fail(
+    httpReq: IncomingMessage,
+    httpResponse: ServerResponse,
+    reqHeaders: MionHeaders,
+    respHeaders: MionHeaders,
+    e?: Error | RpcError<string>,
+    statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
+    message = 'Unknown Error',
+    type: string = 'unknown-error'
+) {
+    if (httpResponse.writableEnded) return;
+    const error = e instanceof RpcError ? e : new RpcError({statusCode, publicMessage: message, originalError: e, type});
+    const routeResponse = getResponseFromError(
+        'httpRequest',
+        'dispatch',
+        '',
+        httpReq,
+        httpResponse,
+        error,
+        reqHeaders,
+        respHeaders
+    );
+    reply(httpResponse, routeResponse.rawBody, routeResponse.statusCode);
 }
 
 function reply(httpResponse: ServerResponse, rawBody: string, statusCode: number, statusMessage?: string) {

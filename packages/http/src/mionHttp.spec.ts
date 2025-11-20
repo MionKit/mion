@@ -88,7 +88,7 @@ describe('node http router should', () => {
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('47');
-        expect(headers['server']).toEqual('@mionkit/http');
+        expect(headers['server']).toEqual('@mionkit');
     });
 
     it('get an error when sending invalid parameters', async () => {
@@ -111,7 +111,7 @@ describe('node http router should', () => {
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('180');
-        expect(headers['server']).toEqual('@mionkit/http');
+        expect(headers['server']).toEqual('@mionkit');
     });
 
     it('set response headers from route response', async () => {
@@ -167,7 +167,7 @@ describe('node http router should', () => {
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('116');
-        expect(headers['server']).toEqual('@mionkit/http');
+        expect(headers['server']).toEqual('@mionkit');
 
         await closeServer(smallServer);
     });

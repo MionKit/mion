@@ -32,7 +32,7 @@ export async function fetchRemoteMethodsMetadata(
     try {
         const url = new URL(GET_REMOTE_METHODS_BY_ID, options.baseURL);
         const response = await fetch(url, {
-            method: 'PUT',
+            method: 'GET',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body),
         });

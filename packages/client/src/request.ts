@@ -193,9 +193,13 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             const methodMeta = this.metadataById.get(subRequest.id);
             if (!subRequest.serializedParams) throw new Error(`SubRequest ${subRequest.id} is not serialized.`);
             if (!methodMeta) throw new Error(`Metadata for remote method ${subRequest.id} not found.`);
-            if (methodMeta.type === HandlerType.headerHook && methodMeta.headerNames && methodMeta.headerNames.length > 0) {
+            if (
+                methodMeta.type === HandlerType.headerHook &&
+                methodMeta.headersParam?.headerNames &&
+                methodMeta.headersParam?.headerNames.length > 0
+            ) {
                 // TODO: check if we using soft serialization in the client
-                headers[methodMeta.headerNames[0]] = subRequest.serializedParams[0];
+                headers[methodMeta.headersParam?.headerNames[0]] = subRequest.serializedParams[0];
             } else {
                 body[subRequest.id] = subRequest.serializedParams;
             }
@@ -208,10 +212,10 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         if (
             methodMeta &&
             methodMeta.type === HandlerType.headerHook &&
-            methodMeta.headerNames &&
-            methodMeta.headerNames.length > 0
+            methodMeta.headersParam?.headerNames &&
+            methodMeta.headersParam?.headerNames.length > 0
         ) {
-            return headers.get(methodMeta.headerNames[0]);
+            return headers.get(methodMeta.headersParam.headerNames[0]);
         }
         return respBody[id];
     }

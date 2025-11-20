@@ -91,7 +91,7 @@ describe('serverless router should', () => {
         expect(headers['connection']).toEqual('keep-alive');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('47');
-        expect(headers['server']).toEqual('@mionkit/gcf');
+        expect(headers['server']).toEqual('@mionkit');
     });
 
     it('get an ok response from a route when content type is json', async () => {
@@ -109,7 +109,7 @@ describe('serverless router should', () => {
         expect(headers['connection']).toEqual('keep-alive');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('47');
-        expect(headers['server']).toEqual('@mionkit/gcf');
+        expect(headers['server']).toEqual('@mionkit');
     });
 
     it('get an error when sending invalid parameters', async () => {
@@ -135,7 +135,7 @@ describe('serverless router should', () => {
         // bun: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to UnknownTypeName:() => __\\u{3a9}DataPoint'
         // node: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to DataPoint'
         expect(headers['content-length']).toEqual('180');
-        expect(headers['server']).toEqual('@mionkit/gcf');
+        expect(headers['server']).toEqual('@mionkit');
     });
 
     it('set response headers from route response', async () => {
@@ -190,7 +190,7 @@ describe('serverless router should', () => {
             expect(headers['connection']).toEqual('keep-alive');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('47');
-            expect(headers['server']).toEqual('@mionkit/gcf');
+            expect(headers['server']).toEqual('@mionkit');
         } catch (e) {
             err = e;
         }

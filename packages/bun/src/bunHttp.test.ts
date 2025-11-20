@@ -46,7 +46,7 @@ describe('bun router should', () => {
         context.response.headers.set('server', 'my-server');
     }); // satisfies Route
 
-    let server: Server;
+    let server: Server<any>;
 
     const port = 8079;
     beforeAll(async () => {
@@ -74,7 +74,7 @@ describe('bun router should', () => {
         expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('47');
-        expect(headers['server']).toEqual('@mionkit/http');
+        expect(headers['server']).toEqual('@mionkit');
     });
 
     test('get an error when sending invalid parameters', async () => {
@@ -98,7 +98,7 @@ describe('bun router should', () => {
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         // Error message changed from serialization to validation error, so content length will be different
         expect(headers['content-length']).toEqual('180');
-        expect(headers['server']).toEqual('@mionkit/http');
+        expect(headers['server']).toEqual('@mionkit');
     });
 
     test('set response headers from route response', async () => {
@@ -154,7 +154,7 @@ describe('bun router should', () => {
             expect(headers['x-instance-id']).toEqual('3089');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             // expect(headers['content-length']).toEqual('107');
-            expect(headers['server']).toEqual('@mionkit/http');
+            expect(headers['server']).toEqual('@mionkit');
         } catch (e) {
             err = e;
         }
