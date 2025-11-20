@@ -14,11 +14,12 @@
     "lib": ["es6", "ES2023"],
     "outDir": ".dist/cjs",
     "composite": true,
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
+    "declarationMap": false,
     "incremental": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "isolatedModules": true,
+    "rewriteRelativeImportExtensions": true,
     "paths": {
       "@mionkit/*": ["packages/*"]
     }

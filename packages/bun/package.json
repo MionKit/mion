@@ -64,7 +64,8 @@
     "@mionkit/router": "^0.7.2"
   },
   "devDependencies": {
-    "@deepkit/type-compiler": "1.0.2",
+    "@deepkit/core": "1.0.19",
+    "@deepkit/type-compiler": "1.0.19",
     "bun-types": "latest"
   }
 }
