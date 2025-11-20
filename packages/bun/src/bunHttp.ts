@@ -29,7 +29,7 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
 
-export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server> {
+export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any>> {
     const isTest = getENV('NODE_ENV') === 'test';
     const isCompiling = getENV('MION_COMPILE') === 'true';
 
@@ -54,7 +54,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
             const path = queryIndex === -1 ? req.url.substring(pathIndex) : req.url.substring(pathIndex, queryIndex);
             const rawBody = req.body ? await Bun.readableStreamToText(req.body) : '';
             const responseHeaders = new Headers({
-                server: '@mionkit/http',
+                server: '@mionkit',
                 ...httpOptions.defaultResponseHeaders,
             });
 
@@ -64,7 +64,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
         },
         error(errReq) {
             const responseHeaders = new Headers({
-                server: '@mionkit/http',
+                server: '@mionkit',
                 ...httpOptions.defaultResponseHeaders,
             });
             return fail({headers: {}, body: ''}, responseHeaders, undefined, errReq, errReq.errno);
