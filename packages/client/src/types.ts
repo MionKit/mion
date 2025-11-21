@@ -28,8 +28,6 @@ export type ClientOptions = {
     suffix: string;
     /** enable automatic parameter validation, defaults to true */
     validateParams: boolean;
-    /** Enables serialization/deserialization */
-    deserializeParams: boolean;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
     /** Custom JSON parser, defaults to Native js JSON */
@@ -43,13 +41,13 @@ export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
 export type PublicMethodReflection = {paramsJit: JitCompiledFunctions};
 export type HandlerResponse<RM extends PublicMethod> = Awaited<ReturnType<RM['handler']>>;
-export type HandlerSuccessResponse<RM extends PublicMethod> = Exclude<HandlerResponse<RM>, RpcError<any> | Error>;
-export type HandlerFailResponse<RM extends PublicMethod> = Extract<HandlerResponse<RM>, RpcError<any> | Error>;
+export type HandlerSuccessResponse<RM extends PublicMethod> = Exclude<HandlerResponse<RM>, RpcError<string> | Error>;
+export type HandlerFailResponse<RM extends PublicMethod> = Extract<HandlerResponse<RM>, RpcError<string> | Error>;
 export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['return'];
 export type SuccessResponses<List extends SubRequest<any>[]> = {[P in keyof List]: SuccessResponse<List[P]>};
 export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
-export type RequestErrors = Map<string, RpcError<any>>;
+export type RequestErrors = Map<string, RpcError<string>>;
 
 // ############# Remote Methods Request #############
 

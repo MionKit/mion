@@ -29,7 +29,7 @@ import {
 
 const SERIALIZE_FN = JitFunctions.toBinary;
 const DESERIALIZE_FN = JitFunctions.fromBinary;
-const serContext: DataViewSerializer = createDataViewSerializer({bufferSize: 1024});
+const serContext: DataViewSerializer = createDataViewSerializer('test', {bufferSize: 1024});
 const desContext: DataViewDeserializer = createDataViewDeserializer(new ArrayBuffer(0));
 
 function createSerializationFns(rt: RunType) {

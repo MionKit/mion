@@ -39,7 +39,6 @@ export function validateSubRequests(
  * If there is an error then subRequest is marked as resolved and error is added as subRequest response.
  */
 export function validateSubRequest(id: string, req: ValidationRequest, errors: RequestErrors): void {
-    if (!req.options.deserializeParams) return;
     // subRequest might be undefined if does not require to send parameters or are optional
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     if (subRequest?.error || subRequest?.isResolved) return;
@@ -59,7 +58,6 @@ export function validateSubRequest(id: string, req: ValidationRequest, errors: R
 
 /** Serialize subRequests. If there are any errors subRequests are marked as resolved. */
 export function serializeSubRequests(subRequestIds: string[], req: ValidationRequest, errors: RequestErrors): void {
-    if (!req.options.deserializeParams) return;
     subRequestIds.forEach((id) => {
         serializeSubRequest(id, req, errors);
         const methodMeta = req.metadataById.get(id);
@@ -70,7 +68,6 @@ export function serializeSubRequests(subRequestIds: string[], req: ValidationReq
 
 /** Serialize a single subRequest. If there are is an error subRequest is marked as resolved. */
 export function serializeSubRequest(id: string, req: ValidationRequest, errors: RequestErrors): void {
-    if (!req.options.deserializeParams) return;
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     // at this point subRequest might been validated so if not defined then is not required
     if (!subRequest) return;

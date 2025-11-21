@@ -119,7 +119,7 @@ export function isTypedError(error: any): error is TypedError<any> {
 }
 
 /** Returns true if the error is a RpcError or has the same structure. */
-export function isRpcError(error: any): error is RpcError<any> {
+export function isRpcError(error: any): error is RpcError<string> {
     if (!error) return false;
     if (error instanceof RpcError) return true;
     return (
@@ -137,6 +137,6 @@ jitUtils.setDeserializeFn(TypedError, (data: DataOnly<TypedError<any>>) => {
     return new TypedError(data);
 });
 
-jitUtils.setDeserializeFn(RpcError, (data: DataOnly<RpcError<any>>) => {
+jitUtils.setDeserializeFn(RpcError, (data: DataOnly<RpcError<string>>) => {
     return new RpcError(data);
 });

@@ -14,7 +14,7 @@ import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 
 // ####### Raw Hooks #######
 
-export type ErrorReturn = void | RpcError<any> | Promise<RpcError<any> | void>;
+export type ErrorReturn = void | RpcError<string> | Promise<RpcError<string> | void>;
 
 export type HooksCollection = {
     [key: string]: HookDef | HeaderHookDef | RawHookDef;

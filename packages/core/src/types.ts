@@ -5,6 +5,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ############### */
+
+import type {MIME_TYPES} from './constants';
+
 export type StrNumber = string | number;
 
 /**
@@ -462,16 +465,9 @@ export type DataOnly<T> = T extends object
 export type StrictArrayBuffer = ArrayBuffer & {buffer?: undefined};
 export interface DataViewSerializer {
     index: number; // byte offset
-    buffer: ArrayBuffer;
     view: DataView;
     reset: () => void;
     getBuffer: () => StrictArrayBuffer;
-    // String encoding and caching
-    textEncoder: TextEncoder;
-    maxStrCacheLength: number;
-    maxCacheSize: number;
-    stringCache: Map<string, Uint8Array>;
-    evictStringCache: () => void;
     // serialization functions
     serString(str: string): void;
     serFloat64(n: number): void;
@@ -482,18 +478,13 @@ export interface DataViewSerializer {
 
 export interface DataViewDeserializer {
     index: number; // byte offset
-    buffer: StrictArrayBuffer;
     view: DataView;
     setBuffer: (buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) => void;
-    // String decoding and caching
-    textDecoder: TextDecoder;
-    maxStrCacheLength: number;
-    maxCacheSize: number;
-    stringCache: Map<string, string>;
-    evictStringCache: () => void;
     hashBytes: (bytes: Uint8Array, len: number) => string;
     // deserialization functions
     desString(): string;
     desFloat64(): number;
     desEnum(): number | string;
 }
+
+export type MimeTypes = (typeof MIME_TYPES)[keyof typeof MIME_TYPES];

@@ -5,10 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyObject} from '@mionkit/core';
+import type {AnyObject, DataViewDeserializer, DataViewSerializer, MimeTypes} from '@mionkit/core';
 import type {PublicResponses} from './publicMethods';
 import type {RpcError} from '@mionkit/core';
 import {TypeAnnotation} from '@deepkit/core';
+import type {RAW_BODY_TYPES} from '../constants';
 
 // ####### Call Context #######
 
@@ -29,18 +30,25 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
 // TODO: Study Using a Common Interface getting setting headers and body
 // this way router can use that interface for reading and writing headers and body instead to the context therefore saving memory and cpu
 
+/** The request raw body can be a string, arrayBuffer or an object in the case of a pre-parsed body */
+export type RawRequestBody = string | ArrayBuffer | AnyObject;
+export type RawRequestBodyType = (typeof RAW_BODY_TYPES)[keyof typeof RAW_BODY_TYPES];
+
+/** Response body can be a string or an arrayBuffer */
+export type RawResponseBody = string | ArrayBuffer;
+
 /** Router's own request object, do not confuse with the underlying raw request */
 export interface MionRequest {
     /** parsed headers */
     readonly headers: Readonly<MionHeaders>;
-    /** json encoded request body. */
-    readonly rawBody: string;
+    /** Raw request body, can be string for json, arrayBuffer for binary or a javascript object in the case of pre-parsed body */
+    readonly rawBody: RawRequestBody;
+    readonly bodyType: RawRequestBodyType;
     /** parsed request body */
     readonly body: Readonly<AnyObject>;
-    /** pre-parsed body from platforms like Google Cloud Functions where Express auto-parses JSON */
-    readonly parsedBody?: Readonly<AnyObject>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
-    readonly internalErrors: Readonly<RpcError<any>[]>;
+    readonly internalErrors: Readonly<RpcError<string>[]>;
+    readonly binDeserializer?: DataViewDeserializer | undefined;
 }
 
 /** Router's own response object, do not confuse with the underlying raw response */
@@ -49,12 +57,14 @@ export interface MionResponse {
     readonly statusCode: number;
     /** response headers */
     readonly headers: Readonly<MionHeaders>;
-    /** json encoded response body, filled only after all routes/hook has ben finalized. */
-    readonly rawBody: string;
+    /** Raw response body, can be string for json or an arrayBuffer for binary. */
+    readonly rawBody: RawResponseBody;
+    readonly bodyType: MimeTypes;
     /** the router response data, body should not be modified manually so marked as Read Only */
     readonly body: Readonly<PublicResponses>;
     /** response errors: empty if there were no errors during execution */
     readonly hasErrors: boolean;
+    readonly binSerializer?: DataViewSerializer | undefined;
 }
 
 /**

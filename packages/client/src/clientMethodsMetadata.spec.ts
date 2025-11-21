@@ -40,7 +40,6 @@ describe('fetchRemoteMethodsMetadata', () => {
             prefix: '',
             suffix: '',
             validateParams: true,
-            deserializeParams: true,
             autoGenerateErrorId: false,
             bodyParser: JSON,
         };

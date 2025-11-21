@@ -330,8 +330,6 @@ export function getExecutableFromHook(
         executable = compiledMethod as MixedHook;
     } else {
         const reflectionData = getHandlerReflection(hook.handler, hookId, routerOptions, isHeader);
-        const skipParamsDecode = reflectionData.paramsJitFns.restoreFromJson.isNoop;
-        const skipReturnEncode = reflectionData.returnJitFns.prepareForJson.isNoop;
         executable = {
             id: hookId,
             type: isHeader ? HandlerType.headerHook : HandlerType.hook,
@@ -342,9 +340,7 @@ export function getExecutableFromHook(
             options: {
                 runOnError: !!hook.options?.runOnError,
                 validateParams: hook.options?.validateParams ?? true,
-                deserializeParams: (hook.options?.deserializeParams ?? true) && !skipParamsDecode,
                 validateReturn: hook.options?.validateReturn ?? false,
-                serializeReturn: (hook.options?.serializeReturn ?? true) && !skipReturnEncode && !routerOptions.useJitStringify, // if we are using jit stringify we skip serialization as encoding is done inside stringify function
                 description: hook.options?.description,
             },
         };
@@ -370,9 +366,7 @@ export function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[]
         options: {
             runOnError: !!hook.options?.runOnError,
             validateParams: false,
-            deserializeParams: false,
             validateReturn: false,
-            serializeReturn: false,
             description: hook.options?.description,
         },
     };
@@ -391,8 +385,6 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
         executable = compiledMethod as RouteMethod;
     } else {
         const reflectionData = getHandlerReflection(route.handler, routeId, routerOptions);
-        const skipParamsDecode = reflectionData.paramsJitFns.restoreFromJson.isNoop;
-        const skipReturnEncode = reflectionData.returnJitFns.prepareForJson.isNoop;
         executable = {
             id: routeId,
             type: HandlerType.route,
@@ -403,9 +395,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
             options: {
                 runOnError: false,
                 validateParams: route.options?.validateParams ?? true,
-                deserializeParams: (route.options?.deserializeParams ?? true) && !skipParamsDecode,
                 validateReturn: route.options?.validateReturn ?? false,
-                serializeReturn: (route.options?.serializeReturn ?? true) && !skipReturnEncode && !routerOptions.useJitStringify, // if we are using jit stringify we skip serialization as encoding is done inside stringify function
                 description: route.options?.description,
             },
         };

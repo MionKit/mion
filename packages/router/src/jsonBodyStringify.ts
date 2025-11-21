@@ -16,13 +16,13 @@ import type {PublicResponses} from './types/publicMethods';
 export function jitStringifyResponseBody(
     respBody: PublicResponses,
     path: string
-): {body: string; stringifyErrors: Record<string, RpcError<any>>} {
+): {body: string; stringifyErrors: Record<string, RpcError<string>>} {
     return getStringifyFnForExecutionPath(path)(respBody);
 }
 
 export function getStringifyFnForExecutionPath(
     path: string
-): (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError<any>>} {
+): (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError<string>>} {
     const executionPath = getRouteExecutionPath(path) || getNotFoundExecutionPath();
     if (executionPath?.bodyStringify) return executionPath.bodyStringify;
     executionPath.bodyStringify = _getExecutionPathStringifyFn(executionPath.methods);
@@ -33,11 +33,11 @@ export function getStringifyFnForExecutionPath(
 
 function _getExecutionPathStringifyFn(
     executionPath: Method[]
-): (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError<any>>} {
+): (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError<string>>} {
     const returnMethods = executionPath.filter((p) => p.hasReturnData && p.type !== HandlerType.headerHook) as Method[];
-    return (respBody: PublicResponses): {body: string; stringifyErrors: Record<string, RpcError<any>>} => {
+    return (respBody: PublicResponses): {body: string; stringifyErrors: Record<string, RpcError<string>>} => {
         const props: string[] = [];
-        const stringifyErrors: Record<string, RpcError<any>> = {};
+        const stringifyErrors: Record<string, RpcError<string>> = {};
         for (let i = 0; i < returnMethods.length; i++) {
             const method = returnMethods[i];
             const isLast = i === returnMethods.length - 1;

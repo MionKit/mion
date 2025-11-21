@@ -40,7 +40,7 @@ export async function fetchRemoteMethodsMetadata(
         // Handle union type de-serialization manually: MethodsData | RpcError gets serialized as [discriminator, value]
         // where discriminator 0 = MethodsData, discriminator 1 = RpcError
         const respUnion = respObj[GET_REMOTE_METHODS_BY_ID];
-        let resp: MethodsData | RpcError<any> | undefined;
+        let resp: MethodsData | RpcError<string> | undefined;
         if (Array.isArray(respUnion) && respUnion.length === 2 && typeof respUnion[0] === 'number') {
             const [discriminator, value] = respUnion;
             if (discriminator === 0) {
@@ -48,7 +48,7 @@ export async function fetchRemoteMethodsMetadata(
                 resp = value as MethodsData;
             } else if (discriminator === 1) {
                 // RpcError (second type in union)
-                resp = value as RpcError<any>;
+                resp = value as RpcError<string>;
             } else {
                 throw new Error(`Invalid union discriminator: ${discriminator}`);
             }

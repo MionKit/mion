@@ -53,3 +53,9 @@ export const DEFAULT_ROUTE_OPTIONS = {
 export const MAX_ROUTE_NESTING = 10;
 
 export const NOT_FOUND_HOOK_NAME = '_miΦn404NΦtfΦundHΦΦk_';
+
+export const RAW_BODY_TYPES = {
+    json: 1,
+    binary: 2,
+    object: 3,
+} as const;
