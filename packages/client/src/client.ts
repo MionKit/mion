@@ -143,7 +143,7 @@ class MethodProxy {
     }
 }
 
-function findError(req: SubRequest<any>, errors: RequestErrors): RpcError<any> {
+function findError(req: SubRequest<any>, errors: RequestErrors): RpcError<string> {
     const specificError = errors.get(req.id);
     if (specificError) return specificError;
 

@@ -14,9 +14,7 @@ import {PublicResponses} from './publicMethods';
 export interface MethodOptions {
     runOnError?: boolean;
     validateParams?: boolean;
-    deserializeParams?: boolean;
     validateReturn?: boolean;
-    serializeReturn?: boolean;
     description?: string;
 }
 
@@ -78,9 +76,7 @@ export interface RawMethod<H extends RawHookHandler = any> extends Method<H> {
     type: HandlerType.rawHook;
     options: MethodOptions & {
         validateParams: false;
-        deserializeParams: false;
         validateReturn?: false;
-        serializeReturn?: false;
     };
 }
 
@@ -93,25 +89,17 @@ export type CompiledMethod = Omit<Method, 'handler' | 'methodCaller'> & {
     returnJitFns: SerializableJITFunctions;
 };
 
-export type RouteOptions = Partial<
-    Pick<RouteMethod['options'], 'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn'>
->;
+export type RouteOptions = Partial<Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn'>>;
 export type HookOptions = Partial<
-    Pick<
-        HookMethod['options'],
-        'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn' | 'runOnError'
-    >
+    Pick<HookMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
 >;
 export type HeaderHookOptions = Partial<
-    Pick<
-        HeaderMethod['options'],
-        'description' | 'validateParams' | 'deserializeParams' | 'runOnError' | 'validateReturn' | 'serializeReturn'
-    >
+    Pick<HeaderMethod['options'], 'description' | 'validateParams' | 'runOnError' | 'validateReturn'>
 >;
 export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>;
 
 export interface MethodsExecutionList {
     routeIndex: number;
     methods: Method[];
-    bodyStringify?: (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError<any>>};
+    bodyStringify?: (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError<string>>};
 }

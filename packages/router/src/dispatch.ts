@@ -5,17 +5,18 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CallContext, MionResponse, MionRequest, MionHeaders} from './types/context';
+import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody, RawRequestBodyType} from './types/context';
 import {type RouterOptions} from './types/general';
 import {HeaderMethod, Method, RawMethod} from './types/remoteMethods';
 import {HandlerType} from './types/remoteMethods';
 import {isNotFoundExecutable} from './types/guards';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {getNotFoundExecutionPath} from './notFound';
-import {Mutable, AnyObject} from '@mionkit/core';
+import {Mutable, AnyObject, createDataViewDeserializer} from '@mionkit/core';
 import {handleRpcErrors} from './errors';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
+import {RAW_BODY_TYPES} from './constants';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -29,47 +30,48 @@ import {StatusCodes} from '@mionkit/core';
 
 export async function dispatchRoute<Req, Resp>(
     path: string,
-    reqRawBody: string,
+    reqRawBody: RawRequestBody,
     reqHeaders: MionHeaders,
     respHeaders: MionHeaders,
     rawRequest: Req,
-    rawResponse?: Resp,
-    parsedBody?: any
+    rawResponse?: Resp
 ): Promise<MionResponse> {
     try {
         const opts = getRouterOptions();
         // this is the call context that will be passed to all handlers
         // we should keep it as small as possible
-        const context = getEmptyCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, parsedBody);
+        const context = createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
 
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
         await runExecutionPath(context, rawRequest, rawResponse, executionPath.methods, opts);
         // console.log('dispatchRoute errors', context.request.internalErrors);
         return context.response;
-    } catch (err: any | RpcError<any> | Error) {
+    } catch (err: any | RpcError<string> | Error) {
         // this should never happen, exceptions should be handled inside runExecutionPath
         return Promise.reject(err);
     }
 }
 
-export function getEmptyCallContext(
+export function createCallContext(
     path: string,
     opts: RouterOptions,
-    reqRawBody: string,
+    reqRawBody: RawRequestBody,
     rawRequest: unknown,
     reqHeaders: MionHeaders,
-    respHeaders: MionHeaders,
-    parsedBody?: any
+    respHeaders: MionHeaders
 ): CallContext {
     const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
+    const bodyType = getBodyType(reqRawBody);
     return {
         path: transformedPath,
         request: {
             headers: reqHeaders,
             rawBody: reqRawBody,
-            body: {},
-            parsedBody,
+            bodyType,
+            body: getContextBody(reqRawBody, bodyType),
             internalErrors: [],
+            binDeserializer:
+                bodyType === RAW_BODY_TYPES.binary ? createDataViewDeserializer(reqRawBody as ArrayBuffer) : undefined,
         },
         response: {
             statusCode: StatusCodes.OK,
@@ -77,9 +79,11 @@ export function getEmptyCallContext(
             headers: respHeaders,
             body: {},
             rawBody: '',
+            bodyType: 'application/json',
+            binSerializer: undefined, // we can create deserializer lazily
         },
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
-    };
+    } as CallContext;
 }
 
 // ############# PRIVATE METHODS #############
@@ -118,11 +122,9 @@ async function runExecutionPath(
                     response.headers.set(name, headerValue);
                 });
             } else if (executable.hasReturnData && result !== undefined) {
-                (response.body as Mutable<AnyObject>)[executable.id] = executable.options.serializeReturn
-                    ? (executable as Method).returnJitFns.prepareForJson.fn(result)
-                    : result;
+                (response.body as Mutable<AnyObject>)[executable.id] = executable.returnJitFns.prepareForJson.fn(result);
             }
-        } catch (err: any | RpcError<any> | Error) {
+        } catch (err: any | RpcError<string> | Error) {
             const path = isNotFoundExecutable(executable) ? context.path : executable.id;
             handleRpcErrors(path, request, response, err, i);
         }
@@ -174,7 +176,7 @@ function getMethodCaller(executable: Method) {
 
 function deserializeBodyParams(request: MionRequest, executable: Method): any[] {
     const params: any[] = (request.body[executable.id] as any[]) || [];
-    if (!executable.options.deserializeParams) return params;
+    if (executable.paramsJitFns.restoreFromJson.isNoop) return params;
     try {
         (request.body as Mutable<MionRequest['body']>)[executable.id] = executable.paramsJitFns.restoreFromJson.fn(params);
         return request.body[executable.id] as any[];
@@ -208,5 +210,24 @@ function validateHeaderParamsOrThrow(headers: string[], executable: HeaderMethod
             publicMessage: `Invalid headers in '${executable.id}', validation failed.`,
             errorData: executable.headersParam.jitFns.typeErrors.fn(headers),
         });
+    }
+}
+
+function getBodyType(rawBody: RawRequestBody): RawRequestBodyType {
+    if (typeof rawBody === 'string') return RAW_BODY_TYPES.json;
+    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array) return RAW_BODY_TYPES.binary;
+    return RAW_BODY_TYPES.object;
+}
+
+function getContextBody(rawBody: RawRequestBody, bodyType: RawRequestBodyType): any {
+    switch (bodyType) {
+        case RAW_BODY_TYPES.json:
+            return JSON.parse(rawBody as string);
+        case RAW_BODY_TYPES.binary:
+            return {};
+        case RAW_BODY_TYPES.object:
+            return rawBody;
+        default:
+            throw new Error(`Invalid body type ${bodyType}`);
     }
 }
