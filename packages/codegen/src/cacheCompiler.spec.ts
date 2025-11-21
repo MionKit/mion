@@ -278,9 +278,7 @@ it('should compile router methods cache to code', () => {
         options: {
             runOnError: false,
             validateParams: true,
-            deserializeParams: false,
             validateReturn: false,
-            serializeReturn: false,
         },
         paramsJitHashes: getExpectedJitHashes(),
         returnJitHashes: getExpectedJitHashes(),
@@ -304,9 +302,7 @@ it('should compile router methods cache to code', () => {
         options: {
             runOnError: false,
             validateParams: true,
-            deserializeParams: false,
             validateReturn: false,
-            serializeReturn: false,
         },
         paramsJitHashes: getExpectedJitHashes(),
         returnJitHashes: getExpectedJitHashes(),

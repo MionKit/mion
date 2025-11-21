@@ -11,7 +11,7 @@ import {getRouterOptions} from './router';
 import {AnyObject, Mutable} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
-import {getEmptyCallContext} from './dispatch';
+import {createCallContext} from './dispatch';
 
 const defaultError = new RpcError({
     statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -31,7 +31,7 @@ export function getResponseFromError(
     parsedBody?: any
 ): MionResponse {
     const routerOptions = getRouterOptions();
-    const context = getEmptyCallContext(routePath, routerOptions, reqRawBody, rawRequest, reqHeaders, respHeaders, parsedBody);
+    const context = createCallContext(routePath, routerOptions, reqRawBody, rawRequest, reqHeaders, respHeaders, parsedBody);
     handleRpcErrors(routePath, context.request, context.response, error, step);
     // stringify does not uses rawRequest or raw response atm but that can change
     stringifyResponseBody(context, rawRequest, rawResponse, routerOptions);

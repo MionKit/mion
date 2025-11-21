@@ -111,11 +111,9 @@ const mionGetRemoteMethodsInfoByPath = (
     );
 };
 
-// disable serialization as deserializer seems to ignore serializedTypes
-const routerOpts = {deserializeParams: false};
 export const clientRoutes = {
     // name must match GET_REMOTE_METHODS_BY_ID
-    mionGetRemoteMethodsInfoById: route(mionGetRemoteMethodsInfoById, routerOpts),
+    mionGetRemoteMethodsInfoById: route(mionGetRemoteMethodsInfoById),
     // name must match GET_REMOTE_METHODS_BY_PATH
-    mionGetRemoteMethodsInfoByPath: route(mionGetRemoteMethodsInfoByPath, routerOpts),
+    mionGetRemoteMethodsInfoByPath: route(mionGetRemoteMethodsInfoByPath),
 } satisfies Routes;
