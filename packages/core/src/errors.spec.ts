@@ -24,7 +24,7 @@ describe('Route errors should', () => {
             id: '123WS',
             statusCode: 400,
             publicMessage: 'this is a public message',
-            message: 'this is a private message',
+            publicMessage: 'this is a private message',
             errorData: {data: 'data'},
             type: 'test-error',
         });
@@ -37,7 +37,7 @@ describe('Route errors should', () => {
             id: '123WX',
             statusCode: 400,
             publicMessage: 'this is a message',
-            message: 'this is a message',
+            publicMessage: 'this is a message',
             errorData: {data: 'data'},
             type: 'test-error',
         });
@@ -55,7 +55,7 @@ describe('TypedError should', () => {
             type: 'validation-error',
         });
 
-        expect(error.isΣrrθr).toBe(true);
+        expect(error['mion:isΣrrθr']).toBe(true);
         expect(error.message).toBe('Invalid input');
         expect(error.type).toBe('validation-error');
         expect(error instanceof Error).toBe(true);
@@ -78,7 +78,7 @@ describe('TypedError should', () => {
             type: 'typed-error',
         });
 
-        expect(error.isΣrrθr).toBe(true);
+        expect(error['mion:isΣrrθr']).toBe(true);
         expect(error.type).toBe('typed-error');
         expect(error.message).toBe('');
     });
@@ -86,7 +86,7 @@ describe('TypedError should', () => {
     it('be identified by type guard', () => {
         const error = new TypedError({type: 'fake'});
         const plainError = new Error('plain');
-        const plainObject = {isΣrrθr: true, type: 'fake', message: ''};
+        const plainObject = {'mion:isΣrrθr': true, type: 'fake', message: ''};
 
         expect(isTypedError(error)).toBe(true);
         expect(isTypedError(plainError)).toBe(false);
@@ -101,13 +101,13 @@ describe('RpcError inheritance should', () => {
         const error = new RpcError({
             statusCode: 400,
             type: 'validation-error',
-            message: 'Invalid request',
+            publicMessage: 'Invalid request',
             publicMessage: 'Bad request',
         });
 
         expect(error instanceof TypedError).toBe(true);
         expect(error instanceof RpcError).toBe(true);
-        expect(error.isΣrrθr).toBe(true);
+        expect(error['mion:isΣrrθr']).toBe(true);
         expect(error.type).toBe('validation-error');
         expect(error.message).toBe('Invalid request');
         expect(error.statusCode).toBe(400);

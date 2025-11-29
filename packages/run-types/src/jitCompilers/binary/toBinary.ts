@@ -59,7 +59,7 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
             return {code: `${sεr}.serString(${comp.vλl})`, type: 'S'};
         }
         case ReflectionKind.bigint: {
-            return {code: `${sεr}.serString(${comp.vλl}.toString())`, type: 'S'};
+            return {code: `${sεr}.serString(${comp.vλl}.toString(), true)`, type: 'S'};
         }
         case ReflectionKind.undefined:
         case ReflectionKind.void:

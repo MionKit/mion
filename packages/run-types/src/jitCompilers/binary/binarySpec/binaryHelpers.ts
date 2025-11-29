@@ -10,15 +10,16 @@ import {FunctionRunType} from '../../../nodes/function/function';
 import type {DataViewDeserializer, DataViewSerializer, StrictArrayBuffer} from '@mionkit/core';
 import type {InterfaceRunType} from '../../../nodes/collection/interface';
 import type {RunType} from '../../../types';
-import {createDataViewDeserializer, createDataViewSerializer} from '@mionkit/core';
+import {createDataViewDeserializer, createDataViewSerializer, setSerializationOptions} from '@mionkit/core';
 import {getENV} from '@mionkit/core';
 
 const DEBUG = getENV('DEBUG_JIT') === 'print';
 /** maps a binary serializer to json serializer */
 const toJsonSerializers: Map<(v: any) => any, (v: any) => string> = new Map();
 
-export const serContext: DataViewSerializer = createDataViewSerializer('test', {bufferSize: 1024});
-export const desContext: DataViewDeserializer = createDataViewDeserializer(new ArrayBuffer(0));
+setSerializationOptions({bufferSize: 1024});
+export const serContext: DataViewSerializer = createDataViewSerializer('test');
+export const desContext: DataViewDeserializer = createDataViewDeserializer('test', new ArrayBuffer(0));
 
 const SERIALIZE_FN = JitFunctions.toBinary;
 const DESERIALIZE_FN = JitFunctions.fromBinary;

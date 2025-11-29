@@ -7,16 +7,13 @@
 
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody, RawRequestBodyType} from './types/context';
 import {type RouterOptions} from './types/general';
-import {HeaderMethod, Method, RawMethod} from './types/remoteMethods';
+import {HeaderMethod, Method, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {HandlerType} from './types/remoteMethods';
-import {isNotFoundExecutable} from './types/guards';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {getNotFoundExecutionPath} from './notFound';
-import {Mutable, AnyObject, createDataViewDeserializer} from '@mionkit/core';
-import {handleRpcErrors} from './errors';
+import {Mutable, AnyObject, createDataViewDeserializer, isAnyError} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
-import {RAW_BODY_TYPES} from './constants';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -43,7 +40,7 @@ export async function dispatchRoute<Req, Resp>(
         const context = createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
 
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
-        await runExecutionPath(context, rawRequest, rawResponse, executionPath.methods, opts);
+        await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
         // console.log('dispatchRoute errors', context.request.internalErrors);
         return context.response;
     } catch (err: any | RpcError<string> | Error) {
@@ -61,17 +58,17 @@ export function createCallContext(
     respHeaders: MionHeaders
 ): CallContext {
     const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
-    const bodyType = getBodyType(reqRawBody);
+    const bodyType = getRequestBodyType(reqRawBody);
     return {
         path: transformedPath,
         request: {
             headers: reqHeaders,
             rawBody: reqRawBody,
             bodyType,
-            body: getContextBody(reqRawBody, bodyType),
+            body: {},
             internalErrors: [],
             binDeserializer:
-                bodyType === RAW_BODY_TYPES.binary ? createDataViewDeserializer(reqRawBody as ArrayBuffer) : undefined,
+                bodyType === 'B' ? createDataViewDeserializer(transformedPath, reqRawBody as ArrayBuffer) : undefined,
         },
         response: {
             statusCode: StatusCodes.OK,
@@ -79,11 +76,32 @@ export function createCallContext(
             headers: respHeaders,
             body: {},
             rawBody: '',
-            bodyType: 'application/json',
+            bodyType: opts.useBinarySerialization ? 'B' : 'J',
             binSerializer: undefined, // we can create deserializer lazily
         },
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
     } as CallContext;
+}
+
+/**
+ * Return a Response mion response for any error that happens before the route execution.
+ * to be used by any transport layer. ie: node/http, aws/lambda, bun, etc.
+ * basically is a global error response when when anything fails outside the router.
+ * @param error
+ * @param respHeaders
+ * @returns
+ */
+export function getGlobalErrorResponse(error: RpcError<string>, respHeaders: MionHeaders): MionResponse {
+    const body = {'*': error.toPublicError()};
+    const response: Mutable<MionResponse> = {
+        statusCode: error.statusCode,
+        hasErrors: true,
+        headers: respHeaders,
+        body,
+        rawBody: JSON.stringify(body),
+        bodyType: 'J', // global errors are always json
+    };
+    return response;
 }
 
 // ############# PRIVATE METHODS #############
@@ -93,43 +111,63 @@ async function runExecutionPath(
     context: CallContext,
     rawRequest: unknown,
     rawResponse: unknown,
-    executables: Method[],
+    executionPath: MethodsExecutionList,
     opts: RouterOptions
 ): Promise<MionResponse> {
     const {response, request} = context;
-
+    const executables = executionPath.methods;
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];
         if (response.hasErrors && !executable.options.runOnError) continue;
 
-        // TODO, we should try to avoid throwing errors and instead returning them,
-        // try catch should only be for unexpected fatal errors
-
         try {
             const methodCaller = executable.methodCaller || getMethodCaller(executable);
-            // method caller is not type safe so we need to be sure we always passing correct parameters
             // runRawHook , runHeaderHook & runRouteOrHook must always accept the same parameters in the same order
             const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
 
             // handle result
-            if (result instanceof Error || result instanceof RpcError) throw result;
+            if (!!result && isAnyError(result)) onErrorResponse(context, executionPath, executable, result);
             // TODO: when returning headerList on an union there could be another types that are array but not HeaderList
             // Not sure we this scenario can be easily fixed maybe returning a class or something that adds a unique prop to the returned data
-            else if (executable.headersReturn && Array.isArray(result)) {
+            else if (!!result && executable.headersReturn && Array.isArray(result)) {
                 executable.headersReturn.headerNames.forEach((name: string, i: string | number) => {
                     const headerValue = result[i];
                     if (!headerValue) return;
                     response.headers.set(name, headerValue);
                 });
             } else if (executable.hasReturnData && result !== undefined) {
-                (response.body as Mutable<AnyObject>)[executable.id] = executable.returnJitFns.prepareForJson.fn(result);
+                (response.body as Mutable<AnyObject>)[executable.id] = result;
             }
         } catch (err: any | RpcError<string> | Error) {
-            const path = isNotFoundExecutable(executable) ? context.path : executable.id;
-            handleRpcErrors(path, request, response, err, i);
+            onErrorResponse(context, executionPath, executable, err);
         }
     }
     return context.response;
+}
+
+function onErrorResponse(
+    context: CallContext,
+    executionPath: MethodsExecutionList,
+    executable: Method,
+    err: any | RpcError<string> | Error
+) {
+    const response = context.response as Mutable<MionResponse>;
+    const isNotFoundRoute = executionPath.isNotFound && executable.type === HandlerType.route;
+    const path = isNotFoundRoute ? context.path : executable.id;
+    const rpcError =
+        err instanceof RpcError
+            ? err
+            : new RpcError({
+                  statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                  publicMessage: `Unknown error in handler "${path}" of route execution path.`,
+                  originalError: err,
+                  type: 'unknown-error',
+              });
+
+    response.statusCode = rpcError.statusCode;
+    response.hasErrors = true;
+    (response.body as Mutable<AnyObject>)[path] = rpcError.toPublicError();
+    (context.request.internalErrors as Mutable<any[]>).push(rpcError);
 }
 
 async function runRawHook(
@@ -213,21 +251,8 @@ function validateHeaderParamsOrThrow(headers: string[], executable: HeaderMethod
     }
 }
 
-function getBodyType(rawBody: RawRequestBody): RawRequestBodyType {
-    if (typeof rawBody === 'string') return RAW_BODY_TYPES.json;
-    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array) return RAW_BODY_TYPES.binary;
-    return RAW_BODY_TYPES.object;
-}
-
-function getContextBody(rawBody: RawRequestBody, bodyType: RawRequestBodyType): any {
-    switch (bodyType) {
-        case RAW_BODY_TYPES.json:
-            return JSON.parse(rawBody as string);
-        case RAW_BODY_TYPES.binary:
-            return {};
-        case RAW_BODY_TYPES.object:
-            return rawBody;
-        default:
-            throw new Error(`Invalid body type ${bodyType}`);
-    }
+function getRequestBodyType(rawBody: RawRequestBody): RawRequestBodyType {
+    if (typeof rawBody === 'string') return 'J';
+    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array) return 'B';
+    return 'O';
 }

@@ -122,8 +122,8 @@ describe('serverless router should', () => {
         const headers = Object.fromEntries(response.headers.entries());
 
         const expectedError: PublicRpcError<'validation-error'> = {
-            isΣrrθr: true,
-            message: `Invalid params in 'getDate', validation failed.`,
+            'mion:isΣrrθr': true,
+            publicMessage: `Invalid params in 'getDate', validation failed.`,
             type: 'validation-error',
             statusCode: 400,
             errorData: expect.anything(),
