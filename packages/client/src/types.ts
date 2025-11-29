@@ -8,7 +8,7 @@
 import {RpcError} from '@mionkit/core';
 import type {RunTypeError} from '@mionkit/core';
 import type {JitCompiledFunctions} from '@mionkit/core';
-import type {JsonParser, PublicHeaderMethod, PublicHookMethod, PublicMethod, PublicApi, PublicRouteMethod} from '@mionkit/router';
+import type {PublicHeaderMethod, PublicHookMethod, PublicMethod, PublicApi, PublicRouteMethod} from '@mionkit/router';
 import type {MionRequest} from './request';
 
 export type StorageType = 'localStorage' | 'sessionStorage';
@@ -30,8 +30,6 @@ export type ClientOptions = {
     validateParams: boolean;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
-    /** Custom JSON parser, defaults to Native js JSON */
-    bodyParser: JsonParser;
 };
 
 export type InitOptions = Partial<ClientOptions> & {baseURL: string};

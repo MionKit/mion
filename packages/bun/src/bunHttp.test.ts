@@ -87,8 +87,8 @@ describe('bun router should', () => {
         const headers = Object.fromEntries(response.headers.entries());
 
         const expectedError: PublicRpcError<'validation-error'> = {
-            isΣrrθr: true,
-            message: `Invalid params in 'getDate', validation failed.`,
+            'mion:isΣrrθr': true,
+            publicMessage: `Invalid params in 'getDate', validation failed.`,
             type: 'validation-error',
             statusCode: 400,
             errorData: expect.anything(),
@@ -144,7 +144,7 @@ describe('bun router should', () => {
             // const reply = await response.json();
 
             // const expectedError: PublicRpcError<'request-payload-too-large'> = {
-            //     isΣrrθr: true,
+            //     'mion:isΣrrθr': true,
             //     message: `request-payload-too-large`,
             //     statusCode: 413,
             //     type: 'request-payload-too-large',

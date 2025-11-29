@@ -14,7 +14,7 @@ import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
 import {HandlerType} from './types/remoteMethods';
 import {getRawMethodReflection, getHandlerReflection} from './reflection';
-import {bodyParserHooks} from './jsonBodyParser.routes';
+import {serializerHooks} from './serializer.routes';
 import {getRouterItemId, getRoutePath, getENV} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './remoteMethods';
@@ -42,8 +42,8 @@ let isRouterInitialized = false;
 let allExecutablesIds: string[] | undefined;
 
 /** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
-const defaultStartHooks = {mionParseJsonRequestBody: bodyParserHooks.mionParseJsonRequestBody};
-const defaultEndHooks = {mionStringifyJsonResponseBody: bodyParserHooks.mionStringifyJsonResponseBody};
+const defaultStartHooks = {mionDeserializeRequest: serializerHooks.mionDeserializeRequest};
+const defaultEndHooks = {mionSerializeResponse: serializerHooks.mionSerializeResponse};
 let startHooksDef: HooksCollection = {...defaultStartHooks};
 let endHooksDef: HooksCollection = {...defaultEndHooks};
 export let startHooks: Method[] = [];

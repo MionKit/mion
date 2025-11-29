@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
+import {dispatchRoute, getGlobalErrorResponse, resetRouter} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -97,16 +97,25 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         size += chunkLength;
         if (size > httpOptions.maxBodySize && !replied) {
             replied = true;
-            // prettier-ignore
-            fail( httpReq, httpResponse, reqHeaders, respHeaders, undefined, StatusCodes.REQUEST_TOO_LONG, 'Payload Too Large', 'request-payload-too-large');
+            const error = new RpcError({
+                statusCode: StatusCodes.REQUEST_TOO_LONG,
+                publicMessage: 'Payload Too Large',
+                type: 'request-payload-too-large',
+            });
+            unexpectedFail(httpResponse, respHeaders, error);
         }
     });
 
     httpReq.on('error', (e) => {
         if (replied) return;
         replied = true;
-        // prettier-ignore
-        fail(httpReq, httpResponse, reqHeaders, respHeaders, e, StatusCodes.BAD_REQUEST, 'Connection Error', 'request-connection-error');
+        const error = new RpcError({
+            statusCode: StatusCodes.BAD_REQUEST,
+            publicMessage: 'Connection Error',
+            type: 'request-connection-error',
+            originalError: e,
+        });
+        unexpectedFail(httpResponse, respHeaders, error);
     });
 
     httpReq.on('end', () => {
@@ -114,57 +123,75 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const reqRawBody = Buffer.concat(bodyChunks).toString();
 
         dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse)
-            .then((routeResponse: MionResponse) => {
+            .then((mionResponse: MionResponse) => {
                 if (replied || httpResponse.writableEnded) return;
                 replied = true;
-                reply(httpResponse, routeResponse.rawBody, routeResponse.statusCode);
+                reply(httpResponse, mionResponse);
             })
             .catch((e) => {
                 // this is only called when there is an unhandled error in the dispatchRoute
                 // which is a pretty unlikely scenario
                 if (replied) return;
                 replied = true;
-                fail(httpReq, httpResponse, reqHeaders, respHeaders, e);
+                const error = new RpcError({
+                    statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                    publicMessage: 'Unknown Error',
+                    type: 'unknown-error',
+                    originalError: e,
+                });
+                unexpectedFail(httpResponse, respHeaders, error);
             });
     });
 
     httpResponse.on('error', (e) => {
         if (replied) return;
         replied = true;
-        // prettier-ignore
-        fail( httpReq, httpResponse, reqHeaders, respHeaders, e, StatusCodes.INTERNAL_SERVER_ERROR, 'Connection Error', 'response-connection-error');
+        const error = new RpcError({
+            statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+            publicMessage: 'Connection Error',
+            type: 'response-connection-error',
+            originalError: e,
+        });
+        unexpectedFail(httpResponse, respHeaders, error);
     });
 }
 
 // only called when there is an http error or weird unhandled route errors
-function fail(
-    httpReq: IncomingMessage,
-    httpResponse: ServerResponse,
-    reqHeaders: MionHeaders,
-    respHeaders: MionHeaders,
-    e?: Error | RpcError<string>,
-    statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
-    message = 'Unknown Error',
-    type: string = 'unknown-error'
-) {
+function unexpectedFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error: RpcError<string>) {
     if (httpResponse.writableEnded) return;
-    const error = e instanceof RpcError ? e : new RpcError({statusCode, publicMessage: message, originalError: e, type});
-    const routeResponse = getResponseFromError(
-        'httpRequest',
-        'dispatch',
-        '',
-        httpReq,
-        httpResponse,
-        error,
-        reqHeaders,
-        respHeaders
-    );
-    reply(httpResponse, routeResponse.rawBody, routeResponse.statusCode);
+    const routeResponse = getGlobalErrorResponse(error, respHeaders);
+    reply(httpResponse, routeResponse);
 }
 
-function reply(httpResponse: ServerResponse, rawBody: string, statusCode: number, statusMessage?: string) {
-    if (statusMessage) httpResponse.statusMessage = statusMessage;
-    httpResponse.statusCode = statusCode;
-    httpResponse.setHeader('content-length', Buffer.byteLength(rawBody, 'utf8'));
-    httpResponse.end(rawBody);
+function reply(httpResp: ServerResponse, mionResp: MionResponse) {
+    httpResp.statusCode = mionResp.statusCode;
+    const bodyType = mionResp.bodyType;
+    switch (bodyType) {
+        case 'J': {
+            const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');
+            httpResp.setHeader('content-length', buffer.length);
+            httpResp.end(buffer);
+            break;
+        }
+        case 'B': {
+            const serializer = mionResp.binSerializer!;
+            httpResp.setHeader('content-length', serializer.getLength());
+            httpResp.end(serializer.getBufferView());
+
+            // Release buffer when response is finished
+            const onFinish = () => serializer.markAsEnded();
+            httpResp.on('finish', onFinish);
+            httpResp.on('close', onFinish); // Fallback for aborted connection
+            break;
+        }
+        default: {
+            const error = new RpcError({
+                statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                publicMessage: 'unknown-mion-response-format',
+                type: 'unknown-error',
+                errorData: {bodyType},
+            });
+            unexpectedFail(httpResp, mionResp.headers, error);
+        }
+    }
 }

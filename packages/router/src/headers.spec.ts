@@ -9,7 +9,8 @@ import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
 import {route, headersHook, hook} from './handlers';
 import {headersFromRecord} from './headers';
-import {MionHeaders, HeadersList} from './types/context';
+import {MionHeaders} from './types/context';
+import {HeadersList} from './types/HeadersList';
 import {PublicRpcError, RpcError} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
 
@@ -111,10 +112,10 @@ describe('Request and Response Headers', () => {
             expect(response.hasErrors).toBeTruthy();
             const error = response.body.auth;
             expect(error).toEqual({
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 statusCode: 400,
                 type: 'headers-validation-error',
-                message: `Invalid headers in 'auth', validation failed.`,
+                publicMessage: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),
             } satisfies PublicRpcError<'headers-validation-error'>);
         });
@@ -387,10 +388,10 @@ describe('Request and Response Headers', () => {
             expect(response.hasErrors).toBeTruthy();
             const error = response.body.auth;
             expect(error).toEqual({
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 statusCode: 400,
                 type: 'headers-validation-error',
-                message: `Invalid headers in 'auth', validation failed.`,
+                publicMessage: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),
             } satisfies PublicRpcError<'headers-validation-error'>);
         });

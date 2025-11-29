@@ -3,7 +3,7 @@ import {HeadersList, Routes, headersHook, hook, initMionRouter, route} from '@mi
 
 const routes = {
     auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
-        if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', type: 'not-authorized'});
+        if (!token) throw new RpcError({statusCode: 401, publicMessage: 'Not Authorized', type: 'not-authorized'});
     }),
     utils: {
         sum5: route((ctx, a: number): number => a + 5),

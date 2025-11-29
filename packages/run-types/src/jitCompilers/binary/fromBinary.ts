@@ -62,7 +62,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
             return {code: `${dεs}.desString()`, type: 'E'};
         }
         case ReflectionKind.bigint: {
-            return {code: `BigInt(${dεs}.desString())`, type: 'E'};
+            return {code: `BigInt(${dεs}.desString(true))`, type: 'E'};
         }
         case ReflectionKind.undefined:
         case ReflectionKind.void:

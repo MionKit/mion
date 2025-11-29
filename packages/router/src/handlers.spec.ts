@@ -9,7 +9,8 @@ import {Routes} from './types/general';
 import {registerRoutes, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
 import {route, headersHook, hook, rawHook} from './handlers';
-import {HeadersList, MionHeaders} from './types/context';
+import {MionHeaders} from './types/context';
+import {HeadersList} from './types/HeadersList';
 import {headersFromRecord} from './headers';
 import {HandlerType} from './types/remoteMethods';
 

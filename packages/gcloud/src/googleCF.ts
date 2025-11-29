@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import {dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
+import {dispatchRoute, getGlobalErrorResponse, resetRouter} from '@mionkit/router';
 import type {MionResponse} from '@mionkit/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants';
@@ -35,8 +35,6 @@ export function setGoogleCFOpts(routerOptions?: Partial<GoogleCFOptions>) {
 export async function googleCFHandler(rawRequest: Request, rawResponse: Response): Promise<void> {
     // Express in Google Cloud Functions might parse the body automatically when Content-Type is application/json
     // We handle both cases: string body and already-parsed object body
-    const rawBody = typeof rawRequest.body === 'string' ? rawRequest.body || '' : '';
-    const parsedBody = typeof rawRequest.body === 'object' ? rawRequest.body : undefined;
 
     // TODO use its own express headers wrapper instead headers from record
     rawResponse.setHeader('server', '@mionkit');
@@ -46,12 +44,11 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     try {
         const routeResponse = await dispatchRoute(
             rawRequest.path,
-            rawBody,
+            rawRequest.body,
             reqHeaders,
             respHeaders,
             rawRequest,
-            rawResponse,
-            parsedBody
+            rawResponse
         );
         reply(routeResponse, rawResponse);
     } catch (err) {
@@ -64,17 +61,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
                       originalError: err as Error,
                       type: 'unknown-error',
                   });
-        const routeResponse = getResponseFromError(
-            rawRequest.path,
-            'dispatchRoute',
-            rawBody,
-            rawRequest,
-            rawResponse,
-            error,
-            reqHeaders,
-            respHeaders,
-            parsedBody
-        );
+        const routeResponse = getGlobalErrorResponse(error, respHeaders);
         reply(routeResponse, rawResponse);
     }
 }
@@ -82,6 +69,8 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
 // ############# PRIVATE METHODS #############
 
 function reply(routeResponse: MionResponse, resp: Response): void {
+    if (typeof routeResponse.rawBody !== 'string')
+        throw new Error('Binary responses are not yet supported on Google Cloud Functions');
     resp.set('content-length', `${Buffer.byteLength(routeResponse.rawBody, 'utf8')}`);
     resp.status(routeResponse.statusCode).end(routeResponse.rawBody);
 }

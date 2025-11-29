@@ -8,8 +8,6 @@ import {
     SerializablePublicMethod,
 } from '@mionkit/core'; // do not import type only
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
-import {RpcError} from '@mionkit/core';
-import {PublicResponses} from './publicMethods';
 
 export interface MethodOptions {
     runOnError?: boolean;
@@ -101,5 +99,5 @@ export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 
 export interface MethodsExecutionList {
     routeIndex: number;
     methods: Method[];
-    bodyStringify?: (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError<string>>};
+    isNotFound?: true;
 }

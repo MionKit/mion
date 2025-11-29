@@ -20,6 +20,6 @@ export function getNotFoundExecutionPath(): MethodsExecutionList {
     const notFoundHandlerExecutable = getExecutableFromRoute(notFoundRoute, [NOT_FOUND_HOOK_NAME], 0);
     (notFoundHandlerExecutable as NotFoundMethod).is404 = true;
     const methods = [...startHooks, notFoundHandlerExecutable, ...endHooks];
-    notFoundExecutionPath = {routeIndex: startHooks.length, methods};
+    notFoundExecutionPath = {routeIndex: startHooks.length, methods, isNotFound: true};
     return notFoundExecutionPath;
 }

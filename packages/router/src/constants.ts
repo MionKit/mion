@@ -14,48 +14,25 @@ export const ROUTE_DEFAULT_PARAMS = ['context'];
 export const HEADER_HOOK_DEFAULT_PARAMS = ['context', 'headers'];
 
 export const DEFAULT_ROUTE_OPTIONS = {
-    /** Prefix for all routes, i.e: api/v1.
-     * path separator is added between the prefix and the route */
+    /** Prefix for all routes, i.e: api/v1. Path separator is added between the prefix and the route */
     prefix: '',
-
-    /** Suffix for all routes, i.e: .json.
-     * No path separator is added between the route and the suffix */
+    /** Suffix for all routes, i.e: .json. No path separator is added between the route and the suffix */
     suffix: '',
-
     /** Function that transforms the path before finding a route */
     pathTransform: undefined,
-
     /** using runTypes jit stringify by default */
     useJitStringify: true,
-
+    /** using runTypes jit binary serialization is disabled by default */
+    useBinarySerialization: false,
     /** Default run type compiling options for routes and hooks, can't be configured by the user as would break functionality  */
-    runTypeOptions: {
-        /** Removes unknown properties when parsing parameters from json */
-        // strictJSON: false,
-
-        /** skip first parameter (Context) from route/hook handlers */
-        paramsSlice: {start: ROUTE_DEFAULT_PARAMS.length},
-    },
-
-    /** Custom body parser, defaults to Native JSON */
-    bodyParser: JSON,
-
+    runTypeOptions: {},
     /** set to true to generate router spec for clients.  */
     getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
-
     /** Set true to automatically generate and id for every error.  */
     autoGenerateErrorId: false,
-
     /** client routes are initialized by default */
     skipClientRoutes: false || IS_TEST_ENV,
-} satisfies Readonly<RouterOptions>;
+} as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
-
 export const NOT_FOUND_HOOK_NAME = '_miΦn404NΦtfΦundHΦΦk_';
-
-export const RAW_BODY_TYPES = {
-    json: 1,
-    binary: 2,
-    object: 3,
-} as const;

@@ -262,6 +262,7 @@ describe('Client Routes should', () => {
     const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
     const jitFnRt = runType<JitCompiledFnData>();
     const isJitCompiledFn = jitFnRt.createJitFunction(JitFunctions.isType);
+    const restoreJitCompiledFn = jitFnRt.createJitFunction(JitFunctions.restoreFromJson);
 
     afterEach(() => resetRouter());
 
@@ -287,7 +288,7 @@ describe('Client Routes should', () => {
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
-            expect(isJitCompiledFn(dep)).toBe(true);
+            expect(isJitCompiledFn(restoreJitCompiledFn(dep))).toBe(true);
         });
     });
 
@@ -314,7 +315,8 @@ describe('Client Routes should', () => {
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
-            expect(isJitCompiledFn(dep)).toBe(true);
+            const restored = restoreJitCompiledFn(dep); // we need to restore before checking correct type
+            expect(isJitCompiledFn(restored)).toBe(true);
         });
     });
 
@@ -338,7 +340,8 @@ describe('Client Routes should', () => {
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
-            expect(isJitCompiledFn(dep)).toBe(true);
+            const restored = restoreJitCompiledFn(dep); // we need to restore before checking correct type
+            expect(isJitCompiledFn(restored)).toBe(true);
         });
     });
 
@@ -364,7 +367,8 @@ describe('Client Routes should', () => {
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
-            expect(isJitCompiledFn(dep)).toBe(true);
+            const restored = restoreJitCompiledFn(dep); // we need to restore before checking correct type
+            expect(isJitCompiledFn(restored)).toBe(true);
         });
     });
 
@@ -383,10 +387,10 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedResponse: PublicRpcError<'rpc-metadata-not-found'> = {
-            isΣrrθr: true,
+            'mion:isΣrrθr': true,
             statusCode: 404,
             type: 'rpc-metadata-not-found',
-            message: 'Errors getting Remote Methods Metadata',
+            publicMessage: 'Errors getting Remote Methods Metadata',
             errorData: {
                 parse: 'Remote Method parse not found',
                 helloWorld: 'Remote Method helloWorld not found',
@@ -409,10 +413,10 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedResponse: PublicRpcError<'rpc-metadata-not-found'> = {
-            isΣrrθr: true,
+            'mion:isΣrrθr': true,
             statusCode: 404,
             type: 'rpc-metadata-not-found',
-            message: 'Route /abcd not found',
+            publicMessage: 'Route /abcd not found',
         };
         expect(response.body[routeMethodsId]).toEqual(expectedResponse);
     });

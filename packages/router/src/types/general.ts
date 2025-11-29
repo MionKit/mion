@@ -38,10 +38,10 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
     contextDataFactory?: ContextDataFactory<ContextData>;
     /** Enables json stringify using runTypes jit stringify function instead JSON.stringify */
     useJitStringify: boolean;
+    /** Enables binary serialization using runTypes jit binary serialization functions, if enabled takes precedence over useJitStringify */
+    useBinarySerialization: boolean;
     /** run type compiler options for hooks and routes */
     runTypeOptions: RunTypeOptions;
-    /** Custom JSON parser, defaults to Native js JSON */
-    bodyParser: JsonParser;
     /** Used to return public data structure when adding routes */
     getPublicRoutesData: boolean;
     /** automatically generate and uuid */
@@ -49,10 +49,3 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
     /** client routes are initialized by default */
     skipClientRoutes: boolean;
 }
-
-// #######  Others #######
-
-export type JsonParser = {
-    parse: (text: string) => any;
-    stringify: (js) => string;
-};

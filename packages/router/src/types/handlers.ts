@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CallContext, HeadersList} from './context';
+import {CallContext} from './context';
+import {HeadersList} from './HeadersList';
 import {RouterOptions} from './general';
 import {ErrorReturn} from './publicMethods';
 

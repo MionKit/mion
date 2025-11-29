@@ -10,7 +10,7 @@ export const myApi = initMionRouter(
     {
         auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void | RpcError<'not-authorized'> => {
             if (!token)
-                return new RpcError<'not-authorized'>({statusCode: 401, message: 'Not Authorized', type: 'not-authorized'});
+                return new RpcError<'not-authorized'>({statusCode: 401, publicMessage: 'Not Authorized', type: 'not-authorized'});
         }),
         users: {
             sayHello: route((ctx, user: User): string => `Hello ${user.name} ${user.surname}`),

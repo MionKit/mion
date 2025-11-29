@@ -41,7 +41,6 @@ describe('fetchRemoteMethodsMetadata', () => {
             suffix: '',
             validateParams: true,
             autoGenerateErrorId: false,
-            bodyParser: JSON,
         };
         metadataById = new Map();
         jitFunctionsById = new Map();

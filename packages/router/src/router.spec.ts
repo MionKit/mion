@@ -17,7 +17,6 @@ import {
     initRouter,
     addStartHooks,
     addEndHooks,
-    getRouterOptions,
 } from './router';
 import {type Routes} from './types/general';
 import {hook, route, rawHook} from './handlers';
@@ -86,21 +85,21 @@ describe('Create routes should', () => {
     };
 
     const defaultExecutables = {
-        mionParseJsonRequestBody: {
-            id: 'mionParseJsonRequestBody',
+        mionDeserializeRequest: {
+            id: 'mionDeserializeRequest',
             type: HandlerType.rawHook,
         },
-        mionStringifyJsonResponseBody: {
-            id: 'mionStringifyJsonResponseBody',
+        mionSerializeResponse: {
+            id: 'mionSerializeResponse',
             type: HandlerType.rawHook,
         },
     };
 
     function addDefaultExecutables(exec: any[]) {
         return [
-            expect.objectContaining({...defaultExecutables.mionParseJsonRequestBody}),
+            expect.objectContaining({...defaultExecutables.mionDeserializeRequest}),
             ...exec,
-            expect.objectContaining({...defaultExecutables.mionStringifyJsonResponseBody}),
+            expect.objectContaining({...defaultExecutables.mionSerializeResponse}),
         ];
     }
 

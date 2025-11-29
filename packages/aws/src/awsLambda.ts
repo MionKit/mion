@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import {dispatchRoute, getResponseFromError, headersFromRecord, resetRouter} from '@mionkit/router';
+import {dispatchRoute, getGlobalErrorResponse, headersFromRecord, resetRouter} from '@mionkit/router';
 import type {MionResponse, MionHeaders} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants';
@@ -52,19 +52,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
                           originalError: err,
                           type: 'unknown-error',
                       });
-            return reply(
-                getResponseFromError(
-                    rawRequest.path,
-                    'dispatchRoute',
-                    rawBody,
-                    rawRequest,
-                    awsContext,
-                    error,
-                    reqHeaders,
-                    respHeaders
-                ),
-                respHeaders
-            );
+            return reply(getGlobalErrorResponse(error, respHeaders), respHeaders);
         });
 }
 
@@ -83,6 +71,7 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
         }
         singleHeaders[name] = value;
     });
+    if (typeof routeResponse.rawBody !== 'string') throw new Error('Binary responses are not yet supported on AWS Lambda');
     const resp: APIGatewayProxyResult = {
         statusCode: routeResponse.statusCode,
         headers: singleHeaders,

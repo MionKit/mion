@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getResponseFromError, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
+import {dispatchRoute, getGlobalErrorResponse, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
 import {getENV, StatusCodes} from '@mionkit/core';
@@ -60,14 +60,28 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 
             return dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined)
                 .then((routeResp: MionResponse) => reply(routeResp, responseHeaders))
-                .catch((e: Error) => fail(req, responseHeaders, req.headers, e));
+                .catch((e: Error) => {
+                    const error = new RpcError({
+                        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                        publicMessage: 'Unknown Error',
+                        type: 'unknown-error',
+                        originalError: e,
+                    });
+                    return fail(error, responseHeaders);
+                });
         },
         error(errReq) {
             const responseHeaders = new Headers({
                 server: '@mionkit',
                 ...httpOptions.defaultResponseHeaders,
             });
-            return fail({headers: {}, body: ''}, responseHeaders, undefined, errReq, errReq.errno);
+            const error = new RpcError({
+                statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                publicMessage: 'Connection Error',
+                type: 'response-connection-error',
+                originalError: errReq,
+            });
+            return fail(error, responseHeaders);
         },
     });
 
@@ -84,29 +98,8 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 }
 
 // only called whe there is an htt error or weird unhandled route errors
-const fail = (
-    httpReq: unknown,
-    // TODO: fic issue with Native Bun Headers type messing with Node Headers type
-    // requestHeaders: Headers = new Headers(),
-    // responseHeaders: Headers,
-    responseHeaders: any,
-    requestHeaders: any = new Headers(),
-    e?: Error | RpcError<string>,
-    statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
-    message = 'Unknown Error'
-): Response => {
-    const error =
-        e instanceof RpcError ? e : new RpcError({statusCode, publicMessage: message, originalError: e, type: 'unknown-error'});
-    const routeResponse = getResponseFromError(
-        'httpRequest',
-        'dispatch',
-        '',
-        httpReq,
-        undefined,
-        error,
-        requestHeaders,
-        responseHeaders
-    );
+const fail = (err: RpcError<string>, responseHeaders: any): Response => {
+    const routeResponse = getGlobalErrorResponse(err, responseHeaders);
     return reply(routeResponse, responseHeaders);
 };
 
@@ -116,6 +109,7 @@ function reply(
     // responseHeaders: Headers,
     responseHeaders: any
 ): Response {
+    if (typeof routeResp.rawBody !== 'string') throw new Error('Binary responses are not yet supported on Bun');
     return new Response(routeResp.rawBody, {
         status: routeResp.statusCode,
         headers: responseHeaders,
