@@ -7,9 +7,10 @@
 
 import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
-import {CallContext, MionHeaders, HeadersList} from './types/context';
+import {CallContext, MionHeaders} from './types/context';
+import {HeadersList} from './types/HeadersList';
 import {Routes} from './types/general';
-import {PublicRpcError} from '@mionkit/core';
+import {PublicRpcError, RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 import {headersHook, hook, route} from './handlers';
 import {headersFromRecord} from './headers';
@@ -254,10 +255,10 @@ describe('Dispatch routes', () => {
             // not found returns a different element in body as regular hooks or routes
             const error = response.body['/abcd'];
             expect(error).toEqual({
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 statusCode: 404,
                 type: 'route-not-found',
-                message: 'Route not found',
+                publicMessage: 'Route not found',
             } satisfies PublicRpcError<'route-not-found'>);
         });
 
@@ -277,10 +278,10 @@ describe('Dispatch routes', () => {
             );
             const error = response.body?.auth;
             expect(error).toEqual({
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 statusCode: 400,
                 type: 'headers-validation-error',
-                message: `Invalid headers in 'auth', validation failed.`,
+                publicMessage: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),
             } satisfies PublicRpcError<'headers-validation-error'>);
         });
@@ -302,12 +303,12 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const error = response.body['mionParseJsonRequestBody'];
+            const error = response.body['mionDeserializeRequest'];
             expect(error).toEqual({
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 statusCode: 400,
                 type: 'invalid-request-body',
-                message: 'Wrong request body. Expecting an json body containing the route name and parameters.',
+                publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             } satisfies PublicRpcError<'invalid-request-body'>);
 
             const request2: RawRequest = {
@@ -323,13 +324,13 @@ describe('Dispatch routes', () => {
                 request2,
                 {}
             );
-            const errorResp = response2.body['mionParseJsonRequestBody'];
+            const errorResp = response2.body['mionDeserializeRequest'];
             expect(errorResp).toEqual({
-                isΣrrθr: true,
-                type: 'parsing-request-body-error',
+                'mion:isΣrrθr': true,
+                type: 'parsing-json-request-error',
                 statusCode: 422,
-                message: expect.stringContaining('Invalid request body:'), // Nodejs error is slightly different depending on node version
-            } satisfies PublicRpcError<'parsing-request-body-error'>);
+                publicMessage: expect.stringContaining('Invalid json request body:'), // Nodejs error is slightly different depending on node version
+            } satisfies PublicRpcError<'parsing-json-request-error'>);
         });
 
         it('return an error if data is missing from body', async () => {
@@ -348,10 +349,10 @@ describe('Dispatch routes', () => {
             );
             const error = response.body.changeUserName;
             expect(error).toEqual({
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 statusCode: 400,
                 type: `validation-error`,
-                message: `Invalid params in 'changeUserName', validation failed.`,
+                publicMessage: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [{expected: 'object', path: [0]}],
             } satisfies PublicRpcError<'validation-error'>);
         });
@@ -372,10 +373,10 @@ describe('Dispatch routes', () => {
             );
             const error = response.body['getSameDate'];
             expect(error).toEqual({
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 statusCode: 400,
                 type: 'serialization-error',
-                message: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
+                publicMessage: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
                 errorData: {deserializeError: `Cannot read properties of undefined (reading 'date')`},
             } satisfies PublicRpcError<'serialization-error'>);
         });
@@ -396,10 +397,10 @@ describe('Dispatch routes', () => {
                 {}
             );
             const expected: PublicRpcError<'validation-error'> = {
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 type: 'validation-error',
                 statusCode: 400,
-                message: `Invalid params in 'changeUserName', validation failed.`,
+                publicMessage: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [{expected: 'string', path: [0, 'name']}],
             };
             const error = response.body.changeUserName;
@@ -421,10 +422,10 @@ describe('Dispatch routes', () => {
                 {}
             );
             const expected: PublicRpcError<'validation-error'> = {
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 type: 'validation-error',
                 statusCode: 400,
-                message: `Invalid params in 'changeUserName', validation failed.`,
+                publicMessage: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [
                     {expected: 'string', path: [0, 'name']},
                     {expected: 'string', path: [0, 'surname']},
@@ -447,10 +448,10 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/routeFail', request.body, request.headers, headersFromRecord({}), request, {});
             const error = response.body['routeFail'];
             expect(error).toEqual({
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 statusCode: 500,
                 type: 'unknown-error',
-                message: 'Unknown error in step 1 of route execution path.',
+                publicMessage: 'Unknown error in handler "routeFail" of route execution path.',
             } satisfies PublicRpcError<'unknown-error'>);
         });
 
@@ -472,31 +473,30 @@ describe('Dispatch routes', () => {
             );
             const error = response.body['getSameDate'];
             expect(error).toEqual({
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 statusCode: 400,
-                message: `Invalid params 'getSameDate', can not validate parameters.`,
+                publicMessage: `Invalid params 'getSameDate', can not validate parameters.`,
                 type: 'validation-error',
             } satisfies PublicRpcError<'validation-error'>);
         });
     });
 
-    describe('parsedBody functionality should', () => {
+    describe('parsedBody (a js object already parsed from json) functionality should', () => {
         it('use parsedBody when provided instead of parsing rawBody', async () => {
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const id = 'changeUserName';
-            const parsedBody = {[id]: [{name: 'Leo', surname: 'Tungsten'}]};
-            const rawBody = ''; // empty rawBody since body is already parsed
+            const jsBody = {[id]: [{name: 'Leo', surname: 'Tungsten'}]};
+            const rawBody = jsBody;
 
             const response = await dispatchRoute(
                 '/changeUserName',
                 rawBody,
                 headersFromRecord({}),
                 headersFromRecord({}),
-                {headers: headersFromRecord({}), body: parsedBody},
-                {},
-                parsedBody
+                {headers: headersFromRecord({}), body: jsBody},
+                {}
             );
             expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
@@ -507,39 +507,19 @@ describe('Dispatch routes', () => {
 
             const id = 'getSameDate';
             const testDate = new Date('2022-04-22T00:17:00.000Z');
-            const parsedBody = {[id]: [{date: testDate}]};
-            const rawBody = ''; // empty rawBody since body is already parsed
+            const jsBody = {[id]: [{date: testDate}]};
+            const rawBody = jsBody;
 
             const response = await dispatchRoute(
                 '/getSameDate',
                 rawBody,
                 headersFromRecord({}),
                 headersFromRecord({}),
-                {headers: headersFromRecord({}), body: parsedBody},
-                {},
-                parsedBody
+                {headers: headersFromRecord({}), body: jsBody},
+                {}
             );
             // When using parsedBody, Date objects are preserved (not serialized to strings)
             expect(response.body[id]).toEqual({date: testDate});
-        });
-
-        it('handle parsedBody as array for single route calls', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({changeUserName});
-
-            const parsedBody = [{name: 'Leo', surname: 'Tungsten'}];
-            const rawBody = ''; // empty rawBody since body is already parsed
-
-            const response = await dispatchRoute(
-                '/changeUserName',
-                rawBody,
-                headersFromRecord({}),
-                headersFromRecord({}),
-                {headers: headersFromRecord({}), body: parsedBody},
-                {},
-                parsedBody
-            );
-            expect(response.body.changeUserName).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
         it('fallback to parsing rawBody when parsedBody is not provided', async () => {
@@ -556,7 +536,6 @@ describe('Dispatch routes', () => {
                 headersFromRecord({}),
                 request,
                 {}
-                // no parsedBody parameter
             );
             expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
@@ -571,17 +550,30 @@ describe('Dispatch routes', () => {
                 headersFromRecord({}),
                 headersFromRecord({}),
                 {headers: headersFromRecord({}), body: ''},
-                {},
-                undefined // explicitly no parsedBody (falsy)
+                {}
             );
             // When rawBody is empty and parsedBody is undefined, parseRequestBody returns early
             // leaving request.body as empty object, then route fails validation (correct behavior)
             expect(response.hasErrors).toBeTruthy();
             expect(response.body.changeUserName).toMatchObject({
-                isΣrrθr: true,
+                'mion:isΣrrθr': true,
                 type: 'validation-error',
                 statusCode: 400,
             });
         });
+    });
+});
+
+describe('Route errors should', () => {
+    it('automatically generate error ids when RouteOptions autoGenerateErrorId is set to true', () => {
+        resetRouter();
+        initRouter({autoGenerateErrorId: true});
+        const error = new RpcError({statusCode: 400, publicMessage: 'error', type: 'test-error'});
+        expect(typeof error.id).toEqual('string');
+
+        resetRouter();
+        initRouter({autoGenerateErrorId: false});
+        const error2 = new RpcError({statusCode: 400, publicMessage: 'error', type: 'test-error'});
+        expect(error2.id).toEqual(undefined);
     });
 });

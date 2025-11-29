@@ -12,7 +12,6 @@ import {Routes} from './types/general';
 import {HandlerType, HookMethod, RouteMethod} from './types/remoteMethods';
 import {hook, rawHook, route} from './handlers';
 import {jitUtils, SerializableJitHashes} from '@mionkit/core';
-import {HookDef} from './types/definitions';
 
 function hasSerializableHashes(): SerializableJitHashes {
     return {

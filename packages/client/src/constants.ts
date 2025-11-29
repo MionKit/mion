@@ -22,8 +22,6 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
     suffix: '',
     /** Enables automatic parameter validation */
     validateParams: true,
-    /** Custom body parser, defaults to Native JSON */
-    bodyParser: JSON,
     /** Set true to automatically generate and id for every error.  */
     autoGenerateErrorId: false,
 };

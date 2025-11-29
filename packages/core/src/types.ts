@@ -103,14 +103,13 @@ export interface RpcErrorWithPrivate<ErrType extends StrNumber, ErrData = any> e
 
 /** Error data returned to the clients  */
 export interface PublicRpcError<ErrType extends StrNumber, ErrData = any>
-    extends Omit<RpcErrorParams<ErrType, ErrData>, 'publicMessage' | 'originalError'> {
-    isΣrrθr: true;
+    extends Omit<RpcErrorParams<ErrType, ErrData>, 'message' | 'originalError'> {
+    'mion:isΣrrθr': true; //weird enough name so it does not collide with other props when deserializing
     type: ErrType;
     /**
-     * When a RpcError gets anonymized the publicMessage becomes the message.
-     * RpcError.publicMessage => PublicRpcError.message
+     * When a RpcError gets sent to client only publicMessage is set.
      * */
-    message: string;
+    publicMessage: string;
     statusCode: number;
     errorData?: ErrData;
 }
@@ -468,19 +467,23 @@ export interface DataViewSerializer {
     view: DataView;
     reset: () => void;
     getBuffer: () => StrictArrayBuffer;
+    getBufferView: () => Uint8Array;
+    markAsEnded: () => void;
+    getLength(): number;
     // serialization functions
     serString(str: string): void;
     serFloat64(n: number): void;
     serEnum(n: number | string): void;
     setBitMask(bitMaskIndex: number, bitIndex: number): void;
-    serAndCacheString(str: string): void;
 }
 
 export interface DataViewDeserializer {
     index: number; // byte offset
     view: DataView;
+    reset: () => void;
     setBuffer: (buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) => void;
-    hashBytes: (bytes: Uint8Array, len: number) => string;
+    markAsEnded: () => void;
+    getLength(): number;
     // deserialization functions
     desString(): string;
     desFloat64(): number;

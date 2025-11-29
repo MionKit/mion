@@ -17,12 +17,12 @@ const LE = true; // always use little endian
 // ############## create serializer & deserializer ##############
 
 const DEFAULT_OPTIONS = {
+    maxPoolItems: 100,
     maxStrCacheLength: 64,
-    maxCacheSize: 600,
+    maxCacheSize: 1000,
     bufferSize: 2 ** 24,
     averageResponseSizeMultiplier: 2,
     responseAverageSizes: new Map<string, number>(),
-    stringCache: new Map<string, string>(),
     stringBytesCache: new Map<string, Uint8Array>(),
 };
 
@@ -34,39 +34,87 @@ export type SerializationOptions = typeof DEFAULT_OPTIONS;
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
+let opts = {...DEFAULT_OPTIONS};
+
+export function setSerializationOptions(options: Partial<SerializationOptions>) {
+    opts = {...opts, ...options};
+}
+
+export function createDataViewSerializer(routeId: string): DataViewSerializer {
+    const size = calculateDefaultBufferSize(routeId);
+    if (size >= POW_2_32) throw new Error('bufferSize option must be strictly less than 2 ** 32');
+    return new DataViewSerializerImpl(routeId, size);
+}
+
+export function createDataViewDeserializer(routeId: string, buffer: StrictArrayBuffer): DataViewDeserializer {
+    return new DataViewDeserializerImpl(routeId, buffer);
+}
+
 // TODO: at the moment we do not resize the buffer, if data does not fit it will throw an error,
 // anything that uses the serializer should catch the error and resize the buffer
 class DataViewSerializerImpl implements DataViewSerializer {
-    private buffer: ArrayBuffer;
-    private routeId: string;
+    readonly buffer: ArrayBuffer;
+    private uint8View: Uint8Array; // Reusable view
+    readonly routeId: string;
     index: number = 0; // byte offset
     view: DataView;
-    constructor(
-        routeId: string,
-        size: number,
-        private opts: SerializationOptions
-    ) {
+    hasEnded: boolean = false;
+    constructor(routeId: string, size: number) {
         this.routeId = routeId;
         this.buffer = new ArrayBuffer(size);
         this.view = new DataView(this.buffer);
+        this.uint8View = new Uint8Array(this.buffer);
     }
     reset(): void {
         this.index = 0;
+        this.hasEnded = false;
+    }
+    resize(size: number): void {
+        (this as any).buffer = new ArrayBuffer(size);
+        this.view = new DataView(this.buffer);
+        this.uint8View = new Uint8Array(this.buffer);
     }
     getBuffer(): StrictArrayBuffer {
         const buff = this.buffer.slice(0, this.index);
-        updateResponseSize(this.routeId, buff.byteLength, this.opts);
         return buff;
     }
-    serString(str: string): void {
-        if (str.length >= this.opts.maxStrCacheLength) {
-            const targetView = new Uint8Array(this.buffer, this.index + 4);
+    getBufferView(): Uint8Array {
+        return new Uint8Array(this.buffer, 0, this.index);
+    }
+    markAsEnded(): void {
+        this.hasEnded = true;
+        updateResponseSize(this.routeId, this.index);
+    }
+    getLength(): number {
+        return this.index;
+    }
+    serString(str: string, skipCache?: boolean): void {
+        if (str.length >= opts.maxStrCacheLength || skipCache) {
+            const targetView = this.uint8View.subarray(this.index + 4);
             const result = textEncoder.encodeInto(str, targetView);
             this.view.setUint32(this.index, result.written, LE);
             this.index += 4 + result.written;
             return;
         }
-        this.serAndCacheString(str);
+        const cached = opts.stringBytesCache.get(str);
+        if (cached) {
+            this.uint8View.set(cached, this.index + 4);
+            this.view.setUint32(this.index, cached.length, LE);
+            this.index += 4 + cached.length;
+            return;
+        }
+
+        // Encode directly into working view
+        const targetView = this.uint8View.subarray(this.index + 4);
+        const result = textEncoder.encodeInto(str, targetView);
+        const written = result.written!;
+
+        this.view.setUint32(this.index, written, LE);
+        this.index += 4 + written;
+
+        // Cache the encoded bytes (create slice only for caching)
+        if (opts.stringBytesCache.size >= opts.maxCacheSize) evictStringBytesCache();
+        opts.stringBytesCache.set(str, this.uint8View.slice(this.index - written, this.index));
     }
     serFloat64(n: number): void {
         this.view.setFloat64(this.index, n, LE);
@@ -88,58 +136,44 @@ class DataViewSerializerImpl implements DataViewSerializer {
         const newBitmask = this.view.getUint8(bitMaskIndex) | (1 << bitIndex);
         this.view.setUint8(bitMaskIndex, newBitmask);
     }
-    serAndCacheString(str: string): void {
-        const cached = this.opts.stringBytesCache.get(str);
-        if (cached) {
-            const targetView = new Uint8Array(this.buffer, this.index + 4, cached.length);
-            targetView.set(cached);
-            this.view.setUint32(this.index, cached.length, LE);
-            this.index += 4 + cached.length;
-            return;
-        }
-        const encodedBytes = textEncoder.encode(str);
-        const targetView = new Uint8Array(this.buffer, this.index + 4, encodedBytes.length);
-        targetView.set(encodedBytes);
-        this.view.setUint32(this.index, encodedBytes.length, LE);
-        this.index += 4 + encodedBytes.length;
-        if (this.opts.stringBytesCache.size >= this.opts.maxCacheSize) evictStringCache(this.opts);
-        this.opts.stringBytesCache.set(str, encodedBytes);
-    }
 }
 
 class DataViewDeserializerImpl implements DataViewDeserializer {
-    private buffer: StrictArrayBuffer;
+    readonly buffer: StrictArrayBuffer;
+    private uint8View: Uint8Array; // Reusable view
+    readonly routeId: string;
     index: number = 0;
     view: DataView;
-    constructor(
-        buffer: StrictArrayBuffer,
-        private opts: SerializationOptions
-    ) {
+    hasEnded: boolean = false;
+    constructor(routeId: string, buffer: StrictArrayBuffer) {
+        this.routeId = routeId;
         this.buffer = buffer;
         this.view = new DataView(buffer);
+        this.uint8View = new Uint8Array(buffer);
     }
-    hashBytes(bytes: Uint8Array, len: number): string {
-        let hash = '';
-        for (let i = 0; i < len; i++) hash += String.fromCharCode(bytes[i]);
-        return hash;
+    reset(): void {
+        this.index = 0;
+        this.hasEnded = false;
     }
     setBuffer(buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number): void {
         this.index = byteOffset ?? 0;
-        this.buffer = buffer;
+        (this as any).buffer = buffer;
         this.view = new DataView(buffer, byteOffset, byteLength);
+        this.uint8View = new Uint8Array(buffer, byteOffset, byteLength); // Update working view
+        this.hasEnded = false;
+    }
+    markAsEnded(): void {
+        this.hasEnded = true;
+    }
+    getLength(): number {
+        return this.index;
     }
     desString(): string {
         const len = this.view.getUint32(this.index, LE);
         this.index += 4;
-        const bytes = new Uint8Array(this.buffer, this.index, len);
+
+        const decoded = textDecoder.decode(this.uint8View.subarray(this.index, this.index + len));
         this.index += len;
-        if (len >= this.opts.maxStrCacheLength) return textDecoder.decode(bytes);
-        const cacheKey = this.hashBytes(bytes, len);
-        const cached = this.opts.stringCache.get(cacheKey);
-        if (cached) return cached;
-        const decoded = textDecoder.decode(bytes);
-        if (this.opts.stringCache.size >= this.opts.maxCacheSize) evictStringCache(this.opts);
-        this.opts.stringCache.set(cacheKey, decoded);
         return decoded;
     }
     desFloat64(): number {
@@ -159,38 +193,23 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
     }
 }
 
-export function createDataViewSerializer(routeId: string, opts?: Partial<SerializationOptions>): DataViewSerializer {
-    const options = opts ? {...DEFAULT_OPTIONS, ...opts} : DEFAULT_OPTIONS;
-    const size = calculateDefaultBufferSize(routeId, options);
-    if (size >= POW_2_32) throw new Error('bufferSize option must be strictly less than 2 ** 32');
-    return new DataViewSerializerImpl(routeId, size, options);
-}
-
-export function createDataViewDeserializer(
-    buffer: StrictArrayBuffer,
-    opts?: Partial<SerializationOptions>
-): DataViewDeserializer {
-    const options = opts ? {...DEFAULT_OPTIONS, ...opts} : DEFAULT_OPTIONS;
-    return new DataViewDeserializerImpl(buffer, options);
-}
-
 /** return the 75% percentile of the response size for the given route, and updates the map */
-function calculateDefaultBufferSize(routeId: string, opts: SerializationOptions): number {
+function calculateDefaultBufferSize(routeId: string): number {
     const size = opts.responseAverageSizes.get(routeId);
     if (!size) return opts.bufferSize;
     return size * opts.averageResponseSizeMultiplier;
 }
 
-function updateResponseSize(routeId: string, responseSize: number, opts: SerializationOptions) {
+function updateResponseSize(routeId: string, responseSize: number) {
     const currentSize = opts.responseAverageSizes.get(routeId) || opts.bufferSize;
     const average = (currentSize + responseSize) / 2;
     opts.responseAverageSizes.set(routeId, Math.floor(average));
 }
 
-function evictStringCache(opts: SerializationOptions): void {
-    const entries = Array.from(opts.stringCache.entries());
-    opts.stringCache.clear();
-    for (let i = entries.length / 2; i < entries.length; i++) {
-        opts.stringCache.set(entries[i][0], entries[i][1]);
+function evictStringBytesCache(): void {
+    const entries = Array.from(opts.stringBytesCache.entries());
+    opts.stringBytesCache.clear();
+    for (let i = Math.floor(entries.length / 2); i < entries.length; i++) {
+        opts.stringBytesCache.set(entries[i][0], entries[i][1]);
     }
 }

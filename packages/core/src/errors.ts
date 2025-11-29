@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions, AnyErrorParams, PublicRpcError, DataOnly, StrNumber, TypedErrorParams} from './types';
+import {CoreOptions, AnyErrorParams, PublicRpcError, DataOnly, TypedErrorParams} from './types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from './utils';
 import {jitUtils} from './jitUtils';
@@ -18,10 +18,15 @@ export function setErrorOptions(opts: CoreOptions) {
 
 /**
  * Generic strongly typed error class that can be used outside RPC context.
- * Contains the core error properties: isΣrrθr, type, and message.
+ * Contains the core error properties: mion:isΣrrθr, type, and message.
  */
-export class TypedError<ErrType extends StrNumber> extends Error {
-    public readonly isΣrrθr = true;
+export class TypedError<ErrType extends string> extends Error {
+    /**
+     * Unique error identifier,
+     * Ideally this should be a symbol but we need to be able to serialize it so a namespaced prop is used instead
+     */
+    // eslint-disable-next-line @typescript-eslint/prefer-as-const
+    public readonly 'mion:isΣrrθr': true = true;
     /** Error type, can be used as discriminator in union types switch, etc*/
     public readonly type: ErrType;
     /** the error message */
@@ -57,7 +62,7 @@ export class TypedError<ErrType extends StrNumber> extends Error {
     }
 }
 
-export class RpcError<ErrType extends StrNumber, ErrData = any> extends TypedError<ErrType> {
+export class RpcError<ErrType extends string, ErrData = any> extends TypedError<ErrType> {
     public readonly name = 'RpcError';
     /**
      * id of the error, ideally each error should unique identifiable
@@ -68,10 +73,18 @@ export class RpcError<ErrType extends StrNumber, ErrData = any> extends TypedErr
     public readonly statusCode: number;
     /** the message that will be returned in the response */
     public readonly publicMessage: string;
-    /** options data related to the error, ie validation data */
+    /** options data related to the error, ie validation data, must be json serializable */
     public readonly errorData?: Readonly<ErrData>;
 
-    constructor({statusCode, message, publicMessage, originalError, errorData, type, id}: AnyErrorParams<ErrType, ErrData>) {
+    constructor({
+        statusCode,
+        publicMessage: message,
+        publicMessage,
+        originalError,
+        errorData,
+        type,
+        id,
+    }: AnyErrorParams<ErrType, ErrData>) {
         const originalMessage = message || originalError?.message || publicMessage || '';
 
         // Call parent TypedError constructor
@@ -91,12 +104,12 @@ export class RpcError<ErrType extends StrNumber, ErrData = any> extends TypedErr
 
     /** returns an error without stack trace and message is swapped by public message */
     toPublicError(): PublicRpcError<ErrType, ErrData> {
-        const {isΣrrθr, type, statusCode, id, errorData, publicMessage} = this;
+        const {type, statusCode, id, errorData, publicMessage} = this;
         return {
-            isΣrrθr,
+            'mion:isΣrrθr': true,
             type,
             statusCode,
-            message: publicMessage,
+            publicMessage,
             ...(id && {id}),
             ...(errorData && {errorData}),
         };
@@ -111,10 +124,10 @@ export function isTypedError(error: any): error is TypedError<any> {
     if (error instanceof TypedError) return true;
     return (
         error &&
-        error.isΣrrθr === true &&
+        error['mion:isΣrrθr'] === true &&
         typeof error.message === 'string' &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        !jitUtils.hasUnknownKeysFromArray(error, ['isΣrrθr', 'type', 'message'])
+        !jitUtils.hasUnknownKeysFromArray(error, ['mion:isΣrrθr', 'type', 'message'])
     );
 }
 
@@ -124,13 +137,33 @@ export function isRpcError(error: any): error is RpcError<string> {
     if (error instanceof RpcError) return true;
     return (
         error &&
-        error.isΣrrθr === true &&
+        error['mion:isΣrrθr'] === true &&
         typeof error.statusCode === 'number' &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
         (typeof error.message === 'string' || typeof error.publicMessage === 'string') &&
         (typeof error.id === 'string' || typeof error.id === 'number' || error.id === undefined) &&
-        !jitUtils.hasUnknownKeysFromArray(error, ['isΣrrθr', 'id', 'statusCode', 'message', 'publicMessage', 'errorData', 'type'])
+        !jitUtils.hasUnknownKeysFromArray(error, [
+            'mion:isΣrrθr',
+            'id',
+            'statusCode',
+            'message',
+            'publicMessage',
+            'errorData',
+            'type',
+        ])
     );
+}
+
+/** Returns true if the error is a TypedError, RpcError, or any other Javascript Error.
+ * if available uses Error.isError()
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
+ */
+export function isAnyError(error: any): error is TypedError<any> | RpcError<string> | Error {
+    if (!error) return false;
+    const tErr = error as TypedError<string>;
+    if (tErr['mion:isΣrrθr'] === true) return true;
+    if (typeof (Error as any).isError === 'function') return (Error as any).isError(error);
+    return error instanceof Error;
 }
 
 jitUtils.setDeserializeFn(TypedError, (data: DataOnly<TypedError<any>>) => {

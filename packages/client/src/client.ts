@@ -154,6 +154,6 @@ function findError(req: SubRequest<any>, errors: RequestErrors): RpcError<string
     return new RpcError({
         statusCode: 500,
         type: 'unknown-error',
-        message: 'An unknown error occurred',
+        publicMessage: 'An unknown error occurred',
     });
 }
