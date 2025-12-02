@@ -274,7 +274,7 @@ it('should compile router methods cache to code', () => {
         hasReturnData: true,
         isAsync: false,
         pointer: ['auth'],
-        paramNames: ['param1', 'userid'],
+        paramNames: ['userid'],
         options: {
             runOnError: false,
             validateParams: true,
