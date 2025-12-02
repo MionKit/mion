@@ -43,11 +43,8 @@ function findFunctionByName(name, context) {
     }
     return null;
 }
-function getHandlerFunction(node, functionName, context) {
-    let handlerIndex = 0;
-    if (functionName === 'headersHook') {
-        handlerIndex = 1;
-    }
+function getHandlerFunction(node, _functionName, context) {
+    const handlerIndex = 0;
     if (node.arguments.length <= handlerIndex) {
         return null;
     }
