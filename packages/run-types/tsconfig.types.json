@@ -11,5 +11,13 @@
   "references": [{"path": "../core"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist", "src/jitCompilers/xyz-Template/**"]
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "examples",
+    ".dist",
+    "src/jitCompilers/xyz-Template/**",
+    "src/jitCompilers/serialization-suite.ts"
+  ]
 }

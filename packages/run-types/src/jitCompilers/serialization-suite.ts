@@ -471,7 +471,7 @@ export const SERIALIZATION_SPEC = {
                 const error = new RpcError({
                     statusCode: 400,
                     publicMessage: 'error',
-                    publicMessage: 'error',
+                    message: 'error',
                     type: 'test-error',
                 });
                 const values = [error];
