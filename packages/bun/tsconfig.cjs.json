@@ -7,6 +7,7 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "outDir": ".dist/cjs",
+    "rootDir": ".",
     "types": ["bun-types"],
     "composite": true
   },
