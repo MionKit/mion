@@ -61,8 +61,6 @@ function headersHookWithJSDoc(c: CallContext, [token]: HeadersList<['auth']>): v
 // ❌ INVALID EXAMPLES (these SHOULD trigger ESLint errors when rule is enabled)
 // ========================================
 
-/* eslint-disable @mionkit/strong-typed-routes */
-
 // 1. Direct inline handlers missing types
 route((ctx, name) => `hello ${name}`); // Missing both param type and return type
 hook((ctx, data: number) => {
