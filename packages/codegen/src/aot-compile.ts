@@ -148,10 +148,14 @@ export function writeAOTCachesToFiles(
 
 export function filterJitFns(jitFnsCache: JitFunctionsCache, excludedFns: JitFnID[] = EXCLUDED_FNS) {
     if (!excludedFns.length) return jitFnsCache;
-    return Object.fromEntries(Object.entries(jitFnsCache).filter(([, value]) => !excludedFns.includes(value.fnID as JitFnID)));
+    return Object.fromEntries(
+        Object.entries(jitFnsCache).filter(([, value]) => !excludedFns.includes(value.fnID as JitFnID))
+    ) as JitFunctionsCache;
 }
 
 export function filterPureFns(pureFnsCache: PureFunctionsCache, excludedPureFns: string[] = EXCLUDED_PURE_FNS) {
     if (!excludedPureFns.length) return pureFnsCache;
-    return Object.fromEntries(Object.entries(pureFnsCache).filter(([, value]) => !excludedPureFns.includes(value.pureFnHash)));
+    return Object.fromEntries(
+        Object.entries(pureFnsCache).filter(([, value]) => !excludedPureFns.includes(value.pureFnHash))
+    ) as PureFunctionsCache;
 }

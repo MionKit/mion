@@ -5,12 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Serve} from 'bun';
+/** Bun serve options without fetch/error handlers (those are provided by mion) */
+type BunServeOptions = Omit<Bun.Serve.BaseServeOptions<unknown>, 'error'> &
+    Omit<Bun.Serve.HostnamePortServeOptions<unknown>, 'error'>;
 
 export interface BunHttpOptions {
     port: number;
     /** Bun's native Server Options */
-    options: Omit<Serve, 'fetch' | 'error'>;
+    options: BunServeOptions;
     /** Set of default response header to add to every response*/
     defaultResponseHeaders: Record<string, string>;
     /**
