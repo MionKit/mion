@@ -59,7 +59,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
 // ############# PRIVATE METHODS #############
 
 function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
-    headers.set('content-length', `${Buffer.byteLength(routeResponse.rawBody, 'utf8')}`);
+    // AWS manages content-length automatically, so no need to set header unlike node
     const singleHeaders: Record<string, string> = {};
     const multiHeaders: Record<string, string[]> = {};
     let multiHeaderCount = 0;

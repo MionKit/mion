@@ -89,7 +89,7 @@ describe('serverless router should', () => {
 
         expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('47');
+        // expect(headers['content-length']).toEqual('47'); // AWS manages content-length automatically
         expect(headers['server']).toEqual('@mionkit');
     });
 
@@ -110,7 +110,7 @@ describe('serverless router should', () => {
         };
         expect(parsedResponse).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('180');
+        // expect(headers['content-length']).toEqual('180'); // AWS manages content-length automatically
         expect(headers['server']).toEqual('@mionkit');
     });
 
@@ -124,7 +124,7 @@ describe('serverless router should', () => {
 
         expect(parsedResponse).toEqual({});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('2');
+        // expect(headers['content-length']).toEqual('2'); // AWS manages content-length automatically
         expect(headers['server']).toEqual('my-server');
         expect(headers['x-something']).toEqual('true');
     });
@@ -155,7 +155,7 @@ describe('serverless router should', () => {
         expect(headers['x-app-name']).toEqual('MyApp');
         expect(headers['x-instance-id']).toEqual('3089');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('47');
+        // expect(headers['content-length']).toEqual('47'); // AWS manages content-length automatically
         expect(headers['server']).toEqual('@mionkit');
     });
 });

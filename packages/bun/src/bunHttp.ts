@@ -12,8 +12,15 @@ import {getENV, StatusCodes} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {Server} from 'bun';
 
+// ############# PRIVATE STATE #############
+
+let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
+let defaultHeaders: [string, string][] = [['server', '@mionkit']];
+const textEncoder = new TextEncoder();
+
 export function resetBunHttpOpts() {
     httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
+    defaultHeaders = [['server', '@mionkit']];
     resetRouter();
 }
 
@@ -22,12 +29,10 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
         ...httpOptions,
         ...options,
     };
+    // Pre-build default headers array once
+    defaultHeaders = [['server', '@mionkit'], ...Object.entries(httpOptions.defaultResponseHeaders)];
     return httpOptions;
 }
-
-// ############# PRIVATE STATE #############
-
-let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
 
 export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any>> {
     const isTest = getENV('NODE_ENV') === 'test';
@@ -49,14 +54,9 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
         ...httpOptions.options,
 
         async fetch(req) {
-            const pathIndex = req.url.indexOf('/', 12);
-            const queryIndex = req.url.indexOf('?', pathIndex + 1);
-            const path = queryIndex === -1 ? req.url.substring(pathIndex) : req.url.substring(pathIndex, queryIndex);
-            const rawBody = req.body ? await Bun.readableStreamToText(req.body) : '';
-            const responseHeaders = new Headers({
-                server: '@mionkit',
-                ...httpOptions.defaultResponseHeaders,
-            });
+            const path = new URL(req.url).pathname;
+            const rawBody = req.body ? await req.text() : '';
+            const responseHeaders = new Headers(defaultHeaders);
 
             return dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined)
                 .then((routeResp: MionResponse) => reply(routeResp, responseHeaders))
@@ -104,14 +104,43 @@ const fail = (err: RpcError<string>, responseHeaders: any): Response => {
 };
 
 function reply(
-    routeResp: MionResponse,
-    // TODO: fic issue with Native Bun Headers type messing with Node Headers type
+    mionResp: MionResponse,
+    // TODO: fix issue with Native Bun Headers type messing with Node Headers type
     // responseHeaders: Headers,
     responseHeaders: any
 ): Response {
-    if (typeof routeResp.rawBody !== 'string') throw new Error('Binary responses are not yet supported on Bun');
-    return new Response(routeResp.rawBody, {
-        status: routeResp.statusCode,
-        headers: responseHeaders,
-    });
+    const bodyType = mionResp.bodyType;
+    switch (bodyType) {
+        case 'J': {
+            // Encode once and reuse for both content-length and response body
+            const buffer = textEncoder.encode(mionResp.rawBody as string);
+            responseHeaders.set('content-length', String(buffer.byteLength));
+            // content-type already set by serializer
+            return new Response(buffer, {
+                status: mionResp.statusCode,
+                headers: responseHeaders,
+            });
+        }
+        case 'B': {
+            const serializer = mionResp.binSerializer!;
+            responseHeaders.set('content-length', String(serializer.getLength()));
+            // content-type already set by serializer
+            const response = new Response(serializer.getBufferView(), {
+                status: mionResp.statusCode,
+                headers: responseHeaders,
+            });
+            // Mark buffer as ended immediately - Bun copies the buffer to the response
+            serializer.markAsEnded();
+            return response;
+        }
+        default: {
+            const error = new RpcError({
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
+                publicMessage: 'unknown-mion-response-format',
+                type: 'unknown-error',
+                errorData: {bodyType},
+            });
+            return fail(error, responseHeaders);
+        }
+    }
 }
