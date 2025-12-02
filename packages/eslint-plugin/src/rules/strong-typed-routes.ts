@@ -98,15 +98,11 @@ function findFunctionByName(
  */
 function getHandlerFunction(
     node: TSESTree.CallExpression,
-    functionName: string,
+    _functionName: string, // kept for future use if different handler functions have different signatures
     context: TSESLint.RuleContext<any, any>
 ): TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration | null {
-    let handlerIndex = 0;
-
-    // For headersHook, the handler is the second parameter
-    if (functionName === 'headersHook') {
-        handlerIndex = 1;
-    }
+    // Handler is always the first parameter for route, hook, and headersHook
+    const handlerIndex = 0;
 
     if (node.arguments.length <= handlerIndex) {
         return null;

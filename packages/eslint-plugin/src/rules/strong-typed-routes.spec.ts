@@ -36,7 +36,7 @@ ruleTester.run('strong-typed-routes', rule, {
         {
             code: `
                 import { headersHook } from '@mionkit/router';
-                headersHook(['auth'], (ctx, headers: string): boolean => true);
+                headersHook((ctx, [token]: [string]): boolean => true);
             `,
         },
         // Valid function expression
@@ -117,8 +117,8 @@ ruleTester.run('strong-typed-routes', rule, {
         {
             code: `
                 import { headersHook } from '@mionkit/router';
-                const authHandler = (ctx, token: string): void => { console.log(token); };
-                headersHook(['auth'], authHandler);
+                const authHandler = (ctx, [token]: [string]): void => { console.log(token); };
+                headersHook(authHandler);
             `,
         },
         // Valid with hook function reference
@@ -140,7 +140,7 @@ ruleTester.run('strong-typed-routes', rule, {
         {
             code: `
                 import { HeaderHandler } from '@mionkit/router';
-                const authHandler: HeaderHandler = (ctx, token: string): void => { console.log(token); };
+                const authHandler: HeaderHandler = (ctx, [token]: [string]): void => { console.log(token); };
             `,
         },
         // Valid with Handler satisfies expression
@@ -154,7 +154,7 @@ ruleTester.run('strong-typed-routes', rule, {
         {
             code: `
                 import { HeaderHandler } from '@mionkit/router';
-                const authHandler = ((ctx, token: string): void => { console.log(token); }) satisfies HeaderHandler;
+                const authHandler = ((ctx, [token]: [string]): void => { console.log(token); }) satisfies HeaderHandler;
             `,
         },
         // Valid with @mion:route JSDoc tag
@@ -183,7 +183,7 @@ ruleTester.run('strong-typed-routes', rule, {
                 /**
                  * @mion:headersHook
                  */
-                function authHandler(ctx, token: string): void {
+                function authHandler(ctx, [token]: [string]): void {
                     console.log(token);
                 }
             `,
@@ -242,7 +242,7 @@ ruleTester.run('strong-typed-routes', rule, {
         {
             code: `
                 import { headersHook } from '@mionkit/router';
-                headersHook(['auth'], (ctx, headers) => true);
+                headersHook((ctx, [token]) => true);
             `,
             errors: [
                 {
@@ -354,8 +354,8 @@ ruleTester.run('strong-typed-routes', rule, {
         {
             code: `
                 import { headersHook } from '@mionkit/router';
-                const authHandler = (ctx, token) => { console.log(token); };
-                headersHook(['auth'], authHandler);
+                const authHandler = (ctx, [token]) => { console.log(token); };
+                headersHook(authHandler);
             `,
             errors: [
                 {
@@ -379,7 +379,7 @@ ruleTester.run('strong-typed-routes', rule, {
         {
             code: `
                 import { HeaderHandler } from '@mionkit/router';
-                const authHandler: HeaderHandler = (ctx, token: string) => { console.log(token); };
+                const authHandler: HeaderHandler = (ctx, [token]: [string]) => { console.log(token); };
             `,
             errors: [
                 {
@@ -403,7 +403,7 @@ ruleTester.run('strong-typed-routes', rule, {
         {
             code: `
                 import { HeaderHandler } from '@mionkit/router';
-                const authHandler = ((ctx, token) => { console.log(token); }) satisfies HeaderHandler;
+                const authHandler = ((ctx, [token]) => { console.log(token); }) satisfies HeaderHandler;
             `,
             errors: [
                 {
@@ -447,7 +447,7 @@ ruleTester.run('strong-typed-routes', rule, {
                 /**
                  * @mion:headersHook
                  */
-                function authHandler(ctx, token): void {
+                function authHandler(ctx, [token]): void {
                     console.log(token);
                 }
             `,
