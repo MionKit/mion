@@ -11,7 +11,7 @@ import {HeaderMethod, Method, MethodsExecutionList, RawMethod} from './types/rem
 import {HandlerType} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {getNotFoundExecutionPath} from './notFound';
-import {Mutable, AnyObject, createDataViewDeserializer, isAnyError} from '@mionkit/core';
+import {Mutable, AnyObject, createDataViewDeserializer, isAnyError, MION_ROUTES} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 
@@ -92,7 +92,8 @@ export function createCallContext(
  * @returns
  */
 export function getGlobalErrorResponse(error: RpcError<string>, respHeaders: MionHeaders): MionResponse {
-    const body = {'*': error.toPublicError()};
+    const body = {[MION_ROUTES.globalError]: error.toPublicError()};
+    respHeaders.set('content-type', 'application/json; charset=utf-8');
     const response: Mutable<MionResponse> = {
         statusCode: error.statusCode,
         hasErrors: true,
@@ -158,7 +159,7 @@ function onErrorResponse(
         err instanceof RpcError
             ? err
             : new RpcError({
-                  statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                  statusCode: StatusCodes.UNEXPECTED_ERROR,
                   publicMessage: `Unknown error in handler "${path}" of route execution path.`,
                   originalError: err,
                   type: 'unknown-error',
@@ -220,7 +221,7 @@ function deserializeBodyParams(request: MionRequest, executable: Method): any[] 
         return request.body[executable.id] as any[];
     } catch (e: any) {
         throw new RpcError({
-            statusCode: StatusCodes.BAD_REQUEST,
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'serialization-error',
             publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
             originalError: e,
@@ -232,7 +233,7 @@ function deserializeBodyParams(request: MionRequest, executable: Method): any[] 
 function validateParametersOrThrow(params: any[], executable: Method): void {
     if (!executable.paramsJitFns.isType.fn(params)) {
         throw new RpcError({
-            statusCode: StatusCodes.BAD_REQUEST,
+            statusCode: StatusCodes.APPLICATION_ERROR,
             type: 'validation-error',
             publicMessage: `Invalid params in '${executable.id}', validation failed.`,
             errorData: executable.paramsJitFns.typeErrors.fn(params),
@@ -243,7 +244,7 @@ function validateParametersOrThrow(params: any[], executable: Method): void {
 function validateHeaderParamsOrThrow(headers: string[], executable: HeaderMethod): void {
     if (!executable.headersParam.jitFns.isType.fn(headers)) {
         throw new RpcError({
-            statusCode: StatusCodes.BAD_REQUEST,
+            statusCode: StatusCodes.APPLICATION_ERROR,
             type: 'headers-validation-error',
             publicMessage: `Invalid headers in '${executable.id}', validation failed.`,
             errorData: executable.headersParam.jitFns.typeErrors.fn(headers),

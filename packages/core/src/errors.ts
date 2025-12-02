@@ -76,15 +76,7 @@ export class RpcError<ErrType extends string, ErrData = any> extends TypedError<
     /** options data related to the error, ie validation data, must be json serializable */
     public readonly errorData?: Readonly<ErrData>;
 
-    constructor({
-        statusCode,
-        publicMessage: message,
-        publicMessage,
-        originalError,
-        errorData,
-        type,
-        id,
-    }: AnyErrorParams<ErrType, ErrData>) {
+    constructor({statusCode, message, publicMessage, originalError, errorData, type, id}: AnyErrorParams<ErrType, ErrData>) {
         const originalMessage = message || originalError?.message || publicMessage || '';
 
         // Call parent TypedError constructor

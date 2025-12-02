@@ -27,7 +27,11 @@ const deleteUser = route((ctx: Context, id: number): User => {
 
 const auth = headersHook((ctx: Context, [token]: HeadersList<['Authorization']>): void => {
     if (!myApp.auth.isAuthorized(token))
-        throw new RpcError({statusCode: StatusCodes.FORBIDDEN, publicMessage: 'Not Authorized', type: 'not-authorized'});
+        throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            publicMessage: 'Not Authorized',
+            type: 'not-authorized',
+        });
     ctx.shared.me = myApp.auth.getIdentity(token) as User;
 });
 

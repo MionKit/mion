@@ -111,7 +111,7 @@ describe('client', () => {
         let error: any;
         const expectedError = new RpcError({
             publicMessage: 'Something fails',
-            type: 'UnknownError',
+            type: 'unknown-error',
             statusCode: 500,
         });
 

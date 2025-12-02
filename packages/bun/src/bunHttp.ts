@@ -62,7 +62,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
                 .then((routeResp: MionResponse) => reply(routeResp, responseHeaders))
                 .catch((e: Error) => {
                     const error = new RpcError({
-                        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                        statusCode: StatusCodes.UNEXPECTED_ERROR,
                         publicMessage: 'Unknown Error',
                         type: 'unknown-error',
                         originalError: e,
@@ -76,7 +76,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
                 ...httpOptions.defaultResponseHeaders,
             });
             const error = new RpcError({
-                statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 publicMessage: 'Connection Error',
                 type: 'response-connection-error',
                 originalError: errReq,

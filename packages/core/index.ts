@@ -12,6 +12,5 @@ export * from './src/errors';
 export * from './src/jitUtils';
 export * from './src/router';
 export * from './src/utils';
-export * from './src/status-codes';
 export * from './src/jitDeserialize';
 export * from './src/jitRestoreCode';
