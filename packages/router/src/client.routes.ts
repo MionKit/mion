@@ -7,7 +7,7 @@
 
 import {AnyObject, JitCompiledFnData, PureFunctionData} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core';
+import {MION_ROUTES} from '@mionkit/core';
 import {
     getHookExecutable,
     getRouteExecutable,
@@ -56,11 +56,11 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: MethodsData, error
     serializeMethodDeps(method, deps, purFnDeps);
 }
 
-const mionGetRemoteMethodsInfoById = (
+function mionGetRemoteMethodsInfoById(
     ctx,
     methodsIds: string[],
     getAllRemoteMethods?: boolean
-): MethodsData | RpcError<'rpc-metadata-not-found'> => {
+): MethodsData | RpcError<'rpc-metadata-not-found'> {
     const resp: MethodsData = {
         methods: {},
         deps: {},
@@ -74,8 +74,8 @@ const mionGetRemoteMethodsInfoById = (
     const idsToReturn = shouldReturnAll
         ? getAllExecutablesIds().filter(
               (id) =>
-                  id !== GET_REMOTE_METHODS_BY_ID &&
-                  id !== GET_REMOTE_METHODS_BY_PATH &&
+                  id !== MION_ROUTES.getRemoteMethodsById &&
+                  id !== MION_ROUTES.getRemoteMethodsByPath &&
                   !isPrivateExecutable(getAnyExecutable(id) as Method)
           )
         : methodsIds;
@@ -89,13 +89,13 @@ const mionGetRemoteMethodsInfoById = (
             errorData,
         });
     return resp;
-};
+}
 
-const mionGetRemoteMethodsInfoByPath = (
+function mionGetRemoteMethodsInfoByPath(
     ctx,
     path: string,
     getAllRemoteMethods?: boolean
-): MethodsData | RpcError<'rpc-metadata-not-found'> => {
+): MethodsData | RpcError<'rpc-metadata-not-found'> {
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({
@@ -109,11 +109,9 @@ const mionGetRemoteMethodsInfoByPath = (
         privateExecutables.map((e) => e.id),
         getAllRemoteMethods
     );
-};
+}
 
 export const clientRoutes = {
-    // name must match GET_REMOTE_METHODS_BY_ID
-    mionGetRemoteMethodsInfoById: route(mionGetRemoteMethodsInfoById),
-    // name must match GET_REMOTE_METHODS_BY_PATH
-    mionGetRemoteMethodsInfoByPath: route(mionGetRemoteMethodsInfoByPath),
+    [MION_ROUTES.getRemoteMethodsById]: route(mionGetRemoteMethodsInfoById),
+    [MION_ROUTES.getRemoteMethodsByPath]: route(mionGetRemoteMethodsInfoByPath),
 } satisfies Routes;

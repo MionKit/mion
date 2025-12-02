@@ -8,7 +8,7 @@
 import {MionHeaders} from './types/context';
 import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from './router';
 import {getRoutePath, PublicRpcError, SerializableJitHashes} from '@mionkit/core';
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core';
+import {MION_ROUTES} from '@mionkit/core';
 import {hook, rawHook, route} from './handlers';
 import {Routes} from './types/general';
 import {HandlerType} from './types/remoteMethods';
@@ -256,8 +256,8 @@ describe('Client Routes should', () => {
         },
     } satisfies PublicMethods;
 
-    const methodsId = GET_REMOTE_METHODS_BY_ID;
-    const routeMethodsId = GET_REMOTE_METHODS_BY_PATH;
+    const methodsId = MION_ROUTES.getRemoteMethodsById;
+    const routeMethodsId = MION_ROUTES.getRemoteMethodsByPath;
     const methodsPath = getRoutePath([methodsId], {prefix: '', suffix: ''});
     const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
     const jitFnRt = runType<JitCompiledFnData>();
@@ -436,7 +436,7 @@ describe('Restore Client Routes jit functions', () => {
         },
     } satisfies Routes;
 
-    const routeMethodsId = GET_REMOTE_METHODS_BY_PATH;
+    const routeMethodsId = MION_ROUTES.getRemoteMethodsByPath;
     const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
 
     afterEach(() => resetRouter());

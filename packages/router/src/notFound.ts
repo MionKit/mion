@@ -12,7 +12,7 @@ let notFoundExecutionPath: MethodsExecutionList | undefined;
 const notFoundRoute = {
     type: HandlerType.route,
     handler: (): RpcError<'route-not-found'> =>
-        new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`, type: 'route-not-found'}),
+        new RpcError({statusCode: StatusCodes.UNEXPECTED_ERROR, publicMessage: `Route not found`, type: 'route-not-found'}),
 } satisfies RouteDef;
 
 export function getNotFoundExecutionPath(): MethodsExecutionList {

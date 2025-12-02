@@ -125,7 +125,7 @@ function serializeParameters(
             params = paramsJit.prepareForJson.fn(params) as JSONValue[];
         } catch (e: any | Error) {
             return new RpcError({
-                statusCode: StatusCodes.BAD_REQUEST,
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'serialization-error',
                 publicMessage: `Invalid params for Route or Hook '${method.id}', can not serialize params: ${e.message} `,
                 errorData: {deserializeError: e.message},
@@ -139,13 +139,13 @@ function validateParameters(
     params: any[],
     method: PublicMethod,
     paramsJit?: JitCompiledFunctions
-): void | RpcError<'validation-error'> {
+): void | RpcError<'validation-error' | 'unexpected-validation-error'> {
     if (!paramsJit || paramsJit.typeErrors.isNoop) return;
     try {
         const validationsResponse = paramsJit.typeErrors.fn(params);
         if (validationsResponse.length) {
             return new RpcError({
-                statusCode: StatusCodes.BAD_REQUEST,
+                statusCode: StatusCodes.APPLICATION_ERROR,
                 type: 'validation-error',
                 publicMessage: `Invalid params for Route or Hook '${method.id}', validation failed.`,
                 errorData: validationsResponse,
@@ -153,8 +153,8 @@ function validateParameters(
         }
     } catch (e: any | Error) {
         return new RpcError({
-            statusCode: StatusCodes.BAD_REQUEST,
-            type: 'validation-error',
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'unexpected-validation-error',
             publicMessage: `Could not validate params for Route or Hook '${method.id}': ${e.message} `,
         });
     }
@@ -173,7 +173,7 @@ function deSerializeReturn(
         return ret;
     } catch (e: any) {
         return new RpcError({
-            statusCode: StatusCodes.BAD_REQUEST,
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'serialization-error',
             publicMessage: `Invalid response from Route or Hook '${method.id}', can not deserialize return value: ${e.message}`,
             errorData: e?.errors,

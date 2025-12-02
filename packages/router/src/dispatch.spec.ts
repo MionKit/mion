@@ -50,8 +50,13 @@ describe('Dispatch routes', () => {
         return data;
     });
 
-    const auth = headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
-        if (token !== '1234') throw {statusCode: StatusCodes.FORBIDDEN, message: 'invalid auth token'};
+    const auth = headersHook((ctx, [token]: HeadersList<['Authorization']>): void | RpcError<'not-authorized'> => {
+        if (token !== '1234')
+            return new RpcError({
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
+                publicMessage: 'Not Authorized',
+                type: 'not-authorized',
+            });
     });
 
     const getDefaultRequest = (path: string, params?): RawRequest => ({
@@ -256,7 +261,7 @@ describe('Dispatch routes', () => {
             const error = response.body['/abcd'];
             expect(error).toEqual({
                 'mion:isΣrrθr': true,
-                statusCode: 404,
+                statusCode: 500,
                 type: 'route-not-found',
                 publicMessage: 'Route not found',
             } satisfies PublicRpcError<'route-not-found'>);
@@ -306,7 +311,7 @@ describe('Dispatch routes', () => {
             const error = response.body['mionDeserializeRequest'];
             expect(error).toEqual({
                 'mion:isΣrrθr': true,
-                statusCode: 400,
+                statusCode: 500,
                 type: 'invalid-request-body',
                 publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             } satisfies PublicRpcError<'invalid-request-body'>);
@@ -328,7 +333,7 @@ describe('Dispatch routes', () => {
             expect(errorResp).toEqual({
                 'mion:isΣrrθr': true,
                 type: 'parsing-json-request-error',
-                statusCode: 422,
+                statusCode: 500,
                 publicMessage: expect.stringContaining('Invalid json request body:'), // Nodejs error is slightly different depending on node version
             } satisfies PublicRpcError<'parsing-json-request-error'>);
         });
@@ -374,7 +379,7 @@ describe('Dispatch routes', () => {
             const error = response.body['getSameDate'];
             expect(error).toEqual({
                 'mion:isΣrrθr': true,
-                statusCode: 400,
+                statusCode: 500,
                 type: 'serialization-error',
                 publicMessage: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
                 errorData: {deserializeError: `Cannot read properties of undefined (reading 'date')`},
