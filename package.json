@@ -19,7 +19,7 @@
     "prepare": "husky install"
   },
   "lint-staged": {
-    "packages/**/*.ts": [
+    "packages/**/!(eslint-rule-test)*.ts": [
       "npm run lint-pre-committ --",
       "npm run check-format-pre-commit --"
     ]
