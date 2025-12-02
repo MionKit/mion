@@ -97,7 +97,7 @@ describe('bun router should', () => {
         expect(reply).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         // Error message changed from serialization to validation error, so content length will be different
-        expect(headers['content-length']).toEqual('180');
+        expect(headers['content-length']).toEqual('191');
         expect(headers['server']).toEqual('@mionkit');
     });
 
