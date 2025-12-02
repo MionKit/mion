@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError, isRpcError} from '@mionkit/core';
-import {GET_REMOTE_METHODS_BY_ID} from '@mionkit/core';
+import {MION_ROUTES} from '@mionkit/core';
 import {ClientOptions, JitFunctionsById, RemoteMethodJIT, RequestBody} from './types';
 import {PublicMethod, MethodsData} from '@mionkit/router';
 import type {JitCompiledFnData, SerializableMethodsData, SerializablePublicMethod, PureFunctionData} from '@mionkit/core';
@@ -27,10 +27,10 @@ export async function fetchRemoteMethodsMetadata(
     // TODO change for a configurable name
     const shouldReturnAllMethods = true;
     const body: RequestBody = {
-        [GET_REMOTE_METHODS_BY_ID]: [missingAfterLocal, shouldReturnAllMethods],
+        [MION_ROUTES.getRemoteMethodsById]: [missingAfterLocal, shouldReturnAllMethods],
     };
     try {
-        const url = new URL(GET_REMOTE_METHODS_BY_ID, options.baseURL);
+        const url = new URL(MION_ROUTES.getRemoteMethodsById, options.baseURL);
         const response = await fetch(url, {
             method: 'GET',
             headers: {'Content-Type': 'application/json'},
@@ -39,7 +39,7 @@ export async function fetchRemoteMethodsMetadata(
         const respObj = await response.json();
         // Handle union type de-serialization manually: MethodsData | RpcError gets serialized as [discriminator, value]
         // where discriminator 0 = MethodsData, discriminator 1 = RpcError
-        const respUnion = respObj[GET_REMOTE_METHODS_BY_ID];
+        const respUnion = respObj[MION_ROUTES.getRemoteMethodsById];
         let resp: MethodsData | RpcError<string> | undefined;
         if (Array.isArray(respUnion) && respUnion.length === 2 && typeof respUnion[0] === 'number') {
             const [discriminator, value] = respUnion;

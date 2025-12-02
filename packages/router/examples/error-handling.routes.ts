@@ -9,14 +9,14 @@ export const getPet = route(async (ctx, id: string): Promise<Pet | RpcError<'pet
         const pet = await myApp.db.getPet(id);
         if (!pet) {
             // Only statusCode and publicMessage will be returned in the response.body
-            const statusCode = StatusCodes.BAD_REQUEST;
+            const statusCode = StatusCodes.APPLICATION_ERROR;
             const publicMessage = `Pet with id ${id} can't be found`;
             // either return or throw are allowed
             return new RpcError({statusCode, publicMessage, type: 'pet-not-found'});
         }
         return pet;
     } catch (dbError) {
-        const statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
+        const statusCode = StatusCodes.UNEXPECTED_ERROR;
         const publicMessage = `Cant fetch data.`;
         /*
          * Only statusCode and publicMessage will be returned in the response.body.

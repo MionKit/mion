@@ -24,7 +24,6 @@ describe('Route errors should', () => {
             id: '123WS',
             statusCode: 400,
             publicMessage: 'this is a public message',
-            publicMessage: 'this is a private message',
             errorData: {data: 'data'},
             type: 'test-error',
         });
@@ -36,7 +35,6 @@ describe('Route errors should', () => {
         const errorWithSameMessage = new RpcError({
             id: '123WX',
             statusCode: 400,
-            publicMessage: 'this is a message',
             publicMessage: 'this is a message',
             errorData: {data: 'data'},
             type: 'test-error',
@@ -101,17 +99,17 @@ describe('RpcError inheritance should', () => {
         const error = new RpcError({
             statusCode: 400,
             type: 'validation-error',
-            publicMessage: 'Invalid request',
             publicMessage: 'Bad request',
+            message: 'Invalid request',
         });
 
         expect(error instanceof TypedError).toBe(true);
         expect(error instanceof RpcError).toBe(true);
         expect(error['mion:isΣrrθr']).toBe(true);
         expect(error.type).toBe('validation-error');
-        expect(error.message).toBe('Invalid request');
         expect(error.statusCode).toBe(400);
         expect(error.publicMessage).toBe('Bad request');
+        expect(error.message).toBe('Invalid request');
     });
 
     it('be identified by both type guards', () => {

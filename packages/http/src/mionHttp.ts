@@ -98,7 +98,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         if (size > httpOptions.maxBodySize && !replied) {
             replied = true;
             const error = new RpcError({
-                statusCode: StatusCodes.REQUEST_TOO_LONG,
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 publicMessage: 'Payload Too Large',
                 type: 'request-payload-too-large',
             });
@@ -110,7 +110,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         if (replied) return;
         replied = true;
         const error = new RpcError({
-            statusCode: StatusCodes.BAD_REQUEST,
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
             publicMessage: 'Connection Error',
             type: 'request-connection-error',
             originalError: e,
@@ -134,7 +134,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
                 if (replied) return;
                 replied = true;
                 const error = new RpcError({
-                    statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                    statusCode: StatusCodes.UNEXPECTED_ERROR,
                     publicMessage: 'Unknown Error',
                     type: 'unknown-error',
                     originalError: e,
@@ -147,7 +147,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         if (replied) return;
         replied = true;
         const error = new RpcError({
-            statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
             publicMessage: 'Connection Error',
             type: 'response-connection-error',
             originalError: e,
@@ -169,13 +169,15 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
     switch (bodyType) {
         case 'J': {
             const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');
-            httpResp.setHeader('content-length', buffer.length);
+            httpResp.setHeader('content-length', buffer.byteLength);
+            // content-type already set by serializer
             httpResp.end(buffer);
             break;
         }
         case 'B': {
             const serializer = mionResp.binSerializer!;
             httpResp.setHeader('content-length', serializer.getLength());
+            // content-type already set by serializer
             httpResp.end(serializer.getBufferView());
 
             // Release buffer when response is finished
@@ -186,7 +188,7 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
         }
         default: {
             const error = new RpcError({
-                statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 publicMessage: 'unknown-mion-response-format',
                 type: 'unknown-error',
                 errorData: {bodyType},

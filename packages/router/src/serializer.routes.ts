@@ -34,7 +34,7 @@ export function deserializeRequestBody(context: CallContext): ErrorReturn {
                 parsedBody = JSON.parse(context.request.rawBody as string);
             } catch (err: any) {
                 return new RpcError({
-                    statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
+                    statusCode: StatusCodes.UNEXPECTED_ERROR,
                     type: 'parsing-json-request-error',
                     publicMessage: `Invalid json request body: ${err?.message || 'unknown parsing error.'}`,
                 });
@@ -57,7 +57,7 @@ export function deserializeRequestBody(context: CallContext): ErrorReturn {
         }
         if (typeof parsedBody !== 'object')
             return new RpcError({
-                statusCode: StatusCodes.BAD_REQUEST,
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'invalid-request-body',
                 publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             });
@@ -101,7 +101,7 @@ function stringifyBody(context: CallContext, executionPath: Method[], respBody: 
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (e: any) {
             const err = new RpcError({
-                statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'json-stringify-response-error',
                 publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.jsonStringify.typeName}`,
                 originalError: e,

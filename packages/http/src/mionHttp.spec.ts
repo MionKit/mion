@@ -80,7 +80,6 @@ describe('node http router should', () => {
             method: 'POST',
             body: JSON.stringify(requestData),
         });
-
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
@@ -110,7 +109,7 @@ describe('node http router should', () => {
         expect(reply).toEqual({getDate: expectedError});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('180');
+        expect(headers['content-length']).toEqual('191');
         expect(headers['server']).toEqual('@mionkit');
     });
 
@@ -158,15 +157,15 @@ describe('node http router should', () => {
         const expectedError: PublicRpcError<'request-payload-too-large'> = {
             'mion:isΣrrθr': true,
             publicMessage: `Payload Too Large`,
-            statusCode: 413,
+            statusCode: 500,
             type: 'request-payload-too-large',
         };
-        expect(reply).toEqual({httpRequest: expectedError});
+        expect(reply).toEqual({'mion_GlobalError*': expectedError});
         expect(headers['x-app-name']).toEqual('MyApp');
         expect(headers['x-instance-id']).toEqual('3089');
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('116');
+        expect(headers['content-length']).toEqual('133');
         expect(headers['server']).toEqual('@mionkit');
 
         await closeServer(smallServer);
