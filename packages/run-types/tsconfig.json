@@ -8,5 +8,5 @@
   "references": [{"path": "../core"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "examples", ".dist", "src/jitCompilers/XYZ/**"]
+  "exclude": ["node_modules", "examples", ".dist", "src/jitCompilers/xyz-Template/**"]
 }
