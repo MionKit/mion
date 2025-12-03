@@ -18,4 +18,3 @@ const plugin = {
 };
 module.exports = plugin;
 module.exports = plugin;
-//# sourceMappingURL=index.js.map
