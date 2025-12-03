@@ -21,6 +21,8 @@ export interface CacheData {
 export interface AOTCompileOptions {
     startScriptPath: string;
     aotDir: string;
+    /** Skip router cache compilation (for core-only AOT packages) */
+    skipRouter?: boolean;
 }
 
 export const EXCLUDED_FNS: JitFnID[] = [JitFunctions.toJavascript.id];
@@ -38,7 +40,7 @@ export async function compileAOT(
     excludedFns: JitFnID[] = EXCLUDED_FNS,
     excludedPureFns: string[] = EXCLUDED_PURE_FNS
 ): Promise<void> {
-    const {startScriptPath, aotDir} = options;
+    const {startScriptPath, aotDir, skipRouter} = options;
 
     const resolvedStartScript = resolve(startScriptPath);
 
@@ -71,10 +73,10 @@ export async function compileAOT(
 
     // Get the populated caches
     const {jitFnsCache, pureFnsCache} = getFnCaches();
-    const routerCache = getPersistedMethods();
+    const routerCache = skipRouter ? {} : getPersistedMethods();
 
     // Write the caches to files
-    writeAOTCachesToFiles({jitFnsCache, pureFnsCache, routerCache}, aotDir, excludedFns, excludedPureFns);
+    writeAOTCachesToFiles({jitFnsCache, pureFnsCache, routerCache}, aotDir, excludedFns, excludedPureFns, skipRouter);
 
     if (!isTest) {
         console.log('✅ AOT compilation completed successfully!');
@@ -94,7 +96,8 @@ export function writeAOTCachesToFiles(
     cacheData: CacheData,
     aotDir: string,
     excludedFns: JitFnID[] = EXCLUDED_FNS,
-    excludedPureFns: string[] = EXCLUDED_PURE_FNS
+    excludedPureFns: string[] = EXCLUDED_PURE_FNS,
+    skipRouter?: boolean
 ): void {
     const {jitFnsCache, pureFnsCache, routerCache} = cacheData;
     const filteredJitFnsCache = filterJitFns(jitFnsCache, excludedFns);
@@ -139,10 +142,12 @@ export function writeAOTCachesToFiles(
         }
         compileAndWritePureFunctions(filteredPureFnsCache, aotConfig);
 
-        if (!isTest) {
-            console.log(`Writing router methods cache (${moduleFormat})...`);
+        if (!skipRouter) {
+            if (!isTest) {
+                console.log(`Writing router methods cache (${moduleFormat})...`);
+            }
+            compileAndWriteRouterMethods(routerCache, aotConfig);
         }
-        compileAndWriteRouterMethods(routerCache, aotConfig);
     }
 }
 
