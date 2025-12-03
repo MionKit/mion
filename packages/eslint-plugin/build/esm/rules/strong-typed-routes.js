@@ -302,4 +302,3 @@ function checkHandlerFunction(func, handlerType, context) {
 export {
   rule as default
 };
-//# sourceMappingURL=strong-typed-routes.js.map

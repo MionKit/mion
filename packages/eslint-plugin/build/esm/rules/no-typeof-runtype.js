@@ -70,4 +70,3 @@ const rule = {
 export {
   rule as default
 };
-//# sourceMappingURL=no-typeof-runtype.js.map
