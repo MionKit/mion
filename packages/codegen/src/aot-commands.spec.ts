@@ -127,6 +127,41 @@ describe('AOT Commands Integration Tests', () => {
             expect(updatedPackageJson.name).toBe('updated-aot-package');
             expect(updatedPackageJson.isMionAOT).toBe(true);
         });
+
+        it('should create core-only AOT package without router dependency', () => {
+            initAOT({
+                dir: testAotDir,
+                coreOnly: true,
+            });
+
+            // Verify directory was created
+            expect(existsSync(testAotDir)).toBe(true);
+
+            // Verify package.json was created without router dependency
+            const packageJsonPath = join(testAotDir, 'package.json');
+            const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+            expect(packageJson.peerDependencies['@mionkit/core']).toBeDefined();
+            expect(packageJson.peerDependencies['@mionkit/router']).toBeUndefined();
+
+            // Verify router.cache.js was removed
+            expect(existsSync(join(testAotDir, 'build', 'cjs', 'router.cache.js'))).toBe(false);
+            expect(existsSync(join(testAotDir, 'build', 'esm', 'router.cache.js'))).toBe(false);
+
+            // Verify index.js uses core-only version (check that it doesn't import router.cache)
+            const cjsIndexContent = readFileSync(join(testAotDir, 'build', 'cjs', 'index.js'), 'utf8');
+            expect(cjsIndexContent).not.toContain('router.cache');
+            expect(cjsIndexContent).not.toContain('@mionkit/router');
+
+            const esmIndexContent = readFileSync(join(testAotDir, 'build', 'esm', 'index.js'), 'utf8');
+            expect(esmIndexContent).not.toContain('router.cache');
+            expect(esmIndexContent).not.toContain('@mionkit/router');
+
+            // Verify jitFns and pureFns caches still exist
+            expect(existsSync(join(testAotDir, 'build', 'cjs', 'jitFns.cache.js'))).toBe(true);
+            expect(existsSync(join(testAotDir, 'build', 'esm', 'jitFns.cache.js'))).toBe(true);
+            expect(existsSync(join(testAotDir, 'build', 'cjs', 'pureFns.cache.js'))).toBe(true);
+            expect(existsSync(join(testAotDir, 'build', 'esm', 'pureFns.cache.js'))).toBe(true);
+        });
     });
 
     describe('buildAOT function', () => {
