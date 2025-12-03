@@ -4,5 +4,5 @@
     "outDir": ".dist/cjs",
     "composite": true
   },
-  "include": ["src"]
+  "include": ["src", "vite.config.ts"]
 }
