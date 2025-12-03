@@ -9,7 +9,8 @@ import {getPublicApi} from './remoteMethods';
 import {registerRoutes, initRouter, resetRouter} from './router';
 import {CallContext} from './types/context';
 import {Routes} from './types/general';
-import {HandlerType, HookMethod, RouteMethod} from './types/remoteMethods';
+import {HookMethod, RouteMethod} from './types/remoteMethods';
+import {HandlerType} from '@mionkit/core';
 import {hook, rawHook, route} from './handlers';
 import {jitUtils, SerializableJitHashes} from '@mionkit/core';
 

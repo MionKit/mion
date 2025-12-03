@@ -8,12 +8,10 @@
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody, RawRequestBodyType} from './types/context';
 import {type RouterOptions} from './types/general';
 import {HeaderMethod, Method, MethodsExecutionList, RawMethod} from './types/remoteMethods';
-import {HandlerType} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {getNotFoundExecutionPath} from './notFound';
 import {Mutable, AnyObject, createDataViewDeserializer, isAnyError, MION_ROUTES} from '@mionkit/core';
-import {RpcError} from '@mionkit/core';
-import {StatusCodes} from '@mionkit/core';
+import {RpcError, HandlerType, StatusCodes} from '@mionkit/core';
 
 /*
  * PERFORMANCE PROFILING NOTE:

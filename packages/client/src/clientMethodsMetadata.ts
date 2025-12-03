@@ -8,7 +8,7 @@
 import {RpcError, isRpcError} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
 import {ClientOptions, JitFunctionsById, RemoteMethodJIT, RequestBody} from './types';
-import {PublicMethod} from '@mionkit/router';
+import type {PublicMethod} from '@mionkit/router';
 import type {JitCompiledFnData, SerializablePublicMethod, PureFunctionData, SerializableMethodsData} from '@mionkit/core';
 import {jitUtils} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';

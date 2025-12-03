@@ -1,5 +1,5 @@
 import type {NotFoundMethod, MethodsExecutionList} from './types/remoteMethods';
-import {HandlerType} from './types/remoteMethods';
+import {HandlerType} from '@mionkit/core';
 import type {RouteDef} from './types/definitions';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';

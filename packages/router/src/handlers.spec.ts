@@ -12,7 +12,7 @@ import {route, headersHook, hook, rawHook} from './handlers';
 import {MionHeaders} from './types/context';
 import {HeadersList} from './types/HeadersList';
 import {headersFromRecord} from './headers';
-import {HandlerType} from './types/remoteMethods';
+import {HandlerType} from '@mionkit/core';
 
 describe('route & hooks init functions', () => {
     type RawRequest = {

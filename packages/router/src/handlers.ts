@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeaderHookOptions, HookOptions, HandlerType, RawHookOptions, RouteOptions} from './types/remoteMethods';
+import {HeaderHookOptions, HookOptions, RawHookOptions, RouteOptions} from './types/remoteMethods';
+import {HandlerType} from '@mionkit/core';
 import {Handler, HeaderHandler, RawHookHandler} from './types/handlers';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './types/definitions';
 

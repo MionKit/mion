@@ -20,7 +20,7 @@ import {
 } from './router';
 import {type Routes} from './types/general';
 import {hook, route, rawHook} from './handlers';
-import {HandlerType} from './types/remoteMethods';
+import {HandlerType} from '@mionkit/core';
 
 describe('Create routes should', () => {
     const hook1 = hook((): void => undefined);

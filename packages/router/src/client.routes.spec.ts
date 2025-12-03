@@ -16,10 +16,10 @@ import {
     MION_ROUTES,
     RpcError,
     JitCompiledFnData,
+    HandlerType,
 } from '@mionkit/core';
 import {hook, rawHook, route} from './handlers';
 import {Routes} from './types/general';
-import {HandlerType} from './types/remoteMethods';
 import {clientRoutes} from './client.routes';
 import {headersFromRecord} from './headers';
 import {dispatchRoute} from './dispatch';

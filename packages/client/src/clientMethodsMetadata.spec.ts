@@ -7,7 +7,6 @@
 
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {ClientOptions, JitFunctionsById} from './types';
-import {PublicMethod} from '@mionkit/router';
 import {getFnCaches} from '@mionkit/core';
 import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
 import Storage from 'dom-storage';
