@@ -27,13 +27,11 @@
   },
   "scripts": {
     "test": "jest",
-    "dev": "rimraf build && tsc --build tsconfig.json --watch",
+    "dev": "vite build --watch",
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build:cjs": "tsc --project tsconfig.build.json --module CommonJS --outDir build/cjs",
-    "build:esm": "tsc --project tsconfig.build.json --module ESNext --outDir build/esm",
-    "build": "npm run clean && npm run build:cjs && npm run build:esm",
+    "build": "vite build",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .coverage",
     "fresh-start": "npm run clean && rimraf node_modules"

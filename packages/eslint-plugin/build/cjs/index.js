@@ -1,25 +1,21 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const no_typeof_runtype_1 = __importDefault(require("./rules/no-typeof-runtype"));
-const strong_typed_routes_1 = __importDefault(require("./rules/strong-typed-routes"));
+const rules_noTypeofRuntype = require("./rules/no-typeof-runtype.js");
+const rules_strongTypedRoutes = require("./rules/strong-typed-routes.js");
 const plugin = {
-    rules: {
-        'no-typeof-runtype': no_typeof_runtype_1.default,
-        'strong-typed-routes': strong_typed_routes_1.default,
-    },
-    configs: {
-        recommended: {
-            extends: [],
-            rules: {
-                '@mionkit/no-typeof-runtype': 'error',
-                '@mionkit/strong-typed-routes': 'error',
-            },
-        },
-    },
+  rules: {
+    "no-typeof-runtype": rules_noTypeofRuntype,
+    "strong-typed-routes": rules_strongTypedRoutes
+  },
+  configs: {
+    recommended: {
+      extends: [],
+      rules: {
+        "@mionkit/no-typeof-runtype": "error",
+        "@mionkit/strong-typed-routes": "error"
+      }
+    }
+  }
 };
 module.exports = plugin;
-exports.default = plugin;
+module.exports = plugin;
 //# sourceMappingURL=index.js.map
