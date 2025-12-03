@@ -69,4 +69,3 @@ const rule = {
   }
 };
 module.exports = rule;
-//# sourceMappingURL=no-typeof-runtype.js.map
