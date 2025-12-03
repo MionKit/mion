@@ -8,8 +8,8 @@
 import {RpcError, isRpcError} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
 import {ClientOptions, JitFunctionsById, RemoteMethodJIT, RequestBody} from './types';
-import {PublicMethod, MethodsData} from '@mionkit/router';
-import type {JitCompiledFnData, SerializableMethodsData, SerializablePublicMethod, PureFunctionData} from '@mionkit/core';
+import {PublicMethod} from '@mionkit/router';
+import type {JitCompiledFnData, SerializablePublicMethod, PureFunctionData, SerializableMethodsData} from '@mionkit/core';
 import {jitUtils} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {deserializeMethods} from '@mionkit/core';
@@ -40,12 +40,12 @@ export async function fetchRemoteMethodsMetadata(
         // Handle union type de-serialization manually: MethodsData | RpcError gets serialized as [discriminator, value]
         // where discriminator 0 = MethodsData, discriminator 1 = RpcError
         const respUnion = respObj[MION_ROUTES.getRemoteMethodsById];
-        let resp: MethodsData | RpcError<string> | undefined;
+        let resp: SerializableMethodsData | RpcError<string> | undefined;
         if (Array.isArray(respUnion) && respUnion.length === 2 && typeof respUnion[0] === 'number') {
             const [discriminator, value] = respUnion;
             if (discriminator === 0) {
                 // MethodsData (first type in union)
-                resp = value as MethodsData;
+                resp = value as SerializableMethodsData;
             } else if (discriminator === 1) {
                 // RpcError (second type in union)
                 resp = value as RpcError<string>;
