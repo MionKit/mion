@@ -137,15 +137,17 @@ function hasExplicitReturnType(
 /**
  * Checks if all parameters (except the first) have explicit type annotations
  * @param func The function node
- * @returns Object with validation results
+ * @returns Object with validation results including the actual parameter nodes
  */
 function validateParameterTypes(
     func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration
 ): {
     valid: boolean;
     missingTypeParams: string[];
+    missingParamNodes: TSESTree.Parameter[];
 } {
     const missingTypeParams: string[] = [];
+    const missingParamNodes: TSESTree.Parameter[] = [];
 
     // Skip the first parameter (context), check all others
     for (let i = 1; i < func.params.length; i++) {
@@ -154,32 +156,74 @@ function validateParameterTypes(
         if (param.type === AST_NODE_TYPES.Identifier) {
             if (!param.typeAnnotation) {
                 missingTypeParams.push(param.name);
+                missingParamNodes.push(param);
             }
         } else if (param.type === AST_NODE_TYPES.RestElement) {
             if (param.argument.type === AST_NODE_TYPES.Identifier && !param.typeAnnotation) {
                 missingTypeParams.push(`...${param.argument.name}`);
+                missingParamNodes.push(param);
             }
         } else if (param.type === AST_NODE_TYPES.ArrayPattern || param.type === AST_NODE_TYPES.ObjectPattern) {
             // For destructuring patterns, check if they have type annotations
             if (!param.typeAnnotation) {
                 missingTypeParams.push(`parameter ${i + 1}`);
+                missingParamNodes.push(param);
             }
         } else if (param.type === AST_NODE_TYPES.AssignmentPattern) {
             // For default parameters, check the left side
             if (!param.typeAnnotation) {
                 missingTypeParams.push(`parameter ${i + 1}`);
+                missingParamNodes.push(param);
             }
         }
         // For other parameter types, we assume they need type annotations too
         else if (!('typeAnnotation' in param) || !param.typeAnnotation) {
             missingTypeParams.push(`parameter ${i + 1}`);
+            missingParamNodes.push(param);
         }
     }
 
     return {
         valid: missingTypeParams.length === 0,
         missingTypeParams,
+        missingParamNodes,
     };
+}
+
+/**
+ * Extracts a readable parameter name from a parameter node
+ */
+function getParameterName(param: TSESTree.Parameter): string {
+    if (param.type === AST_NODE_TYPES.Identifier) {
+        return param.name;
+    } else if (param.type === AST_NODE_TYPES.RestElement && param.argument.type === AST_NODE_TYPES.Identifier) {
+        return `...${param.argument.name}`;
+    } else if (param.type === AST_NODE_TYPES.ArrayPattern) {
+        return '[...]';
+    } else if (param.type === AST_NODE_TYPES.ObjectPattern) {
+        return '{...}';
+    } else if (param.type === AST_NODE_TYPES.AssignmentPattern) {
+        if (param.left.type === AST_NODE_TYPES.Identifier) {
+            return param.left.name;
+        }
+        return 'param';
+    }
+    return 'param';
+}
+
+/**
+ * Gets the node to report for missing return type
+ * For arrow functions, this is the arrow token area; for regular functions, the function keyword
+ */
+function getReturnTypeReportNode(
+    func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration
+): TSESTree.Node {
+    // For function declarations/expressions with an id, report on the id
+    if ((func.type === AST_NODE_TYPES.FunctionDeclaration || func.type === AST_NODE_TYPES.FunctionExpression) && func.id) {
+        return func.id;
+    }
+    // Otherwise report on the function itself (will highlight just the signature area)
+    return func;
 }
 
 /**
@@ -239,15 +283,18 @@ function getHandlerTypeFromJSDoc(
         | TSESTree.FunctionDeclaration
         | TSESTree.VariableDeclaration,
     context: TSESLint.RuleContext<any, any>
-): 'Handler' | 'HeaderHandler' | null {
+): 'Handler' | 'HeaderHandler' | 'HookHandler' | null {
     const sourceCode = context.sourceCode;
     const comments = sourceCode.getCommentsBefore(node);
 
     for (const comment of comments) {
         if (comment.type === 'Block') {
             const commentText = comment.value;
-            if (commentText.includes('@mion:route') || commentText.includes('@mion:hook')) {
+            if (commentText.includes('@mion:route')) {
                 return 'Handler';
+            }
+            if (commentText.includes('@mion:hook')) {
+                return 'HookHandler';
             }
             if (commentText.includes('@mion:headersHook')) {
                 return 'HeaderHandler';
@@ -287,12 +334,7 @@ function isImportedFromMionRouter(name: string, context: TSESLint.RuleContext<an
 }
 
 const rule: TSESLint.RuleModule<
-    | 'missingReturnType'
-    | 'missingParamTypes'
-    | 'missingBothTypes'
-    | 'missingReturnTypeRouter'
-    | 'missingParamTypesRouter'
-    | 'missingBothTypesRouter',
+    'missingReturnType' | 'missingParamTypes' | 'missingReturnTypeRouter' | 'missingParamTypesRouter',
     []
 > = {
     meta: {
@@ -301,13 +343,10 @@ const rule: TSESLint.RuleModule<
             description: 'Enforce explicit parameters and return type annotations for router handler functions',
         },
         messages: {
-            missingReturnType: 'Mion {{handlerType}} must have explicit return type annotations.',
-            missingParamTypes: 'Mion {{handlerType}} must have explicit parameters type annotations.',
-            missingBothTypes: 'Mion {{handlerType}} must have explicit parameters and return type annotations.',
-            missingReturnTypeRouter: 'Mion {{routerFunction}}() handler must have explicit return type annotations.',
-            missingParamTypesRouter: 'Mion {{routerFunction}}() handler must have explicit parameters type annotations.',
-            missingBothTypesRouter:
-                'Mion {{routerFunction}}() handler must have explicit parameters and return type annotations.',
+            missingReturnType: 'mion {{handlerType}}() handler must define a return type.',
+            missingParamTypes: 'mion parameter "{{paramName}}" must have an explicit type definition.',
+            missingReturnTypeRouter: 'mion {{routerFunction}}() handler must define a return type.',
+            missingParamTypesRouter: 'mion parameter "{{paramName}}" must have an explicit type definition.',
         },
         schema: [], // No options
     },
@@ -328,29 +367,24 @@ const rule: TSESLint.RuleModule<
                 const hasReturnType = hasExplicitReturnType(handlerFunc);
                 const paramValidation = validateParameterTypes(handlerFunc);
 
-                // Report errors based on what's missing
-                if (!hasReturnType && !paramValidation.valid) {
+                // Report errors on specific nodes for better highlighting
+                if (!hasReturnType) {
                     context.report({
-                        node: handlerFunc,
-                        messageId: 'missingBothTypesRouter',
-                        data: {
-                            routerFunction: functionName,
-                        },
-                    });
-                } else if (!hasReturnType) {
-                    context.report({
-                        node: handlerFunc,
+                        node: getReturnTypeReportNode(handlerFunc),
                         messageId: 'missingReturnTypeRouter',
                         data: {
                             routerFunction: functionName,
                         },
                     });
-                } else if (!paramValidation.valid) {
+                }
+
+                // Report each missing parameter type separately
+                for (const paramNode of paramValidation.missingParamNodes) {
                     context.report({
-                        node: handlerFunc,
+                        node: paramNode,
                         messageId: 'missingParamTypesRouter',
                         data: {
-                            routerFunction: functionName,
+                            paramName: getParameterName(paramNode),
                         },
                     });
                 }
@@ -358,7 +392,7 @@ const rule: TSESLint.RuleModule<
             // Check variable declarations with type annotations or JSDoc tags
             VariableDeclarator(node: TSESTree.VariableDeclarator) {
                 if (node.id.type === AST_NODE_TYPES.Identifier) {
-                    let handlerType: 'Handler' | 'HeaderHandler' | null = null;
+                    let handlerType: 'Handler' | 'HeaderHandler' | 'HookHandler' | null = null;
 
                     // Check for type annotation
                     if (node.id.typeAnnotation) {
@@ -415,6 +449,15 @@ const rule: TSESLint.RuleModule<
 };
 
 /**
+ * Maps Handler/HeaderHandler/HookHandler type names to their corresponding router function names
+ */
+function handlerTypeToFunctionName(handlerType: 'Handler' | 'HeaderHandler' | 'HookHandler'): string {
+    if (handlerType === 'HeaderHandler') return 'headersHook';
+    if (handlerType === 'HookHandler') return 'hook';
+    return 'route';
+}
+
+/**
  * Helper function to check a handler function for type annotations
  * @param func The function node to check
  * @param handlerType The expected handler type
@@ -422,35 +465,31 @@ const rule: TSESLint.RuleModule<
  */
 function checkHandlerFunction(
     func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
-    handlerType: 'Handler' | 'HeaderHandler',
+    handlerType: 'Handler' | 'HeaderHandler' | 'HookHandler',
     context: TSESLint.RuleContext<any, any>
 ) {
     const hasReturnType = hasExplicitReturnType(func);
     const paramValidation = validateParameterTypes(func);
+    const functionName = handlerTypeToFunctionName(handlerType);
 
-    // Report errors based on what's missing
-    if (!hasReturnType && !paramValidation.valid) {
+    // Report errors on specific nodes for better highlighting
+    if (!hasReturnType) {
         context.report({
-            node: func,
-            messageId: 'missingBothTypes',
-            data: {
-                handlerType,
-            },
-        });
-    } else if (!hasReturnType) {
-        context.report({
-            node: func,
+            node: getReturnTypeReportNode(func),
             messageId: 'missingReturnType',
             data: {
-                handlerType,
+                handlerType: functionName,
             },
         });
-    } else if (!paramValidation.valid) {
+    }
+
+    // Report each missing parameter type separately
+    for (const paramNode of paramValidation.missingParamNodes) {
         context.report({
-            node: func,
+            node: paramNode,
             messageId: 'missingParamTypes',
             data: {
-                handlerType,
+                paramName: getParameterName(paramNode),
             },
         });
     }
