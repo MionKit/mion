@@ -9,7 +9,7 @@
     "format": "prettier --write packages/**/*.{ts,md}",
     "check-format-pre-commit": "CI=true prettier --check",
     "lint": "lerna run lint",
-    "lint-pre-committ": "CI=true eslint --quiet",
+    "lint-pre-committ": "CI=true eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
     "build": "lerna run build",
     "clean": "lerna run clean  && nx reset && jest --clearCache",
     "fresh-start": "lerna run fresh-start && rimraf node_modules",
@@ -19,7 +19,7 @@
     "prepare": "husky install"
   },
   "lint-staged": {
-    "packages/**/!(eslint-rule-test)*.ts": [
+    "packages/**/*.ts": [
       "npm run lint-pre-committ --",
       "npm run check-format-pre-commit --"
     ]
