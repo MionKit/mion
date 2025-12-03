@@ -376,8 +376,10 @@ export interface HeadersMethodData {
     jitHashes: Pick<JitFunctionsHashes, 'isType' | 'typeErrors'>;
 }
 
+export type SerializablePublicMethods = Record<string, SerializablePublicMethod>;
+
 export interface SerializableMethodsData {
-    methods: Record<string, SerializablePublicMethod>;
+    methods: SerializablePublicMethods;
     deps: Record<string, JitCompiledFnData>;
     purFnDeps: Record<string, PureFunctionData>;
 }

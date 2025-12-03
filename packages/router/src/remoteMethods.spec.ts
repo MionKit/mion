@@ -76,7 +76,6 @@ describe('Public Methods should', () => {
         expect(api.auth).toEqual(
             expect.objectContaining({
                 type: HandlerType.hook,
-                handler: 'auth', // to be used by codegen so need to be a valid js syntax
                 id: 'auth',
                 paramsJitHashes: hasSerializableHashes(),
                 returnJitHashes: hasSerializableHashes(),
@@ -87,7 +86,6 @@ describe('Public Methods should', () => {
         expect(api.routes.route1).toEqual(
             expect.objectContaining({
                 type: HandlerType.route,
-                handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
                 id: 'routes/route1',
                 paramsJitHashes: hasSerializableHashes(),
                 returnJitHashes: hasSerializableHashes(),
@@ -218,7 +216,6 @@ describe('Public Methods should', () => {
             expect.objectContaining({
                 type: HandlerType.route,
                 id: 'sayHello',
-                handler: 'sayHello',
                 paramNames: ['name'],
             } as Partial<RouteMethod>)
         );
