@@ -12,7 +12,7 @@ import type {PublicApi, PrivateDef, HooksCollection} from './types/publicMethods
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
-import {HandlerType} from './types/remoteMethods';
+import {HandlerType} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './reflection';
 import {serializerHooks} from './serializer.routes';
 import {getRouterItemId, getRoutePath, getENV} from '@mionkit/core';

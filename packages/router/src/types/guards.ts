@@ -12,7 +12,7 @@ import {RawMethod} from './remoteMethods';
 import {HeaderMethod} from './remoteMethods';
 import {RouteMethod} from './remoteMethods';
 import {Method} from './remoteMethods';
-import {HandlerType} from './remoteMethods';
+import {HandlerType} from '@mionkit/core';
 
 // #######  type guards #######
 

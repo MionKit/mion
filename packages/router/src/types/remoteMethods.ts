@@ -8,6 +8,7 @@ import {
     SerializablePublicMethod,
 } from '@mionkit/core'; // do not import type only
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
+import {HandlerType} from '@mionkit/core';
 
 export interface MethodOptions {
     runOnError?: boolean;
@@ -45,13 +46,6 @@ export interface HeadersMethodWithJitFns extends HeadersMethodData {
 
 /** Record of all persisted methods */
 export type MethodsCache = Record<string, MethodData>;
-
-export enum HandlerType {
-    route = 1,
-    hook = 2,
-    headerHook = 3,
-    rawHook = 4,
-}
 
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
 export interface Method<H extends AnyHandler = AnyHandler> extends MethodWithJitFns {
