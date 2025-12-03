@@ -7,7 +7,7 @@
 
 import {type RouterEntry, type Routes} from './types/general';
 import {type Method} from './types/remoteMethods';
-import {HandlerType} from './types/remoteMethods';
+import {HandlerType} from '@mionkit/core';
 import type {PublicApi} from './types/publicMethods';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
 import {

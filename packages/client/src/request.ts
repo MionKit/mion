@@ -18,14 +18,12 @@ import {
     RequestErrors,
 } from './types';
 import type {RunTypeError} from '@mionkit/core';
-import {RpcError, isRpcError} from '@mionkit/core';
+import {RpcError, isRpcError, HandlerType} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';
-
-import {HandlerType} from '@mionkit/router';
 
 export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
     readonly path: string;

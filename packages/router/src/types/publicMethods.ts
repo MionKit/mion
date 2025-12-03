@@ -8,7 +8,7 @@
 import {RpcError, SerializablePublicMethod} from '@mionkit/core';
 import {CallContext} from './context';
 import {Routes} from './general';
-import {HandlerType} from './remoteMethods';
+import {HandlerType} from '@mionkit/core';
 import {Handler} from './handlers';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 

@@ -55,3 +55,9 @@ export const StatusCodes = {
     /** Standard success code */
     OK: 200,
 } as const;
+export enum HandlerType {
+    route = 1,
+    hook = 2,
+    headerHook = 3,
+    rawHook = 4,
+}
