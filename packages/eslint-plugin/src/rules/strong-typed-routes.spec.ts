@@ -221,9 +221,8 @@ ruleTester.run('strong-typed-routes', rule, {
                 route((ctx, name) => \`hello \${name}\`);
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypesRouter',
-                },
+                {messageId: 'missingReturnTypeRouter'}, // return type on function
+                {messageId: 'missingParamTypesRouter'}, // param 'name'
             ],
         },
         // Missing types in hook
@@ -233,9 +232,8 @@ ruleTester.run('strong-typed-routes', rule, {
                 hook((ctx, data) => { console.log(data); });
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypesRouter',
-                },
+                {messageId: 'missingReturnTypeRouter'}, // return type on function
+                {messageId: 'missingParamTypesRouter'}, // param 'data'
             ],
         },
         // Missing types in headersHook
@@ -245,9 +243,8 @@ ruleTester.run('strong-typed-routes', rule, {
                 headersHook((ctx, [token]) => true);
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypesRouter',
-                },
+                {messageId: 'missingReturnTypeRouter'}, // return type on function
+                {messageId: 'missingParamTypesRouter'}, // param '[token]'
             ],
         },
         // Function expression missing types
@@ -257,9 +254,8 @@ ruleTester.run('strong-typed-routes', rule, {
                 route(function(ctx, name) { return \`hello \${name}\`; });
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypesRouter',
-                },
+                {messageId: 'missingReturnTypeRouter'}, // return type on function
+                {messageId: 'missingParamTypesRouter'}, // param 'name'
             ],
         },
         // Multiple parameters missing types
@@ -269,9 +265,9 @@ ruleTester.run('strong-typed-routes', rule, {
                 route((ctx, name, age) => \`hello \${name}, age \${age}\`);
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypesRouter',
-                },
+                {messageId: 'missingReturnTypeRouter'}, // return type on function
+                {messageId: 'missingParamTypesRouter'}, // param 'name'
+                {messageId: 'missingParamTypesRouter'}, // param 'age'
             ],
         },
         // Some parameters missing types
@@ -306,9 +302,8 @@ ruleTester.run('strong-typed-routes', rule, {
                 route(sayHello);
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypesRouter',
-                },
+                {messageId: 'missingReturnTypeRouter'}, // return type on function id
+                {messageId: 'missingParamTypesRouter'}, // param 'name'
             ],
         },
         // Arrow function variable reference missing types
@@ -319,9 +314,8 @@ ruleTester.run('strong-typed-routes', rule, {
                 route(sayHello);
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypesRouter',
-                },
+                {messageId: 'missingReturnTypeRouter'}, // return type on function
+                {messageId: 'missingParamTypesRouter'}, // param 'name'
             ],
         },
         // Function expression variable reference missing return type
@@ -358,9 +352,8 @@ ruleTester.run('strong-typed-routes', rule, {
                 headersHook(authHandler);
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypesRouter',
-                },
+                {messageId: 'missingReturnTypeRouter'}, // return type on function
+                {messageId: 'missingParamTypesRouter'}, // param '[token]'
             ],
         },
         // Handler type annotation missing types
@@ -370,9 +363,8 @@ ruleTester.run('strong-typed-routes', rule, {
                 const sayHello: Handler = (ctx, name) => \`hello \${name}\`;
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypes',
-                },
+                {messageId: 'missingReturnType'}, // return type on function
+                {messageId: 'missingParamTypes'}, // param 'name'
             ],
         },
         // HeaderHandler type annotation missing return type
@@ -406,9 +398,8 @@ ruleTester.run('strong-typed-routes', rule, {
                 const authHandler = ((ctx, [token]) => { console.log(token); }) satisfies HeaderHandler;
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypes',
-                },
+                {messageId: 'missingReturnType'}, // return type on function
+                {messageId: 'missingParamTypes'}, // param '[token]'
             ],
         },
         // @mion:route JSDoc tag missing types
@@ -422,9 +413,8 @@ ruleTester.run('strong-typed-routes', rule, {
                 }
             `,
             errors: [
-                {
-                    messageId: 'missingBothTypes',
-                },
+                {messageId: 'missingReturnType'}, // return type on function id
+                {messageId: 'missingParamTypes'}, // param 'name'
             ],
         },
         // @mion:hook JSDoc tag missing return type
