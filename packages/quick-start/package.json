@@ -29,10 +29,10 @@
     "url": "git+https://github.com/MionKit/mion.git"
   },
   "scripts": {
-    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
+    "dev": "vite build --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build": "echo 'quick-start not meant to be built'",
+    "build": "vite build",
     "clean": "rimraf .dist",
     "fresh-start": "npm run clean && rimraf node_modules"
   },
