@@ -51,6 +51,7 @@
   "devDependencies": {
     "@deepkit/core": "1.0.19",
     "@deepkit/type-compiler": "1.0.19",
+    "@deepkit/vite": "^1.0.19",
     "@mionkit/eslint-plugin": "file:./packages/eslint-plugin",
     "@types/aws-lambda": "^8.10.108",
     "@types/jest": "^29.5.3",
@@ -67,7 +68,9 @@
     "lint-staged": "^16.2.4",
     "nx": ">=16.5.1 < 17",
     "prettier": "^3.0.1",
-    "ts-jest": "^29.1.1"
+    "ts-jest": "^29.1.1",
+    "vite": "^6.1.0",
+    "vite-plugin-dts": "^4.0.0"
   },
   "workspaces": [
     "packages/aws",
