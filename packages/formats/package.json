@@ -22,17 +22,17 @@
   "browser": {},
   "exports": {
     "./NumberFormats": {
-      "types": "./.dist/types/NumberFormats.d.ts",
+      "types": "./.dist/esm/NumberFormats.d.ts",
       "require": "./.dist/cjs/NumberFormats.js",
       "default": "./.dist/esm/NumberFormats.js"
     },
     "./StringFormats": {
-      "types": "./.dist/types/StringFormats.d.ts",
+      "types": "./.dist/esm/StringFormats.d.ts",
       "require": "./.dist/cjs/StringFormats.js",
       "default": "./.dist/esm/StringFormats.js"
     },
     "./BigNumberFormats": {
-      "types": "./.dist/types/BigNumberFormats.d.ts",
+      "types": "./.dist/esm/BigNumberFormats.d.ts",
       "require": "./.dist/cjs/BigNumberFormats.js",
       "default": "./.dist/esm/BigNumberFormats.js"
     }
@@ -52,14 +52,11 @@
   },
   "scripts": {
     "test": "jest",
-    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
+    "dev": "vite build --watch",
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build:cjs": "tsc --project tsconfig.cjs.json",
-    "build:esm": "tsc --project tsconfig.esm.json",
-    "build:types": "tsc --project tsconfig.types.json",
-    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+    "build": "vite build",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage",
     "fresh-start": "npm run clean && rimraf node_modules"
