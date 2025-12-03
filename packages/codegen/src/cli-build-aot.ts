@@ -139,8 +139,3 @@ export async function mionBuildAot(): Promise<void> {
         process.exit(1);
     }
 }
-
-// If this file is run directly, execute the CLI
-if (require.main === module) {
-    mionBuildAot();
-}

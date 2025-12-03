@@ -29,11 +29,12 @@
   },
   "files": [
     ".dist",
+    "mion-aot-template",
     "bin"
   ],
   "bin": {
-    "mion-init-aot": "./bin/mion-init-aot.mjs",
-    "mion-build-aot": "./bin/mion-build-aot.mjs"
+    "mion-init-aot": "./bin/mion-init-aot.js",
+    "mion-build-aot": "./bin/mion-build-aot.js"
   },
   "repository": {
     "type": "git",

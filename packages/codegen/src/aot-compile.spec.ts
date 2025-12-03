@@ -17,6 +17,7 @@ import {hook, route} from '@mionkit/router';
 const CODEGEN_ROOT = resolve(__dirname, '..');
 // ensure artifact dirs is unique and not used by other tests
 const TEST_ARTIFACTS_DIR = join(CODEGEN_ROOT, '.dist', 'test-artifacts-compile');
+const TEMPLATE_DIR = join(CODEGEN_ROOT, 'mion-aot-template');
 
 describe('AOT Cache Compilation E2E', () => {
     const testAotDir = join(TEST_ARTIFACTS_DIR, 'e2e-aot-test');
@@ -46,6 +47,7 @@ describe('AOT Cache Compilation E2E', () => {
         // Create AOT package first
         initAOT({
             dir: testAotDir,
+            templateDir: TEMPLATE_DIR,
         });
     });
 
