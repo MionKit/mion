@@ -22,13 +22,19 @@
       "types": "./.dist/types/index.d.ts",
       "require": "./.dist/cjs/index.js",
       "default": "./.dist/esm/index.js"
+    },
+    "./aot": {
+      "types": "./aot/build/esm/index.d.ts",
+      "require": "./aot/build/cjs/index.js",
+      "default": "./aot/build/esm/index.js"
     }
   },
   "directories": {
     "lib": ".dist"
   },
   "files": [
-    ".dist"
+    ".dist",
+    "aot/build"
   ],
   "repository": {
     "type": "git",
@@ -46,9 +52,10 @@
     "build:cjs": "tsc --project tsconfig.cjs.json",
     "build:esm": "tsc --project tsconfig.esm.json",
     "build:types": "tsc --project tsconfig.types.json",
-    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:types && npm run build:aot",
+    "build:aot": "cd aot && npm run build",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
-    "clean": "rimraf .dist & rimraf .coverage",
+    "clean": "rimraf .dist & rimraf .coverage & rimraf aot/build",
     "fresh-start": "npm run clean && rimraf node_modules",
     "run-test-server": "ts-node --project test/tsconfig.json test/test-server.ts"
   },
