@@ -49,7 +49,6 @@ export default defineConfig({
         },
         outDir: '.dist',
         emptyOutDir: true,
-        sourcemap: true,
         minify: false,
         rollupOptions: {
             output: [
