@@ -11,6 +11,7 @@ import {initAOT} from './cli-init-aot';
 import {buildAOT} from './cli-build-aot';
 
 const CODEGEN_ROOT = resolve(__dirname, '..');
+const TEMPLATE_DIR = join(CODEGEN_ROOT, 'mion-aot-template');
 // ensure artifact dirs is unique and not used by other tests
 const TEST_ARTIFACTS_DIR = join(CODEGEN_ROOT, '.dist', 'test-artifacts-commands');
 
@@ -50,6 +51,7 @@ describe('AOT Commands Integration Tests', () => {
         it('should create AOT package from template with default package name', () => {
             initAOT({
                 dir: testAotDir,
+                templateDir: TEMPLATE_DIR,
             });
 
             // Verify directory was created
@@ -73,6 +75,7 @@ describe('AOT Commands Integration Tests', () => {
             initAOT({
                 dir: testAotDir,
                 packageName: 'my-custom-aot',
+                templateDir: TEMPLATE_DIR,
             });
 
             // Verify package.json has custom name
@@ -99,6 +102,7 @@ describe('AOT Commands Integration Tests', () => {
             expect(() => {
                 initAOT({
                     dir: testAotDir,
+                    templateDir: TEMPLATE_DIR,
                 });
             }).toThrow('already exists and is not a mion AOT template');
         });
@@ -107,6 +111,7 @@ describe('AOT Commands Integration Tests', () => {
             // Create initial AOT package
             initAOT({
                 dir: testAotDir,
+                templateDir: TEMPLATE_DIR,
             });
 
             // Verify it was created
@@ -119,6 +124,7 @@ describe('AOT Commands Integration Tests', () => {
                 initAOT({
                     dir: testAotDir,
                     packageName: 'updated-aot-package',
+                    templateDir: TEMPLATE_DIR,
                 });
             }).not.toThrow();
 
@@ -132,6 +138,7 @@ describe('AOT Commands Integration Tests', () => {
             initAOT({
                 dir: testAotDir,
                 coreOnly: true,
+                templateDir: TEMPLATE_DIR,
             });
 
             // Verify directory was created
@@ -177,6 +184,7 @@ describe('AOT Commands Integration Tests', () => {
             // Create AOT package first
             initAOT({
                 dir: testAotDir,
+                templateDir: TEMPLATE_DIR,
             });
 
             // Create a mock start script that simulates MION_COMPILE behavior

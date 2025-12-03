@@ -5,6 +5,4 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getENV} from '@mionkit/core';
-
-export const isTest = getENV('NODE_ENV') === 'test';
+export const isTest = process.env.NODE_ENV === 'test';

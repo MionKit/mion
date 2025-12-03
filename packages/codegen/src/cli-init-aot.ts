@@ -15,10 +15,12 @@ export interface InitAOTOptions {
     packageName?: string;
     /** Create a core-only AOT package (no router dependency) */
     coreOnly?: boolean;
+    /** Path to the mion-aot-template directory */
+    templateDir: string;
 }
 
 export function initAOT(options: InitAOTOptions): void {
-    const {dir, packageName, coreOnly} = options;
+    const {dir, packageName, coreOnly, templateDir} = options;
 
     const targetDir = resolve(dir);
     const finalPackageName = packageName || basename(targetDir);
@@ -31,9 +33,6 @@ Initializing AOT package:
   Core only: ${coreOnly ? 'yes' : 'no'}
 `);
     }
-
-    // Find template directory (relative to this compiled file)
-    const templateDir = join(__dirname, '..', 'mion-aot-template');
 
     if (!existsSync(templateDir)) {
         throw new Error(`Template directory not found at ${templateDir}`);
@@ -182,8 +181,9 @@ Examples:
 
 /**
  * CLI entry point for mion-init-aot command
+ * @param templateDir - Path to the mion-aot-template directory
  */
-export function mionInitAot(): void {
+export function mionInitAot(templateDir: string): void {
     // Parse command line arguments
     const {values: args} = parseArgs({
         args: process.argv.slice(2),
@@ -224,14 +224,10 @@ export function mionInitAot(): void {
             dir: args.dir,
             packageName: args['package-name'],
             coreOnly: args['core-only'],
+            templateDir,
         });
     } catch (error) {
         console.error(`Error: ${(error as Error).message}`);
         process.exit(1);
     }
-}
-
-// If this file is run directly, execute the CLI
-if (require.main === module) {
-    mionInitAot();
 }
