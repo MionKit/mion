@@ -19,7 +19,7 @@
   "license": "MIT",
   "exports": {
     ".": {
-      "types": "./.dist/types/index.d.ts",
+      "types": "./.dist/esm/index.d.ts",
       "require": "./.dist/cjs/index.js",
       "default": "./.dist/esm/index.js"
     }
@@ -44,13 +44,11 @@
   },
   "scripts": {
     "test": "jest",
-    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
+    "dev": "vite build --watch",
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build:cjs": "tsc --project tsconfig.cjs.json",
-    "build:esm": "tsc --project tsconfig.esm.json",
-    "build": "npm run build:cjs && npm run build:esm",
+    "build": "vite build",
     "build:aot-template": "cd mion-aot-template && npm run build",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage",
