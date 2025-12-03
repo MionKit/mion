@@ -5,9 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyObject, JitCompiledFnData, PureFunctionData} from '@mionkit/core';
-import {RpcError} from '@mionkit/core';
-import {MION_ROUTES} from '@mionkit/core';
+import {AnyObject, RpcError, MION_ROUTES, SerializableMethodsData} from '@mionkit/core';
 import {
     getHookExecutable,
     getRouteExecutable,
@@ -19,28 +17,20 @@ import {
     getAnyExecutable,
 } from './router';
 import {route} from './handlers';
-import {PublicMethod} from './types/publicMethods';
 import {RouterOptions, Routes} from './types/general';
 import {getSerializableMethod, serializeMethodDeps} from './remoteMethods';
 import {Method} from './types/remoteMethods';
 
 // TODO, investigate if we can use SharedPublicMethod that do not include the handler instead of PublicMethod
-export type PublicMethods = Record<string, PublicMethod>;
 export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;
-}
-
-export interface MethodsData {
-    methods: PublicMethods;
-    deps: Record<string, JitCompiledFnData>;
-    purFnDeps: Record<string, PureFunctionData>;
 }
 
 export const defaultClientRouteOptions = {
     getAllRemoteMethodsMaxNumber: 100,
 };
 
-function addRequiredRemoteMethodsToResponse(id: string, resp: MethodsData, errorData: AnyObject): void {
+function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
     const {methods, deps, purFnDeps} = resp;
     if (methods[id]) return;
     const executable = getHookExecutable(id) || getRouteExecutable(id);
@@ -56,12 +46,12 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: MethodsData, error
     serializeMethodDeps(method, deps, purFnDeps);
 }
 
-function mionGetRemoteMethodsInfoById(
+function mionGetRemoteMethodsDataById(
     ctx,
     methodsIds: string[],
     getAllRemoteMethods?: boolean
-): MethodsData | RpcError<'rpc-metadata-not-found'> {
-    const resp: MethodsData = {
+): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> {
+    const resp: SerializableMethodsData = {
         methods: {},
         deps: {},
         purFnDeps: {},
@@ -91,11 +81,11 @@ function mionGetRemoteMethodsInfoById(
     return resp;
 }
 
-function mionGetRemoteMethodsInfoByPath(
+function mionGetRemoteMethodsDataByPath(
     ctx,
     path: string,
     getAllRemoteMethods?: boolean
-): MethodsData | RpcError<'rpc-metadata-not-found'> {
+): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> {
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({
@@ -104,7 +94,7 @@ function mionGetRemoteMethodsInfoByPath(
             publicMessage: `Route ${path} not found`,
         });
     const privateExecutables = executables.methods.filter((e) => !isPrivateExecutable(e));
-    return mionGetRemoteMethodsInfoById(
+    return mionGetRemoteMethodsDataById(
         ctx,
         privateExecutables.map((e) => e.id),
         getAllRemoteMethods
@@ -112,6 +102,6 @@ function mionGetRemoteMethodsInfoByPath(
 }
 
 export const clientRoutes = {
-    [MION_ROUTES.getRemoteMethodsById]: route(mionGetRemoteMethodsInfoById),
-    [MION_ROUTES.getRemoteMethodsByPath]: route(mionGetRemoteMethodsInfoByPath),
+    [MION_ROUTES.getRemoteMethodsById]: route(mionGetRemoteMethodsDataById),
+    [MION_ROUTES.getRemoteMethodsByPath]: route(mionGetRemoteMethodsDataByPath),
 } satisfies Routes;

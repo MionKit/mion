@@ -5,11 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Handler} from './types/handlers';
 import {type RouterEntry, type Routes} from './types/general';
 import {type Method} from './types/remoteMethods';
 import {HandlerType} from './types/remoteMethods';
-import type {PublicApi, PublicHandler, PublicMethod} from './types/publicMethods';
+import type {PublicApi} from './types/publicMethods';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
 import {
     getHookExecutable,
@@ -26,13 +25,14 @@ import type {
     JitCompiledFunctions,
     PureFunctionData,
     SerializableJitHashes,
+    SerializablePublicMethod,
 } from '@mionkit/core';
 import {getRoutePath, getRouterItemId} from '@mionkit/core';
 import {jitUtils} from '@mionkit/core';
 import {MAX_STACK_DEPTH} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
-const publicMethods: Map<string, PublicMethod> = new Map();
+const publicMethods: Map<string, SerializablePublicMethod> = new Map();
 
 // ############# PUBLIC METHODS #############
 export function resetRemoteMethodsMetadata() {
@@ -75,16 +75,13 @@ function recursiveGetSerializableRoutes<R extends Routes>(
     return publicData;
 }
 
-export function getSerializableMethod<H extends Handler>(executable: Method): PublicMethod<H> {
+export function getSerializableMethod(executable: Method): SerializablePublicMethod {
     const existing = publicMethods.get(executable.id);
-    if (existing) return existing as PublicMethod<H>;
+    if (existing) return existing as SerializablePublicMethod;
 
-    const newRemoteMethod: PublicMethod = {
+    const newRemoteMethod: SerializablePublicMethod = {
         type: executable.type,
         id: executable.id,
-        // handler is included just for static typing purposes and should never be called directly.
-        // It's value during run type is a string with the pointer to the handler
-        handler: getHandlerSrcCodePointer(executable) as any as PublicHandler<H>,
         paramsJitHashes: getSerializableJitHashes(executable.paramsJitFns),
         returnJitHashes: getSerializableJitHashes(executable.returnJitFns),
         paramNames: executable.paramNames,
@@ -106,7 +103,7 @@ export function getSerializableMethod<H extends Handler>(executable: Method): Pu
         if (shouldFullGenerateSpec()) newRemoteMethod.pathPointers = pathPointers;
     }
     publicMethods.set(executable.id, newRemoteMethod);
-    return newRemoteMethod as PublicMethod<H>;
+    return newRemoteMethod as SerializablePublicMethod;
 }
 
 export function serializePureDeps(depHash: string, purFnDeps: Record<string, PureFunctionData>, depth = 0) {
@@ -142,18 +139,13 @@ export function serializeJitFn(
 }
 
 export function serializeMethodDeps(
-    method: PublicMethod,
+    method: SerializablePublicMethod,
     deps: Record<string, JitCompiledFnData>,
     purFnDeps: Record<string, PureFunctionData>
 ) {
     const {paramsJitHashes, returnJitHashes} = method;
     for (const k in paramsJitHashes) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
     for (const k in returnJitHashes) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
-}
-
-/** Returns the original route/hook paths as a string to eb used in codegen, ie: path= users/getUser => 'users.getUser'  */
-function getHandlerSrcCodePointer(executable: Method) {
-    return executable.pointer.join('.');
 }
 
 function getSerializableJitHashes(jitFns: JitCompiledFunctions): SerializableJitHashes {

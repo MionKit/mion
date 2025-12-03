@@ -7,19 +7,25 @@
 
 import {MionHeaders} from './types/context';
 import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from './router';
-import {getRoutePath, PublicRpcError, SerializableJitHashes} from '@mionkit/core';
-import {MION_ROUTES} from '@mionkit/core';
+import {
+    getRoutePath,
+    PublicRpcError,
+    SerializableJitHashes,
+    SerializableMethodsData,
+    SerializablePublicMethods,
+    MION_ROUTES,
+    RpcError,
+    JitCompiledFnData,
+} from '@mionkit/core';
 import {hook, rawHook, route} from './handlers';
 import {Routes} from './types/general';
 import {HandlerType} from './types/remoteMethods';
-import {MethodsData, PublicMethods, clientRoutes} from './client.routes';
+import {clientRoutes} from './client.routes';
 import {headersFromRecord} from './headers';
 import {dispatchRoute} from './dispatch';
 import {runType, JitFunctions} from '@mionkit/run-types';
 import {PublicMethod} from './types/publicMethods'; // do not import type only
 import {getSerializableMethod} from './remoteMethods';
-import {RpcError} from '@mionkit/core';
-import {JitCompiledFnData} from '@mionkit/core';
 
 type RawRequest = {
     headers: MionHeaders;
@@ -42,7 +48,7 @@ describe('PublicMethods run type functionality', () => {
     const route1 = route((ctx): string => 'something');
     const routes = {route1} satisfies Routes;
 
-    type ClientReturn = MethodsData | RpcError<string>;
+    type ClientReturn = SerializableMethodsData | RpcError<string>;
 
     afterEach(() => resetRouter());
 
@@ -104,16 +110,16 @@ describe('PublicMethods run type functionality', () => {
         const executable = getRouteExecutable('route1')!;
         const publicMethod = getSerializableMethod(executable!);
 
-        const response: MethodsData = {
+        const response: SerializableMethodsData = {
             methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
         };
 
         const rt = runType<ClientReturn>();
-        const rtMethodsData = runType<MethodsData>();
+        const rtMethodsData = runType<SerializableMethodsData>();
         const rtPublicMethod = runType<PublicMethod>();
-        const rtPublicMethods = runType<PublicMethods>();
+        const rtPublicMethods = runType<SerializablePublicMethods>();
         const typeErrorsMethodsData = rtMethodsData.createJitFunction(JitFunctions.typeErrors);
         const typeErrorsPublicMethod = rtPublicMethod.createJitFunction(JitFunctions.typeErrors);
         const typeErrorsPublicMethods = rtPublicMethods.createJitFunction(JitFunctions.typeErrors);
@@ -134,7 +140,7 @@ describe('PublicMethods run type functionality', () => {
         registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
         const publicMethod = getSerializableMethod(executable!);
-        const response: MethodsData = {
+        const response: SerializableMethodsData = {
             methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
@@ -150,7 +156,7 @@ describe('PublicMethods run type functionality', () => {
         expect(roundTrip).toEqual(error);
 
         // operations modify the original object so we need to clone it before serializing
-        const responseClone: MethodsData = {
+        const responseClone: SerializableMethodsData = {
             methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
@@ -196,7 +202,6 @@ describe('Client Routes should', () => {
         'users/getUser': {
             type: HandlerType.route,
             id: 'users/getUser',
-            handler: 'users.getUser' as any,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
@@ -205,7 +210,6 @@ describe('Client Routes should', () => {
         'users/setUser': {
             type: HandlerType.route,
             id: 'users/setUser',
-            handler: 'users.setUser' as any,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
@@ -214,7 +218,6 @@ describe('Client Routes should', () => {
         'users/pets/getUserPet': {
             type: HandlerType.route,
             id: 'users/pets/getUserPet',
-            handler: 'users.pets.getUserPet' as any,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
@@ -223,7 +226,6 @@ describe('Client Routes should', () => {
         'pets/getPet': {
             type: HandlerType.route,
             id: 'pets/getPet',
-            handler: 'pets.getPet' as any,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
@@ -232,7 +234,6 @@ describe('Client Routes should', () => {
         'pets/setPet': {
             type: HandlerType.route,
             id: 'pets/setPet',
-            handler: 'pets.setPet' as any,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
@@ -241,7 +242,6 @@ describe('Client Routes should', () => {
         auth: {
             type: HandlerType.hook,
             id: 'auth',
-            handler: 'auth' as any,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: ['token'],
@@ -249,12 +249,11 @@ describe('Client Routes should', () => {
         last: {
             type: HandlerType.hook,
             id: 'last',
-            handler: 'last' as any,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
         },
-    } satisfies PublicMethods;
+    } satisfies SerializablePublicMethods;
 
     const methodsId = MION_ROUTES.getRemoteMethodsById;
     const routeMethodsId = MION_ROUTES.getRemoteMethodsByPath;
@@ -282,9 +281,9 @@ describe('Client Routes should', () => {
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedMethods = {
             auth: methodsMetadata.auth,
-            last: methodsMetadata['last'],
+            last: methodsMetadata.last,
         };
-        const methodsData = response.body[methodsId] as MethodsData; // serializable data for remote methods
+        const methodsData = response.body[methodsId] as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
@@ -311,7 +310,7 @@ describe('Client Routes should', () => {
             'users/getUser': methodsMetadata['users/getUser'],
             last: methodsMetadata['last'],
         };
-        const methodsData = response.body[methodsId] as MethodsData; // serializable data for remote methods
+        const methodsData = response.body[methodsId] as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
@@ -336,7 +335,7 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedMethods = methodsMetadata;
-        const methodsData = response.body[methodsId] as MethodsData; // serializable data for remote methods
+        const methodsData = response.body[methodsId] as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
@@ -363,7 +362,7 @@ describe('Client Routes should', () => {
             'users/getUser': methodsMetadata['users/getUser'],
             last: methodsMetadata.last,
         };
-        const methodsData = response.body[routeMethodsId] as MethodsData; // serializable data for remote methods
+        const methodsData = response.body[routeMethodsId] as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
@@ -453,6 +452,6 @@ describe('Restore Client Routes jit functions', () => {
             }),
         };
         const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const methodsData = response.body[routeMethodsId] as MethodsData; // serializable data for remote methods
+        const methodsData = response.body[routeMethodsId] as SerializableMethodsData; // serializable data for remote methods
     });
 });
