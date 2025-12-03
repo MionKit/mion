@@ -62,36 +62,70 @@ function hasExplicitReturnType(func) {
 }
 function validateParameterTypes(func) {
     const missingTypeParams = [];
+    const missingParamNodes = [];
     for (let i = 1; i < func.params.length; i++) {
         const param = func.params[i];
         if (param.type === AST_NODE_TYPES.Identifier) {
             if (!param.typeAnnotation) {
                 missingTypeParams.push(param.name);
+                missingParamNodes.push(param);
             }
         }
         else if (param.type === AST_NODE_TYPES.RestElement) {
             if (param.argument.type === AST_NODE_TYPES.Identifier && !param.typeAnnotation) {
                 missingTypeParams.push(`...${param.argument.name}`);
+                missingParamNodes.push(param);
             }
         }
         else if (param.type === AST_NODE_TYPES.ArrayPattern || param.type === AST_NODE_TYPES.ObjectPattern) {
             if (!param.typeAnnotation) {
                 missingTypeParams.push(`parameter ${i + 1}`);
+                missingParamNodes.push(param);
             }
         }
         else if (param.type === AST_NODE_TYPES.AssignmentPattern) {
             if (!param.typeAnnotation) {
                 missingTypeParams.push(`parameter ${i + 1}`);
+                missingParamNodes.push(param);
             }
         }
         else if (!('typeAnnotation' in param) || !param.typeAnnotation) {
             missingTypeParams.push(`parameter ${i + 1}`);
+            missingParamNodes.push(param);
         }
     }
     return {
         valid: missingTypeParams.length === 0,
         missingTypeParams,
+        missingParamNodes,
     };
+}
+function getParameterName(param) {
+    if (param.type === AST_NODE_TYPES.Identifier) {
+        return param.name;
+    }
+    else if (param.type === AST_NODE_TYPES.RestElement && param.argument.type === AST_NODE_TYPES.Identifier) {
+        return `...${param.argument.name}`;
+    }
+    else if (param.type === AST_NODE_TYPES.ArrayPattern) {
+        return '[...]';
+    }
+    else if (param.type === AST_NODE_TYPES.ObjectPattern) {
+        return '{...}';
+    }
+    else if (param.type === AST_NODE_TYPES.AssignmentPattern) {
+        if (param.left.type === AST_NODE_TYPES.Identifier) {
+            return param.left.name;
+        }
+        return 'param';
+    }
+    return 'param';
+}
+function getReturnTypeReportNode(func) {
+    if ((func.type === AST_NODE_TYPES.FunctionDeclaration || func.type === AST_NODE_TYPES.FunctionExpression) && func.id) {
+        return func.id;
+    }
+    return func;
 }
 function getHandlerTypeFromAnnotation(typeAnnotation, context) {
     if (typeAnnotation.typeAnnotation.type === AST_NODE_TYPES.TSTypeReference) {
@@ -123,8 +157,11 @@ function getHandlerTypeFromJSDoc(node, context) {
     for (const comment of comments) {
         if (comment.type === 'Block') {
             const commentText = comment.value;
-            if (commentText.includes('@mion:route') || commentText.includes('@mion:hook')) {
+            if (commentText.includes('@mion:route')) {
                 return 'Handler';
+            }
+            if (commentText.includes('@mion:hook')) {
+                return 'HookHandler';
             }
             if (commentText.includes('@mion:headersHook')) {
                 return 'HeaderHandler';
@@ -159,12 +196,10 @@ const rule = {
             description: 'Enforce explicit parameters and return type annotations for router handler functions',
         },
         messages: {
-            missingReturnType: 'Mion {{handlerType}} must have explicit return type annotations.',
-            missingParamTypes: 'Mion {{handlerType}} must have explicit parameters type annotations.',
-            missingBothTypes: 'Mion {{handlerType}} must have explicit parameters and return type annotations.',
-            missingReturnTypeRouter: 'Mion {{routerFunction}}() handler must have explicit return type annotations.',
-            missingParamTypesRouter: 'Mion {{routerFunction}}() handler must have explicit parameters type annotations.',
-            missingBothTypesRouter: 'Mion {{routerFunction}}() handler must have explicit parameters and return type annotations.',
+            missingReturnType: 'mion {{handlerType}}() handler must define a return type.',
+            missingParamTypes: 'mion parameter "{{paramName}}" must have an explicit type definition.',
+            missingReturnTypeRouter: 'mion {{routerFunction}}() handler must define a return type.',
+            missingParamTypesRouter: 'mion parameter "{{paramName}}" must have an explicit type definition.',
         },
         schema: [],
     },
@@ -182,30 +217,21 @@ const rule = {
                 }
                 const hasReturnType = hasExplicitReturnType(handlerFunc);
                 const paramValidation = validateParameterTypes(handlerFunc);
-                if (!hasReturnType && !paramValidation.valid) {
+                if (!hasReturnType) {
                     context.report({
-                        node: handlerFunc,
-                        messageId: 'missingBothTypesRouter',
-                        data: {
-                            routerFunction: functionName,
-                        },
-                    });
-                }
-                else if (!hasReturnType) {
-                    context.report({
-                        node: handlerFunc,
+                        node: getReturnTypeReportNode(handlerFunc),
                         messageId: 'missingReturnTypeRouter',
                         data: {
                             routerFunction: functionName,
                         },
                     });
                 }
-                else if (!paramValidation.valid) {
+                for (const paramNode of paramValidation.missingParamNodes) {
                     context.report({
-                        node: handlerFunc,
+                        node: paramNode,
                         messageId: 'missingParamTypesRouter',
                         data: {
-                            routerFunction: functionName,
+                            paramName: getParameterName(paramNode),
                         },
                     });
                 }
@@ -255,33 +281,32 @@ const rule = {
         };
     },
 };
+function handlerTypeToFunctionName(handlerType) {
+    if (handlerType === 'HeaderHandler')
+        return 'headersHook';
+    if (handlerType === 'HookHandler')
+        return 'hook';
+    return 'route';
+}
 function checkHandlerFunction(func, handlerType, context) {
     const hasReturnType = hasExplicitReturnType(func);
     const paramValidation = validateParameterTypes(func);
-    if (!hasReturnType && !paramValidation.valid) {
+    const functionName = handlerTypeToFunctionName(handlerType);
+    if (!hasReturnType) {
         context.report({
-            node: func,
-            messageId: 'missingBothTypes',
-            data: {
-                handlerType,
-            },
-        });
-    }
-    else if (!hasReturnType) {
-        context.report({
-            node: func,
+            node: getReturnTypeReportNode(func),
             messageId: 'missingReturnType',
             data: {
-                handlerType,
+                handlerType: functionName,
             },
         });
     }
-    else if (!paramValidation.valid) {
+    for (const paramNode of paramValidation.missingParamNodes) {
         context.report({
-            node: func,
+            node: paramNode,
             messageId: 'missingParamTypes',
             data: {
-                handlerType,
+                paramName: getParameterName(paramNode),
             },
         });
     }
