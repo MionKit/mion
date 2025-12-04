@@ -6,13 +6,13 @@
  * ######## */
 
 import type {Mutable} from '@mionkit/core';
-import type {Routes} from './types/general';
-import type {MionResponse, RawRequestBody} from './types/context';
-import {HeadersList} from './types/HeadersList';
-import {headersHook, hook, route} from './handlers';
-import {getRouterOptions, initMionRouter, resetRouter} from './router';
-import {createCallContext} from './dispatch';
-import {headersFromRecord} from './headers';
+import type {Routes} from '../types/general';
+import type {MionResponse, RawRequestBody} from '../types/context';
+import {HeadersList} from '../types/HeadersList';
+import {headersHook, hook, route} from '../lib/handlers';
+import {getRouterOptions, initMionRouter, resetRouter} from '../router';
+import {createCallContext} from '../dispatch';
+import {headersFromRecord} from '../lib/headers';
 import {deserializeRequestBody, serializeResponseBody} from './serializer.routes';
 
 const lastActivity = new Date();

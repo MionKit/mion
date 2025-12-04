@@ -6,9 +6,9 @@
  * ######## */
 
 import {JitCompiledFunctions, JitFunctionsHashes} from '@mionkit/core';
-import {Method, MethodsCache, MethodData} from './types/remoteMethods';
-import {AnyHandler} from './types/handlers';
-import {IS_TEST_ENV} from './constants';
+import {Method, MethodsCache, MethodData} from '../types/remoteMethods';
+import {AnyHandler} from '../types/handlers';
+import {IS_TEST_ENV} from '../constants';
 import {jitUtils} from '@mionkit/core';
 import {getENV} from '@mionkit/core';
 

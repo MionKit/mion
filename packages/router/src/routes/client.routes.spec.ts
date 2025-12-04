@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionHeaders} from './types/context';
-import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from './router';
+import {MionHeaders} from '../types/context';
+import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from '../router';
 import {
     getRoutePath,
     PublicRpcError,
@@ -18,14 +18,14 @@ import {
     JitCompiledFnData,
     HandlerType,
 } from '@mionkit/core';
-import {hook, rawHook, route} from './handlers';
-import {Routes} from './types/general';
+import {hook, rawHook, route} from '../lib/handlers';
+import {Routes} from '../types/general';
 import {clientRoutes} from './client.routes';
-import {headersFromRecord} from './headers';
-import {dispatchRoute} from './dispatch';
+import {headersFromRecord} from '../lib/headers';
+import {dispatchRoute} from '../dispatch';
 import {runType, JitFunctions} from '@mionkit/run-types';
-import {PublicMethod} from './types/publicMethods'; // do not import type only
-import {getSerializableMethod} from './remoteMethods';
+import {PublicMethod} from '../types/publicMethods'; // do not import type only
+import {getSerializableMethod} from '../lib/remoteMethods';
 
 type RawRequest = {
     headers: MionHeaders;

@@ -1,10 +1,17 @@
-import type {NotFoundMethod, MethodsExecutionList} from './types/remoteMethods';
+/* ########
+ * 2025s mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import type {NotFoundMethod, MethodsExecutionList} from '../types/remoteMethods';
 import {HandlerType} from '@mionkit/core';
-import type {RouteDef} from './types/definitions';
+import type {RouteDef} from '../types/definitions';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
-import {startHooks, endHooks, getExecutableFromRoute} from './router';
-import {NOT_FOUND_HOOK_NAME} from './constants';
+import {startHooks, endHooks, getExecutableFromRoute} from '../router';
+import {NOT_FOUND_HOOK_NAME} from '../constants';
 
 let notFoundExecutionPath: MethodsExecutionList | undefined;
 

@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes, resetRouter, initRouter} from './router';
-import {dispatchRoute} from './dispatch';
+import {registerRoutes, resetRouter, initRouter} from '../router';
+import {dispatchRoute} from '../dispatch';
 import {route, headersHook, hook} from './handlers';
 import {headersFromRecord} from './headers';
-import {MionHeaders} from './types/context';
-import {HeadersList} from './types/HeadersList';
+import {MionHeaders} from '../types/context';
+import {HeadersList} from '../types/HeadersList';
 import {PublicRpcError, RpcError} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
 
