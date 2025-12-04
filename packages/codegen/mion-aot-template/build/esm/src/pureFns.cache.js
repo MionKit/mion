@@ -1,0 +1,4 @@
+const pureFnsCache = {};
+export {
+  pureFnsCache
+};

@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {resolve, join} from 'path';
+import {resolve, join, dirname} from 'path';
+import {existsSync} from 'fs';
 import {compileAndWriteJitFunctions, compileAndWritePureFunctions, compileAndWriteRouterMethods} from './cacheCompiler';
 import {getFnCaches, JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
@@ -21,12 +22,44 @@ export interface CacheData {
 export interface AOTCompileOptions {
     startScriptPath: string;
     aotDir: string;
-    /** Skip router cache compilation (for core-only AOT packages) */
-    skipRouter?: boolean;
 }
 
 export const EXCLUDED_FNS: JitFnID[] = [JitFunctions.toJavascript.id];
 export const EXCLUDED_PURE_FNS: string[] = ['pf_sanitizeCompiledFn'];
+
+/**
+ * Register ts-node to allow importing TypeScript files at runtime.
+ * Looks for tsconfig.json in the script's directory or parent directories.
+ */
+function registerTsNode(scriptPath: string): void {
+    const scriptDir = dirname(scriptPath);
+
+    // Look for tsconfig.json starting from script directory
+    let tsconfigPath: string | undefined;
+    let currentDir = scriptDir;
+
+    while (currentDir !== dirname(currentDir)) {
+        const candidate = join(currentDir, 'tsconfig.json');
+        if (existsSync(candidate)) {
+            tsconfigPath = candidate;
+            break;
+        }
+        currentDir = dirname(currentDir);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const tsNode = require('ts-node');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('tsconfig-paths/register');
+
+    tsNode.register({
+        project: tsconfigPath,
+        transpileOnly: true,
+        compilerOptions: {
+            module: 'commonjs',
+        },
+    });
+}
 
 /**
  * AOT Compilation Function
@@ -40,14 +73,23 @@ export async function compileAOT(
     excludedFns: JitFnID[] = EXCLUDED_FNS,
     excludedPureFns: string[] = EXCLUDED_PURE_FNS
 ): Promise<void> {
-    const {startScriptPath, aotDir, skipRouter} = options;
+    const {startScriptPath, aotDir} = options;
 
     const resolvedStartScript = resolve(startScriptPath);
+    const isTypeScript = resolvedStartScript.endsWith('.ts') || resolvedStartScript.endsWith('.tsx');
 
     if (!isTest) {
         console.log(`AOT Compilation starting...`);
         console.log(`Start script: ${resolvedStartScript}`);
         console.log(`AOT directory: ${aotDir}`);
+        if (isTypeScript) {
+            console.log(`TypeScript file detected, using ts-node...`);
+        }
+    }
+
+    // Register ts-node for TypeScript files
+    if (isTypeScript) {
+        registerTsNode(resolvedStartScript);
     }
 
     // Set compilation mode
@@ -73,10 +115,10 @@ export async function compileAOT(
 
     // Get the populated caches
     const {jitFnsCache, pureFnsCache} = getFnCaches();
-    const routerCache = skipRouter ? {} : getPersistedMethods();
+    const routerCache = getPersistedMethods();
 
     // Write the caches to files
-    writeAOTCachesToFiles({jitFnsCache, pureFnsCache, routerCache}, aotDir, excludedFns, excludedPureFns, skipRouter);
+    writeAOTCachesToFiles({jitFnsCache, pureFnsCache, routerCache}, aotDir, excludedFns, excludedPureFns);
 
     if (!isTest) {
         console.log('✅ AOT compilation completed successfully!');
@@ -96,8 +138,7 @@ export function writeAOTCachesToFiles(
     cacheData: CacheData,
     aotDir: string,
     excludedFns: JitFnID[] = EXCLUDED_FNS,
-    excludedPureFns: string[] = EXCLUDED_PURE_FNS,
-    skipRouter?: boolean
+    excludedPureFns: string[] = EXCLUDED_PURE_FNS
 ): void {
     const {jitFnsCache, pureFnsCache, routerCache} = cacheData;
     const filteredJitFnsCache = filterJitFns(jitFnsCache, excludedFns);
@@ -111,7 +152,7 @@ export function writeAOTCachesToFiles(
             console.log(`Writing ${moduleFormat.toUpperCase()} cache files...`);
         }
 
-        const buildDir = join(aotDir, 'build', moduleFormat);
+        const buildDir = join(aotDir, 'build', moduleFormat, 'src');
 
         // Create AOT configuration for this module format
         const aotConfig = {
@@ -142,12 +183,10 @@ export function writeAOTCachesToFiles(
         }
         compileAndWritePureFunctions(filteredPureFnsCache, aotConfig);
 
-        if (!skipRouter) {
-            if (!isTest) {
-                console.log(`Writing router methods cache (${moduleFormat})...`);
-            }
-            compileAndWriteRouterMethods(routerCache, aotConfig);
+        if (!isTest) {
+            console.log(`Writing router methods cache (${moduleFormat})...`);
         }
+        compileAndWriteRouterMethods(routerCache, aotConfig);
     }
 }
 

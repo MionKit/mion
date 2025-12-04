@@ -9,7 +9,6 @@ Template package for mion AOT (Ahead-of-Time) cache generation. This package pro
 This is a package that serves as the foundation for creating AOT cache packages. It contains:
 
 - Pre-built placeholder cache files (router, JIT functions, pure functions)
-- A `loadAOTCaches()` function for transparent cache loading
 - TypeScript definitions for all exports
 - Support for both CommonJS and ESM modules
 
@@ -18,7 +17,6 @@ This is a package that serves as the foundation for creating AOT cache packages.
 - `router.cache.ts` - Router methods cache
 - `jitFns.cache.ts` - JIT functions cache
 - `pureFns.cache.ts` - Pure functions cache
-- `index.ts` - Main entry point with `loadAOTCaches()` function
 
 ### Build Output
 

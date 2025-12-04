@@ -9,8 +9,8 @@ import {existsSync, rmSync, mkdirSync} from 'fs';
 import {join, resolve} from 'path';
 import {writeAOTCachesToFiles, type CacheData} from './aot-compile';
 import {initAOT} from './cli-init-aot';
-import {headersHook, HeadersList, initRouter, registerRoutes, resetRouter} from '@mionkit/router';
-import {getFnCaches, resetFnCaches} from '@mionkit/core';
+import {headersHook, HeadersList, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
+import {getFnCaches, resetFnCaches, loadPersistedCaches} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
 import {hook, route} from '@mionkit/router';
 
@@ -122,14 +122,19 @@ describe('AOT Cache Compilation E2E', () => {
         expect(Object.keys(emptyCaches.pureFnsCache)).toHaveLength(0);
         expect(Object.keys(emptyRouterCache)).toHaveLength(0);
 
-        // Step 6: Dynamically load the loadAOTCaches function from the created template
-        const aotPackagePath = join(testAotDir, 'build', 'cjs', 'index.js');
+        // Step 6: Dynamically load the cache objects from the created template and load them manually
+        const aotPackagePath = join(testAotDir, 'build', 'cjs', 'src', 'index.js');
 
         const aotPackage = await import(aotPackagePath);
-        expect(aotPackage.loadAOTCaches).toBeDefined();
 
-        // Load the AOT caches
-        aotPackage.loadAOTCaches();
+        // Verify cache objects are exported
+        expect(aotPackage.jitFnsCache).toBeDefined();
+        expect(aotPackage.pureFnsCache).toBeDefined();
+        expect(aotPackage.routerCache).toBeDefined();
+
+        // Load the AOT caches manually using the core and router loading functions
+        loadPersistedCaches(aotPackage.jitFnsCache, aotPackage.pureFnsCache);
+        loadCompiledMethods(aotPackage.routerCache);
 
         // Step 7: Read caches again and compare
         const reloadedCaches = getFnCaches();
@@ -158,11 +163,11 @@ describe('AOT Cache Compilation E2E', () => {
         expect(reloadedRouterKeys.length).toBeGreaterThanOrEqual(originalRouterKeys.length);
 
         // Verify cache files were created
-        expect(existsSync(join(testAotDir, 'build', 'cjs', 'jitFns.cache.js'))).toBe(true);
-        expect(existsSync(join(testAotDir, 'build', 'esm', 'jitFns.cache.js'))).toBe(true);
-        expect(existsSync(join(testAotDir, 'build', 'cjs', 'pureFns.cache.js'))).toBe(true);
-        expect(existsSync(join(testAotDir, 'build', 'esm', 'pureFns.cache.js'))).toBe(true);
-        expect(existsSync(join(testAotDir, 'build', 'cjs', 'router.cache.js'))).toBe(true);
-        expect(existsSync(join(testAotDir, 'build', 'esm', 'router.cache.js'))).toBe(true);
+        expect(existsSync(join(testAotDir, 'build', 'cjs', 'src', 'jitFns.cache.js'))).toBe(true);
+        expect(existsSync(join(testAotDir, 'build', 'esm', 'src', 'jitFns.cache.js'))).toBe(true);
+        expect(existsSync(join(testAotDir, 'build', 'cjs', 'src', 'pureFns.cache.js'))).toBe(true);
+        expect(existsSync(join(testAotDir, 'build', 'esm', 'src', 'pureFns.cache.js'))).toBe(true);
+        expect(existsSync(join(testAotDir, 'build', 'cjs', 'src', 'router.cache.js'))).toBe(true);
+        expect(existsSync(join(testAotDir, 'build', 'esm', 'src', 'router.cache.js'))).toBe(true);
     });
 });

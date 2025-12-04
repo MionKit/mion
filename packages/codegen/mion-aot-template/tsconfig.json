@@ -1,12 +1,10 @@
 {
   "extends": "../../../tsconfig.json",
   "compilerOptions": {
-    "outDir": "build/cjs",
     "composite": false,
-    "rootDir": "src",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "declaration": true
   },
-  "references": [{"path": "../../core"}, {"path": "../../router"}, {"path": "../../codegen"}],
   "reflection": true,
   "include": ["src/**/*"],
   "exclude": ["node_modules", "build"]

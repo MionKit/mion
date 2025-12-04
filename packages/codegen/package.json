@@ -17,11 +17,12 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://mion.io/",
   "license": "MIT",
+  "main": "./.dist/cjs/index.js",
+  "types": "./.dist/cjs/index.d.ts",
   "exports": {
     ".": {
-      "types": "./.dist/esm/index.d.ts",
-      "require": "./.dist/cjs/index.js",
-      "default": "./.dist/esm/index.js"
+      "types": "./.dist/cjs/index.d.ts",
+      "require": "./.dist/cjs/index.js"
     }
   },
   "directories": {
@@ -64,6 +65,7 @@
     "@mionkit/run-types": "^0.7.2"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.3.8",
     "typescript": "^5.0.0"
   }
 }

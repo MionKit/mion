@@ -49,8 +49,7 @@
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build": "vite build && npm run build:aot",
-    "build:aot": "cd aot && npm run build",
+    "build": "vite build",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage & rimraf aot/build",
     "fresh-start": "npm run clean && rimraf node_modules",
@@ -65,8 +64,6 @@
     "@mionkit/router": "^0.7.2",
     "@mionkit/run-types": "^0.7.2",
     "dom-storage": "^2.1.0",
-    "jest-environment-jsdom": "^29.6.2",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0"
+    "jest-environment-jsdom": "^29.6.2"
   }
 }
