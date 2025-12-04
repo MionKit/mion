@@ -5,19 +5,24 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {resolve} from 'path';
+import {resolve, join} from 'path';
 import {existsSync} from 'fs';
 import {parseArgs} from 'util';
 import {compileAOT} from './aot-compile';
 import {isTest} from './constants';
 
+// Default template directory relative to this file (used when not specified via CLI)
+const DEFAULT_TEMPLATE_DIR = join(__dirname, '..', 'mion-aot-template');
+
 export interface BuildAOTOptions {
     aotDir: string;
     startScript: string;
+    /** Path to the mion-aot-template directory */
+    templateDir?: string;
 }
 
 export async function buildAOT(options: BuildAOTOptions): Promise<void> {
-    const {aotDir, startScript} = options;
+    const {aotDir, startScript, templateDir = DEFAULT_TEMPLATE_DIR} = options;
 
     if (!isTest) {
         console.log(`
@@ -50,6 +55,7 @@ Building AOT caches:
         await compileAOT({
             startScriptPath: startScript,
             aotDir: aotDir,
+            templateDir: templateDir,
         });
 
         if (!isTest) {
@@ -81,7 +87,7 @@ Examples:
 /**
  * CLI entry point for mion-build-aot command
  */
-export async function mionBuildAot(): Promise<void> {
+export async function mionBuildAot(templateDir: string): Promise<void> {
     // Parse command line arguments
     const {values: args} = parseArgs({
         args: process.argv.slice(2),
@@ -122,6 +128,7 @@ export async function mionBuildAot(): Promise<void> {
         await buildAOT({
             aotDir: resolve(args.dir),
             startScript: resolve(args['start-server-script']),
+            templateDir,
         });
     } catch (error) {
         console.error(`Error: ${(error as Error).message}`);

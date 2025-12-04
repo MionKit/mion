@@ -9,8 +9,6 @@
 
 const {join} = require('path');
 const {mionInitAot} = require('../.dist/cjs/src/cli-init-aot.js');
-
-// Get template directory relative to this bin file
 const templateDir = join(__dirname, '..', 'mion-aot-template');
 
 try {

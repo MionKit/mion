@@ -6,7 +6,7 @@
  * ######## */
 
 import {resolve, join, dirname} from 'path';
-import {existsSync} from 'fs';
+import {existsSync, cpSync} from 'fs';
 import {compileAndWriteJitFunctions, compileAndWritePureFunctions, compileAndWriteRouterMethods} from './cacheCompiler';
 import {getFnCaches, JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
@@ -22,10 +22,36 @@ export interface CacheData {
 export interface AOTCompileOptions {
     startScriptPath: string;
     aotDir: string;
+    /** Path to the mion-aot-template directory */
+    templateDir: string;
 }
 
 export const EXCLUDED_FNS: JitFnID[] = [JitFunctions.toJavascript.id];
 export const EXCLUDED_PURE_FNS: string[] = ['pf_sanitizeCompiledFn'];
+
+/**
+ * Reset cache files by copying original template files to the target AOT directory.
+ * This ensures a clean slate before each compilation run.
+ */
+function resetCacheFiles(templateDir: string, aotDir: string): void {
+    const moduleFormats = ['cjs', 'esm'] as const;
+
+    for (const moduleFormat of moduleFormats) {
+        const templateBuildDir = join(templateDir, 'build', moduleFormat, 'src');
+        const targetBuildDir = join(aotDir, 'build', moduleFormat, 'src');
+
+        if (!existsSync(templateBuildDir)) {
+            throw new Error(`Template build directory not found: ${templateBuildDir}`);
+        }
+
+        if (!existsSync(targetBuildDir)) {
+            throw new Error(`Target build directory not found: ${targetBuildDir}. Run 'mion-init-aot' first.`);
+        }
+
+        // Copy all files from template to target, overwriting existing files
+        cpSync(templateBuildDir, targetBuildDir, {recursive: true});
+    }
+}
 
 /**
  * Register ts-node to allow importing TypeScript files at runtime.
@@ -73,7 +99,7 @@ export async function compileAOT(
     excludedFns: JitFnID[] = EXCLUDED_FNS,
     excludedPureFns: string[] = EXCLUDED_PURE_FNS
 ): Promise<void> {
-    const {startScriptPath, aotDir} = options;
+    const {startScriptPath, aotDir, templateDir} = options;
 
     const resolvedStartScript = resolve(startScriptPath);
     const isTypeScript = resolvedStartScript.endsWith('.ts') || resolvedStartScript.endsWith('.tsx');
@@ -86,6 +112,12 @@ export async function compileAOT(
             console.log(`TypeScript file detected, using ts-node...`);
         }
     }
+
+    // Reset cache files to original template state before compilation
+    if (!isTest) {
+        console.log('Resetting cache files to original template state...');
+    }
+    resetCacheFiles(templateDir, aotDir);
 
     // Register ts-node for TypeScript files
     if (isTypeScript) {

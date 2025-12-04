@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {existsSync, rmSync, mkdirSync} from 'fs';
+import {existsSync, rmSync, mkdirSync, readFileSync} from 'fs';
 import {join, resolve} from 'path';
-import {writeAOTCachesToFiles, type CacheData} from './aot-compile';
+import {writeAOTCachesToFiles, compileAOT, type CacheData} from './aot-compile';
 import {initAOT} from './cli-init-aot';
 import {headersHook, HeadersList, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
 import {getFnCaches, resetFnCaches, loadPersistedCaches} from '@mionkit/core';
@@ -18,6 +18,7 @@ const CODEGEN_ROOT = resolve(__dirname, '..');
 // ensure artifact dirs is unique and not used by other tests
 const TEST_ARTIFACTS_DIR = join(CODEGEN_ROOT, '.dist', 'test-artifacts-compile');
 const TEMPLATE_DIR = join(CODEGEN_ROOT, 'mion-aot-template');
+const TEST_ROUTER_PATH = join(__dirname, 'test', 'test-router.ts');
 
 describe('AOT Cache Compilation E2E', () => {
     const testAotDir = join(TEST_ARTIFACTS_DIR, 'e2e-aot-test');
@@ -169,5 +170,125 @@ describe('AOT Cache Compilation E2E', () => {
         expect(existsSync(join(testAotDir, 'build', 'esm', 'src', 'pureFns.cache.js'))).toBe(true);
         expect(existsSync(join(testAotDir, 'build', 'cjs', 'src', 'router.cache.js'))).toBe(true);
         expect(existsSync(join(testAotDir, 'build', 'esm', 'src', 'router.cache.js'))).toBe(true);
+    });
+});
+
+describe('AOT TypeScript File Compilation', () => {
+    const testAotDir = join(TEST_ARTIFACTS_DIR, 'ts-aot-test');
+
+    beforeAll(() => {
+        // Ensure test artifacts directory exists
+        if (!existsSync(TEST_ARTIFACTS_DIR)) {
+            mkdirSync(TEST_ARTIFACTS_DIR, {recursive: true});
+        }
+    });
+
+    beforeEach(() => {
+        // Clean up first to ensure fresh state
+        if (existsSync(testAotDir)) {
+            try {
+                rmSync(testAotDir, {recursive: true, force: true});
+            } catch (error) {
+                console.warn('Test setup cleanup failed:', (error as Error).message);
+            }
+        }
+
+        // Reset router and caches
+        resetRouter();
+        resetFnCaches();
+
+        // Create AOT package first
+        initAOT({
+            dir: testAotDir,
+            templateDir: TEMPLATE_DIR,
+        });
+    });
+
+    afterEach(() => {
+        // Clean up after each test (unless SKIP_DELETE_ARTIFACTS is set)
+        if (!process.env.SKIP_DELETE_ARTIFACTS && existsSync(testAotDir)) {
+            rmSync(testAotDir, {recursive: true, force: true});
+        }
+
+        // Reset router and caches
+        resetRouter();
+        resetFnCaches();
+    });
+
+    it('should compile TypeScript router file using ts-node', async () => {
+        // Use compileAOT with a TypeScript file
+        await compileAOT({
+            startScriptPath: TEST_ROUTER_PATH,
+            aotDir: testAotDir,
+            templateDir: TEMPLATE_DIR,
+        });
+
+        // Verify cache files were created
+        expect(existsSync(join(testAotDir, 'build', 'cjs', 'src', 'jitFns.cache.js'))).toBe(true);
+        expect(existsSync(join(testAotDir, 'build', 'esm', 'src', 'jitFns.cache.js'))).toBe(true);
+        expect(existsSync(join(testAotDir, 'build', 'cjs', 'src', 'router.cache.js'))).toBe(true);
+        expect(existsSync(join(testAotDir, 'build', 'esm', 'src', 'router.cache.js'))).toBe(true);
+
+        // Verify caches have content from the test router
+        const routerCache = getPersistedMethods();
+        const routerKeys = Object.keys(routerCache);
+
+        // Should have entries from test-router.ts routes
+        expect(routerKeys.length).toBeGreaterThan(0);
+
+        // The test router has routes like: auth, users/getUser, users/createUser, utils/sum, utils/echo, log
+        expect(routerKeys.some((key) => key.includes('getUser'))).toBe(true);
+        expect(routerKeys.some((key) => key.includes('sum'))).toBe(true);
+    });
+
+    it('should successfully run compilation twice without errors (cache reset)', async () => {
+        // First compilation
+        await compileAOT({
+            startScriptPath: TEST_ROUTER_PATH,
+            aotDir: testAotDir,
+            templateDir: TEMPLATE_DIR,
+        });
+
+        // Verify first compilation created cache files with content
+        const jitCachePathCjs = join(testAotDir, 'build', 'cjs', 'src', 'jitFns.cache.js');
+        const routerCachePathCjs = join(testAotDir, 'build', 'cjs', 'src', 'router.cache.js');
+
+        expect(existsSync(jitCachePathCjs)).toBe(true);
+        expect(existsSync(routerCachePathCjs)).toBe(true);
+
+        // Read the content after first compilation to verify it has data
+        const firstJitContent = readFileSync(jitCachePathCjs, 'utf8');
+        const firstRouterContent = readFileSync(routerCachePathCjs, 'utf8');
+
+        // Verify the cache files have actual content (not just empty objects)
+        expect(firstJitContent.length).toBeGreaterThan(100);
+        expect(firstRouterContent.length).toBeGreaterThan(100);
+
+        // Reset caches for second compilation
+        resetRouter();
+        resetFnCaches();
+
+        // Second compilation - this should work without errors because cache files are reset
+        await compileAOT({
+            startScriptPath: TEST_ROUTER_PATH,
+            aotDir: testAotDir,
+            templateDir: TEMPLATE_DIR,
+        });
+
+        // Verify second compilation also created cache files
+        expect(existsSync(jitCachePathCjs)).toBe(true);
+        expect(existsSync(routerCachePathCjs)).toBe(true);
+
+        // Read content after second compilation
+        const secondJitContent = readFileSync(jitCachePathCjs, 'utf8');
+        const secondRouterContent = readFileSync(routerCachePathCjs, 'utf8');
+
+        // Verify the cache files still have content after second compilation
+        expect(secondJitContent.length).toBeGreaterThan(100);
+        expect(secondRouterContent.length).toBeGreaterThan(100);
+
+        // The content should be similar (same routes compiled)
+        expect(secondJitContent).toBe(firstJitContent);
+        expect(secondRouterContent).toBe(firstRouterContent);
     });
 });
