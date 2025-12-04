@@ -20,3 +20,4 @@ export * from './src/lib/headers';
 export * from './src/lib/remoteMethods';
 export * from './src/lib/handlers';
 export * from './src/lib/methodsCache';
+export * from './src/routes/globalError.routes';
