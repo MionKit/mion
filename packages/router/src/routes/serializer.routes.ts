@@ -106,7 +106,8 @@ function stringifyBody(context: CallContext, executionPath: Method[], respBody: 
                 publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.jsonStringify.typeName}`,
                 originalError: e,
             });
-            props.push(`${JSON.stringify(method.id)}:${err.toPublicError()}`);
+            const errorJsonVal = JSON.stringify(err.toPublicError());
+            props.push(`${JSON.stringify(method.id)}:${errorJsonVal}`);
             onErrorResponse(context, err);
         }
     }
