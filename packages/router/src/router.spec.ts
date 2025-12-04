@@ -19,8 +19,10 @@ import {
     addEndHooks,
 } from './router';
 import {type Routes} from './types/general';
-import {hook, route, rawHook} from './lib/handlers';
+import {hook, route, rawHook, headersHook} from './lib/handlers';
 import {HandlerType} from '@mionkit/core';
+import {isPublicExecutable} from './types/guards';
+import {HeadersList} from './types/HeadersList';
 
 describe('Create routes should', () => {
     const hook1 = hook((): void => undefined);
@@ -347,5 +349,22 @@ describe('Create routes should', () => {
         expect(getRouteExecutionPath('/pets/getPet')?.methods).toEqual(expectedExecutionPath);
         expect(() => addStartHooks(prependHooks)).toThrow('Can not add start hooks after the router has been initialized');
         expect(() => addEndHooks(appendHooks)).toThrow('Can not add end hooks after the router has been initialized');
+    });
+
+    it('header hooks should be considered public (non-private)', () => {
+        initRouter();
+        const routesWithHeaderHook = {
+            auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
+                // Header hook with no return data and no body params
+            }),
+            sayHello: route((): string => 'hello'),
+        } satisfies Routes;
+        registerRoutes(routesWithHeaderHook);
+
+        const authHook = getHookExecutable('auth');
+        expect(authHook).toBeDefined();
+        expect(authHook!.type).toEqual(HandlerType.headerHook);
+        // Header hooks should be public because they have headerNames, even if they have no return data or body params
+        expect(isPublicExecutable(authHook!)).toBe(true);
     });
 });

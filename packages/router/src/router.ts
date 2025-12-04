@@ -154,7 +154,8 @@ export function isPrivateExecutable(executable: Method): boolean {
     if (executable.type === HandlerType.rawHook) return true;
     if (executable.type === HandlerType.route) return false;
     const hasPublicParams = !!executable.paramNames?.length;
-    return !hasPublicParams && !executable.hasReturnData;
+    const hasHeaderParams = !!(executable as HeaderMethod).headersParam?.headerNames?.length;
+    return !hasPublicParams && !hasHeaderParams && !executable.hasReturnData;
 }
 
 export function getTotalExecutables(): number {
