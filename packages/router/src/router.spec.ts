@@ -19,7 +19,7 @@ import {
     addEndHooks,
 } from './router';
 import {type Routes} from './types/general';
-import {hook, route, rawHook} from './handlers';
+import {hook, route, rawHook} from './lib/handlers';
 import {HandlerType} from '@mionkit/core';
 
 describe('Create routes should', () => {

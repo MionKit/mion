@@ -15,11 +15,11 @@ import {
     getTotalExecutables,
     getAllExecutablesIds,
     getAnyExecutable,
-} from './router';
-import {route} from './handlers';
-import {RouterOptions, Routes} from './types/general';
-import {getSerializableMethod, serializeMethodDeps} from './remoteMethods';
-import {Method} from './types/remoteMethods';
+} from '../router';
+import {route} from '../lib/handlers';
+import {RouterOptions, Routes} from '../types/general';
+import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods';
+import {Method} from '../types/remoteMethods';
 
 // TODO, investigate if we can use SharedPublicMethod that do not include the handler instead of PublicMethod
 export interface ClientRouteOptions extends RouterOptions {

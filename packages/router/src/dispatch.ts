@@ -9,8 +9,8 @@ import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody
 import {type RouterOptions} from './types/general';
 import {HeaderMethod, Method, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
-import {getNotFoundExecutionPath} from './notFound';
-import {Mutable, AnyObject, createDataViewDeserializer, isAnyError, MION_ROUTES} from '@mionkit/core';
+import {getNotFoundExecutionPath} from './lib/notFound';
+import {Mutable, AnyObject, createDataViewDeserializer, isAnyError} from '@mionkit/core';
 import {RpcError, HandlerType, StatusCodes} from '@mionkit/core';
 
 /*
@@ -79,28 +79,6 @@ export function createCallContext(
         },
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
     } as CallContext;
-}
-
-/**
- * Return a Response mion response for any error that happens before the route execution.
- * to be used by any transport layer. ie: node/http, aws/lambda, bun, etc.
- * basically is a global error response when when anything fails outside the router.
- * @param error
- * @param respHeaders
- * @returns
- */
-export function getGlobalErrorResponse(error: RpcError<string>, respHeaders: MionHeaders): MionResponse {
-    const body = {[MION_ROUTES.globalError]: error.toPublicError()};
-    respHeaders.set('content-type', 'application/json; charset=utf-8');
-    const response: Mutable<MionResponse> = {
-        statusCode: error.statusCode,
-        hasErrors: true,
-        headers: respHeaders,
-        body,
-        rawBody: JSON.stringify(body),
-        bodyType: 'J', // global errors are always json
-    };
-    return response;
 }
 
 // ############# PRIVATE METHODS #############

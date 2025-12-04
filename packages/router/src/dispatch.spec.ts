@@ -12,8 +12,8 @@ import {HeadersList} from './types/HeadersList';
 import {Routes} from './types/general';
 import {PublicRpcError, RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
-import {headersHook, hook, route} from './handlers';
-import {headersFromRecord} from './headers';
+import {headersHook, hook, route} from './lib/handlers';
+import {headersFromRecord} from './lib/headers';
 
 type RawRequest = {
     headers: MionHeaders;

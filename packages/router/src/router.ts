@@ -13,14 +13,14 @@ import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
 import {HandlerType} from '@mionkit/core';
-import {getRawMethodReflection, getHandlerReflection} from './reflection';
-import {serializerHooks} from './serializer.routes';
+import {getRawMethodReflection, getHandlerReflection} from './lib/reflection';
+import {serializerHooks} from './routes/serializer.routes';
 import {getRouterItemId, getRoutePath, getENV} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
-import {getPublicApi, resetRemoteMethodsMetadata} from './remoteMethods';
-import {clientRoutes} from './client.routes';
-import {getNotFoundExecutionPath} from './notFound';
-import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './methodsCache';
+import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
+import {clientRoutes} from './routes/client.routes';
+import {getNotFoundExecutionPath} from './lib/notFound';
+import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {

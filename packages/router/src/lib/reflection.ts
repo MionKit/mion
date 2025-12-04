@@ -20,11 +20,11 @@ import {
     getParsedAnnotationOptions,
     isUnionRunType,
 } from '@mionkit/run-types';
-import {Handler} from './types/handlers';
-import {RouterOptions} from './types/general';
-import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from './constants';
-import {type MethodWithJitFns} from './types/remoteMethods';
-import {HeadersList} from './types/HeadersList';
+import {Handler} from '../types/handlers';
+import {RouterOptions} from '../types/general';
+import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants';
+import {type MethodWithJitFns} from '../types/remoteMethods';
+import {HeadersList} from '../types/HeadersList';
 
 // ############ This file should be the only one importing '@mionkit/run-types' within the router ########
 // TODO: in the future we can load things from cache and load run types only when needed

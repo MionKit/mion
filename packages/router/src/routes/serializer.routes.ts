@@ -5,16 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MionResponse, MionRequest, CallContext} from './types/context';
-import type {RouterOptions} from './types/general';
-import type {HooksCollection, ErrorReturn, PublicResponses} from './types/publicMethods';
+import type {MionResponse, MionRequest, CallContext} from '../types/context';
+import type {RouterOptions} from '../types/general';
+import type {HooksCollection, ErrorReturn, PublicResponses} from '../types/publicMethods';
 import {AnyObject, Mutable} from '@mionkit/core';
-import {rawHook} from './handlers';
-import {getRouteExecutableFromPath, getRouteExecutionPath} from './router';
+import {rawHook} from '../lib/handlers';
+import {getRouteExecutableFromPath, getRouteExecutionPath} from '../router';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
-import {Method} from './types/remoteMethods';
-import {getNotFoundExecutionPath} from './notFound';
+import {Method} from '../types/remoteMethods';
+import {getNotFoundExecutionPath} from '../lib/notFound';
 
 // ############# PUBLIC METHODS #############
 
