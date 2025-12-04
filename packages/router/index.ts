@@ -18,6 +18,5 @@ export * from './src/router';
 export * from './src/dispatch';
 export * from './src/lib/headers';
 export * from './src/lib/remoteMethods';
-export * from './src/routes/client.routes';
 export * from './src/lib/handlers';
 export * from './src/lib/methodsCache';

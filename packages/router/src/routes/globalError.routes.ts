@@ -14,16 +14,15 @@ import {Routes} from '../types/general';
  * Return a Response mion response for any error that happens before the route execution.
  * to be used by any transport layer. ie: node/http, aws/lambda, bun, etc.
  * basically is a global error response when when anything fails outside the router.
- * @param error
+ * @param returnErr
  * @param respHeaders
  * @returns
  */
-
-export function getGlobalErrorResponse(error: RpcError<string>, respHeaders: MionHeaders): MionResponse {
-    const body = {[MION_ROUTES.globalError]: error.toPublicError()};
+export function getGlobalErrorResponse(returnErr: RpcError<string>, respHeaders: MionHeaders): MionResponse {
+    const body = {[MION_ROUTES.globalError]: returnErr.toPublicError()};
     respHeaders.set('content-type', 'application/json; charset=utf-8');
     const response: Mutable<MionResponse> = {
-        statusCode: error.statusCode,
+        statusCode: returnErr.statusCode,
         hasErrors: true,
         headers: respHeaders,
         body,
@@ -34,5 +33,7 @@ export function getGlobalErrorResponse(error: RpcError<string>, respHeaders: Mio
 }
 
 export const globalErrorRoute = {
-    [MION_ROUTES.globalError]: route((error: RpcError<string>): RpcError<string> => error),
+    [MION_ROUTES.globalError]: route(
+        (): RpcError<string> => new RpcError({statusCode: 500, publicMessage: 'Unknown error', type: 'unknown-error'})
+    ),
 } satisfies Routes;
