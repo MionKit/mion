@@ -9,3 +9,4 @@ __snapshots__
 .dist
 build
 xyzSpec
+packages/codegen/bin
