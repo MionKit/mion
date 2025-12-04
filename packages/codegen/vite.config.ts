@@ -39,7 +39,7 @@ export default defineConfig({
         dts({
             outDir: '.dist/cjs',
             include: ['index.ts', 'src/**/*.ts'],
-            exclude: ['**/*.spec.ts', '**/*.test.ts', 'mion-aot-template/**'],
+            exclude: ['**/*.spec.ts', '**/*.test.ts', 'mion-aot-template/**', 'bin/**', 'src/run-*.ts'],
         }),
     ],
     build: {

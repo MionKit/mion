@@ -7,9 +7,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+const {join} = require('path');
 const {mionBuildAot} = require('../.dist/cjs/src/cli-build-aot.js');
+const templateDir = join(__dirname, '..', 'mion-aot-template');
 
-mionBuildAot().catch((error) => {
+mionBuildAot(templateDir).catch((error) => {
   console.error('Error: Could not load mion-build-aot CLI.');
   console.error('Make sure the codegen package has been built with: npm run build');
   console.error('Details:', error.message);
