@@ -75,6 +75,7 @@
     "vite-plugin-dts": "^4.0.0"
   },
   "workspaces": [
+    "packages/aot-caches",
     "packages/aws",
     "packages/bun",
     "packages/client",
