@@ -65,10 +65,10 @@ describe('AOT Commands Integration Tests', () => {
             expect(packageJson.name).toBe('test-aot-package');
 
             // Verify template files were copied
-            expect(existsSync(join(testAotDir, 'build', 'cjs', 'jitFns.cache.js'))).toBe(true);
-            expect(existsSync(join(testAotDir, 'build', 'esm', 'jitFns.cache.js'))).toBe(true);
-            expect(existsSync(join(testAotDir, 'build', 'cjs', 'pureFns.cache.js'))).toBe(true);
-            expect(existsSync(join(testAotDir, 'build', 'cjs', 'router.cache.js'))).toBe(true);
+            expect(existsSync(join(testAotDir, 'build', 'cjs', 'src', 'jitFns.cache.js'))).toBe(true);
+            expect(existsSync(join(testAotDir, 'build', 'esm', 'src', 'jitFns.cache.js'))).toBe(true);
+            expect(existsSync(join(testAotDir, 'build', 'cjs', 'src', 'pureFns.cache.js'))).toBe(true);
+            expect(existsSync(join(testAotDir, 'build', 'cjs', 'src', 'router.cache.js'))).toBe(true);
         });
 
         it('should create AOT package with custom package name', () => {
@@ -134,40 +134,18 @@ describe('AOT Commands Integration Tests', () => {
             expect(updatedPackageJson.isMionAOT).toBe(true);
         });
 
-        it('should create core-only AOT package without router dependency', () => {
+        it('should exclude src folder from copied template', () => {
             initAOT({
                 dir: testAotDir,
-                coreOnly: true,
                 templateDir: TEMPLATE_DIR,
             });
 
-            // Verify directory was created
-            expect(existsSync(testAotDir)).toBe(true);
+            // Verify src folder was excluded from the copy
+            expect(existsSync(join(testAotDir, 'src'))).toBe(false);
 
-            // Verify package.json was created without router dependency
-            const packageJsonPath = join(testAotDir, 'package.json');
-            const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-            expect(packageJson.peerDependencies['@mionkit/core']).toBeDefined();
-            expect(packageJson.peerDependencies['@mionkit/router']).toBeUndefined();
-
-            // Verify router.cache.js was removed
-            expect(existsSync(join(testAotDir, 'build', 'cjs', 'router.cache.js'))).toBe(false);
-            expect(existsSync(join(testAotDir, 'build', 'esm', 'router.cache.js'))).toBe(false);
-
-            // Verify index.js uses core-only version (check that it doesn't import router.cache)
-            const cjsIndexContent = readFileSync(join(testAotDir, 'build', 'cjs', 'index.js'), 'utf8');
-            expect(cjsIndexContent).not.toContain('router.cache');
-            expect(cjsIndexContent).not.toContain('@mionkit/router');
-
-            const esmIndexContent = readFileSync(join(testAotDir, 'build', 'esm', 'index.js'), 'utf8');
-            expect(esmIndexContent).not.toContain('router.cache');
-            expect(esmIndexContent).not.toContain('@mionkit/router');
-
-            // Verify jitFns and pureFns caches still exist
-            expect(existsSync(join(testAotDir, 'build', 'cjs', 'jitFns.cache.js'))).toBe(true);
-            expect(existsSync(join(testAotDir, 'build', 'esm', 'jitFns.cache.js'))).toBe(true);
-            expect(existsSync(join(testAotDir, 'build', 'cjs', 'pureFns.cache.js'))).toBe(true);
-            expect(existsSync(join(testAotDir, 'build', 'esm', 'pureFns.cache.js'))).toBe(true);
+            // Verify build folders still exist
+            expect(existsSync(join(testAotDir, 'build', 'cjs', 'src'))).toBe(true);
+            expect(existsSync(join(testAotDir, 'build', 'esm', 'src'))).toBe(true);
         });
     });
 

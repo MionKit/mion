@@ -14,19 +14,16 @@ import {isTest} from './constants';
 export interface BuildAOTOptions {
     aotDir: string;
     startScript: string;
-    /** Skip router cache compilation (for core-only AOT packages) */
-    coreOnly?: boolean;
 }
 
 export async function buildAOT(options: BuildAOTOptions): Promise<void> {
-    const {aotDir, startScript, coreOnly} = options;
+    const {aotDir, startScript} = options;
 
     if (!isTest) {
         console.log(`
 Building AOT caches:
   AOT directory: ${aotDir}
   Start script: ${startScript}
-  Core only: ${coreOnly ? 'yes' : 'no'}
 `);
     }
 
@@ -53,7 +50,6 @@ Building AOT caches:
         await compileAOT({
             startScriptPath: startScript,
             aotDir: aotDir,
-            skipRouter: coreOnly,
         });
 
         if (!isTest) {
@@ -69,18 +65,16 @@ function showHelp(): void {
 mion-build-aot - Build AOT caches by running start script and compiling
 
 Usage:
-  npx mion-build-aot --dir <aot-directory> --start-server-script <script-path> [--core-only]
+  npx mion-build-aot --dir <aot-directory> --start-server-script <script-path>
 
 Options:
   -d, --dir <directory>              AOT package directory (required)
   -s, --start-server-script <path>   Path to start server script (required)
-  -c, --core-only                    Skip router cache (for packages without router dependency)
   -h, --help                         Show this help message
 
 Examples:
   npx mion-build-aot --dir ./packages/my-api-aot --start-server-script ./dist/cjs/my-api/init.js
   npx mion-build-aot --dir ./packages/my-api-aot --start-server-script ./dist/esm/server.mjs
-  npx mion-build-aot --dir ./packages/core-aot --start-server-script ./dist/cjs/init.js --core-only
 `);
 }
 
@@ -99,10 +93,6 @@ export async function mionBuildAot(): Promise<void> {
             'start-server-script': {
                 type: 'string',
                 short: 's',
-            },
-            'core-only': {
-                type: 'boolean',
-                short: 'c',
             },
             help: {
                 type: 'boolean',
@@ -132,7 +122,6 @@ export async function mionBuildAot(): Promise<void> {
         await buildAOT({
             aotDir: resolve(args.dir),
             startScript: resolve(args['start-server-script']),
-            coreOnly: args['core-only'],
         });
     } catch (error) {
         console.error(`Error: ${(error as Error).message}`);

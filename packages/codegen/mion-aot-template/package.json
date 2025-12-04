@@ -17,9 +17,9 @@
   "license": "MIT",
   "exports": {
     ".": {
-      "types": "./build/esm/index.d.ts",
-      "require": "./build/cjs/index.js",
-      "default": "./build/esm/index.js"
+      "types": "./build/esm/src/index.d.ts",
+      "require": "./build/cjs/src/index.js",
+      "default": "./build/esm/src/index.js"
     }
   },
   "directories": {
@@ -36,17 +36,15 @@
     "access": "public"
   },
   "scripts": {
-    "build:cjs": "tsc --project tsconfig.cjs.json",
-    "build:esm": "tsc --project tsconfig.esm.json",
-    "build": "npm run clean && npm run build:cjs && npm run build:esm",
+    "dev": "vite build --watch",
+    "build": "vite build",
     "clean": "rimraf build"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
-  "peerDependencies": {
+  "devDependencies": {
     "@mionkit/core": "^0.7.2",
-    "@mionkit/router": "^0.7.2",
-    "@mionkit/codegen": "^0.7.2"
+    "@mionkit/router": "^0.7.2"
   }
 }

@@ -7,11 +7,45 @@
 
 import {ReceiveType} from '@deepkit/type';
 import {existsSync, writeFileSync, mkdirSync, readFileSync} from 'fs';
-import {dirname} from 'path';
+import {dirname, join} from 'path';
+import {execSync} from 'child_process';
 import {JitFunctionsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
 import {AOTConfig, compiledCacheConfig} from './types';
 import {MethodsCache} from '@mionkit/router';
+
+/**
+ * Get the path to the biome binary.
+ * Uses the biome package installed in the codegen package.
+ */
+function getBiomePath(): string {
+    // Resolve biome binary from @biomejs/biome package
+    const biomePkgPath = require.resolve('@biomejs/biome/package.json');
+    return join(dirname(biomePkgPath), 'bin', 'biome');
+}
+
+/**
+ * Format JavaScript code using biome via CLI.
+ * Uses stdin to pass code and --stdin-file-path to specify the file type.
+ * @param code - The JavaScript code to format
+ * @param filename - Virtual filename for biome to determine parser (e.g., 'file.js')
+ * @returns Formatted code
+ */
+export function formatWithBiome(code: string, filename: string = 'file.js'): string {
+    try {
+        const biomePath = getBiomePath();
+        const formattedCode = execSync(`${biomePath} format --stdin-file-path=${filename}`, {
+            input: code,
+            encoding: 'utf8',
+            maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large cache files
+        });
+        return formattedCode;
+    } catch (error) {
+        // If formatting fails, return the original code
+        console.warn(`Biome formatting failed, using unformatted code: ${(error as Error).message}`);
+        return code;
+    }
+}
 
 /** Saves jit compiled functions to a dist file in the core package, this should be run after typescript has been compiled */
 export function compileAndWriteJitFunctions(cache: JitFunctionsCache, config: AOTConfig) {
@@ -46,7 +80,10 @@ export function compileAndWriteRunType<T>(
     }
 
     // Generate file code with appropriate format based on module type
-    const fileCode = compileTypeToJs(instance, config, fileToWrite, type, originalSrcCode);
+    let fileCode = compileTypeToJs(instance, config, fileToWrite, type, originalSrcCode);
+
+    // Format code with biome before writing
+    fileCode = formatWithBiome(fileCode, 'cache.js');
 
     // Ensure directory exists before writing file
     const dir = dirname(fileToWrite.path);
@@ -87,13 +124,26 @@ export function compileTypeToJs<T>(
 /** Replaces export patterns in existing source code */
 function replaceExportPattern(originalSrc: string, exportName: string, compiledCode: string, moduleType: 'esm' | 'cjs'): string {
     if (moduleType === 'cjs') {
-        // Replace exact pattern: exports.exportName = {};
+        // Vite CJS output format: const exportName = {}; ... exports.exportName = exportName;
+        // We need to replace both the declaration and keep the export assignment
+        const constPattern = `const ${exportName} = {};`;
+        if (originalSrc.includes(constPattern)) {
+            return originalSrc.replace(constPattern, `const ${exportName} = ${compiledCode};`);
+        }
+
+        // Fallback: Replace exact pattern: exports.exportName = {};
         const exactPattern = `exports.${exportName} = {};`;
         if (originalSrc.includes(exactPattern)) {
             return originalSrc.replace(exactPattern, `exports.${exportName} = ${compiledCode};`);
         }
     } else {
-        // Replace exact pattern: export const exportName = {};
+        // Vite ESM output format: const exportName = {}; export { exportName };
+        const constPattern = `const ${exportName} = {};`;
+        if (originalSrc.includes(constPattern)) {
+            return originalSrc.replace(constPattern, `const ${exportName} = ${compiledCode};`);
+        }
+
+        // Fallback: Replace exact pattern: export const exportName = {};
         const exactPattern = `export const ${exportName} = {};`;
         if (originalSrc.includes(exactPattern)) {
             return originalSrc.replace(exactPattern, `export const ${exportName} = ${compiledCode};`);
@@ -102,6 +152,6 @@ function replaceExportPattern(originalSrc: string, exportName: string, compiledC
 
     // If no pattern found, throw error
     throw new Error(
-        `Could not find export pattern for '${exportName}' in ${moduleType} module format. Expected: ${moduleType === 'cjs' ? `exports.${exportName} = {};` : `export const ${exportName} = {};`}`
+        `Could not find export pattern for '${exportName}' in ${moduleType} module format. Expected: 'const ${exportName} = {};' or '${moduleType === 'cjs' ? `exports.${exportName} = {};` : `export const ${exportName} = {};`}'`
     );
 }
