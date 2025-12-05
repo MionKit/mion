@@ -10,7 +10,7 @@ import {join, resolve} from 'path';
 import {writeAOTCachesToFiles, compileAOT, type CacheData} from './aot-compile';
 import {initAOT} from './cli-init-aot';
 import {headersHook, HeadersList, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
-import {getFnCaches, resetFnCaches, loadPersistedCaches} from '@mionkit/core';
+import {getJitFnCaches, resetJitFnCaches, addAOTCaches} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
 import {hook, route} from '@mionkit/router';
 
@@ -43,7 +43,7 @@ describe('AOT Cache Compilation E2E', () => {
 
         // Reset router and caches
         resetRouter();
-        resetFnCaches();
+        resetJitFnCaches();
 
         // Create AOT package first
         initAOT({
@@ -60,7 +60,7 @@ describe('AOT Cache Compilation E2E', () => {
 
         // Reset router and caches
         resetRouter();
-        resetFnCaches();
+        resetJitFnCaches();
     });
 
     it('should preserve cache data through file write and load cycle', async () => {
@@ -91,7 +91,7 @@ describe('AOT Cache Compilation E2E', () => {
         registerRoutes(testRoutes);
 
         // Step 3: Read all caches and create a list of their entries
-        const originalCaches = getFnCaches();
+        const originalCaches = getJitFnCaches();
         const originalRouterCache = getPersistedMethods();
 
         const originalCacheData: CacheData = {
@@ -113,10 +113,10 @@ describe('AOT Cache Compilation E2E', () => {
 
         // Step 5: Reset caches
         resetRouter();
-        resetFnCaches();
+        resetJitFnCaches();
 
         // Verify caches are empty after reset
-        const emptyCaches = getFnCaches();
+        const emptyCaches = getJitFnCaches();
         const emptyRouterCache = getPersistedMethods();
 
         expect(Object.keys(emptyCaches.jitFnsCache)).toHaveLength(0);
@@ -134,11 +134,11 @@ describe('AOT Cache Compilation E2E', () => {
         expect(aotPackage.routerCache).toBeDefined();
 
         // Load the AOT caches manually using the core and router loading functions
-        loadPersistedCaches(aotPackage.jitFnsCache, aotPackage.pureFnsCache);
+        addAOTCaches(aotPackage.jitFnsCache, aotPackage.pureFnsCache);
         loadCompiledMethods(aotPackage.routerCache);
 
         // Step 7: Read caches again and compare
-        const reloadedCaches = getFnCaches();
+        const reloadedCaches = getJitFnCaches();
         const reloadedRouterCache = getPersistedMethods();
 
         const reloadedJitKeys = Object.keys(reloadedCaches.jitFnsCache).sort();
@@ -195,7 +195,7 @@ describe('AOT TypeScript File Compilation', () => {
 
         // Reset router and caches
         resetRouter();
-        resetFnCaches();
+        resetJitFnCaches();
 
         // Create AOT package first
         initAOT({
@@ -212,7 +212,7 @@ describe('AOT TypeScript File Compilation', () => {
 
         // Reset router and caches
         resetRouter();
-        resetFnCaches();
+        resetJitFnCaches();
     });
 
     it('should compile TypeScript router file using ts-node', async () => {
@@ -266,7 +266,7 @@ describe('AOT TypeScript File Compilation', () => {
 
         // Reset caches for second compilation
         resetRouter();
-        resetFnCaches();
+        resetJitFnCaches();
 
         // Second compilation - this should work without errors because cache files are reset
         await compileAOT({

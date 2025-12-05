@@ -53,5 +53,8 @@
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionkit/aot-caches": "^0.7.2"
   }
 }

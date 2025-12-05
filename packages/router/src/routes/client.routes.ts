@@ -21,7 +21,6 @@ import {RouterOptions, Routes} from '../types/general';
 import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods';
 import {Method} from '../types/remoteMethods';
 
-// TODO, investigate if we can use SharedPublicMethod that do not include the handler instead of PublicMethod
 export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;
 }
@@ -30,22 +29,11 @@ export const defaultClientRouteOptions = {
     getAllRemoteMethodsMaxNumber: 100,
 };
 
-function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
-    const {methods, deps, purFnDeps} = resp;
-    if (methods[id]) return;
-    const executable = getHookExecutable(id) || getRouteExecutable(id);
-    if (!executable) {
-        errorData[id] = `Remote Method ${id} not found`;
-        return;
-    }
-    if (isPrivateExecutable(executable)) return;
-
-    const method = getSerializableMethod(executable as Method);
-    methods[id] = method;
-    method.hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
-    serializeMethodDeps(method, deps, purFnDeps);
-}
-
+/**
+ * Returns the metadata for the given method ids.
+ * If getAllRemoteMethods is true, all public methods and hooks are returned.
+ * @mion:route
+ */
 function mionGetRemoteMethodsDataById(
     ctx,
     methodsIds: string[],
@@ -81,6 +69,12 @@ function mionGetRemoteMethodsDataById(
     return resp;
 }
 
+/**
+ * Returns the metadata for the given route path.
+ * This include all hooks in the execution path of the route.
+ * If getAllRemoteMethods is true, all public methods and hooks are returned.
+ * @mion:route
+ */
 function mionGetRemoteMethodsDataByPath(
     ctx,
     path: string,
@@ -99,6 +93,22 @@ function mionGetRemoteMethodsDataByPath(
         privateExecutables.map((e) => e.id),
         getAllRemoteMethods
     );
+}
+
+function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
+    const {methods, deps, purFnDeps} = resp;
+    if (methods[id]) return;
+    const executable = getHookExecutable(id) || getRouteExecutable(id);
+    if (!executable) {
+        errorData[id] = `Remote Method ${id} not found`;
+        return;
+    }
+    if (isPrivateExecutable(executable)) return;
+
+    const method = getSerializableMethod(executable as Method);
+    methods[id] = method;
+    method.hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
+    serializeMethodDeps(method, deps, purFnDeps);
 }
 
 export const clientRoutes = {

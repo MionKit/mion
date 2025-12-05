@@ -67,7 +67,6 @@
     "jest-environment-jsdom": "^29.6.2"
   },
   "dependencies": {
-    "@mionkit/aot-caches": "^0.7.2",
     "@mionkit/core": "^0.7.2"
   }
 }

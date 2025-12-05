@@ -7,7 +7,7 @@
 
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {ClientOptions, JitFunctionsById} from './types';
-import {getFnCaches} from '@mionkit/core';
+import {getJitFnCaches} from '@mionkit/core';
 import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
 import Storage from 'dom-storage';
 
@@ -45,7 +45,7 @@ describe('fetchRemoteMethodsMetadata', () => {
         jitFunctionsById = new Map();
 
         // Store original cache state
-        const caches = getFnCaches();
+        const caches = getJitFnCaches();
         originalJitCache = {...(caches.jitFnsCache || {})};
         originalPureCache = {...(caches.pureFnsCache || {})};
 
@@ -55,7 +55,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
     afterEach(() => {
         // Clean up test functions from caches
-        const caches = getFnCaches();
+        const caches = getJitFnCaches();
         if (caches.jitFnsCache && originalJitCache) {
             Object.keys(caches.jitFnsCache).forEach((key) => {
                 if (!originalJitCache[key]) {

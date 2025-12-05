@@ -7,23 +7,22 @@
 
 import type {PublicResponses} from '@mionkit/router';
 import type {JitCompiledFunctions, JSONValue, SerializablePublicMethod} from '@mionkit/core';
-import {RpcError, isRpcError, jitUtils} from '@mionkit/core';
+import {RpcError, isRpcError, jitUtils, routerUtils} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 import {ClientOptions, RequestErrors, SubRequest} from './types';
-import {routerCache} from '@mionkit/aot-caches';
 
 /**
  * Get method metadata from routerCache
  */
 function getMetadata(id: string): SerializablePublicMethod | undefined {
-    return routerCache[id];
+    return routerUtils.getMetadata(id);
 }
 
 /**
  * Get params JIT functions for a method using its JIT hashes
  */
 function getParamsJitFunctions(id: string): JitCompiledFunctions | undefined {
-    const metadata = routerCache[id];
+    const metadata = routerUtils.getMetadata(id);
     if (!metadata?.paramsJitHashes) return undefined;
     const hashes = metadata.paramsJitHashes;
     return {
@@ -41,7 +40,7 @@ function getParamsJitFunctions(id: string): JitCompiledFunctions | undefined {
  * Get return JIT functions for a method using its JIT hashes
  */
 function getReturnJitFunctions(id: string): JitCompiledFunctions | undefined {
-    const metadata = routerCache[id];
+    const metadata = routerUtils.getMetadata(id);
     if (!metadata?.returnJitHashes) return undefined;
     const hashes = metadata.returnJitHashes;
     return {
