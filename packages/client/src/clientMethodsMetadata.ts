@@ -5,14 +5,32 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, isRpcError} from '@mionkit/core';
+import {RpcError, isRpcError, isAnyError} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
 import {ClientOptions, JitFunctionsById, RemoteMethodJIT, RequestBody} from './types';
 import type {PublicMethod} from '@mionkit/router';
 import type {JitCompiledFnData, SerializablePublicMethod, PureFunctionData, SerializableMethodsData} from '@mionkit/core';
-import {jitUtils} from '@mionkit/core';
+import {jitUtils, loadPersistedCaches} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {deserializeMethods} from '@mionkit/core';
+import {routerCache, jitFnsCache, pureFnsCache} from '@mionkit/aot-caches';
+
+// Load AOT caches on module initialization to make restoreFromJson JIT function available
+loadPersistedCaches(jitFnsCache, pureFnsCache);
+
+// Get the restoreFromJson function for the getRemoteMethodsById route return type
+const getRemoteMethodsRoute = routerCache[MION_ROUTES.getRemoteMethodsById];
+const restoreFromJsonHash = getRemoteMethodsRoute?.returnJitHashes?.restoreFromJson;
+
+// Use AOT-compiled restoreFromJson to deserialize the response
+// This handles union type deserialization and converts arrays back to Sets
+if (!restoreFromJsonHash) {
+    throw new Error('AOT cache not loaded: restoreFromJson function not found for getRemoteMethodsById');
+}
+const restoreFromJsonFn = jitUtils.getJIT(restoreFromJsonHash);
+if (!restoreFromJsonFn) {
+    throw new Error(`JIT function not found: ${restoreFromJsonHash}`);
+}
 
 /**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(
@@ -32,56 +50,30 @@ export async function fetchRemoteMethodsMetadata(
     try {
         const url = new URL(MION_ROUTES.getRemoteMethodsById, options.baseURL);
         const response = await fetch(url, {
-            method: 'GET',
+            method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body),
         });
         const respObj = await response.json();
-        // Handle union type de-serialization manually: MethodsData | RpcError gets serialized as [discriminator, value]
-        // where discriminator 0 = MethodsData, discriminator 1 = RpcError
-        const respUnion = respObj[MION_ROUTES.getRemoteMethodsById];
-        let resp: SerializableMethodsData | RpcError<string> | undefined;
-        if (Array.isArray(respUnion) && respUnion.length === 2 && typeof respUnion[0] === 'number') {
-            const [discriminator, value] = respUnion;
-            if (discriminator === 0) {
-                // MethodsData (first type in union)
-                resp = value as SerializableMethodsData;
-            } else if (discriminator === 1) {
-                // RpcError (second type in union)
-                resp = value as RpcError<string>;
-            } else {
-                throw new Error(`Invalid union discriminator: ${discriminator}`);
+        const respValue = respObj[MION_ROUTES.getRemoteMethodsById];
+
+        // Deserialize with error handling - try first, then check for server-side errors on failure
+        let resp: SerializableMethodsData | RpcError<string>;
+        try {
+            resp = restoreFromJsonFn!.fn(respValue);
+        } catch (deserializeError: any) {
+            // If deserialization fails, check if the response itself is an error
+            // Server-side serialization errors are added directly without union encoding
+            if (isAnyError(respValue)) {
+                throw isRpcError(respValue) ? new RpcError(respValue) : respValue;
             }
+            throw deserializeError;
         }
 
-        if (!resp) throw new Error('No remote methods found in response');
         // TODO: convert Public error into a class that extends error and throw as an error
         if (isRpcError(resp)) throw new RpcError(resp);
 
-        // Convert MethodsData to SharedMethodsData format for restoration
-        // Need to convert JSON objects back to Sets since JSON.parse converts Sets to {}
-        const convertedDeps: Record<string, JitCompiledFnData> = {};
-        Object.entries(resp.deps).forEach(([key, jitFn]: [string, any]) => {
-            convertedDeps[key] = {
-                ...jitFn,
-                dependenciesSet: new Set(jitFn.dependenciesSet || []),
-                pureFnDependencies: new Set(jitFn.pureFnDependencies || []),
-            };
-        });
-
-        const convertedPureFnDeps: Record<string, PureFunctionData> = {};
-        Object.entries(resp.purFnDeps).forEach(([key, pureFn]: [string, any]) => {
-            convertedPureFnDeps[key] = {
-                ...pureFn,
-                dependencies: new Set(pureFn.dependencies || []),
-            };
-        });
-
-        const serializableMethodsData: SerializableMethodsData = {
-            methods: resp.methods as Record<string, SerializablePublicMethod>,
-            deps: convertedDeps,
-            purFnDeps: convertedPureFnDeps,
-        };
+        const serializableMethodsData = resp as SerializableMethodsData;
 
         // Store dependencies globally for future use
         storeDependencies(serializableMethodsData.deps, serializableMethodsData.purFnDeps, options);

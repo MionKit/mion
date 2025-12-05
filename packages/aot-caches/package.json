@@ -15,6 +15,8 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://mion.io/",
   "license": "MIT",
+  "main": "./build/cjs/src/index.js",
+  "types": "./build/cjs/src/index.d.ts",
   "exports": {
     ".": {
       "types": "./build/esm/src/index.d.ts",
