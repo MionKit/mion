@@ -5,11 +5,61 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {PublicMethod, PublicResponses} from '@mionkit/router';
-import type {JitCompiledFunctions, JSONValue} from '@mionkit/core';
-import {RpcError, isRpcError} from '@mionkit/core';
+import type {PublicResponses} from '@mionkit/router';
+import type {JitCompiledFunctions, JSONValue, SerializablePublicMethod} from '@mionkit/core';
+import {RpcError, isRpcError, jitUtils} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
-import {RequestErrors, SubRequest, ValidationRequest} from './types';
+import {ClientOptions, RequestErrors, SubRequest} from './types';
+import {routerCache} from '@mionkit/aot-caches';
+
+/**
+ * Get method metadata from routerCache
+ */
+function getMetadata(id: string): SerializablePublicMethod | undefined {
+    return routerCache[id];
+}
+
+/**
+ * Get params JIT functions for a method using its JIT hashes
+ */
+function getParamsJitFunctions(id: string): JitCompiledFunctions | undefined {
+    const metadata = routerCache[id];
+    if (!metadata?.paramsJitHashes) return undefined;
+    const hashes = metadata.paramsJitHashes;
+    return {
+        isType: jitUtils.getJIT(hashes.isType),
+        typeErrors: jitUtils.getJIT(hashes.typeErrors),
+        prepareForJson: jitUtils.getJIT(hashes.prepareForJson),
+        restoreFromJson: jitUtils.getJIT(hashes.restoreFromJson),
+        jsonStringify: jitUtils.getJIT(hashes.jsonStringify),
+        toBinary: jitUtils.getJIT(hashes.toBinary),
+        fromBinary: jitUtils.getJIT(hashes.fromBinary),
+    } as JitCompiledFunctions;
+}
+
+/**
+ * Get return JIT functions for a method using its JIT hashes
+ */
+function getReturnJitFunctions(id: string): JitCompiledFunctions | undefined {
+    const metadata = routerCache[id];
+    if (!metadata?.returnJitHashes) return undefined;
+    const hashes = metadata.returnJitHashes;
+    return {
+        isType: jitUtils.getJIT(hashes.isType),
+        typeErrors: jitUtils.getJIT(hashes.typeErrors),
+        prepareForJson: jitUtils.getJIT(hashes.prepareForJson),
+        restoreFromJson: jitUtils.getJIT(hashes.restoreFromJson),
+        jsonStringify: jitUtils.getJIT(hashes.jsonStringify),
+        toBinary: jitUtils.getJIT(hashes.toBinary),
+        fromBinary: jitUtils.getJIT(hashes.fromBinary),
+    } as JitCompiledFunctions;
+}
+
+/** Minimal interface for the request object used by validation/serialization functions */
+export interface ReflectionRequest {
+    options: ClientOptions;
+    subRequests: {[key: string]: SubRequest<any>};
+}
 
 // ############# VALIDATION SERIALIZATION #############
 
@@ -19,14 +69,14 @@ import {RequestErrors, SubRequest, ValidationRequest} from './types';
  */
 export function validateSubRequests(
     subRequestIds: string[],
-    req: ValidationRequest,
+    req: ReflectionRequest,
     errors: RequestErrors,
     validateRouteHooks = true
 ): void {
     if (!req.options.validateParams) return;
     subRequestIds.forEach((id) => {
         validateSubRequest(id, req, errors);
-        const methodMeta = req.metadataById.get(id);
+        const methodMeta = getMetadata(id);
         if (validateRouteHooks && methodMeta?.hookIds?.length) {
             validateSubRequests(methodMeta.hookIds, req, errors, validateRouteHooks);
         }
@@ -38,13 +88,13 @@ export function validateSubRequests(
  * Validate subRequest locally using existing RemoteApi metadata.
  * If there is an error then subRequest is marked as resolved and error is added as subRequest response.
  */
-export function validateSubRequest(id: string, req: ValidationRequest, errors: RequestErrors): void {
+export function validateSubRequest(id: string, req: ReflectionRequest, errors: RequestErrors): void {
     // subRequest might be undefined if does not require to send parameters or are optional
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     if (subRequest?.error || subRequest?.isResolved) return;
 
     const params = subRequest?.params || [];
-    const validationResponse = validateParameters(params, methodMeta, req.jitFunctionsById.get(id)?.params);
+    const validationResponse = validateParameters(params, methodMeta, getParamsJitFunctions(id));
     if (!validationResponse) return; // if validation is void then validation is disabled for this method
     const error = validationResponse;
     errors.set(id, error);
@@ -57,24 +107,24 @@ export function validateSubRequest(id: string, req: ValidationRequest, errors: R
 }
 
 /** Serialize subRequests. If there are any errors subRequests are marked as resolved. */
-export function serializeSubRequests(subRequestIds: string[], req: ValidationRequest, errors: RequestErrors): void {
+export function serializeSubRequests(subRequestIds: string[], req: ReflectionRequest, errors: RequestErrors): void {
     subRequestIds.forEach((id) => {
         serializeSubRequest(id, req, errors);
-        const methodMeta = req.metadataById.get(id);
+        const methodMeta = getMetadata(id);
         if (methodMeta?.hookIds?.length) serializeSubRequests(methodMeta.hookIds, req, errors);
     });
     return;
 }
 
 /** Serialize a single subRequest. If there are is an error subRequest is marked as resolved. */
-export function serializeSubRequest(id: string, req: ValidationRequest, errors: RequestErrors): void {
+export function serializeSubRequest(id: string, req: ReflectionRequest, errors: RequestErrors): void {
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     // at this point subRequest might been validated so if not defined then is not required
     if (!subRequest) return;
     if (subRequest.serializedParams) return;
 
     const params = subRequest?.params || [];
-    const serializedParams = serializeParameters(params, methodMeta, req.jitFunctionsById.get(id)?.params);
+    const serializedParams = serializeParameters(params, methodMeta, getParamsJitFunctions(id));
     if (isRpcError(serializedParams)) {
         errors.set(id, serializedParams);
         // if errors then mark subRequest as resolved
@@ -87,16 +137,12 @@ export function serializeSubRequest(id: string, req: ValidationRequest, errors: 
 }
 
 // if there is any error it will be inserted in the body as a route return error
-export function deserializeResponseBody(responseBody: PublicResponses, req: ValidationRequest): PublicResponses {
+export function deserializeResponseBody(responseBody: PublicResponses): PublicResponses {
     const deSerializedBody = responseBody;
     Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
-        const methodMeta = req.metadataById.get(key);
+        const methodMeta = getMetadata(key);
         if (!methodMeta) throw new Error(`Metadata for remote method ${key} not found.`);
-        const deSerialized = deSerializeReturn(
-            remoteHandlerResponse,
-            methodMeta,
-            req.jitFunctionsById.get(methodMeta.id)?.return
-        );
+        const deSerialized = deSerializeReturn(remoteHandlerResponse, methodMeta, getReturnJitFunctions(methodMeta.id));
         deSerializedBody[key] = deSerialized;
     });
     return deSerializedBody;
@@ -106,9 +152,9 @@ export function deserializeResponseBody(responseBody: PublicResponses, req: Vali
 
 function getSerializationRequiredData(
     id: string,
-    req: ValidationRequest
-): {methodMeta: PublicMethod; subRequest?: SubRequest<any>} {
-    const methodMeta = req.metadataById.get(id);
+    req: ReflectionRequest
+): {methodMeta: SerializablePublicMethod; subRequest?: SubRequest<any>} {
+    const methodMeta = getMetadata(id);
     const subRequest = req.subRequests[id];
     if (!methodMeta) throw new Error(`Metadata for remote method ${id} not found.`);
     return {methodMeta, subRequest};
@@ -116,7 +162,7 @@ function getSerializationRequiredData(
 
 function serializeParameters(
     params: any[],
-    method: PublicMethod,
+    method: SerializablePublicMethod,
     paramsJit?: JitCompiledFunctions
 ): any[] | RpcError<'serialization-error'> {
     if (!paramsJit) return params;
@@ -137,7 +183,7 @@ function serializeParameters(
 
 function validateParameters(
     params: any[],
-    method: PublicMethod,
+    method: SerializablePublicMethod,
     paramsJit?: JitCompiledFunctions
 ): void | RpcError<'validation-error' | 'unexpected-validation-error'> {
     if (!paramsJit || paramsJit.typeErrors.isNoop) return;
@@ -162,7 +208,7 @@ function validateParameters(
 
 function deSerializeReturn(
     response: any | RpcError<string>,
-    method: PublicMethod,
+    method: SerializablePublicMethod,
     returnJit?: JitCompiledFunctions
 ): any | RpcError<'serialization-error'> {
     if (!returnJit || returnJit.restoreFromJson.isNoop || !response) return response;

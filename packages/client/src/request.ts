@@ -6,17 +6,7 @@
  * ######## */
 
 import type {PublicResponses} from '@mionkit/router';
-import {
-    ClientOptions,
-    HookSubRequest,
-    SubRequest,
-    JitFunctionsById,
-    MetadataById,
-    RequestBody,
-    RequestHeaders,
-    RouteSubRequest,
-    RequestErrors,
-} from './types';
+import {ClientOptions, HookSubRequest, SubRequest, RequestBody, RequestHeaders, RouteSubRequest, RequestErrors} from './types';
 import type {RunTypeError} from '@mionkit/core';
 import {RpcError, isRpcError, HandlerType} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
@@ -24,17 +14,16 @@ import {StatusCodes} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';
+import {routerCache} from '@mionkit/aot-caches';
 
 export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
     readonly path: string;
     readonly requestId: string;
-    readonly subRequests: {[key: string]: SubRequest<any>} = {};
+    readonly subRequestList: {[key: string]: SubRequest<any>} = {};
     response: Response | undefined;
     rawResponseBody: PublicResponses | undefined;
     constructor(
         public readonly options: ClientOptions,
-        public readonly metadataById: MetadataById,
-        public readonly jitFunctionsById: JitFunctionsById,
         public readonly route?: RR,
         public readonly hooks?: HookRequestsList
     ) {
@@ -50,8 +39,8 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
         // prepare and validate full request with the route and all hooks
         try {
-            const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.jitFunctionsById);
+            const subRequestIds = Object.keys(this.subRequestList);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options);
 
             this.restorePersistedSubRequest(errors);
             if (errors.size) return Promise.reject(errors);
@@ -89,8 +78,8 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         // deserialize response
         try {
             // if there are any errors they are part of the deserialized body
-            const deserialized = deserializeResponseBody(this.rawResponseBody as PublicResponses, this);
-            Object.entries(this.subRequests).forEach(([id, methodMeta]) => {
+            const deserialized = deserializeResponseBody(this.rawResponseBody as PublicResponses);
+            Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
                 const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
                 methodMeta.isResolved = true;
                 if (isRpcError(resp)) {
@@ -114,13 +103,13 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
         const errors: RequestErrors = new Map();
         try {
-            const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.jitFunctionsById);
+            const subRequestIds = Object.keys(this.subRequestList);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options);
 
             validateSubRequests(subRequestIds, this, errors, false);
             if (errors.size) return Promise.reject(errors);
 
-            return Object.values(this.subRequests)
+            return Object.values(this.subRequestList)
                 .map((subRequest) => subRequest.error?.errorData || [])
                 .flat();
         } catch (error: any) {
@@ -134,8 +123,8 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
         const errors: RequestErrors = new Map();
         try {
-            const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.jitFunctionsById);
+            const subRequestIds = Object.keys(this.subRequestList);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options);
 
             validateSubRequests(subRequestIds, this, errors, false);
             if (errors.size) return Promise.reject(errors);
@@ -167,7 +156,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         if (subRequest.isResolved) {
             throw new Error(`SubRequest ${subRequest.id} is already resolved`);
         }
-        this.subRequests[subRequest.id] = subRequest;
+        this.subRequestList[subRequest.id] = subRequest;
     }
 
     // ############# PRIVATE METHODS #############
@@ -187,8 +176,8 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     private getRequestData() {
         const headers: RequestHeaders = {};
         const body: RequestBody = {};
-        Object.values(this.subRequests).forEach((subRequest) => {
-            const methodMeta = this.metadataById.get(subRequest.id);
+        Object.values(this.subRequestList).forEach((subRequest) => {
+            const methodMeta = routerCache[subRequest.id];
             if (!subRequest.serializedParams) throw new Error(`SubRequest ${subRequest.id} is not serialized.`);
             if (!methodMeta) throw new Error(`Metadata for remote method ${subRequest.id} not found.`);
             if (
@@ -206,7 +195,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     }
 
     private getResponseValueFromBodyOrHeader(id: string, respBody: PublicResponses, headers: Headers): any {
-        const methodMeta = this.metadataById.get(id);
+        const methodMeta = routerCache[id];
         if (
             methodMeta &&
             methodMeta.type === HandlerType.headerHook &&
@@ -220,7 +209,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
     // subRequests must be already validated and serialized (so only valid requests are stored)
     private restorePersistedSubRequest(errors: RequestErrors): void {
-        const remoteRoute = this.metadataById.get(this.requestId);
+        const remoteRoute = routerCache[this.requestId];
         if (!remoteRoute) {
             errors.set(
                 this.requestId,
@@ -234,7 +223,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         }
         const missingIds = remoteRoute.hookIds?.filter((id) => !!id && this.requestId !== id) || [];
         missingIds.forEach((id) => {
-            const subRequest = this.subRequests[id];
+            const subRequest = this.subRequestList[id];
             if (subRequest) return;
             const storageKey = this.getSubRequestStorageKey(id);
             const jsonValue = localStorage.getItem(storageKey);
@@ -258,9 +247,9 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     }
 
     private persistedSubRequest(errors: RequestErrors): void {
-        Object.keys(this.subRequests).forEach((id) => {
-            const subRequest = this.subRequests[id];
-            const methodMeta = this.metadataById.get(id);
+        Object.keys(this.subRequestList).forEach((id) => {
+            const subRequest = this.subRequestList[id];
+            const methodMeta = routerCache[id];
             if (!methodMeta) throw new Error(`Remote method ${id} not found.`);
             if (methodMeta.type === HandlerType.route) {
                 errors[id] = new RpcError({
@@ -291,7 +280,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     }
 
     private removePersistedSubRequest(errors: RequestErrors): void {
-        Object.keys(this.subRequests).forEach((id) => {
+        Object.keys(this.subRequestList).forEach((id) => {
             try {
                 const storageKey = this.getSubRequestStorageKey(id);
                 localStorage.removeItem(storageKey);

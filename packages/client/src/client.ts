@@ -10,8 +10,6 @@ import {
     ClientOptions,
     HookSubRequest,
     InitOptions,
-    JitFunctionsById,
-    MetadataById,
     RouteSubRequest,
     SubRequest,
     RequestErrors,
@@ -44,9 +42,6 @@ export function initClient<RM extends PublicApi<any>>(
 // ############# Client   #############
 // state is managed inside a class in case multiple clients are required (using multiple apis)
 class MionClient {
-    private metadataById: MetadataById = new Map();
-    private jitFunctionsById: JitFunctionsById = new Map();
-
     constructor(private clientOptions: ClientOptions) {}
 
     // todo return strong typed response
@@ -54,13 +49,7 @@ class MionClient {
         routeSubRequest: RR,
         ...hookSubRequests: RHList
     ): Promise<SuccessClientResponse<RR, RHList>> {
-        const request = new MionRequest(
-            this.clientOptions,
-            this.metadataById,
-            this.jitFunctionsById,
-            routeSubRequest,
-            hookSubRequests
-        );
+        const request = new MionRequest(this.clientOptions, routeSubRequest, hookSubRequests);
         return request
             .call()
             .then(
@@ -69,17 +58,17 @@ class MionClient {
     }
 
     typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
-        const request = new MionRequest(this.clientOptions, this.metadataById, this.jitFunctionsById);
+        const request = new MionRequest(this.clientOptions);
         return request.validateParams(subRequest);
     }
 
     prefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions, this.metadataById, this.jitFunctionsById);
+        const request = new MionRequest(this.clientOptions);
         return request.prefill(subRequest);
     }
 
     removePrefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions, this.metadataById, this.jitFunctionsById);
+        const request = new MionRequest(this.clientOptions);
         return request.removePrefill(subRequest);
     }
 }

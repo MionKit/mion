@@ -7,9 +7,7 @@
 
 import {RpcError} from '@mionkit/core';
 import type {RunTypeError} from '@mionkit/core';
-import type {JitCompiledFunctions} from '@mionkit/core';
 import type {PublicHeaderMethod, PublicHookMethod, PublicMethod, PublicApi, PublicRouteMethod} from '@mionkit/router';
-import type {MionRequest} from './request';
 
 export type StorageType = 'localStorage' | 'sessionStorage';
 
@@ -33,11 +31,8 @@ export type ClientOptions = {
 };
 
 export type InitOptions = Partial<ClientOptions> & {baseURL: string};
-export type MetadataById = Map<string, PublicMethod>;
-export type JitFunctionsById = Map<string, RemoteMethodJIT>;
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
-export type PublicMethodReflection = {paramsJit: JitCompiledFunctions};
 export type HandlerResponse<RM extends PublicMethod> = Awaited<ReturnType<RM['handler']>>;
 export type HandlerSuccessResponse<RM extends PublicMethod> = Exclude<HandlerResponse<RM>, RpcError<string> | Error>;
 export type HandlerFailResponse<RM extends PublicMethod> = Extract<HandlerResponse<RM>, RpcError<string> | Error>;
@@ -150,13 +145,6 @@ export type SuccessClientResponse<RR extends RouteSubRequest<any>, RHList extend
     SuccessResponse<RR>,
     ...SuccessResponses<RHList>,
 ];
-
-export type ValidationRequest = Pick<MionRequest<any, any>, 'metadataById' | 'jitFunctionsById' | 'options' | 'subRequests'>;
-
-export type RemoteMethodJIT = {
-    return: JitCompiledFunctions;
-    params: JitCompiledFunctions;
-};
 
 // ############# STRONG PROMISE  (reject error is strongly typed) #############
 // TODO: typescript complains async function only can return a Promise Type
