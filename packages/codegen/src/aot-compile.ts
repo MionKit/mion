@@ -8,7 +8,7 @@
 import {resolve, join, dirname} from 'path';
 import {existsSync, cpSync} from 'fs';
 import {compileAndWriteJitFunctions, compileAndWritePureFunctions, compileAndWriteRouterMethods} from './cacheCompiler';
-import {getFnCaches, JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
+import {getJitFnCaches, JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
 import {isTest} from './constants';
 import {JitFnID, JitFunctions} from '@mionkit/run-types';
@@ -146,7 +146,7 @@ export async function compileAOT(
     }
 
     // Get the populated caches
-    const {jitFnsCache, pureFnsCache} = getFnCaches();
+    const {jitFnsCache, pureFnsCache} = getJitFnCaches();
     const routerCache = getPersistedMethods();
 
     // Write the caches to files

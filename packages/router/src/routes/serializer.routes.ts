@@ -18,13 +18,11 @@ import {getNotFoundExecutionPath} from '../lib/notFound';
 
 // ############# PUBLIC METHODS #############
 
-export const serializerHooks = {
-    mionDeserializeRequest: rawHook(deserializeRequestBody, {runOnError: true}),
-    mionSerializeResponse: rawHook(serializeResponseBody, {runOnError: true}),
-} satisfies HooksCollection;
-
-// TODO: when rawhooks like this fail we don't have a way to return the error inside a route hook path, as this is supposed to be a private method, whe do we do in this case?
-
+/**
+ * Deserializes the request body and stores it in the request body property.
+ * This method is called before any other hook or route handler.
+ * @mion:hook
+ */
 export function deserializeRequestBody(context: CallContext): ErrorReturn {
     if (!context.request.rawBody) return; // empty body
     let parsedBody: any;
@@ -65,6 +63,11 @@ export function deserializeRequestBody(context: CallContext): ErrorReturn {
     }
 }
 
+/**
+ * Serializes the response body and stores it in the response rawBody property.
+ * This method is called after any other hook or route handler.
+ * @mion:hook
+ */
 export function serializeResponseBody(context: CallContext, opts: RouterOptions): ErrorReturn {
     const response = context.response as Mutable<MionResponse>;
     const respBody: AnyObject = response.body;
@@ -126,3 +129,8 @@ function onErrorResponse(context: CallContext, err: any) {
     response.hasErrors = true;
     (context.request.internalErrors as Mutable<any[]>).push(err);
 }
+
+export const serializerHooks = {
+    mionDeserializeRequest: rawHook(deserializeRequestBody, {runOnError: true}),
+    mionSerializeResponse: rawHook(serializeResponseBody, {runOnError: true}),
+} satisfies HooksCollection;

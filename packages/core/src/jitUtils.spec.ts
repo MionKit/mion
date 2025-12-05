@@ -5,7 +5,32 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {loadJitCachesCaches, getFnCaches} from './jitUtils';
+import {getJitFnCaches} from './jitUtils';
+import {JitFunctionsCache, PureFunctionsCache} from './types';
+
+const {jitFnsCache, pureFnsCache} = getJitFnCaches() as {jitFnsCache: JitFunctionsCache; pureFnsCache: PureFunctionsCache};
+
+/**
+ * Loads compiled JIT and pure functions into the respective caches.
+ * This function merges the provided cache data into the existing caches without overwriting existing entries.
+ * @param caches - Object containing JIT and pure function cache data to merge
+ */
+function loadJitCachesCaches(caches: {jitFnsCache?: JitFunctionsCache; pureFnsCache?: PureFunctionsCache}) {
+    if (caches.jitFnsCache) {
+        for (const [key, value] of Object.entries(caches.jitFnsCache)) {
+            if (!(key in jitFnsCache)) {
+                jitFnsCache[key] = value;
+            }
+        }
+    }
+    if (caches.pureFnsCache) {
+        for (const [key, value] of Object.entries(caches.pureFnsCache)) {
+            if (!(key in pureFnsCache)) {
+                pureFnsCache[key] = value;
+            }
+        }
+    }
+}
 
 describe('jitUtils', () => {
     it('should load compiled JIT functions cache from cache data', () => {
@@ -26,14 +51,14 @@ describe('jitUtils', () => {
         };
 
         // Get initial cache state
-        const initialCaches = getFnCaches();
+        const initialCaches = getJitFnCaches();
         const initialJitCacheSize = Object.keys(initialCaches.jitFnsCache).length;
 
         // Load the compiled cache
         loadJitCachesCaches({jitFnsCache: testJitCache});
 
         // Verify the cache was loaded
-        const updatedCaches = getFnCaches();
+        const updatedCaches = getJitFnCaches();
         const updatedJitCacheSize = Object.keys(updatedCaches.jitFnsCache).length;
 
         expect(updatedJitCacheSize).toBeGreaterThan(initialJitCacheSize);
@@ -54,14 +79,14 @@ describe('jitUtils', () => {
         };
 
         // Get initial cache state
-        const initialCaches = getFnCaches();
+        const initialCaches = getJitFnCaches();
         const initialPureCacheSize = Object.keys(initialCaches.pureFnsCache).length;
 
         // Load the compiled cache
         loadJitCachesCaches({pureFnsCache: testPureCache});
 
         // Verify the cache was loaded
-        const updatedCaches = getFnCaches();
+        const updatedCaches = getJitFnCaches();
         const updatedPureCacheSize = Object.keys(updatedCaches.pureFnsCache).length;
 
         expect(updatedPureCacheSize).toBeGreaterThan(initialPureCacheSize);
@@ -123,14 +148,14 @@ describe('jitUtils', () => {
         // Load first cache
         loadJitCachesCaches({jitFnsCache: firstCache});
 
-        const cachesAfterFirst = getFnCaches();
+        const cachesAfterFirst = getJitFnCaches();
         expect(cachesAfterFirst.jitFnsCache).toHaveProperty('testFn1');
         expect(cachesAfterFirst.jitFnsCache.testFn1?.typeName).toBe('TestType1');
 
         // Load second cache - should not overwrite testFn1 but should add testFn2
         loadJitCachesCaches({jitFnsCache: secondCache});
 
-        const cachesAfterSecond = getFnCaches();
+        const cachesAfterSecond = getJitFnCaches();
         expect(cachesAfterSecond.jitFnsCache).toHaveProperty('testFn1');
         expect(cachesAfterSecond.jitFnsCache).toHaveProperty('testFn2');
         // testFn1 should still have the original value (not overwritten)

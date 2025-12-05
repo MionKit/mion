@@ -14,9 +14,9 @@ import {
     SerializableJitHashes,
     SrcCodeJITCompiledFnsCache,
     SrcCodePureFunctionsCache,
-    getFnCaches,
+    getJitFnCaches,
     jitUtils,
-    resetFnCaches,
+    resetJitFnCaches,
 } from '@mionkit/core';
 import {BaseRunType, JitFunctions, registerPureFnClosure, runType} from '@mionkit/run-types';
 import {
@@ -31,7 +31,7 @@ import {
     Routes,
 } from '@mionkit/router';
 
-afterEach(() => resetFnCaches());
+afterEach(() => resetJitFnCaches());
 
 it('should compile JIT functions cache to code', () => {
     // a real scenario would use compileAndWriteJitFunctions instead compileTypeToJs to persis to fileSystem
@@ -50,7 +50,7 @@ it('should compile JIT functions cache to code', () => {
     const rt = runType<User>() as BaseRunType;
     const isTypeFn: JitCompiledFn = rt.createJitCompiledFunction(JitFunctions.isType.id);
 
-    const {jitFnsCache} = getFnCaches();
+    const {jitFnsCache} = getJitFnCaches();
     const mockCache = {isUser: isTypeFn};
 
     function compileCacheESM() {
@@ -145,7 +145,7 @@ it('should compile pure functions cache to code', () => {
 
     const compiledPureFn = registerPureFnClosure(pureFnWIthContext);
     const mockCache = {addNumbers: compiledPureFn};
-    const {pureFnsCache} = getFnCaches();
+    const {pureFnsCache} = getJitFnCaches();
 
     function compilePureESM() {
         // Call the function under test
