@@ -7,8 +7,7 @@
 
 import {RpcError, isRpcError, isAnyError} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
-import {ClientOptions, JitFunctionsById, RemoteMethodJIT, RequestBody} from './types';
-import type {PublicMethod} from '@mionkit/router';
+import {ClientOptions, RequestBody} from './types';
 import type {JitCompiledFnData, SerializablePublicMethod, PureFunctionData, SerializableMethodsData} from '@mionkit/core';
 import {jitUtils, loadPersistedCaches} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
@@ -33,14 +32,9 @@ if (!restoreFromJsonFn) {
 }
 
 /**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
-export async function fetchRemoteMethodsMetadata(
-    methodIds: string[],
-    options: ClientOptions,
-    metadataById: Map<string, PublicMethod>,
-    jitFunctionsById: JitFunctionsById
-) {
-    restoreFromLocalStorage(methodIds, options, metadataById, jitFunctionsById);
-    const missingAfterLocal = methodIds.filter((path) => !metadataById.has(path));
+export async function fetchRemoteMethodsMetadata(methodIds: string[], options: ClientOptions) {
+    restoreFromLocalStorage(methodIds, options);
+    const missingAfterLocal = methodIds.filter((path) => !routerCache[path]);
     if (!missingAfterLocal.length) return;
     // TODO change for a configurable name
     const shouldReturnAllMethods = true;
@@ -80,8 +74,8 @@ export async function fetchRemoteMethodsMetadata(
         storeMethodsMetadata(serializableMethodsData.methods, options);
         // Deserialize methods and their dependencies
         deserializeMethods(serializableMethodsData.deps, serializableMethodsData.purFnDeps);
-        // Assign JIT functions to metadata
-        createRemoteJItFunctions(serializableMethodsData, metadataById, jitFunctionsById);
+        // Store method metadata in the routerCache
+        storeInRouterCache(serializableMethodsData);
     } catch (error: any) {
         throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
     }
@@ -228,17 +222,12 @@ export function restoreAllDependencies(options: ClientOptions) {
  * Restores method metadata from localStorage using the new storage format
  * Dependencies are assumed to be already loaded globally via restoreAllDependencies()
  */
-function restoreFromLocalStorage(
-    methodIds: string[],
-    options: ClientOptions,
-    metadataById: Map<string, PublicMethod>,
-    jitFunctionsById: JitFunctionsById
-) {
+function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
     const methods: Record<string, SerializablePublicMethod> = {};
     let anyMethodsRestored = false;
 
     methodIds.forEach((id) => {
-        if (metadataById.has(id)) return;
+        if (routerCache[id]) return;
         // Try to load method metadata using new storage key format
         const methodKey = getSerializedMethodDataKey(id, options);
         const methodMetaJson = localStorage.getItem(methodKey);
@@ -261,37 +250,16 @@ function restoreFromLocalStorage(
             deps: {}, // Dependencies are already loaded globally
             purFnDeps: {}, // Dependencies are already loaded globally
         };
-        createRemoteJItFunctions(serializableMethodsData, metadataById, jitFunctionsById);
+        storeInRouterCache(serializableMethodsData);
     }
 }
 
-function createRemoteJItFunctions(
-    serializableMethodsData: SerializableMethodsData,
-    metadataById: Map<string, PublicMethod>,
-    jitFunctionsById: JitFunctionsById
-) {
+/**
+ * Stores method metadata in the routerCache
+ */
+function storeInRouterCache(serializableMethodsData: SerializableMethodsData) {
     Object.entries(serializableMethodsData.methods).forEach(([id, methodMeta]: [string, SerializablePublicMethod]) => {
-        metadataById.set(id, methodMeta as PublicMethod);
-        const remoteMethodsJit: RemoteMethodJIT = {
-            params: {
-                isType: jitUtils.getJIT(methodMeta.paramsJitHashes.isType)!,
-                typeErrors: jitUtils.getJIT(methodMeta.paramsJitHashes.typeErrors)!,
-                prepareForJson: jitUtils.getJIT(methodMeta.paramsJitHashes.prepareForJson)!,
-                restoreFromJson: jitUtils.getJIT(methodMeta.paramsJitHashes.restoreFromJson)!,
-                jsonStringify: jitUtils.getJIT(methodMeta.paramsJitHashes.jsonStringify)!,
-                toBinary: jitUtils.getJIT(methodMeta.paramsJitHashes.toBinary)!,
-                fromBinary: jitUtils.getJIT(methodMeta.paramsJitHashes.fromBinary)!,
-            },
-            return: {
-                isType: jitUtils.getJIT(methodMeta.returnJitHashes.isType)!,
-                typeErrors: jitUtils.getJIT(methodMeta.returnJitHashes.typeErrors)!,
-                prepareForJson: jitUtils.getJIT(methodMeta.returnJitHashes.prepareForJson)!,
-                restoreFromJson: jitUtils.getJIT(methodMeta.returnJitHashes.restoreFromJson)!,
-                jsonStringify: jitUtils.getJIT(methodMeta.returnJitHashes.jsonStringify)!,
-                toBinary: jitUtils.getJIT(methodMeta.returnJitHashes.toBinary)!,
-                fromBinary: jitUtils.getJIT(methodMeta.returnJitHashes.fromBinary)!,
-            },
-        };
-        jitFunctionsById.set(id, remoteMethodsJit);
+        // Store in routerCache - SerializablePublicMethod is compatible with MethodData
+        routerCache[id] = methodMeta as any;
     });
 }
