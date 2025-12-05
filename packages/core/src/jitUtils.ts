@@ -245,6 +245,8 @@ export function loadJitCachesCaches(caches: {jitFnsCache?: JitFunctionsCache; pu
 
 /**
  * Loads persisted JIT and pure functions into the respective caches.
+ * First loads the caches (with fn: undefined), then restores them.
+ * This ensures all dependencies are available in the global cache when closureFn is invoked.
  * @param persistedJitFnsCache
  * @param persistedPureFnsCache
  */
@@ -252,8 +254,11 @@ export function loadPersistedCaches(
     persistedJitFnsCache: PersistedJitFunctionsCache,
     persistedPureFnsCache: PersistedPureFunctionsCache
 ) {
-    const restoredJitFns = restoreCompiledJitFns(persistedJitFnsCache, persistedPureFnsCache);
-    loadJitCachesCaches({jitFnsCache: restoredJitFns, pureFnsCache: persistedPureFnsCache});
+    // First load the caches so all entries are available in the global cache
+    // This is needed because closureFn uses jitUtils.getJIT() to resolve dependencies
+    loadJitCachesCaches({jitFnsCache: persistedJitFnsCache as any, pureFnsCache: persistedPureFnsCache});
+    // Then restore/initialize the functions (invoke closureFn to set the fn property)
+    restoreCompiledJitFns(persistedJitFnsCache, persistedPureFnsCache);
 }
 
 /**
