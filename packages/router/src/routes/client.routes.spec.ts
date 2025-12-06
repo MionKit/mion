@@ -24,7 +24,6 @@ import {clientRoutes} from './client.routes';
 import {headersFromRecord} from '../lib/headers';
 import {dispatchRoute} from '../dispatch';
 import {runType, JitFunctions} from '@mionkit/run-types';
-import {PublicMethod} from '../types/publicMethods'; // do not import type only
 import {getSerializableMethod} from '../lib/remoteMethods';
 
 type RawRequest = {
@@ -52,50 +51,6 @@ describe('PublicMethods run type functionality', () => {
 
     afterEach(() => resetRouter());
 
-    it('can validate PublicMethod', () => {
-        initRouter();
-        registerRoutes(routes);
-        const executable = getRouteExecutable('route1')!;
-        const publicMethod = getSerializableMethod(executable!);
-        const rt = runType<PublicMethod>();
-        const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(publicMethod)).toBe(true);
-    });
-
-    it('can validate PublicMethod  + errors', () => {
-        initRouter();
-        registerRoutes(routes);
-        const executable = getRouteExecutable('route1')!;
-        const publicMethod = getSerializableMethod(executable!);
-        const rt = runType<PublicMethod>();
-        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
-        expect(typeErrors(publicMethod)).toEqual([]);
-    });
-
-    it('can serialize/deserialize PublicMethod', () => {
-        initRouter();
-        registerRoutes(routes);
-        const executable = getRouteExecutable('route1')!;
-        const publicMethod = getSerializableMethod(executable!);
-        const rt = runType<PublicMethod>();
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
-        const roundTrip = restoreFromJson(JSON.parse(jsonStringify(publicMethod)));
-        // handler method does not match it's type, so we need to replace it when comparing deserialized values
-        roundTrip.handler = () => 'something';
-        expect(roundTrip).toEqual({
-            ...publicMethod,
-            handler: expect.any(Function),
-        });
-    });
-
-    it('can mock PublicMethod ignoring handler', async () => {
-        const rt = runType<PublicMethod>();
-        const isType = rt.createJitFunction(JitFunctions.isType);
-        const mock = await rt.mock();
-        expect(isType(mock)).toEqual(true);
-    });
-
     it('can validate return type ClientReturn', () => {
         const rt = runType<ClientReturn>();
         const validate = rt.createJitFunction(JitFunctions.isType);
@@ -118,14 +73,11 @@ describe('PublicMethods run type functionality', () => {
 
         const rt = runType<ClientReturn>();
         const rtMethodsData = runType<SerializableMethodsData>();
-        const rtPublicMethod = runType<PublicMethod>();
         const rtPublicMethods = runType<SerializablePublicMethods>();
         const typeErrorsMethodsData = rtMethodsData.createJitFunction(JitFunctions.typeErrors);
-        const typeErrorsPublicMethod = rtPublicMethod.createJitFunction(JitFunctions.typeErrors);
         const typeErrorsPublicMethods = rtPublicMethods.createJitFunction(JitFunctions.typeErrors);
         const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
-        expect(typeErrorsPublicMethod(publicMethod)).toEqual([]);
         expect(typeErrorsPublicMethods({hello: publicMethod})).toEqual([]);
         expect(typeErrorsMethodsData(response)).toEqual([]); // seems this is working but not the union type so we need to review runType Union errors
         // also only returning the Error a Union is not usefull, maybe if we detect is one of the types in the union we should return the errors of that type

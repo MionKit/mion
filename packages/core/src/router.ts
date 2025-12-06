@@ -9,7 +9,8 @@ import {PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT} from './con
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
 import type {SerializablePublicMethod} from './types';
 
-// Local router cache - can be populated from AOT caches via loadRoutesCache()
+// TODO: SerializablePublicMethod is the Metadadta but jitfunctions needs to be restores in transformed into MethodWithJitFns
+// but we don't have those types here
 const routerCache: Record<string, SerializablePublicMethod> = {};
 
 let routesCacheLoaded = false;
