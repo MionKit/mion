@@ -9,56 +9,8 @@ import type {PublicResponses} from '@mionkit/router';
 import type {JitCompiledFunctions, JSONValue, SerializablePublicMethod} from '@mionkit/core';
 import {RpcError, isRpcError, jitUtils, routerUtils} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
-import {ClientOptions, RequestErrors, SubRequest} from './types';
-
-/**
- * Get method metadata from routerCache
- */
-function getMetadata(id: string): SerializablePublicMethod | undefined {
-    return routerUtils.getMetadata(id);
-}
-
-/**
- * Get params JIT functions for a method using its JIT hashes
- */
-function getParamsJitFunctions(id: string): JitCompiledFunctions | undefined {
-    const metadata = routerUtils.getMetadata(id);
-    if (!metadata?.paramsJitHashes) return undefined;
-    const hashes = metadata.paramsJitHashes;
-    return {
-        isType: jitUtils.getJIT(hashes.isType),
-        typeErrors: jitUtils.getJIT(hashes.typeErrors),
-        prepareForJson: jitUtils.getJIT(hashes.prepareForJson),
-        restoreFromJson: jitUtils.getJIT(hashes.restoreFromJson),
-        jsonStringify: jitUtils.getJIT(hashes.jsonStringify),
-        toBinary: jitUtils.getJIT(hashes.toBinary),
-        fromBinary: jitUtils.getJIT(hashes.fromBinary),
-    } as JitCompiledFunctions;
-}
-
-/**
- * Get return JIT functions for a method using its JIT hashes
- */
-function getReturnJitFunctions(id: string): JitCompiledFunctions | undefined {
-    const metadata = routerUtils.getMetadata(id);
-    if (!metadata?.returnJitHashes) return undefined;
-    const hashes = metadata.returnJitHashes;
-    return {
-        isType: jitUtils.getJIT(hashes.isType),
-        typeErrors: jitUtils.getJIT(hashes.typeErrors),
-        prepareForJson: jitUtils.getJIT(hashes.prepareForJson),
-        restoreFromJson: jitUtils.getJIT(hashes.restoreFromJson),
-        jsonStringify: jitUtils.getJIT(hashes.jsonStringify),
-        toBinary: jitUtils.getJIT(hashes.toBinary),
-        fromBinary: jitUtils.getJIT(hashes.fromBinary),
-    } as JitCompiledFunctions;
-}
-
-/** Minimal interface for the request object used by validation/serialization functions */
-export interface ReflectionRequest {
-    options: ClientOptions;
-    subRequests: {[key: string]: SubRequest<any>};
-}
+import {RequestErrors, SubRequest} from './types';
+import type {MionRequest} from './request';
 
 // ############# VALIDATION SERIALIZATION #############
 
@@ -68,14 +20,14 @@ export interface ReflectionRequest {
  */
 export function validateSubRequests(
     subRequestIds: string[],
-    req: ReflectionRequest,
+    req: MionRequest<any, any>,
     errors: RequestErrors,
     validateRouteHooks = true
 ): void {
     if (!req.options.validateParams) return;
     subRequestIds.forEach((id) => {
         validateSubRequest(id, req, errors);
-        const methodMeta = getMetadata(id);
+        const methodMeta = routerUtils.getMetadata(id);
         if (validateRouteHooks && methodMeta?.hookIds?.length) {
             validateSubRequests(methodMeta.hookIds, req, errors, validateRouteHooks);
         }
@@ -87,7 +39,7 @@ export function validateSubRequests(
  * Validate subRequest locally using existing RemoteApi metadata.
  * If there is an error then subRequest is marked as resolved and error is added as subRequest response.
  */
-export function validateSubRequest(id: string, req: ReflectionRequest, errors: RequestErrors): void {
+export function validateSubRequest(id: string, req: MionRequest<any, any>, errors: RequestErrors): void {
     // subRequest might be undefined if does not require to send parameters or are optional
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     if (subRequest?.error || subRequest?.isResolved) return;
@@ -106,17 +58,17 @@ export function validateSubRequest(id: string, req: ReflectionRequest, errors: R
 }
 
 /** Serialize subRequests. If there are any errors subRequests are marked as resolved. */
-export function serializeSubRequests(subRequestIds: string[], req: ReflectionRequest, errors: RequestErrors): void {
+export function serializeSubRequests(subRequestIds: string[], req: MionRequest<any, any>, errors: RequestErrors): void {
     subRequestIds.forEach((id) => {
         serializeSubRequest(id, req, errors);
-        const methodMeta = getMetadata(id);
+        const methodMeta = routerUtils.getMetadata(id);
         if (methodMeta?.hookIds?.length) serializeSubRequests(methodMeta.hookIds, req, errors);
     });
     return;
 }
 
 /** Serialize a single subRequest. If there are is an error subRequest is marked as resolved. */
-export function serializeSubRequest(id: string, req: ReflectionRequest, errors: RequestErrors): void {
+export function serializeSubRequest(id: string, req: MionRequest<any, any>, errors: RequestErrors): void {
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     // at this point subRequest might been validated so if not defined then is not required
     if (!subRequest) return;
@@ -139,7 +91,7 @@ export function serializeSubRequest(id: string, req: ReflectionRequest, errors: 
 export function deserializeResponseBody(responseBody: PublicResponses): PublicResponses {
     const deSerializedBody = responseBody;
     Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
-        const methodMeta = getMetadata(key);
+        const methodMeta = routerUtils.getMetadata(key);
         if (!methodMeta) throw new Error(`Metadata for remote method ${key} not found.`);
         const deSerialized = deSerializeReturn(remoteHandlerResponse, methodMeta, getReturnJitFunctions(methodMeta.id));
         deSerializedBody[key] = deSerialized;
@@ -151,10 +103,10 @@ export function deserializeResponseBody(responseBody: PublicResponses): PublicRe
 
 function getSerializationRequiredData(
     id: string,
-    req: ReflectionRequest
+    req: MionRequest<any, any>
 ): {methodMeta: SerializablePublicMethod; subRequest?: SubRequest<any>} {
-    const methodMeta = getMetadata(id);
-    const subRequest = req.subRequests[id];
+    const methodMeta = routerUtils.getMetadata(id);
+    const subRequest = req.subRequestList[id];
     if (!methodMeta) throw new Error(`Metadata for remote method ${id} not found.`);
     return {methodMeta, subRequest};
 }
@@ -224,4 +176,40 @@ function deSerializeReturn(
             errorData: e?.errors,
         });
     }
+}
+
+/**
+ * Get params JIT functions for a method using its JIT hashes
+ */
+function getParamsJitFunctions(id: string): JitCompiledFunctions | undefined {
+    const metadata = routerUtils.getMetadata(id);
+    if (!metadata?.paramsJitHashes) return undefined;
+    const hashes = metadata.paramsJitHashes;
+    return {
+        isType: jitUtils.getJIT(hashes.isType),
+        typeErrors: jitUtils.getJIT(hashes.typeErrors),
+        prepareForJson: jitUtils.getJIT(hashes.prepareForJson),
+        restoreFromJson: jitUtils.getJIT(hashes.restoreFromJson),
+        jsonStringify: jitUtils.getJIT(hashes.jsonStringify),
+        toBinary: jitUtils.getJIT(hashes.toBinary),
+        fromBinary: jitUtils.getJIT(hashes.fromBinary),
+    } as JitCompiledFunctions;
+}
+
+/**
+ * Get return JIT functions for a method using its JIT hashes
+ */
+function getReturnJitFunctions(id: string): JitCompiledFunctions | undefined {
+    const metadata = routerUtils.getMetadata(id);
+    if (!metadata?.returnJitHashes) return undefined;
+    const hashes = metadata.returnJitHashes;
+    return {
+        isType: jitUtils.getJIT(hashes.isType),
+        typeErrors: jitUtils.getJIT(hashes.typeErrors),
+        prepareForJson: jitUtils.getJIT(hashes.prepareForJson),
+        restoreFromJson: jitUtils.getJIT(hashes.restoreFromJson),
+        jsonStringify: jitUtils.getJIT(hashes.jsonStringify),
+        toBinary: jitUtils.getJIT(hashes.toBinary),
+        fromBinary: jitUtils.getJIT(hashes.fromBinary),
+    } as JitCompiledFunctions;
 }

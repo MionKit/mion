@@ -6,6 +6,7 @@ import {
     JitFunctionsHashes,
     HeadersMethodData,
     SerializablePublicMethod,
+    Prettify,
 } from '@mionkit/core'; // do not import type only
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
 import {HandlerType} from '@mionkit/core';
@@ -81,14 +82,14 @@ export type CompiledMethod = Omit<Method, 'handler' | 'methodCaller'> & {
     returnJitFns: SerializableJITFunctions;
 };
 
-export type RouteOptions = Partial<Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn'>>;
-export type HookOptions = Partial<
-    Pick<HookMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
+export type RouteOptions = Prettify<Partial<Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn'>>>;
+export type HookOptions = Prettify<
+    Partial<Pick<HookMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>>
 >;
-export type HeaderHookOptions = Partial<
-    Pick<HeaderMethod['options'], 'description' | 'validateParams' | 'runOnError' | 'validateReturn'>
+export type HeaderHookOptions = Prettify<
+    Partial<Pick<HeaderMethod['options'], 'description' | 'validateParams' | 'runOnError' | 'validateReturn'>>
 >;
-export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>;
+export type RawHookOptions = Prettify<Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>>;
 
 export interface MethodsExecutionList {
     routeIndex: number;

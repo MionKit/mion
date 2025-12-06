@@ -51,7 +51,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             serializeSubRequests(subRequestIds, this, errors);
             if (errors.size) return Promise.reject(errors);
         } catch (error: any) {
-            this.rpcError(error, 'Error preparing request', errors);
+            this.onError(error, 'Error preparing request', errors);
             return Promise.reject(errors);
         }
 
@@ -71,7 +71,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             this.response = await fetch(url, fetchOptions);
             this.rawResponseBody = await this.response.json();
         } catch (error: any) {
-            this.rpcError(error, 'Error executing request', errors);
+            this.onError(error, 'Error executing request', errors);
             return Promise.reject(errors);
         }
 
@@ -86,14 +86,14 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                     methodMeta.error = resp;
                     errors.set(id, resp);
                 } else {
-                    methodMeta.return = resp;
+                    methodMeta.result = resp;
                 }
             });
 
             if (errors.size) return Promise.reject(errors);
             return deserialized;
         } catch (error) {
-            this.rpcError(error, 'Error parsing response', errors);
+            this.onError(error, 'Error parsing response', errors);
             return Promise.reject(errors);
         }
     }
@@ -113,7 +113,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                 .map((subRequest) => subRequest.error?.errorData || [])
                 .flat();
         } catch (error: any) {
-            this.rpcError(error, 'Error preparing request', errors);
+            this.onError(error, 'Error preparing request', errors);
             return Promise.reject(errors);
         }
     }
@@ -137,7 +137,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
             return;
         } catch (error: any) {
-            this.rpcError(error, 'Error preparing request', errors);
+            this.onError(error, 'Error preparing request', errors);
             return Promise.reject(errors);
         }
     }
@@ -161,7 +161,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
     // ############# PRIVATE METHODS #############
 
-    private rpcError(error: any, stageMessage: string, errors: RequestErrors): void {
+    private onError(error: any, stageMessage: string, errors: RequestErrors): void {
         const message = error?.message ? `${stageMessage}: ${error.message}` : `${stageMessage}: Unknown Error`;
         errors.set(
             this.requestId,
