@@ -17,13 +17,13 @@ import {
     ClientRoutes,
     ClientHooks,
 } from './types';
-import type {PublicApi} from '@mionkit/router';
+import type {RemoteApi} from '@mionkit/router';
 import {RpcError} from '@mionkit/core';
 import {getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
 import type {RunTypeError} from '@mionkit/core';
 
-export function initClient<RM extends PublicApi<any>>(
+export function initClient<RM extends RemoteApi>(
     options: InitOptions
 ): {client: MionClient; routes: ClientRoutes<RM>; hooks: ClientHooks<RM>} {
     const clientOptions = {
@@ -53,7 +53,7 @@ class MionClient {
         return request
             .call()
             .then(
-                () => [routeSubRequest.return, ...hookSubRequests.map((hook) => hook.return)] as SuccessClientResponse<RR, RHList>
+                () => [routeSubRequest.result, ...hookSubRequests.map((hook) => hook.result)] as SuccessClientResponse<RR, RHList>
             );
     }
 
@@ -86,7 +86,7 @@ class MethodProxy {
                 id: getRouterItemId(this.parentProps),
                 isResolved: false,
                 params: argArray,
-                return: undefined, // resolved once request gets resolved
+                result: undefined, // resolved once request gets resolved
                 error: undefined, // resolved once request gets resolved
                 prefill: (): Promise<void> => {
                     return this.client.prefill(subRequest).catch((errors) => Promise.reject(findError(subRequest, errors)));
@@ -101,7 +101,7 @@ class MethodProxy {
                 call: (): Promise<any> => {
                     return this.client
                         .call(subRequest, ...storedHooks)
-                        .then(() => subRequest.return)
+                        .then(() => subRequest.result)
                         .catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
                 typeErrors: (): Promise<RunTypeError[]> => {

@@ -6,8 +6,8 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import type {RunTypeError} from '@mionkit/core';
-import type {PublicHeaderMethod, PublicHookMethod, PublicMethod, PublicApi, PublicRouteMethod} from '@mionkit/router';
+import type {Prettify, RunTypeError} from '@mionkit/core';
+import type {PublicHeadersHook, PublicHook, PublicMethod, RemoteApi, PublicRoute} from '@mionkit/router';
 
 export type StorageType = 'localStorage' | 'sessionStorage';
 
@@ -30,13 +30,15 @@ export type ClientOptions = {
     autoGenerateErrorId: boolean;
 };
 
+type PublicHandler = (...args: any[]) => Promise<any>;
+
 export type InitOptions = Partial<ClientOptions> & {baseURL: string};
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
-export type HandlerResponse<RM extends PublicMethod> = Awaited<ReturnType<RM['handler']>>;
-export type HandlerSuccessResponse<RM extends PublicMethod> = Exclude<HandlerResponse<RM>, RpcError<string> | Error>;
-export type HandlerFailResponse<RM extends PublicMethod> = Extract<HandlerResponse<RM>, RpcError<string> | Error>;
-export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['return'];
+export type HandlerResponse<PH extends PublicHandler> = Awaited<ReturnType<PH>>;
+export type HandlerSuccessResponse<PH extends PublicHandler> = Exclude<HandlerResponse<PH>, RpcError<string>>;
+export type HandlerFailResponse<PH extends PublicHandler> = Extract<HandlerResponse<PH>, RpcError<string>>;
+export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['result'];
 export type SuccessResponses<List extends SubRequest<any>[]> = {[P in keyof List]: SuccessResponse<List[P]>};
 export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
@@ -46,13 +48,13 @@ export type RequestErrors = Map<string, RpcError<string>>;
 
 /** Represents a remote method (sub request).
  * A route request can contains multiple subRequest to the route itself and any required hook*/
-export interface SubRequest<RM extends PublicMethod> {
+export interface SubRequest<PH extends PublicHandler> {
     pointer: string[];
-    id: RM['id'];
+    id: string;
     isResolved: boolean;
-    params: Parameters<RM['handler']>;
-    return?: HandlerSuccessResponse<RM>;
-    error?: HandlerFailResponse<RM>;
+    params: Parameters<PH>;
+    result?: HandlerSuccessResponse<PH>;
+    error?: HandlerFailResponse<PH>;
     serializedParams?: any[];
     // note this type can't contain functions, so it can be stored/restored from localStorage
 }
@@ -60,7 +62,7 @@ export interface SubRequest<RM extends PublicMethod> {
 /** structure returned from the proxy, containing info of the remote route to execute
  * Note routePointer is using as differentiating key from hookPointer in HookInfo, so types can't overlap.
  */
-export interface RouteSubRequest<RR extends PublicRouteMethod> extends SubRequest<RR> {
+export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /**
      * Validates Route's parameters and returns type errors. Throws RpcError if validation fails.
      */
@@ -70,7 +72,7 @@ export interface RouteSubRequest<RR extends PublicRouteMethod> extends SubReques
      * @param hooks HookSubRequests to be used by the route
      * @returns The same RouteSubRequest for chaining
      */
-    hooks: <RHList extends HookSubRequest<any>[]>(...hooks: RHList) => RouteSubRequest<RR>;
+    hooks: <RHList extends HookSubRequest<any>[]>(...hooks: RHList) => RouteSubRequest<PH>;
     /**
      * Calls a remote route.
      * Validates route and required hooks request parameters locally before calling the remote route.
@@ -78,13 +80,13 @@ export interface RouteSubRequest<RR extends PublicRouteMethod> extends SubReques
      * Uses hooks set via the hooks() method.
      * @returns
      */
-    call: () => Promise<HandlerSuccessResponse<RR>>;
+    call: () => Promise<HandlerSuccessResponse<PH>>;
 }
 
 /** structure returned from the proxy, containing info of the remote hook to execute
  * Note hookPointer is using as differentiating key from routePointer in RouteInfo, so types can't overlap.
  */
-export interface HookSubRequest<RH extends PublicHookMethod | PublicHeaderMethod> extends SubRequest<RH> {
+export interface HookSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /**
      * Validates Hook's parameters and returns type errors. Throws RpcError if validation fails.
      */
@@ -106,38 +108,33 @@ export interface HookSubRequest<RH extends PublicHookMethod | PublicHeaderMethod
 }
 
 export interface SuccessSubRequest<RM extends PublicMethod> extends SubRequest<RM> {
-    return: HandlerSuccessResponse<RM>;
+    result: HandlerSuccessResponse<RM>;
     error: undefined;
 }
 
-export type HookCall<RH extends PublicHookMethod | PublicHeaderMethod> = (
-    ...params: Parameters<RH['handler']>
-) => HookSubRequest<RH>;
-export type RouteCall<RR extends PublicRouteMethod> = (...params: Parameters<RR['handler']>) => RouteSubRequest<RR>;
+export type NonClientRoute = never | PublicHook | PublicHeadersHook;
 
-export type NonClientRoute = never | PublicHookMethod | PublicHeaderMethod;
-
-export type ClientRoutes<RMS extends PublicApi<any>> = {
-    [Property in keyof RMS as RMS[Property] extends NonClientRoute ? never : Property]: RMS[Property] extends PublicRouteMethod
-        ? RouteCall<RMS[Property]>
-        : RMS[Property] extends PublicApi<any>
+export type ClientRoutes<RMS extends RemoteApi> = Prettify<{
+    [Property in keyof RMS as RMS[Property] extends NonClientRoute ? never : Property]: RMS[Property] extends PublicRoute
+        ? (...params: Parameters<RMS[Property]['handler']>) => RouteSubRequest<RMS[Property]['handler']>
+        : RMS[Property] extends RemoteApi
           ? ClientRoutes<RMS[Property]>
           : never;
-};
+}>;
 
-export type NonClientHook = never | PublicRouteMethod | {[key: string]: PublicRouteMethod};
+export type NonClientHook = never | PublicRoute | {[key: string]: PublicRoute};
 
-export type ClientHooks<RMS extends PublicApi<any>> = {
+export type ClientHooks<RMS extends RemoteApi> = Prettify<{
     [Property in keyof RMS as RMS[Property] extends NonClientHook ? never : Property]: RMS[Property] extends
-        | PublicHookMethod
-        | PublicHeaderMethod
-        ? HookCall<RMS[Property]>
-        : RMS[Property] extends PublicApi<any>
+        | PublicHook
+        | PublicHeadersHook
+        ? (...params: Parameters<RMS[Property]['handler']>) => HookSubRequest<RMS[Property]['handler']>
+        : RMS[Property] extends RemoteApi
           ? ClientHooks<RMS[Property]>
           : never;
-};
+}>;
 
-export type Cleaned<RMS extends PublicApi<any>> = {
+export type Cleaned<RMS extends RemoteApi> = {
     [Property in keyof RMS as RMS[Property] extends never ? never : Property]: RMS[Property];
 };
 
