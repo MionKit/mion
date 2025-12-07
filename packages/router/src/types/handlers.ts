@@ -8,7 +8,7 @@
 import {CallContext} from './context';
 import {HeadersList} from './HeadersList';
 import {RouterOptions} from './general';
-import {ErrorReturn} from './publicMethods';
+import {MayReturnError} from './publicMethods';
 
 // #######  Route Handlers #######
 
@@ -42,7 +42,7 @@ export type RawHookHandler<
     RawReq = any,
     RawResp = any,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
-> = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
+> = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => MayReturnError;
 
 // Handler technically covers any of the other handlers
 export type AnyHandler<Context extends CallContext = any, Params extends any[] = any, Ret = any> = Handler<Context, Params, Ret>;

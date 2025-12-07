@@ -7,7 +7,7 @@
 
 import type {MionResponse, MionRequest, CallContext} from '../types/context';
 import type {RouterOptions} from '../types/general';
-import type {HooksCollection, ErrorReturn} from '../types/publicMethods';
+import type {HooksCollection, MayReturnError} from '../types/publicMethods';
 import type {ResponseBody} from '../types/context';
 import {AnyObject, Mutable} from '@mionkit/core';
 import {rawHook} from '../lib/handlers';
@@ -24,7 +24,7 @@ import {getNotFoundExecutionPath} from '../lib/notFound';
  * This method is called before any other hook or route handler.
  * @mion:hook
  */
-export function deserializeRequestBody(context: CallContext): ErrorReturn {
+export function deserializeRequestBody(context: CallContext): MayReturnError {
     if (!context.request.rawBody) return; // empty body
     let parsedBody: any;
     switch (context.request.bodyType) {
@@ -69,7 +69,7 @@ export function deserializeRequestBody(context: CallContext): ErrorReturn {
  * This method is called after any other hook or route handler.
  * @mion:hook
  */
-export function serializeResponseBody(context: CallContext, opts: RouterOptions): ErrorReturn {
+export function serializeResponseBody(context: CallContext, opts: RouterOptions): MayReturnError {
     const response = context.response as Mutable<MionResponse>;
     const respBody: AnyObject = response.body;
     const bodyType = context.response.bodyType;
