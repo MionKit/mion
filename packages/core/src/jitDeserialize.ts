@@ -40,10 +40,10 @@ function deserializeJitMethod(
     if (jitUtils.hasJitFn(jitFnHash)) return;
 
     // Create closure function and add to cache with fn undefined to prevent circular recursion
-    const closureFn = createJitClosureFunction(serializedMethod);
+    const createJitFn = createJitClosureFunction(serializedMethod);
     const jitCompiledFn: JitCompiledFn = {
         ...serializedMethod,
-        closureFn,
+        createJitFn,
         fn: undefined as any, // Will be initialized after dependencies are resolved
     };
 
@@ -71,7 +71,7 @@ function deserializeJitMethod(
     });
 
     // Now initialize the fn property after all dependencies are resolved
-    (jitCompiledFn as any).fn = closureFn(jitUtils);
+    (jitCompiledFn as any).fn = createJitFn(jitUtils);
 }
 
 /**
@@ -86,10 +86,10 @@ function deserializePureFn(serializedPureFn: PureFunctionData, purFnDeps: Record
     if (jitUtils.hasPureFn(pureFnHash)) return;
 
     // Create closure function and add to cache with fn undefined to prevent circular recursion
-    const closureFn = createPureClosureFunction(serializedPureFn);
+    const createJitFn = createPureClosureFunction(serializedPureFn);
     const compiledPureFn: CompiledPureFunction = {
         ...serializedPureFn,
-        closureFn,
+        createJitFn,
         fn: undefined, // Will be initialized after dependencies are resolved
     };
 
@@ -121,8 +121,8 @@ function createJitClosureFunction(serializedMethod: JitCompiledFnData): (utl: JI
     try {
         // Create the closure function that takes jitUtils as parameter
         // The code already contains the complete function implementation
-        const closureFn = new Function('utl', code) as (utl: JITUtils) => (...args: any[]) => any;
-        return closureFn;
+        const createJitFn = new Function('utl', code) as (utl: JITUtils) => (...args: any[]) => any;
+        return createJitFn;
     } catch (error: any) {
         throw new Error(`Failed to deserialize JIT function ${serializedMethod.jitFnHash}: ${error?.message}`);
     }
@@ -138,8 +138,8 @@ function createPureClosureFunction(serializedPureFn: PureFunctionData): (utl: JI
     try {
         // For pure functions, create a closure that takes jitUtils as parameter
         // The code contains the complete function implementation
-        const closureFn = new Function('utl', code) as (utl: JITUtils) => (...args: any[]) => any;
-        return closureFn;
+        const createJitFn = new Function('utl', code) as (utl: JITUtils) => (...args: any[]) => any;
+        return createJitFn;
     } catch (error: any) {
         throw new Error(`Failed to deserialize pure function ${serializedPureFn.pureFnHash}: ${error?.message}`);
     }

@@ -230,13 +230,13 @@ export const jitUtils: JITUtils = {
 /**
  * Adds new AOT JIT and pure functions into the respective caches.
  * First loads the caches (with fn: undefined), then restores them.
- * This ensures all dependencies are available in the global cache when closureFn is invoked.
+ * This ensures all dependencies are available in the global cache when createJitFn is invoked.
  * @param aotJitFnsCache
  * @param aotPureFnsCache
  */
 export function addAOTCaches(aotJitFnsCache: PersistedJitFunctionsCache, aotPureFnsCache: PersistedPureFunctionsCache) {
     // First load the caches so all entries are available in the global cache
-    // This is needed because closureFn uses jitUtils.getJIT() to resolve dependencies
+    // This is needed because createJitFn uses jitUtils.getJIT() to resolve dependencies
     for (const key in aotJitFnsCache) {
         if (!(key in jitFnsCache)) {
             // it will be transformed into JitCompiledFn by restoreCompiledJitFns()
@@ -248,7 +248,7 @@ export function addAOTCaches(aotJitFnsCache: PersistedJitFunctionsCache, aotPure
             pureFnsCache[key] = aotPureFnsCache[key];
         }
     }
-    // Then restore/initialize the functions (invoke closureFn to set the fn property)
+    // Then restore/initialize the functions (invoke createJitFn to set the fn property)
     restoreCompiledJitFns(aotJitFnsCache, aotPureFnsCache);
 }
 

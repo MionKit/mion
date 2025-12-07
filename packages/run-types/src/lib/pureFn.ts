@@ -34,7 +34,7 @@ export function registerPureFnClosure(
 ): CompiledPureFunction {
     const key = getPureFunctionKey(fnWithCtx);
     const existing = jitUtils.getCompiledPureFn(key);
-    if (existing && existing.closureFn && existing.closureFn !== fnWithCtx)
+    if (existing && existing.createJitFn && existing.createJitFn !== fnWithCtx)
         throw new Error(`Pure function with name ${key} already exists`);
     if (existing) return existing;
     const compiled = parsePureFunctionWithCtx(fnWithCtx);
@@ -50,13 +50,13 @@ export function registerPureFnClosure(
  * Parses a pure function and returns it's data.
  * We are using toString() to get the function code, this might not work in all environments.
  * Also using regexp to parse the function code, a proper AST could be better bu this is working for now and is simpler.
- * @param closureFn
+ * @param createJitFn
  * @returns
  */
-function parsePureFunctionWithCtx(closureFn: PureFunctionClosure): CompiledPureFunction {
-    if (!closureFn.name) throw new Error('Pure Functions must have a name');
+function parsePureFunctionWithCtx(createJitFn: PureFunctionClosure): CompiledPureFunction {
+    if (!createJitFn.name) throw new Error('Pure Functions must have a name');
 
-    const fnString = closureFn.toString();
+    const fnString = createJitFn.toString();
     const bodyStart = fnString.indexOf('{');
     const bodyEnd = fnString.lastIndexOf('}');
     if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) throw new Error("Invalid function, can't parse body");
@@ -86,9 +86,9 @@ function parsePureFunctionWithCtx(closureFn: PureFunctionClosure): CompiledPureF
         .trim()
         .replace(/[ \t]+/g, ' ');
     const compiled: CompiledPureFunction = {
-        closureFn: closureFn,
+        createJitFn: createJitFn,
         fn: null as any, // will be set later so all possible dependencies are resolved
-        pureFnHash: getPureFunctionKey(closureFn.name),
+        pureFnHash: getPureFunctionKey(createJitFn.name),
         paramNames,
         code: body,
         dependencies: new Set<string>(),
