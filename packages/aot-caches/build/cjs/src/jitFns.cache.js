@@ -564,7 +564,7 @@ const jitFnsCache = {
 	},
 	is_bzlNFR: {
 		isNoop: false,
-		typeName: "SerializableJitHashes",
+		typeName: "JitFunctionsHashes",
 		fnID: "is",
 		jitFnHash: "is_bzlNFR",
 		args: { vλl: "v" },
@@ -591,7 +591,7 @@ const jitFnsCache = {
 	},
 	is_JNJ3FN: {
 		isNoop: false,
-		typeName: "HeadersMethodData",
+		typeName: "HeadersMetaData",
 		fnID: "is",
 		jitFnHash: "is_JNJ3FN",
 		args: { vλl: "v" },
@@ -941,7 +941,7 @@ const jitFnsCache = {
 	},
 	hk_bzlNFR: {
 		isNoop: false,
-		typeName: "SerializableJitHashes",
+		typeName: "JitFunctionsHashes",
 		fnID: "hk",
 		jitFnHash: "hk_bzlNFR",
 		args: { θpts: "opts", vλl: "v" },
@@ -971,7 +971,7 @@ const jitFnsCache = {
 	},
 	hk_JNJ3FN: {
 		isNoop: false,
-		typeName: "HeadersMethodData",
+		typeName: "HeadersMetaData",
 		fnID: "hk",
 		jitFnHash: "hk_JNJ3FN",
 		args: { θpts: "opts", vλl: "v" },
@@ -1523,7 +1523,7 @@ const jitFnsCache = {
 	},
 	tj_bzlNFR: {
 		isNoop: true,
-		typeName: "SerializableJitHashes",
+		typeName: "JitFunctionsHashes",
 		fnID: "tj",
 		jitFnHash: "tj_bzlNFR",
 		args: { vλl: "v" },
@@ -1540,7 +1540,7 @@ const jitFnsCache = {
 	},
 	tj_JNJ3FN: {
 		isNoop: true,
-		typeName: "HeadersMethodData",
+		typeName: "HeadersMetaData",
 		fnID: "tj",
 		jitFnHash: "tj_JNJ3FN",
 		args: { vλl: "v" },
@@ -1785,7 +1785,7 @@ const jitFnsCache = {
 	},
 	fj_bzlNFR: {
 		isNoop: true,
-		typeName: "SerializableJitHashes",
+		typeName: "JitFunctionsHashes",
 		fnID: "fj",
 		jitFnHash: "fj_bzlNFR",
 		args: { vλl: "v" },
@@ -1802,7 +1802,7 @@ const jitFnsCache = {
 	},
 	fj_JNJ3FN: {
 		isNoop: true,
-		typeName: "HeadersMethodData",
+		typeName: "HeadersMetaData",
 		fnID: "fj",
 		jitFnHash: "fj_JNJ3FN",
 		args: { vλl: "v" },
@@ -2406,7 +2406,7 @@ const jitFnsCache = {
 	},
 	js_JNJ3FN: {
 		isNoop: false,
-		typeName: "HeadersMethodData",
+		typeName: "HeadersMetaData",
 		fnID: "js",
 		jitFnHash: "js_JNJ3FN",
 		args: { vλl: "v" },
@@ -2481,7 +2481,7 @@ const jitFnsCache = {
 	},
 	js_bzlNFR: {
 		isNoop: false,
-		typeName: "SerializableJitHashes",
+		typeName: "JitFunctionsHashes",
 		fnID: "js",
 		jitFnHash: "js_bzlNFR",
 		args: { vλl: "v" },
@@ -2945,7 +2945,7 @@ const jitFnsCache = {
 	},
 	tBi_bzlNFR: {
 		isNoop: false,
-		typeName: "SerializableJitHashes",
+		typeName: "JitFunctionsHashes",
 		fnID: "tBi",
 		jitFnHash: "tBi_bzlNFR",
 		args: { sεr: "Ser", vλl: "v" },
@@ -2991,7 +2991,7 @@ const jitFnsCache = {
 	},
 	tBi_JNJ3FN: {
 		isNoop: false,
-		typeName: "HeadersMethodData",
+		typeName: "HeadersMetaData",
 		fnID: "tBi",
 		jitFnHash: "tBi_JNJ3FN",
 		args: { sεr: "Ser", vλl: "v" },
@@ -3437,7 +3437,7 @@ const jitFnsCache = {
 	},
 	fBi_bzlNFR: {
 		isNoop: false,
-		typeName: "SerializableJitHashes",
+		typeName: "JitFunctionsHashes",
 		fnID: "fBi",
 		jitFnHash: "fBi_bzlNFR",
 		args: { dεs: "Des", vλl: "ret" },
@@ -3485,7 +3485,7 @@ const jitFnsCache = {
 	},
 	fBi_JNJ3FN: {
 		isNoop: false,
-		typeName: "HeadersMethodData",
+		typeName: "HeadersMetaData",
 		fnID: "fBi",
 		jitFnHash: "fBi_JNJ3FN",
 		args: { dεs: "Des", vλl: "ret" },

@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {PublicResponses} from '@mionkit/router';
-import type {JitCompiledFunctions, JSONValue, SerializablePublicMethod} from '@mionkit/core';
+import type {ResponseBody} from '@mionkit/router';
+import type {JitCompiledFunctions, JSONValue, MethodMetadata} from '@mionkit/core';
 import {RpcError, isRpcError, jitUtils, routerUtils} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 import {RequestErrors, SubRequest} from './types';
@@ -88,7 +88,7 @@ export function serializeSubRequest(id: string, req: MionRequest<any, any>, erro
 }
 
 // if there is any error it will be inserted in the body as a route return error
-export function deserializeResponseBody(responseBody: PublicResponses): PublicResponses {
+export function deserializeResponseBody(responseBody: ResponseBody): ResponseBody {
     const deSerializedBody = responseBody;
     Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
         const methodMeta = routerUtils.getMetadata(key);
@@ -104,7 +104,7 @@ export function deserializeResponseBody(responseBody: PublicResponses): PublicRe
 function getSerializationRequiredData(
     id: string,
     req: MionRequest<any, any>
-): {methodMeta: SerializablePublicMethod; subRequest?: SubRequest<any>} {
+): {methodMeta: MethodMetadata; subRequest?: SubRequest<any>} {
     const methodMeta = routerUtils.getMetadata(id);
     const subRequest = req.subRequestList[id];
     if (!methodMeta) throw new Error(`Metadata for remote method ${id} not found.`);
@@ -113,7 +113,7 @@ function getSerializationRequiredData(
 
 function serializeParameters(
     params: any[],
-    method: SerializablePublicMethod,
+    method: MethodMetadata,
     paramsJit?: JitCompiledFunctions
 ): any[] | RpcError<'serialization-error'> {
     if (!paramsJit) return params;
@@ -134,7 +134,7 @@ function serializeParameters(
 
 function validateParameters(
     params: any[],
-    method: SerializablePublicMethod,
+    method: MethodMetadata,
     paramsJit?: JitCompiledFunctions
 ): void | RpcError<'validation-error' | 'unexpected-validation-error'> {
     if (!paramsJit || paramsJit.typeErrors.isNoop) return;
@@ -159,7 +159,7 @@ function validateParameters(
 
 function deSerializeReturn(
     response: any | RpcError<string>,
-    method: SerializablePublicMethod,
+    method: MethodMetadata,
     returnJit?: JitCompiledFunctions
 ): any | RpcError<'serialization-error'> {
     if (!returnJit || returnJit.restoreFromJson.isNoop || !response) return response;

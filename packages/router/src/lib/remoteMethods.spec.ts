@@ -12,9 +12,9 @@ import {Routes} from '../types/general';
 import {HookMethod, RouteMethod} from '../types/remoteMethods';
 import {HandlerType} from '@mionkit/core';
 import {hook, rawHook, route} from './handlers';
-import {jitUtils, SerializableJitHashes} from '@mionkit/core';
+import {jitUtils, JitFunctionsHashes} from '@mionkit/core';
 
-function hasSerializableHashes(): SerializableJitHashes {
+function hasSerializableHashes(): JitFunctionsHashes {
     return {
         isType: expect.any(String),
         typeErrors: expect.any(String),

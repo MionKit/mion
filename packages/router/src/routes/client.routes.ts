@@ -19,7 +19,7 @@ import {
 import {route} from '../lib/handlers';
 import {RouterOptions, Routes} from '../types/general';
 import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods';
-import {Method} from '../types/remoteMethods';
+import {RemoteMethod} from '../types/remoteMethods';
 
 export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;
@@ -54,7 +54,7 @@ function mionGetRemoteMethodsDataById(
               (id) =>
                   id !== MION_ROUTES.getRemoteMethodsById &&
                   id !== MION_ROUTES.getRemoteMethodsByPath &&
-                  !isPrivateExecutable(getAnyExecutable(id) as Method)
+                  !isPrivateExecutable(getAnyExecutable(id) as RemoteMethod)
           )
         : methodsIds;
     idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
@@ -105,7 +105,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
     }
     if (isPrivateExecutable(executable)) return;
 
-    const method = getSerializableMethod(executable as Method);
+    const method = getSerializableMethod(executable as RemoteMethod);
     methods[id] = method;
     method.hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
     serializeMethodDeps(method, deps, purFnDeps);

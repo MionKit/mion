@@ -6,7 +6,9 @@
  * ######## */
 
 import {JitCompiledFunctions, JitFunctionsHashes} from '@mionkit/core';
-import {Method, MethodsCache, MethodData} from '../types/remoteMethods';
+import {RemoteMethod} from '../types/remoteMethods';
+import {MethodsCache} from '@mionkit/core/src/method.types';
+import {MethodMetadata} from '@mionkit/core/src/types';
 import {AnyHandler} from '../types/handlers';
 import {IS_TEST_ENV} from '../constants';
 import {jitUtils} from '@mionkit/core';
@@ -16,12 +18,12 @@ export let persistedMethods: MethodsCache = {};
 
 // ############# PUBLIC METHODS #############
 
-export function addToPersistedMethods(id: string, method: Method) {
+export function addToPersistedMethods(id: string, method: RemoteMethod) {
     if (!shouldCompile() || !!persistedMethods[id]) return;
     persistedMethods[id] = method;
 }
 
-export function getPersistedMethod(id: string, handler: AnyHandler): Method | undefined {
+export function getPersistedMethod(id: string, handler: AnyHandler): RemoteMethod | undefined {
     const method = persistedMethods?.[id];
     if (!method) return;
     return restorePersistedMethod(method, handler);
@@ -39,9 +41,10 @@ export function resetPersistedMethods() {
     persistedMethods = {};
 }
 
-function restorePersistedMethod(method: MethodData, handler: AnyHandler): Method {
-    const restored = method as any as Method;
-    if (restored.paramsJitFns && restored.returnJitFns && restored.paramNames && !!restored.handler) return method as Method;
+function restorePersistedMethod(method: MethodMetadata, handler: AnyHandler): RemoteMethod {
+    const restored = method as any as RemoteMethod;
+    if (restored.paramsJitFns && restored.returnJitFns && restored.paramNames && !!restored.handler)
+        return method as RemoteMethod;
     restored.handler = handler;
     restored.paramsJitFns = restorePersistedJitFunctions(method.paramsJitHashes);
     restored.returnJitFns = restorePersistedJitFunctions(method.returnJitHashes);

@@ -19,6 +19,8 @@ import type {
     JITUtils,
     PersistedJitFunctionsCache,
     PersistedPureFunctionsCache,
+    JitCompiledFunctions,
+    JitFunctionsHashes,
 } from './types';
 import {MAX_UNKNOWN_KEYS} from './constants';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
@@ -298,4 +300,16 @@ export function coreAOTLoadJitCaches(): void {
 
     // Restore the fn property on JIT functions
     restoreCompiledJitFns(jitFnsCache, pureFnsCache);
+}
+
+export function getJitFnHashes(jitFns: JitCompiledFunctions): JitFunctionsHashes {
+    return {
+        isType: jitFns.isType.jitFnHash,
+        typeErrors: jitFns.typeErrors.jitFnHash,
+        prepareForJson: jitFns.prepareForJson.jitFnHash,
+        restoreFromJson: jitFns.restoreFromJson.jitFnHash,
+        jsonStringify: jitFns.jsonStringify.jitFnHash,
+        toBinary: jitFns.toBinary.jitFnHash,
+        fromBinary: jitFns.fromBinary.jitFnHash,
+    };
 }

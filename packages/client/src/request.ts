@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {PublicResponses} from '@mionkit/router';
+import type {ResponseBody} from '@mionkit/router';
 import {ClientOptions, HookSubRequest, SubRequest, RequestBody, RequestHeaders, RouteSubRequest, RequestErrors} from './types';
 import type {RunTypeError} from '@mionkit/core';
 import {RpcError, isRpcError, HandlerType} from '@mionkit/core';
@@ -21,7 +21,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     readonly requestId: string;
     readonly subRequestList: {[key: string]: SubRequest<any>} = {};
     response: Response | undefined;
-    rawResponseBody: PublicResponses | undefined;
+    rawResponseBody: ResponseBody | undefined;
     constructor(
         public readonly options: ClientOptions,
         public readonly route?: RR,
@@ -34,7 +34,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     }
 
     /**  Calls a remote route. If anythings fails or remote route returns an error then throws a RequestErrors Map */
-    async call(): Promise<PublicResponses> {
+    async call(): Promise<ResponseBody> {
         const errors: RequestErrors = new Map();
 
         // prepare and validate full request with the route and all hooks
@@ -78,7 +78,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         // deserialize response
         try {
             // if there are any errors they are part of the deserialized body
-            const deserialized = deserializeResponseBody(this.rawResponseBody as PublicResponses);
+            const deserialized = deserializeResponseBody(this.rawResponseBody as ResponseBody);
             Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
                 const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
                 methodMeta.isResolved = true;
@@ -194,7 +194,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         return {headers, body};
     }
 
-    private getResponseValueFromBodyOrHeader(id: string, respBody: PublicResponses, headers: Headers): any {
+    private getResponseValueFromBodyOrHeader(id: string, respBody: ResponseBody, headers: Headers): any {
         const methodMeta = routerCache[id];
         if (
             methodMeta &&

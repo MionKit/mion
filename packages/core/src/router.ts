@@ -7,11 +7,11 @@
 
 import {PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT} from './constants';
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
-import type {SerializablePublicMethod} from './types';
+import type {MethodMetadata} from './method.types';
 
 // TODO: SerializablePublicMethod is the Metadadta but jitfunctions needs to be restores in transformed into MethodWithJitFns
 // but we don't have those types here
-const routerCache: Record<string, SerializablePublicMethod> = {};
+const routerCache: Record<string, MethodMetadata> = {};
 
 let routesCacheLoaded = false;
 
@@ -54,14 +54,14 @@ export const routerUtils = {
      * @param id - The method id
      * @returns The method metadata or undefined if not found
      */
-    getMetadata(id: string): SerializablePublicMethod | undefined {
+    getMetadata(id: string): MethodMetadata | undefined {
         // First check local cache
         if (id in routerCache) {
-            return routerCache[id] as SerializablePublicMethod | undefined;
+            return routerCache[id] as MethodMetadata | undefined;
         }
         // Fall back to AOT cache (for router package on-demand loading)
         if (id in aotRouterCache) {
-            return aotRouterCache[id] as SerializablePublicMethod | undefined;
+            return aotRouterCache[id] as MethodMetadata | undefined;
         }
         return undefined;
     },
@@ -71,7 +71,7 @@ export const routerUtils = {
      * @param id - The method id
      * @param methodData - The method metadata
      */
-    setMetadata(id: string, methodData: SerializablePublicMethod): void {
+    setMetadata(id: string, methodData: MethodMetadata): void {
         routerCache[id] = methodData as any;
     },
 
@@ -90,8 +90,8 @@ export const routerUtils = {
      * Use with caution - prefer using get/set/has methods.
      * @returns The router cache object
      */
-    getCache(): Record<string, SerializablePublicMethod> {
-        return routerCache as Record<string, SerializablePublicMethod>;
+    getCache(): Record<string, MethodMetadata> {
+        return routerCache as Record<string, MethodMetadata>;
     },
 
     /**
@@ -117,7 +117,7 @@ export function coreAOTLoadRoutesMetadataCache(): void {
     // Merge AOT router cache into local cache
     for (const key in aotRouterCache) {
         if (!(key in routerCache)) {
-            routerCache[key] = aotRouterCache[key] as SerializablePublicMethod;
+            routerCache[key] = aotRouterCache[key] as MethodMetadata;
         }
     }
 }

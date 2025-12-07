@@ -8,8 +8,6 @@
 
 import type {MIME_TYPES} from './constants';
 
-export type StrNumber = string | number;
-
 /**
  * Interface defining the shape of jitUtils
  *
@@ -211,9 +209,8 @@ export interface PersistedPureFunction extends CompiledPureFunction {
     fn: undefined;
 }
 
-// ########################################### COMPILER ##########################################
+// ########################################### JIT FUNCTIONS ###########################################
 
-export type AnyFn = (...args: any[]) => any;
 /**
  * The argument names of the function to be compiled. The order of properties is important as must the same as the function args.
  * ie: {vλl: 'val', arg1: 'arg1', error: 'err'} for the function (vλl, arg1, eArr) => any
@@ -248,8 +245,6 @@ export interface JitCompiledFnData {
     /** function param names if the compiled type is function params */
     paramNames?: string[];
 }
-
-// ########################################### JIT FUNCTIONS ###########################################
 
 export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
@@ -331,63 +326,11 @@ export interface SrcCodeCompiledPureFunction extends PureFunctionData {
 export type SrcCodeJITCompiledFnsCache = Record<string, SrcCodeJitCompiledFn>;
 export type SrcCodePureFunctionsCache = Record<string, SrcCodeCompiledPureFunction>;
 
-// ########################################## PUBLIC METHOD ##########################################
-
-/** Serializable JIT hashes type for sharing between client and server */
-export type SerializableJitHashes = {
-    isType: string;
-    typeErrors: string;
-    prepareForJson: string;
-    restoreFromJson: string;
-    jsonStringify: string;
-    toBinary: string;
-    fromBinary: string;
-};
-
-/**
- * Shared interface for PublicMethod that can be used between client and server without handler dependencies
- * Serializable version of MethodData in @/router/types/remoteMethods
- */
-export interface SerializablePublicMethod {
-    /** Method type identifier */
-    type: number;
-    /** Unique identifier for the method */
-    id: string;
-    /** Information about method parameters including their names and sources (headers, cookies, body) */
-    paramNames?: string[];
-    /** Hashes of JIT functions used by the method parameters */
-    paramsJitHashes: SerializableJitHashes;
-    /** Hashes of JIT functions used by the method return value */
-    returnJitHashes: SerializableJitHashes;
-    /** Information about headers used by the method */
-    headersParam?: HeadersMethodData;
-    /** Information about headers returned by the method */
-    headersReturn?: HeadersMethodData;
-
-    // ##### public methods only #####
-    /** Array of hook IDs associated with this method */
-    hookIds?: string[];
-    /** Path pointers for nested route structures */
-    pathPointers?: string[][];
-}
-
-export interface HeadersMethodData {
-    headerNames: string[];
-    jitHashes: Pick<JitFunctionsHashes, 'isType' | 'typeErrors'>;
-}
-
-export type SerializablePublicMethods = Record<string, SerializablePublicMethod>;
-
-export interface SerializableMethodsData {
-    methods: SerializablePublicMethods;
-    deps: Record<string, JitCompiledFnData>;
-    purFnDeps: Record<string, PureFunctionData>;
-}
-
 // ########################################## other #########################################
 
+export type StrNumber = string | number;
+export type AnyFn = (...args: any[]) => any;
 export type AnyObject = Record<string, unknown>;
-
 export interface AnyClass<T = any> {
     new (...args: any[]): T;
 }

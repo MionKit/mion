@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Prettify, RpcError, SerializablePublicMethod, HandlerType} from '@mionkit/core';
+import type {Prettify, RpcError, MethodMetadata, HandlerType} from '@mionkit/core';
 import type {CallContext} from './context';
 import type {Routes} from './general';
 import type {Handler} from './handlers';
@@ -29,7 +29,9 @@ export type PrivateDef = PrivateHookDef | RawHookDef;
 
 // ####### Remote Methods Metadata #######
 
-/** Data structure containing all public data an types of routes & hooks. */
+/** Data structure containing all public routes & hooks.
+ * is a Ts Mapped type the remove private hooks and rawHooks
+ */
 // prettier-ignore
 export type PublicApi<Type extends Routes> = Prettify<{
     [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
@@ -44,37 +46,35 @@ export type PublicApi<Type extends Routes> = Prettify<{
         : never;
 }>;
 
+/** Same as Public Api but no type mapping, should be easier to use than PublicApi when non strong types are required. */
 export type RemoteApi = {
     [key: string]: PublicRoute | PublicHook | PublicHeadersHook | RemoteApi;
 };
 
-/** Public map from Routes, handler type is the same as router's handler but does not include the context  */
-export interface PublicRoute<H extends Handler = any> extends SerializablePublicMethod {
+/** Public Routes, handler type is the same as RemoteRoute but does not include the context  */
+export interface PublicRoute<H extends Handler = any> extends MethodMetadata {
     type: HandlerType.route;
     hookIds: string[];
     headerNames: undefined;
     handler: H;
 }
 
-/** Public map from Hooks, handler type is the same as hooks's handler but does not include the context  */
-export interface PublicHook<H extends Handler = any> extends SerializablePublicMethod {
+/** Public Hooks, handler type is the same as RemoteHooks but does not include the context  */
+export interface PublicHook<H extends Handler = any> extends MethodMetadata {
     type: HandlerType.hook;
-    pathPointers: undefined;
     handler: H;
 }
 
-export interface PublicHeadersHook<H extends Handler = any> extends SerializablePublicMethod {
+/** Public HeadersHooks, handler type is the same as HeadersHooks but does not include the context */
+export interface PublicHeadersHook<H extends Handler = any> extends MethodMetadata {
     type: HandlerType.headerHook;
     headerNames: string[];
     handler: H;
 }
 
+/** Removes the context from handlers */
 // prettier-ignore
 export type PublicHandler<H extends Handler> =
     H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
     ? (...rest: Req) => Promise<Awaited<Resp>>
     : never;
-
-export type PublicResponses = {
-    [key: string]: unknown | RpcError<string>;
-};

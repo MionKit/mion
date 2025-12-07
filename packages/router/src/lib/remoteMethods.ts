@@ -6,33 +6,15 @@
  * ######## */
 
 import {type RouterEntry, type Routes} from '../types/general';
-import {type Method} from '../types/remoteMethods';
-import {HandlerType} from '@mionkit/core';
+import {type RemoteMethod} from '../types/remoteMethods';
 import type {PublicApi} from '../types/publicMethods';
+import type {AnyObject, JitCompiledFn, JitCompiledFnData, PureFunctionData, MethodMetadata} from '@mionkit/core';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from '../types/guards';
-import {
-    getHookExecutable,
-    getRouteExecutable,
-    getRouteExecutionPath,
-    getRouterOptions,
-    isPrivateDefinition,
-    shouldFullGenerateSpec,
-} from '../router';
-import type {
-    AnyObject,
-    JitCompiledFn,
-    JitCompiledFnData,
-    JitCompiledFunctions,
-    PureFunctionData,
-    SerializableJitHashes,
-    SerializablePublicMethod,
-} from '@mionkit/core';
-import {getRoutePath, getRouterItemId} from '@mionkit/core';
-import {jitUtils} from '@mionkit/core';
-import {MAX_STACK_DEPTH} from '@mionkit/core';
+import {getHookExecutable, getRouteExecutable, getRouteExecutionPath, getRouterOptions, isPrivateDefinition} from '../router';
+import {getRoutePath, getRouterItemId, MAX_STACK_DEPTH, getJitFnHashes, jitUtils, HandlerType} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
-const publicMethods: Map<string, SerializablePublicMethod> = new Map();
+const publicMethods: Map<string, MethodMetadata> = new Map();
 
 // ############# PUBLIC METHODS #############
 export function resetRemoteMethodsMetadata() {
@@ -65,7 +47,7 @@ function recursiveGetSerializableRoutes<R extends Routes>(
             const executable = getHookExecutable(id) || getRouteExecutable(id);
             if (!executable)
                 throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);
-            publicData[key] = getSerializableMethod(executable as Method);
+            publicData[key] = getSerializableMethod(executable as RemoteMethod);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
             publicData[key] = recursiveGetSerializableRoutes(subRoutes, itemPointer);
@@ -75,16 +57,21 @@ function recursiveGetSerializableRoutes<R extends Routes>(
     return publicData;
 }
 
-export function getSerializableMethod(executable: Method): SerializablePublicMethod {
+export function getSerializableMethod(executable: RemoteMethod): MethodMetadata {
     const existing = publicMethods.get(executable.id);
-    if (existing) return existing as SerializablePublicMethod;
+    if (existing) return existing as MethodMetadata;
 
-    const newRemoteMethod: SerializablePublicMethod = {
+    const newRemoteMethod: MethodMetadata = {
         type: executable.type,
         id: executable.id,
-        paramsJitHashes: getSerializableJitHashes(executable.paramsJitFns),
-        returnJitHashes: getSerializableJitHashes(executable.returnJitFns),
-        paramNames: executable.paramNames,
+        nestLevel: executable.nestLevel,
+        isAsync: executable.isAsync,
+        hasReturnData: executable.hasReturnData,
+        paramsJitHashes: getJitFnHashes(executable.paramsJitFns),
+        returnJitHashes: getJitFnHashes(executable.returnJitFns),
+        pointer: executable.pointer,
+        options: executable.options,
+        ...(executable.paramNames ? {paramNames: executable.paramNames} : {}),
     };
     if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
     if (executable.type === HandlerType.route) {
@@ -99,11 +86,9 @@ export function getSerializableMethod(executable: Method): SerializablePublicMet
                 const exec = getHookExecutable(id);
                 return exec && isPublicExecutable(exec);
             });
-        // pathPointers only required for codegen
-        if (shouldFullGenerateSpec()) newRemoteMethod.pathPointers = pathPointers;
     }
     publicMethods.set(executable.id, newRemoteMethod);
-    return newRemoteMethod as SerializablePublicMethod;
+    return newRemoteMethod as MethodMetadata;
 }
 
 export function serializePureDeps(depHash: string, purFnDeps: Record<string, PureFunctionData>, depth = 0) {
@@ -139,25 +124,13 @@ export function serializeJitFn(
 }
 
 export function serializeMethodDeps(
-    method: SerializablePublicMethod,
+    method: MethodMetadata,
     deps: Record<string, JitCompiledFnData>,
     purFnDeps: Record<string, PureFunctionData>
 ) {
     const {paramsJitHashes, returnJitHashes} = method;
     for (const k in paramsJitHashes) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
     for (const k in returnJitHashes) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
-}
-
-function getSerializableJitHashes(jitFns: JitCompiledFunctions): SerializableJitHashes {
-    return {
-        isType: jitFns.isType.jitFnHash,
-        typeErrors: jitFns.typeErrors.jitFnHash,
-        prepareForJson: jitFns.prepareForJson.jitFnHash,
-        restoreFromJson: jitFns.restoreFromJson.jitFnHash,
-        jsonStringify: jitFns.jsonStringify.jitFnHash,
-        toBinary: jitFns.toBinary.jitFnHash,
-        fromBinary: jitFns.fromBinary.jitFnHash,
-    };
 }
 
 function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {
@@ -171,6 +144,6 @@ function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {
         code: comp.code,
         dependenciesSet: new Set(comp.dependenciesSet),
         pureFnDependencies: new Set(comp.pureFnDependencies),
-        ...(comp.paramNames ? {paramNames: structuredClone(comp.paramNames)} : {}),
+        ...(comp.paramNames ? {paramNames: [...comp.paramNames]} : {}),
     };
 }

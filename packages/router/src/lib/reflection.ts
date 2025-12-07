@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyFn, JitCompiledFunctions, JitFunctionsHashes} from '@mionkit/core';
+import type {MethodWithJitFns, AnyFn, JitCompiledFunctions, JitFunctionsHashes} from '@mionkit/core';
 import {
     type FunctionRunType,
     type BaseRunType,
@@ -20,10 +20,10 @@ import {
     getParsedAnnotationOptions,
     isUnionRunType,
 } from '@mionkit/run-types';
+import {getJitFnHashes} from '@mionkit/core';
 import {Handler} from '../types/handlers';
 import {RouterOptions} from '../types/general';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants';
-import {type MethodWithJitFns} from '../types/remoteMethods';
 import {HeadersList} from '../types/HeadersList';
 
 // ############ This file should be the only one importing '@mionkit/run-types' within the router ########
@@ -68,7 +68,7 @@ export function getHandlerReflection(
                 noIsArrayCheck: true,
             };
             const jitFns: JitCompiledFunctions = getJitFunctions(headersRunType, opts);
-            const jitHashes: JitFunctionsHashes = getJitHashes(jitFns);
+            const jitHashes: JitFunctionsHashes = getJitFnHashes(jitFns);
             reflectionItems.headersParam = {headerNames, jitFns, jitHashes};
         } catch (error: any) {
             throw new Error(`Can not compile Jit Functions for Headers of header hook "${routeId}." Error: ${error?.message}`);
@@ -80,7 +80,7 @@ export function getHandlerReflection(
         const opts: RunTypeOptions = {};
         const headerNames: string[] = getHeaderNames(returnHeadersRunType, routeId);
         const jitFns: JitCompiledFunctions = getReturnJitFns(handler, opts);
-        const jitHashes: JitFunctionsHashes = getJitHashes(jitFns);
+        const jitHashes: JitFunctionsHashes = getJitFnHashes(jitFns);
         reflectionItems.headersReturn = {headerNames, jitFns, jitHashes};
     }
 
@@ -92,8 +92,8 @@ export function getHandlerReflection(
     }
 
     // Validate that routes don't use HttpHeader, HttpCookie, or HeadersList as return types
-    reflectionItems.paramsJitHashes = getJitHashes(reflectionItems.paramsJitFns);
-    reflectionItems.returnJitHashes = getJitHashes(reflectionItems.returnJitFns);
+    reflectionItems.paramsJitHashes = getJitFnHashes(reflectionItems.paramsJitFns);
+    reflectionItems.returnJitHashes = getJitFnHashes(reflectionItems.returnJitFns);
     // If the return type is HeadersList or if it's a headersHook with array return, don't treat it as return data
     reflectionItems.hasReturnData = handlerRunType.hasReturnData();
     reflectionItems.isAsync = handlerRunType.isAsync();
@@ -204,18 +204,6 @@ function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCo
         fromBinary: rt.createJitCompiledReturnFunction(JitFunctions.fromBinary, opts),
     };
     return returnFunctions;
-}
-
-function getJitHashes(jitFns: JitCompiledFunctions): JitFunctionsHashes {
-    return {
-        isType: jitFns.isType.jitFnHash,
-        typeErrors: jitFns.typeErrors.jitFnHash,
-        prepareForJson: jitFns.prepareForJson.jitFnHash,
-        restoreFromJson: jitFns.restoreFromJson.jitFnHash,
-        jsonStringify: jitFns.jsonStringify.jitFnHash,
-        toBinary: jitFns.toBinary.jitFnHash,
-        fromBinary: jitFns.fromBinary.jitFnHash,
-    };
 }
 
 const nullJitHashes: JitFunctionsHashes = {

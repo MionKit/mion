@@ -7,13 +7,14 @@
 
 import type {MionResponse, MionRequest, CallContext} from '../types/context';
 import type {RouterOptions} from '../types/general';
-import type {HooksCollection, ErrorReturn, PublicResponses} from '../types/publicMethods';
+import type {HooksCollection, ErrorReturn} from '../types/publicMethods';
+import type {ResponseBody} from '../types/context';
 import {AnyObject, Mutable} from '@mionkit/core';
 import {rawHook} from '../lib/handlers';
 import {getRouteExecutableFromPath, getRouteExecutionPath} from '../router';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
-import {Method} from '../types/remoteMethods';
+import {RemoteMethod} from '../types/remoteMethods';
 import {getNotFoundExecutionPath} from '../lib/notFound';
 
 // ############# PUBLIC METHODS #############
@@ -91,7 +92,7 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
     }
 }
 
-function stringifyBody(context: CallContext, executionPath: Method[], respBody: PublicResponses, opts: RouterOptions): string {
+function stringifyBody(context: CallContext, executionPath: RemoteMethod[], respBody: ResponseBody, opts: RouterOptions): string {
     const props: string[] = [];
     for (let i = 0; i < executionPath.length; i++) {
         const method = executionPath[i];
@@ -117,7 +118,7 @@ function stringifyBody(context: CallContext, executionPath: Method[], respBody: 
     return `{${props.join('')}}`;
 }
 
-function stringifyHandlerReturnValue(method: Method, returnValue: any, opts: RouterOptions): string {
+function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any, opts: RouterOptions): string {
     if (opts.useJitStringify) return method.returnJitFns.jsonStringify.fn(returnValue);
     if (method.returnJitFns.prepareForJson.isNoop) return JSON.stringify(returnValue);
     return JSON.stringify(method.returnJitFns.prepareForJson.fn(returnValue));
