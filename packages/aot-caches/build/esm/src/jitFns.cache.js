@@ -9,7 +9,7 @@ const jitFnsCache = {
 		code: "const is_b1N57x = utl.getJIT(\"is_b1N57x\"); return function is_JtnVhp(v){return (v.length <= 2 && is_b1N57x.fn(v[0]) && (v[1] === undefined || (typeof v[1] === 'boolean')))}",
 		dependenciesSet: new Set(["is_b1N57x"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_b1N57x = utl.getJIT("is_b1N57x");
 			return function is_JtnVhp(v) {
 				return (
@@ -31,7 +31,7 @@ const jitFnsCache = {
 		code: " return function is_b1N57x(v){\n if (!Array.isArray(v)) return false;\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = typeof v[i0] === 'string';\n if (!(res0)) return false;\n }\n return true;\n }",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function is_b1N57x(v) {
 				if (!Array.isArray(v)) return false;
 				for (let i0 = 0; i0 < v.length; i0++) {
@@ -53,7 +53,7 @@ const jitFnsCache = {
 		code: 'const te_b1N57x = utl.getJIT("te_b1N57x"); return function te_JtnVhp(v,pth=[],er=[]){if (v.length > 2) utl.err(pth,er,"params"); else {pth.push(0); te_b1N57x.fn(v[0],pth,er); pth.splice(-1);if (v[1] !== undefined) {if (typeof v[1] !== \'boolean\') utl.err(pth,er,"boolean",[1]);}} return er}',
 		dependenciesSet: new Set(["te_b1N57x"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const te_b1N57x = utl.getJIT("te_b1N57x");
 			return function te_JtnVhp(v, pth = [], er = []) {
 				if (v.length > 2) utl.err(pth, er, "params");
@@ -80,7 +80,7 @@ const jitFnsCache = {
 		code: ' return function te_b1N57x(v,pth=[],er=[]){if (!Array.isArray(v)) {utl.err(pth,er,"array")} else {for (let i0 = 0; i0 < v.length; i0++) {if (typeof v[i0] !== \'string\') utl.err(pth,er,"string",[i0]);}} return er}',
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function te_b1N57x(v, pth = [], er = []) {
 				if (!Array.isArray(v)) {
 					utl.err(pth, er, "array");
@@ -104,7 +104,7 @@ const jitFnsCache = {
 		code: " return function tj_JtnVhp(v){if (v[1] === undefined ) {if (v.length > 1) v[1] = null} return v}",
 		dependenciesSet: new Set(["tj_b1N57x"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_JtnVhp(v) {
 				if (v[1] === undefined) {
 					if (v.length > 1) v[1] = null;
@@ -124,7 +124,7 @@ const jitFnsCache = {
 		code: " return function tj_b1N57x(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_b1N57x(v) {
 				return v;
 			};
@@ -141,7 +141,7 @@ const jitFnsCache = {
 		code: " return function fj_JtnVhp(v){if (v[1] === null ) {v[1] = undefined} return v}",
 		dependenciesSet: new Set(["fj_b1N57x"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_JtnVhp(v) {
 				if (v[1] === null) {
 					v[1] = undefined;
@@ -161,7 +161,7 @@ const jitFnsCache = {
 		code: " return function fj_b1N57x(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_b1N57x(v) {
 				return v;
 			};
@@ -178,7 +178,7 @@ const jitFnsCache = {
 		code: "const js_b1N57x = utl.getJIT(\"js_b1N57x\"); return function js_JtnVhp(v){return '['+js_b1N57x.fn(v[0])+(v[1] === undefined ? ','+'null' : ','+(v[1] ? 'true' : 'false'))+']'}",
 		dependenciesSet: new Set(["js_b1N57x"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const js_b1N57x = utl.getJIT("js_b1N57x");
 			return function js_JtnVhp(v) {
 				return (
@@ -203,7 +203,7 @@ const jitFnsCache = {
 		code: " return function js_b1N57x(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = utl.asJSONString(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function js_b1N57x(v) {
 				const ls0 = [];
 				for (let i0 = 0; i0 < v.length; i0++) {
@@ -225,7 +225,7 @@ const jitFnsCache = {
 		code: 'const tBi_b1N57x = utl.getJIT("tBi_b1N57x"); return function tBi_JtnVhp(v,Ser){tBi_b1N57x.fn(v[0],Ser);if (v[1] !== undefined){Ser.view.setUint8(Ser.index++, 1);Ser.view.setUint8(Ser.index++, !!v[1]);} else {Ser.view.setUint8(Ser.index++, 0)} return Ser}',
 		dependenciesSet: new Set(["tBi_b1N57x"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tBi_b1N57x = utl.getJIT("tBi_b1N57x");
 			return function tBi_JtnVhp(v, Ser) {
 				tBi_b1N57x.fn(v[0], Ser);
@@ -250,7 +250,7 @@ const jitFnsCache = {
 		code: " return function tBi_b1N57x(v,Ser){\n Ser.view.setUint32(Ser.index, v.length, 1); Ser.index += 4;\n for (let i0 = 0; i0 < v.length; i0++) {Ser.serString(v[i0]);}\n ; return Ser}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tBi_b1N57x(v, Ser) {
 				Ser.view.setUint32(Ser.index, v.length, 1);
 				Ser.index += 4;
@@ -272,7 +272,7 @@ const jitFnsCache = {
 		code: 'const fBi_b1N57x = utl.getJIT("fBi_b1N57x"); return function fBi_JtnVhp(ret,Des){ret = [];ret[0] = fBi_b1N57x.fn(undefined,Des);if (Des.view.getUint8(Des.index++) === 1){ret[1] = Des.view.getUint8(Des.index++) === 1} return ret}',
 		dependenciesSet: new Set(["fBi_b1N57x"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fBi_b1N57x = utl.getJIT("fBi_b1N57x");
 			return function fBi_JtnVhp(ret, Des) {
 				ret = [];
@@ -295,7 +295,7 @@ const jitFnsCache = {
 		code: " return function fBi_b1N57x(ret,Des){\n const arrL0 = Des.view.getUint32(Des.index, 1); Des.index += 4; ret = new Array(arrL0);\n for (let i0 = 0; i0 < arrL0; i0++) {ret[i0] = Des.desString();}\n ; return ret}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fBi_b1N57x(ret, Des) {
 				const arrL0 = Des.view.getUint32(Des.index, 1);
 				Des.index += 4;
@@ -349,7 +349,7 @@ const jitFnsCache = {
 			"hk_WEWIGI",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_Ik8k60 = utl.getJIT("is_Ik8k60");
 			const uKOpts0 = { checkNonJitProps: true };
 			const hk_Ik8k60 = utl.getJIT("hk_Ik8k60");
@@ -389,7 +389,7 @@ const jitFnsCache = {
 			"is_gCQYSg",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_tP7Vvb = utl.getJIT("is_tP7Vvb");
 			const is_GAquSa = utl.getJIT("is_GAquSa");
 			const is_tf5dpV = utl.getJIT("is_tf5dpV");
@@ -413,7 +413,7 @@ const jitFnsCache = {
 		code: "const is_cE6uKo = utl.getJIT(\"is_cE6uKo\"); return function is_tP7Vvb(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){if (!(is_cE6uKo.fn(v[p0]))) return false;} return true;})())}",
 		dependenciesSet: new Set(["is_cE6uKo", "is_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_cE6uKo = utl.getJIT("is_cE6uKo");
 			return function is_tP7Vvb(v) {
 				return (
@@ -442,7 +442,7 @@ const jitFnsCache = {
 		code: "const is_Ei8qua = utl.getJIT(\"is_Ei8qua\"); return function is_cE6uKo(v){return (typeof v === 'object' && v !== null && is_Ei8qua.fn(v.paramNames) && typeof v.code === 'string' && typeof v.pureFnHash === 'string' && (function(){\n if (!(v.dependencies instanceof Set)) return false;\n for (const it0 of v.dependencies) {if (!(typeof it0 === 'string')) return false} return true;\n })())}",
 		dependenciesSet: new Set(["is_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_Ei8qua = utl.getJIT("is_Ei8qua");
 			return function is_cE6uKo(v) {
 				return (
@@ -473,7 +473,7 @@ const jitFnsCache = {
 		code: " return function is_Ei8qua(v){\n if (!Array.isArray(v)) return false;\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = typeof v[i0] === 'string';\n if (!(res0)) return false;\n }\n return true;\n }",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function is_Ei8qua(v) {
 				if (!Array.isArray(v)) return false;
 				for (let i0 = 0; i0 < v.length; i0++) {
@@ -502,7 +502,7 @@ const jitFnsCache = {
 			"is_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_hzbJrn = utl.getJIT("is_hzbJrn");
 			return function is_GAquSa(v) {
 				return (
@@ -537,7 +537,7 @@ const jitFnsCache = {
 			"is_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_Ei8qua = utl.getJIT("is_Ei8qua");
 			const is_bzlNFR = utl.getJIT("is_bzlNFR");
 			const is_JNJ3FN = utl.getJIT("is_JNJ3FN");
@@ -570,7 +570,7 @@ const jitFnsCache = {
 		code: " return function is_bzlNFR(v){return (typeof v === 'object' && v !== null && typeof v.isType === 'string' && typeof v.typeErrors === 'string' && typeof v.prepareForJson === 'string' && typeof v.restoreFromJson === 'string' && typeof v.jsonStringify === 'string' && typeof v.toBinary === 'string' && typeof v.fromBinary === 'string')}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function is_bzlNFR(v) {
 				return (
 					typeof v === "object" &&
@@ -597,7 +597,7 @@ const jitFnsCache = {
 		code: 'const is_Ei8qua = utl.getJIT("is_Ei8qua");\nconst is_okWaie = utl.getJIT("is_okWaie"); return function is_JNJ3FN(v){return (typeof v === \'object\' && v !== null && is_Ei8qua.fn(v.headerNames) && is_okWaie.fn(v.jitHashes))}',
 		dependenciesSet: new Set(["is_Ei8qua", "is_okWaie"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_Ei8qua = utl.getJIT("is_Ei8qua");
 			const is_okWaie = utl.getJIT("is_okWaie");
 			return function is_JNJ3FN(v) {
@@ -621,7 +621,7 @@ const jitFnsCache = {
 		code: " return function is_okWaie(v){return (typeof v === 'object' && v !== null && typeof v.isType === 'string' && typeof v.typeErrors === 'string')}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function is_okWaie(v) {
 				return (
 					typeof v === "object" &&
@@ -643,7 +643,7 @@ const jitFnsCache = {
 		code: 'const is_Ei8qua = utl.getJIT("is_Ei8qua"); return function is_Bt1x9j(v){\n if (!Array.isArray(v)) return false;\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = is_Ei8qua.fn(v[i0]);\n if (!(res0)) return false;\n }\n return true;\n }',
 		dependenciesSet: new Set(["is_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_Ei8qua = utl.getJIT("is_Ei8qua");
 			return function is_Bt1x9j(v) {
 				if (!Array.isArray(v)) return false;
@@ -666,7 +666,7 @@ const jitFnsCache = {
 		code: "const is_EmCqyw = utl.getJIT(\"is_EmCqyw\"); return function is_tf5dpV(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){if (!(is_EmCqyw.fn(v[p0]))) return false;} return true;})())}",
 		dependenciesSet: new Set(["is_EmCqyw", "is_gCQYSg", "is_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_EmCqyw = utl.getJIT("is_EmCqyw");
 			return function is_tf5dpV(v) {
 				return (
@@ -695,7 +695,7 @@ const jitFnsCache = {
 		code: "const is_gCQYSg = utl.getJIT(\"is_gCQYSg\");\nconst is_Ei8qua = utl.getJIT(\"is_Ei8qua\"); return function is_EmCqyw(v){return (typeof v === 'object' && v !== null && typeof v.typeName === 'string' && typeof v.fnID === 'string' && typeof v.jitFnHash === 'string' && is_gCQYSg.fn(v.args) && is_gCQYSg.fn(v.defaultParamValues) && (v.isNoop === undefined || typeof v.isNoop === 'boolean') && typeof v.code === 'string' && (function(){\n if (!(v.dependenciesSet instanceof Set)) return false;\n for (const it0 of v.dependenciesSet) {if (!(typeof it0 === 'string')) return false} return true;\n })() && (function(){\n if (!(v.pureFnDependencies instanceof Set)) return false;\n for (const it1 of v.pureFnDependencies) {if (!(typeof it1 === 'string')) return false} return true;\n })() && (v.paramNames === undefined || is_Ei8qua.fn(v.paramNames)))}",
 		dependenciesSet: new Set(["is_gCQYSg", "is_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_gCQYSg = utl.getJIT("is_gCQYSg");
 			const is_Ei8qua = utl.getJIT("is_Ei8qua");
 			return function is_EmCqyw(v) {
@@ -739,7 +739,7 @@ const jitFnsCache = {
 		code: " return function is_gCQYSg(v){return (typeof v === 'object' && v !== null && typeof v[\"vλl\"] === 'string' && (function(){for (const p0 in v){if (!(typeof v[p0] === 'string')) return false;} return true;})())}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function is_gCQYSg(v) {
 				return (
 					typeof v === "object" &&
@@ -779,7 +779,7 @@ const jitFnsCache = {
 			"hk_gCQYSg",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const k_Ik8k60 = ["purFnDeps", "methods", "deps"];
 			const hk_tP7Vvb = utl.getJIT("hk_tP7Vvb");
 			const hk_GAquSa = utl.getJIT("hk_GAquSa");
@@ -805,7 +805,7 @@ const jitFnsCache = {
 		code: 'const hk_cE6uKo = utl.getJIT("hk_cE6uKo"); return function hk_tP7Vvb(v,opts={}){return (function(){for (const p0 in v) {const res0 = hk_cE6uKo.fn(v[p0],opts);if (res0) return true;}return false;})()}',
 		dependenciesSet: new Set(["hk_cE6uKo", "hk_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const hk_cE6uKo = utl.getJIT("hk_cE6uKo");
 			return function hk_tP7Vvb(v, opts = {}) {
 				return (function () {
@@ -829,7 +829,7 @@ const jitFnsCache = {
 		code: 'const k_cE6uKo = ["paramNames", "code", "pureFnHash", "dependencies"]; return function hk_cE6uKo(v,opts={}){return (typeof v === \'object\' && v !== null && utl.hasUnknownKeysFromArray(v, k_cE6uKo)) || (function(){return false})()}',
 		dependenciesSet: new Set(["hk_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const k_cE6uKo = ["paramNames", "code", "pureFnHash", "dependencies"];
 			return function hk_cE6uKo(v, opts = {}) {
 				return (
@@ -854,7 +854,7 @@ const jitFnsCache = {
 		code: " return function hk_Ei8qua(v,opts={}){return false}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function hk_Ei8qua(v, opts = {}) {
 				return false;
 			};
@@ -878,7 +878,7 @@ const jitFnsCache = {
 			"hk_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const hk_hzbJrn = utl.getJIT("hk_hzbJrn");
 			return function hk_GAquSa(v, opts = {}) {
 				return (function () {
@@ -908,7 +908,7 @@ const jitFnsCache = {
 			"hk_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const k_hzbJrn = [
 				"type",
 				"id",
@@ -947,7 +947,7 @@ const jitFnsCache = {
 		code: 'const k_bzlNFR = ["isType", "typeErrors", "prepareForJson", "restoreFromJson", "jsonStringify", "toBinary", "fromBinary"]; return function hk_bzlNFR(v,opts={}){return (typeof v === \'object\' && v !== null && utl.hasUnknownKeysFromArray(v, k_bzlNFR))}',
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const k_bzlNFR = [
 				"isType",
 				"typeErrors",
@@ -977,7 +977,7 @@ const jitFnsCache = {
 		code: 'const k_JNJ3FN = ["headerNames", "jitHashes"];\nconst hk_okWaie = utl.getJIT("hk_okWaie"); return function hk_JNJ3FN(v,opts={}){return (typeof v === \'object\' && v !== null && utl.hasUnknownKeysFromArray(v, k_JNJ3FN)) || hk_okWaie.fn(v.jitHashes,opts)}',
 		dependenciesSet: new Set(["hk_Ei8qua", "hk_okWaie"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const k_JNJ3FN = ["headerNames", "jitHashes"];
 			const hk_okWaie = utl.getJIT("hk_okWaie");
 			return function hk_JNJ3FN(v, opts = {}) {
@@ -1001,7 +1001,7 @@ const jitFnsCache = {
 		code: 'const k_okWaie = ["isType", "typeErrors"]; return function hk_okWaie(v,opts={}){return (typeof v === \'object\' && v !== null && utl.hasUnknownKeysFromArray(v, k_okWaie))}',
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const k_okWaie = ["isType", "typeErrors"];
 			return function hk_okWaie(v, opts = {}) {
 				return (
@@ -1023,7 +1023,7 @@ const jitFnsCache = {
 		code: " return function hk_Bt1x9j(v,opts={}){return false}",
 		dependenciesSet: new Set(["hk_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function hk_Bt1x9j(v, opts = {}) {
 				return false;
 			};
@@ -1040,7 +1040,7 @@ const jitFnsCache = {
 		code: 'const hk_EmCqyw = utl.getJIT("hk_EmCqyw"); return function hk_tf5dpV(v,opts={}){return (function(){for (const p0 in v) {const res0 = hk_EmCqyw.fn(v[p0],opts);if (res0) return true;}return false;})()}',
 		dependenciesSet: new Set(["hk_EmCqyw", "hk_gCQYSg", "hk_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const hk_EmCqyw = utl.getJIT("hk_EmCqyw");
 			return function hk_tf5dpV(v, opts = {}) {
 				return (function () {
@@ -1064,7 +1064,7 @@ const jitFnsCache = {
 		code: 'const k_EmCqyw = ["typeName", "fnID", "jitFnHash", "args", "defaultParamValues", "isNoop", "code", "dependenciesSet", "pureFnDependencies", "paramNames"]; return function hk_EmCqyw(v,opts={}){return (typeof v === \'object\' && v !== null && utl.hasUnknownKeysFromArray(v, k_EmCqyw)) || (function(){return false})() || (function(){return false})()}',
 		dependenciesSet: new Set(["hk_gCQYSg", "hk_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const k_EmCqyw = [
 				"typeName",
 				"fnID",
@@ -1103,7 +1103,7 @@ const jitFnsCache = {
 		code: " return function hk_gCQYSg(v,opts={}){return false}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function hk_gCQYSg(v, opts = {}) {
 				return false;
 			};
@@ -1120,7 +1120,7 @@ const jitFnsCache = {
 		code: "const is_WEWIGI = utl.getJIT(\"is_WEWIGI\"); return function is_R7hJ5T(v){return (typeof v.publicMessage === 'string' && v[\"mion:isΣrrθr\"] === true && v.type === \"rpc-metadata-not-found\" && typeof v.message === 'string' && typeof v.name === 'string' && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && Number.isFinite(v.statusCode) && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)))}",
 		dependenciesSet: new Set(["is_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_WEWIGI = utl.getJIT("is_WEWIGI");
 			return function is_R7hJ5T(v) {
 				return (
@@ -1149,7 +1149,7 @@ const jitFnsCache = {
 		code: " return function is_WEWIGI(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'))}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function is_WEWIGI(v) {
 				return (
 					typeof v === "object" &&
@@ -1171,7 +1171,7 @@ const jitFnsCache = {
 		code: 'const k_R7hJ5T = ["publicMessage", "mion:isΣrrθr", "type", "message", "name", "id", "statusCode", "errorData"];\nconst kA_R7hJ5T = ["mion:isΣrrθr", "type", "message", "name", "id", "statusCode", "publicMessage", "errorData", "constructor", "toPublicError"]; return function hk_R7hJ5T(v,opts={}){return utl.hasUnknownKeysFromArray(v, opts.checkNonJitProps ? kA_R7hJ5T : k_R7hJ5T)}',
 		dependenciesSet: new Set(["hk_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const k_R7hJ5T = [
 				"publicMessage",
 				"mion:isΣrrθr",
@@ -1213,7 +1213,7 @@ const jitFnsCache = {
 		code: " return function hk_WEWIGI(v,opts={}){return false}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function hk_WEWIGI(v, opts = {}) {
 				return false;
 			};
@@ -1261,7 +1261,7 @@ const jitFnsCache = {
 			"hk_WEWIGI",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_Ik8k60 = utl.getJIT("is_Ik8k60");
 			const uKOpts0 = { checkNonJitProps: true };
 			const hk_Ik8k60 = utl.getJIT("hk_Ik8k60");
@@ -1353,7 +1353,7 @@ const jitFnsCache = {
 			"hk_WEWIGI",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not json encode union: item does not belong to the union";
 			const tj_Ik8k60 = utl.getJIT("tj_Ik8k60");
@@ -1405,7 +1405,7 @@ const jitFnsCache = {
 			"tj_gCQYSg",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tj_tP7Vvb = utl.getJIT("tj_tP7Vvb");
 			const tj_tf5dpV = utl.getJIT("tj_tf5dpV");
 			return function tj_Ik8k60(v) {
@@ -1426,7 +1426,7 @@ const jitFnsCache = {
 		code: 'const tj_cE6uKo = utl.getJIT("tj_cE6uKo"); return function tj_tP7Vvb(v){for (const p0 in v){ v[p0] = tj_cE6uKo.fn(v[p0]);} return v}',
 		dependenciesSet: new Set(["tj_cE6uKo", "tj_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tj_cE6uKo = utl.getJIT("tj_cE6uKo");
 			return function tj_tP7Vvb(v) {
 				for (const p0 in v) {
@@ -1447,7 +1447,7 @@ const jitFnsCache = {
 		code: " return function tj_cE6uKo(v){v.dependencies = Array.from(v.dependencies); return v}",
 		dependenciesSet: new Set(["tj_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_cE6uKo(v) {
 				v.dependencies = Array.from(v.dependencies);
 				return v;
@@ -1465,7 +1465,7 @@ const jitFnsCache = {
 		code: " return function tj_Ei8qua(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_Ei8qua(v) {
 				return v;
 			};
@@ -1489,7 +1489,7 @@ const jitFnsCache = {
 			"tj_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_GAquSa(v) {
 				return v;
 			};
@@ -1512,7 +1512,7 @@ const jitFnsCache = {
 			"tj_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_hzbJrn(v) {
 				return v;
 			};
@@ -1529,7 +1529,7 @@ const jitFnsCache = {
 		code: " return function tj_bzlNFR(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_bzlNFR(v) {
 				return v;
 			};
@@ -1546,7 +1546,7 @@ const jitFnsCache = {
 		code: " return function tj_JNJ3FN(v){return v}",
 		dependenciesSet: new Set(["tj_Ei8qua", "tj_okWaie"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_JNJ3FN(v) {
 				return v;
 			};
@@ -1563,7 +1563,7 @@ const jitFnsCache = {
 		code: " return function tj_okWaie(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_okWaie(v) {
 				return v;
 			};
@@ -1580,7 +1580,7 @@ const jitFnsCache = {
 		code: " return function tj_Bt1x9j(v){return v}",
 		dependenciesSet: new Set(["tj_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_Bt1x9j(v) {
 				return v;
 			};
@@ -1597,7 +1597,7 @@ const jitFnsCache = {
 		code: 'const tj_EmCqyw = utl.getJIT("tj_EmCqyw"); return function tj_tf5dpV(v){for (const p0 in v){ v[p0] = tj_EmCqyw.fn(v[p0]);} return v}',
 		dependenciesSet: new Set(["tj_EmCqyw", "tj_gCQYSg", "tj_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tj_EmCqyw = utl.getJIT("tj_EmCqyw");
 			return function tj_tf5dpV(v) {
 				for (const p0 in v) {
@@ -1618,7 +1618,7 @@ const jitFnsCache = {
 		code: " return function tj_EmCqyw(v){v.dependenciesSet = Array.from(v.dependenciesSet);v.pureFnDependencies = Array.from(v.pureFnDependencies); return v}",
 		dependenciesSet: new Set(["tj_gCQYSg", "tj_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_EmCqyw(v) {
 				v.dependenciesSet = Array.from(v.dependenciesSet);
 				v.pureFnDependencies = Array.from(v.pureFnDependencies);
@@ -1637,7 +1637,7 @@ const jitFnsCache = {
 		code: " return function tj_gCQYSg(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_gCQYSg(v) {
 				return v;
 			};
@@ -1667,7 +1667,7 @@ const jitFnsCache = {
 			"fj_gCQYSg",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fj_tP7Vvb = utl.getJIT("fj_tP7Vvb");
 			const fj_tf5dpV = utl.getJIT("fj_tf5dpV");
 			return function fj_Ik8k60(v) {
@@ -1688,7 +1688,7 @@ const jitFnsCache = {
 		code: 'const fj_cE6uKo = utl.getJIT("fj_cE6uKo"); return function fj_tP7Vvb(v){for (const p0 in v){ v[p0] = fj_cE6uKo.fn(v[p0]);} return v}',
 		dependenciesSet: new Set(["fj_cE6uKo", "fj_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fj_cE6uKo = utl.getJIT("fj_cE6uKo");
 			return function fj_tP7Vvb(v) {
 				for (const p0 in v) {
@@ -1709,7 +1709,7 @@ const jitFnsCache = {
 		code: " return function fj_cE6uKo(v){v.dependencies = new Set(v.dependencies); return v}",
 		dependenciesSet: new Set(["fj_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_cE6uKo(v) {
 				v.dependencies = new Set(v.dependencies);
 				return v;
@@ -1727,7 +1727,7 @@ const jitFnsCache = {
 		code: " return function fj_Ei8qua(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_Ei8qua(v) {
 				return v;
 			};
@@ -1751,7 +1751,7 @@ const jitFnsCache = {
 			"fj_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_GAquSa(v) {
 				return v;
 			};
@@ -1774,7 +1774,7 @@ const jitFnsCache = {
 			"fj_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_hzbJrn(v) {
 				return v;
 			};
@@ -1791,7 +1791,7 @@ const jitFnsCache = {
 		code: " return function fj_bzlNFR(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_bzlNFR(v) {
 				return v;
 			};
@@ -1808,7 +1808,7 @@ const jitFnsCache = {
 		code: " return function fj_JNJ3FN(v){return v}",
 		dependenciesSet: new Set(["fj_Ei8qua", "fj_okWaie"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_JNJ3FN(v) {
 				return v;
 			};
@@ -1825,7 +1825,7 @@ const jitFnsCache = {
 		code: " return function fj_okWaie(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_okWaie(v) {
 				return v;
 			};
@@ -1842,7 +1842,7 @@ const jitFnsCache = {
 		code: " return function fj_Bt1x9j(v){return v}",
 		dependenciesSet: new Set(["fj_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_Bt1x9j(v) {
 				return v;
 			};
@@ -1859,7 +1859,7 @@ const jitFnsCache = {
 		code: 'const fj_EmCqyw = utl.getJIT("fj_EmCqyw"); return function fj_tf5dpV(v){for (const p0 in v){ v[p0] = fj_EmCqyw.fn(v[p0]);} return v}',
 		dependenciesSet: new Set(["fj_EmCqyw", "fj_gCQYSg", "fj_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fj_EmCqyw = utl.getJIT("fj_EmCqyw");
 			return function fj_tf5dpV(v) {
 				for (const p0 in v) {
@@ -1880,7 +1880,7 @@ const jitFnsCache = {
 		code: " return function fj_EmCqyw(v){v.dependenciesSet = new Set(v.dependenciesSet);v.pureFnDependencies = new Set(v.pureFnDependencies); return v}",
 		dependenciesSet: new Set(["fj_gCQYSg", "fj_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_EmCqyw(v) {
 				v.dependenciesSet = new Set(v.dependenciesSet);
 				v.pureFnDependencies = new Set(v.pureFnDependencies);
@@ -1899,7 +1899,7 @@ const jitFnsCache = {
 		code: " return function fj_gCQYSg(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_gCQYSg(v) {
 				return v;
 			};
@@ -1916,7 +1916,7 @@ const jitFnsCache = {
 		code: "const uErr0 = \"Can not json encode union: item does not belong to the union\"; return function tj_R7hJ5T(v){if (v.id !== undefined) {if (Number.isFinite(v.id)) { /*noop*/}else if (typeof v.id === 'string') { /*noop*/} else {throw new Error(uErr0);}} return v}",
 		dependenciesSet: new Set(["tj_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not json encode union: item does not belong to the union";
 			return function tj_R7hJ5T(v) {
@@ -1944,7 +1944,7 @@ const jitFnsCache = {
 		code: " return function tj_WEWIGI(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_WEWIGI(v) {
 				return v;
 			};
@@ -1961,7 +1961,7 @@ const jitFnsCache = {
 		code: 'const uErr0 = "Can not json decode union: invalid union index"; return function fj_R7hJ5T(v){\n if (v.id !== undefined) {\n if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === \'number\') {\n const dec0 = v.id[0]; v.id = v.id[1];\n if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}\n else {throw new Error(uErr0)}\n }\n ;};\n let desFn1 = utl.getDeserializeFn("RpcError");\n if (desFn1) {v = desFn1(v)}\n else if (desFn1 = utl.getSerializeClass("RpcError")) {v = new desFn1(v)}\n ; return v}',
 		dependenciesSet: new Set(["fj_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 = "Can not json decode union: invalid union index";
 			return function fj_R7hJ5T(v) {
 				if (v.id !== undefined) {
@@ -2002,7 +2002,7 @@ const jitFnsCache = {
 		code: " return function fj_WEWIGI(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_WEWIGI(v) {
 				return v;
 			};
@@ -2035,7 +2035,7 @@ const jitFnsCache = {
 			"fj_WEWIGI",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 = "Can not json decode union: invalid union index";
 			const fj_Ik8k60 = utl.getJIT("fj_Ik8k60");
 			const fj_R7hJ5T = utl.getJIT("fj_R7hJ5T");
@@ -2142,7 +2142,7 @@ const jitFnsCache = {
 			"hk_WEWIGI",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not JsonStringify union: item does not belong to the union";
 			const js_Ik8k60 = utl.getJIT("js_Ik8k60");
@@ -2193,7 +2193,7 @@ const jitFnsCache = {
 			"js_gCQYSg",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const js_tP7Vvb = utl.getJIT("js_tP7Vvb");
 			const js_GAquSa = utl.getJIT("js_GAquSa");
 			const js_tf5dpV = utl.getJIT("js_tf5dpV");
@@ -2224,7 +2224,7 @@ const jitFnsCache = {
 		code: "const js_cE6uKo = utl.getJIT(\"js_cE6uKo\"); return function js_tP7Vvb(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + js_cE6uKo.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(["js_cE6uKo", "js_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const js_cE6uKo = utl.getJIT("js_cE6uKo");
 			return function js_tP7Vvb(v) {
 				return (function () {
@@ -2256,7 +2256,7 @@ const jitFnsCache = {
 		code: "const js_Ei8qua = utl.getJIT(\"js_Ei8qua\"); return function js_cE6uKo(v){return '{'+'\"paramNames\":'+js_Ei8qua.fn(v.paramNames)+\",\"+'\"code\":'+utl.asJSONString(v.code)+\",\"+'\"pureFnHash\":'+utl.asJSONString(v.pureFnHash)+\",\"+'\"dependencies\":'+(function(){\n const ls0 = [];\n for (const it0 of v.dependencies) {\n const res0 = utl.asJSONString(it0);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']'\n })()+'}'}",
 		dependenciesSet: new Set(["js_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const js_Ei8qua = utl.getJIT("js_Ei8qua");
 			return function js_cE6uKo(v) {
 				return (
@@ -2295,7 +2295,7 @@ const jitFnsCache = {
 		code: " return function js_Ei8qua(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = utl.asJSONString(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function js_Ei8qua(v) {
 				const ls0 = [];
 				for (let i0 = 0; i0 < v.length; i0++) {
@@ -2324,7 +2324,7 @@ const jitFnsCache = {
 			"js_bzlNFR",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const js_hzbJrn = utl.getJIT("js_hzbJrn");
 			return function js_GAquSa(v) {
 				return (function () {
@@ -2362,7 +2362,7 @@ const jitFnsCache = {
 			"js_bzlNFR",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const js_Ei8qua = utl.getJIT("js_Ei8qua");
 			const js_JNJ3FN = utl.getJIT("js_JNJ3FN");
 			const js_Bt1x9j = utl.getJIT("js_Bt1x9j");
@@ -2412,7 +2412,7 @@ const jitFnsCache = {
 		code: 'const js_Ei8qua = utl.getJIT("js_Ei8qua");\nconst js_okWaie = utl.getJIT("js_okWaie"); return function js_JNJ3FN(v){return \'{\'+\'"headerNames":\'+js_Ei8qua.fn(v.headerNames)+","+\'"jitHashes":\'+js_okWaie.fn(v.jitHashes)+\'}\'}',
 		dependenciesSet: new Set(["js_Ei8qua", "js_okWaie"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const js_Ei8qua = utl.getJIT("js_Ei8qua");
 			const js_okWaie = utl.getJIT("js_okWaie");
 			return function js_JNJ3FN(v) {
@@ -2439,7 +2439,7 @@ const jitFnsCache = {
 		code: " return function js_okWaie(v){return '{'+'\"isType\":'+utl.asJSONString(v.isType)+\",\"+'\"typeErrors\":'+utl.asJSONString(v.typeErrors)+'}'}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function js_okWaie(v) {
 				return (
 					"{" +
@@ -2464,7 +2464,7 @@ const jitFnsCache = {
 		code: "const js_Ei8qua = utl.getJIT(\"js_Ei8qua\"); return function js_Bt1x9j(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = js_Ei8qua.fn(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
 		dependenciesSet: new Set(["js_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const js_Ei8qua = utl.getJIT("js_Ei8qua");
 			return function js_Bt1x9j(v) {
 				const ls0 = [];
@@ -2487,7 +2487,7 @@ const jitFnsCache = {
 		code: ' return function js_bzlNFR(v){return \'{\'+\'"isType":\'+utl.asJSONString(v.isType)+","+\'"typeErrors":\'+utl.asJSONString(v.typeErrors)+","+\'"prepareForJson":\'+utl.asJSONString(v.prepareForJson)+","+\'"restoreFromJson":\'+utl.asJSONString(v.restoreFromJson)+","+\'"jsonStringify":\'+utl.asJSONString(v.jsonStringify)+","+\'"toBinary":\'+utl.asJSONString(v.toBinary)+","+\'"fromBinary":\'+utl.asJSONString(v.fromBinary)+\'}\'}',
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function js_bzlNFR(v) {
 				return (
 					"{" +
@@ -2527,7 +2527,7 @@ const jitFnsCache = {
 		code: "const js_EmCqyw = utl.getJIT(\"js_EmCqyw\"); return function js_tf5dpV(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + js_EmCqyw.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(["js_EmCqyw", "js_Ei8qua", "js_gCQYSg"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const js_EmCqyw = utl.getJIT("js_EmCqyw");
 			return function js_tf5dpV(v) {
 				return (function () {
@@ -2559,7 +2559,7 @@ const jitFnsCache = {
 		code: "const js_Ei8qua = utl.getJIT(\"js_Ei8qua\");\nconst js_gCQYSg = utl.getJIT(\"js_gCQYSg\"); return function js_EmCqyw(v){return '{'+(v.isNoop === undefined ? '' : '\"isNoop\":'+(v.isNoop ? 'true' : 'false')+\",\")+(v.paramNames === undefined ? '' : '\"paramNames\":'+js_Ei8qua.fn(v.paramNames)+\",\")+'\"typeName\":'+utl.asJSONString(v.typeName)+\",\"+'\"fnID\":'+utl.asJSONString(v.fnID)+\",\"+'\"jitFnHash\":'+utl.asJSONString(v.jitFnHash)+\",\"+'\"args\":'+js_gCQYSg.fn(v.args)+\",\"+'\"defaultParamValues\":'+js_gCQYSg.fn(v.defaultParamValues)+\",\"+'\"code\":'+utl.asJSONString(v.code)+\",\"+'\"dependenciesSet\":'+(function(){\n const ls0 = [];\n for (const it0 of v.dependenciesSet) {\n const res0 = utl.asJSONString(it0);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']'\n })()+\",\"+'\"pureFnDependencies\":'+(function(){\n const ls1 = [];\n for (const it1 of v.pureFnDependencies) {\n const res1 = utl.asJSONString(it1);\n ls1.push(res1);\n }\n return '[' + ls1.join(',') + ']'\n })()+'}'}",
 		dependenciesSet: new Set(["js_Ei8qua", "js_gCQYSg"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const js_Ei8qua = utl.getJIT("js_Ei8qua");
 			const js_gCQYSg = utl.getJIT("js_gCQYSg");
 			return function js_EmCqyw(v) {
@@ -2624,7 +2624,7 @@ const jitFnsCache = {
 		code: " return function js_gCQYSg(v){return '{'+(function(){\n const ls0 = [];\n for (const p0 in v) {\n if (\"vλl\" === p0) continue;\n if (p0 !== undefined) ls0.push(utl.asJSONString(p0) + ':' + utl.asJSONString(v[p0]));\n }\n if (!ls0.length) return '';\n return ls0.join(',')+\",\";\n })()+\"\\\"vλl\\\"\"+':'+utl.asJSONString(v[\"vλl\"])+'}'}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function js_gCQYSg(v) {
 				return (
 					"{" +
@@ -2657,7 +2657,7 @@ const jitFnsCache = {
 		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_R7hJ5T(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+","+"\\"mion:isΣrrθr\\""+\':\'+(v["mion:isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"message":\'+utl.asJSONString(v.message)+","+\'"name":\'+utl.asJSONString(v.name)+","+\'"statusCode":\'+v.statusCode+\'}\'}',
 		dependenciesSet: new Set(["js_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not JsonStringify union: item does not belong to the union";
 			const js_WEWIGI = utl.getJIT("js_WEWIGI");
@@ -2714,7 +2714,7 @@ const jitFnsCache = {
 		code: " return function js_WEWIGI(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + JSON.stringify(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function js_WEWIGI(v) {
 				return (function () {
 					const ns0 = [];
@@ -2791,7 +2791,7 @@ const jitFnsCache = {
 			"hk_WEWIGI",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not encode union to binary: item does not belong to the union";
 			const tBi_Ik8k60 = utl.getJIT("tBi_Ik8k60");
@@ -2841,7 +2841,7 @@ const jitFnsCache = {
 			"tBi_cE6uKo",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tBi_GAquSa = utl.getJIT("tBi_GAquSa");
 			const tBi_tf5dpV = utl.getJIT("tBi_tf5dpV");
 			const tBi_tP7Vvb = utl.getJIT("tBi_tP7Vvb");
@@ -2871,7 +2871,7 @@ const jitFnsCache = {
 			"tBi_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tBi_hzbJrn = utl.getJIT("tBi_hzbJrn");
 			return function tBi_GAquSa(v, Ser) {
 				let cnt0 = 0;
@@ -2904,7 +2904,7 @@ const jitFnsCache = {
 			"tBi_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tBi_bzlNFR = utl.getJIT("tBi_bzlNFR");
 			const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua");
 			const tBi_JNJ3FN = utl.getJIT("tBi_JNJ3FN");
@@ -2951,7 +2951,7 @@ const jitFnsCache = {
 		code: " return function tBi_bzlNFR(v,Ser){Ser.serString(v.isType);Ser.serString(v.typeErrors);Ser.serString(v.prepareForJson);Ser.serString(v.restoreFromJson);Ser.serString(v.jsonStringify);Ser.serString(v.toBinary);Ser.serString(v.fromBinary);\n; return Ser}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tBi_bzlNFR(v, Ser) {
 				Ser.serString(v.isType);
 				Ser.serString(v.typeErrors);
@@ -2975,7 +2975,7 @@ const jitFnsCache = {
 		code: " return function tBi_Ei8qua(v,Ser){\n Ser.view.setUint32(Ser.index, v.length, 1); Ser.index += 4;\n for (let i0 = 0; i0 < v.length; i0++) {Ser.serString(v[i0]);}\n ; return Ser}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tBi_Ei8qua(v, Ser) {
 				Ser.view.setUint32(Ser.index, v.length, 1);
 				Ser.index += 4;
@@ -2997,7 +2997,7 @@ const jitFnsCache = {
 		code: 'const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua");\nconst tBi_okWaie = utl.getJIT("tBi_okWaie"); return function tBi_JNJ3FN(v,Ser){tBi_Ei8qua.fn(v.headerNames,Ser);tBi_okWaie.fn(v.jitHashes,Ser);\n; return Ser}',
 		dependenciesSet: new Set(["tBi_Ei8qua", "tBi_okWaie"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua");
 			const tBi_okWaie = utl.getJIT("tBi_okWaie");
 			return function tBi_JNJ3FN(v, Ser) {
@@ -3018,7 +3018,7 @@ const jitFnsCache = {
 		code: " return function tBi_okWaie(v,Ser){Ser.serString(v.isType);Ser.serString(v.typeErrors);\n; return Ser}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tBi_okWaie(v, Ser) {
 				Ser.serString(v.isType);
 				Ser.serString(v.typeErrors);
@@ -3037,7 +3037,7 @@ const jitFnsCache = {
 		code: 'const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua"); return function tBi_Bt1x9j(v,Ser){\n Ser.view.setUint32(Ser.index, v.length, 1); Ser.index += 4;\n for (let i0 = 0; i0 < v.length; i0++) {tBi_Ei8qua.fn(v[i0],Ser)}\n ; return Ser}',
 		dependenciesSet: new Set(["tBi_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua");
 			return function tBi_Bt1x9j(v, Ser) {
 				Ser.view.setUint32(Ser.index, v.length, 1);
@@ -3060,7 +3060,7 @@ const jitFnsCache = {
 		code: 'const tBi_EmCqyw = utl.getJIT("tBi_EmCqyw"); return function tBi_tf5dpV(v,Ser){\n let cnt0 = 0; const piI0 = Ser.index; Ser.index += 4;\n for (const p0 in v) {Ser.serString(p0); tBi_EmCqyw.fn(v[p0],Ser); cnt0++;}\n Ser.view.setUint32(piI0, cnt0, 1);\n ; return Ser}',
 		dependenciesSet: new Set(["tBi_EmCqyw", "tBi_gCQYSg", "tBi_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tBi_EmCqyw = utl.getJIT("tBi_EmCqyw");
 			return function tBi_tf5dpV(v, Ser) {
 				let cnt0 = 0;
@@ -3087,7 +3087,7 @@ const jitFnsCache = {
 		code: 'const tBi_gCQYSg = utl.getJIT("tBi_gCQYSg");\nconst tBi_Ei8qua = utl.getJIT("tBi_Ei8qua"); return function tBi_EmCqyw(v,Ser){Ser.serString(v.typeName);Ser.serString(v.fnID);Ser.serString(v.jitFnHash);tBi_gCQYSg.fn(v.args,Ser);tBi_gCQYSg.fn(v.defaultParamValues,Ser);Ser.serString(v.code);Ser.view.setUint32(Ser.index, v.dependenciesSet.size, 1); Ser.index += 4; for (const it0 of v.dependenciesSet) {Ser.serString(it0);};Ser.view.setUint32(Ser.index, v.pureFnDependencies.size, 1); Ser.index += 4; for (const it1 of v.pureFnDependencies) {Ser.serString(it1);}\nconst bmI2 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.isNoop !== undefined) {Ser.view.setUint8(Ser.index++, !!v.isNoop);Ser.setBitMask(bmI2, 0 & 7)}if (v.paramNames !== undefined) {tBi_Ei8qua.fn(v.paramNames,Ser);Ser.setBitMask(bmI2, 1 & 7)} return Ser}',
 		dependenciesSet: new Set(["tBi_gCQYSg", "tBi_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tBi_gCQYSg = utl.getJIT("tBi_gCQYSg");
 			const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua");
 			return function tBi_EmCqyw(v, Ser) {
@@ -3132,7 +3132,7 @@ const jitFnsCache = {
 		code: " return function tBi_gCQYSg(v,Ser){\n let cnt0 = 0; const piI0 = Ser.index; Ser.index += 4;\n for (const p0 in v) {Ser.serString(p0); Ser.serString(v[p0]); cnt0++;}\n Ser.view.setUint32(piI0, cnt0, 1);\n ; return Ser}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tBi_gCQYSg(v, Ser) {
 				let cnt0 = 0;
 				const piI0 = Ser.index;
@@ -3158,7 +3158,7 @@ const jitFnsCache = {
 		code: 'const tBi_cE6uKo = utl.getJIT("tBi_cE6uKo"); return function tBi_tP7Vvb(v,Ser){\n let cnt0 = 0; const piI0 = Ser.index; Ser.index += 4;\n for (const p0 in v) {Ser.serString(p0); tBi_cE6uKo.fn(v[p0],Ser); cnt0++;}\n Ser.view.setUint32(piI0, cnt0, 1);\n ; return Ser}',
 		dependenciesSet: new Set(["tBi_cE6uKo", "tBi_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tBi_cE6uKo = utl.getJIT("tBi_cE6uKo");
 			return function tBi_tP7Vvb(v, Ser) {
 				let cnt0 = 0;
@@ -3185,7 +3185,7 @@ const jitFnsCache = {
 		code: 'const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua"); return function tBi_cE6uKo(v,Ser){tBi_Ei8qua.fn(v.paramNames,Ser);Ser.serString(v.code);Ser.serString(v.pureFnHash);Ser.view.setUint32(Ser.index, v.dependencies.size, 1); Ser.index += 4; for (const it0 of v.dependencies) {Ser.serString(it0);}\n; return Ser}',
 		dependenciesSet: new Set(["tBi_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua");
 			return function tBi_cE6uKo(v, Ser) {
 				tBi_Ei8qua.fn(v.paramNames, Ser);
@@ -3211,7 +3211,7 @@ const jitFnsCache = {
 		code: 'const uErr1 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_WEWIGI = utl.getJIT("tBi_WEWIGI"); return function tBi_R7hJ5T(v,Ser){;Ser.serString(v.message);Ser.serString(v.name);Ser.view.setFloat64(Ser.index,v.statusCode, 1, (Ser.index += 8));Ser.serString(v.publicMessage);\nconst bmI0 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.id !== undefined) {if (Number.isFinite(v.id)) {Ser.view.setUint8(Ser.index++, 0);Ser.view.setFloat64(Ser.index,v.id, 1, (Ser.index += 8));}else if (typeof v.id === \'string\') {Ser.view.setUint8(Ser.index++, 1);Ser.serString(v.id);} else {throw new Error(uErr1);};Ser.setBitMask(bmI0, 0 & 7)}if (v.errorData !== undefined) {tBi_WEWIGI.fn(v.errorData,Ser);Ser.setBitMask(bmI0, 1 & 7)} return Ser}',
 		dependenciesSet: new Set(["tBi_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr1 =
 				"Can not encode union to binary: item does not belong to the union";
 			const tBi_WEWIGI = utl.getJIT("tBi_WEWIGI");
@@ -3253,7 +3253,7 @@ const jitFnsCache = {
 		code: " return function tBi_WEWIGI(v,Ser){\n let cnt0 = 0; const piI0 = Ser.index; Ser.index += 4;\n for (const p0 in v) {Ser.serString(p0); Ser.serString(JSON.stringify(v[p0])); cnt0++;}\n Ser.view.setUint32(piI0, cnt0, 1);\n ; return Ser}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tBi_WEWIGI(v, Ser) {
 				let cnt0 = 0;
 				const piI0 = Ser.index;
@@ -3295,7 +3295,7 @@ const jitFnsCache = {
 			"fBi_WEWIGI",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 = "Can not binary decode union: invalid union index";
 			const fBi_Ik8k60 = utl.getJIT("fBi_Ik8k60");
 			const fBi_R7hJ5T = utl.getJIT("fBi_R7hJ5T");
@@ -3336,7 +3336,7 @@ const jitFnsCache = {
 			"fBi_cE6uKo",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fBi_GAquSa = utl.getJIT("fBi_GAquSa");
 			const fBi_tf5dpV = utl.getJIT("fBi_tf5dpV");
 			const fBi_tP7Vvb = utl.getJIT("fBi_tP7Vvb");
@@ -3367,7 +3367,7 @@ const jitFnsCache = {
 			"fBi_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fBi_hzbJrn = utl.getJIT("fBi_hzbJrn");
 			return function fBi_GAquSa(ret, Des) {
 				const cnt0 = Des.view.getUint32(Des.index, 1);
@@ -3398,7 +3398,7 @@ const jitFnsCache = {
 			"fBi_Bt1x9j",
 		]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fBi_bzlNFR = utl.getJIT("fBi_bzlNFR");
 			const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua");
 			const fBi_JNJ3FN = utl.getJIT("fBi_JNJ3FN");
@@ -3443,7 +3443,7 @@ const jitFnsCache = {
 		code: " return function fBi_bzlNFR(ret,Des){return {isType:Des.desString(),typeErrors:Des.desString(),prepareForJson:Des.desString(),restoreFromJson:Des.desString(),jsonStringify:Des.desString(),toBinary:Des.desString(),fromBinary:Des.desString()}}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fBi_bzlNFR(ret, Des) {
 				return {
 					isType: Des.desString(),
@@ -3468,7 +3468,7 @@ const jitFnsCache = {
 		code: " return function fBi_Ei8qua(ret,Des){\n const arrL0 = Des.view.getUint32(Des.index, 1); Des.index += 4; ret = new Array(arrL0);\n for (let i0 = 0; i0 < arrL0; i0++) {ret[i0] = Des.desString();}\n ; return ret}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fBi_Ei8qua(ret, Des) {
 				const arrL0 = Des.view.getUint32(Des.index, 1);
 				Des.index += 4;
@@ -3491,7 +3491,7 @@ const jitFnsCache = {
 		code: 'const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua");\nconst fBi_okWaie = utl.getJIT("fBi_okWaie"); return function fBi_JNJ3FN(ret,Des){return {headerNames:fBi_Ei8qua.fn(undefined,Des),jitHashes:fBi_okWaie.fn(undefined,Des)}}',
 		dependenciesSet: new Set(["fBi_Ei8qua", "fBi_okWaie"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua");
 			const fBi_okWaie = utl.getJIT("fBi_okWaie");
 			return function fBi_JNJ3FN(ret, Des) {
@@ -3513,7 +3513,7 @@ const jitFnsCache = {
 		code: " return function fBi_okWaie(ret,Des){return {isType:Des.desString(),typeErrors:Des.desString()}}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fBi_okWaie(ret, Des) {
 				return { isType: Des.desString(), typeErrors: Des.desString() };
 			};
@@ -3530,7 +3530,7 @@ const jitFnsCache = {
 		code: 'const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua"); return function fBi_Bt1x9j(ret,Des){\n const arrL0 = Des.view.getUint32(Des.index, 1); Des.index += 4; ret = new Array(arrL0);\n for (let i0 = 0; i0 < arrL0; i0++) {ret[i0] = fBi_Ei8qua.fn(undefined,Des);}\n ; return ret}',
 		dependenciesSet: new Set(["fBi_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua");
 			return function fBi_Bt1x9j(ret, Des) {
 				const arrL0 = Des.view.getUint32(Des.index, 1);
@@ -3554,7 +3554,7 @@ const jitFnsCache = {
 		code: 'const fBi_EmCqyw = utl.getJIT("fBi_EmCqyw"); return function fBi_tf5dpV(ret,Des){const cnt0 = Des.view.getUint32(Des.index, 1); Des.index += 4; ret = {}; for (let propI0 = 0; propI0 < cnt0; propI0++) {const p0 = Des.desString();ret[p0] = fBi_EmCqyw.fn(undefined,Des);} return ret}',
 		dependenciesSet: new Set(["fBi_EmCqyw", "fBi_gCQYSg", "fBi_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fBi_EmCqyw = utl.getJIT("fBi_EmCqyw");
 			return function fBi_tf5dpV(ret, Des) {
 				const cnt0 = Des.view.getUint32(Des.index, 1);
@@ -3579,7 +3579,7 @@ const jitFnsCache = {
 		code: 'const fBi_gCQYSg = utl.getJIT("fBi_gCQYSg");\nconst fBi_Ei8qua = utl.getJIT("fBi_Ei8qua"); return function fBi_EmCqyw(ret,Des){ret = {typeName:Des.desString(),fnID:Des.desString(),jitFnHash:Des.desString(),args:fBi_gCQYSg.fn(undefined,Des),defaultParamValues:fBi_gCQYSg.fn(undefined,Des),code:Des.desString()}\nconst it0 = new Set(); const itL0 = Des.view.getUint32(Des.index, 1); Des.index += 4; for (let itI0 = 0; itI0 < itL0; itI0++) {const sK1 = Des.desString(); it0.add(sK1);} ret.dependenciesSet = it0;const it2 = new Set(); const itL2 = Des.view.getUint32(Des.index, 1); Des.index += 4; for (let itI2 = 0; itI2 < itL2; itI2++) {const sK3 = Des.desString(); it2.add(sK3);} ret.pureFnDependencies = it2;\nconst bimI4 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI4, 1) & (1 << (0 & 7))) {ret.isNoop = Des.view.getUint8(Des.index++) === 1;}if (Des.view.getUint8(bimI4, 1) & (1 << (1 & 7))) {ret.paramNames = fBi_Ei8qua.fn(undefined,Des);} return ret}',
 		dependenciesSet: new Set(["fBi_gCQYSg", "fBi_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fBi_gCQYSg = utl.getJIT("fBi_gCQYSg");
 			const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua");
 			return function fBi_EmCqyw(ret, Des) {
@@ -3630,7 +3630,7 @@ const jitFnsCache = {
 		code: " return function fBi_gCQYSg(ret,Des){const cnt0 = Des.view.getUint32(Des.index, 1); Des.index += 4; ret = {}; for (let propI0 = 0; propI0 < cnt0; propI0++) {const p0 = Des.desString();ret[p0] = Des.desString();} return ret}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fBi_gCQYSg(ret, Des) {
 				const cnt0 = Des.view.getUint32(Des.index, 1);
 				Des.index += 4;
@@ -3654,7 +3654,7 @@ const jitFnsCache = {
 		code: 'const fBi_cE6uKo = utl.getJIT("fBi_cE6uKo"); return function fBi_tP7Vvb(ret,Des){const cnt0 = Des.view.getUint32(Des.index, 1); Des.index += 4; ret = {}; for (let propI0 = 0; propI0 < cnt0; propI0++) {const p0 = Des.desString();ret[p0] = fBi_cE6uKo.fn(undefined,Des);} return ret}',
 		dependenciesSet: new Set(["fBi_cE6uKo", "fBi_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fBi_cE6uKo = utl.getJIT("fBi_cE6uKo");
 			return function fBi_tP7Vvb(ret, Des) {
 				const cnt0 = Des.view.getUint32(Des.index, 1);
@@ -3679,7 +3679,7 @@ const jitFnsCache = {
 		code: 'const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua"); return function fBi_cE6uKo(ret,Des){ret = {paramNames:fBi_Ei8qua.fn(undefined,Des),code:Des.desString(),pureFnHash:Des.desString()}\nconst it0 = new Set(); const itL0 = Des.view.getUint32(Des.index, 1); Des.index += 4; for (let itI0 = 0; itI0 < itL0; itI0++) {const sK1 = Des.desString(); it0.add(sK1);} ret.dependencies = it0; return ret}',
 		dependenciesSet: new Set(["fBi_Ei8qua"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua");
 			return function fBi_cE6uKo(ret, Des) {
 				ret = {
@@ -3710,7 +3710,7 @@ const jitFnsCache = {
 		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_R7hJ5T(ret,Des){ret = {"mion:isΣrrθr":true,type:"rpc-metadata-not-found",message:Des.desString(),name:Des.desString(),statusCode:Des.view.getFloat64(Des.index, 1, (Des.index += 8)),publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
 		dependenciesSet: new Set(["fBi_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr1 = "Can not binary decode union: invalid union index";
 			const fBi_WEWIGI = utl.getJIT("fBi_WEWIGI");
 			return function fBi_R7hJ5T(ret, Des) {
@@ -3759,7 +3759,7 @@ const jitFnsCache = {
 		code: " return function fBi_WEWIGI(ret,Des){const cnt0 = Des.view.getUint32(Des.index, 1); Des.index += 4; ret = {}; for (let propI0 = 0; propI0 < cnt0; propI0++) {const p0 = Des.desString();ret[p0] = JSON.parse(Des.desString());} return ret}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fBi_WEWIGI(ret, Des) {
 				const cnt0 = Des.view.getUint32(Des.index, 1);
 				Des.index += 4;
@@ -3783,7 +3783,7 @@ const jitFnsCache = {
 		code: " return function is_hZzD9z(v){return (v.length <= 2 && typeof v[0] === 'string' && (v[1] === undefined || (typeof v[1] === 'boolean')))}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function is_hZzD9z(v) {
 				return (
 					v.length <= 2 &&
@@ -3804,7 +3804,7 @@ const jitFnsCache = {
 		code: ' return function te_hZzD9z(v,pth=[],er=[]){if (v.length > 2) utl.err(pth,er,"params"); else {if (typeof v[0] !== \'string\') utl.err(pth,er,"string",[0]);if (v[1] !== undefined) {if (typeof v[1] !== \'boolean\') utl.err(pth,er,"boolean",[1]);}} return er}',
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function te_hZzD9z(v, pth = [], er = []) {
 				if (v.length > 2) utl.err(pth, er, "params");
 				else {
@@ -3828,7 +3828,7 @@ const jitFnsCache = {
 		code: " return function tj_hZzD9z(v){if (v[1] === undefined ) {if (v.length > 1) v[1] = null} return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_hZzD9z(v) {
 				if (v[1] === undefined) {
 					if (v.length > 1) v[1] = null;
@@ -3848,7 +3848,7 @@ const jitFnsCache = {
 		code: " return function fj_hZzD9z(v){if (v[1] === null ) {v[1] = undefined} return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_hZzD9z(v) {
 				if (v[1] === null) {
 					v[1] = undefined;
@@ -3868,7 +3868,7 @@ const jitFnsCache = {
 		code: " return function js_hZzD9z(v){return '['+utl.asJSONString(v[0])+(v[1] === undefined ? ','+'null' : ','+(v[1] ? 'true' : 'false'))+']'}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function js_hZzD9z(v) {
 				return (
 					"[" +
@@ -3892,7 +3892,7 @@ const jitFnsCache = {
 		code: " return function tBi_hZzD9z(v,Ser){Ser.serString(v[0]);if (v[1] !== undefined){Ser.view.setUint8(Ser.index++, 1);Ser.view.setUint8(Ser.index++, !!v[1]);} else {Ser.view.setUint8(Ser.index++, 0)} return Ser}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tBi_hZzD9z(v, Ser) {
 				Ser.serString(v[0]);
 				if (v[1] !== undefined) {
@@ -3916,7 +3916,7 @@ const jitFnsCache = {
 		code: " return function fBi_hZzD9z(ret,Des){ret = [];ret[0] = Des.desString();if (Des.view.getUint8(Des.index++) === 1){ret[1] = Des.view.getUint8(Des.index++) === 1} return ret}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fBi_hZzD9z(ret, Des) {
 				ret = [];
 				ret[0] = Des.desString();
@@ -3938,7 +3938,7 @@ const jitFnsCache = {
 		code: " return function is_q2ck2E(v){return v.length === 0}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function is_q2ck2E(v) {
 				return v.length === 0;
 			};
@@ -3955,7 +3955,7 @@ const jitFnsCache = {
 		code: ' return function te_q2ck2E(v,pth=[],er=[]){if (v.length !== 0) utl.err(pth,er,"params"); return er}',
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function te_q2ck2E(v, pth = [], er = []) {
 				if (v.length !== 0) utl.err(pth, er, "params");
 				return er;
@@ -3973,7 +3973,7 @@ const jitFnsCache = {
 		code: " return function tj_q2ck2E(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_q2ck2E(v) {
 				return v;
 			};
@@ -3990,7 +3990,7 @@ const jitFnsCache = {
 		code: " return function fj_q2ck2E(v){return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_q2ck2E(v) {
 				return v;
 			};
@@ -4007,7 +4007,7 @@ const jitFnsCache = {
 		code: " return function js_q2ck2E(v){return '[]'}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function js_q2ck2E(v) {
 				return "[]";
 			};
@@ -4024,7 +4024,7 @@ const jitFnsCache = {
 		code: " return function tBi_q2ck2E(v,Ser){}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tBi_q2ck2E(v, Ser) {};
 		},
 		fn: undefined,
@@ -4039,7 +4039,7 @@ const jitFnsCache = {
 		code: " return function fBi_q2ck2E(ret,Des){ret = new Array(0); return ret}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fBi_q2ck2E(ret, Des) {
 				ret = new Array(0);
 				return ret;
@@ -4057,7 +4057,7 @@ const jitFnsCache = {
 		code: "const is_WEWIGI = utl.getJIT(\"is_WEWIGI\"); return function is_iGQesm(v){return (typeof v === 'object' && v !== null && v[\"mion:isΣrrθr\"] === true && typeof v.type === 'string' && typeof v.message === 'string' && typeof v.name === 'string' && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && Number.isFinite(v.statusCode) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)))}",
 		dependenciesSet: new Set(["is_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const is_WEWIGI = utl.getJIT("is_WEWIGI");
 			return function is_iGQesm(v) {
 				return (
@@ -4088,7 +4088,7 @@ const jitFnsCache = {
 		code: 'const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_iGQesm(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n utl.err(pth,er,"class");\n } else {\n if (v["mion:isΣrrθr"] !== true) utl.err(pth,er,"literal",["mion:isΣrrθr"]);if (typeof v.type !== \'string\') utl.err(pth,er,"string",["type"]);if (typeof v.message !== \'string\') utl.err(pth,er,"string",["message"]);if (typeof v.name !== \'string\') utl.err(pth,er,"string",["name"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) utl.err(pth,er,"union",["id"]);};if(!(Number.isFinite(v.statusCode))) utl.err(pth,er,"number",["statusCode"]);if (typeof v.publicMessage !== \'string\') utl.err(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);}\n }\n ; return er}',
 		dependenciesSet: new Set(["te_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const te_WEWIGI = utl.getJIT("te_WEWIGI");
 			return function te_iGQesm(v, pth = [], er = []) {
 				if (!(typeof v === "object" && v !== null)) {
@@ -4129,7 +4129,7 @@ const jitFnsCache = {
 		code: " return function te_WEWIGI(v,pth=[],er=[]){\n if (!(typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'))) {\n utl.err(pth,er,\"object\");\n } else {\n \n }\n ; return er}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function te_WEWIGI(v, pth = [], er = []) {
 				if (
 					!(
@@ -4157,7 +4157,7 @@ const jitFnsCache = {
 		code: "const uErr0 = \"Can not json encode union: item does not belong to the union\"; return function tj_iGQesm(v){if (v.id !== undefined) {if (Number.isFinite(v.id)) { /*noop*/}else if (typeof v.id === 'string') { /*noop*/} else {throw new Error(uErr0);}} return v}",
 		dependenciesSet: new Set(["tj_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not json encode union: item does not belong to the union";
 			return function tj_iGQesm(v) {
@@ -4185,7 +4185,7 @@ const jitFnsCache = {
 		code: 'const uErr0 = "Can not json decode union: invalid union index"; return function fj_iGQesm(v){\n if (v.id !== undefined) {\n if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === \'number\') {\n const dec0 = v.id[0]; v.id = v.id[1];\n if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}\n else {throw new Error(uErr0)}\n }\n ;};\n let desFn1 = utl.getDeserializeFn("RpcError");\n if (desFn1) {v = desFn1(v)}\n else if (desFn1 = utl.getSerializeClass("RpcError")) {v = new desFn1(v)}\n ; return v}',
 		dependenciesSet: new Set(["fj_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 = "Can not json decode union: invalid union index";
 			return function fj_iGQesm(v) {
 				if (v.id !== undefined) {
@@ -4226,7 +4226,7 @@ const jitFnsCache = {
 		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_iGQesm(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+"\\"mion:isΣrrθr\\""+\':\'+(v["mion:isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"message":\'+utl.asJSONString(v.message)+","+\'"name":\'+utl.asJSONString(v.name)+","+\'"statusCode":\'+v.statusCode+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
 		dependenciesSet: new Set(["js_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not JsonStringify union: item does not belong to the union";
 			const js_WEWIGI = utl.getJIT("js_WEWIGI");
@@ -4283,7 +4283,7 @@ const jitFnsCache = {
 		code: 'const uErr1 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_WEWIGI = utl.getJIT("tBi_WEWIGI"); return function tBi_iGQesm(v,Ser){;Ser.serString(v.type);Ser.serString(v.message);Ser.serString(v.name);Ser.view.setFloat64(Ser.index,v.statusCode, 1, (Ser.index += 8));Ser.serString(v.publicMessage);\nconst bmI0 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.id !== undefined) {if (Number.isFinite(v.id)) {Ser.view.setUint8(Ser.index++, 0);Ser.view.setFloat64(Ser.index,v.id, 1, (Ser.index += 8));}else if (typeof v.id === \'string\') {Ser.view.setUint8(Ser.index++, 1);Ser.serString(v.id);} else {throw new Error(uErr1);};Ser.setBitMask(bmI0, 0 & 7)}if (v.errorData !== undefined) {tBi_WEWIGI.fn(v.errorData,Ser);Ser.setBitMask(bmI0, 1 & 7)} return Ser}',
 		dependenciesSet: new Set(["tBi_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr1 =
 				"Can not encode union to binary: item does not belong to the union";
 			const tBi_WEWIGI = utl.getJIT("tBi_WEWIGI");
@@ -4326,7 +4326,7 @@ const jitFnsCache = {
 		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_iGQesm(ret,Des){ret = {"mion:isΣrrθr":true,type:Des.desString(),message:Des.desString(),name:Des.desString(),statusCode:Des.view.getFloat64(Des.index, 1, (Des.index += 8)),publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
 		dependenciesSet: new Set(["fBi_WEWIGI"]),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			const uErr1 = "Can not binary decode union: invalid union index";
 			const fBi_WEWIGI = utl.getJIT("fBi_WEWIGI");
 			return function fBi_iGQesm(ret, Des) {
@@ -4375,7 +4375,7 @@ const jitFnsCache = {
 		code: " return function is_dPDpXF(v){return v === undefined}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function is_dPDpXF(v) {
 				return v === undefined;
 			};
@@ -4392,7 +4392,7 @@ const jitFnsCache = {
 		code: ' return function te_dPDpXF(v,pth=[],er=[]){if (v !== undefined) utl.err(pth,er,"void"); return er}',
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function te_dPDpXF(v, pth = [], er = []) {
 				if (v !== undefined) utl.err(pth, er, "void");
 				return er;
@@ -4410,7 +4410,7 @@ const jitFnsCache = {
 		code: " return function tj_dPDpXF(v){return v = undefined}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tj_dPDpXF(v) {
 				return (v = undefined);
 			};
@@ -4427,7 +4427,7 @@ const jitFnsCache = {
 		code: " return function fj_dPDpXF(v){return v = undefined}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fj_dPDpXF(v) {
 				return (v = undefined);
 			};
@@ -4444,7 +4444,7 @@ const jitFnsCache = {
 		code: " return function js_dPDpXF(v){return undefined}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function js_dPDpXF(v) {
 				return undefined;
 			};
@@ -4461,7 +4461,7 @@ const jitFnsCache = {
 		code: " return function tBi_dPDpXF(v,Ser){Ser.view.setUint8(Ser.index++, 1); return Ser}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function tBi_dPDpXF(v, Ser) {
 				Ser.view.setUint8(Ser.index++, 1);
 				return Ser;
@@ -4479,7 +4479,7 @@ const jitFnsCache = {
 		code: " return function fBi_dPDpXF(ret,Des){return (Des.index++, undefined)}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
-		closureFn: function (utl) {
+		createJitFn: function (utl) {
 			return function fBi_dPDpXF(ret, Des) {
 				return Des.index++, undefined;
 			};

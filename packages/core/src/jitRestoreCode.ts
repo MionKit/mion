@@ -38,7 +38,7 @@ function restoreCompiledPureFn(pureCache: PersistedPureFunctionsCache | PureFunc
     if (pureCompiled.fn) return;
     const dependencies = pureCompiled.dependencies;
     dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName));
-    (pureCompiled as any as Mutable<CompiledPureFunction>).fn = pureCompiled.closureFn(jitUtils);
+    (pureCompiled as any as Mutable<CompiledPureFunction>).fn = pureCompiled.createJitFn(jitUtils);
 }
 
 function restoreCompiledJitFn(
@@ -55,5 +55,5 @@ function restoreCompiledJitFn(
 
     const dependencies = jitCompiled.dependenciesSet;
     dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep));
-    (jitCompiled as any as Mutable<JitCompiledFn>).fn = jitCompiled.closureFn(jitUtils);
+    (jitCompiled as any as Mutable<JitCompiledFn>).fn = jitCompiled.createJitFn(jitUtils);
 }

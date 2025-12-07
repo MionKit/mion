@@ -46,7 +46,7 @@ describe('jitUtils', () => {
                 dependenciesSet: new Set<string>(),
                 pureFnDependencies: new Set<string>(),
                 fn: () => true,
-                closureFn: () => () => true,
+                createJitFn: () => () => true,
             },
         };
 
@@ -73,7 +73,7 @@ describe('jitUtils', () => {
                 pureFnHash: 'testPureFn',
                 code: 'return (a, b) => a + b;',
                 dependencies: new Set<string>(),
-                closureFn: () => (a: number, b: number) => a + b,
+                createJitFn: () => (a: number, b: number) => a + b,
                 fn: (a: number, b: number) => a + b,
             },
         };
@@ -112,7 +112,7 @@ describe('jitUtils', () => {
                 dependenciesSet: new Set<string>(),
                 pureFnDependencies: new Set<string>(),
                 fn: () => true,
-                closureFn: () => () => true,
+                createJitFn: () => () => true,
             },
         };
 
@@ -128,7 +128,7 @@ describe('jitUtils', () => {
                 dependenciesSet: new Set<string>(),
                 pureFnDependencies: new Set<string>(),
                 fn: () => false,
-                closureFn: () => () => false,
+                createJitFn: () => () => false,
             },
             testFn2: {
                 // New key - should be added
@@ -141,7 +141,7 @@ describe('jitUtils', () => {
                 dependenciesSet: new Set<string>(),
                 pureFnDependencies: new Set<string>(),
                 fn: () => false,
-                closureFn: () => () => false,
+                createJitFn: () => () => false,
             },
         };
 

@@ -54,7 +54,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     /** The Jit Generated function once the compilation is finished */
     readonly fn: ((...args: any[]) => any) | undefined;
-    readonly closureFn: ((utl: JITUtils) => (...args: any[]) => any) | undefined;
+    readonly createJitFn: ((utl: JITUtils) => (...args: any[]) => any) | undefined;
     private isCompiled = false;
 
     constructor(

@@ -201,7 +201,7 @@ export interface PureFunctionData {
 }
 
 export interface CompiledPureFunction extends PureFunctionData {
-    closureFn: PureFunctionClosure;
+    createJitFn: PureFunctionClosure;
     fn?: PureFunction;
 }
 
@@ -248,11 +248,14 @@ export interface JitCompiledFnData {
 
 export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
-    readonly closureFn: (utl: JITUtils) => Fn;
+    readonly createJitFn: (utl: JITUtils) => Fn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: Fn;
 }
 
+/** Jit Functions serialized to src code file, it contains the create jit function
+ * but not the actual fn as this one can not be serialized to code.
+ */
 export interface PersistedJitFn extends Omit<JitCompiledFn, 'fn'> {
     /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
@@ -313,13 +316,13 @@ export type PersistedPureFunctionsCache = Record<string, PersistedPureFunction>;
 
 export interface SrcCodeJitCompiledFn extends JitCompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
-    readonly closureFn: (utl: JITUtils) => AnyFn;
+    readonly createJitFn: (utl: JITUtils) => AnyFn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }
 export interface SrcCodeCompiledPureFunction extends PureFunctionData {
     /** The closure function that contains the jit function, this one contains the context code */
-    readonly closureFn: (utl: JITUtils) => AnyFn;
+    readonly createJitFn: (utl: JITUtils) => AnyFn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }

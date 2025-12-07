@@ -119,7 +119,7 @@ export function createToCodeCompiler() {
 
     function isCompilingClosureJitFn(runType: MethodSignatureRunType, comp: JitFnCompiler) {
         if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
-        const isClosure = runType.getChildVarName(comp) === 'closureFn';
+        const isClosure = runType.getChildVarName(comp) === 'createJitFn';
         return isClosure;
     }
 

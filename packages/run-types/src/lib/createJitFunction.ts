@@ -27,10 +27,10 @@ export function createJitFunction(comp: BaseFnCompiler): (...args: any[]) => any
     if (comp.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
     if (jitUtils.hasJitFn(comp.jitFnHash)) return jitUtils.getJitFn(comp.jitFnHash);
     const {fnCode, fnName, contextCode} = getJitFnCode(comp);
-    const {closureFn, fn, code} = createJitFnWithContext(comp, fnName, fnCode, contextCode);
+    const {createJitFn, fn, code} = createJitFnWithContext(comp, fnName, fnCode, contextCode);
     (comp as Mutable<BaseFnCompiler>).code = code;
     (comp as Mutable<BaseFnCompiler>).fn = fn;
-    (comp as Mutable<BaseFnCompiler>).closureFn = closureFn;
+    (comp as Mutable<BaseFnCompiler>).createJitFn = createJitFn;
     return fn;
 }
 
@@ -59,7 +59,7 @@ function createJitFnWithContext(comp: BaseFnCompiler, fnName: string, fnCode: st
         // wrapper functions that works as a factory and returns the actual jit function, context contains all constants and heavy to create objects
         const wrapperWithContext = new Function('utl', fnWithContext) as (utl: JITUtils) => (...args: any[]) => any;
         if (getENV('DEBUG_JIT')) console.log(printClosure(fnWithContext, fnName));
-        return {closureFn: wrapperWithContext, fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
+        return {createJitFn: wrapperWithContext, fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
     } catch (e: any) {
         if (getENV('DEBUG_JIT')) {
             console.warn('Error creating jit function with context code:\n', printClosure(fnWithContext, fnName));
