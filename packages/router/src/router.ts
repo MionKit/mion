@@ -7,7 +7,7 @@
 
 import {join} from 'path';
 import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
-import type {Method, MethodsExecutionList, RawMethod, HeaderMethod, HookMethod, RouteMethod} from './types/remoteMethods';
+import type {RemoteMethod, MethodsExecutionList, RawMethod, HeaderMethod, HookMethod, RouteMethod} from './types/remoteMethods';
 import type {PublicApi, PrivateDef, HooksCollection} from './types/publicMethods';
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
@@ -47,8 +47,8 @@ const defaultStartHooks = {mionDeserializeRequest: serializerHooks.mionDeseriali
 const defaultEndHooks = {mionSerializeResponse: serializerHooks.mionSerializeResponse};
 let startHooksDef: HooksCollection = {...defaultStartHooks};
 let endHooksDef: HooksCollection = {...defaultEndHooks};
-export let startHooks: Method[] = [];
-export let endHooks: Method[] = [];
+export let startHooks: RemoteMethod[] = [];
+export let endHooks: RemoteMethod[] = [];
 
 // ############# PUBLIC METHODS #############
 
@@ -150,7 +150,7 @@ export function isPrivateDefinition(entry: RouterEntry, id: string): entry is Pr
     }
 }
 
-export function isPrivateExecutable(executable: Method): boolean {
+export function isPrivateExecutable(executable: RemoteMethod): boolean {
     if (executable.type === HandlerType.rawHook) return true;
     if (executable.type === HandlerType.route) return false;
     const hasPublicParams = !!executable.paramNames?.length;
@@ -191,8 +191,8 @@ export function getRouteExecutableFromPath(path: string): RouteMethod {
 function recursiveFlatRoutes(
     routes: Routes,
     currentPointer: string[] = [],
-    preHooks: Method[] = [],
-    postHooks: Method[] = [],
+    preHooks: RemoteMethod[] = [],
+    postHooks: RemoteMethod[] = [],
     nestLevel = 0
 ) {
     if (nestLevel > MAX_ROUTE_NESTING)
@@ -206,7 +206,7 @@ function recursiveFlatRoutes(
     entries.forEach(([key, item], index, array) => {
         // create the executable items
         const newPointer = [...currentPointer, key];
-        let routeEntry: Method | RoutesWithId;
+        let routeEntry: RemoteMethod | RoutesWithId;
         if (typeof key !== 'string' || !isNaN(key as any))
             throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
 
@@ -257,10 +257,10 @@ function recursiveFlatRoutes(
 }
 
 function recursiveCreateExecutionPath(
-    routeEntry: Method | RoutesWithId,
+    routeEntry: RemoteMethod | RoutesWithId,
     currentPointer: string[],
-    preHooks: Method[],
-    postHooks: Method[],
+    preHooks: RemoteMethod[],
+    postHooks: RemoteMethod[],
     nestLevel: number,
     index: number,
     routeKeyedEntries: RouterKeyEntryList,
@@ -412,19 +412,23 @@ function getEntry(index: number, keyEntryList: RouterKeyEntryList) {
     return keyEntryList[index]?.[1];
 }
 
-function getRouteEntryProperties(minus1: RouterEntry | undefined, zero: Method | RoutesWithId, plus1: RouterEntry | undefined) {
+function getRouteEntryProperties(
+    minus1: RouterEntry | undefined,
+    zero: RemoteMethod | RoutesWithId,
+    plus1: RouterEntry | undefined
+) {
     const minus1IsRoute = minus1 && isRoute(minus1);
-    const zeroIsRoute = (zero as Method).type === HandlerType.route;
+    const zeroIsRoute = (zero as RemoteMethod).type === HandlerType.route;
     const plus1IsRoute = plus1 && isRoute(plus1);
 
-    const isExec = !!(zero as Method).handler;
+    const isExec = !!(zero as RemoteMethod).handler;
 
     return {
         isBetweenRoutes: minus1IsRoute && zeroIsRoute && plus1IsRoute,
         isExecutable: isExec,
         isRoute: zeroIsRoute,
-        preLevelHooks: [] as Method[],
-        postLevelHooks: [] as Method[],
+        preLevelHooks: [] as RemoteMethod[],
+        postLevelHooks: [] as RemoteMethod[],
     };
 }
 

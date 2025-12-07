@@ -7,7 +7,7 @@
 
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody, RawRequestBodyType} from './types/context';
 import {type RouterOptions} from './types/general';
-import {HeaderMethod, Method, MethodsExecutionList, RawMethod} from './types/remoteMethods';
+import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {getNotFoundExecutionPath} from './lib/notFound';
 import {Mutable, AnyObject, createDataViewDeserializer, isAnyError} from '@mionkit/core';
@@ -125,7 +125,7 @@ async function runExecutionPath(
 function onErrorResponse(
     context: CallContext,
     executionPath: MethodsExecutionList,
-    executable: Method,
+    executable: RemoteMethod,
     err: any | RpcError<string> | Error
 ) {
     const response = context.response as Mutable<MionResponse>;
@@ -163,7 +163,7 @@ async function runRawHook(
 async function runHeaderHook(context: CallContext, executable: HeaderMethod, request: MionRequest) {
     const headerNames = executable.headersParam.headerNames;
     const headerValues = headerNames.map((name) => request.headers.get(name));
-    const params = deserializeBodyParams(request, executable as Method);
+    const params = deserializeBodyParams(request, executable as RemoteMethod);
     validateHeaderParamsOrThrow(headerValues as string[], executable as HeaderMethod);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderMethod);
 
@@ -172,13 +172,13 @@ async function runHeaderHook(context: CallContext, executable: HeaderMethod, req
 }
 
 async function runRouteOrHook(context: CallContext, executable: HeaderMethod, request: MionRequest) {
-    const params = deserializeBodyParams(request, executable as Method);
-    if (executable.options.validateParams) validateParametersOrThrow(params, executable as Method);
+    const params = deserializeBodyParams(request, executable as RemoteMethod);
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable as RemoteMethod);
     const result = await executable.handler(context, ...params);
     return result;
 }
 
-function getMethodCaller(executable: Method) {
+function getMethodCaller(executable: RemoteMethod) {
     if (executable.type === HandlerType.rawHook) {
         executable.methodCaller = runRawHook;
     } else if (executable.type === HandlerType.headerHook) {
@@ -189,7 +189,7 @@ function getMethodCaller(executable: Method) {
     return executable.methodCaller;
 }
 
-function deserializeBodyParams(request: MionRequest, executable: Method): any[] {
+function deserializeBodyParams(request: MionRequest, executable: RemoteMethod): any[] {
     const params: any[] = (request.body[executable.id] as any[]) || [];
     if (executable.paramsJitFns.restoreFromJson.isNoop) return params;
     try {
@@ -206,7 +206,7 @@ function deserializeBodyParams(request: MionRequest, executable: Method): any[] 
     }
 }
 
-function validateParametersOrThrow(params: any[], executable: Method): void {
+function validateParametersOrThrow(params: any[], executable: RemoteMethod): void {
     if (!executable.paramsJitFns.isType.fn(params)) {
         throw new RpcError({
             statusCode: StatusCodes.APPLICATION_ERROR,

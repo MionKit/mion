@@ -11,7 +11,7 @@ import {NotFoundMethod} from './remoteMethods';
 import {RawMethod} from './remoteMethods';
 import {HeaderMethod} from './remoteMethods';
 import {RouteMethod} from './remoteMethods';
-import {Method} from './remoteMethods';
+import {RemoteMethod} from './remoteMethods';
 import {HandlerType} from '@mionkit/core';
 
 // #######  type guards #######
@@ -44,17 +44,17 @@ export function isRoutes(entry: RouterEntry | Routes): entry is Route {
     return typeof entry === 'object';
 }
 
-export function isExecutable(entry: Method | {pathPointer: string[]}): entry is Method {
+export function isExecutable(entry: RemoteMethod | {pathPointer: string[]}): entry is RemoteMethod {
     return (
-        typeof (entry as Method)?.id === 'string' &&
-        ((entry as any).routes === 'undefined' || typeof (entry as Method).handler === 'function')
+        typeof (entry as RemoteMethod)?.id === 'string' &&
+        ((entry as any).routes === 'undefined' || typeof (entry as RemoteMethod).handler === 'function')
     );
 }
-export function isRawExecutable(entry: Method): entry is RawMethod {
+export function isRawExecutable(entry: RemoteMethod): entry is RawMethod {
     return entry.type === HandlerType.rawHook;
 }
 
-export function isPublicExecutable(entry: Method): entry is Method {
+export function isPublicExecutable(entry: RemoteMethod): entry is RemoteMethod {
     return (
         entry.hasReturnData ||
         entry.type === HandlerType.route ||
@@ -63,14 +63,14 @@ export function isPublicExecutable(entry: Method): entry is Method {
     );
 }
 
-export function isNotFoundExecutable(entry: Method): entry is NotFoundMethod {
+export function isNotFoundExecutable(entry: RemoteMethod): entry is NotFoundMethod {
     return (entry as NotFoundMethod).is404;
 }
 
-export function isHeaderExecutable(entry: Method): entry is HeaderMethod {
+export function isHeaderExecutable(entry: RemoteMethod): entry is HeaderMethod {
     return entry.type === HandlerType.headerHook;
 }
 
-export function isRouteExecutable(entry: Method): entry is RouteMethod {
+export function isRouteExecutable(entry: RemoteMethod): entry is RouteMethod {
     return entry.type === HandlerType.route;
 }

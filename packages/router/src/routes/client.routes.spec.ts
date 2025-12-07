@@ -10,9 +10,9 @@ import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from '../ro
 import {
     getRoutePath,
     PublicRpcError,
-    SerializableJitHashes,
+    JitFunctionsHashes,
     SerializableMethodsData,
-    SerializablePublicMethods,
+    MethodsCache,
     MION_ROUTES,
     RpcError,
     JitCompiledFnData,
@@ -31,7 +31,7 @@ type RawRequest = {
     body: string;
 };
 
-function getExpectedJitHashes(): SerializableJitHashes {
+function getExpectedJitHashes(): JitFunctionsHashes {
     return {
         isType: expect.any(String),
         typeErrors: expect.any(String),
@@ -73,7 +73,7 @@ describe('PublicMethods run type functionality', () => {
 
         const rt = runType<ClientReturn>();
         const rtMethodsData = runType<SerializableMethodsData>();
-        const rtPublicMethods = runType<SerializablePublicMethods>();
+        const rtPublicMethods = runType<MethodsCache>();
         const typeErrorsMethodsData = rtMethodsData.createJitFunction(JitFunctions.typeErrors);
         const typeErrorsPublicMethods = rtPublicMethods.createJitFunction(JitFunctions.typeErrors);
         const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
@@ -154,58 +154,93 @@ describe('Client Routes should', () => {
         'users/getUser': {
             type: HandlerType.route,
             id: 'users/getUser',
+            isAsync: false,
+            hasReturnData: true,
+            nestLevel: 1,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
             hookIds: ['auth', 'last'],
+            pointer: ['users', 'getUser'],
+            options: expect.any(Object),
         },
         'users/setUser': {
             type: HandlerType.route,
             id: 'users/setUser',
+            isAsync: false,
+            hasReturnData: true,
+            nestLevel: 1,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
             hookIds: ['auth', 'last'],
+            pointer: ['users', 'setUser'],
+            options: expect.any(Object),
         },
         'users/pets/getUserPet': {
             type: HandlerType.route,
             id: 'users/pets/getUserPet',
+            isAsync: false,
+            hasReturnData: true,
+            nestLevel: 2,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
             hookIds: ['auth', 'last'],
+            pointer: ['users', 'pets', 'getUserPet'],
+            options: expect.any(Object),
         },
         'pets/getPet': {
             type: HandlerType.route,
             id: 'pets/getPet',
+            isAsync: false,
+            hasReturnData: true,
+            nestLevel: 1,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
             hookIds: ['auth', 'last'],
+            pointer: ['pets', 'getPet'],
+            options: expect.any(Object),
         },
         'pets/setPet': {
             type: HandlerType.route,
             id: 'pets/setPet',
+            isAsync: false,
+            hasReturnData: true,
+            nestLevel: 1,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
             hookIds: ['auth', 'last'],
+            pointer: ['pets', 'setPet'],
+            options: expect.any(Object),
         },
         auth: {
             type: HandlerType.hook,
             id: 'auth',
+            isAsync: false,
+            hasReturnData: false,
+            nestLevel: 0,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: ['token'],
+            pointer: ['auth'],
+            options: expect.any(Object),
         },
         last: {
             type: HandlerType.hook,
             id: 'last',
+            isAsync: false,
+            hasReturnData: true,
+            nestLevel: 0,
             paramsJitHashes: getExpectedJitHashes(),
             returnJitHashes: getExpectedJitHashes(),
             paramNames: [],
+            pointer: ['last'],
+            options: expect.any(Object),
         },
-    } satisfies SerializablePublicMethods;
+    } satisfies MethodsCache;
 
     const methodsId = MION_ROUTES.getRemoteMethodsById;
     const routeMethodsId = MION_ROUTES.getRemoteMethodsByPath;

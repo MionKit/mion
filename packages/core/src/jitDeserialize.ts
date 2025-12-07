@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitCompiledFnData, PureFunctionData, CompiledPureFunction, JitCompiledFn, JITUtils} from './types';
+import {PureFunctionData, CompiledPureFunction, JitCompiledFn, JITUtils} from './types';
+import {JitCompiledFnData} from './types';
 import {jitUtils} from './jitUtils';
 
 /**

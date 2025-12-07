@@ -6,7 +6,6 @@
  * ######## */
 
 import type {AnyObject, DataViewDeserializer, DataViewSerializer} from '@mionkit/core';
-import type {PublicResponses} from './publicMethods';
 import type {RpcError} from '@mionkit/core';
 
 // ####### Call Context #######
@@ -69,7 +68,7 @@ export interface MionResponse {
     readonly rawBody: RawResponseBody;
     readonly bodyType: RawResponseBodyType;
     /** the router response data, body should not be modified manually so marked as Read Only */
-    readonly body: Readonly<PublicResponses>;
+    readonly body: Readonly<ResponseBody>;
     /** response errors: empty if there were no errors during execution */
     readonly hasErrors: boolean;
     readonly binSerializer?: DataViewSerializer | undefined;
@@ -93,3 +92,6 @@ export interface MionHeaders {
 
 /** Function used to create the context data object on each route call  */
 export type ContextDataFactory<ContextData extends Record<string, any>> = () => ContextData;
+
+/** Response body, a record containing the result of each handler or an error. */
+export type ResponseBody = Record<string, unknown | RpcError<string>>;

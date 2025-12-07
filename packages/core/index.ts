@@ -6,6 +6,7 @@
  * ######## */
 
 export * from './src/types';
+export * from './src/method.types';
 export * from './src/binarySerializer';
 export * from './src/constants';
 export * from './src/errors';

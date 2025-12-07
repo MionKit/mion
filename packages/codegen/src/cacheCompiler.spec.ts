@@ -8,10 +8,10 @@
 import {compileTypeToJs} from './cacheCompiler';
 import {AOTConfig} from './types';
 import {
-    HeadersMethodData,
+    HeadersMetaData,
     JitCompiledFn,
     RpcError,
-    SerializableJitHashes,
+    JitFunctionsHashes,
     SrcCodeJITCompiledFnsCache,
     SrcCodePureFunctionsCache,
     getJitFnCaches,
@@ -24,7 +24,7 @@ import {
     headersHook,
     HeadersList,
     initRouter,
-    MethodData,
+    MethodMetadata,
     MethodsCache,
     registerRoutes,
     route,
@@ -243,7 +243,7 @@ it('should compile router methods cache to code', () => {
     initRouter();
     registerRoutes(testRoutes);
 
-    function getExpectedJitHashes(): SerializableJitHashes {
+    function getExpectedJitHashes(): JitFunctionsHashes {
         return {
             isType: expect.any(String),
             typeErrors: expect.any(String),
@@ -255,7 +255,7 @@ it('should compile router methods cache to code', () => {
         };
     }
 
-    function getExpectedHeadersJitHashes(): HeadersMethodData['jitHashes'] {
+    function getExpectedHeadersJitHashes(): HeadersMetaData['jitHashes'] {
         return {
             isType: expect.any(String),
             typeErrors: expect.any(String),
@@ -267,7 +267,7 @@ it('should compile router methods cache to code', () => {
     const authMethodMetadata = persistedMethods.auth;
     const getUserMethodMetadata = persistedMethods.getUser;
     const mockCache = {auth: authMethodMetadata, getUser: getUserMethodMetadata};
-    const expectedAuthMethodData: MethodData = {
+    const expectedAuthMethodData: MethodMetadata = {
         type: 3,
         id: 'auth',
         nestLevel: 0,
@@ -291,7 +291,7 @@ it('should compile router methods cache to code', () => {
             jitHashes: getExpectedHeadersJitHashes(),
         },
     };
-    const expectedGetUserMethodData: MethodData = {
+    const expectedGetUserMethodData: MethodMetadata = {
         type: 1,
         id: 'getUser',
         nestLevel: 0,

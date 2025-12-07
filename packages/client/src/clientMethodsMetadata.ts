@@ -8,7 +8,7 @@
 import {RpcError, isRpcError, isAnyError} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
 import {ClientOptions, RequestBody} from './types';
-import type {JitCompiledFnData, SerializablePublicMethod, PureFunctionData, SerializableMethodsData} from '@mionkit/core';
+import type {JitCompiledFnData, MethodMetadata, PureFunctionData, SerializableMethodsData} from '@mionkit/core';
 import {jitUtils, routerUtils, coreAOTLoadJitCaches, coreAOTLoadRoutesMetadataCache} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {deserializeMethods} from '@mionkit/core';
@@ -160,7 +160,7 @@ export function storeDependencies(
  * // Store method metadata (called by fetchRemoteMethodsMetadata)
  * storeMethodsMetadata(serializableMethodsData.methods, options);
  */
-export function storeMethodsMetadata(methods: Record<string, SerializablePublicMethod>, options: ClientOptions) {
+export function storeMethodsMetadata(methods: Record<string, MethodMetadata>, options: ClientOptions) {
     Object.entries(methods).forEach(([methodId, methodData]) => {
         const key = getSerializedMethodDataKey(methodId, options);
         try {
@@ -237,7 +237,7 @@ export function restoreAllDependencies(options: ClientOptions) {
  * Dependencies are assumed to be already loaded globally via restoreAllDependencies()
  */
 function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
-    const methods: Record<string, SerializablePublicMethod> = {};
+    const methods: Record<string, MethodMetadata> = {};
     let anyMethodsRestored = false;
 
     methodIds.forEach((id) => {
@@ -247,7 +247,7 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
         const methodMetaJson = localStorage.getItem(methodKey);
         if (methodMetaJson) {
             try {
-                const methodMeta: SerializablePublicMethod = JSON.parse(methodMetaJson);
+                const methodMeta: MethodMetadata = JSON.parse(methodMetaJson);
                 methods[id] = methodMeta;
                 anyMethodsRestored = true;
             } catch (error) {
@@ -272,8 +272,8 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
  * Stores method metadata in the routerCache
  */
 function storeInRouterCache(serializableMethodsData: SerializableMethodsData) {
-    Object.entries(serializableMethodsData.methods).forEach(([id, methodMeta]: [string, SerializablePublicMethod]) => {
-        // Store in routerCache - SerializablePublicMethod is compatible with MethodData
+    Object.entries(serializableMethodsData.methods).forEach(([id, methodMeta]: [string, MethodMetadata]) => {
+        // Store in routerCache - SerializablePublicMethod is compatible with MethodMetadata
         routerUtils.setMetadata(id, methodMeta);
     });
 }
