@@ -12,7 +12,7 @@ import {execSync} from 'child_process';
 import {JitFunctionsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
 import {AOTConfig, compiledCacheConfig} from './types';
-import {MethodsCache} from '@mionkit/router';
+import {MethodsCache} from '@mionkit/core';
 
 /**
  * Get the path to the biome binary.

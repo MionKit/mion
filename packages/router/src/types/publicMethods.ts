@@ -5,11 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Prettify, RpcError, MethodMetadata, HandlerType} from '@mionkit/core';
+import type {Prettify, RpcError, MethodMetadata} from '@mionkit/core';
 import type {CallContext} from './context';
 import type {Routes} from './general';
 import type {Handler} from './handlers';
 import type {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
+import {HandlerType} from '@mionkit/core'; // do not import type only
 
 // ####### Raw Hooks #######
 
@@ -53,7 +54,7 @@ export type RemoteApi = {
 
 /** Public Routes, handler type is the same as RemoteRoute but does not include the context  */
 export interface PublicRoute<H extends Handler = any> extends MethodMetadata {
-    type: HandlerType.route;
+    type: typeof HandlerType.route;
     hookIds: string[];
     headerNames: undefined;
     handler: H;
@@ -61,13 +62,13 @@ export interface PublicRoute<H extends Handler = any> extends MethodMetadata {
 
 /** Public Hooks, handler type is the same as RemoteHooks but does not include the context  */
 export interface PublicHook<H extends Handler = any> extends MethodMetadata {
-    type: HandlerType.hook;
+    type: typeof HandlerType.hook;
     handler: H;
 }
 
 /** Public HeadersHooks, handler type is the same as HeadersHooks but does not include the context */
 export interface PublicHeadersHook<H extends Handler = any> extends MethodMetadata {
-    type: HandlerType.headerHook;
+    type: typeof HandlerType.headerHook;
     headerNames: string[];
     handler: H;
 }

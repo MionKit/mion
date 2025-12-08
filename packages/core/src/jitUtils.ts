@@ -19,10 +19,9 @@ import type {
     JITUtils,
     PersistedJitFunctionsCache,
     PersistedPureFunctionsCache,
-    JitCompiledFunctions,
     JitFunctionsHashes,
 } from './types';
-import {MAX_UNKNOWN_KEYS} from './constants';
+import {JIT_FUNCTION_IDS, MAX_UNKNOWN_KEYS} from './constants';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
 import {restoreCompiledJitFns} from './jitRestoreCode';
 import {jitFnsCache as aotJitFnsCache, pureFnsCache as aotPureFnsCache} from '@mionkit/aot-caches';
@@ -302,14 +301,14 @@ export function coreAOTLoadJitCaches(): void {
     restoreCompiledJitFns(jitFnsCache, pureFnsCache);
 }
 
-export function getJitFnHashes(jitFns: JitCompiledFunctions): JitFunctionsHashes {
+export function getJitFnHashes(jitHash: string): JitFunctionsHashes {
     return {
-        isType: jitFns.isType.jitFnHash,
-        typeErrors: jitFns.typeErrors.jitFnHash,
-        prepareForJson: jitFns.prepareForJson.jitFnHash,
-        restoreFromJson: jitFns.restoreFromJson.jitFnHash,
-        jsonStringify: jitFns.jsonStringify.jitFnHash,
-        toBinary: jitFns.toBinary.jitFnHash,
-        fromBinary: jitFns.fromBinary.jitFnHash,
+        isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
+        typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
+        prepareForJson: `${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`,
+        restoreFromJson: `${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`,
+        jsonStringify: `${JIT_FUNCTION_IDS.jsonStringify}_${jitHash}`,
+        toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
+        fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`,
     };
 }

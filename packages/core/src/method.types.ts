@@ -7,14 +7,7 @@
 
 // ########################################## METHODS METADATA ##########################################
 
-import {JitCompiledFnData, JitFunctionsHashes, PureFunctionData, type JitCompiledFunctions} from './types';
-
-export interface MethodOptions {
-    runOnError?: boolean;
-    validateParams?: boolean;
-    validateReturn?: boolean;
-    description?: string;
-}
+import {JitCompiledFnData, PureFunctionData, type JitCompiledFunctions} from './types';
 
 /**
  * Shared interface for PublicMethod that can be used between client and server without handler dependencies
@@ -32,10 +25,10 @@ export interface MethodMetadata {
     hasReturnData: boolean;
     /** Information about method parameters including their names and sources (headers, cookies, body) */
     paramNames?: string[];
-    /** Hashes of JIT functions used by the method parameters */
-    paramsJitHashes: JitFunctionsHashes;
-    /** Hashes of JIT functions used by the method return value */
-    returnJitHashes: JitFunctionsHashes;
+    /** JIT hash of the method parameters */
+    paramsJitHash: string;
+    /**  JIT  hash of the method return value */
+    returnJitHash: string;
     /** Information about headers used by the method, used by HeadersHook */
     headersParam?: HeadersMetaData;
     /** Information about headers returned by the method, used by HeadersHook and when any other hook returns headers */
@@ -46,15 +39,13 @@ export interface MethodMetadata {
     pointer: string[];
     /** router nest level */
     nestLevel: number;
-    /** router options */
-    options: MethodOptions;
 }
 
 export type MethodsCache = Record<string, MethodMetadata>;
 
 export interface HeadersMetaData {
     headerNames: string[];
-    jitHashes: Pick<JitFunctionsHashes, 'isType' | 'typeErrors'>;
+    jitHash: string;
 }
 
 export interface SerializableMethodsData {

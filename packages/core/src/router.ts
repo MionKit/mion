@@ -7,11 +7,9 @@
 
 import {PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT} from './constants';
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
-import type {MethodMetadata} from './method.types';
+import type {MethodMetadata, MethodsCache} from './method.types';
 
-// TODO: SerializablePublicMethod is the Metadadta but jitfunctions needs to be restores in transformed into MethodWithJitFns
-// but we don't have those types here
-const routerCache: Record<string, MethodMetadata> = {};
+const routerCache: MethodsCache = {};
 
 let routesCacheLoaded = false;
 

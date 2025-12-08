@@ -1,30 +1,38 @@
 // ####### Executables #######
 
-import type {Prettify, MethodOptions} from '@mionkit/core'; // do not import type only
+import type {Prettify, HeadersMethodWithJitFns, MethodWithJitFns} from '@mionkit/core'; // do not import type only
 import type {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
-import type {HandlerType} from '@mionkit/core';
-import {HeadersMethodWithJitFns, MethodWithJitFns} from '@mionkit/core/src/method.types';
+import {HandlerType} from '@mionkit/core'; // do not import type only
+
+export interface RemoteMethodOpts {
+    runOnError?: boolean;
+    validateParams?: boolean;
+    validateReturn?: boolean;
+    description?: string;
+}
 
 /** Contains the handlers for hooks and routes */
 export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodWithJitFns {
+    /** router options */
+    options: RemoteMethodOpts;
     handler: H;
     methodCaller?: (...args: any[]) => any;
 }
 
 export interface RouteMethod<H extends Handler = any> extends RemoteMethod<H> {
-    type: HandlerType.route;
-    options: MethodOptions & {runOnError: false};
+    type: typeof HandlerType.route;
+    options: RemoteMethodOpts & {runOnError: false};
 }
 export interface HookMethod<H extends Handler = any> extends RemoteMethod<H> {
-    type: HandlerType.hook;
+    type: typeof HandlerType.hook;
 }
 export interface HeaderMethod<H extends HeaderHandler = any> extends RemoteMethod<H> {
-    type: HandlerType.headerHook;
+    type: typeof HandlerType.headerHook;
     headersParam: HeadersMethodWithJitFns;
 }
 export interface RawMethod<H extends RawHookHandler = any> extends RemoteMethod<H> {
-    type: HandlerType.rawHook;
-    options: MethodOptions & {
+    type: typeof HandlerType.rawHook;
+    options: RemoteMethodOpts & {
         validateParams: false;
         validateReturn?: false;
     };

@@ -5,14 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitCompiledFunctions, JitFunctionsHashes} from '@mionkit/core';
+import {JitCompiledFunctions, MethodsCache, MethodMetadata, jitUtils, getENV, getJitFnHashes} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
-import {MethodsCache} from '@mionkit/core/src/method.types';
-import {MethodMetadata} from '@mionkit/core/src/types';
 import {AnyHandler} from '../types/handlers';
 import {IS_TEST_ENV} from '../constants';
-import {jitUtils} from '@mionkit/core';
-import {getENV} from '@mionkit/core';
 
 export let persistedMethods: MethodsCache = {};
 
@@ -46,22 +42,23 @@ function restorePersistedMethod(method: MethodMetadata, handler: AnyHandler): Re
     if (restored.paramsJitFns && restored.returnJitFns && restored.paramNames && !!restored.handler)
         return method as RemoteMethod;
     restored.handler = handler;
-    restored.paramsJitFns = restorePersistedJitFunctions(method.paramsJitHashes);
-    restored.returnJitFns = restorePersistedJitFunctions(method.returnJitHashes);
+    restored.paramsJitFns = restorePersistedJitFunctions(method.paramsJitHash);
+    restored.returnJitFns = restorePersistedJitFunctions(method.returnJitHash);
     if (IS_TEST_ENV) (restored as any).isRestored = true;
     return restored;
 }
 
-function restorePersistedJitFunctions(jitFns: JitFunctionsHashes): JitCompiledFunctions {
-    const isType = jitUtils.getJIT(jitFns.isType);
-    const typeErrors = jitUtils.getJIT(jitFns.typeErrors);
-    const prepareForJson = jitUtils.getJIT(jitFns.prepareForJson);
-    const restoreFromJson = jitUtils.getJIT(jitFns.restoreFromJson);
-    const jsonStringify = jitUtils.getJIT(jitFns.jsonStringify);
-    const toBinary = jitUtils.getJIT(jitFns.toBinary);
-    const fromBinary = jitUtils.getJIT(jitFns.fromBinary);
+function restorePersistedJitFunctions(hash: string): JitCompiledFunctions {
+    const hashes = getJitFnHashes(hash);
+    const isType = jitUtils.getJIT(hashes.isType);
+    const typeErrors = jitUtils.getJIT(hashes.typeErrors);
+    const prepareForJson = jitUtils.getJIT(hashes.prepareForJson);
+    const restoreFromJson = jitUtils.getJIT(hashes.restoreFromJson);
+    const jsonStringify = jitUtils.getJIT(hashes.jsonStringify);
+    const toBinary = jitUtils.getJIT(hashes.toBinary);
+    const fromBinary = jitUtils.getJIT(hashes.fromBinary);
     if (!isType || !typeErrors || !prepareForJson || !restoreFromJson || !jsonStringify || !toBinary || !fromBinary) {
-        throw new Error(`Can't restore persisted JIT functions, some jit functions are missing: ${JSON.stringify(jitFns)}`);
+        throw new Error(`Can't restore persisted JIT functions, some jit functions are missing: ${JSON.stringify(hashes)}`);
     }
     return {isType, typeErrors, prepareForJson, restoreFromJson, jsonStringify, toBinary, fromBinary};
 }

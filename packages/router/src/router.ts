@@ -324,7 +324,7 @@ export function getExecutableFromHook(
     if (existing) return existing as HookMethod;
 
     type MixedHook = (Omit<HookMethod, 'type'> | Omit<HeaderMethod, 'type'>) & {
-        type: HandlerType.hook | HandlerType.headerHook;
+        type: typeof HandlerType.hook | typeof HandlerType.headerHook;
     };
 
     const compiledMethod = getPersistedMethod(hookId, hook.handler);

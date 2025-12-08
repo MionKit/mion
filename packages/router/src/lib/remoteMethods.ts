@@ -67,10 +67,9 @@ export function getSerializableMethod(executable: RemoteMethod): MethodMetadata 
         nestLevel: executable.nestLevel,
         isAsync: executable.isAsync,
         hasReturnData: executable.hasReturnData,
-        paramsJitHashes: getJitFnHashes(executable.paramsJitFns),
-        returnJitHashes: getJitFnHashes(executable.returnJitFns),
+        paramsJitHash: executable.paramsJitHash,
+        returnJitHash: executable.returnJitHash,
         pointer: executable.pointer,
-        options: executable.options,
         ...(executable.paramNames ? {paramNames: executable.paramNames} : {}),
     };
     if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
@@ -128,7 +127,9 @@ export function serializeMethodDeps(
     deps: Record<string, JitCompiledFnData>,
     purFnDeps: Record<string, PureFunctionData>
 ) {
-    const {paramsJitHashes, returnJitHashes} = method;
+    const {paramsJitHash, returnJitHash} = method;
+    const paramsJitHashes = getJitFnHashes(paramsJitHash);
+    const returnJitHashes = getJitFnHashes(returnJitHash);
     for (const k in paramsJitHashes) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
     for (const k in returnJitHashes) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
 }

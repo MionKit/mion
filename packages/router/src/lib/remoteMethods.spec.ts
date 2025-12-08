@@ -10,21 +10,9 @@ import {registerRoutes, initRouter, resetRouter} from '../router';
 import {CallContext} from '../types/context';
 import {Routes} from '../types/general';
 import {HookMethod, RouteMethod} from '../types/remoteMethods';
-import {HandlerType} from '@mionkit/core';
+import {getJitFnHashes, HandlerType} from '@mionkit/core';
 import {hook, rawHook, route} from './handlers';
-import {jitUtils, JitFunctionsHashes} from '@mionkit/core';
-
-function hasSerializableHashes(): JitFunctionsHashes {
-    return {
-        isType: expect.any(String),
-        typeErrors: expect.any(String),
-        prepareForJson: expect.any(String),
-        restoreFromJson: expect.any(String),
-        jsonStringify: expect.any(String),
-        toBinary: expect.any(String),
-        fromBinary: expect.any(String),
-    };
-}
+import {jitUtils} from '@mionkit/core';
 
 describe('Public Methods should', () => {
     const privateHook = hook((ctx): void => undefined);
@@ -78,8 +66,8 @@ describe('Public Methods should', () => {
             expect.objectContaining({
                 type: HandlerType.hook,
                 id: 'auth',
-                paramsJitHashes: hasSerializableHashes(),
-                returnJitHashes: hasSerializableHashes(),
+                paramsJitHash: expect.any(String),
+                returnJitHash: expect.any(String),
                 paramNames: ['s'],
             } as Partial<HookMethod>)
         );
@@ -88,8 +76,8 @@ describe('Public Methods should', () => {
             expect.objectContaining({
                 type: HandlerType.route,
                 id: 'routes/route1',
-                paramsJitHashes: hasSerializableHashes(),
-                returnJitHashes: hasSerializableHashes(),
+                paramsJitHash: expect.any(String),
+                returnJitHash: expect.any(String),
                 paramNames: [],
             } as Partial<RouteMethod>)
         );
@@ -102,9 +90,10 @@ describe('Public Methods should', () => {
         };
         const api = registerRoutes(testR);
 
-        const compiledIsType = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.isType)!;
-        const compiledRestoreFromJson = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.restoreFromJson)!;
-        const compiledPrepareForJson = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.prepareForJson)!;
+        const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash);
+        const compiledIsType = jitUtils.getJIT(hashes.isType)!;
+        const compiledRestoreFromJson = jitUtils.getJIT(hashes.restoreFromJson)!;
+        const compiledPrepareForJson = jitUtils.getJIT(hashes.prepareForJson)!;
 
         const isTypeClosure = new Function('utl', compiledIsType.code);
         const restoreFromJsonClosure = new Function('utl', compiledRestoreFromJson.code);
