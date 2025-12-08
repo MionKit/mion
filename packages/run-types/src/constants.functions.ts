@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitFnArgs} from '@mionkit/core';
+import {type JitFnArgs, JIT_FUNCTION_IDS} from '@mionkit/core';
 
 /** Javascript code types */
 export const CodeTypes = {
@@ -59,14 +59,14 @@ type JitFunctionsGroup = {[key: string]: JitFnSettings};
 
 export const jitValidationFunctions = {
     isType: {
-        id: 'is',
+        id: JIT_FUNCTION_IDS.isType,
         name: 'isType',
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
     },
     typeErrors: {
-        id: 'te',
+        id: JIT_FUNCTION_IDS.typeErrors,
         name: 'typeErrors',
         jitArgs: jitErrorArgs,
         jitDefaultArgs: jitDefaultErrorArgs,
@@ -84,21 +84,21 @@ export const jitValidationFunctions = {
 
 export const jitSerializationFunctions = {
     prepareForJson: {
-        id: 'tj',
+        id: JIT_FUNCTION_IDS.prepareForJson,
         name: 'prepareForJson',
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
     },
     restoreFromJson: {
-        id: 'fj',
+        id: JIT_FUNCTION_IDS.restoreFromJson,
         name: 'restoreFromJson',
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
     },
     jsonStringify: {
-        id: 'js',
+        id: JIT_FUNCTION_IDS.jsonStringify,
         name: 'jsonStringify',
         jitArgs,
         jitDefaultArgs,
@@ -106,7 +106,7 @@ export const jitSerializationFunctions = {
     },
     // similar to json stringify but outputs js code, including pure functions, already imported as size is quite small
     toJavascript: {
-        id: 'tc',
+        id: JIT_FUNCTION_IDS.toJavascript,
         name: 'toJavascript',
         jitArgs,
         jitDefaultArgs,
@@ -114,7 +114,7 @@ export const jitSerializationFunctions = {
     },
     // Binary serialization functions
     toBinary: {
-        id: 'tBi',
+        id: JIT_FUNCTION_IDS.toBinary,
         name: 'toBinary',
         jitArgs: jitBinarySerializerArgs,
         jitDefaultArgs: jitDefaultBinarySerializerArgs,
@@ -123,7 +123,7 @@ export const jitSerializationFunctions = {
         formatShouldReplaceJitCode: true,
     },
     fromBinary: {
-        id: 'fBi',
+        id: JIT_FUNCTION_IDS.fromBinary,
         name: 'fromBinary',
         jitArgs: jitBinaryDeserializerArgs,
         jitDefaultArgs: jitDefaultBinaryDeserializerArgs,
@@ -134,7 +134,7 @@ export const jitSerializationFunctions = {
     },
     // apply type formatters, ie: lowercase, uppercase, trim, etc
     format: {
-        id: 'fmt',
+        id: JIT_FUNCTION_IDS.format,
         name: 'format',
         jitArgs,
         jitDefaultArgs,
@@ -146,14 +146,14 @@ export const JitFunctions = {
     ...jitValidationFunctions,
     ...jitSerializationFunctions,
     unknownKeyErrors: {
-        id: 'uk',
+        id: JIT_FUNCTION_IDS.unknownKeyErrors,
         name: 'unknownKeyErrors',
         jitArgs: jitErrorArgs,
         jitDefaultArgs: jitDefaultErrorArgs,
         returnName: jitErrorArgs.εrr,
     },
     hasUnknownKeys: {
-        id: 'hk',
+        id: JIT_FUNCTION_IDS.hasUnknownKeys,
         name: 'hasUnknownKeys',
         jitArgs: jitArgsWithOptions,
         jitDefaultArgs: jitDefaultArgsWithOptions,
@@ -161,21 +161,21 @@ export const JitFunctions = {
         returnName: jitArgsWithOptions.vλl,
     },
     stripUnknownKeys: {
-        id: 'sk',
+        id: JIT_FUNCTION_IDS.stripUnknownKeys,
         name: 'stripUnknownKeys',
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
     },
     unknownKeysToUndefined: {
-        id: 'ku',
+        id: JIT_FUNCTION_IDS.unknownKeysToUndefined,
         name: 'unknownKeysToUndefined',
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
     },
     aux: {
-        id: 'aux',
+        id: JIT_FUNCTION_IDS.aux,
         name: 'aux',
         jitArgs,
         jitDefaultArgs,
@@ -183,7 +183,7 @@ export const JitFunctions = {
     },
     // mock is not really a jit function but is used in a similar way, main difference is that it is not compiled
     mock: {
-        id: 'mock',
+        id: JIT_FUNCTION_IDS.mock,
         name: 'mockType',
         import: () => import('./mocking/mockType').then((m) => m.mockType),
         jitArgs,
@@ -192,7 +192,7 @@ export const JitFunctions = {
     },
     // pure function are not jit compiled but we ensure we reserve a prefix to avoid collisions
     pureFunction: {
-        id: 'pf',
+        id: JIT_FUNCTION_IDS.pureFunction,
         name: 'pureFunction',
         jitArgs,
         jitDefaultArgs,

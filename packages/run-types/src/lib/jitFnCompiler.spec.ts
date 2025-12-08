@@ -5,51 +5,68 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
+import {HandlerType, MethodMetadata, MethodsCache, RpcError, SerializableMethodsData} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
 import {runType} from '../createRunType';
 import {JitCompiledFnData, PureFunctionData} from '@mionkit/core';
 
-interface PublicMethod {
-    id: string;
-    type: string;
-    headerNames?: string[];
-    paramNames?: string[];
-    handler: () => void;
-    paramsJitHashes: Record<string, string>;
-    returnJitHashes: Record<string, string>;
-    hookIds?: string[];
-    pathPointers?: string[][];
-}
-
-// data structure containing all JitCompiledFnData and PureFunctionData
-interface MethodsData {
-    methods: Record<string, PublicMethod>;
-    deps: Record<string, JitCompiledFnData>;
-    purFnDeps: Record<string, PureFunctionData>;
-}
-
-type MethodsResponse = MethodsData | RpcError<string>;
-
-const methodsData = mockData();
-const restoredMethodsData = mockData(true);
+type MethodsResponse = SerializableMethodsData | RpcError<string>;
 
 // ensure JitFunctions can be serialized (this is used in the router when sending the methods metadata to the client)
-describe('JitCompiler', () => {
+
+describe('MethodsCache JitCompiler', () => {
+    const methodsData = mockData();
+    const restoredMethodsData = mockData();
     it('validate', () => {
-        const rt = runType<MethodsData>();
+        const rt = runType<MethodsCache>();
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        expect(isType(methodsData.methods)).toBe(true);
+    });
+
+    it('typeErrors', () => {
+        const rt = runType<MethodsCache>();
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(typeErrors(methodsData.methods)).toEqual([]);
+    });
+
+    it('prepareForJson / restoreFromJson', () => {
+        const rt = runType<MethodsCache>();
+        const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
+        const clone = mockData();
+        const jsonString = JSON.stringify(prepareForJson(clone.methods));
+        const restored = restoreFromJson(JSON.parse(jsonString));
+        expect(restored).toEqual(restoredMethodsData.methods);
+    });
+
+    it('jsonStringify', () => {
+        const rt = runType<MethodsCache>();
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
+        const clone = mockData();
+        const jsonString = jsonStringify(clone.methods);
+        const restored = restoreFromJson(JSON.parse(jsonString));
+        expect(restored).toEqual(restoredMethodsData.methods);
+    });
+});
+
+describe('SerializableMethodsData JitCompiler', () => {
+    const methodsData = mockData();
+    const restoredMethodsData = mockData();
+    it('validate', () => {
+        const rt = runType<SerializableMethodsData>();
         const isType = rt.createJitFunction(JitFunctions.isType);
         expect(isType(methodsData)).toBe(true);
     });
 
     it('typeErrors', () => {
-        const rt = runType<MethodsData>();
+        const rt = runType<SerializableMethodsData>();
         const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
         expect(typeErrors(methodsData)).toEqual([]);
     });
 
     it('prepareForJson / restoreFromJson', () => {
-        const rt = runType<MethodsData>();
+        const rt = runType<SerializableMethodsData>();
         const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
         const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const clone = mockData();
@@ -59,7 +76,7 @@ describe('JitCompiler', () => {
     });
 
     it('jsonStringify', () => {
-        const rt = runType<MethodsData>();
+        const rt = runType<SerializableMethodsData>();
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
         const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const clone = mockData();
@@ -69,7 +86,10 @@ describe('JitCompiler', () => {
     });
 });
 
-describe('JitCompiler on union', () => {
+describe('MethodsResponse JitCompiler on union', () => {
+    const methodsData = mockData();
+    const restoredMethodsData = mockData();
+
     it('isType', () => {
         const rt = runType<MethodsResponse>();
         const isType = rt.createJitFunction(JitFunctions.isType);
@@ -119,28 +139,16 @@ describe('JitCompiler on union', () => {
     });
 });
 
-function mockData(isRestored?: boolean): MethodsData {
-    const publicMethod1: PublicMethod = {
+function mockData(): SerializableMethodsData {
+    const publicMethod1: MethodMetadata = {
         id: 'method1',
-        type: 'route',
-        // restored date does not restore functions,
-        // in the router an client extra step will be done to restore them,
-        // the handler in the client will contains the logic to call the handler in the server
-        ...(isRestored ? ({} as any) : {handler: () => 'something'}),
-        paramsJitHashes: {
-            isType: 'isType',
-            typeErrors: 'typeErrors',
-            prepareForJson: 'prepareForJson',
-            restoreFromJson: 'restoreFromJson',
-            jsonStringify: 'jsonStringify',
-        },
-        returnJitHashes: {
-            isType: 'isType',
-            typeErrors: 'typeErrors',
-            prepareForJson: 'prepareForJson',
-            restoreFromJson: 'restoreFromJson',
-            jsonStringify: 'jsonStringify',
-        },
+        type: HandlerType.route,
+        isAsync: false,
+        hasReturnData: true,
+        nestLevel: 0,
+        pointer: ['method1'],
+        paramsJitHash: 'paramsJitHash',
+        returnJitHash: 'returnJitHash',
     };
     const compiledFnData1: JitCompiledFnData = {
         typeName: 'string',
@@ -174,7 +182,7 @@ function mockData(isRestored?: boolean): MethodsData {
         pureFnHash: 'multiplyNumbers',
         dependencies: new Set<string>(['addNumbers']),
     };
-    const md: MethodsData = {
+    const md: SerializableMethodsData = {
         methods: {
             method1: publicMethod1,
         },

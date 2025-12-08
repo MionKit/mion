@@ -55,9 +55,29 @@ export const StatusCodes = {
     /** Standard success code */
     OK: 200,
 } as const;
-export enum HandlerType {
-    route = 1,
-    hook = 2,
-    headerHook = 3,
-    rawHook = 4,
-}
+
+export const HandlerType = {
+    route: 1,
+    hook: 2,
+    headerHook: 3,
+    rawHook: 4,
+} as const;
+
+export const JIT_FUNCTION_IDS = {
+    isType: 'is',
+    typeErrors: 'te',
+    prepareForJson: 'tj',
+    restoreFromJson: 'fj',
+    jsonStringify: 'js',
+    toJavascript: 'tc',
+    toBinary: 'tBi',
+    fromBinary: 'fBi',
+    format: 'fmt',
+    unknownKeyErrors: 'uk',
+    hasUnknownKeys: 'hk',
+    stripUnknownKeys: 'sk',
+    unknownKeysToUndefined: 'ku',
+    aux: 'aux',
+    mock: 'mock',
+    pureFunction: 'pf',
+} as const;

@@ -50,7 +50,7 @@
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build": "vite build",
+    "build": "npm run build:aot-template && vite build",
     "build:aot-template": "cd mion-aot-template && npm run build",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage",

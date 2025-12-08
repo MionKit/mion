@@ -11,25 +11,16 @@ import {
     HeadersMetaData,
     JitCompiledFn,
     RpcError,
-    JitFunctionsHashes,
     SrcCodeJITCompiledFnsCache,
     SrcCodePureFunctionsCache,
     getJitFnCaches,
     jitUtils,
     resetJitFnCaches,
-} from '@mionkit/core';
-import {BaseRunType, JitFunctions, registerPureFnClosure, runType} from '@mionkit/run-types';
-import {
-    getPersistedMethods,
-    headersHook,
-    HeadersList,
-    initRouter,
     MethodMetadata,
     MethodsCache,
-    registerRoutes,
-    route,
-    Routes,
-} from '@mionkit/router';
+} from '@mionkit/core';
+import {BaseRunType, JitFunctions, registerPureFnClosure, runType} from '@mionkit/run-types';
+import {getPersistedMethods, headersHook, HeadersList, initRouter, registerRoutes, route, Routes} from '@mionkit/router';
 
 afterEach(() => resetJitFnCaches());
 
@@ -243,25 +234,6 @@ it('should compile router methods cache to code', () => {
     initRouter();
     registerRoutes(testRoutes);
 
-    function getExpectedJitHashes(): JitFunctionsHashes {
-        return {
-            isType: expect.any(String),
-            typeErrors: expect.any(String),
-            prepareForJson: expect.any(String),
-            restoreFromJson: expect.any(String),
-            jsonStringify: expect.any(String),
-            toBinary: expect.any(String),
-            fromBinary: expect.any(String),
-        };
-    }
-
-    function getExpectedHeadersJitHashes(): HeadersMetaData['jitHashes'] {
-        return {
-            isType: expect.any(String),
-            typeErrors: expect.any(String),
-        };
-    }
-
     // Verify that methods were persisted
     const persistedMethods = getPersistedMethods();
     const authMethodMetadata = persistedMethods.auth;
@@ -275,20 +247,15 @@ it('should compile router methods cache to code', () => {
         isAsync: false,
         pointer: ['auth'],
         paramNames: ['userid'],
-        options: {
-            runOnError: false,
-            validateParams: true,
-            validateReturn: false,
-        },
-        paramsJitHashes: getExpectedJitHashes(),
-        returnJitHashes: getExpectedJitHashes(),
+        paramsJitHash: expect.any(String),
+        returnJitHash: expect.any(String),
         headersParam: {
             headerNames: ['Authorization'],
-            jitHashes: getExpectedHeadersJitHashes(),
+            jitHash: expect.any(String),
         },
         headersReturn: {
             headerNames: ['x-user-id'],
-            jitHashes: getExpectedHeadersJitHashes(),
+            jitHash: expect.any(String),
         },
     };
     const expectedGetUserMethodData: MethodMetadata = {
@@ -299,13 +266,8 @@ it('should compile router methods cache to code', () => {
         isAsync: false,
         pointer: ['getUser'],
         paramNames: ['name'],
-        options: {
-            runOnError: false,
-            validateParams: true,
-            validateReturn: false,
-        },
-        paramsJitHashes: getExpectedJitHashes(),
-        returnJitHashes: getExpectedJitHashes(),
+        paramsJitHash: expect.any(String),
+        returnJitHash: expect.any(String),
     };
 
     // Create AOT config for router methods

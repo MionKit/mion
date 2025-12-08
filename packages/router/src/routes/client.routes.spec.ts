@@ -10,7 +10,6 @@ import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from '../ro
 import {
     getRoutePath,
     PublicRpcError,
-    JitFunctionsHashes,
     SerializableMethodsData,
     MethodsCache,
     MION_ROUTES,
@@ -30,18 +29,6 @@ type RawRequest = {
     headers: MionHeaders;
     body: string;
 };
-
-function getExpectedJitHashes(): JitFunctionsHashes {
-    return {
-        isType: expect.any(String),
-        typeErrors: expect.any(String),
-        prepareForJson: expect.any(String),
-        restoreFromJson: expect.any(String),
-        jsonStringify: expect.any(String),
-        fromBinary: expect.any(String),
-        toBinary: expect.any(String),
-    };
-}
 
 describe('PublicMethods run type functionality', () => {
     const route1 = route((ctx): string => 'something');
@@ -157,12 +144,11 @@ describe('Client Routes should', () => {
             isAsync: false,
             hasReturnData: true,
             nestLevel: 1,
-            paramsJitHashes: getExpectedJitHashes(),
-            returnJitHashes: getExpectedJitHashes(),
+            paramsJitHash: expect.any(String),
+            returnJitHash: expect.any(String),
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'getUser'],
-            options: expect.any(Object),
         },
         'users/setUser': {
             type: HandlerType.route,
@@ -170,12 +156,11 @@ describe('Client Routes should', () => {
             isAsync: false,
             hasReturnData: true,
             nestLevel: 1,
-            paramsJitHashes: getExpectedJitHashes(),
-            returnJitHashes: getExpectedJitHashes(),
+            paramsJitHash: expect.any(String),
+            returnJitHash: expect.any(String),
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'setUser'],
-            options: expect.any(Object),
         },
         'users/pets/getUserPet': {
             type: HandlerType.route,
@@ -183,12 +168,11 @@ describe('Client Routes should', () => {
             isAsync: false,
             hasReturnData: true,
             nestLevel: 2,
-            paramsJitHashes: getExpectedJitHashes(),
-            returnJitHashes: getExpectedJitHashes(),
+            paramsJitHash: expect.any(String),
+            returnJitHash: expect.any(String),
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'pets', 'getUserPet'],
-            options: expect.any(Object),
         },
         'pets/getPet': {
             type: HandlerType.route,
@@ -196,12 +180,11 @@ describe('Client Routes should', () => {
             isAsync: false,
             hasReturnData: true,
             nestLevel: 1,
-            paramsJitHashes: getExpectedJitHashes(),
-            returnJitHashes: getExpectedJitHashes(),
+            paramsJitHash: expect.any(String),
+            returnJitHash: expect.any(String),
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['pets', 'getPet'],
-            options: expect.any(Object),
         },
         'pets/setPet': {
             type: HandlerType.route,
@@ -209,12 +192,11 @@ describe('Client Routes should', () => {
             isAsync: false,
             hasReturnData: true,
             nestLevel: 1,
-            paramsJitHashes: getExpectedJitHashes(),
-            returnJitHashes: getExpectedJitHashes(),
+            paramsJitHash: expect.any(String),
+            returnJitHash: expect.any(String),
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['pets', 'setPet'],
-            options: expect.any(Object),
         },
         auth: {
             type: HandlerType.hook,
@@ -222,11 +204,10 @@ describe('Client Routes should', () => {
             isAsync: false,
             hasReturnData: false,
             nestLevel: 0,
-            paramsJitHashes: getExpectedJitHashes(),
-            returnJitHashes: getExpectedJitHashes(),
+            paramsJitHash: expect.any(String),
+            returnJitHash: expect.any(String),
             paramNames: ['token'],
             pointer: ['auth'],
-            options: expect.any(Object),
         },
         last: {
             type: HandlerType.hook,
@@ -234,11 +215,10 @@ describe('Client Routes should', () => {
             isAsync: false,
             hasReturnData: true,
             nestLevel: 0,
-            paramsJitHashes: getExpectedJitHashes(),
-            returnJitHashes: getExpectedJitHashes(),
+            paramsJitHash: expect.any(String),
+            returnJitHash: expect.any(String),
             paramNames: [],
             pointer: ['last'],
-            options: expect.any(Object),
         },
     } satisfies MethodsCache;
 

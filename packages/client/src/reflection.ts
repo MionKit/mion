@@ -7,7 +7,7 @@
 
 import type {ResponseBody} from '@mionkit/router';
 import type {JitCompiledFunctions, JSONValue, MethodMetadata} from '@mionkit/core';
-import {RpcError, isRpcError, jitUtils, routerUtils} from '@mionkit/core';
+import {RpcError, getJitFnHashes, isRpcError, jitUtils, routerUtils} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 import {RequestErrors, SubRequest} from './types';
 import type {MionRequest} from './request';
@@ -183,8 +183,8 @@ function deSerializeReturn(
  */
 function getParamsJitFunctions(id: string): JitCompiledFunctions | undefined {
     const metadata = routerUtils.getMetadata(id);
-    if (!metadata?.paramsJitHashes) return undefined;
-    const hashes = metadata.paramsJitHashes;
+    if (!metadata?.paramsJitHash) return undefined;
+    const hashes = getJitFnHashes(metadata.paramsJitHash);
     return {
         isType: jitUtils.getJIT(hashes.isType),
         typeErrors: jitUtils.getJIT(hashes.typeErrors),
@@ -201,8 +201,8 @@ function getParamsJitFunctions(id: string): JitCompiledFunctions | undefined {
  */
 function getReturnJitFunctions(id: string): JitCompiledFunctions | undefined {
     const metadata = routerUtils.getMetadata(id);
-    if (!metadata?.returnJitHashes) return undefined;
-    const hashes = metadata.returnJitHashes;
+    if (!metadata?.returnJitHash) return undefined;
+    const hashes = getJitFnHashes(metadata.returnJitHash);
     return {
         isType: jitUtils.getJIT(hashes.isType),
         typeErrors: jitUtils.getJIT(hashes.typeErrors),
