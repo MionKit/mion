@@ -339,7 +339,7 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
                     const writeIndex = isUint16
                         ? `${sεr}.view.setUint16(${sεr}.index, ${index}, 1, (${sεr}.index += 2))`
                         : `${sεr}.view.setUint8(${sεr}.index++, ${index})`;
-                    const isTypeCode = rt.getChildStrictIsType(childRt, comp);
+                    const isTypeCode = rt.getChildIsTypeWithForbiddenProps(childRt, comp);
                     return `${ifElse()} (${isTypeCode}) {${writeIndex};${encodeCode}}`;
                 });
                 return result.filter(Boolean);
