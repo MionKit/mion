@@ -148,8 +148,8 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
                 // For number indices, deserialize as uint32
                 keyDeserializationCode = `const ${prop} = ${dεs}.view.getUint32(${dεs}.index, 1); ${dεs}.index += 4;`;
             } else {
-                // For string indices (default), deserialize as string
-                keyDeserializationCode = `const ${prop} = ${dεs}.desString();`;
+                // For string indices, deserialize as string with prototype pollution protection
+                keyDeserializationCode = `const ${prop} = ${dεs}.desSafePropName();`;
             }
 
             const memberInit = memberCode.type === 'E' ? `${comp.vλl}[${prop}] = ${memberCode.code};` : memberCode.code;
