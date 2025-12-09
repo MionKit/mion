@@ -359,9 +359,9 @@ describe('Union Mixed', () => {
     const mixB: UnionMix = {a: 'hello', aa: true};
     const mixC: UnionMix = {b: 123, c: 123n}; // typescript allow mixed properties of objects, but we don't
     const mixD: UnMixD = {d: new Date()}; // although is not a class instance, it has the same properties so is true
+    const withExtraProps = {a: 'hello', aa: true, j: 'extra'}; // extra props NOT from other union types are allowed
     const notMixA = [1, 'b'];
     const notMixB = {};
-    const notMixC = {a: 'hello', aa: true, j: 'extra'}; // union uses strict assertion that checks for extra properties
     const notMixD = {a: 'hello', d: 'world'}; // expect aa property
 
     const mix2A: UnMix2 = {a: true};
@@ -384,8 +384,13 @@ describe('Union Mixed', () => {
         expect(validate(notMixA)).toBe(false);
         expect(validate(notMixB)).toBe(false);
         expect(validate(notMixD)).toBe(false);
+    });
 
-        expect(validate(notMixC)).toBe(false); // union type does check for extra properties so object with extra properties are not valid
+    it('validate union allows extra properties not from other union types', () => {
+        // Extra properties that are NOT defined in any other union type are allowed.
+        // This enables returning objects with methods or additional data properties.
+        const validate = rtD.createJitFunction(JitFunctions.isType);
+        expect(validate(withExtraProps)).toBe(true); // 'j' is not in any union type, so it's allowed
     });
 
     // for UnMix2 the 'a' property is merged into a single union prop, so 'a' accepts both boolean and number
@@ -405,10 +410,10 @@ describe('Union Mixed', () => {
 
         expect(valWithErrors(mixA)).toEqual([]);
         expect(valWithErrors(mixB)).toEqual([]);
+        expect(valWithErrors(withExtraProps)).toEqual([]); // extra props not from other union types are allowed
 
         expect(valWithErrors(notMixA)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notMixB)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notMixC)).toEqual([{path: [], expected: 'union'}]);
     });
 
     it('mock', async () => {
@@ -563,19 +568,19 @@ describe('Union with objects containing methods', () => {
         },
     } as {active: boolean; isActive(): boolean};
 
-    // Objects with extra properties that are not methods (should fail)
+    // Objects with extra properties that are NOT from other union types (allowed)
     const objWithExtraData = {
         name: 'John',
         getName() {
             return 'John';
         },
-        extraProp: 'should fail',
+        extraProp: 'extra props not from other union types are allowed',
     };
 
     // Objects with mixed properties from different union types (should fail)
     const objWithMixedProps = {
         name: 'John',
-        age: 25,
+        age: 25, // 'age' is from another union type, so this should fail
         getName() {
             return 'John';
         },
@@ -594,11 +599,16 @@ describe('Union with objects containing methods', () => {
         expect(validate(objWithAge)).toBe(true);
         expect(validate(objWithActive)).toBe(true);
 
-        // Objects with extra non-method properties should fail
-        expect(validate(objWithExtraData)).toBe(false);
-
-        // Objects with mixed properties should fail
+        // Objects with mixed properties from OTHER union types should fail
         expect(validate(objWithMixedProps)).toBe(false);
+    });
+
+    it('validate union allows extra properties not from other union types', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+
+        // Extra properties that are NOT defined in any other union type are allowed.
+        // This enables returning objects with methods or additional data properties.
+        expect(validate(objWithExtraData)).toBe(true); // 'extraProp' is not in any union type
     });
 
     it('validate union with methods + errors', () => {
@@ -608,9 +618,9 @@ describe('Union with objects containing methods', () => {
         expect(valWithErrors(objWithName)).toEqual([]);
         expect(valWithErrors(objWithAge)).toEqual([]);
         expect(valWithErrors(objWithActive)).toEqual([]);
+        expect(valWithErrors(objWithExtraData)).toEqual([]); // extra props not from other union types are allowed
 
-        // Invalid objects should have union errors
-        expect(valWithErrors(objWithExtraData)).toEqual([{path: [], expected: 'union'}]);
+        // Invalid objects should have union errors (mixed props from different union types)
         expect(valWithErrors(objWithMixedProps)).toEqual([{path: [], expected: 'union'}]);
     });
 

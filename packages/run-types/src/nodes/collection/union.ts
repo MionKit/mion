@@ -45,6 +45,12 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return index;
     }
 
+    /**
+     * Unions use strict type checking (no extra properties allowed) to uniquely identify which union member
+     * a value belongs to. This differs from TypeScript's structural typing but is required for unambiguous
+     * serialization/deserialization - otherwise an object could match multiple union types.
+     * @see union.spec.ts 'Union Obj' and 'Union Mixed' test suites for examples.
+     */
     getChildStrictIsType(rt: BaseRunType, comp: JitFnCompiler): string {
         const isTypeCode = comp.compileIsType(rt, 'E').code || '';
         const isTypeWithProperties =
@@ -62,13 +68,103 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return codeHasUnknown ? `(${isTypeCode} && !${codeHasUnknown})` : `${isTypeCode}`;
     }
 
+    /**
+     * Alternative to getChildStrictIsType that only checks for properties from OTHER union types.
+     * This allows objects to have extra properties (like methods) as long as they don't have
+     * properties that belong to other union members, enabling unambiguous type identification.
+     * @see union.spec.ts 'Union Obj' and 'Union Mixed' test suites for examples.
+     */
+    getChildIsTypeWithForbiddenProps(rt: BaseRunType, comp: JitFnCompiler): string {
+        const isTypeCode = comp.compileIsType(rt, 'E').code || '';
+        const isTypeWithProperties =
+            isInterfaceRunType(rt) || isClassRunType(rt) || isObjectLiteralRunType(rt) || isIntersectionRunType(rt);
+        if (!isTypeWithProperties || rt.getFamily() !== 'C') return isTypeCode;
+
+        const props = rt.getJitChildren(comp);
+        const hasIndexProperty = props.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
+        if (hasIndexProperty) return isTypeCode;
+
+        // Get property names of this type
+        const thisTypeProps = new Set<string | number | symbol>();
+        for (const prop of props) {
+            const name = (prop.src as any).name;
+            if (name !== undefined) thisTypeProps.add(name);
+        }
+
+        // Get all object types in the union
+        const {objectTypes} = this.getUnionChildren(comp);
+
+        // Collect property names from OTHER object types that are NOT in this type
+        const forbiddenProps = new Set<string | number>();
+        for (const otherRt of objectTypes) {
+            if (otherRt === rt) continue;
+
+            const otherProps = otherRt.getJitChildren(comp);
+            // If any other type has an index signature, fall back to strict checking
+            const otherHasIndex = otherProps.some((p) => p.src.kind === ReflectionKind.indexSignature);
+            if (otherHasIndex) {
+                return this.getChildStrictIsType(rt, comp);
+            }
+
+            for (const prop of otherProps) {
+                const name = (prop.src as any).name;
+                if (name !== undefined && !thisTypeProps.has(name)) {
+                    // Only add string/number names (skip symbols for code generation)
+                    if (typeof name === 'string' || typeof name === 'number') {
+                        forbiddenProps.add(name);
+                    }
+                }
+            }
+        }
+
+        // For all-optional types (weak types), TypeScript requires at least one matching property
+        // or an empty object. This prevents {c: 'hello'} from matching {a?: string; b?: string}
+        let weakTypeCheck = '';
+        if (rt.areAllChildrenOptional(props) && thisTypeProps.size > 0) {
+            const ownPropNames = Array.from(thisTypeProps).filter(
+                (p): p is string | number => typeof p === 'string' || typeof p === 'number'
+            );
+            if (ownPropNames.length > 0) {
+                // Must have at least one of this type's own props OR be empty
+                const hasOwnPropCheck = ownPropNames
+                    .map((p) => (typeof p === 'number' ? `(${p} in ${comp.vλl})` : `('${p}' in ${comp.vλl})`))
+                    .join(' || ');
+                const keysVar = comp.getLocalVarName('keys', this);
+                weakTypeCheck = `((${keysVar} = Object.keys(${comp.vλl}), ${keysVar}.length === 0) || (${hasOwnPropCheck}))`;
+            }
+        }
+
+        if (forbiddenProps.size === 0 && !weakTypeCheck) return isTypeCode;
+
+        // Generate code to check that none of the forbidden props exist
+        const checks: string[] = [isTypeCode];
+
+        if (forbiddenProps.size > 0) {
+            const forbiddenCheck = Array.from(forbiddenProps)
+                .map((p) => (typeof p === 'number' ? `!(${p} in ${comp.vλl})` : `!('${p}' in ${comp.vλl})`))
+                .join(' && ');
+            checks.push(forbiddenCheck);
+        }
+
+        if (weakTypeCheck) {
+            checks.push(weakTypeCheck);
+        }
+
+        return `(${checks.join(' && ')})`;
+    }
+
+    /**
+     * Uses forbidden props approach: Only check for properties from OTHER union types.
+     * This allows objects to have extra properties (like methods) as long as they don't have
+     * properties that belong to other union members, enabling unambiguous type identification.
+     */
     emitIsType(comp: JitFnCompiler): JitCode {
         this.checkNonSkipTypes(comp);
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
-        const items = simpleItems.map((rt) => this.getChildStrictIsType(rt, comp));
+        const items = simpleItems.map((rt) => this.getChildIsTypeWithForbiddenProps(rt, comp));
         const checkItems = items.filter(Boolean).join(' || ');
         if (!objectTypes.length) return {code: `(${checkItems})`, type: 'E'};
-        const objItems = objectTypes.map((rt) => this.getChildStrictIsType(rt, comp));
+        const objItems = objectTypes.map((rt) => this.getChildIsTypeWithForbiddenProps(rt, comp));
         const objCode = objItems.filter(Boolean).join(' || ');
         const checkObjs = `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && (${objCode}))`;
         return {code: `(${[checkItems, checkObjs].filter(Boolean).join(' || ')})`, type: 'E'};
@@ -107,7 +203,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 // item encoded before reassigning varName to [i, item]
                 const index = this.getUnionItemIndex(comp, childRt);
                 const tupleEncode = needsTupleEncoding ? `${comp.vλl} = [${index}, ${comp.vλl}]` : '/*noop*/';
-                const isTypeCode = this.getChildStrictIsType(childRt, comp);
+                const isTypeCode = this.getChildIsTypeWithForbiddenProps(childRt, comp);
                 return `${ifElse()} (${isTypeCode}) {${encodeCode} ${tupleEncode}}`;
             });
             return result.filter(Boolean);
