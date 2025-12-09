@@ -206,7 +206,7 @@ describe('Union Obj', () => {
 
         const not1 = {a: 'hello'}; // missing aa property
         const not2 = {b: 'hello'}; // properties of the union must be of the correct type
-        const not3 = {a: 'hello', d: 'extra'}; // extra properties are not allowed in the union
+        const not3 = {a: 'hello', d: 'extra'}; // does not match any type in the union
         const not4 = {c: 1n, d: 'hello'}; // properties of the union must be of the correct type
 
         expect(validate(not1)).toBe(false);
@@ -436,9 +436,10 @@ describe('Union mixed with index property', () => {
     const indexB: UnionIndex = {a: 'hello', aa: true};
     const indexC: UnionIndex = {b: 123, a: 'world'}; // typescript allow mixed properties of objects, but we don't
     const indexD: UnionIndex = {b: 1n, c: 2n};
+    const unionWithExtra: UnionIndex = {a: 'hello', aa: true, j: 'extra'}; // allows extra props
+
     const notIndexA = [1, 'b'];
     const notIndexB = {};
-    const notIndexC = {a: 'hello', aa: true, j: 'extra'}; // we use strict assertion that checks for extra properties
     const notIndexD = {a: 'hello', b: 123n}; // we do not allow extra properties in the union
 
     const rt = runType<UnionIndex>();
@@ -450,10 +451,10 @@ describe('Union mixed with index property', () => {
         expect(validate(indexB)).toBe(true);
         expect(validate(indexC)).toBe(false); // we don't allow mixed properties in the union
         expect(validate(indexD)).toBe(true);
+        expect(validate(unionWithExtra)).toBe(true);
 
         expect(validate(notIndexA)).toBe(false);
         expect(validate(notIndexB)).toBe(false);
-        expect(validate(notIndexC)).toBe(false);
         expect(validate(notIndexD)).toBe(false);
     });
 
@@ -463,10 +464,10 @@ describe('Union mixed with index property', () => {
         expect(valWithErrors(indexA)).toEqual([]);
         expect(valWithErrors(indexB)).toEqual([]);
         expect(valWithErrors(indexD)).toEqual([]);
+        expect(valWithErrors(unionWithExtra)).toEqual([]);
 
         expect(valWithErrors(notIndexA)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notIndexB)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notIndexC)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notIndexD)).toEqual([{path: [], expected: 'union'}]);
     });
 });
