@@ -9,10 +9,10 @@ import {ReflectionKind, type TypeUnion} from '@deepkit/type';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import type {JitCode} from '../../types';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
-import {childIsExpression, createIfElseFn} from '../../lib/utils';
-import {JitFunctions} from '../../constants.functions';
+import {childIsExpression, createIfElseFn, toLiteral} from '../../lib/utils';
 import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
 import {markDiscriminators, splitUnionItems} from './unionDiscriminator';
+import type {PropertyRunType} from '../member/property';
 
 /**
  * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.
@@ -46,30 +46,8 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
 
     /**
-     * Unions use strict type checking (no extra properties allowed) to uniquely identify which union member
-     * a value belongs to. This differs from TypeScript's structural typing but is required for unambiguous
-     * serialization/deserialization - otherwise an object could match multiple union types.
-     * @see union.spec.ts 'Union Obj' and 'Union Mixed' test suites for examples.
-     */
-    getChildStrictIsType(rt: BaseRunType, comp: JitFnCompiler): string {
-        const isTypeCode = comp.compileIsType(rt, 'E').code || '';
-        const isTypeWithProperties =
-            isInterfaceRunType(rt) || isClassRunType(rt) || isObjectLiteralRunType(rt) || isIntersectionRunType(rt);
-        if (!isTypeWithProperties || rt.getFamily() !== 'C') return isTypeCode;
-        const props = rt.getJitChildren(comp);
-        const hasIndexProperty = props.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
-        if (hasIndexProperty) return isTypeCode;
-        const hasUnknownKeysOptsVarName = comp.getLocalVarName('uKOpts', this);
-        const checkPropName = JitFunctions.hasUnknownKeys.runTimeOptions.checkNonJitProps.keyName;
-        comp.setContextItem(hasUnknownKeysOptsVarName, `const ${hasUnknownKeysOptsVarName} = {${checkPropName}: true}`);
-        // forces to call hasUnknownKeys with hasUnknownKeysOptsVarName options
-        comp.setChildrenCallArgs(JitFunctions.hasUnknownKeys.id, {θpts: hasUnknownKeysOptsVarName});
-        const codeHasUnknown = comp.compileHasUnknownKeys(rt, 'E').code;
-        return codeHasUnknown ? `(${isTypeCode} && !${codeHasUnknown})` : `${isTypeCode}`;
-    }
-
-    /**
-     * Alternative to getChildStrictIsType that only checks for properties from OTHER union types.
+     * Unlike typescript unions can not have properties from two types,
+     * this is because at runtime we need to identify the original object in the union.
      * This allows objects to have extra properties (like methods) as long as they don't have
      * properties that belong to other union members, enabling unambiguous type identification.
      * @see union.spec.ts 'Union Obj' and 'Union Mixed' test suites for examples.
@@ -79,77 +57,57 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const isTypeWithProperties =
             isInterfaceRunType(rt) || isClassRunType(rt) || isObjectLiteralRunType(rt) || isIntersectionRunType(rt);
         if (!isTypeWithProperties || rt.getFamily() !== 'C') return isTypeCode;
-
         const props = rt.getJitChildren(comp);
         const hasIndexProperty = props.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
         if (hasIndexProperty) return isTypeCode;
-
-        // Get property names of this type
-        const thisTypeProps = new Set<string | number | symbol>();
-        for (const prop of props) {
-            const name = (prop.src as any).name;
-            if (name !== undefined) thisTypeProps.add(name);
-        }
-
         // Get all object types in the union
         const {objectTypes} = this.getUnionChildren(comp);
-
+        const isAllOptional = rt.areAllChildrenOptional(props);
+        // If there are no other object types, no need to check forbidden props
+        if (objectTypes.length === 1 && !isAllOptional) return isTypeCode;
+        // Get property names of this type
+        const thisTypeProps = new Set<string | number>();
+        for (const prop of props) {
+            const name = (prop as PropertyRunType).getPropertyName();
+            thisTypeProps.add(name);
+        }
         // Collect property names from OTHER object types that are NOT in this type
-        const forbiddenProps = new Set<string | number>();
+        const forbiddenPropNames = new Set<string | number>();
         for (const otherRt of objectTypes) {
             if (otherRt === rt) continue;
-
             const otherProps = otherRt.getJitChildren(comp);
             // If any other type has an index signature, fall back to strict checking
             const otherHasIndex = otherProps.some((p) => p.src.kind === ReflectionKind.indexSignature);
-            if (otherHasIndex) {
-                return this.getChildStrictIsType(rt, comp);
-            }
-
+            if (otherHasIndex) continue;
             for (const prop of otherProps) {
-                const name = (prop.src as any).name;
+                const name = (prop as PropertyRunType).getPropertyName();
                 if (name !== undefined && !thisTypeProps.has(name)) {
-                    // Only add string/number names (skip symbols for code generation)
-                    if (typeof name === 'string' || typeof name === 'number') {
-                        forbiddenProps.add(name);
-                    }
+                    forbiddenPropNames.add(name);
                 }
             }
         }
-
         // For all-optional types (weak types), TypeScript requires at least one matching property
         // or an empty object. This prevents {c: 'hello'} from matching {a?: string; b?: string}
         let weakTypeCheck = '';
-        if (rt.areAllChildrenOptional(props) && thisTypeProps.size > 0) {
-            const ownPropNames = Array.from(thisTypeProps).filter(
-                (p): p is string | number => typeof p === 'string' || typeof p === 'number'
-            );
-            if (ownPropNames.length > 0) {
-                // Must have at least one of this type's own props OR be empty
-                const hasOwnPropCheck = ownPropNames
-                    .map((p) => (typeof p === 'number' ? `(${p} in ${comp.vλl})` : `('${p}' in ${comp.vλl})`))
-                    .join(' || ');
-                const keysVar = comp.getLocalVarName('keys', this);
-                weakTypeCheck = `((${keysVar} = Object.keys(${comp.vλl}), ${keysVar}.length === 0) || (${hasOwnPropCheck}))`;
-            }
+        if (isAllOptional && props.length > 0) {
+            // Must have at least one of this type's own props OR be empty
+            const hasOwnPropCheck = props.map((p) => {
+                const name = (p as PropertyRunType).getPropertyName();
+                return `(${toLiteral(name)} in ${comp.vλl})`;
+            });
+            hasOwnPropCheck.push(`Object.keys(${comp.vλl}).length === 0`);
+            weakTypeCheck = `(${hasOwnPropCheck.join(' || ')})`;
         }
-
-        if (forbiddenProps.size === 0 && !weakTypeCheck) return isTypeCode;
-
+        if (forbiddenPropNames.size === 0 && !weakTypeCheck) return isTypeCode;
         // Generate code to check that none of the forbidden props exist
         const checks: string[] = [isTypeCode];
-
-        if (forbiddenProps.size > 0) {
-            const forbiddenCheck = Array.from(forbiddenProps)
-                .map((p) => (typeof p === 'number' ? `!(${p} in ${comp.vλl})` : `!('${p}' in ${comp.vλl})`))
+        if (forbiddenPropNames.size > 0) {
+            const forbiddenCheck = Array.from(forbiddenPropNames)
+                .map((p) => `!(${toLiteral(p)} in ${comp.vλl})`)
                 .join(' && ');
             checks.push(forbiddenCheck);
         }
-
-        if (weakTypeCheck) {
-            checks.push(weakTypeCheck);
-        }
-
+        if (weakTypeCheck) checks.push(weakTypeCheck);
         return `(${checks.join(' && ')})`;
     }
 
