@@ -176,6 +176,17 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
         this.index += len;
         return decoded;
     }
+    /** Deserialize a string that will be used as a property name, with prototype pollution protection */
+    desSafePropName(): string {
+        const key = this.desString();
+        const len = key.length;
+        if (len === 9) {
+            if (key === '__proto__' || key === 'prototype') throw new Error(`Unsafe property name: ${key}`);
+        } else if (len === 11) {
+            if (key === 'constructor') throw new Error(`Unsafe property name: ${key}`);
+        }
+        return key;
+    }
     desFloat64(): number {
         const value = this.view.getFloat64(this.index, LE);
         this.index += 8;
