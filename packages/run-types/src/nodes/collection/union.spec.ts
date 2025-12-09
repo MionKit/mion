@@ -6,7 +6,6 @@
  * ######## */
 import {UnionRunType} from './union';
 import {JitFunctions} from '../../constants.functions';
-import {BaseRunType} from '../../lib/baseRunTypes';
 import {runType} from '../../createRunType';
 
 describe('Atomic Union', () => {
