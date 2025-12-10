@@ -1,5 +1,8 @@
-// This file demonstrates the strong-typed-routes ESLint rule
-// The rule is disabled for this file so you can see both valid and invalid examples
+// This file demonstrates the ESLint rules for @mionkit/router
+// The rules are disabled for this file so you can see both valid and invalid examples
+/* eslint-disable @mionkit/strong-typed-routes */
+/* eslint-disable @mionkit/no-unreachable-union-types */
+/* eslint-disable @mionkit/no-mixed-union-properties */
 import {route, hook, headersHook, Handler, HeaderHandler, CallContext, HeadersList} from '@mionkit/router';
 
 // ========================================
@@ -57,8 +60,29 @@ function headersHookWithJSDoc(c: CallContext, [token]: HeadersList<['auth']>): v
     console.log(token);
 }
 
+// 6. Union types with proper order (more specific types first)
+type UserResponse = {id: string; name: string; email: string} | {id: string; name: string} | {id: string};
+route((ctx): UserResponse => ({id: '1', name: 'John', email: 'john@example.com'}));
+
+// 7. Union types in parameters with proper order
+type UserInput = {id: string; name: string; email: string} | {id: string; name: string} | {id: string};
+route((ctx, user: UserInput): string => user.id);
+
+// 8. Union types with distinct properties (no overlap)
+type Action = {type: 'create'; data: string} | {type: 'update'; id: string} | {type: 'delete'; id: string};
+route((ctx): Action => ({type: 'create', data: 'test'}));
+
+// 9. Return objects matching single union type (no mixed properties)
+type Result = {success: true; data: string} | {success: false; error: string};
+route((ctx): Result => ({success: true, data: 'ok'}));
+route((ctx): Result => ({success: false, error: 'failed'}));
+
 // ========================================
 // ❌ INVALID EXAMPLES (these SHOULD trigger ESLint errors when rule is enabled)
+// ========================================
+
+// ========================================
+// Rule: @mionkit/strong-typed-routes
 // ========================================
 
 // 1. Direct inline handlers missing types
@@ -113,12 +137,68 @@ function invalidHeadersHookJSDoc(c: CallContext, [token]): void {
 } // Missing param type
 
 // ========================================
+// Rule: @mionkit/no-unreachable-union-types
+// ========================================
+
+// 1. Unreachable union type in return (subset before superset)
+type UnreachableReturn = {a: string} | {a: string; b: number}; // Second type is unreachable
+route((ctx): UnreachableReturn => ({a: 'hello'}));
+
+// 2. Unreachable union type in parameter
+type UnreachableParam = {id: string} | {id: string; name: string}; // Second type is unreachable
+route((ctx, data: UnreachableParam): string => data.id);
+
+// 3. Optional properties blocking more specific types
+type OptionalBlocking = {a?: string} | {a: string; b: number}; // Second type is unreachable
+route((ctx): OptionalBlocking => ({a: 'hello', b: 1}));
+
+// 4. Mixed optional/required blocking
+type MixedBlocking = {a: string; b?: number} | {a: string; b: number}; // Second type is unreachable
+route((ctx): MixedBlocking => ({a: 'hello', b: 1}));
+
+// 5. Multiple unreachable types
+type MultipleUnreachable = {a: string} | {a: string; b: number} | {a: string; b: number; c: boolean};
+// Both second and third types are unreachable
+route((ctx): MultipleUnreachable => ({a: 'hello'}));
+
+// 6. Unreachable in headersHook parameter (third parameter)
+type UnreachableHeaderParam = {x: number} | {x: number; y: number}; // Second type is unreachable
+headersHook((ctx, [token]: HeadersList<['auth']>, data: UnreachableHeaderParam): void => {
+    console.log(data.x);
+});
+
+// ========================================
+// Rule: @mionkit/no-mixed-union-properties
+// ========================================
+
+// 1. Return object with properties from multiple union types
+type MixedResult = {success: true; data: string} | {success: false; error: string};
+route((ctx): MixedResult => ({success: true, data: 'ok', error: 'also has error'})); // Mixed properties
+
+// 2. Object literal with unique properties from different union types
+type UserOrProduct = {userId: string; userName: string} | {productId: string; productName: string};
+route((ctx): UserOrProduct => ({userId: '1', productId: '2'})); // Has properties from both types
+
+// 3. Multiple mixed returns in conditional
+type Status = {active: boolean; lastSeen: Date} | {active: boolean; reason: string};
+route((ctx): Status => {
+    if (Math.random() > 0.5) {
+        return {active: true, lastSeen: new Date(), reason: 'mixed'}; // Mixed properties
+    }
+    return {active: false, lastSeen: new Date(), reason: 'also mixed'}; // Mixed properties
+});
+
+// 4. Hook with mixed properties
+type HookData = {name: string} | {age: number};
+hook((ctx): HookData => ({name: 'John', age: 25})); // Mixed properties
+
+// ========================================
 // 📝 INSTRUCTIONS FOR TESTING:
 // ========================================
-// 1. Remove the first line: /* eslint-disable @mionkit/strong-typed-routes */
+// 1. Remove the eslint-disable comments at the top of the file
 // 2. Run: npx eslint packages/router/examples/eslint-rule-test.routes.ts
 // 3. You should see ESLint errors for all the "INVALID EXAMPLES" above
 // 4. The "VALID EXAMPLES" should not produce any errors
-// 5. Add the disable comment back to prevent CI failures
+// 5. Add the disable comments back to prevent CI failures
 
 export {}; // Make this a module
