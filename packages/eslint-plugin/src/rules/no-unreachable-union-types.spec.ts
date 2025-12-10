@@ -45,7 +45,7 @@ ruleTester.run('no-unreachable-union-types', rule, {
                 const fn = (): {a: string} | {a: string; b: number} => ({a: 'hello'});
             `,
         },
-        // Import from different package (should not be checked)
+        // Import from different package (should not be checked - only @mionkit/router is checked)
         {
             code: `
                 import { route } from 'other-package';
@@ -59,11 +59,11 @@ ruleTester.run('no-unreachable-union-types', rule, {
                 route((ctx): string | number | boolean => 'hello');
             `,
         },
-        // Optional properties in subset don't block
+        // Different properties - no blocking
         {
             code: `
                 import { route } from '@mionkit/router';
-                route((ctx): {a?: string} | {a: string; b: number} => ({a: 'hello', b: 1}));
+                route((ctx): {a?: string} | {b: number; c: string} => ({b: 1, c: 'hello'}));
             `,
         },
         // Handler type annotation with proper order
@@ -110,6 +110,22 @@ ruleTester.run('no-unreachable-union-types', rule, {
                 {messageId: 'unreachableUnionType'},
                 {messageId: 'unreachableUnionType'},
             ],
+        },
+        // Optional properties block more specific types
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx): {a?: string} | {a: string; b: number} => ({a: 'hello', b: 1}));
+            `,
+            errors: [{messageId: 'unreachableUnionType'}],
+        },
+        // Optional property with required property blocks more specific type
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx): {a: string; b?: number} | {a: string; b: number} => ({a: 'hello', b: 1}));
+            `,
+            errors: [{messageId: 'unreachableUnionType'}],
         },
     ],
 });
