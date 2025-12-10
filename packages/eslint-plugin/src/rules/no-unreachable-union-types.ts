@@ -116,6 +116,60 @@ function getTypeDescription(node: TSESTree.TypeNode): string {
 }
 
 /**
+ * Gets the router function name if the function is a handler for route/hook/headersHook
+ */
+function getRouterFunctionName(
+    func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
+    context: TSESLint.RuleContext<any, any>
+): string | null {
+    const parent = func.parent;
+    if (parent?.type === AST_NODE_TYPES.CallExpression) {
+        if (parent.callee.type === AST_NODE_TYPES.Identifier) {
+            const functionName = parent.callee.name;
+            if (['route', 'hook', 'headersHook'].includes(functionName) && isImportedFromMionRouter(functionName, context)) {
+                return functionName;
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Checks if the union type is in a parameter that should be checked
+ */
+function isInCheckableParameter(
+    node: TSESTree.TSUnionType,
+    func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
+    routerFunctionName: string
+): boolean {
+    // Find which parameter contains this union type
+    let current: TSESTree.Node | undefined = node.parent;
+    while (current && current !== func) {
+        // Check if we're in a parameter
+        if (
+            current.type === AST_NODE_TYPES.Identifier ||
+            current.type === AST_NODE_TYPES.ArrayPattern ||
+            current.type === AST_NODE_TYPES.ObjectPattern
+        ) {
+            const paramIndex = func.params.indexOf(current as TSESTree.Parameter);
+            if (paramIndex !== -1) {
+                // For route and hook: skip first parameter (context)
+                if ((routerFunctionName === 'route' || routerFunctionName === 'hook') && paramIndex >= 1) {
+                    return true;
+                }
+                // For headersHook: skip first two parameters (context and headers)
+                if (routerFunctionName === 'headersHook' && paramIndex >= 2) {
+                    return true;
+                }
+                return false;
+            }
+        }
+        current = current.parent;
+    }
+    return false;
+}
+
+/**
  * Checks if the union type is a return type or parameter type of route/hook/headersHook
  */
 function isRouterUnionType(node: TSESTree.TSUnionType, context: TSESLint.RuleContext<any, any>): boolean {
@@ -128,10 +182,16 @@ function isRouterUnionType(node: TSESTree.TSUnionType, context: TSESLint.RuleCon
             current.type === AST_NODE_TYPES.FunctionExpression ||
             current.type === AST_NODE_TYPES.FunctionDeclaration
         ) {
-            // Check if parent is a call to route/hook/headersHook
-            const parent = current.parent;
-            if (parent?.type === AST_NODE_TYPES.CallExpression) {
-                return isRouterFunctionCall(parent, context);
+            const routerFunctionName = getRouterFunctionName(current, context);
+            if (routerFunctionName) {
+                // Check if we're in the return type
+                if (current.returnType?.typeAnnotation === node || isDescendantOf(node, current.returnType?.typeAnnotation)) {
+                    return true;
+                }
+                // Check if we're in a parameter type (excluding context and headers params)
+                if (isInCheckableParameter(node, current, routerFunctionName)) {
+                    return true;
+                }
             }
         }
         // Check if we're in a type annotation for Handler/HeaderHandler
@@ -161,14 +221,16 @@ function isRouterUnionType(node: TSESTree.TSUnionType, context: TSESLint.RuleCon
 }
 
 /**
- * Checks if a call expression is a route/hook/headersHook from @mionkit/router
+ * Checks if a node is a descendant of another node
  */
-function isRouterFunctionCall(node: TSESTree.CallExpression, context: TSESLint.RuleContext<any, any>): boolean {
-    const routerFunctions = ['route', 'hook', 'headersHook'];
-    if (node.callee.type !== AST_NODE_TYPES.Identifier || !routerFunctions.includes(node.callee.name)) {
-        return false;
+function isDescendantOf(node: TSESTree.Node | undefined, ancestor: TSESTree.Node | undefined): boolean {
+    if (!node || !ancestor) return false;
+    let current: TSESTree.Node | undefined = node;
+    while (current) {
+        if (current === ancestor) return true;
+        current = current.parent;
     }
-    return isImportedFromMionRouter(node.callee.name, context);
+    return false;
 }
 
 /**
