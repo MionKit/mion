@@ -284,7 +284,7 @@ export function createStringifyCompiler(fnID: Operation) {
                     `const ${errName} = "Can not ${getOperationName()} union: item does not belong to the union"`
                 );
 
-                const isType = (unionItem) => urt.getChildIsTypeWithForbiddenProps(unionItem, comp);
+                const isType = (unionItem) => urt.getChildIsTypeWithLooseCheck(unionItem, comp);
                 const ifElse = createIfElseFn();
                 const onUnionTypes = (items: BaseRunType[]) => {
                     const result = items.map((unionItem) => {
