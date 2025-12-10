@@ -184,7 +184,7 @@ const rule = {
         const issues = findUnreachableTypes(node);
         for (const issue of issues) {
           context.report({
-            node: issue.unreachable,
+            node,
             messageId: "unreachableUnionType",
             data: {
               unreachableType: getTypeDescription(issue.unreachable),
@@ -204,7 +204,7 @@ const rule = {
         const issues = findUnreachableTypes(unionType);
         for (const issue of issues) {
           context.report({
-            node: issue.unreachable,
+            node,
             messageId: "unreachableUnionType",
             data: {
               unreachableType: getTypeDescription(issue.unreachable),
