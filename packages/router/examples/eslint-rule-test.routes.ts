@@ -1,8 +1,5 @@
 // This file demonstrates the ESLint rules for @mionkit/router
 // The rules are disabled for this file so you can see both valid and invalid examples
-/* eslint-disable @mionkit/strong-typed-routes */
-/* eslint-disable @mionkit/no-unreachable-union-types */
-/* eslint-disable @mionkit/no-mixed-union-properties */
 import {route, hook, headersHook, Handler, HeaderHandler, CallContext, HeadersList} from '@mionkit/router';
 
 // ========================================
@@ -168,37 +165,28 @@ headersHook((ctx, [token]: HeadersList<['auth']>, data: UnreachableHeaderParam):
 });
 
 // ========================================
-// Rule: @mionkit/no-mixed-union-properties
+// Rule: @mionkit/no-mixed-union-properties , !!RULE DISABLED AS DOES NOT ADD MUCH VALUE!!
 // ========================================
 
-// 1. Return object with properties from multiple union types
-type MixedResult = {success: true; data: string} | {success: false; error: string};
-route((ctx): MixedResult => ({success: true, data: 'ok', error: 'also has error'})); // Mixed properties
+// // 1. Return object with properties from multiple union types
+// type MixedResult = {success: true; data: string} | {success: false; error: string};
+// route((ctx): MixedResult => ({success: true, data: 'ok', error: 'also has error'})); // Mixed properties
 
-// 2. Object literal with unique properties from different union types
-type UserOrProduct = {userId: string; userName: string} | {productId: string; productName: string};
-route((ctx): UserOrProduct => ({userId: '1', productId: '2'})); // Has properties from both types
+// // 2. Object literal with unique properties from different union types
+// type UserOrProduct = {userId: string; userName: string} | {productId: string; productName: string};
+// route((ctx): UserOrProduct => ({userId: '1', productId: '2'})); // Has properties from both types
 
-// 3. Multiple mixed returns in conditional
-type Status = {active: boolean; lastSeen: Date} | {active: boolean; reason: string};
-route((ctx): Status => {
-    if (Math.random() > 0.5) {
-        return {active: true, lastSeen: new Date(), reason: 'mixed'}; // Mixed properties
-    }
-    return {active: false, lastSeen: new Date(), reason: 'also mixed'}; // Mixed properties
-});
+// // 3. Multiple mixed returns in conditional
+// type Status = {active: boolean; lastSeen: Date} | {active: boolean; reason: string};
+// route((ctx): Status => {
+//     if (Math.random() > 0.5) {
+//         return {active: true, lastSeen: new Date(), reason: 'mixed'}; // Mixed properties
+//     }
+//     return {active: false, lastSeen: new Date(), reason: 'also mixed'}; // Mixed properties
+// });
 
 // 4. Hook with mixed properties
 type HookData = {name: string} | {age: number};
 hook((ctx): HookData => ({name: 'John', age: 25})); // Mixed properties
-
-// ========================================
-// 📝 INSTRUCTIONS FOR TESTING:
-// ========================================
-// 1. Remove the eslint-disable comments at the top of the file
-// 2. Run: npx eslint packages/router/examples/eslint-rule-test.routes.ts
-// 3. You should see ESLint errors for all the "INVALID EXAMPLES" above
-// 4. The "VALID EXAMPLES" should not produce any errors
-// 5. Add the disable comments back to prevent CI failures
 
 export {}; // Make this a module

@@ -135,10 +135,10 @@ function getRouterFunctionName(
 }
 
 /**
- * Checks if the union type is in a parameter that should be checked
+ * Checks if the union type or type reference is in a parameter that should be checked
  */
 function isInCheckableParameter(
-    node: TSESTree.TSUnionType,
+    node: TSESTree.TSUnionType | TSESTree.TSTypeReference,
     func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
     routerFunctionName: string
 ): boolean {
@@ -170,9 +170,12 @@ function isInCheckableParameter(
 }
 
 /**
- * Checks if the union type is a return type or parameter type of route/hook/headersHook
+ * Checks if the union type or type reference is a return type or parameter type of route/hook/headersHook
  */
-function isRouterUnionType(node: TSESTree.TSUnionType, context: TSESLint.RuleContext<any, any>): boolean {
+function isRouterUnionType(
+    node: TSESTree.TSUnionType | TSESTree.TSTypeReference,
+    context: TSESLint.RuleContext<any, any>
+): boolean {
     // Check if we're in a return type annotation or parameter type annotation
     let current: TSESTree.Node | undefined = node.parent;
     while (current) {
@@ -259,16 +262,46 @@ function isImportedFromMionRouter(name: string, context: TSESLint.RuleContext<an
     return false;
 }
 
+/**
+ * Resolves a type reference to its actual union type definition
+ */
+function resolveTypeReference(node: TSESTree.TypeNode, context: TSESLint.RuleContext<any, any>): TSESTree.TSUnionType | null {
+    if (node.type !== AST_NODE_TYPES.TSTypeReference) {
+        return null;
+    }
+
+    // Get the type name
+    if (node.typeName.type !== AST_NODE_TYPES.Identifier) {
+        return null;
+    }
+
+    const typeName = node.typeName.name;
+    const sourceCode = context.sourceCode;
+    const program = sourceCode.ast;
+
+    // Find the type alias declaration
+    for (const statement of program.body) {
+        if (statement.type === AST_NODE_TYPES.TSTypeAliasDeclaration) {
+            if (statement.id.name === typeName && statement.typeAnnotation.type === AST_NODE_TYPES.TSUnionType) {
+                return statement.typeAnnotation;
+            }
+        }
+    }
+
+    return null;
+}
+
 const rule: TSESLint.RuleModule<'unreachableUnionType', []> = {
     meta: {
         type: 'problem',
         docs: {
-            description: 'Detect union types where one interface is unreachable because a subset type comes before it',
+            description:
+                'Detect union types where one interface is unreachable at runtime when using isType function because a subset type comes before it',
         },
         messages: {
             unreachableUnionType:
-                'Union type {{unreachableType}} is unreachable because {{blockerType}} matches first. ' +
-                'Move the more specific type (with more properties) before the less specific one.',
+                'Union type {{unreachableType}} is unreachable at runtime when doing type checking because {{blockerType}} will always match first. ' +
+                'To fix this move the more specific type {{unreachableType}} first within the union, ie: {{unreachableType}} | {{blockerType}} ',
         },
         schema: [],
     },
@@ -282,6 +315,30 @@ const rule: TSESLint.RuleModule<'unreachableUnionType', []> = {
                 }
 
                 const issues = findUnreachableTypes(node);
+                for (const issue of issues) {
+                    context.report({
+                        node: issue.unreachable,
+                        messageId: 'unreachableUnionType',
+                        data: {
+                            unreachableType: getTypeDescription(issue.unreachable),
+                            blockerType: getTypeDescription(issue.blocker),
+                        },
+                    });
+                }
+            },
+            TSTypeReference(node: TSESTree.TSTypeReference) {
+                // Try to resolve the type reference to a union type
+                const unionType = resolveTypeReference(node, context);
+                if (!unionType) {
+                    return;
+                }
+
+                // Only check if this type reference is used in a router context
+                if (!isRouterUnionType(node, context)) {
+                    return;
+                }
+
+                const issues = findUnreachableTypes(unionType);
                 for (const issue of issues) {
                     context.report({
                         node: issue.unreachable,
