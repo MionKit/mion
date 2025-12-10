@@ -24,7 +24,8 @@ const plugin = {
                 '@mionkit/no-typeof-runtype': 'error',
                 '@mionkit/strong-typed-routes': 'error',
                 '@mionkit/no-unreachable-union-types': 'error',
-                '@mionkit/no-mixed-union-properties': 'warn',
+                // disabled as seems is not too useful and overlaps with some ts rules
+                // '@mionkit/no-mixed-union-properties': 'warn',
             },
         },
     },

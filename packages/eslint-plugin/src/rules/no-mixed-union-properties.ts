@@ -77,12 +77,54 @@ function getUniquePropertiesPerType(unionTypes: UnionTypeInfo[]): Map<number, Se
     return uniqueProps;
 }
 
-function getReturnTypeAnnotation(
-    func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration
-): TSESTree.TSUnionType | null {
-    if (func.returnType?.typeAnnotation?.type === AST_NODE_TYPES.TSUnionType) {
-        return func.returnType.typeAnnotation;
+/**
+ * Resolves a type reference to its actual union type definition
+ */
+function resolveTypeReference(node: TSESTree.TypeNode, context: TSESLint.RuleContext<any, any>): TSESTree.TSUnionType | null {
+    if (node.type !== AST_NODE_TYPES.TSTypeReference) {
+        return null;
     }
+
+    // Get the type name
+    if (node.typeName.type !== AST_NODE_TYPES.Identifier) {
+        return null;
+    }
+
+    const typeName = node.typeName.name;
+    const sourceCode = context.sourceCode;
+    const program = sourceCode.ast;
+
+    // Find the type alias declaration
+    for (const statement of program.body) {
+        if (statement.type === AST_NODE_TYPES.TSTypeAliasDeclaration) {
+            if (statement.id.name === typeName && statement.typeAnnotation.type === AST_NODE_TYPES.TSUnionType) {
+                return statement.typeAnnotation;
+            }
+        }
+    }
+
+    return null;
+}
+
+function getReturnTypeAnnotation(
+    func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
+    context: TSESLint.RuleContext<any, any>
+): TSESTree.TSUnionType | null {
+    const returnType = func.returnType?.typeAnnotation;
+    if (!returnType) {
+        return null;
+    }
+
+    // Direct union type
+    if (returnType.type === AST_NODE_TYPES.TSUnionType) {
+        return returnType;
+    }
+
+    // Type reference that might resolve to a union type
+    if (returnType.type === AST_NODE_TYPES.TSTypeReference) {
+        return resolveTypeReference(returnType, context);
+    }
+
     return null;
 }
 
@@ -182,7 +224,7 @@ function checkFunction(
     context: TSESLint.RuleContext<'mixedUnionProperties', []>
 ) {
     if (!isRouterFunction(func, context)) return;
-    const unionType = getReturnTypeAnnotation(func);
+    const unionType = getReturnTypeAnnotation(func, context);
     if (!unionType) return;
     const unionTypes = getUnionObjectTypes(unionType);
     if (unionTypes.length < 2) return;
