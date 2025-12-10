@@ -162,43 +162,41 @@ describe('Arr with union of types', () => {
 describe('Union Obj', () => {
     type UnionObj = {a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string};
 
-    // With loose matching, objects with mixed properties are now allowed (first match wins)
-    const objA: UnionObj = {a: 'hello', b: 123, c: 1n}; // will match {d?: string} as first compatible (empty object matches)
-    const objB: UnionObj = {a: 'world', aa: true};
-    const objC: UnionObj = {c: 1n};
-    const objD: UnionObj = {d: 'hello'};
-    const objE: UnionObj = {};
-    const notA = {a: 'hello'}; // missing aa property, but matches {d?: string}
-    const notB = {b: 'hello'}; // properties of the union must be of the correct type
-    const notC = {a: 'hello', d: 'extra'}; // now allowed with loose matching, matches {d?: string}
-    const notD = {d: 123}; // properties of the union must be of the correct type
+    // With loose matching, objects with mixed properties are allowed (first match wins)
+    const objMixedMatchesB: UnionObj = {a: 'hello', b: 123, c: 1n}; // matches {b: number} (first compatible)
+    const objMatchesA: UnionObj = {a: 'world', aa: true}; // matches {a: string; aa: boolean}
+    const objMatchesC: UnionObj = {c: 1n}; // matches {c: bigint}
+    const objMatchesD: UnionObj = {d: 'hello'}; // matches {d?: string}
+    const objEmptyMatchesD: UnionObj = {}; // matches {d?: string} (empty object allowed for all-optional)
+    const objWithExtraMatchesD = {a: 'hello', d: 'extra'}; // matches {d?: string} (has 'd' property)
+
+    // Invalid objects - don't match any union type
+    const invalidMissingAa = {a: 'hello'}; // missing 'aa', no 'b', no 'c', no 'd' (weakTypeCheck fails for {d?: string})
+    const invalidWrongTypeB = {b: 'hello'}; // 'b' must be number, not string
+    const invalidWrongTypeD = {d: 123}; // 'd' must be string, not number
 
     const rt = runType<UnionObj>();
 
     it('validate union', () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
 
-        // With loose matching, mixed properties are allowed (first match wins)
-        // objA has mixed props and matches {a: string; aa: boolean} because it has a='hello' (string)
-        // but also has b and c which don't match aa: boolean. Let's check what actually happens.
-        // Actually objA = {a: 'hello', b: 123, c: 1n} - 'a' is string but no 'aa' boolean, so first type fails
-        // {b: number} - has b: 123, matches!
-        expect(validate(objA)).toBe(true);
-        expect(validate(objB)).toBe(true);
-        expect(validate(objC)).toBe(true);
-        expect(validate(objD)).toBe(true);
-        expect(validate(objE)).toBe(true);
+        // With loose matching, first compatible type wins
+        expect(validate(objMixedMatchesB)).toBe(true); // has b: 123, matches {b: number}
+        expect(validate(objMatchesA)).toBe(true);
+        expect(validate(objMatchesC)).toBe(true);
+        expect(validate(objMatchesD)).toBe(true);
+        expect(validate(objEmptyMatchesD)).toBe(true);
+        expect(validate(objWithExtraMatchesD)).toBe(true); // has 'd' property, matches {d?: string}
 
-        // notA = {a: 'hello'} doesn't match any:
+        // Invalid objects
+        // {a: 'hello'} doesn't match any:
         // - {a: string; aa: boolean} - missing aa
         // - {b: number} - no b
         // - {c: bigint} - no c
-        // - {d?: string} - weakTypeCheck requires 'd' in object OR empty object, {a:'hello'} has neither
-        expect(validate(notA)).toBe(false);
-        expect(validate(notB)).toBe(false); // b: 'hello' doesn't match {b: number}
-        // notC = {a: 'hello', d: 'extra'} matches {d?: string} because d is present and is string
-        expect(validate(notC)).toBe(true);
-        expect(validate(notD)).toBe(false); // d: 123 doesn't match {d?: string}
+        // - {d?: string} - weakTypeCheck requires 'd' in object OR empty, but has only 'a'
+        expect(validate(invalidMissingAa)).toBe(false);
+        expect(validate(invalidWrongTypeB)).toBe(false);
+        expect(validate(invalidWrongTypeD)).toBe(false);
         expect(validate([])).toBe(false);
     });
 
@@ -230,18 +228,18 @@ describe('Union Obj', () => {
     it('validate union + errors', () => {
         const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
-        // With loose matching, mixed properties are allowed (first match wins)
-        expect(valWithErrors(objA)).toEqual([]); // matches {b: number}
-        expect(valWithErrors(objB)).toEqual([]);
-        expect(valWithErrors(objC)).toEqual([]);
-        expect(valWithErrors(objD)).toEqual([]);
-        expect(valWithErrors(objE)).toEqual([]);
+        // With loose matching, first compatible type wins
+        expect(valWithErrors(objMixedMatchesB)).toEqual([]); // matches {b: number}
+        expect(valWithErrors(objMatchesA)).toEqual([]);
+        expect(valWithErrors(objMatchesC)).toEqual([]);
+        expect(valWithErrors(objMatchesD)).toEqual([]);
+        expect(valWithErrors(objEmptyMatchesD)).toEqual([]);
+        expect(valWithErrors(objWithExtraMatchesD)).toEqual([]); // matches {d?: string}
 
-        // notA = {a: 'hello'} doesn't match any type (weakTypeCheck for {d?: string} fails)
-        expect(valWithErrors(notA)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]); // b: 'hello' doesn't match any type
-        expect(valWithErrors(notC)).toEqual([]); // matches {d?: string} because 'd' property is present
-        expect(valWithErrors(notD)).toEqual([{path: [], expected: 'union'}]); // d: 123 doesn't match any type
+        // Invalid objects
+        expect(valWithErrors(invalidMissingAa)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(invalidWrongTypeB)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(invalidWrongTypeD)).toEqual([{path: [], expected: 'union'}]);
     });
 
     it('mock', async () => {
@@ -369,20 +367,24 @@ describe('Union Mixed', () => {
     type UnMix2 = {a: boolean} | {a: number};
     type UnMixD = UnionMix | D; // ensures unions get flattened
 
-    const mixA: UnionMix = ['a', 'b', 'c'];
-    const mixB: UnionMix = {a: 'hello', aa: true};
-    // With loose matching, objects with mixed properties now match first compatible type
-    const mixC: UnionMix = {b: 123, c: 123n}; // now matches {b: number} (first compatible match)
-    const mixD: UnMixD = {d: new Date()}; // although is not a class instance, it has the same properties so is true
-    const withExtraProps = {a: 'hello', aa: true, j: 'extra'}; // extra props allowed (loose matching)
-    const notMixA = [1, 'b'];
-    const notMixB = {};
-    const notMixD = {a: 'hello', d: 'world'}; // expect aa property, now will fail since no match
+    // Valid objects
+    const arrStrings: UnionMix = ['a', 'b', 'c'];
+    const objMatchesA: UnionMix = {a: 'hello', aa: true};
+    // With loose matching, objects with mixed properties match first compatible type
+    const objMixedMatchesB: UnionMix = {b: 123, c: 123n}; // matches {b: number} (first compatible)
+    const objMatchesD: UnMixD = {d: new Date()}; // matches class D (same properties)
+    const objWithExtraProps = {a: 'hello', aa: true, j: 'extra'}; // extra props allowed (loose matching)
 
-    const mix2A: UnMix2 = {a: true};
-    const mix2B: UnMix2 = {a: 123};
-    const notMix2A = {a: 'hello'};
-    const notMix2B = {};
+    // Invalid objects
+    const invalidMixedArray = [1, 'b']; // mixed types in array don't match any array type
+    const invalidEmptyObj = {}; // no matching properties
+    const invalidMissingAa = {a: 'hello', d: 'world'}; // missing 'aa' for {a, aa}, no match
+
+    // UnMix2: 'a' property is merged into union prop, accepts both boolean and number
+    const objABoolean: UnMix2 = {a: true};
+    const objANumber: UnMix2 = {a: 123};
+    const invalidAString = {a: 'hello'}; // 'a' must be boolean or number
+    const invalidEmpty = {}; // missing 'a' property
 
     const rt = runType<UnionMix>();
     const rt2 = runType<UnMix2>();
@@ -391,45 +393,45 @@ describe('Union Mixed', () => {
     it('validate union', () => {
         const validate = rtD.createJitFunction(JitFunctions.isType);
 
-        expect(validate(mixA)).toBe(true);
-        expect(validate(mixB)).toBe(true);
-        // With loose matching, mixC {b: 123, c: 123n} matches {b: number}
-        expect(validate(mixC)).toBe(true);
-        expect(validate(mixD)).toBe(true);
+        expect(validate(arrStrings)).toBe(true);
+        expect(validate(objMatchesA)).toBe(true);
+        // With loose matching, {b: 123, c: 123n} matches {b: number}
+        expect(validate(objMixedMatchesB)).toBe(true);
+        expect(validate(objMatchesD)).toBe(true);
 
-        expect(validate(notMixA)).toBe(false);
-        expect(validate(notMixB)).toBe(false);
-        expect(validate(notMixD)).toBe(false); // {a: 'hello', d: 'world'} doesn't match any type (aa is boolean not present)
+        expect(validate(invalidMixedArray)).toBe(false);
+        expect(validate(invalidEmptyObj)).toBe(false);
+        expect(validate(invalidMissingAa)).toBe(false);
     });
 
     it('validate union allows extra properties not from other union types', () => {
         // Extra properties that are NOT defined in any other union type are allowed.
         // This enables returning objects with methods or additional data properties.
         const validate = rtD.createJitFunction(JitFunctions.isType);
-        expect(validate(withExtraProps)).toBe(true); // 'j' is not in any union type, so it's allowed
+        expect(validate(objWithExtraProps)).toBe(true); // 'j' is not in any union type, so it's allowed
     });
 
     // for UnMix2 the 'a' property is merged into a single union prop, so 'a' accepts both boolean and number
     it('validate union with merged properties', () => {
         const validate = rt2.createJitFunction(JitFunctions.isType);
 
-        expect(validate(mix2A)).toBe(true);
-        expect(validate(mix2B)).toBe(true);
+        expect(validate(objABoolean)).toBe(true);
+        expect(validate(objANumber)).toBe(true);
 
-        expect(validate(notMix2A)).toBe(false);
-        expect(validate(notMix2B)).toBe(false);
+        expect(validate(invalidAString)).toBe(false);
+        expect(validate(invalidEmpty)).toBe(false);
     });
 
     // validation for Unions does not return info about the path as we can't know which type of the union the user was trying to use.
     it('validate union + errors', () => {
         const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
-        expect(valWithErrors(mixA)).toEqual([]);
-        expect(valWithErrors(mixB)).toEqual([]);
-        expect(valWithErrors(withExtraProps)).toEqual([]); // extra props not from other union types are allowed
+        expect(valWithErrors(arrStrings)).toEqual([]);
+        expect(valWithErrors(objMatchesA)).toEqual([]);
+        expect(valWithErrors(objWithExtraProps)).toEqual([]); // extra props allowed
 
-        expect(valWithErrors(notMixA)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notMixB)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(invalidMixedArray)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(invalidEmptyObj)).toEqual([{path: [], expected: 'union'}]);
     });
 
     it('mock', async () => {
@@ -448,45 +450,47 @@ describe('Union mixed with index property', () => {
         | {a: string; [key: string]: string}
         | {[key: string]: bigint; b: bigint};
 
-    const indexA: UnionIndex = ['a', 'b', 'c'];
-    const indexB: UnionIndex = {a: 'hello', aa: true};
-    // With loose matching, mixed properties now match first compatible type
-    const indexC: UnionIndex = {b: 123, a: 'world'}; // matches {b: number} (first compatible match)
-    const indexD: UnionIndex = {b: 1n, c: 2n};
-    const unionWithExtra: UnionIndex = {a: 'hello', aa: true, j: 'extra'}; // allows extra props
+    // Valid objects
+    const arrStrings: UnionIndex = ['a', 'b', 'c'];
+    const objMatchesAWithAa: UnionIndex = {a: 'hello', aa: true};
+    // With loose matching, mixed properties match first compatible type
+    const objMixedMatchesB: UnionIndex = {b: 123, a: 'world'}; // matches {b: number} (first compatible)
+    const objBigintIndex: UnionIndex = {b: 1n, c: 2n};
+    const objWithExtraProps: UnionIndex = {a: 'hello', aa: true, j: 'extra'}; // extra props allowed
 
-    const notIndexA = [1, 'b'];
-    const notIndexB = {};
-    const notIndexD = {a: 'hello', b: 123n}; // doesn't match any type (b is bigint, a is string)
+    // Invalid objects
+    const invalidMixedArray = [1, 'b']; // mixed types don't match any array type
+    const invalidEmptyObj = {}; // no matching properties
+    const invalidMixedTypes = {a: 'hello', b: 123n}; // doesn't match any type
 
     const rt = runType<UnionIndex>();
 
     it('validate union', () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
 
-        expect(validate(indexA)).toBe(true);
-        expect(validate(indexB)).toBe(true);
-        // With loose matching, indexC {b: 123, a: 'world'} matches {b: number}
-        expect(validate(indexC)).toBe(true);
-        expect(validate(indexD)).toBe(true);
-        expect(validate(unionWithExtra)).toBe(true);
+        expect(validate(arrStrings)).toBe(true);
+        expect(validate(objMatchesAWithAa)).toBe(true);
+        // With loose matching, {b: 123, a: 'world'} matches {b: number}
+        expect(validate(objMixedMatchesB)).toBe(true);
+        expect(validate(objBigintIndex)).toBe(true);
+        expect(validate(objWithExtraProps)).toBe(true);
 
-        expect(validate(notIndexA)).toBe(false);
-        expect(validate(notIndexB)).toBe(false);
-        expect(validate(notIndexD)).toBe(false);
+        expect(validate(invalidMixedArray)).toBe(false);
+        expect(validate(invalidEmptyObj)).toBe(false);
+        expect(validate(invalidMixedTypes)).toBe(false);
     });
 
     it('validate union + errors', () => {
         const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
-        expect(valWithErrors(indexA)).toEqual([]);
-        expect(valWithErrors(indexB)).toEqual([]);
-        expect(valWithErrors(indexD)).toEqual([]);
-        expect(valWithErrors(unionWithExtra)).toEqual([]);
+        expect(valWithErrors(arrStrings)).toEqual([]);
+        expect(valWithErrors(objMatchesAWithAa)).toEqual([]);
+        expect(valWithErrors(objBigintIndex)).toEqual([]);
+        expect(valWithErrors(objWithExtraProps)).toEqual([]);
 
-        expect(valWithErrors(notIndexA)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notIndexB)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notIndexD)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(invalidMixedArray)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(invalidEmptyObj)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(invalidMixedTypes)).toEqual([{path: [], expected: 'union'}]);
     });
 });
 
