@@ -164,6 +164,29 @@ headersHook((ctx, [token]: HeadersList<['auth']>, data: UnreachableHeaderParam):
     console.log(data.x);
 });
 
+// 7. Unreachable in hook parameter
+type UnreachableHookParam = {status: string} | {status: string; code: number}; // Second type is unreachable
+hook((ctx, data: UnreachableHookParam): void => {
+    console.log(data.status);
+});
+
+// 8. Multiple parameters with unreachable unions
+type UserBase = {id: string} | {id: string; email: string}; // Second type is unreachable
+type ProductBase = {sku: string} | {sku: string; price: number}; // Second type is unreachable
+route((ctx, user: UserBase, product: ProductBase): string => {
+    return `${user.id}-${product.sku}`;
+});
+
+// 9. Nested object with unreachable union in parameter
+type NestedUnreachable = {
+    data: {value: string} | {value: string; extra: number}; // Second type is unreachable
+};
+route((ctx, input: NestedUnreachable): string => input.data.value);
+
+// 10. Optional properties in parameter union
+type OptionalParamBlocking = {name?: string} | {name: string; age: number}; // Second type is unreachable
+route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
+
 // ========================================
 // Rule: @mionkit/no-mixed-union-properties , !!RULE DISABLED AS DOES NOT ADD MUCH VALUE!!
 // ========================================
