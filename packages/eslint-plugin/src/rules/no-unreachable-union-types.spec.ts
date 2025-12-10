@@ -73,6 +73,41 @@ ruleTester.run('no-unreachable-union-types', rule, {
                 const fn: Handler = (ctx): {a: string; b: number} | {a: string} => ({a: 'hello', b: 1});
             `,
         },
+        // Parameters with proper union order (route)
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, data: {a: string; b: number} | {a: string}) => ({result: 'ok'}));
+            `,
+        },
+        // Parameters with proper union order (hook)
+        {
+            code: `
+                import { hook } from '@mionkit/router';
+                hook((ctx, data: {a: string; b: number} | {a: string}) => ({result: 'ok'}));
+            `,
+        },
+        // Parameters with proper union order (headersHook)
+        {
+            code: `
+                import { headersHook } from '@mionkit/router';
+                headersHook((ctx, [token]: [string], data: {a: string; b: number} | {a: string}) => ({result: 'ok'}));
+            `,
+        },
+        // Context parameter should NOT be checked (route)
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
+            `,
+        },
+        // Headers parameter should NOT be checked (headersHook)
+        {
+            code: `
+                import { headersHook } from '@mionkit/router';
+                headersHook((ctx, headers: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
+            `,
+        },
     ],
     invalid: [
         // Subset type before superset type in route return
@@ -124,6 +159,30 @@ ruleTester.run('no-unreachable-union-types', rule, {
             code: `
                 import { route } from '@mionkit/router';
                 route((ctx): {a: string; b?: number} | {a: string; b: number} => ({a: 'hello', b: 1}));
+            `,
+            errors: [{messageId: 'unreachableUnionType'}],
+        },
+        // Parameter with unreachable union type (route)
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, data: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
+            `,
+            errors: [{messageId: 'unreachableUnionType'}],
+        },
+        // Parameter with unreachable union type (hook)
+        {
+            code: `
+                import { hook } from '@mionkit/router';
+                hook((ctx, data: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
+            `,
+            errors: [{messageId: 'unreachableUnionType'}],
+        },
+        // Parameter with unreachable union type (headersHook) - third parameter
+        {
+            code: `
+                import { headersHook } from '@mionkit/router';
+                headersHook((ctx, [token]: [string], data: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
             `,
             errors: [{messageId: 'unreachableUnionType'}],
         },
