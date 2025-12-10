@@ -7,11 +7,13 @@
 
 import noTypeofRunType from './rules/no-typeof-runtype';
 import strongTypedRoutes from './rules/strong-typed-routes';
+import noUnreachableUnionTypes from './rules/no-unreachable-union-types';
 
 const plugin = {
     rules: {
         'no-typeof-runtype': noTypeofRunType,
         'strong-typed-routes': strongTypedRoutes,
+        'no-unreachable-union-types': noUnreachableUnionTypes,
     },
     configs: {
         recommended: {
@@ -19,6 +21,7 @@ const plugin = {
             rules: {
                 '@mionkit/no-typeof-runtype': 'error',
                 '@mionkit/strong-typed-routes': 'error',
+                '@mionkit/no-unreachable-union-types': 'warn',
             },
         },
     },
