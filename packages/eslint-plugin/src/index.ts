@@ -23,7 +23,7 @@ const plugin = {
             rules: {
                 '@mionkit/no-typeof-runtype': 'error',
                 '@mionkit/strong-typed-routes': 'error',
-                '@mionkit/no-unreachable-union-types': 'warn',
+                '@mionkit/no-unreachable-union-types': 'error',
                 '@mionkit/no-mixed-union-properties': 'warn',
             },
         },
