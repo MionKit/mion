@@ -120,5 +120,46 @@ ruleTester.run('no-mixed-union-properties', rule, {
             `,
             errors: [{messageId: 'mixedUnionProperties'}, {messageId: 'mixedUnionProperties'}],
         },
+        // Type alias with mixed properties in return
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                type MixedResult = {success: true; data: string} | {success: false; error: string};
+                route((ctx): MixedResult => ({success: true, data: 'ok', error: 'also has error'}));
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}],
+        },
+        // Type alias with unique properties from different union types
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                type UserOrProduct = {userId: string; userName: string} | {productId: string; productName: string};
+                route((ctx): UserOrProduct => ({userId: '1', productId: '2'}));
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}],
+        },
+        // Type alias with multiple mixed returns in conditional
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                type Status = {active: boolean; lastSeen: Date} | {active: boolean; reason: string};
+                route((ctx): Status => {
+                    if (Math.random() > 0.5) {
+                        return {active: true, lastSeen: new Date(), reason: 'mixed'};
+                    }
+                    return {active: false, lastSeen: new Date(), reason: 'also mixed'};
+                });
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}, {messageId: 'mixedUnionProperties'}],
+        },
+        // Type alias with hook and mixed properties
+        {
+            code: `
+                import { hook } from '@mionkit/router';
+                type HookData = {name: string} | {age: number};
+                hook((ctx): HookData => ({name: 'John', age: 25}));
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}],
+        },
     ],
 });

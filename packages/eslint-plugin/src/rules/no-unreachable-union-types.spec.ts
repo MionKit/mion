@@ -186,5 +186,65 @@ ruleTester.run('no-unreachable-union-types', rule, {
             `,
             errors: [{messageId: 'unreachableUnionType'}],
         },
+        // Type alias with unreachable union in return type
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                type UnreachableReturn = {a: string} | {a: string; b: number};
+                route((ctx): UnreachableReturn => ({a: 'hello'}));
+            `,
+            errors: [{messageId: 'unreachableUnionType'}],
+        },
+        // Type alias with unreachable union in parameter
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                type UnreachableParam = {id: string} | {id: string; name: string};
+                route((ctx, data: UnreachableParam): string => data.id);
+            `,
+            errors: [{messageId: 'unreachableUnionType'}],
+        },
+        // Type alias with optional properties blocking more specific types
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                type OptionalBlocking = {a?: string} | {a: string; b: number};
+                route((ctx): OptionalBlocking => ({a: 'hello', b: 1}));
+            `,
+            errors: [{messageId: 'unreachableUnionType'}],
+        },
+        // Type alias with mixed optional/required blocking
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                type MixedBlocking = {a: string; b?: number} | {a: string; b: number};
+                route((ctx): MixedBlocking => ({a: 'hello', b: 1}));
+            `,
+            errors: [{messageId: 'unreachableUnionType'}],
+        },
+        // Type alias with multiple unreachable types
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                type MultipleUnreachable = {a: string} | {a: string; b: number} | {a: string; b: number; c: boolean};
+                route((ctx): MultipleUnreachable => ({a: 'hello'}));
+            `,
+            errors: [
+                {messageId: 'unreachableUnionType'},
+                {messageId: 'unreachableUnionType'},
+                {messageId: 'unreachableUnionType'},
+            ],
+        },
+        // Type alias in headersHook parameter (third parameter)
+        {
+            code: `
+                import { headersHook } from '@mionkit/router';
+                type UnreachableHeaderParam = {x: number} | {x: number; y: number};
+                headersHook((ctx, [token]: [string], data: UnreachableHeaderParam): void => {
+                    console.log(data.x);
+                });
+            `,
+            errors: [{messageId: 'unreachableUnionType'}],
+        },
     ],
 });
