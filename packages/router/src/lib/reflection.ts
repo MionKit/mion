@@ -47,11 +47,12 @@ export function getHandlerReflection(
     } catch (error: any) {
         throw new Error(`Can not get RunType of handler for route/hook "${routeId}." Error: ${error?.message}`);
     }
+    const paramsSlice = isHeaderHook ? {start: HEADER_HOOK_DEFAULT_PARAMS.length} : {start: ROUTE_DEFAULT_PARAMS.length};
+    const paramsOpts: RunTypeOptions = {...runTypeOptions, paramsSlice};
+
     try {
-        const paramsSlice = isHeaderHook ? {start: HEADER_HOOK_DEFAULT_PARAMS.length} : {start: ROUTE_DEFAULT_PARAMS.length};
-        const opts: RunTypeOptions = {...runTypeOptions, paramsSlice};
-        reflectionItems.paramNames = handlerRunType.getParameterNames(opts);
-        reflectionItems.paramsJitFns = getParamsJitFns(handler, opts);
+        reflectionItems.paramNames = handlerRunType.getParameterNames(paramsOpts);
+        reflectionItems.paramsJitFns = getParamsJitFns(handler, paramsOpts);
     } catch (error: any) {
         throw new Error(`Can not compile Jit Functions for Parameters of route/hook "${routeId}." Error: ${error?.message}`);
     }
@@ -83,16 +84,17 @@ export function getHandlerReflection(
         reflectionItems.headersReturn = {headerNames, jitFns, jitHash};
     }
 
+    const returnOpts: RunTypeOptions = runTypeOptions;
     try {
         // returnJitFns contains all run type functionality for the return value, it compiles the when the property is first accessed
-        reflectionItems.returnJitFns = getReturnJitFns(handler);
+        reflectionItems.returnJitFns = getReturnJitFns(handler, returnOpts);
     } catch (error: any) {
         throw new Error(`Can not get Jit Functions for Return of route/hook "${routeId}." Error: ${error?.message}`);
     }
 
-    // Validate that routes don't use HttpHeader, HttpCookie, or HeadersList as return types
-    reflectionItems.paramsJitHash = handlerRunType.getParameters().getJitHash(runTypeOptions);
-    reflectionItems.returnJitHash = handlerRunType.getReturnType().getJitHash(runTypeOptions);
+    // Use the same options when calculating hashes as when compiling JIT functions
+    reflectionItems.paramsJitHash = handlerRunType.getParameters().getJitHash(paramsOpts);
+    reflectionItems.returnJitHash = handlerRunType.getReturnType().getJitHash(returnOpts);
     // If the return type is HeadersList or if it's a headersHook with array return, don't treat it as return data
     reflectionItems.hasReturnData = handlerRunType.hasReturnData();
     reflectionItems.isAsync = handlerRunType.isAsync();
