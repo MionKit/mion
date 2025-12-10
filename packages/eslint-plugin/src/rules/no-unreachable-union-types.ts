@@ -29,32 +29,45 @@ function getObjectTypeProperties(node: TSESTree.TypeNode): PropertyInfo[] | null
 }
 
 /**
- * Checks if typeA is a superset of typeB (typeA has all properties of typeB plus more)
- * This means if typeB comes before typeA in a union, typeA would be unreachable.
- * Only considers types as blocking if they have at least one REQUIRED property in common.
+ * Checks if typeB (earlier in union) blocks typeA (later in union), making typeA unreachable.
+ *
+ * TypeB blocks TypeA when:
+ * - All properties of TypeB (required + optional) exist in TypeA
+ * - TypeA has at least as many required properties as TypeB
+ * - TypeA is more specific than TypeB (more properties OR same properties but more required)
+ *
+ * Examples:
+ * - {a: string} blocks {a: string; b: number} - TypeB has 'a' (req), TypeA has 'a' (req) + 'b' (req)
+ * - {a?: string} does NOT block {b: number; c: string} - TypeB has 'a', TypeA doesn't have 'a'
+ * - {a: string; b?: number} blocks {a: string; b: number} - same props, but TypeA has more required
+ *
+ * @param typeAProps - Properties of the later type (potentially unreachable)
+ * @param typeBProps - Properties of the earlier type (potentially blocking)
+ * @returns true if typeB blocks typeA
  */
 function isSupersetOf(typeAProps: PropertyInfo[], typeBProps: PropertyInfo[]): boolean {
-    if (typeAProps.length <= typeBProps.length) return false;
-
-    // Get required properties from both types
+    const typeARequired = typeAProps.filter((p) => !p.isOptional);
     const typeBRequired = typeBProps.filter((p) => !p.isOptional);
 
-    // If typeB has no required properties, it doesn't block typeA
-    // (all-optional types need special handling via weakTypeCheck)
-    if (typeBRequired.length === 0) return false;
+    // TypeA must have at least as many required properties as TypeB
+    if (typeARequired.length < typeBRequired.length) return false;
 
-    // Check if all required properties of typeB exist in typeA (and are also required)
-    for (const propB of typeBRequired) {
+    // TypeA must be more specific: either more properties OR same properties but more required
+    const isMoreSpecific =
+        typeAProps.length > typeBProps.length ||
+        (typeAProps.length === typeBProps.length && typeARequired.length > typeBRequired.length);
+
+    if (!isMoreSpecific) return false;
+
+    // Check if ALL properties of TypeB (required and optional) exist in TypeA
+    for (const propB of typeBProps) {
         const propA = typeAProps.find((p) => p.name === propB.name);
-        // If typeB has a required prop that typeA doesn't have as required, A is not a superset
-        if (!propA || propA.isOptional) return false;
+        // If TypeB has a prop that TypeA doesn't have, B doesn't block A
+        if (!propA) return false;
     }
 
-    // typeA has all required properties of typeB, check if it has extra required ones
-    const typeBRequiredNames = new Set(typeBRequired.map((p) => p.name));
-    const typeARequired = typeAProps.filter((p) => !p.isOptional);
-    const hasExtraRequiredProps = typeARequired.some((p) => !typeBRequiredNames.has(p.name));
-    return hasExtraRequiredProps;
+    // TypeA has all properties of TypeB and is more specific, so TypeB blocks TypeA
+    return true;
 }
 
 /**
