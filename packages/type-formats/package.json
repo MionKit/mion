@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/formats",
+  "name": "@mionkit/type-formats",
   "version": "0.7.2",
   "description": "mion standard hooks and routes",
   "keywords": [

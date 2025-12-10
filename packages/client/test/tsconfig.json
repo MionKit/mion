@@ -25,8 +25,8 @@
       "@mionkit/core/*": ["packages/core/*"],
       "@mionkit/run-types": ["packages/run-types"],
       "@mionkit/run-types/*": ["packages/run-types/*"],
-      "@mionkit/formats": ["packages/formats"],
-      "@mionkit/formats/*": ["packages/formats/*"],
+      "@mionkit/type-formats": ["packages/formats"],
+      "@mionkit/type-formats/*": ["packages/formats/*"],
       "@mionkit/client": ["packages/client"],
       "@mionkit/client/*": ["packages/client/*"]
     }
