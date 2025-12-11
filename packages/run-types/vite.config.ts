@@ -52,6 +52,7 @@ export default defineConfig({
             outDir: ['.dist/cjs', '.dist/esm'],
             include: ['index.ts', 'src/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts', '**/xyz-Template/**', '**/serialization-suite.ts'],
+            pathsToAliases: false,
         }),
     ],
     build: {

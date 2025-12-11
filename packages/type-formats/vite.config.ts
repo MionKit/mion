@@ -43,6 +43,7 @@ export default defineConfig({
             outDir: ['.dist/cjs', '.dist/esm'],
             include: ['*.ts', 'src/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts', 'examples/**'],
+            pathsToAliases: false,
         }),
     ],
     build: {
