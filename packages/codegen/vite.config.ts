@@ -40,6 +40,7 @@ export default defineConfig({
             outDir: '.dist/cjs',
             include: ['index.ts', 'src/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts', 'mion-aot-template/**', 'bin/**', 'src/run-*.ts'],
+            pathsToAliases: false,
         }),
     ],
     build: {

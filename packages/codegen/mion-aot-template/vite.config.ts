@@ -37,6 +37,7 @@ export default defineConfig({
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
             tsconfigPath: resolve(__dirname, 'tsconfig.json'),
             entryRoot: 'src',
+            pathsToAliases: false,
         }),
     ],
     build: {

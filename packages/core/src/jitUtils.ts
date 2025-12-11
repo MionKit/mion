@@ -288,7 +288,8 @@ export function coreAOTLoadJitCaches(): void {
     // Merge AOT caches into local caches
     for (const key in aotJitFnsCache) {
         if (!(key in jitFnsCache)) {
-            jitFnsCache[key] = aotJitFnsCache[key];
+            // it will be transformed into JitCompiledFn by restoreCompiledJitFns()
+            jitFnsCache[key] = aotJitFnsCache[key] as any as JitCompiledFn;
         }
     }
     for (const key in aotPureFnsCache) {

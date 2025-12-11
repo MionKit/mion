@@ -1,2 +1,2 @@
-import { MethodsCache } from '../../../core';
+import { MethodsCache } from '@mionkit/core';
 export declare const routerCache: MethodsCache;
