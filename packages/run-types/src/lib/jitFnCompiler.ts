@@ -220,9 +220,9 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         const stackItem = this.getCurrentStackItem();
         return !stackItem.rt.isJitInlined() && this.stack.length > 1;
     }
-    updateDependencies(childCop: JitCompiledFnData): void {
-        this.dependenciesSet.add(childCop.jitFnHash);
-        childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
+    updateDependencies(childComp: JitCompiledFnData): void {
+        if (childComp.isNoop) return; // noop functions are not added to dependencies as shouldn't be used inside jit code neither
+        this.dependenciesSet.add(childComp.jitFnHash);
     }
     removeFromJitCache(): void {
         jitUtils.removeFromJitCache(this as JitCompiledFn);
