@@ -12,8 +12,7 @@ import {getJITFnName} from './jitFnsRegistry';
  * @returns
  */
 export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts?: RunTypeOptions): string {
-    if (opts) return `${id}_${rt.getJitHash(opts)}`;
-    return `${id}_${rt.getJitHash({})}`;
+    return `${id}_${rt.getJitHash(opts || {})}`;
 }
 
 /**

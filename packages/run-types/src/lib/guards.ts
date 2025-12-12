@@ -70,7 +70,7 @@ export function isCallSignatureRunType(rt: RunType): rt is CallSignatureRunType 
 }
 
 export function isDateRunType(rt: RunType): rt is DateRunType {
-    return rt.getTypeID() === ReflectionSubKind.date;
+    return rt.src.subKind === ReflectionSubKind.date;
 }
 
 export function isEnumRunType(rt: RunType): rt is EnumRunType {

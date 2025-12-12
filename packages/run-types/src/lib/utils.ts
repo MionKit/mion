@@ -8,7 +8,7 @@
 import {ReflectionKind} from '@deepkit/type';
 import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
 import type {PureFunctionClosure, TypeFormatValue} from '@mionkit/core';
-import type {AnyClass, JitFnID, RunType} from '../types';
+import type {AnyClass, JitFnID} from '../types';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
 import type {PropertyRunType} from '../nodes/member/property';
@@ -68,16 +68,6 @@ export function isClass(cls: AnyClass | any): cls is AnyClass {
         cls.prototype.constructor.name &&
         cls.toString().startsWith('class')
     );
-}
-
-export function isSameJitType(a: RunType, b: RunType): boolean {
-    if (a === b) return true;
-    if (a.src.kind !== b.src.kind) return false;
-    return a.getTypeID() === b.getTypeID();
-}
-
-export function isSameJitCompiler(a: JitFnCompiler, b: JitFnCompiler): boolean {
-    return a.fnID === b.fnID && isSameJitType(a.rootType, b.rootType);
 }
 
 export function memorize<Fn extends (...args: any[]) => any>(fn: Fn): Fn {

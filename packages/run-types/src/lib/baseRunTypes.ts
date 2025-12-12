@@ -48,7 +48,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isCircular?: boolean;
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): RunTypeFamily; // Atomic, Collection, Member, Function
-    abstract _getTypeID(stack?: RunType[]): StrNumber;
+    abstract _getTypeID(stack?: RunType[], fnID: JitFnID): StrNumber;
     /**
      * This single functions controls whether or not the code for a type should be inlined into the parent function
      * or should create a separate jit function for it, add as a dependency and call it.
@@ -76,14 +76,15 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     });
     getTypeID(stack: BaseRunType[] = []): StrNumber {
         const formatID = this.getFormatTypeID();
-        if (!formatID) return this._getTypeID(stack);
-        return this._getTypeID(stack) + formatID;
+        if (!formatID) return this._getTypeID(fnID, stack);
+        return this._getTypeID(fnID, stack) + formatID;
     }
     getJitHash(opts: RunTypeOptions): string {
         const optsCopy = {...opts};
         // remove mock options as not relevant for jit functionality
         if (optsCopy.mock) delete optsCopy.mock;
-        return createUniqueHash(this.getTypeID().toString() + JSON.stringify(optsCopy));
+        const fnID = JitFunctions.isType.id; // we allways use isType as the base hash
+        return createUniqueHash(this.getTypeID(fnID, []).toString() + JSON.stringify(optsCopy));
     }
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
     checkIsCircularAndGetRefId(stack: RunType[] = []): StrNumber | undefined {
@@ -91,7 +92,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             if (rt === this) return true;
             // some nodes seems to be different objects in memory but are the same id, so we check by id as well
             return rt.src.id && this.src.id && rt.src.id === this.src.id;
-        }); // cant use isSameJitType because it uses getTypeID and would loop forever
+        });
         const inStackSrcId = stack.findIndex((rt) => rt.src.id && this.src.id && rt.src.id === this.src.id);
         const isInStack = inStackIndex >= 0; // recursive reference
         if (isInStack) {
@@ -144,7 +145,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         // options sent to the compiler will be set to empty as mock options are handled separately from the compiler
         const mockingOpts = {...opts, mock: {...defaultMockOptions, ...(opts.mock || {})}} as RunTypeOptions;
         const hash = getJITFnHash(fnID, this, mockingOpts);
-        const comp = new MockJitCompiler(this, mockingOpts, undefined, hash, this.getTypeID());
+        const comp = new MockJitCompiler(this, mockingOpts, undefined, hash, this.getTypeID(JitFunctions.mock.id));
         return mockFn(this, comp);
     }
 
@@ -284,10 +285,8 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .filter((code) => !!code);
         return {code: codes.join(';'), type: S};
     }
-    _getTypeID(stack: BaseRunType[] = []): StrNumber {
-        return this.getChildrenTypeID(stack);
-    }
-    private getChildrenTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
+    // generates a tye id based on children types
+    _getTypeID(fnID: JitFnID, stack: BaseRunType<any>[] = []): StrNumber {
         if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
         const circularJitConf = this.checkIsCircularAndGetRefId(stack);
         if (circularJitConf) return circularJitConf;
@@ -295,14 +294,14 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         const childrenIds: (string | number)[] = [];
         const children = this.getChildRunTypes();
         for (const child of children) {
-            childrenIds.push(child.getTypeID(stack));
+            childrenIds.push(child.getTypeID(fnID, stack));
         }
         const isArray = this.src.kind === ReflectionKind.tuple || this.src.kind === ReflectionKind.array;
         const groupID = isArray ? `[${childrenIds.join(',')}]` : `{${childrenIds.join(',')}}`;
         const kind = this.src.subKind || this.src.kind;
         stack.pop();
         return `${kind}${groupID}`;
-    });
+    }
 }
 
 /**
@@ -378,10 +377,8 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (!code?.code) return {code: undefined, type: S};
         return code;
     }
-    _getTypeID(stack: BaseRunType[] = []): StrNumber {
-        return this.getMemberTypeID(stack);
-    }
-    private getMemberTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
+    // generates a tye id based on the member type
+    _getTypeID(fnID: JitFnID, stack: BaseRunType<any>[] = []): StrNumber {
         if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
         const optional = this.isOptional() ? '?' : '';
         const kind =
@@ -396,11 +393,11 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         // ie: sample and sampleChars from StringFormat are too large but they do not affect jit code generation as those properties are only used during mocking
         stack.push(this);
         const member = this.getMemberType();
-        const memberTypeID = member.getTypeID(stack);
+        const memberTypeID = member.getTypeID(fnID, stack);
         const typeID = `${kindID}:${memberTypeID}`;
         stack.pop();
         return typeID;
-    });
+    }
 }
 
 // ########## Load Composable Functions ##########

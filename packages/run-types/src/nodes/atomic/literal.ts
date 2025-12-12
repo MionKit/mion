@@ -6,11 +6,11 @@
  * ######## */
 
 import {ReflectionKind, type TypeLiteral} from '@deepkit/type';
-import type {JitCode, RunType} from '../../types';
+import type {JitCode, JitFnID, RunType} from '../../types';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import type {Mutable} from '@mionkit/core';
-import {memorize, toLiteral} from '../../lib/utils';
-import {AtomicRunType} from '../../lib/baseRunTypes';
+import type {Mutable, StrNumber} from '@mionkit/core';
+import {toLiteral} from '../../lib/utils';
+import {AtomicRunType, BaseRunType} from '../../lib/baseRunTypes';
 import {BigIntRunType} from './bigInt';
 import {RegexpRunType} from './regexp';
 import {SymbolRunType} from './symbol';
@@ -18,6 +18,7 @@ import {AnyKindName} from '../../constants.kind';
 import {StringRunType} from './string';
 import {NumberRunType} from './number';
 import {BooleanRunType} from './boolean';
+import {getJitFnSettings} from '../../lib/jitFnsRegistry';
 
 const stringRt = new StringRunType();
 const numberRt = new NumberRunType();
@@ -29,7 +30,27 @@ const bigIntRt = new BigIntRunType();
 type AnyLiteralRunType = StringRunType | NumberRunType | BooleanRunType | SymbolRunType | RegexpRunType | BigIntRunType;
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
-    _getTypeID = memorize(() => `${this.src.kind}:${String(this.src.literal)}`);
+    _getTypeID = (fnID: JitFnID): StrNumber => {
+        const isSerializationFn = getJitFnSettings(fnID).isSerializer;
+        if (isSerializationFn && isLiteralFromGenericParam(this)) {
+            const lit = this.src.literal;
+            if (lit instanceof RegExp) return ReflectionKind.regexp;
+            switch (typeof lit) {
+                case 'string':
+                    return ReflectionKind.string;
+                case 'number':
+                    return ReflectionKind.number;
+                case 'boolean':
+                    return ReflectionKind.boolean;
+                case 'bigint':
+                    return ReflectionKind.bigint;
+                case 'symbol':
+                    return ReflectionKind.symbol;
+            }
+        }
+        // For validation and other functions, return literal-specific ID
+        return `${this.src.kind}:${String(this.src.literal)}`;
+    };
     getRunTypeForLiteral(comp: JitFnCompiler): AnyLiteralRunType {
         const noLiterals = comp.opts.noLiterals;
         const lit = this.src.literal;
@@ -123,4 +144,38 @@ function compileTypeErrorsLiteral(comp: JitErrorsFnCompiler, lit: TypeLiteral['l
         default:
             throw new Error(`Unsupported literal type ${literalType}`);
     }
+}
+
+/**
+ * Checks if a literal type is part of a generic type parameter.
+ * For example, in RpcError<'my-error'>, the literal 'my-error' is a generic type parameter.
+ * This is detected by traversing up the parent chain and checking if any parent has typeArguments
+ * that include this literal.
+ */
+function isLiteralFromGenericParam(literalRT: LiteralRunType): boolean {
+    let current: BaseRunType | undefined = literalRT.getParent();
+    const literalSrcId = literalRT.src.id;
+
+    while (current) {
+        // Check if parent has typeArguments
+        if (current.src.typeArguments && current.src.typeArguments.length > 0) {
+            // Check if our literal is one of the type arguments
+            const isTypeArg = current.src.typeArguments.some((arg) => arg.id === literalSrcId);
+            if (isTypeArg) return true;
+        }
+
+        // Also check originTypes (for utility types like Pick, Omit, etc.)
+        if (current.src.originTypes) {
+            for (const originType of current.src.originTypes) {
+                if (originType.typeArguments) {
+                    const isInOriginTypeArgs = originType.typeArguments.some((arg) => arg.id === literalSrcId);
+                    if (isInOriginTypeArgs) return true;
+                }
+            }
+        }
+
+        current = current.getParent();
+    }
+
+    return false;
 }

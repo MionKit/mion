@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {AnyFunction, SrcType, JitFn, JitCode, RunTypeOptions} from '../../types';
+import type {AnyFunction, SrcType, JitFn, JitCode, RunTypeOptions, JitFnID, RunType} from '../../types';
 import {ReflectionKind, TypeFunction} from '@deepkit/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
@@ -29,7 +29,8 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         // todo the deepkit type is a
         this.parameterRunTypes.onCreated({...deepkitType, subKind: ReflectionSubKind.params});
     }
-    _getTypeID() {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _getTypeID(fnID: JitFnID, stack?: RunType[]) {
         // Only include the name if this function is a property in an object/interface/class
         // We can check the parent to determine this
         const parent = this.src.parent;

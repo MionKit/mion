@@ -6,7 +6,7 @@
  * ######## */
 import {TypeMethod} from '@deepkit/type';
 import {FunctionRunType} from '../function/function';
-import {RunTypeChildAccessor} from '../../types';
+import {JitFnID, RunType, RunTypeChildAccessor} from '../../types';
 import {getPropIndex, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
 import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 
@@ -27,8 +27,8 @@ export class MethodRunType extends FunctionRunType<TypeMethod> implements RunTyp
         return useArrayAccessorForProp(this.src.name);
     }
     isOptional = () => !!this.src.optional;
-    _getTypeID() {
-        if (this.src.optional) return `${super._getTypeID()}:?`;
-        return super._getTypeID();
+    _getTypeID(fnID: JitFnID, stack?: RunType[]) {
+        if (this.src.optional) return `${super._getTypeID(fnID, stack)}:?`;
+        return super._getTypeID(fnID, stack);
     }
 }

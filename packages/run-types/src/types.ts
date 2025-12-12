@@ -43,7 +43,7 @@ export interface RunType {
     /** Returns a unique id for the type. it can be a long string similar to the typescript type itself but as shorter as possible */
     getTypeID(): StrNumber;
     getJitHash(opts: RunTypeOptions): string;
-    createJitFunction(jitFn: JitFn, opts?: RunTypeOptions): (...args: any[]) => any;
+    createJitFunction(jitConf: JitFn, opts?: RunTypeOptions): (...args: any[]) => any;
 }
 
 export type SubKind = (typeof ReflectionSubKind)[keyof typeof ReflectionSubKind];

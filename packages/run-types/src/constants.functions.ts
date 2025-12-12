@@ -25,6 +25,7 @@ export interface JitFnSettings {
     jitArgs: JitFnArgs;
     jitDefaultArgs: JitFnArgs;
     returnName: string;
+    isSerializer?: true;
     /**
      * When no initial vλl is required by the function.
      * This is typically used by deserializers, that do not transform the input value but create a new one from other params.
@@ -89,6 +90,7 @@ export const jitSerializationFunctions = {
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
+        isSerializer: true,
     },
     restoreFromJson: {
         id: JIT_FUNCTION_IDS.restoreFromJson,
@@ -96,6 +98,7 @@ export const jitSerializationFunctions = {
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
+        isSerializer: true,
     },
     jsonStringify: {
         id: JIT_FUNCTION_IDS.jsonStringify,
@@ -103,6 +106,7 @@ export const jitSerializationFunctions = {
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
+        isSerializer: true,
     },
     // similar to json stringify but outputs js code, including pure functions, already imported as size is quite small
     toJavascript: {
@@ -121,6 +125,7 @@ export const jitSerializationFunctions = {
         // returns the serializer buffer
         returnName: jitBinarySerializerArgs.sεr,
         formatShouldReplaceJitCode: true,
+        isSerializer: true,
     },
     fromBinary: {
         id: JIT_FUNCTION_IDS.fromBinary,
@@ -131,6 +136,7 @@ export const jitSerializationFunctions = {
         returnName: jitBinaryDeserializerArgs.vλl,
         noInitialVλl: true,
         formatShouldReplaceJitCode: true,
+        isSerializer: true,
     },
     // apply type formatters, ie: lowercase, uppercase, trim, etc
     format: {

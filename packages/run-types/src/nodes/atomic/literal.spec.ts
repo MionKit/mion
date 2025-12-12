@@ -7,6 +7,9 @@
 import {runType} from '../../createRunType';
 import {JitFunctions} from '../../constants.functions';
 import type {RunTypeOptions} from '../../types';
+import {JIT_FUNCTION_IDS} from '@mionkit/core';
+import {CollectionRunType} from '../../lib/baseRunTypes';
+import {PropertyRunType} from '../member/property';
 
 const reg = /abc/i;
 const reg2 = /['"]\/ \\ \//; // regexp with characters that can be problematic in jit code if not correctly scaped
@@ -162,4 +165,99 @@ it('mock when noLiterals options is used', async () => {
     expect(typeof mockedTrue).toBe('boolean');
     expect(typeof mockedBig).toBe('bigint');
     expect(typeof mockedSym).toBe('symbol');
+});
+
+describe('Generic Literal Optimization', () => {
+    // Test with RpcError-like generic type
+    type RpcError<ErrType extends string> = {
+        type: ErrType;
+        message: string;
+    };
+
+    it('should generate different type IDs for validation functions with different literal values', () => {
+        const rt1 = runType<RpcError<'my-error'>>() as CollectionRunType<any>;
+        const rt2 = runType<RpcError<'my-other-error'>>() as CollectionRunType<any>;
+
+        // Get the type property (which is a literal)
+        const literalProp1 = rt1.getChildRunTypes()[0] as PropertyRunType;
+        const literalProp2 = rt2.getChildRunTypes()[0] as PropertyRunType;
+        const type1 = literalProp1.getMemberType();
+        const type2 = literalProp2.getMemberType();
+
+        // Validation functions should have different type IDs
+        const isTypeId1 = type1.getTypeID(JIT_FUNCTION_IDS.isType);
+        const isTypeId2 = type2.getTypeID(JIT_FUNCTION_IDS.isType);
+
+        expect(isTypeId1).not.toEqual(isTypeId2);
+        expect(isTypeId1).toContain('my-error');
+        expect(isTypeId2).toContain('my-other-error');
+    });
+
+    it('should generate same type IDs for serialization functions with different literal values from generic params', () => {
+        const rt1 = runType<RpcError<'my-error'>>() as CollectionRunType<any>;
+        const rt2 = runType<RpcError<'my-other-error'>>() as CollectionRunType<any>;
+
+        // Get the type property (which is a literal)
+        const literalProp1 = rt1.getChildRunTypes()[0] as PropertyRunType;
+        const literalProp2 = rt2.getChildRunTypes()[0] as PropertyRunType;
+        const type1 = literalProp1.getMemberType();
+        const type2 = literalProp2.getMemberType();
+
+        // Serialization functions should have the same type ID (base type)
+        const toBinaryId1 = type1.getTypeID(JIT_FUNCTION_IDS.toBinary);
+        const toBinaryId2 = type2.getTypeID(JIT_FUNCTION_IDS.toBinary);
+
+        expect(toBinaryId1).toEqual(toBinaryId2);
+        expect(toBinaryId1).not.toContain('my-error');
+        expect(toBinaryId1).not.toContain('my-other-error');
+    });
+
+    it('should generate same type IDs for jsonStringify with different literal values from generic params', () => {
+        const rt1 = runType<RpcError<'my-error'>>() as CollectionRunType<any>;
+        const rt2 = runType<RpcError<'my-other-error'>>() as CollectionRunType<any>;
+
+        // Get the type property (which is a literal)
+        const literalProp1 = rt1.getChildRunTypes()[0] as PropertyRunType;
+        const literalProp2 = rt2.getChildRunTypes()[0] as PropertyRunType;
+        const type1 = literalProp1.getMemberType();
+        const type2 = literalProp2.getMemberType();
+
+        const jsonId1 = type1.getTypeID(JIT_FUNCTION_IDS.jsonStringify);
+        const jsonId2 = type2.getTypeID(JIT_FUNCTION_IDS.jsonStringify);
+
+        expect(jsonId1).toEqual(jsonId2);
+    });
+
+    it('should generate different full type IDs for validation but same for serialization', () => {
+        const rt1 = runType<RpcError<'my-error'>>() as CollectionRunType<any>;
+        const rt2 = runType<RpcError<'my-other-error'>>() as CollectionRunType<any>;
+
+        // Full type IDs for validation should be different
+        const isTypeId1 = rt1.getTypeID(JIT_FUNCTION_IDS.isType);
+        const isTypeId2 = rt2.getTypeID(JIT_FUNCTION_IDS.isType);
+        expect(isTypeId1).not.toEqual(isTypeId2);
+
+        // Full type IDs for serialization should be the same
+        const toBinaryId1 = rt1.getTypeID(JIT_FUNCTION_IDS.toBinary);
+        const toBinaryId2 = rt2.getTypeID(JIT_FUNCTION_IDS.toBinary);
+        expect(toBinaryId1).toEqual(toBinaryId2);
+    });
+
+    it('should not affect non-generic literal types', () => {
+        type NonGeneric = {
+            status: 'active' | 'inactive';
+        };
+
+        const rt = runType<NonGeneric>();
+        const statusProp = (rt as any).getChildRunTypes()[0].getMemberType();
+        const literal1 = (statusProp as any).getChildRunTypes()[0];
+        const literal2 = (statusProp as any).getChildRunTypes()[1];
+
+        // Non-generic literals should still have different IDs for serialization
+        const toBinaryId1 = literal1.getTypeID(JIT_FUNCTION_IDS.toBinary);
+        const toBinaryId2 = literal2.getTypeID(JIT_FUNCTION_IDS.toBinary);
+
+        // These are not from generic params, so they should have different IDs
+        expect(toBinaryId1).not.toEqual(toBinaryId2);
+    });
 });

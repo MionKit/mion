@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeMethodSignature} from '@deepkit/type';
-import {RunTypeChildAccessor} from '../../types';
+import {JitFnID, RunType, RunTypeChildAccessor} from '../../types';
 import {FunctionRunType} from '../function/function';
 import {getPropIndex, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
 import type {JitFnCompiler} from '../../lib/jitFnCompiler';
@@ -28,8 +28,8 @@ export class MethodSignatureRunType extends FunctionRunType<TypeMethodSignature>
     }
     isOptional = () => !!this.src.optional;
     skipCommas = false;
-    _getTypeID() {
-        if (this.src.optional) return `${super._getTypeID()}:?`;
-        return super._getTypeID();
+    _getTypeID(fnID: JitFnID, stack?: RunType[]) {
+        if (this.src.optional) return `${super._getTypeID(fnID, stack)}:?`;
+        return super._getTypeID(fnID, stack);
     }
 }

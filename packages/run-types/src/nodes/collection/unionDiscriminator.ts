@@ -101,8 +101,10 @@ function getDiscriminatorProperties(
             complexity: props.reduce((acc, item) => acc + getTotalComplexity(comp, item.prop), 0),
             isUniqueType: props.every((item) => {
                 const child = item;
-                const typeID = child.prop.getTypeID();
-                const isDiff = props.every((otherItem) => child.prop === otherItem.prop || otherItem.prop.getTypeID() !== typeID);
+                const typeID = child.prop.getTypeID(comp.fnID);
+                const isDiff = props.every(
+                    (otherItem) => child.prop === otherItem.prop || otherItem.prop.getTypeID(comp.fnID) !== typeID
+                );
                 return isDiff;
             }),
         }))
@@ -114,7 +116,7 @@ function getDiscriminatorProperties(
     return lessComplex.props.map((item) => {
         item.prop.isUnionDiscriminator = true;
         const unionIndex = urt.getUnionItemIndex(comp, item.unionItem);
-        const typeID = item.prop.getTypeID();
+        const typeID = item.prop.getTypeID(comp.fnID);
         return {
             unionItem: item.unionItem,
             unionIndex,
@@ -141,11 +143,11 @@ function getUniqueDiscriminatorProperties(
     unionTypes.forEach((unionItem) => {
         const props = unionItem.getJitChildren(comp) as PropertyRunType[];
         props.forEach((prop) => {
-            const typeID = prop.getTypeID();
+            const typeID = prop.getTypeID(comp.fnID);
             const isUnique = unionTypes.every((otherUnionItem) => {
                 if (otherUnionItem === unionItem) return true;
                 const otherProps = otherUnionItem.getJitChildren(comp) as MemberRunType<any>[];
-                return otherProps.every((otherProp) => otherProp.getTypeID() !== typeID);
+                return otherProps.every((otherProp) => otherProp.getTypeID(comp.fnID) !== typeID);
             });
             if (isUnique) {
                 const existing = uniquePropByUnionItem.get(unionItem);
@@ -167,7 +169,7 @@ function getUniqueDiscriminatorProperties(
     return uniqueProps.map((item) => {
         item.prop.isUnionDiscriminator = true;
         const unionIndex = urt.getUnionItemIndex(comp, item.unionItem);
-        const typeID = item.prop.getTypeID();
+        const typeID = item.prop.getTypeID(comp.fnID);
         return {
             unionItem: item.unionItem,
             unionIndex,

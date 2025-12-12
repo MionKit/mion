@@ -13,5 +13,5 @@ it('should generate different type ids for optional methods', () => {
 
     const rt = runType<TestType>();
     const rt2 = runType<TestType2>();
-    expect(rt.getTypeID()).not.toEqual(rt2.getTypeID());
+    expect(rt.getTypeID('ANY')).not.toEqual(rt2.getTypeID('ANY'));
 });
