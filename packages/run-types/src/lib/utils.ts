@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
+import type {Type, TypeFunction, TypeLiteral, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
 import type {PureFunctionClosure, TypeFormatValue} from '@mionkit/core';
 import type {AnyClass, JitFnID, RunType} from '../types';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
@@ -18,6 +18,7 @@ import {createHashLiteral} from './quickHash';
 import {ReflectionSubKind} from '../constants.kind';
 import {getJitFnSettings} from './jitFnsRegistry';
 import type {JitCode} from '../types';
+import {hasTypeArguments} from './guards';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -393,4 +394,48 @@ export function addFullStop(code: string): string {
     if (hasFullStop) return code;
     const hasBlockClose = code[lastChar] === '}';
     return hasBlockClose ? code : `${code};`;
+}
+
+/**
+ * Checks if a type is a primitive type (string, number, boolean, bigint, symbol, literal, null, undefined, etc.)
+ * These are the types whose values can be passed as generic parameters to JIT functions.
+ */
+function isPrimitiveType(type: Type): boolean {
+    return (
+        type.kind === ReflectionKind.string ||
+        type.kind === ReflectionKind.number ||
+        type.kind === ReflectionKind.boolean ||
+        type.kind === ReflectionKind.bigint ||
+        type.kind === ReflectionKind.symbol ||
+        type.kind === ReflectionKind.literal ||
+        type.kind === ReflectionKind.null ||
+        type.kind === ReflectionKind.undefined ||
+        type.kind === ReflectionKind.regexp
+    );
+}
+
+/**
+ * Extracts primitive type argument values from a RunType's typeArguments.
+ * Returns undefined if there are no primitive type arguments.
+ * Returns an object mapping index to literal value for primitive types.
+ */
+export function extractPrimitiveTypeArgs(rt: BaseRunType): Record<number, any> | undefined {
+    if (!hasTypeArguments(rt.src)) return undefined;
+
+    const primitiveArgs: Record<number, any> = {};
+    let hasPrimitives = false;
+
+    rt.src.typeArguments.forEach((typeArg, index) => {
+        if (isPrimitiveType(typeArg)) {
+            hasPrimitives = true;
+            // For literal types, extract the actual literal value
+            if (typeArg.kind === ReflectionKind.literal) {
+                primitiveArgs[index] = (typeArg as TypeLiteral).literal;
+            }
+            // For other primitive types, we don't need to store a value
+            // as they don't have literal values to pass
+        }
+    });
+
+    return hasPrimitives ? primitiveArgs : undefined;
 }

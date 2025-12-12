@@ -9,9 +9,12 @@ import {getJITFnName} from './jitFnsRegistry';
  * it is a valid js variable name.
  * @param id
  * @param rt
+ * @param opts
+ * @param isGeneric - if true, uses getGenericJitHash instead of getJitHash
  * @returns
  */
-export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts?: RunTypeOptions): string {
+export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts?: RunTypeOptions, isGeneric = false): string {
+    if (isGeneric) return `${id}_${rt.getGenericJitHash(opts || {})}`;
     if (opts) return `${id}_${rt.getJitHash(opts)}`;
     return `${id}_${rt.getJitHash({})}`;
 }

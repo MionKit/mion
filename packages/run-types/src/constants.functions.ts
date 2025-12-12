@@ -52,6 +52,8 @@ export const jitBinarySerializerArgs = {vλl: 'v', sεr: 'Ser'} as const; // vλ
 export const jitBinaryDeserializerArgs = {vλl: 'ret', dεs: 'Des'} as const; // vλl is used as return variable ans is assigned the deserialized value, des = deserializer
 export const jitDefaultBinarySerializerArgs = {vλl: '', sεr: ''} as const;
 export const jitDefaultBinaryDeserializerArgs = {vλl: '', dεs: ''} as const;
+export const jitGenericArgs = {gεn: 'gen'} as const;
+export const jitDefaultGenericArgs = {gεn: 'null'} as const;
 
 // ######## !IMPORTANT: ALL JIT FUNCTIONS IDs MUST BE UNIQUE and short ########
 

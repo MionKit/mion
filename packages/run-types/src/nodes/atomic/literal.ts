@@ -6,10 +6,10 @@
  * ######## */
 
 import {ReflectionKind, type TypeLiteral} from '@deepkit/type';
-import type {JitCode, RunType} from '../../types';
+import type {JitCode, RunType, StrNumber} from '../../types';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import type {Mutable} from '@mionkit/core';
-import {memorize, toLiteral} from '../../lib/utils';
+import {toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {BigIntRunType} from './bigInt';
 import {RegexpRunType} from './regexp';
@@ -29,7 +29,10 @@ const bigIntRt = new BigIntRunType();
 type AnyLiteralRunType = StringRunType | NumberRunType | BooleanRunType | SymbolRunType | RegexpRunType | BigIntRunType;
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
-    _getTypeID = memorize(() => `${this.src.kind}:${String(this.src.literal)}`);
+    _getTypeID(_stack: RunType[], isGenericId: boolean): StrNumber {
+        if (isGenericId) return this.src.kind;
+        return `${this.src.kind}:${String(this.src.literal)}`;
+    }
     getRunTypeForLiteral(comp: JitFnCompiler): AnyLiteralRunType {
         const noLiterals = comp.opts.noLiterals;
         const lit = this.src.literal;

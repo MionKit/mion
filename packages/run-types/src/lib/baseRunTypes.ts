@@ -25,8 +25,8 @@ import type {mockType} from '../mocking/mockType';
 import {maxStackErrorMessage} from '../constants';
 import {type CodeType, JitFunctions, CodeTypes} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
-import type {TypeIndexSignature, TypeProperty, Type} from '@deepkit/type';
-import {getPropIndex, memorize} from './utils';
+import type {TypeIndexSignature, TypeProperty, Type, TypeLiteral} from '@deepkit/type';
+import {getPropIndex, memorize, toLiteral} from './utils';
 import {createJitCompiler, MockJitCompiler} from './jitFnCompiler';
 import {getJITFnHash} from './createJitFunction';
 import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
@@ -39,6 +39,8 @@ import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegis
 import {JitCompiledFn} from '@mionkit/core';
 import {defaultMockOptions} from '../mocking/constants.mock';
 import {getENV} from '@mionkit/core';
+import {hasTypeArguments} from './guards';
+import {runType} from '../createRunType';
 
 const RB = CodeTypes.returnBlock;
 const S = CodeTypes.statement;
@@ -48,7 +50,10 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isCircular?: boolean;
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): RunTypeFamily; // Atomic, Collection, Member, Function
-    abstract _getTypeID(stack?: RunType[]): StrNumber;
+    abstract _getTypeID(stack: RunType[], isGenericId: boolean): StrNumber;
+    private _cachedTypeID?: StrNumber;
+    private _cachedGenericTypeID?: StrNumber;
+    private _cachedFormatTypeID?: string | undefined;
     /**
      * This single functions controls whether or not the code for a type should be inlined into the parent function
      * or should create a separate jit function for it, add as a dependency and call it.
@@ -69,21 +74,88 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     skipJit(comp: JitFnCompiler): boolean {
         return false;
     }
-    getFormatTypeID = memorize((): string | undefined => {
+    getFormatTypeID(): string | undefined {
+        if (this._cachedFormatTypeID !== undefined) return this._cachedFormatTypeID;
         const formatter = getRunTypeFormat(this);
-        if (!formatter) return;
-        return `<${typeParamsToString(formatter.getParams(this), defaultIgnoreFormatProps)}>`;
-    });
+        if (!formatter) {
+            this._cachedFormatTypeID = undefined;
+            return undefined;
+        }
+        const result = `<${typeParamsToString(formatter.getParams(this), defaultIgnoreFormatProps)}>`;
+        this._cachedFormatTypeID = result;
+        return result;
+    }
     getTypeID(stack: BaseRunType[] = []): StrNumber {
+        if (this._cachedTypeID !== undefined) return this._cachedTypeID;
         const formatID = this.getFormatTypeID();
-        if (!formatID) return this._getTypeID(stack);
-        return this._getTypeID(stack) + formatID;
+        const typeID = this._getTypeID(stack, false);
+        const result = formatID ? typeID + formatID : typeID;
+        this._cachedTypeID = result;
+        return result;
+    }
+    getGenericTypeID(stack: BaseRunType[] = []): StrNumber {
+        if (this._cachedGenericTypeID !== undefined) return this._cachedGenericTypeID;
+        const formatID = this.getFormatTypeID();
+        const genericTypeID = this._getTypeID(stack, true);
+        const result = formatID ? genericTypeID + formatID : genericTypeID;
+        this._cachedGenericTypeID = result;
+        return result;
     }
     getJitHash(opts: RunTypeOptions): string {
         const optsCopy = {...opts};
         // remove mock options as not relevant for jit functionality
         if (optsCopy.mock) delete optsCopy.mock;
-        return createUniqueHash(this.getTypeID().toString() + JSON.stringify(optsCopy));
+        const optsKey = JSON.stringify(optsCopy);
+        return createUniqueHash(this.getTypeID().toString() + optsKey);
+    }
+    getGenericJitHash(opts: RunTypeOptions): string {
+        const optsCopy = {...opts};
+        // remove mock options as not relevant for jit functionality
+        if (optsCopy.mock) delete optsCopy.mock;
+        const optsKey = JSON.stringify(optsCopy);
+        return createUniqueHash(this.getGenericTypeID().toString() + optsKey);
+    }
+    /**
+     * Returns the generic version of this RunType by replacing primitive literal type arguments with their base types.
+     * For example, RpcError<'my-error'> returns RpcError<string>.
+     * If the type has no primitive type arguments, returns itself.
+     */
+    getGenericType(): BaseRunType {
+        if (!hasTypeArguments(this.src)) return this;
+
+        // Check if any type arguments are primitive literals
+        let hasPrimitiveLiterals = false;
+        const genericTypeArgs: Type[] = this.src.typeArguments.map((typeArg) => {
+            if (typeArg.kind === ReflectionKind.literal) {
+                hasPrimitiveLiterals = true;
+                // Replace literal with its base type
+                const literal = (typeArg as TypeLiteral).literal;
+                const baseKind =
+                    typeof literal === 'string'
+                        ? ReflectionKind.string
+                        : typeof literal === 'number'
+                          ? ReflectionKind.number
+                          : typeof literal === 'boolean'
+                            ? ReflectionKind.boolean
+                            : typeof literal === 'bigint'
+                              ? ReflectionKind.bigint
+                              : ReflectionKind.any;
+                return {kind: baseKind} as Type;
+            }
+            return typeArg;
+        });
+
+        // If no primitive literals, return self
+        if (!hasPrimitiveLiterals) return this;
+
+        // Create a new Type object with replaced typeArguments
+        const genericSrc: Mutable<Type> = {
+            ...this.src,
+            typeArguments: genericTypeArgs,
+        };
+
+        // Create and return the generic RunType
+        return runType(genericSrc) as BaseRunType;
     }
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
     checkIsCircularAndGetRefId(stack: RunType[] = []): StrNumber | undefined {
@@ -284,25 +356,23 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .filter((code) => !!code);
         return {code: codes.join(';'), type: S};
     }
-    _getTypeID(stack: BaseRunType[] = []): StrNumber {
-        return this.getChildrenTypeID(stack);
-    }
-    private getChildrenTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
+    _getTypeID(stack: BaseRunType[], isGenericId: boolean): StrNumber {
         if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
         const circularJitConf = this.checkIsCircularAndGetRefId(stack);
         if (circularJitConf) return circularJitConf;
-        stack.push(this);
+        stack.push(this as any);
         const childrenIds: (string | number)[] = [];
         const children = this.getChildRunTypes();
         for (const child of children) {
-            childrenIds.push(child.getTypeID(stack));
+            const childId = isGenericId ? child.getGenericTypeID(stack) : child.getTypeID(stack);
+            childrenIds.push(childId);
         }
         const isArray = this.src.kind === ReflectionKind.tuple || this.src.kind === ReflectionKind.array;
         const groupID = isArray ? `[${childrenIds.join(',')}]` : `{${childrenIds.join(',')}}`;
         const kind = this.src.subKind || this.src.kind;
         stack.pop();
         return `${kind}${groupID}`;
-    });
+    }
 }
 
 /**
@@ -378,10 +448,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (!code?.code) return {code: undefined, type: S};
         return code;
     }
-    _getTypeID(stack: BaseRunType[] = []): StrNumber {
-        return this.getMemberTypeID(stack);
-    }
-    private getMemberTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
+    _getTypeID(stack: BaseRunType[], isGenericId: boolean): StrNumber {
         if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
         const optional = this.isOptional() ? '?' : '';
         const kind =
@@ -394,13 +461,13 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (circularJitConf) return `${kindID}:${circularJitConf}`;
         // TODO: some properties could be skipped from the JIT ID. so we could implement a mechanism to mark them to be skipped
         // ie: sample and sampleChars from StringFormat are too large but they do not affect jit code generation as those properties are only used during mocking
-        stack.push(this);
+        stack.push(this as any);
         const member = this.getMemberType();
-        const memberTypeID = member.getTypeID(stack);
+        const memberTypeID = isGenericId ? member.getGenericTypeID(stack) : member.getTypeID(stack);
         const typeID = `${kindID}:${memberTypeID}`;
         stack.pop();
         return typeID;
-    });
+    }
 }
 
 // ########## Load Composable Functions ##########

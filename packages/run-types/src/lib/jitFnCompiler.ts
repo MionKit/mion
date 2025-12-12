@@ -13,7 +13,14 @@ import type {BaseRunType} from './baseRunTypes';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {getReflectionName, type AnyKindName} from '../constants.kind';
 import {maxStackErrorMessage, JIT_STACK_TRACE_MESSAGE} from '../constants';
-import {type CodeType, CodeTypes, jitErrorArgs, type JitFnSettings} from '../constants.functions';
+import {
+    type CodeType,
+    CodeTypes,
+    jitDefaultGenericArgs,
+    jitErrorArgs,
+    type JitFnSettings,
+    jitGenericArgs,
+} from '../constants.functions';
 import {getJITFnName, getJitFnSettings} from './jitFnsRegistry';
 import {JitFunctions} from '../constants.functions';
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
@@ -26,6 +33,7 @@ import {emitToBinary} from '../jitCompilers/binary/toBinary';
 import {emitFromBinary} from '../jitCompilers/binary/fromBinary';
 import {emitToCode} from '../jitCompilers/json/toJsCode';
 import {createJitFunction, getJITFnHash} from './createJitFunction';
+import {extractPrimitiveTypeArgs} from './utils';
 
 const RB = CodeTypes.returnBlock;
 const S = CodeTypes.statement;
@@ -68,10 +76,19 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         public readonly opts: RunTypeOptions = {}
     ) {
         this.typeName = this.rootType.getTypeName();
-        this.jitFnHash = jitFnHash || getJITFnHash(this.fnID, this.rootType, opts);
+        // Always compile the specific version (never use generic hash for compilation)
+        this.jitFnHash = jitFnHash || getJITFnHash(this.fnID, this.rootType, opts, false);
         this.typeID = typeID || this.rootType.getTypeID();
         this.args = {...jitFnSettings.jitArgs} as FnArgsNames;
         this.defaultParamValues = {...jitFnSettings.jitDefaultArgs} as FnArgsNames;
+
+        // Add generic params argument if rootType has primitive type arguments
+        const primitiveTypeArgs = extractPrimitiveTypeArgs(this.rootType);
+        if (primitiveTypeArgs) {
+            this.args = {...this.args, ...jitGenericArgs};
+            this.defaultParamValues = {...this.defaultParamValues, ...jitDefaultGenericArgs};
+        }
+
         this.returnName = jitFnSettings.returnName;
         if (this.args.vλl) this.vλl = this.args.vλl;
         // At the time of adding this compiler to the jit cache, the fn is undefined which is technically not allowed
@@ -216,6 +233,14 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         if (rt.skipSettingAccessor?.()) return parent.vλl;
         return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral(this)}]` : `.${rt.getChildVarName(this)}`);
     }
+    shouldCallGeneric(rt: BaseRunType): boolean {
+        // Only call generic version if:
+        // 1. The type has primitive type arguments (literal types that can be passed as params)
+        // 2. We should call a dependency (not inline)
+        // 3. We're not at the root level (stack.length > 1)
+        if (!this.shouldCallDependency()) return false;
+        return !!extractPrimitiveTypeArgs(rt);
+    }
     shouldCallDependency(): boolean {
         const stackItem = this.getCurrentStackItem();
         return !stackItem.rt.isJitInlined() && this.stack.length > 1;
@@ -279,7 +304,12 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         if (!rt) return {code: undefined, type: expectedCType};
         let jCode: JitCode;
         this.pushStack(rt);
-        if (this.shouldCallDependency()) {
+        if (this.shouldCallGeneric(rt)) {
+            const genericRt = rt.getGenericType();
+            const compiledOp = genericRt.createJitCompiledFunction(fnID, this, this.opts);
+            jCode = this.callDependency(genericRt, compiledOp);
+            this.updateDependencies(compiledOp);
+        } else if (this.shouldCallDependency()) {
             const compiledOp = rt.createJitCompiledFunction(fnID, this, this.opts);
             jCode = this.callDependency(rt, compiledOp);
             this.updateDependencies(compiledOp);
@@ -370,11 +400,30 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         const isErrorCall =
             dependencyComp.fnID === JitFunctions.typeErrors.id || dependencyComp.fnID === JitFunctions.unknownKeyErrors.id;
 
-        // Use the dependency's args, not the current compiler's args
-        const depArgs = getJitFnSettings(dependencyComp.fnID as JitFnID).jitArgs;
-        const callArgsCode = Object.keys(depArgs)
-            .map((key) => getJitFnArgCallVarName(this, rt, dependencyComp.fnID as JitFnID, key))
-            .join(',');
+        // Build call arguments
+        const callArgs: string[] = [];
+        for (const key of Object.keys(dependencyComp.args)) {
+            // Skip generic params arg - we'll handle it separately
+            if (key === 'gεn') continue;
+            callArgs.push(getJitFnArgCallVarName(this, rt, dependencyComp.fnID as JitFnID, key));
+        }
+
+        // If dependency has generic params arg, create and pass the generic params object
+        if (dependencyComp.args.gεn) {
+            const primitiveTypeArgs = extractPrimitiveTypeArgs(rt);
+            if (primitiveTypeArgs) {
+                // Create a context variable with the generic params object
+                const genParamsVarName = `gεn_${dependencyComp.jitFnHash}`;
+                const genParamsObj = JSON.stringify(primitiveTypeArgs);
+                this.setContextItem(genParamsVarName, `const ${genParamsVarName} = ${genParamsObj}`);
+                callArgs.push(genParamsVarName);
+            } else {
+                // No primitive type args, pass empty object
+                callArgs.push('{}');
+            }
+        }
+
+        const callArgsCode = callArgs.join(',');
         const isSelf = this.jitFnHash === dependencyComp.jitFnHash;
         const varName = dependencyComp.jitFnHash;
         // call local variable instead directly calling jitUtils to avoid lookups.

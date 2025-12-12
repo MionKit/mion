@@ -27,8 +27,8 @@ export class MethodRunType extends FunctionRunType<TypeMethod> implements RunTyp
         return useArrayAccessorForProp(this.src.name);
     }
     isOptional = () => !!this.src.optional;
-    _getTypeID() {
-        if (this.src.optional) return `${super._getTypeID()}:?`;
-        return super._getTypeID();
+    _getTypeID(stack?: any[], isGenericId = false) {
+        if (this.src.optional) return `${super._getTypeID(stack, isGenericId)}:?`;
+        return super._getTypeID(stack, isGenericId);
     }
 }

@@ -28,8 +28,8 @@ export class MethodSignatureRunType extends FunctionRunType<TypeMethodSignature>
     }
     isOptional = () => !!this.src.optional;
     skipCommas = false;
-    _getTypeID() {
-        if (this.src.optional) return `${super._getTypeID()}:?`;
-        return super._getTypeID();
+    _getTypeID(stack?: any[], isGenericId = false) {
+        if (this.src.optional) return `${super._getTypeID(stack, isGenericId)}:?`;
+        return super._getTypeID(stack, isGenericId);
     }
 }

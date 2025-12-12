@@ -41,37 +41,6 @@ it('throw errors when item not belongs to the union', () => {
     expect(() => deserialize(serContext.buffer)).toThrow('Can not binary decode union: invalid union index');
 });
 
-function get_tBi_EOEKMK(utl) {
-    const uErr0 = 'Can not encode union to binary: item does not belong to the union';
-    const tBi_Ei8qua = utl.getJIT('tBi_Ei8qua');
-    const is_Ei8qua = utl.getJIT('is_Ei8qua');
-    const tBi_JH3nFt = utl.getJIT('tBi_JH3nFt');
-    const is_JH3nFt = utl.getJIT('is_JH3nFt');
-    const tBi_O6YoMM = utl.getJIT('tBi_O6YoMM');
-    const is_O6YoMM = utl.getJIT('is_O6YoMM');
-    const tBi_uMGimS = utl.getJIT('tBi_uMGimS');
-    const is_uMGimS = utl.getJIT('is_uMGimS');
-    function tBi_EOEKMK(v, Ser) {
-        if (is_Ei8qua.fn(v)) {
-            Ser.view.setUint8(Ser.index++, 0);
-            tBi_Ei8qua.fn(v, Ser);
-        } else if (is_JH3nFt.fn(v)) {
-            Ser.view.setUint8(Ser.index++, 1);
-            tBi_JH3nFt.fn(v, Ser);
-        } else if (is_O6YoMM.fn(v)) {
-            Ser.view.setUint8(Ser.index++, 2);
-            tBi_O6YoMM.fn(v, Ser);
-        } else if (is_uMGimS.fn(v)) {
-            Ser.view.setUint8(Ser.index++, 3);
-            tBi_uMGimS.fn(v, Ser);
-        } else {
-            throw new Error(uErr0);
-        }
-        return Ser;
-    }
-    return tBi_EOEKMK;
-}
-
 it('union array', () => {
     const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_array.getTestData();
     const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.union_array.getTestData(true);
