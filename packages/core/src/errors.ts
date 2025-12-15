@@ -146,8 +146,10 @@ export function isRpcError(error: any): error is RpcError<string> {
     );
 }
 
-/** Returns true if the error is a TypedError, RpcError, or any other Javascript Error.
- * if available uses Error.isError()
+/**
+ * Returns true if the error is a TypedError, RpcError, or any other Javascript Error.
+ * if available uses Error.isError() or 'mion:isΣrrθr' prop from TypedError
+ * Does not do strict type checking. This function is intended to quickly identify errors.
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
  */
 export function isAnyError(error: any): error is TypedError<any> | RpcError<string> | Error {
