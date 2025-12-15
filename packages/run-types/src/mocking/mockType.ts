@@ -29,7 +29,7 @@ import {getRunTypeFormat, getRunTypeTransformer} from '../lib/formats';
 import {JIT_STACK_TRACE_MESSAGE} from '../constants';
 import {JitFunctions} from '../constants.functions';
 import type {ArrayRunType} from '../nodes/member/array';
-import {jitUtils} from '@mionkit/core';
+import {getJitUtils} from '@mionkit/core';
 import {MockJitCompiler, type JitFnCompiler} from '../lib/jitFnCompiler';
 
 export function mockType(runType: BaseRunType, comp: JitFnCompiler, stack: BaseRunType[] = []): any {
@@ -319,10 +319,10 @@ function _mockClass(runType: BaseRunType, comp: JitFnCompiler, stack: BaseRunTyp
             }
             const rt = runType as ClassRunType;
             const isSerializable = rt.isClassWithEmptyConstructor();
-            const deserializeFn = jitUtils.getDeserializeFn(rt.getClassName());
+            const deserializeFn = getJitUtils().getDeserializeFn(rt.getClassName());
             if (!deserializeFn && !isSerializable) {
                 throw new Error(
-                    `Class ${rt.getClassName()} can not be mocked. Be sure to register a deserialize function first with jiUtils.${jitUtils.setDeserializeFn.name}` +
+                    `Class ${rt.getClassName()} can not be mocked. Be sure to register a deserialize function first with jiUtils.${getJitUtils().setDeserializeFn.name}` +
                         printStackTrace(comp, stack)
                 );
             }

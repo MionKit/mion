@@ -12,7 +12,7 @@ import type {AnyClass, JitFnID, RunType} from '../types';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
 import type {PropertyRunType} from '../nodes/member/property';
-import {jitUtils} from '@mionkit/core';
+import {getJitUtils} from '@mionkit/core';
 import {validPropertyNameRegExp} from '../constants';
 import {createHashLiteral} from './quickHash';
 import {ReflectionSubKind} from '../constants.kind';
@@ -24,7 +24,7 @@ export function toLiteral(value: number | string | boolean | undefined | null | 
         case 'number':
             return `${value}`;
         case 'string':
-            return jitUtils.asJSONString(value);
+            return getJitUtils().asJSONString(value);
         case 'boolean':
             return value ? 'true' : 'false';
         case 'undefined':

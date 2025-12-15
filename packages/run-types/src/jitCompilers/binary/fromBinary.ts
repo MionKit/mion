@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import {jitUtils} from '@mionkit/core';
+import {getJitUtils} from '@mionkit/core';
 import {ReflectionSubKind} from '../../constants.kind';
 import {childIsExpression, createIfElseFn, isSafePropName, toLiteral} from '../../lib/utils';
 import {jitBinaryDeserializerArgs, JitFunctions} from '../../constants.functions';
@@ -342,9 +342,9 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
                     const plainObjCode = emitFromBinary(rt, comp);
                     (runType.src as any).kind = originalKind;
                     const desFnVarName = comp.getLocalVarName('desFn', rt);
-                    const desFnInit = `let ${desFnVarName} = utl.${jitUtils.getDeserializeFn.name}(${toLiteral(rt.getClassName())})`;
+                    const desFnInit = `let ${desFnVarName} = utl.${getJitUtils().getDeserializeFn.name}(${toLiteral(rt.getClassName())})`;
                     const desFnCode = `if (${desFnVarName}) {${comp.vλl} = ${desFnVarName}(${comp.vλl})}`;
-                    const desClassCode = `else if (${desFnVarName} = utl.${jitUtils.getSerializeClass.name}(${toLiteral(rt.getClassName())})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}`;
+                    const desClassCode = `else if (${desFnVarName} = utl.${getJitUtils().getSerializeClass.name}(${toLiteral(rt.getClassName())})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}`;
                     const initCode = plainObjCode.type === 'E' ? `${comp.vλl} = ${plainObjCode.code}` : plainObjCode.code;
                     return {code: `${initCode};${desFnInit};${desFnCode} ${desClassCode}`, type: 'S'};
                 }

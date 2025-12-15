@@ -7,7 +7,7 @@
 import {TypeClass} from '@deepkit/type';
 import {InterfaceMember, InterfaceRunType} from './interface';
 import {JitFnCompiler} from '../../lib/jitFnCompiler';
-import {jitUtils} from '@mionkit/core';
+import {getJitUtils} from '@mionkit/core';
 import {toLiteral} from '../../lib/utils';
 import {isConstructor} from '../../lib/guards';
 import {JitCode} from '../../types';
@@ -27,9 +27,9 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         const classLiteral = toLiteral(this.getClassName());
         const code = `
             ${objJit.code};
-            let ${desFnVarName} = utl.${jitUtils.getDeserializeFn.name}(${classLiteral});
+            let ${desFnVarName} = utl.${getJitUtils().getDeserializeFn.name}(${classLiteral});
             if (${desFnVarName}) {${comp.vλl} = ${desFnVarName}(${comp.vλl})}
-            else if (${desFnVarName} = utl.${jitUtils.getSerializeClass.name}(${classLiteral})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}
+            else if (${desFnVarName} = utl.${getJitUtils().getSerializeClass.name}(${classLiteral})) {${comp.vλl} = new ${desFnVarName}(${comp.vλl})}
         `;
         return {code, type: 'S'};
     }

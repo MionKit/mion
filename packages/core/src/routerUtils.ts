@@ -9,7 +9,7 @@ import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
 import type {MethodMetadata, MethodsCache, MethodWithJitFns} from './types/method.types';
 import type {JitCompiledFunctions, JitFunctionsHashes} from './types/general.types';
-import {jitUtils} from './jitUtils';
+import {getJitUtils} from './jitUtils';
 
 const methodsCache: MethodsCache = {};
 let routesCacheLoaded = false;
@@ -190,13 +190,13 @@ export function getJitFnHashes(jitHash: string): JitFunctionsHashes {
 function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
     const hashes = getJitFnHashes(jitHash);
     return {
-        isType: jitUtils.getJIT(hashes.isType),
-        typeErrors: jitUtils.getJIT(hashes.typeErrors),
-        prepareForJson: jitUtils.getJIT(hashes.prepareForJson),
-        restoreFromJson: jitUtils.getJIT(hashes.restoreFromJson),
-        jsonStringify: jitUtils.getJIT(hashes.jsonStringify),
-        toBinary: jitUtils.getJIT(hashes.toBinary),
-        fromBinary: jitUtils.getJIT(hashes.fromBinary),
+        isType: getJitUtils().getJIT(hashes.isType),
+        typeErrors: getJitUtils().getJIT(hashes.typeErrors),
+        prepareForJson: getJitUtils().getJIT(hashes.prepareForJson),
+        restoreFromJson: getJitUtils().getJIT(hashes.restoreFromJson),
+        jsonStringify: getJitUtils().getJIT(hashes.jsonStringify),
+        toBinary: getJitUtils().getJIT(hashes.toBinary),
+        fromBinary: getJitUtils().getJIT(hashes.fromBinary),
     } as JitCompiledFunctions;
 }
 
@@ -206,8 +206,8 @@ function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
 function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiledFunctions, 'isType' | 'typeErrors'> {
     const hashes = getJitFnHashes(jitHash);
     return {
-        isType: jitUtils.getJIT(hashes.isType),
-        typeErrors: jitUtils.getJIT(hashes.typeErrors),
+        isType: getJitUtils().getJIT(hashes.isType),
+        typeErrors: getJitUtils().getJIT(hashes.typeErrors),
     } as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
 }
 

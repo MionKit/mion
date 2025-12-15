@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitCompiledFunctions, MethodsCache, MethodMetadata, jitUtils, getENV, getJitFnHashes} from '@mionkit/core';
+import {JitCompiledFunctions, MethodsCache, MethodMetadata, getJitUtils, getENV, getJitFnHashes} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
 import {AnyHandler} from '../types/handlers';
 import {IS_TEST_ENV} from '../constants';
@@ -50,13 +50,13 @@ function restorePersistedMethod(method: MethodMetadata, handler: AnyHandler): Re
 
 function restorePersistedJitFunctions(hash: string): JitCompiledFunctions {
     const hashes = getJitFnHashes(hash);
-    const isType = jitUtils.getJIT(hashes.isType);
-    const typeErrors = jitUtils.getJIT(hashes.typeErrors);
-    const prepareForJson = jitUtils.getJIT(hashes.prepareForJson);
-    const restoreFromJson = jitUtils.getJIT(hashes.restoreFromJson);
-    const jsonStringify = jitUtils.getJIT(hashes.jsonStringify);
-    const toBinary = jitUtils.getJIT(hashes.toBinary);
-    const fromBinary = jitUtils.getJIT(hashes.fromBinary);
+    const isType = getJitUtils().getJIT(hashes.isType);
+    const typeErrors = getJitUtils().getJIT(hashes.typeErrors);
+    const prepareForJson = getJitUtils().getJIT(hashes.prepareForJson);
+    const restoreFromJson = getJitUtils().getJIT(hashes.restoreFromJson);
+    const jsonStringify = getJitUtils().getJIT(hashes.jsonStringify);
+    const toBinary = getJitUtils().getJIT(hashes.toBinary);
+    const fromBinary = getJitUtils().getJIT(hashes.fromBinary);
     if (!isType || !typeErrors || !prepareForJson || !restoreFromJson || !jsonStringify || !toBinary || !fromBinary) {
         throw new Error(`Can't restore persisted JIT functions, some jit functions are missing: ${JSON.stringify(hashes)}`);
     }

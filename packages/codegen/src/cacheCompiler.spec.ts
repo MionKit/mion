@@ -14,7 +14,7 @@ import {
     SrcCodeJITCompiledFnsCache,
     SrcCodePureFunctionsCache,
     getJitFnCaches,
-    jitUtils,
+    getJitUtils,
     resetJitFnCaches,
     MethodMetadata,
     MethodsCache,
@@ -53,7 +53,7 @@ it('should compile JIT functions cache to code', () => {
         expect(compiledMock).toContain(esmExportPattern);
         const evalCode = compiledMock.replace(esmExportPattern, '').replace(/;\s*$/, '').trim();
         const evalResult = eval(`(${evalCode})`);
-        evalResult['isUser'].fn = evalResult['isUser'].createJitFn(jitUtils);
+        evalResult['isUser'].fn = evalResult['isUser'].createJitFn(getJitUtils());
         const isUser = evalResult['isUser'].fn;
         expect(isUser({name: 'Karol', age: 30})).toBe(true);
         expect(isUser({name: 'Karol', age: '30'})).toBe(false);
@@ -88,7 +88,7 @@ it('should compile JIT functions cache to code', () => {
         const endIndex = compiledMock.lastIndexOf(' };');
         const evalCode = compiledMock.substring(startIndex, endIndex).trim();
         const evalResult = eval(`(${evalCode})`);
-        evalResult['isUser'].fn = evalResult['isUser'].createJitFn(jitUtils);
+        evalResult['isUser'].fn = evalResult['isUser'].createJitFn(getJitUtils());
         const isUser = evalResult['isUser'].fn;
         expect(isUser({name: 'Karol', age: 30})).toBe(true);
         expect(isUser({name: 'Karol', age: '30'})).toBe(false);
@@ -150,7 +150,7 @@ it('should compile pure functions cache to code', () => {
             .replace(/;\s*$/, '')
             .trim();
         const evalResult = eval(`(${evalCode})`);
-        evalResult['addNumbers'].fn = evalResult['addNumbers'].createJitFn(jitUtils);
+        evalResult['addNumbers'].fn = evalResult['addNumbers'].createJitFn(getJitUtils());
         expect(evalResult.addNumbers.fn(1, 2)).toBe(3);
 
         // guarantees (real cache) in core package can be compiled
@@ -187,7 +187,7 @@ it('should compile pure functions cache to code', () => {
         const endIndex = compiledMock.lastIndexOf(' };');
         const evalCode = compiledMock.substring(startIndex, endIndex).trim();
         const evalResult = eval(`(${evalCode})`);
-        evalResult['addNumbers'].fn = evalResult['addNumbers'].createJitFn(jitUtils);
+        evalResult['addNumbers'].fn = evalResult['addNumbers'].createJitFn(getJitUtils());
         expect(evalResult.addNumbers.fn(1, 2)).toBe(3);
 
         // guarantees (real cache) in core package can be compiled
