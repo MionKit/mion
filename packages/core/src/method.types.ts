@@ -16,7 +16,7 @@ import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions} from './types';
 export interface MethodMetadata {
     /** Method type identifier */
     type: number;
-    /** Unique identifier for the method */
+    /** Unique identifier for the method (usually the full route path) */
     id: string;
     /** whether method is async or might return a promise.
      * If return type is not know method is considered async  */

@@ -5,91 +5,59 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, isRpcError, isAnyError} from '@mionkit/core';
+import {RpcError, isRpcError, addRoutesToCache, resetRoutesCache, resetJitFnCaches} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
 import {ClientOptions, RequestBody} from './types';
 import type {JitCompiledFnData, MethodMetadata, PureFunctionData, SerializableMethodsData} from '@mionkit/core';
-import {jitUtils, routerUtils, coreAOTLoadJitCaches, coreAOTLoadRoutesMetadataCache} from '@mionkit/core';
+import {routesCache, coreAOTLoadJitCaches, coreAOTLoadRoutesMetadataCache, addSerializedJitCaches} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
-import {deserializeMethods} from '@mionkit/core';
+import {deserializeResponseBody} from './serializer';
+import type {MionRoutes} from '@mionkit/router';
 
-// Load AOT caches from @mionkit/aot-caches
-// The client always needs these caches for serialization/deserialization
-// The router generates them at runtime so this is only needed for the client
-coreAOTLoadRoutesMetadataCache();
-coreAOTLoadJitCaches();
-
-// Validate that required MION_ROUTES are available in the router cache
-// These routes are required for the client to function properly
-const requiredRoutes = Object.values(MION_ROUTES);
-const missingRoutes = requiredRoutes.filter((routeId) => !routerUtils.hasMetadata(routeId));
-if (missingRoutes.length > 0) {
-    throw new Error(
-        `AOT cache not loaded: Required MION_ROUTES not found in router cache: ${missingRoutes.join(', ')}. ` +
-            `Make sure the AOT caches are properly generated and loaded.`
-    );
-}
-
-// Get the restoreFromJson function for the getRemoteMethodsById route return type
-// Note: AOT caches are loaded and restored in @mionkit/core when jitUtils is imported
-const getRemoteMethodsRoute = routerUtils.getMetadata(MION_ROUTES.getRemoteMethodsById)!;
-const restoreFromJsonHash = getRemoteMethodsRoute.returnJitHashes?.restoreFromJson;
-
-// Use AOT-compiled restoreFromJson to deserialize the response
-// This handles union type deserialization and converts arrays back to Sets
-if (!restoreFromJsonHash) {
-    throw new Error('AOT cache not loaded: restoreFromJson function not found for getRemoteMethodsById');
-}
-const restoreFromJsonFn = jitUtils.getJIT(restoreFromJsonHash);
-if (!restoreFromJsonFn) {
-    throw new Error(`JIT function not found: ${restoreFromJsonHash}`);
-}
+type GetRemoteMethodsMetadataById = MionRoutes[typeof MION_ROUTES.getRemoteMethodsMetadataById]['handler'];
+type MethodsMetadataResponse = Awaited<ReturnType<GetRemoteMethodsMetadataById>>;
+type GlobalErrorRoute = MionRoutes[typeof MION_ROUTES.globalError]['handler'];
+type GlobalErrorResponse = Awaited<ReturnType<GlobalErrorRoute>>;
 
 /**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(methodIds: string[], options: ClientOptions) {
     restoreFromLocalStorage(methodIds, options);
-    const missingAfterLocal = methodIds.filter((path) => !routerUtils.hasMetadata(path));
+    const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
     if (!missingAfterLocal.length) return;
     // TODO change for a configurable name
     const shouldReturnAllMethods = true;
     const body: RequestBody = {
-        [MION_ROUTES.getRemoteMethodsById]: [missingAfterLocal, shouldReturnAllMethods],
+        [MION_ROUTES.getRemoteMethodsMetadataById]: [missingAfterLocal, shouldReturnAllMethods],
     };
     try {
-        const url = new URL(MION_ROUTES.getRemoteMethodsById, options.baseURL);
+        const url = new URL(MION_ROUTES.getRemoteMethodsMetadataById, options.baseURL);
         const response = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body),
         });
-        const respObj = await response.json();
-        const respValue = respObj[MION_ROUTES.getRemoteMethodsById];
 
-        // Deserialize with error handling - try first, then check for server-side errors on failure
-        let resp: SerializableMethodsData | RpcError<string>;
-        try {
-            resp = restoreFromJsonFn!.fn(respValue);
-        } catch (deserializeError: any) {
-            // If deserialization fails, check if the response itself is an error
-            // Server-side serialization errors are added directly without union encoding
-            if (isAnyError(respValue)) {
-                throw isRpcError(respValue) ? new RpcError(respValue) : respValue;
-            }
-            throw deserializeError;
-        }
+        // jit functions and routes metadata needs to be in caches before calling deserialize
+        const deserialized = await deserializeResponseBody(response);
+        const globalError = deserialized[MION_ROUTES.globalError] as GlobalErrorResponse | undefined;
+        const serializableMethodsData = deserialized[MION_ROUTES.getRemoteMethodsMetadataById] as MethodsMetadataResponse;
 
-        // TODO: convert Public error into a class that extends error and throw as an error
-        if (isRpcError(resp)) throw new RpcError(resp);
+        if (isRpcError(globalError)) throw globalError;
+        if (isRpcError(serializableMethodsData)) throw serializableMethodsData;
+        if (!serializableMethodsData)
+            throw new RpcError({
+                statusCode: 500,
+                type: 'cant-fetch-remote-methods-metadata',
+                publicMessage: 'Failed to fetch remote methods metadata',
+                errorData: {response},
+            });
 
-        const serializableMethodsData = resp as SerializableMethodsData;
-
-        // Store dependencies globally for future use
+        // Store dependencies globally for future use in localStorage
         storeDependencies(serializableMethodsData.deps, serializableMethodsData.purFnDeps, options);
         storeMethodsMetadata(serializableMethodsData.methods, options);
-        // Deserialize methods and their dependencies
-        deserializeMethods(serializableMethodsData.deps, serializableMethodsData.purFnDeps);
-        // Store method metadata in the routerCache
-        storeInRouterCache(serializableMethodsData);
+        // Store method metadata and JIT cache dependencies in the routerCache and global JIT caches
+        // This also deserializes and restores all JIT functions and pure functions
+        addToCaches(serializableMethodsData);
     } catch (error: any) {
         throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
     }
@@ -226,9 +194,9 @@ export function restoreAllDependencies(options: ClientOptions) {
         }
     }
 
-    // Deserialize all dependencies if any were found
+    // Add all dependencies to the global JIT caches if any were found
     if (Object.keys(deps).length > 0 || Object.keys(pureFnDeps).length > 0) {
-        deserializeMethods(deps, pureFnDeps);
+        addSerializedJitCaches(deps, pureFnDeps);
     }
 }
 
@@ -241,7 +209,7 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
     let anyMethodsRestored = false;
 
     methodIds.forEach((id) => {
-        if (routerUtils.hasMetadata(id)) return;
+        if (routesCache.hasMetadata(id)) return;
         // Try to load method metadata using new storage key format
         const methodKey = getSerializedMethodDataKey(id, options);
         const methodMetaJson = localStorage.getItem(methodKey);
@@ -264,16 +232,38 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
             deps: {}, // Dependencies are already loaded globally
             purFnDeps: {}, // Dependencies are already loaded globally
         };
-        storeInRouterCache(serializableMethodsData);
+        addToCaches(serializableMethodsData);
     }
 }
 
-/**
- * Stores method metadata in the routerCache
- */
-function storeInRouterCache(serializableMethodsData: SerializableMethodsData) {
-    Object.entries(serializableMethodsData.methods).forEach(([id, methodMeta]: [string, MethodMetadata]) => {
-        // Store in routerCache - SerializablePublicMethod is compatible with MethodMetadata
-        routerUtils.setMetadata(id, methodMeta);
-    });
+function addToCaches(serializableMethodsData: SerializableMethodsData) {
+    addSerializedJitCaches(serializableMethodsData.deps, serializableMethodsData.purFnDeps);
+    addRoutesToCache(serializableMethodsData.methods);
 }
+
+export function resetClientCaches() {
+    resetRoutesCache();
+    resetJitFnCaches();
+    loadClientCaches();
+}
+
+function loadClientCaches() {
+    // Load AOT caches from @mionkit/aot-caches
+    // The client always needs these caches for serialization/deserialization
+    // The router generates them at runtime so this is only needed for the client
+    coreAOTLoadRoutesMetadataCache();
+    coreAOTLoadJitCaches();
+
+    // Validate that required MION_ROUTES are available in the router cache
+    // These routes are required for the client to function properly
+    const requiredRoutes = Object.values(MION_ROUTES);
+    const missingRoutes = requiredRoutes.filter((routeId) => !routesCache.hasMetadata(routeId));
+    if (missingRoutes.length > 0) {
+        throw new Error(
+            `AOT cache not loaded: Required MION_ROUTES not found in router cache: ${missingRoutes.join(', ')}. ` +
+                `Make sure the AOT caches are properly generated and loaded.`
+        );
+    }
+}
+
+loadClientCaches();

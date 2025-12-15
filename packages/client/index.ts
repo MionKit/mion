@@ -7,7 +7,8 @@
 
 export * from './src/types';
 export * from './src/constants';
-export * from './src/reflection';
+export * from './src/validation';
+export * from './src/serializer';
 export * from './src/clientMethodsMetadata';
 export * from './src/request';
 export * from './src/client';
