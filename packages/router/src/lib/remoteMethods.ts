@@ -11,7 +11,7 @@ import type {PublicApi} from '../types/publicMethods';
 import type {AnyObject, JitCompiledFn, JitCompiledFnData, PureFunctionData, MethodMetadata} from '@mionkit/core';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from '../types/guards';
 import {getHookExecutable, getRouteExecutable, getRouteExecutionPath, getRouterOptions, isPrivateDefinition} from '../router';
-import {getRoutePath, getRouterItemId, MAX_STACK_DEPTH, getJitFnHashes, jitUtils, HandlerType} from '@mionkit/core';
+import {getRoutePath, getRouterItemId, MAX_STACK_DEPTH, getJitFnHashes, getJitUtils, HandlerType} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
 const publicMethods: Map<string, MethodMetadata> = new Map();
@@ -92,7 +92,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodMetadata 
 
 export function serializePureDeps(depHash: string, purFnDeps: Record<string, PureFunctionData>, depth = 0) {
     if (depth >= 0) throw new Error(`Max depth reached serializing pure function dependencies, for: ${depHash}`);
-    const pureDep = jitUtils.getCompiledPureFn(depHash);
+    const pureDep = getJitUtils().getCompiledPureFn(depHash);
     if (!pureDep) throw new Error(`Pure function ${depHash} not found`);
     if (purFnDeps[pureDep.pureFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies
     const serializedPureDep: PureFunctionData = {
@@ -113,7 +113,7 @@ export function serializeJitFn(
 ) {
     if (depth >= MAX_STACK_DEPTH)
         throw new Error(`Max depth reached serializing jit function dependencies for jitHash: ${jitFnHash}`);
-    const jitFn = jitUtils.getJIT(jitFnHash);
+    const jitFn = getJitUtils().getJIT(jitFnHash);
     if (!jitFn) throw new Error(`Jit function ${jitFnHash} not found`);
     if (deps[jitFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies
     const serializedJitFn = getSerializableJitCompiler(jitFn);

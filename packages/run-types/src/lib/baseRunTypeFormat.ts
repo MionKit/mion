@@ -13,7 +13,7 @@ import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
 import {dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
 import {getFormatterHash} from './utils';
-import {getENV, jitUtils} from '@mionkit/core';
+import {getENV, getJitUtils} from '@mionkit/core';
 
 /**
  * Base class for all RunType formatters.
@@ -122,7 +122,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         // created function will be an aux function prefixed with the original function id
         // this is because the new jit function itself is a standalone function  and we don't want it colliding with any other jit function
         const jitFnHash = `${JitFunctions.aux.id}_${fnID}_${hash}`;
-        const jitCompiled = jitUtils.getJIT(jitFnHash);
+        const jitCompiled = getJitUtils().getJIT(jitFnHash);
         if (jitCompiled) {
             if (getENV('DEBUG_JIT') === 'VERBOSE')
                 console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);

@@ -6,7 +6,7 @@
  * ############### */
 
 import {MAX_STACK_DEPTH} from './constants';
-import {jitUtils} from './jitUtils';
+import {getJitUtils} from './jitUtils';
 import type {CompiledPureFunction, PureFunction} from './types/general.types';
 
 /** Generates a random UUID V7, no hyphens are included in the uuid */
@@ -58,7 +58,7 @@ export function initPureFunction(compiled: CompiledPureFunction): asserts compil
             // this is to ensure that the deserialization process is working correctly
             // this process is not needed in production as the original function is used
             const newWithCtx = paramNames.length ? new Function(...paramNames, body) : new Function(body);
-            compiled.fn = newWithCtx(jitUtils) as PureFunction;
+            compiled.fn = newWithCtx(getJitUtils()) as PureFunction;
             return;
         } catch (error: any) {
             console.warn(
@@ -67,5 +67,5 @@ export function initPureFunction(compiled: CompiledPureFunction): asserts compil
             throw new Error(`Pure function ${compiled.pureFnHash} can not be deserialized: ${error?.message}`);
         }
     }
-    compiled.fn = compiled.createJitFn(jitUtils);
+    compiled.fn = compiled.createJitFn(getJitUtils());
 }

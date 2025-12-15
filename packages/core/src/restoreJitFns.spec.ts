@@ -6,7 +6,7 @@
  * ######## */
 
 import {restoreCompiledJitFns} from './restoreJitFns';
-import {addAOTCaches, addSerializedJitCaches, jitUtils, resetJitFnCaches} from './jitUtils';
+import {addAOTCaches, addSerializedJitCaches, getJitUtils, resetJitFnCaches} from './jitUtils';
 import type {
     PersistedJitFunctionsCache,
     PersistedPureFunctionsCache,
@@ -44,7 +44,7 @@ describe('restoreJitFns', () => {
 
             addAOTCaches(jitCache, pureCache);
 
-            const restored = jitUtils.getJIT('test_hash')!;
+            const restored = getJitUtils().getJIT('test_hash')!;
             expect(restored.fn).toBeDefined();
             expect(restored.fn('hello')).toBe(true);
             expect(restored.fn(123)).toBe(false);
@@ -69,7 +69,7 @@ describe('restoreJitFns', () => {
 
             addAOTCaches(jitCache, pureCache);
 
-            const restored = jitUtils.getPureFn('addNumbers')!;
+            const restored = getJitUtils().getPureFn('addNumbers')!;
             expect(restored).toBeDefined();
             expect(restored(2, 3)).toBe(5);
         });
@@ -112,8 +112,8 @@ describe('restoreJitFns', () => {
 
             addAOTCaches(jitCache, pureCache);
 
-            const restoredJit = jitUtils.getJIT('test_with_pure')!;
-            const restoredPure = jitUtils.getPureFn('helper')!;
+            const restoredJit = getJitUtils().getJIT('test_with_pure')!;
+            const restoredPure = getJitUtils().getPureFn('helper')!;
             expect(restoredPure).toBeDefined();
             expect(restoredJit.fn).toBeDefined();
             expect(restoredJit.fn(42)).toBe(true);
@@ -162,8 +162,8 @@ describe('restoreJitFns', () => {
 
             addAOTCaches(jitCache, pureCache);
 
-            const restoredDep = jitUtils.getJIT('dep_hash')!;
-            const restoredParent = jitUtils.getJIT('parent_hash')!;
+            const restoredDep = getJitUtils().getJIT('dep_hash')!;
+            const restoredParent = getJitUtils().getJIT('parent_hash')!;
             expect(restoredDep.fn).toBeDefined();
             expect(restoredParent.fn).toBeDefined();
             expect(restoredParent.fn({name: 'test'})).toBe(true);
@@ -202,8 +202,8 @@ describe('restoreJitFns', () => {
 
             addAOTCaches(jitCache, pureCache);
 
-            const restoredMultiply = jitUtils.getPureFn('multiply')!;
-            const restoredSquare = jitUtils.getPureFn('square')!;
+            const restoredMultiply = getJitUtils().getPureFn('multiply')!;
+            const restoredSquare = getJitUtils().getPureFn('square')!;
             expect(restoredMultiply).toBeDefined();
             expect(restoredSquare).toBeDefined();
             expect(restoredSquare(5)).toBe(25);
@@ -235,7 +235,7 @@ describe('restoreJitFns', () => {
             addAOTCaches(jitCache, pureCache);
 
             // Should keep the existing fn, not call createJitFn
-            const restored = jitUtils.getJIT('already_restored')!;
+            const restored = getJitUtils().getJIT('already_restored')!;
             expect(restored.fn).toBe(existingFn);
         });
     });
@@ -259,7 +259,7 @@ describe('restoreJitFns', () => {
 
             addSerializedJitCaches(jitCache, pureCache);
 
-            const restored = jitUtils.getJIT('serialized_hash')!;
+            const restored = getJitUtils().getJIT('serialized_hash')!;
             expect(restored.fn).toBeDefined();
             expect(restored.createJitFn).toBeDefined();
             expect(restored.fn(true)).toBe(true);
@@ -279,7 +279,7 @@ describe('restoreJitFns', () => {
 
             addSerializedJitCaches(jitCache, pureCache);
 
-            const restored = jitUtils.getPureFn('subtract')!;
+            const restored = getJitUtils().getPureFn('subtract')!;
             expect(restored).toBeDefined();
             expect(restored(10, 3)).toBe(7);
         });
@@ -309,8 +309,8 @@ describe('restoreJitFns', () => {
 
             addSerializedJitCaches(jitCache, pureCache);
 
-            const restoredJit = jitUtils.getJIT('test_serialized')!;
-            const restoredPure = jitUtils.getPureFn('isArray')!;
+            const restoredJit = getJitUtils().getJIT('test_serialized')!;
+            const restoredPure = getJitUtils().getPureFn('isArray')!;
             expect(restoredPure).toBeDefined();
             expect(restoredJit.fn).toBeDefined();
             expect(restoredJit.createJitFn).toBeDefined();
@@ -347,8 +347,8 @@ describe('restoreJitFns', () => {
 
             addSerializedJitCaches(jitCache, pureCache);
 
-            const restoredDep = jitUtils.getJIT('dep_serialized')!;
-            const restoredParent = jitUtils.getJIT('parent_serialized')!;
+            const restoredDep = getJitUtils().getJIT('dep_serialized')!;
+            const restoredParent = getJitUtils().getJIT('parent_serialized')!;
             expect(restoredDep.fn).toBeDefined();
             expect(restoredDep.createJitFn).toBeDefined();
             expect(restoredParent.fn).toBeDefined();
@@ -376,8 +376,8 @@ describe('restoreJitFns', () => {
 
             addSerializedJitCaches(jitCache, pureCache);
 
-            const restoredDivide = jitUtils.getPureFn('divide')!;
-            const restoredHalf = jitUtils.getPureFn('half')!;
+            const restoredDivide = getJitUtils().getPureFn('divide')!;
+            const restoredHalf = getJitUtils().getPureFn('half')!;
             expect(restoredDivide).toBeDefined();
             expect(restoredHalf).toBeDefined();
             expect(restoredHalf(10)).toBe(5);
@@ -408,7 +408,7 @@ describe('restoreJitFns', () => {
             };
             const pureCache: PersistedPureFunctionsCache = {};
 
-            expect(() => restoreCompiledJitFns(jitCache, pureCache, jitUtils)).toThrow('Jit function missing not found');
+            expect(() => restoreCompiledJitFns(jitCache, pureCache, getJitUtils())).toThrow('Jit function missing not found');
         });
 
         it('should throw error when pure function is not found', () => {
@@ -429,7 +429,7 @@ describe('restoreJitFns', () => {
                 },
             };
 
-            expect(() => restoreCompiledJitFns(jitCache, pureCache, jitUtils)).toThrow('Pure function missing not found');
+            expect(() => restoreCompiledJitFns(jitCache, pureCache, getJitUtils())).toThrow('Pure function missing not found');
         });
 
         it('should throw TypedError when serialized JIT function code is invalid', () => {
@@ -448,7 +448,7 @@ describe('restoreJitFns', () => {
             };
             const pureCache: PureFnsDataCache = {};
 
-            expect(() => restoreCompiledJitFns(jitCache, pureCache, jitUtils)).toThrow();
+            expect(() => restoreCompiledJitFns(jitCache, pureCache, getJitUtils())).toThrow();
         });
 
         it('should throw TypedError when serialized pure function code is invalid', () => {
@@ -462,7 +462,7 @@ describe('restoreJitFns', () => {
                 },
             };
 
-            expect(() => restoreCompiledJitFns(jitCache, pureCache, jitUtils)).toThrow();
+            expect(() => restoreCompiledJitFns(jitCache, pureCache, getJitUtils())).toThrow();
         });
     });
 
@@ -506,8 +506,8 @@ describe('restoreJitFns', () => {
             // This will handle both persisted and serialized functions
             addAOTCaches(jitCache, pureCache);
 
-            const level1 = jitUtils.getJIT('level1_persisted')!;
-            const level2 = jitUtils.getJIT('level2_serialized')!;
+            const level1 = getJitUtils().getJIT('level1_persisted')!;
+            const level2 = getJitUtils().getJIT('level2_serialized')!;
             expect(level1.fn).toBeDefined();
             expect(level2.fn).toBeDefined();
             expect(level2.fn({name: 'test'})).toBe(true);
@@ -539,9 +539,9 @@ describe('restoreJitFns', () => {
 
             addSerializedJitCaches(jitCache, pureCache);
 
-            const restoredBase = jitUtils.getPureFn('base')!;
-            const restoredLevel1 = jitUtils.getPureFn('level1')!;
-            const restoredLevel2 = jitUtils.getPureFn('level2')!;
+            const restoredBase = getJitUtils().getPureFn('base')!;
+            const restoredLevel1 = getJitUtils().getPureFn('level1')!;
+            const restoredLevel2 = getJitUtils().getPureFn('level2')!;
             expect(restoredBase).toBeDefined();
             expect(restoredLevel1).toBeDefined();
             expect(restoredLevel2).toBeDefined();

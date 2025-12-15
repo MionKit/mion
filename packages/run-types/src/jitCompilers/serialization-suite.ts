@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DataOnly, jitUtils, RpcError} from '@mionkit/core';
+import {DataOnly, getJitUtils, RpcError} from '@mionkit/core';
 import {reflectFunction, runType} from '../createRunType';
 import {mockRegExpsList} from '../mocking/constants.mock';
 import {type RunType} from '../types';
@@ -484,7 +484,7 @@ export const SERIALIZATION_SPEC = {
                 const rt = dataOnly ? (null as any) : runType<MySerializableClass>();
                 const values = [new MySerializableClass()];
                 // Register class so it can be deserialized, this would ensure we have a reference to the class
-                jitUtils.setSerializableClass(MySerializableClass);
+                getJitUtils().setSerializableClass(MySerializableClass);
                 return {rt, values};
             },
         },
@@ -493,8 +493,8 @@ export const SERIALIZATION_SPEC = {
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<NonSerializableClass>();
                 const values = [new NonSerializableClass('John', 'Doe', 0, new Date('2000-08-06T02:13:00.000Z'))];
-                if (!jitUtils.getDeserializeFn(NonSerializableClass.name)) {
-                    jitUtils.setDeserializeFn(NonSerializableClass, (deserialized: DataOnly<NonSerializableClass>) => {
+                if (!getJitUtils().getDeserializeFn(NonSerializableClass.name)) {
+                    getJitUtils().setDeserializeFn(NonSerializableClass, (deserialized: DataOnly<NonSerializableClass>) => {
                         return new NonSerializableClass(
                             deserialized.name,
                             deserialized.surname,

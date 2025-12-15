@@ -8,7 +8,7 @@
 import {CoreOptions, AnyErrorParams, PublicRpcError, TypedErrorParams, DataOnly} from './types/general.types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from './utils';
-import {jitUtils} from './jitUtils';
+import {getJitUtils} from './jitUtils';
 
 let options: CoreOptions = {...DEFAULT_CORE_OPTIONS};
 
@@ -119,7 +119,7 @@ export function isTypedError(error: any): error is TypedError<any> {
         error['mion:isΣrrθr'] === true &&
         typeof error.message === 'string' &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        !jitUtils.hasUnknownKeysFromArray(error, ['mion:isΣrrθr', 'type', 'message'])
+        !getJitUtils().hasUnknownKeysFromArray(error, ['mion:isΣrrθr', 'type', 'message'])
     );
 }
 
@@ -134,7 +134,7 @@ export function isRpcError(error: any): error is RpcError<string> {
         (typeof error.type === 'string' || typeof error.type === 'number') &&
         (typeof error.message === 'string' || typeof error.publicMessage === 'string') &&
         (typeof error.id === 'string' || typeof error.id === 'number' || error.id === undefined) &&
-        !jitUtils.hasUnknownKeysFromArray(error, [
+        !getJitUtils().hasUnknownKeysFromArray(error, [
             'mion:isΣrrθr',
             'id',
             'statusCode',
@@ -168,11 +168,11 @@ export function registerErrorDeserializers() {
     if (!TypedError || !RpcError) return; // Not loaded yet
     errorDeserializersRegistered = true;
 
-    jitUtils.setDeserializeFn(TypedError, (data: DataOnly<any>) => {
+    getJitUtils().setDeserializeFn(TypedError, (data: DataOnly<any>) => {
         return new TypedError(data);
     });
 
-    jitUtils.setDeserializeFn(RpcError, (data: DataOnly<any>) => {
+    getJitUtils().setDeserializeFn(RpcError, (data: DataOnly<any>) => {
         return new RpcError(data);
     });
 }

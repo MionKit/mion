@@ -1,9 +1,9 @@
-import {PureFunctionClosure, CompiledPureFunction, jitUtils, PureFunction} from '@mionkit/core';
+import {PureFunctionClosure, CompiledPureFunction, getJitUtils, PureFunction} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
 
 export function getCompiledPureFn(fnOrName: string | PureFunctionClosure): CompiledPureFunction | undefined {
     const key = getPureFunctionKey(fnOrName);
-    return jitUtils.getCompiledPureFn(key);
+    return getJitUtils().getCompiledPureFn(key);
 }
 
 export function getPureFunctionKey(fnOrName: string | PureFunctionClosure): string {
@@ -14,7 +14,7 @@ export function getPureFunctionKey(fnOrName: string | PureFunctionClosure): stri
 
 export function getPureFn(fnOrName: string | PureFunctionClosure): PureFunction | undefined {
     const key = getPureFunctionKey(fnOrName);
-    return jitUtils.getPureFn(key);
+    return getJitUtils().getPureFn(key);
 }
 
 export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionClosure[]): CompiledPureFunction[] {
@@ -33,7 +33,7 @@ export function registerPureFnClosure(
     dependencies?: PureFunctionClosure[]
 ): CompiledPureFunction {
     const key = getPureFunctionKey(fnWithCtx);
-    const existing = jitUtils.getCompiledPureFn(key);
+    const existing = getJitUtils().getCompiledPureFn(key);
     if (existing && existing.createJitFn && existing.createJitFn !== fnWithCtx)
         throw new Error(`Pure function with name ${key} already exists`);
     if (existing) return existing;
@@ -42,7 +42,7 @@ export function registerPureFnClosure(
         dependencies.forEach((d) => registerPureFnClosure(d));
         dependencies.forEach((d) => compiled.dependencies.add(getPureFunctionKey(d.name)));
     }
-    jitUtils.addPureFn(compiled);
+    getJitUtils().addPureFn(compiled);
     return compiled;
 }
 

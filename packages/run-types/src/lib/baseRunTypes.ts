@@ -31,7 +31,7 @@ import {createJitCompiler, MockJitCompiler} from './jitFnCompiler';
 import {getJITFnHash} from './createJitFunction';
 import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
-import {jitUtils} from '@mionkit/core';
+import {getJitUtils} from '@mionkit/core';
 import {createUniqueHash} from './quickHash';
 import {initFormatAnnotations, getRunTypeFormat, defaultIgnoreFormatProps} from './formats';
 import {typeParamsToString} from './utils';
@@ -156,7 +156,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     createJitCompiledFunction(fnID: JitFnID, parentCop?: JitFnCompiler, opts: RunTypeOptions = {}): JitCompiledFn {
         const fnHash = getJITFnHash(fnID, this, opts);
-        const jitCompiled = jitUtils.getJIT(fnHash);
+        const jitCompiled = getJitUtils().getJIT(fnHash);
         if (jitCompiled) {
             if (getENV('DEBUG_JIT') === 'VERBOSE')
                 console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
