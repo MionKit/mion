@@ -297,6 +297,8 @@ export type ToCodeFn = (value: any) => string;
 export type ToBinaryFn = (value: any) => Uint8Array;
 export type FromBinaryFn = (buffer: Uint8Array) => any;
 
+export type FnsDataCache = Record<string, JitCompiledFnData>;
+export type PureFnsDataCache = Record<string, PureFunctionData>;
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;
 export type PersistedJitFunctionsCache = Record<string, PersistedJitFn>;

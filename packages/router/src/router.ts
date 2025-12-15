@@ -18,10 +18,10 @@ import {serializerHooks} from './routes/serializer.routes';
 import {getRouterItemId, getRoutePath, getENV} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
-import {clientRoutes} from './routes/client.routes';
+import {mionClientRoutes} from './routes/client.routes';
 import {getNotFoundExecutionPath} from './lib/notFound';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache';
-import {globalErrorRoute} from './routes/globalError.routes';
+import {mionGlobalErrorRoute} from './routes/globalError.routes';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -101,7 +101,7 @@ export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOption
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
     isRouterInitialized = true;
-    if (!routerOptions.skipClientRoutes) registerRoutes({...clientRoutes, ...globalErrorRoute});
+    if (!routerOptions.skipClientRoutes) registerRoutes({...mionClientRoutes, ...mionGlobalErrorRoute});
     return routerOptions;
 }
 

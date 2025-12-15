@@ -1,24 +1,24 @@
 const routerCache = {
-	mion_GetRemoteMethodsById: {
+	mion_GetRemoteMethodsMetadataById: {
 		paramNames: ["methodsIds", "getAllRemoteMethods"],
 		type: 1,
-		id: "mion_GetRemoteMethodsById",
+		id: "mion_GetRemoteMethodsMetadataById",
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "JtnVhp",
 		returnJitHash: "e6YoYA",
-		pointer: ["mion_GetRemoteMethodsById"],
+		pointer: ["mion_GetRemoteMethodsMetadataById"],
 		nestLevel: 0,
 	},
-	mion_GetRemoteMethodsByPath: {
+	mion_GetRemoteMethodsMetadataByPath: {
 		paramNames: ["path", "getAllRemoteMethods"],
 		type: 1,
-		id: "mion_GetRemoteMethodsByPath",
+		id: "mion_GetRemoteMethodsMetadataByPath",
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "hZzD9z",
 		returnJitHash: "e6YoYA",
-		pointer: ["mion_GetRemoteMethodsByPath"],
+		pointer: ["mion_GetRemoteMethodsMetadataByPath"],
 		nestLevel: 0,
 	},
 	"mion_GlobalError*": {

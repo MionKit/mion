@@ -23,9 +23,9 @@ export const MAX_STACK_DEPTH = 50;
  */
 export const MION_ROUTES = {
     /** get remote methods metadata by method id */
-    getRemoteMethodsById: 'mion_GetRemoteMethodsById',
+    getRemoteMethodsMetadataById: 'mion_GetRemoteMethodsMetadataById',
     /** get remote methods metadata by route path, this include all hooks in the execution path of the route. */
-    getRemoteMethodsByPath: 'mion_GetRemoteMethodsByPath',
+    getRemoteMethodsMetadataByPath: 'mion_GetRemoteMethodsMetadataByPath',
     globalError: 'mion_GlobalError*',
 } as const;
 

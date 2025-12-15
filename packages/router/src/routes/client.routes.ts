@@ -52,8 +52,8 @@ function mionGetRemoteMethodsDataById(
     const idsToReturn = shouldReturnAll
         ? getAllExecutablesIds().filter(
               (id) =>
-                  id !== MION_ROUTES.getRemoteMethodsById &&
-                  id !== MION_ROUTES.getRemoteMethodsByPath &&
+                  id !== MION_ROUTES.getRemoteMethodsMetadataById &&
+                  id !== MION_ROUTES.getRemoteMethodsMetadataByPath &&
                   !isPrivateExecutable(getAnyExecutable(id) as RemoteMethod)
           )
         : methodsIds;
@@ -111,7 +111,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
     serializeMethodDeps(method, deps, purFnDeps);
 }
 
-export const clientRoutes = {
-    [MION_ROUTES.getRemoteMethodsById]: route(mionGetRemoteMethodsDataById),
-    [MION_ROUTES.getRemoteMethodsByPath]: route(mionGetRemoteMethodsDataByPath),
+export const mionClientRoutes = {
+    [MION_ROUTES.getRemoteMethodsMetadataById]: route(mionGetRemoteMethodsDataById),
+    [MION_ROUTES.getRemoteMethodsMetadataByPath]: route(mionGetRemoteMethodsDataByPath),
 } satisfies Routes;

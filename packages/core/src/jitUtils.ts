@@ -19,11 +19,12 @@ import type {
     JITUtils,
     PersistedJitFunctionsCache,
     PersistedPureFunctionsCache,
-    JitFunctionsHashes,
+    FnsDataCache,
+    PureFnsDataCache,
 } from './types';
-import {JIT_FUNCTION_IDS, MAX_UNKNOWN_KEYS} from './constants';
+import {MAX_UNKNOWN_KEYS} from './constants';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
-import {restoreCompiledJitFns} from './jitRestoreCode';
+import {restoreCompiledJitFns} from './restoreJitFns';
 import {jitFnsCache as aotJitFnsCache, pureFnsCache as aotPureFnsCache} from '@mionkit/aot-caches';
 
 // Local caches - can be populated from AOT caches via loadJitCaches()
@@ -158,7 +159,6 @@ export const jitUtils: JITUtils = {
     getDeserializeFn(className: string): DeserializeClassFn<any> | undefined {
         return deserializeFnsRegistry.get(className);
     },
-
     // TODO: all functions bellow could be moved to pure functions instead being part of jitUtils
     getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
         const unknownKeys: StrNumber[] = [];
@@ -228,27 +228,57 @@ export const jitUtils: JITUtils = {
 
 /**
  * Adds new AOT JIT and pure functions into the respective caches.
- * First loads the caches (with fn: undefined), then restores them.
- * This ensures all dependencies are available in the global cache when createJitFn is invoked.
- * @param aotJitFnsCache
- * @param aotPureFnsCache
+ * This function is intended to be used to restore JitFunctions there were serialized to src code (AOT caches)
+ * @param aotFnsCache
+ * @param aotPureCache
  */
-export function addAOTCaches(aotJitFnsCache: PersistedJitFunctionsCache, aotPureFnsCache: PersistedPureFunctionsCache) {
+export function addAOTCaches(aotFnsCache: PersistedJitFunctionsCache, aotPureCache: PersistedPureFunctionsCache) {
+    restoreCaches(aotFnsCache, aotPureCache);
+}
+
+/**
+ * Adds new JIT and pure functions into the respective caches.
+ * This function is intended to restore JitFunctions that were serialized and deserialized over the network
+ * @param jitDataFnsCache
+ * @param pureFnsDataCache
+ */
+export function addSerializedJitCaches(jitDataFnsCache: FnsDataCache, pureFnsDataCache: PureFnsDataCache) {
+    restoreCaches(jitDataFnsCache, pureFnsDataCache);
+}
+
+/**
+ * Loads the JIT and pure function caches from @mionkit/aot-caches.
+ * This function should be called by the client package on initialization.
+ * The router package generates these caches at runtime so it does not need to call this function.
+ * If items are already in the cache, they are not overwritten.
+ */
+export function coreAOTLoadJitCaches(): void {
+    if (coreAOTCachesLoaded) return;
+    coreAOTCachesLoaded = true;
+    restoreCaches(aotJitFnsCache, aotPureFnsCache);
+}
+
+function restoreCaches(
+    fnsCache: PersistedJitFunctionsCache | FnsDataCache,
+    pureCache: PersistedPureFunctionsCache | PureFnsDataCache
+) {
     // First load the caches so all entries are available in the global cache
     // This is needed because createJitFn uses jitUtils.getJIT() to resolve dependencies
-    for (const key in aotJitFnsCache) {
+    for (const key in fnsCache) {
         if (!(key in jitFnsCache)) {
             // it will be transformed into JitCompiledFn by restoreCompiledJitFns()
-            jitFnsCache[key] = aotJitFnsCache[key] as any as JitCompiledFn;
+            // Cloning to avoid mutating the original
+            jitFnsCache[key] = {...fnsCache[key]} as JitCompiledFn;
         }
     }
-    for (const key in aotPureFnsCache) {
+    for (const key in pureCache) {
         if (!(key in pureFnsCache)) {
-            pureFnsCache[key] = aotPureFnsCache[key];
+            // Cloning to avoid mutating the original
+            pureFnsCache[key] = {...pureCache[key]} as CompiledPureFunction;
         }
     }
     // Then restore/initialize the functions (invoke createJitFn to set the fn property)
-    restoreCompiledJitFns(aotJitFnsCache, aotPureFnsCache);
+    restoreCompiledJitFns(fnsCache, pureCache);
 }
 
 /**
@@ -273,43 +303,4 @@ export function resetJitFnCaches() {
     deserializeFnsRegistry.clear();
     serializableClassRegistry.clear();
     coreAOTCachesLoaded = false;
-}
-
-/**
- * Loads the JIT and pure function caches from @mionkit/aot-caches.
- * This function should be called by the client package on initialization.
- * The router package generates these caches at runtime so it does not need to call this function.
- * If items are already in the cache, they are not overwritten.
- */
-export function coreAOTLoadJitCaches(): void {
-    if (coreAOTCachesLoaded) return;
-    coreAOTCachesLoaded = true;
-
-    // Merge AOT caches into local caches
-    for (const key in aotJitFnsCache) {
-        if (!(key in jitFnsCache)) {
-            // it will be transformed into JitCompiledFn by restoreCompiledJitFns()
-            jitFnsCache[key] = aotJitFnsCache[key] as any as JitCompiledFn;
-        }
-    }
-    for (const key in aotPureFnsCache) {
-        if (!(key in pureFnsCache)) {
-            pureFnsCache[key] = aotPureFnsCache[key];
-        }
-    }
-
-    // Restore the fn property on JIT functions
-    restoreCompiledJitFns(jitFnsCache, pureFnsCache);
-}
-
-export function getJitFnHashes(jitHash: string): JitFunctionsHashes {
-    return {
-        isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
-        typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
-        prepareForJson: `${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`,
-        restoreFromJson: `${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`,
-        jsonStringify: `${JIT_FUNCTION_IDS.jsonStringify}_${jitHash}`,
-        toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
-        fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`,
-    };
 }

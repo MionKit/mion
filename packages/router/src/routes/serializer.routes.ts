@@ -115,7 +115,7 @@ function stringifyBody(context: CallContext, executionPath: RemoteMethod[], resp
             onErrorResponse(context, err);
         }
     }
-    return `{${props.join('')}}`;
+    return `{${props.join(',')}}`;
 }
 
 function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any, opts: RouterOptions): string {

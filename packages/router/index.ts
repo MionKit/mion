@@ -21,3 +21,4 @@ export * from './src/lib/remoteMethods';
 export * from './src/lib/handlers';
 export * from './src/lib/methodsCache';
 export * from './src/routes/globalError.routes';
+export * from './src/routes/mion.routes';

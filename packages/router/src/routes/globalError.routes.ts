@@ -32,7 +32,7 @@ export function getGlobalErrorResponse(returnErr: RpcError<string>, respHeaders:
     return response;
 }
 
-export const globalErrorRoute = {
+export const mionGlobalErrorRoute = {
     [MION_ROUTES.globalError]: route(
         (): RpcError<string> => new RpcError({statusCode: 500, publicMessage: 'Unknown error', type: 'unknown-error'})
     ),
