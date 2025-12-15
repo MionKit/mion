@@ -44,7 +44,7 @@ const serializableClassRegistry = new Map<string, SerializableClass>();
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
  * !!! DO NOT MODIFY METHOD NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
  */
-export const jitUtils: JITUtils = {
+const jitUtils: JITUtils = {
     /** optimized function to convert an string into a json string wrapped in double quotes */
     asJSONString(str: string) {
         // Bellow code for 'asJSONString' is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
@@ -227,6 +227,15 @@ export const jitUtils: JITUtils = {
 };
 
 /**
+ * Returns the jitUtils instance.
+ * This function provides access to the utilities used by JIT generated functions.
+ * @returns The JITUtils instance
+ */
+export function getJitUtils(): JITUtils {
+    return jitUtils;
+}
+
+/**
  * Adds new AOT JIT and pure functions into the respective caches.
  * This function is intended to be used to restore JitFunctions there were serialized to src code (AOT caches)
  * @param aotFnsCache
@@ -280,7 +289,7 @@ function restoreCaches(
     // Then restore/initialize the functions (invoke createJitFn to set the fn property)
     // Must restore on the global caches so that when createJitFn calls utl.getJIT() or utl.getPureFn()
     // it gets the restored functions with fn property set
-    restoreCompiledJitFns(jitFnsCache, pureFnsCache, jitUtils);
+    restoreCompiledJitFns(jitFnsCache, pureFnsCache, getJitUtils());
 }
 
 /**

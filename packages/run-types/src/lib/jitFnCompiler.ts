@@ -6,7 +6,7 @@
  * ######## */
 
 import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, PureFunction, PureFunctionClosure} from '@mionkit/core';
-import {MAX_STACK_DEPTH, jitUtils} from '@mionkit/core';
+import {MAX_STACK_DEPTH, getJitUtils} from '@mionkit/core';
 import type {TypeFunction} from '@deepkit/type';
 import type {Mutable, JitFnID, StrNumber, JitCode, RunTypeOptions, JitCompilerOpts, RunTypeChildAccessor} from '../types';
 import type {BaseRunType} from './baseRunTypes';
@@ -76,7 +76,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         if (this.args.vλl) this.vλl = this.args.vλl;
         // At the time of adding this compiler to the jit cache, the fn is undefined which is technically not allowed
         // but this prevents issues with circular types and loading order of jit dependencies
-        jitUtils.addToJitCache(this as JitCompiledFn);
+        getJitUtils().addToJitCache(this as JitCompiledFn);
         validateCompilerOptions(opts);
     }
     readonly typeName: string;
@@ -225,7 +225,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         this.dependenciesSet.add(childComp.jitFnHash);
     }
     removeFromJitCache(): void {
-        jitUtils.removeFromJitCache(this as JitCompiledFn);
+        getJitUtils().removeFromJitCache(this as JitCompiledFn);
     }
     getStackTrace(): string {
         const separator = '.';
@@ -558,9 +558,9 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
 
     addPureFnDependency(fn: PureFunction | string): void {
         const fnHash = getPureFunctionKey(fn);
-        if (!jitUtils.hasPureFn(fnHash))
+        if (!getJitUtils().hasPureFn(fnHash))
             throw new Error(
-                `Pure function with name ${fnHash} can not be added as jit dependency, be sure to register the pure function first by calling jitUtils.addPureFn()`
+                `Pure function with name ${fnHash} can not be added as jit dependency, be sure to register the pure function first by calling getJitUtils().addPureFn()`
             );
         this.pureFnDependencies.add(fnHash);
     }

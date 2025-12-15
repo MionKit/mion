@@ -12,7 +12,7 @@ import {Routes} from '../types/general';
 import {HookMethod, RouteMethod} from '../types/remoteMethods';
 import {getJitFnHashes, HandlerType} from '@mionkit/core';
 import {hook, rawHook, route} from './handlers';
-import {jitUtils} from '@mionkit/core';
+import {getJitUtils} from '@mionkit/core';
 
 describe('Public Methods should', () => {
     const privateHook = hook((ctx): void => undefined);
@@ -91,17 +91,17 @@ describe('Public Methods should', () => {
         const api = registerRoutes(testR);
 
         const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash);
-        const compiledIsType = jitUtils.getJIT(hashes.isType)!;
-        const compiledRestoreFromJson = jitUtils.getJIT(hashes.restoreFromJson)!;
-        const compiledPrepareForJson = jitUtils.getJIT(hashes.prepareForJson)!;
+        const compiledIsType = getJitUtils().getJIT(hashes.isType)!;
+        const compiledRestoreFromJson = getJitUtils().getJIT(hashes.restoreFromJson)!;
+        const compiledPrepareForJson = getJitUtils().getJIT(hashes.prepareForJson)!;
 
         const isTypeClosure = new Function('utl', compiledIsType.code);
         const restoreFromJsonClosure = new Function('utl', compiledRestoreFromJson.code);
         const prepareForJsonClosure = new Function('utl', compiledPrepareForJson.code);
 
-        const isType = isTypeClosure(jitUtils);
-        const restoreFromJson = restoreFromJsonClosure(jitUtils);
-        const prepareForJson = prepareForJsonClosure(jitUtils);
+        const isType = isTypeClosure(getJitUtils());
+        const restoreFromJson = restoreFromJsonClosure(getJitUtils());
+        const prepareForJson = prepareForJsonClosure(getJitUtils());
 
         const date = new Date('2022-12-19T00:24:00.00');
 

@@ -1,4 +1,4 @@
-import {getENV, jitUtils, type JITUtils} from '@mionkit/core';
+import {getENV, getJitUtils, type JITUtils} from '@mionkit/core';
 import type {JitFnID, Mutable, RunTypeOptions} from '../types';
 import {BaseFnCompiler, JitCompilerLike, printClosure} from './jitFnCompiler';
 import type {BaseRunType} from './baseRunTypes';
@@ -25,7 +25,7 @@ export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts?: RunTypeOptions
 export function createJitFunction(comp: BaseFnCompiler): (...args: any[]) => any {
     if (comp.fn) return comp.fn;
     if (comp.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
-    if (jitUtils.hasJitFn(comp.jitFnHash)) return jitUtils.getJitFn(comp.jitFnHash);
+    if (getJitUtils().hasJitFn(comp.jitFnHash)) return getJitUtils().getJitFn(comp.jitFnHash);
     const {fnCode, fnName, contextCode} = getJitFnCode(comp);
     const {createJitFn, fn, code} = createJitFnWithContext(comp, fnName, fnCode, contextCode);
     (comp as Mutable<BaseFnCompiler>).code = code;
@@ -59,7 +59,7 @@ function createJitFnWithContext(comp: BaseFnCompiler, fnName: string, fnCode: st
         // wrapper functions that works as a factory and returns the actual jit function, context contains all constants and heavy to create objects
         const wrapperWithContext = new Function('utl', fnWithContext) as (utl: JITUtils) => (...args: any[]) => any;
         if (getENV('DEBUG_JIT')) console.log(printClosure(fnWithContext, fnName));
-        return {createJitFn: wrapperWithContext, fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
+        return {createJitFn: wrapperWithContext, fn: wrapperWithContext(getJitUtils()), code: fnWithContext}; // returns the jit internal function with the context
     } catch (e: any) {
         if (getENV('DEBUG_JIT')) {
             console.warn('Error creating jit function with context code:\n', printClosure(fnWithContext, fnName));
