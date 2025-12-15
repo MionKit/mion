@@ -9,7 +9,6 @@ import {MionHeaders} from '../types/context';
 import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from '../router';
 import {
     getRoutePath,
-    PublicRpcError,
     SerializableMethodsData,
     MethodsCache,
     MION_ROUTES,
@@ -352,8 +351,7 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse: PublicRpcError<'rpc-metadata-not-found'> = {
-            'mion:isΣrrθr': true,
+        const expectedResponse = new RpcError({
             statusCode: 404,
             type: 'rpc-metadata-not-found',
             publicMessage: 'Errors getting Remote Methods Metadata',
@@ -361,7 +359,7 @@ describe('Client Routes should', () => {
                 parse: 'Remote Method parse not found',
                 helloWorld: 'Remote Method helloWorld not found',
             },
-        };
+        });
         expect(response.body[methodsId]).toEqual(expectedResponse);
     });
 
@@ -378,12 +376,11 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse: PublicRpcError<'rpc-metadata-not-found'> = {
-            'mion:isΣrrθr': true,
+        const expectedResponse = new RpcError({
             statusCode: 404,
             type: 'rpc-metadata-not-found',
             publicMessage: 'Route /abcd not found',
-        };
+        });
         expect(response.body[routeMethodsId]).toEqual(expectedResponse);
     });
 });

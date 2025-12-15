@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions, AnyErrorParams, PublicRpcError, TypedErrorParams, DataOnly} from './types/general.types';
+import {CoreOptions, AnyErrorParams, TypedErrorParams, DataOnly, RpcErrorParams} from './types/general.types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from './utils';
 import {getJitUtils} from './jitUtils';
@@ -29,15 +29,28 @@ export class TypedError<ErrType extends string> extends Error {
     public readonly 'mion:isΣrrθr': true = true;
     /** Error type, can be used as discriminator in union types switch, etc*/
     public readonly type: ErrType;
-    /** the error message */
-    public readonly message: string;
-    public readonly name: string = 'TypedError';
+    // Note: message and name are NOT declared as properties here
+    // They are inherited from Error class and assigned in constructor
+    // This prevents them from being included in Deepkit's type reflection for JIT validation
 
     constructor({message, originalError, type}: TypedErrorParams<ErrType>) {
         const errorMessage = message || originalError?.message || '';
         super(errorMessage);
-        this.message = errorMessage;
         this.type = type;
+
+        // Set message and name as non-enumerable to exclude from JSON.stringify
+        Object.defineProperty(this, 'message', {
+            value: errorMessage,
+            writable: true,
+            enumerable: false,
+            configurable: true,
+        });
+        Object.defineProperty(this, 'name', {
+            value: 'TypedError',
+            writable: true,
+            enumerable: false,
+            configurable: true,
+        });
 
         if (originalError?.stack) {
             try {
@@ -57,13 +70,16 @@ export class TypedError<ErrType extends string> extends Error {
         }
 
         Object.setPrototypeOf(this, TypedError.prototype);
-        // sets proper json serialization for message
-        Object.defineProperty(this, 'message', {enumerable: true});
     }
 }
 
-export class RpcError<ErrType extends string, ErrData = any> extends TypedError<ErrType> {
-    public readonly name = 'RpcError';
+export class RpcError<ErrType extends string, ErrData = any>
+    extends TypedError<ErrType>
+    implements RpcErrorParams<ErrType, ErrData>
+{
+    // Note: name is NOT declared as a property here
+    // It is inherited from Error class and assigned in constructor
+    // This prevents it from being included in Deepkit's type reflection for JIT validation
     /**
      * id of the error, ideally each error should unique identifiable
      * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
@@ -87,24 +103,20 @@ export class RpcError<ErrType extends string, ErrData = any> extends TypedError<
         });
 
         const {autoGenerateErrorId} = options;
-        this.id = id || autoGenerateErrorId ? randomUUID_V7() : undefined;
+        this.id = id ?? (autoGenerateErrorId ? randomUUID_V7() : undefined);
         this.statusCode = statusCode;
         this.publicMessage = publicMessage || '';
         this.errorData = errorData;
-        Object.setPrototypeOf(this, RpcError.prototype);
-    }
 
-    /** returns an error without stack trace and message is swapped by public message */
-    toPublicError(): PublicRpcError<ErrType, ErrData> {
-        const {type, statusCode, id, errorData, publicMessage} = this;
-        return {
-            'mion:isΣrrθr': true,
-            type,
-            statusCode,
-            publicMessage,
-            ...(id && {id}),
-            ...(errorData && {errorData}),
-        };
+        // Override name to be non-enumerable
+        Object.defineProperty(this, 'name', {
+            value: 'RpcError',
+            writable: true,
+            enumerable: false,
+            configurable: true,
+        });
+
+        Object.setPrototypeOf(this, RpcError.prototype);
     }
 }
 
@@ -117,7 +129,6 @@ export function isTypedError(error: any): error is TypedError<any> {
     return (
         error &&
         error['mion:isΣrrθr'] === true &&
-        typeof error.message === 'string' &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
         !getJitUtils().hasUnknownKeysFromArray(error, ['mion:isΣrrθr', 'type', 'message'])
     );
@@ -132,8 +143,7 @@ export function isRpcError(error: any): error is RpcError<string> {
         error['mion:isΣrrθr'] === true &&
         typeof error.statusCode === 'number' &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        (typeof error.message === 'string' || typeof error.publicMessage === 'string') &&
-        (typeof error.id === 'string' || typeof error.id === 'number' || error.id === undefined) &&
+        (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
         !getJitUtils().hasUnknownKeysFromArray(error, [
             'mion:isΣrrθr',
             'id',

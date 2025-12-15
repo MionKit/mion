@@ -259,12 +259,12 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/abcd', request.body, request.headers, headersFromRecord({}), request, {});
             // not found returns a different element in body as regular hooks or routes
             const error = response.body['/abcd'];
-            expect(error).toEqual({
-                'mion:isΣrrθr': true,
+            const expected = new RpcError({
                 statusCode: 500,
                 type: 'route-not-found',
                 publicMessage: 'Route not found',
-            } satisfies PublicRpcError<'route-not-found'>);
+            });
+            expect(error).toEqual(expected);
         });
 
         it('return an error if data is missing from header', async () => {
@@ -282,13 +282,13 @@ describe('Dispatch routes', () => {
                 {}
             );
             const error = response.body?.auth;
-            expect(error).toEqual({
-                'mion:isΣrrθr': true,
+            const expected = new RpcError({
                 statusCode: 400,
                 type: 'headers-validation-error',
                 publicMessage: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),
-            } satisfies PublicRpcError<'headers-validation-error'>);
+            });
+            expect(error).toEqual(expected);
         });
 
         it('return an error if body is not the correct type', async () => {
@@ -309,12 +309,12 @@ describe('Dispatch routes', () => {
                 {}
             );
             const error = response.body['mionDeserializeRequest'];
-            expect(error).toEqual({
-                'mion:isΣrrθr': true,
+            const expected = new RpcError({
                 statusCode: 500,
                 type: 'invalid-request-body',
                 publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
-            } satisfies PublicRpcError<'invalid-request-body'>);
+            });
+            expect(error).toEqual(expected);
 
             const request2: RawRequest = {
                 headers: headersFromRecord({}),
@@ -330,12 +330,12 @@ describe('Dispatch routes', () => {
                 {}
             );
             const errorResp = response2.body['mionDeserializeRequest'];
-            expect(errorResp).toEqual({
+            expect(errorResp).toMatchObject({
                 'mion:isΣrrθr': true,
                 type: 'parsing-json-request-error',
                 statusCode: 500,
                 publicMessage: expect.stringContaining('Invalid json request body:'), // Nodejs error is slightly different depending on node version
-            } satisfies PublicRpcError<'parsing-json-request-error'>);
+            });
         });
 
         it('return an error if data is missing from body', async () => {
@@ -353,13 +353,13 @@ describe('Dispatch routes', () => {
                 {}
             );
             const error = response.body.changeUserName;
-            expect(error).toEqual({
-                'mion:isΣrrθr': true,
+            const expected = new RpcError({
                 statusCode: 400,
                 type: `validation-error`,
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [{expected: 'object', path: [0]}],
-            } satisfies PublicRpcError<'validation-error'>);
+            });
+            expect(error).toEqual(expected);
         });
 
         it("return an error if can't deserialize", async () => {
@@ -377,13 +377,13 @@ describe('Dispatch routes', () => {
                 {}
             );
             const error = response.body['getSameDate'];
-            expect(error).toEqual({
+            expect(error).toMatchObject({
                 'mion:isΣrrθr': true,
                 statusCode: 500,
                 type: 'serialization-error',
                 publicMessage: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
                 errorData: {deserializeError: `Cannot read properties of undefined (reading 'date')`},
-            } satisfies PublicRpcError<'serialization-error'>);
+            });
         });
 
         it('return an error if validation fails, incorrect type', async () => {
@@ -401,13 +401,12 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const expected: PublicRpcError<'validation-error'> = {
-                'mion:isΣrrθr': true,
+            const expected = new RpcError({
                 type: 'validation-error',
                 statusCode: 400,
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [{expected: 'string', path: [0, 'name']}],
-            };
+            });
             const error = response.body.changeUserName;
             expect(error).toEqual(expected);
         });
@@ -426,8 +425,7 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const expected: PublicRpcError<'validation-error'> = {
-                'mion:isΣrrθr': true,
+            const expected = new RpcError({
                 type: 'validation-error',
                 statusCode: 400,
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
@@ -435,7 +433,7 @@ describe('Dispatch routes', () => {
                     {expected: 'string', path: [0, 'name']},
                     {expected: 'string', path: [0, 'surname']},
                 ],
-            };
+            });
             const error = response.body.changeUserName;
             expect(error).toEqual(expected);
         });
@@ -452,12 +450,12 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/routeFail', request.body, request.headers, headersFromRecord({}), request, {});
             const error = response.body['routeFail'];
-            expect(error).toEqual({
+            expect(error).toMatchObject({
                 'mion:isΣrrθr': true,
                 statusCode: 500,
                 type: 'unknown-error',
                 publicMessage: 'Unknown error in handler "routeFail" of route execution path.',
-            } satisfies PublicRpcError<'unknown-error'>);
+            });
         });
 
         // TODO: not sure how to make serialization/validation throw an error
@@ -477,12 +475,12 @@ describe('Dispatch routes', () => {
                 {}
             );
             const error = response.body['getSameDate'];
-            expect(error).toEqual({
-                'mion:isΣrrθr': true,
+            const expected = new RpcError({
                 statusCode: 400,
                 publicMessage: `Invalid params 'getSameDate', can not validate parameters.`,
                 type: 'validation-error',
-            } satisfies PublicRpcError<'validation-error'>);
+            });
+            expect(error).toEqual(expected);
         });
     });
 

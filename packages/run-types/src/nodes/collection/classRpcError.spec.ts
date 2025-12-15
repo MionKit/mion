@@ -9,7 +9,6 @@
 // we test here as core does not have access to run-types
 
 import {RpcError} from '@mionkit/core';
-import {DataOnly} from '@mionkit/core';
 import {JitFunctions} from '../../constants.functions';
 import {runType} from '../../createRunType';
 
@@ -37,6 +36,34 @@ it('can validate RpcError class + errors', () => {
     expect(valWithErrors(error)).toEqual([]);
 });
 
+it('should ensure JSON.stringify excludes message and name from RpcError', () => {
+    const error = new RpcError({
+        statusCode: 400,
+        message: 'private error message',
+        publicMessage: 'public error message',
+        type: 'test-error',
+        id: 'error-123',
+        errorData: {field: 'value'},
+    });
+
+    // Parse to compare structure
+    const errorJson = JSON.parse(JSON.stringify(error));
+
+    // Should NOT include 'message' or 'name' in JSON.stringify output
+    expect(errorJson).not.toHaveProperty('message');
+    expect(errorJson).not.toHaveProperty('name');
+
+    // Should have the expected structure (excluding stack, message, and name)
+    expect(errorJson).toEqual({
+        'mion:isΣrrθr': true,
+        type: 'test-error',
+        statusCode: 400,
+        publicMessage: 'public error message',
+        id: 'error-123',
+        errorData: {field: 'value'},
+    });
+});
+
 it('can mock RpcError class', async () => {
     const rt = runType<RpcError<'test-error'>>();
     const mock = await rt.mock();
@@ -53,9 +80,7 @@ it('check hasUnknownKeys', () => {
         type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
-        message: 'error',
-        name: 'RpcError',
-    } satisfies DataOnly<RpcError<'test-error'>>;
+    };
     expect(hasUnknownKeys(error)).toBe(false);
     (error as any).extra = 'extra';
     expect(hasUnknownKeys(error)).toBe(true);
@@ -69,9 +94,7 @@ it('check unknownKeyErrors', () => {
         type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
-        message: 'error',
-        name: 'RpcError',
-    } satisfies DataOnly<RpcError<'test-error'>>;
+    };
     expect(unknownKeyErrors(error)).toEqual([]);
     (error as any).extra = 'extra';
     expect(unknownKeyErrors(error)).toEqual([{path: ['extra'], expected: 'never'}]);
@@ -85,9 +108,7 @@ it('check stripUnknownKeys', () => {
         type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
-        message: 'error',
-        name: 'RpcError',
-    } satisfies DataOnly<RpcError<'test-error'>>;
+    };
     (error as any).extra = 'extra';
     stripUnknownKeys(error);
     expect(error).toEqual({
@@ -95,8 +116,6 @@ it('check stripUnknownKeys', () => {
         type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
-        message: 'error',
-        name: 'RpcError',
     });
 });
 
@@ -108,9 +127,7 @@ it('check unknownKeysToUndefined', () => {
         type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
-        message: 'error',
-        name: 'RpcError',
-    } satisfies DataOnly<RpcError<'test-error'>>;
+    };
     (error as any).extra = 'extra';
     unknownKeysToUndefined(error);
     expect(error).toEqual({
@@ -118,8 +135,6 @@ it('check unknownKeysToUndefined', () => {
         type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
-        message: 'error',
-        name: 'RpcError',
         extra: undefined,
     });
 });
