@@ -31,7 +31,7 @@ it('register a group of pure functions so all declared as dependencies', async (
     };
     // reflection never tag is required so pure function do not include any artifacts from @deepkit/compiler
     /** @reflection never */
-    function pureFunctionA(jitUtils: JITUtils) {
+    function pureFunctionA(jUtils: JITUtils) {
         return function is_a(s: string, p: Params): boolean {
             if (p.isA) return s.includes('a');
             return true;
@@ -39,8 +39,8 @@ it('register a group of pure functions so all declared as dependencies', async (
     }
     // reflection never tag is required so pure function do not include any artifacts from @deepkit/compiler
     /** @reflection never */
-    function pureFunctionB(jitUtils: JITUtils) {
-        const isA = jitUtils.getPureFn('pureFunctionA') as ReturnType<typeof pureFunctionA>;
+    function pureFunctionB(jUtils: JITUtils) {
+        const isA = jUtils.getPureFn('pureFunctionA') as ReturnType<typeof pureFunctionA>;
         return function is_b(s: string, p: Params): boolean {
             const isAResult = isA(s, p);
             if (p.isB) return isAResult && s.includes('b');
