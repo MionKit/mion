@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitCompiledFunctions, MethodsCache, MethodMetadata, getJitUtils, getENV, getJitFnHashes} from '@mionkit/core';
+import {MethodsCache, MethodMetadata, getENV, getJitFunctionsFromHash} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
 import {AnyHandler} from '../types/handlers';
 import {IS_TEST_ENV} from '../constants';
@@ -42,25 +42,10 @@ function restorePersistedMethod(method: MethodMetadata, handler: AnyHandler): Re
     if (restored.paramsJitFns && restored.returnJitFns && restored.paramNames && !!restored.handler)
         return method as RemoteMethod;
     restored.handler = handler;
-    restored.paramsJitFns = restorePersistedJitFunctions(method.paramsJitHash);
-    restored.returnJitFns = restorePersistedJitFunctions(method.returnJitHash);
+    restored.paramsJitFns = getJitFunctionsFromHash(method.paramsJitHash);
+    restored.returnJitFns = getJitFunctionsFromHash(method.returnJitHash);
     if (IS_TEST_ENV) (restored as any).isRestored = true;
     return restored;
-}
-
-function restorePersistedJitFunctions(hash: string): JitCompiledFunctions {
-    const hashes = getJitFnHashes(hash);
-    const isType = getJitUtils().getJIT(hashes.isType);
-    const typeErrors = getJitUtils().getJIT(hashes.typeErrors);
-    const prepareForJson = getJitUtils().getJIT(hashes.prepareForJson);
-    const restoreFromJson = getJitUtils().getJIT(hashes.restoreFromJson);
-    const jsonStringify = getJitUtils().getJIT(hashes.jsonStringify);
-    const toBinary = getJitUtils().getJIT(hashes.toBinary);
-    const fromBinary = getJitUtils().getJIT(hashes.fromBinary);
-    if (!isType || !typeErrors || !prepareForJson || !restoreFromJson || !jsonStringify || !toBinary || !fromBinary) {
-        throw new Error(`Can't restore persisted JIT functions, some jit functions are missing: ${JSON.stringify(hashes)}`);
-    }
-    return {isType, typeErrors, prepareForJson, restoreFromJson, jsonStringify, toBinary, fromBinary};
 }
 
 function shouldCompile() {

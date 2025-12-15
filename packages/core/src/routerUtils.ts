@@ -187,27 +187,33 @@ export function getJitFnHashes(jitHash: string): JitFunctionsHashes {
 /**
  * Helper function to get JIT functions from a JIT hash
  */
-function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
+export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
     const hashes = getJitFnHashes(jitHash);
-    return {
-        isType: getJitUtils().getJIT(hashes.isType),
-        typeErrors: getJitUtils().getJIT(hashes.typeErrors),
-        prepareForJson: getJitUtils().getJIT(hashes.prepareForJson),
-        restoreFromJson: getJitUtils().getJIT(hashes.restoreFromJson),
-        jsonStringify: getJitUtils().getJIT(hashes.jsonStringify),
-        toBinary: getJitUtils().getJIT(hashes.toBinary),
-        fromBinary: getJitUtils().getJIT(hashes.fromBinary),
+    const jUtils = getJitUtils();
+    const jitFns = {
+        isType: jUtils.getJIT(hashes.isType),
+        typeErrors: jUtils.getJIT(hashes.typeErrors),
+        prepareForJson: jUtils.getJIT(hashes.prepareForJson),
+        restoreFromJson: jUtils.getJIT(hashes.restoreFromJson),
+        jsonStringify: jUtils.getJIT(hashes.jsonStringify),
+        toBinary: jUtils.getJIT(hashes.toBinary),
+        fromBinary: jUtils.getJIT(hashes.fromBinary),
     } as JitCompiledFunctions;
+    for (const key in jitFns) {
+        if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
+    }
+    return jitFns;
 }
 
 /**
  * Helper function to get header JIT functions from a JIT hash
  */
-function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiledFunctions, 'isType' | 'typeErrors'> {
+export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiledFunctions, 'isType' | 'typeErrors'> {
     const hashes = getJitFnHashes(jitHash);
+    const jUtils = getJitUtils();
     return {
-        isType: getJitUtils().getJIT(hashes.isType),
-        typeErrors: getJitUtils().getJIT(hashes.typeErrors),
+        isType: jUtils.getJIT(hashes.isType),
+        typeErrors: jUtils.getJIT(hashes.typeErrors),
     } as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
 }
 
