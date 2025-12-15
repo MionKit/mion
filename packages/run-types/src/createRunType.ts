@@ -61,6 +61,7 @@ import {ReflectionSubKind} from './constants.kind';
 import {SetRunType} from './nodes/native/set';
 import {SymbolRunType} from './nodes/atomic/symbol';
 import {NonSerializableRunType} from './nodes/native/nonSerializable';
+import {registerErrorDeserializers} from '@mionkit/core';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
     const start = Date.now();
@@ -82,6 +83,7 @@ export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn): Fun
 
 // We need to traverse all possible associated nodes to create all the runTypes
 function createRunTypes(src: SrcType): void {
+    registerErrorDeserializers();
     const stack: Type[] = [src];
 
     while (stack.length > 0) {

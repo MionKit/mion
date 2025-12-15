@@ -7,8 +7,8 @@
 
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT} from './constants';
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
-import type {MethodMetadata, MethodsCache, MethodWithJitFns} from './method.types';
-import type {JitCompiledFunctions, JitFunctionsHashes} from './types';
+import type {MethodMetadata, MethodsCache, MethodWithJitFns} from './types/method.types';
+import type {JitCompiledFunctions, JitFunctionsHashes} from './types/general.types';
 import {jitUtils} from './jitUtils';
 
 const methodsCache: MethodsCache = {};

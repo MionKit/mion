@@ -21,7 +21,7 @@ import type {
     PersistedPureFunctionsCache,
     FnsDataCache,
     PureFnsDataCache,
-} from './types';
+} from './types/general.types';
 import {MAX_UNKNOWN_KEYS} from './constants';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
 import {restoreCompiledJitFns} from './restoreJitFns';
@@ -278,7 +278,9 @@ function restoreCaches(
         }
     }
     // Then restore/initialize the functions (invoke createJitFn to set the fn property)
-    restoreCompiledJitFns(fnsCache, pureCache);
+    // Must restore on the global caches so that when createJitFn calls utl.getJIT() or utl.getPureFn()
+    // it gets the restored functions with fn property set
+    restoreCompiledJitFns(jitFnsCache, pureFnsCache, jitUtils);
 }
 
 /**

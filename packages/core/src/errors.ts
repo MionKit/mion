@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions, AnyErrorParams, PublicRpcError, DataOnly, TypedErrorParams} from './types';
+import {CoreOptions, AnyErrorParams, PublicRpcError, TypedErrorParams, DataOnly} from './types/general.types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from './utils';
 import {jitUtils} from './jitUtils';
@@ -158,10 +158,21 @@ export function isAnyError(error: any): error is TypedError<any> | RpcError<stri
     return error instanceof Error;
 }
 
-jitUtils.setDeserializeFn(TypedError, (data: DataOnly<TypedError<any>>) => {
-    return new TypedError(data);
-});
+let errorDeserializersRegistered = false;
+/**
+ * Registers error deserializers for TypedError and RpcError.
+ * This is required to automatically restore TypedError and RpcError sent over the network.
+ */
+export function registerErrorDeserializers() {
+    if (errorDeserializersRegistered) return;
+    if (!TypedError || !RpcError) return; // Not loaded yet
+    errorDeserializersRegistered = true;
 
-jitUtils.setDeserializeFn(RpcError, (data: DataOnly<RpcError<string>>) => {
-    return new RpcError(data);
-});
+    jitUtils.setDeserializeFn(TypedError, (data: DataOnly<any>) => {
+        return new TypedError(data);
+    });
+
+    jitUtils.setDeserializeFn(RpcError, (data: DataOnly<any>) => {
+        return new RpcError(data);
+    });
+}

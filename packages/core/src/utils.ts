@@ -7,7 +7,7 @@
 
 import {MAX_STACK_DEPTH} from './constants';
 import {jitUtils} from './jitUtils';
-import type {CompiledPureFunction, PureFunction} from './types';
+import type {CompiledPureFunction, PureFunction} from './types/general.types';
 
 /** Generates a random UUID V7, no hyphens are included in the uuid */
 export function randomUUID_V7(): string {

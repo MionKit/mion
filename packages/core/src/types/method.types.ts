@@ -7,7 +7,7 @@
 
 // ########################################## METHODS METADATA ##########################################
 
-import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions} from './types';
+import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions} from './general.types';
 
 /**
  * Shared interface for PublicMethod that can be used between client and server without handler dependencies
