@@ -6,22 +6,21 @@
  * ######## */
 
 import type {ResponseBody} from '@mionkit/router';
-import {ClientOptions, HookSubRequest, SubRequest, RequestBody, RequestHeaders, RouteSubRequest, RequestErrors} from './types';
+import {ClientOptions, HookSubRequest, SubRequest, RouteSubRequest, RequestErrors} from './types';
 import type {RunTypeError} from '@mionkit/core';
-import {RpcError, isRpcError, HandlerType} from '@mionkit/core';
+import {RpcError, isRpcError, HandlerType, routesCache, MION_ROUTES} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
-import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';
-import {routerCache} from '@mionkit/aot-caches';
+import {validateSubRequests} from './validation';
+import {serializeRequestBody, deserializeResponseBody} from './serializer';
 
 export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
     readonly path: string;
     readonly requestId: string;
     readonly subRequestList: {[key: string]: SubRequest<any>} = {};
     response: Response | undefined;
-    rawResponseBody: ResponseBody | undefined;
     constructor(
         public readonly options: ClientOptions,
         public readonly route?: RR,
@@ -47,9 +46,6 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
             validateSubRequests(subRequestIds, this, errors);
             if (errors.size) return Promise.reject(errors);
-
-            serializeSubRequests(subRequestIds, this, errors);
-            if (errors.size) return Promise.reject(errors);
         } catch (error: any) {
             this.onError(error, 'Error preparing request', errors);
             return Promise.reject(errors);
@@ -57,19 +53,18 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
         // make the request
         try {
-            const {headers, body} = this.getRequestData();
+            const body = serializeRequestBody(this);
+
             const url = new URL(this.path, this.options.baseURL);
             const fetchOptions: RequestInit = {
                 ...this.options.fetchOptions,
                 headers: {
                     ...this.options.fetchOptions.headers,
-                    ...headers,
                     // TODO: set headers from hook headers
                 },
-                body: JSON.stringify(body),
+                body: body,
             };
             this.response = await fetch(url, fetchOptions);
-            this.rawResponseBody = await this.response.json();
         } catch (error: any) {
             this.onError(error, 'Error executing request', errors);
             return Promise.reject(errors);
@@ -78,7 +73,21 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         // deserialize response
         try {
             // if there are any errors they are part of the deserialized body
-            const deserialized = deserializeResponseBody(this.rawResponseBody as ResponseBody);
+            const deserialized = await deserializeResponseBody(this.response);
+
+            // Check if this is a global error response
+            // Global errors occur when the request failed before reaching the router
+            if (MION_ROUTES.globalError in deserialized) {
+                const globalError = deserialized[MION_ROUTES.globalError];
+                // Apply the global error to all subrequests
+                Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
+                    methodMeta.isResolved = true;
+                    methodMeta.error = globalError as RpcError<string>;
+                    errors.set(id, globalError as RpcError<string>);
+                });
+                return Promise.reject(errors);
+            }
+
             Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
                 const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
                 methodMeta.isResolved = true;
@@ -129,8 +138,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             validateSubRequests(subRequestIds, this, errors, false);
             if (errors.size) return Promise.reject(errors);
 
-            serializeSubRequests(subRequestIds, this, errors);
-            if (errors.size) return Promise.reject(errors);
+            serializeRequestBody(this);
 
             this.persistedSubRequest(errors);
             if (errors.size) return Promise.reject(errors);
@@ -173,29 +181,8 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         );
     }
 
-    private getRequestData() {
-        const headers: RequestHeaders = {};
-        const body: RequestBody = {};
-        Object.values(this.subRequestList).forEach((subRequest) => {
-            const methodMeta = routerCache[subRequest.id];
-            if (!subRequest.serializedParams) throw new Error(`SubRequest ${subRequest.id} is not serialized.`);
-            if (!methodMeta) throw new Error(`Metadata for remote method ${subRequest.id} not found.`);
-            if (
-                methodMeta.type === HandlerType.headerHook &&
-                methodMeta.headersParam?.headerNames &&
-                methodMeta.headersParam?.headerNames.length > 0
-            ) {
-                // TODO: check if we using soft serialization in the client
-                headers[methodMeta.headersParam?.headerNames[0]] = subRequest.serializedParams[0];
-            } else {
-                body[subRequest.id] = subRequest.serializedParams;
-            }
-        });
-        return {headers, body};
-    }
-
     private getResponseValueFromBodyOrHeader(id: string, respBody: ResponseBody, headers: Headers): any {
-        const methodMeta = routerCache[id];
+        const methodMeta = routesCache.getMetadata(id);
         if (
             methodMeta &&
             methodMeta.type === HandlerType.headerHook &&
@@ -209,8 +196,8 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
     // subRequests must be already validated and serialized (so only valid requests are stored)
     private restorePersistedSubRequest(errors: RequestErrors): void {
-        const remoteRoute = routerCache[this.requestId];
-        if (!remoteRoute) {
+        const methodMeta = routesCache.getMetadata(this.requestId);
+        if (!methodMeta) {
             errors.set(
                 this.requestId,
                 new RpcError({
@@ -221,7 +208,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             );
             return;
         }
-        const missingIds = remoteRoute.hookIds?.filter((id) => !!id && this.requestId !== id) || [];
+        const missingIds = methodMeta.hookIds?.filter((id) => !!id && this.requestId !== id) || [];
         missingIds.forEach((id) => {
             const subRequest = this.subRequestList[id];
             if (subRequest) return;
@@ -249,7 +236,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     private persistedSubRequest(errors: RequestErrors): void {
         Object.keys(this.subRequestList).forEach((id) => {
             const subRequest = this.subRequestList[id];
-            const methodMeta = routerCache[id];
+            const methodMeta = routesCache.getMetadata(id);
             if (!methodMeta) throw new Error(`Remote method ${id} not found.`);
             if (methodMeta.type === HandlerType.route) {
                 errors[id] = new RpcError({
