@@ -143,7 +143,7 @@ function onErrorResponse(
 
     response.statusCode = rpcError.statusCode;
     response.hasErrors = true;
-    (response.body as Mutable<AnyObject>)[path] = rpcError.toPublicError();
+    (response.body as Mutable<AnyObject>)[path] = rpcError;
     (context.request.internalErrors as Mutable<any[]>).push(rpcError);
 }
 

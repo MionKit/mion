@@ -111,13 +111,13 @@ describe('Request and Response Headers', () => {
 
             expect(response.hasErrors).toBeTruthy();
             const error = response.body.auth;
-            expect(error).toEqual({
-                'mion:isΣrrθr': true,
+            const expected = new RpcError({
                 statusCode: 400,
                 type: 'headers-validation-error',
                 publicMessage: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),
-            } satisfies PublicRpcError<'headers-validation-error'>);
+            });
+            expect(error).toEqual(expected);
         });
 
         it('should error on empty header values', async () => {
@@ -387,13 +387,13 @@ describe('Request and Response Headers', () => {
 
             expect(response.hasErrors).toBeTruthy();
             const error = response.body.auth;
-            expect(error).toEqual({
-                'mion:isΣrrθr': true,
+            const expected = new RpcError({
                 statusCode: 400,
                 type: 'headers-validation-error',
                 publicMessage: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),
-            } satisfies PublicRpcError<'headers-validation-error'>);
+            });
+            expect(error).toEqual(expected);
         });
     });
 

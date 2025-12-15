@@ -19,7 +19,7 @@ import {Routes} from '../types/general';
  * @returns
  */
 export function getGlobalErrorResponse(returnErr: RpcError<string>, respHeaders: MionHeaders): MionResponse {
-    const body = {[MION_ROUTES.globalError]: returnErr.toPublicError()};
+    const body = {[MION_ROUTES.globalError]: returnErr};
     respHeaders.set('content-type', 'application/json; charset=utf-8');
     const response: Mutable<MionResponse> = {
         statusCode: returnErr.statusCode,
