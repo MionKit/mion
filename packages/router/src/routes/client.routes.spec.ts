@@ -19,7 +19,7 @@ import {
 } from '@mionkit/core';
 import {hook, rawHook, route} from '../lib/handlers';
 import {Routes} from '../types/general';
-import {clientRoutes} from './client.routes';
+import {mionClientRoutes} from './client.routes';
 import {headersFromRecord} from '../lib/headers';
 import {dispatchRoute} from '../dispatch';
 import {runType, JitFunctions} from '@mionkit/run-types';
@@ -222,8 +222,8 @@ describe('Client Routes should', () => {
         },
     } satisfies MethodsCache;
 
-    const methodsId = MION_ROUTES.getRemoteMethodsById;
-    const routeMethodsId = MION_ROUTES.getRemoteMethodsByPath;
+    const methodsId = MION_ROUTES.getRemoteMethodsMetadataById;
+    const routeMethodsId = MION_ROUTES.getRemoteMethodsMetadataByPath;
     const methodsPath = getRoutePath([methodsId], {prefix: '', suffix: ''});
     const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
     const jitFnRt = runType<JitCompiledFnData>();
@@ -235,7 +235,7 @@ describe('Client Routes should', () => {
     it('get Remote Hooks Only info from id', async () => {
         initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
-        registerRoutes(clientRoutes);
+        registerRoutes(mionClientRoutes);
 
         const methodIdList = ['auth', 'last']; // all public hooks
         const request: RawRequest = {
@@ -261,7 +261,7 @@ describe('Client Routes should', () => {
     it('get Remote Route info from id, it should also return the hooks from the execution path', async () => {
         initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
-        registerRoutes(clientRoutes);
+        registerRoutes(mionClientRoutes);
 
         const methodIdList = ['users/getUser']; // all public methods
         const request: RawRequest = {
@@ -289,7 +289,7 @@ describe('Client Routes should', () => {
     it('get All Remote Methods info when getAllRemoteMethods is true', async () => {
         initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
-        registerRoutes(clientRoutes);
+        registerRoutes(mionClientRoutes);
 
         const methodIdList = ['auth']; // all public methods
         const getAllRemoteMethods = true;
@@ -314,7 +314,7 @@ describe('Client Routes should', () => {
     it('get Remote Methods info from route path', async () => {
         initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
-        registerRoutes(clientRoutes);
+        registerRoutes(mionClientRoutes);
 
         const request: RawRequest = {
             headers: headersFromRecord({}),
@@ -341,7 +341,7 @@ describe('Client Routes should', () => {
     it('fail when remote method is private or not defined', async () => {
         initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
-        registerRoutes(clientRoutes);
+        registerRoutes(mionClientRoutes);
 
         const methodIdList = ['parse', 'helloWorld']; // all public methods
         const request: RawRequest = {
@@ -368,7 +368,7 @@ describe('Client Routes should', () => {
     it('fail when route path is not defined', async () => {
         initRouter({contextDataFactory: getSharedData});
         registerRoutes(routes);
-        registerRoutes(clientRoutes);
+        registerRoutes(mionClientRoutes);
 
         const request: RawRequest = {
             headers: headersFromRecord({}),
@@ -402,7 +402,7 @@ describe('Restore Client Routes jit functions', () => {
         },
     } satisfies Routes;
 
-    const routeMethodsId = MION_ROUTES.getRemoteMethodsByPath;
+    const routeMethodsId = MION_ROUTES.getRemoteMethodsMetadataByPath;
     const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
 
     afterEach(() => resetRouter());
@@ -410,7 +410,7 @@ describe('Restore Client Routes jit functions', () => {
     it('should restore jit functions', async () => {
         initRouter();
         registerRoutes(routes);
-        registerRoutes(clientRoutes);
+        registerRoutes(mionClientRoutes);
 
         const request: RawRequest = {
             headers: headersFromRecord({}),

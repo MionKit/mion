@@ -7,7 +7,7 @@
 
 // ########################################## METHODS METADATA ##########################################
 
-import {JitCompiledFnData, PureFunctionData, type JitCompiledFunctions} from './types';
+import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions} from './types';
 
 /**
  * Shared interface for PublicMethod that can be used between client and server without handler dependencies
@@ -50,8 +50,8 @@ export interface HeadersMetaData {
 
 export interface SerializableMethodsData {
     methods: MethodsCache;
-    deps: Record<string, JitCompiledFnData>;
-    purFnDeps: Record<string, PureFunctionData>;
+    deps: FnsDataCache;
+    purFnDeps: PureFnsDataCache;
 }
 
 export interface HeadersMethodWithJitFns extends HeadersMetaData {

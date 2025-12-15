@@ -359,7 +359,7 @@ const jitFnsCache = {
 	},
 	is_tP7Vvb: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "PureFnsDataCache",
 		fnID: "is",
 		jitFnHash: "is_tP7Vvb",
 		args: { vλl: "v" },
@@ -527,7 +527,7 @@ const jitFnsCache = {
 	},
 	is_tf5dpV: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "FnsDataCache",
 		fnID: "is",
 		jitFnHash: "is_tf5dpV",
 		args: { vλl: "v" },
@@ -769,7 +769,7 @@ const jitFnsCache = {
 	},
 	tj_tP7Vvb: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "PureFnsDataCache",
 		fnID: "tj",
 		jitFnHash: "tj_tP7Vvb",
 		args: { vλl: "v" },
@@ -876,7 +876,7 @@ const jitFnsCache = {
 	},
 	tj_tf5dpV: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "FnsDataCache",
 		fnID: "tj",
 		jitFnHash: "tj_tf5dpV",
 		args: { vλl: "v" },
@@ -954,7 +954,7 @@ const jitFnsCache = {
 	},
 	fj_tP7Vvb: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "PureFnsDataCache",
 		fnID: "fj",
 		jitFnHash: "fj_tP7Vvb",
 		args: { vλl: "v" },
@@ -1061,7 +1061,7 @@ const jitFnsCache = {
 	},
 	fj_tf5dpV: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "FnsDataCache",
 		fnID: "fj",
 		jitFnHash: "fj_tf5dpV",
 		args: { vλl: "v" },
@@ -1327,7 +1327,7 @@ const jitFnsCache = {
 	},
 	js_tP7Vvb: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "PureFnsDataCache",
 		fnID: "js",
 		jitFnHash: "js_tP7Vvb",
 		args: { vλl: "v" },
@@ -1535,7 +1535,7 @@ const jitFnsCache = {
 	},
 	js_tf5dpV: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "FnsDataCache",
 		fnID: "js",
 		jitFnHash: "js_tf5dpV",
 		args: { vλl: "v" },
@@ -1929,7 +1929,7 @@ const jitFnsCache = {
 	},
 	tBi_tf5dpV: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "FnsDataCache",
 		fnID: "tBi",
 		jitFnHash: "tBi_tf5dpV",
 		args: { sεr: "Ser", vλl: "v" },
@@ -2027,7 +2027,7 @@ const jitFnsCache = {
 	},
 	tBi_tP7Vvb: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "PureFnsDataCache",
 		fnID: "tBi",
 		jitFnHash: "tBi_tP7Vvb",
 		args: { sεr: "Ser", vλl: "v" },
@@ -2313,7 +2313,7 @@ const jitFnsCache = {
 	},
 	fBi_tf5dpV: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "FnsDataCache",
 		fnID: "fBi",
 		jitFnHash: "fBi_tf5dpV",
 		args: { dεs: "Des", vλl: "ret" },
@@ -2413,7 +2413,7 @@ const jitFnsCache = {
 	},
 	fBi_tP7Vvb: {
 		isNoop: false,
-		typeName: "Record",
+		typeName: "PureFnsDataCache",
 		fnID: "fBi",
 		jitFnHash: "fBi_tP7Vvb",
 		args: { dεs: "Des", vλl: "ret" },
