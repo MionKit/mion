@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-import type {MIME_TYPES} from './constants';
+import type {MIME_TYPES} from '../constants';
 
 /**
  * Interface defining the shape of jitUtils
@@ -297,12 +297,21 @@ export type ToCodeFn = (value: any) => string;
 export type ToBinaryFn = (value: any) => Uint8Array;
 export type FromBinaryFn = (buffer: Uint8Array) => any;
 
-export type FnsDataCache = Record<string, JitCompiledFnData>;
-export type PureFnsDataCache = Record<string, PureFunctionData>;
+// ############################# JIT CACHES ###################################
+
+// jit and pure functions at runtime, contains both createJitFn and fn
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;
+
+// jit and pure functions persisted to src code, contains createJitFn but not fn
+// this allow usage in environments that can not use eval or new Function()
 export type PersistedJitFunctionsCache = Record<string, PersistedJitFn>;
 export type PersistedPureFunctionsCache = Record<string, PersistedPureFunction>;
+
+// jit and pure functions data, does not contain createJitFn or fn
+// this is used to serialize over the network, but requires using new Function() to restore functionality
+export type FnsDataCache = Record<string, JitCompiledFnData>;
+export type PureFnsDataCache = Record<string, PureFunctionData>;
 
 // ########################################### JIT SRC CODE ####################################
 

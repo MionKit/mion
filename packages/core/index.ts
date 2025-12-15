@@ -5,13 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * from './src/types';
-export * from './src/method.types';
+export * from './src/types/general.types';
+export * from './src/types/method.types';
 export * from './src/binarySerializer';
 export * from './src/constants';
 export * from './src/errors';
 export * from './src/jitUtils';
 export * from './src/routerUtils';
 export * from './src/utils';
-export * from './src/jitDeserialize';
-export * from './src/restoreJitFns';

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions} from './types';
+import {CoreOptions} from './types/general.types';
 
 export const DEFAULT_CORE_OPTIONS: CoreOptions = {
     /** automatically generate and uuid */

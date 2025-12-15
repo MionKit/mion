@@ -18,7 +18,7 @@ import {
     ClientHooks,
 } from './types';
 import type {RemoteApi} from '@mionkit/router';
-import {RpcError} from '@mionkit/core';
+import {registerErrorDeserializers, RpcError} from '@mionkit/core';
 import {getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
 import type {RunTypeError} from '@mionkit/core';
@@ -26,6 +26,7 @@ import type {RunTypeError} from '@mionkit/core';
 export function initClient<RM extends RemoteApi>(
     options: InitOptions
 ): {client: MionClient; routes: ClientRoutes<RM>; hooks: ClientHooks<RM>} {
+    registerErrorDeserializers();
     const clientOptions = {
         ...DEFAULT_PREFILL_OPTIONS,
         ...options,

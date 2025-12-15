@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {jitUtils} from './jitUtils';
 import type {
     Mutable,
     CompiledPureFunction,
@@ -20,8 +19,8 @@ import type {
     PureFunctionData,
     PersistedJitFn,
     PureFunctionClosure,
-} from './types';
-import {RpcError} from './errors';
+} from './types/general.types';
+import {TypedError} from './errors';
 
 /**
  * Restores the full state of a persisted/serialized jit functions.
@@ -33,46 +32,48 @@ import {RpcError} from './errors';
  * */
 export function restoreCompiledJitFns(
     jitCache: PersistedJitFunctionsCache | FnsDataCache,
-    pureCache: PersistedPureFunctionsCache | PureFnsDataCache
+    pureCache: PersistedPureFunctionsCache | PureFnsDataCache,
+    jitUtils: JITUtils
 ): void {
     const keysPureFns = Object.keys(pureCache);
-    keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, key));
+    keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, key, jitUtils));
     const keysJitFns = Object.keys(jitCache);
-    keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key));
+    keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key, jitUtils));
 }
 
-function restoreCompiledPureFn(pureCache: PersistedPureFunctionsCache | PureFnsDataCache, fnName: string) {
+function restoreCompiledPureFn(pureCache: PersistedPureFunctionsCache | PureFnsDataCache, fnName: string, jitUtils: JITUtils) {
     const pureCompiled = pureCache[fnName];
     if (!pureCompiled) throw new Error(`Pure function ${fnName} not found`);
     if ((pureCompiled as CompiledPureFunction).fn) return;
     const dependencies = pureCompiled.dependencies;
-    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName));
+    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName, jitUtils));
     // persisted pure functions (AOT code caches) have the createJitFn but not the fn
     if ((pureCompiled as PersistedPureFunction).createJitFn) {
         (pureCompiled as any as Mutable<CompiledPureFunction>).fn = (pureCompiled as PersistedPureFunction).createJitFn(jitUtils);
         return;
     }
     // serialized pure functions (network sent) do not contains neither createJitFn nor fn
-    restorePureFunction(pureCompiled);
+    restorePureFunction(pureCompiled, jitUtils);
 }
 
 function restoreCompiledJitFn(
     jitCache: PersistedJitFunctionsCache | FnsDataCache,
     pureCache: PersistedPureFunctionsCache | PureFnsDataCache,
-    fnHash: string
+    fnHash: string,
+    jitUtils: JITUtils
 ) {
     const jitCompiled = jitCache[fnHash];
     if (!jitCompiled) throw new Error(`Jit function ${fnHash} not found`);
     if ((jitCompiled as JitCompiledFn).fn) return;
     const pureDependencies = jitCompiled.pureFnDependencies;
-    pureDependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName));
+    pureDependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName, jitUtils));
     const dependencies = jitCompiled.dependenciesSet;
-    dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep));
+    dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep, jitUtils));
     if ((jitCompiled as PersistedJitFn).createJitFn) {
         (jitCompiled as any as Mutable<JitCompiledFn>).fn = (jitCompiled as PersistedJitFn).createJitFn(jitUtils);
         return;
     }
-    restoreCreateJitFn(jitCompiled);
+    restoreCreateJitFn(jitCompiled, jitUtils);
 }
 
 /**
@@ -83,7 +84,7 @@ function restoreCompiledJitFn(
  * @param fnData - The serialized function data containing code, args, and metadata
  * @returns A JitCompiledFn with both the createJitFn closure and the executed fn
  */
-function restoreCreateJitFn(fnData: JitCompiledFnData): JitCompiledFn {
+function restoreCreateJitFn(fnData: JitCompiledFnData, jitUtils: JITUtils): JitCompiledFn {
     const fnName = fnData.jitFnHash;
     // fnData.code already contains the complete function with context (e.g., "const x = ...; return function fnName(args){...}")
     const fnWithContext = fnData.code;
@@ -97,15 +98,9 @@ function restoreCreateJitFn(fnData: JitCompiledFnData): JitCompiledFn {
         jitFn.fn = fn;
         return jitFn;
     } catch (e: any) {
-        throw new RpcError({
-            statusCode: 500,
+        throw new TypedError({
             type: 'jit-fn-restore-error',
-            publicMessage: `Failed to restore JIT function ${fnName}`,
-            errorData: {
-                message: e?.message,
-                code: fnWithContext,
-                jitFnData: fnData,
-            },
+            message: `Failed to restore JIT function ${fnName}: ${e?.message}`,
         });
     }
 }
@@ -118,7 +113,7 @@ function restoreCreateJitFn(fnData: JitCompiledFnData): JitCompiledFn {
  * @param pureFnData - The serialized pure function data containing code and metadata
  * @returns A CompiledPureFunction with both the createJitFn closure and the executed fn
  */
-function restorePureFunction(pureFnData: PureFunctionData): CompiledPureFunction {
+function restorePureFunction(pureFnData: PureFunctionData, jitUtils: JITUtils): CompiledPureFunction {
     const fnName = pureFnData.pureFnHash;
     // pureFnData.code already contains the complete function with context
     const fnWithContext = pureFnData.code;
@@ -132,15 +127,9 @@ function restorePureFunction(pureFnData: PureFunctionData): CompiledPureFunction
         pureFn.fn = fn;
         return pureFn;
     } catch (e: any) {
-        throw new RpcError({
-            statusCode: 500,
+        throw new TypedError({
             type: 'pure-fn-restore-error',
-            publicMessage: `Failed to restore pure function ${fnName}`,
-            errorData: {
-                message: e?.message,
-                code: fnWithContext,
-                pureFnData: pureFnData,
-            },
+            message: `Failed to restore pure function ${fnName}: ${e?.message}`,
         });
     }
 }
