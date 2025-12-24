@@ -38,10 +38,6 @@ export interface RawMethod<H extends RawHookHandler = any> extends RemoteMethod<
     };
 }
 
-export interface NotFoundMethod extends RemoteMethod {
-    is404: true;
-}
-
 export type RouteOptions = Prettify<Partial<Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn'>>>;
 export type HookOptions = Prettify<
     Partial<Pick<HookMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>>
@@ -54,5 +50,4 @@ export type RawHookOptions = Prettify<Partial<Pick<RawMethod['options'], 'descri
 export interface MethodsExecutionList {
     routeIndex: number;
     methods: RemoteMethod[];
-    isNotFound?: true;
 }

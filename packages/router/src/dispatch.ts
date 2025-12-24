@@ -9,9 +9,9 @@ import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody
 import {type RouterOptions} from './types/general';
 import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
-import {getNotFoundExecutionPath} from './lib/notFound';
-import {Mutable, AnyObject, createDataViewDeserializer, isAnyError, MION_ROUTES} from '@mionkit/core';
+import {Mutable, AnyObject, createDataViewDeserializer, MION_ROUTES, isAnyError} from '@mionkit/core';
 import {RpcError, HandlerType, StatusCodes} from '@mionkit/core';
+import {NOT_FOUND_PATH} from './constants';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -37,7 +37,17 @@ export async function dispatchRoute<Req, Resp>(
         // we should keep it as small as possible
         const context = createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
 
-        const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
+        let executionPath = getRouteExecutionPath(context.path);
+        if (!executionPath) {
+            executionPath = getRouteExecutionPath(NOT_FOUND_PATH);
+            if (!executionPath) {
+                throw new RpcError({
+                    statusCode: StatusCodes.UNEXPECTED_ERROR,
+                    type: 'not-found',
+                    publicMessage: 'Not-found route is not registered. This should never happen.',
+                });
+            }
+        }
         await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
         return context.response;
     } catch (err: any | RpcError<string> | Error) {
@@ -65,6 +75,7 @@ export function createCallContext(
             body: {},
             binDeserializer:
                 bodyType === 'B' ? createDataViewDeserializer(transformedPath, reqRawBody as ArrayBuffer) : undefined,
+            unexpectedErrors: undefined,
         },
         response: {
             statusCode: StatusCodes.OK,
@@ -101,52 +112,38 @@ async function runExecutionPath(
             request.unexpectedErrors &&
             Object.keys(request.unexpectedErrors).length > 0
         ) {
-            console.log('Adding unexpectedErrors to response body before serializer');
             (response.body as Mutable<AnyObject>)[MION_ROUTES.unexpectedError] = request.unexpectedErrors;
-            console.log('response.body after adding:', response.body);
         }
 
         try {
             const methodCaller = executable.methodCaller || getMethodCaller(executable);
             // runRawHook , runHeaderHook & runRouteOrHook must always accept the same parameters in the same order
             const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+            if (result === undefined) continue;
+            if (isAnyError(result)) onErrorResponse(context, executable, result);
 
-            // handle result
-            if (!!result && isAnyError(result)) {
-                // todo, we might need to call isType error return to check if is expected or not
-                const isExpected = executable.type !== HandlerType.rawHook;
-                onErrorResponse(context, executionPath, executable, result, isExpected);
-            }
             // TODO: when returning headerList on an union there could be another types that are array but not HeaderList
             // Not sure we this scenario can be easily fixed maybe returning a class or something that adds a unique prop to the returned data
-            else if (!!result && executable.headersReturn && Array.isArray(result)) {
+            if (executable.headersReturn && Array.isArray(result)) {
                 executable.headersReturn.headerNames.forEach((name: string, i: string | number) => {
                     const headerValue = result[i];
                     if (!headerValue) return;
                     response.headers.set(name, headerValue);
                 });
-            } else if (executable.hasReturnData && result !== undefined) {
+            } else if (executable.hasReturnData) {
                 (response.body as Mutable<AnyObject>)[executable.id] = result;
             }
         } catch (err: any | RpcError<string> | Error) {
-            const isExpected = false;
-            onErrorResponse(context, executionPath, executable, err, isExpected);
+            onErrorResponse(context, executable, err);
         }
     }
 
     return context.response;
 }
 
-function onErrorResponse(
-    context: CallContext,
-    executionPath: MethodsExecutionList,
-    executable: RemoteMethod,
-    err: any | RpcError<string> | Error,
-    isExpected = true
-) {
+function onErrorResponse(context: CallContext, executable: RemoteMethod, err: any | RpcError<string> | Error) {
     const response = context.response as Mutable<MionResponse>;
-    const isNotFoundRoute = executionPath.isNotFound && executable.type === HandlerType.route;
-    const path = isNotFoundRoute ? context.path : executable.id;
+    const path = executable.id;
     const rpcError =
         err instanceof RpcError
             ? err
@@ -160,15 +157,12 @@ function onErrorResponse(
     response.statusCode = rpcError.statusCode;
     response.hasErrors = true;
 
-    if (isExpected && !isNotFoundRoute) {
-        // Expected errors (returned from handlers) are added to response body at the route path
-        // They will be serialized as part of the union return type
-        (response.body as Mutable<AnyObject>)[path] = rpcError;
-        return;
-    }
+    // Expected errors have statusCode === APPLICATION_ERROR (strongly typed, part of return type union)
+    // Unexpected errors have statusCode !== APPLICATION_ERROR (validation, serialization, not-found, etc.)
+    const isExpected = rpcError.statusCode === StatusCodes.APPLICATION_ERROR;
+    if (isExpected) return; // Expected errors are added to response.body at line 130
 
-    // Unexpected errors (thrown exceptions) are stored in unexpectedErrors
-    // This allows proper serialization using JIT functions for Record<string, RpcError<string, any>>
+    // Unexpected errors are stored in unexpectedErrors for serialization
     const unexpectedErrors = context.request.unexpectedErrors || ({} as Record<string, RpcError<string>>);
     unexpectedErrors[path] = rpcError;
     (context.request as Mutable<MionRequest>).unexpectedErrors = unexpectedErrors;
@@ -236,7 +230,7 @@ function deserializeBodyParams(request: MionRequest, executable: RemoteMethod): 
 function validateParametersOrThrow(params: any[], executable: RemoteMethod): void {
     if (!executable.paramsJitFns.isType.fn(params)) {
         throw new RpcError({
-            statusCode: StatusCodes.APPLICATION_ERROR,
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'validation-error',
             publicMessage: `Invalid params in '${executable.id}', validation failed.`,
             errorData: executable.paramsJitFns.typeErrors.fn(params),
@@ -247,7 +241,7 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
 function validateHeaderParamsOrThrow(headers: string[], executable: HeaderMethod): void {
     if (!executable.headersParam.jitFns.isType.fn(headers)) {
         throw new RpcError({
-            statusCode: StatusCodes.APPLICATION_ERROR,
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'headers-validation-error',
             publicMessage: `Invalid headers in '${executable.id}', validation failed.`,
             errorData: executable.headersParam.jitFns.typeErrors.fn(headers),

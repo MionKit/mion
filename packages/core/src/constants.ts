@@ -30,6 +30,8 @@ export const MION_ROUTES = {
     globalError: '@mionkit/globalError',
     /** unexpected error route for errors thrown during route execution that are not part of the return type union */
     unexpectedError: '@mionkit/unexpectedError',
+    /** not-found route for when a requested route doesn't exist */
+    notFound: '@mionkit/notFound',
 } as const;
 
 /**

@@ -6,7 +6,7 @@
  * ######## */
 
 import {RouterOptions} from './types/general';
-import {getENV} from '@mionkit/core';
+import {getENV, MION_ROUTES, PATH_SEPARATOR} from '@mionkit/core';
 
 export const IS_TEST_ENV = getENV('JEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
 
@@ -36,3 +36,4 @@ export const DEFAULT_ROUTE_OPTIONS = {
 
 export const MAX_ROUTE_NESTING = 10;
 export const NOT_FOUND_HOOK_NAME = '_miΦn404NΦtfΦundHΦΦk_';
+export const NOT_FOUND_PATH = `${PATH_SEPARATOR}${MION_ROUTES.notFound}`;

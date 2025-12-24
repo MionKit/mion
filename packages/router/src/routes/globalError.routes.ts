@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, MION_ROUTES, Mutable} from '@mionkit/core';
+import {RpcError, MION_ROUTES, Mutable, StatusCodes} from '@mionkit/core';
 import type {MionHeaders, MionResponse, CallContext} from '../types/context';
 import {route} from '../lib/handlers';
 import type {Routes} from '../types/general';
@@ -45,5 +45,21 @@ export function getGlobalErrorResponse(returnErr: RpcError<string>, respHeaders:
 export const mionUnexpectedErrorRoute = {
     [MION_ROUTES.unexpectedError]: route((ctx: CallContext): Record<string, RpcError<string>> => {
         return ctx.request.unexpectedErrors || {};
+    }),
+} satisfies Routes;
+
+/**
+ * Route that handles not-found scenarios when a requested route doesn't exist.
+ * This route is registered as an internal mion route.
+ * The route is called by dispatch logic when no matching route is found.
+ * Throws an RpcError that will be caught and stored in unexpectedErrors by the router.
+ */
+export const mionNotFoundRoute = {
+    [MION_ROUTES.notFound]: route((ctx: CallContext): RpcError<'route-not-found'> => {
+        return new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            publicMessage: `Route not found`,
+            type: 'route-not-found',
+        });
     }),
 } satisfies Routes;

@@ -146,7 +146,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            hookIds: ['auth', 'last', '@mionkit/unexpectedError'],
+            hookIds: ['auth', 'last'],
             pointer: ['users', 'getUser'],
         },
         'users/setUser': {
@@ -158,7 +158,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            hookIds: ['auth', 'last', '@mionkit/unexpectedError'],
+            hookIds: ['auth', 'last'],
             pointer: ['users', 'setUser'],
         },
         'users/pets/getUserPet': {
@@ -170,7 +170,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            hookIds: ['auth', 'last', '@mionkit/unexpectedError'],
+            hookIds: ['auth', 'last'],
             pointer: ['users', 'pets', 'getUserPet'],
         },
         'pets/getPet': {
@@ -182,7 +182,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            hookIds: ['auth', 'last', '@mionkit/unexpectedError'],
+            hookIds: ['auth', 'last'],
             pointer: ['pets', 'getPet'],
         },
         'pets/setPet': {
@@ -194,7 +194,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            hookIds: ['auth', 'last', '@mionkit/unexpectedError'],
+            hookIds: ['auth', 'last'],
             pointer: ['pets', 'setPet'],
         },
         auth: {
@@ -218,17 +218,6 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: [],
             pointer: ['last'],
-        },
-        '@mionkit/unexpectedError': {
-            type: HandlerType.hook,
-            id: '@mionkit/unexpectedError',
-            isAsync: false,
-            hasReturnData: true,
-            nestLevel: 0,
-            paramsJitHash: expect.any(String),
-            returnJitHash: expect.any(String),
-            paramNames: [],
-            pointer: ['@mionkit/unexpectedError'],
         },
     } satisfies MethodsCache;
 
@@ -286,7 +275,6 @@ describe('Client Routes should', () => {
             auth: methodsMetadata.auth,
             'users/getUser': methodsMetadata['users/getUser'],
             last: methodsMetadata['last'],
-            '@mionkit/unexpectedError': methodsMetadata['@mionkit/unexpectedError'],
         };
         const methodsData = response.body[methodsId] as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
