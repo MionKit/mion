@@ -106,7 +106,7 @@ describe('node http router should', () => {
             statusCode: 400,
             errorData: expect.anything(),
         };
-        expect(reply).toEqual({getDate: expectedError});
+        expect(reply).toEqual({'@mionkit/unexpectedError': {getDate: expectedError}});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('191');
@@ -160,7 +160,7 @@ describe('node http router should', () => {
             statusCode: 500,
             type: 'request-payload-too-large',
         };
-        expect(reply).toEqual({'mion_GlobalError*': expectedError});
+        expect(reply).toEqual({'@mionkit/unexpectedError': {'@mionkit/globalError': expectedError}});
         expect(headers['x-app-name']).toEqual('MyApp');
         expect(headers['x-instance-id']).toEqual('3089');
         expect(headers['connection']).toEqual('close');
@@ -189,6 +189,6 @@ describe('node http router should', () => {
         const smallServer = await startNodeServer();
         const persistedMethods = getPersistedMethods();
         expect(smallServer.listening).toBe(false);
-        expect(Object.keys(persistedMethods)).toEqual(['changeUserName', 'getDate', 'updateHeaders']);
+        expect(Object.keys(persistedMethods)).toEqual(['@mionkit/unexpectedError', 'changeUserName', 'getDate', 'updateHeaders']);
     });
 });

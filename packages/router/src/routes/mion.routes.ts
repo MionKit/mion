@@ -1,11 +1,11 @@
 import {Routes} from '../types/general';
 import {PublicApi} from '../types/publicMethods';
 import {mionClientRoutes} from './client.routes';
-import {mionGlobalErrorRoute} from './globalError.routes';
+import {mionUnexpectedErrorRoute} from './globalError.routes';
 
-const mionRoutes = {
+export const mionRoutes = {
     ...mionClientRoutes,
-    ...mionGlobalErrorRoute,
+    ...mionUnexpectedErrorRoute,
 } satisfies Routes;
 
 export type MionRoutes = PublicApi<typeof mionRoutes>;

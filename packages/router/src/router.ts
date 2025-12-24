@@ -18,10 +18,9 @@ import {serializerHooks} from './routes/serializer.routes';
 import {getRouterItemId, getRoutePath, getENV} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
-import {mionClientRoutes} from './routes/client.routes';
 import {getNotFoundExecutionPath} from './lib/notFound';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache';
-import {mionGlobalErrorRoute} from './routes/globalError.routes';
+import {mionRoutes} from './routes/mion.routes';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -44,7 +43,9 @@ let allExecutablesIds: string[] | undefined;
 
 /** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
 const defaultStartHooks = {mionDeserializeRequest: serializerHooks.mionDeserializeRequest};
-const defaultEndHooks = {mionSerializeResponse: serializerHooks.mionSerializeResponse};
+const defaultEndHooks = {
+    mionSerializeResponse: serializerHooks.mionSerializeResponse,
+};
 let startHooksDef: HooksCollection = {...defaultStartHooks};
 let endHooksDef: HooksCollection = {...defaultEndHooks};
 export let startHooks: RemoteMethod[] = [];
@@ -101,7 +102,7 @@ export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOption
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
     isRouterInitialized = true;
-    if (!routerOptions.skipClientRoutes) registerRoutes({...mionClientRoutes, ...mionGlobalErrorRoute});
+    if (!routerOptions.skipClientRoutes) registerRoutes({...mionRoutes});
     return routerOptions;
 }
 
