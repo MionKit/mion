@@ -9,9 +9,9 @@ import type {MionResponse, MionRequest, CallContext} from '../types/context';
 import type {RouterOptions} from '../types/general';
 import type {HooksCollection, MayReturnError} from '../types/publicMethods';
 import type {ResponseBody} from '../types/context';
-import {AnyObject, Mutable} from '@mionkit/core';
+import {AnyObject, Mutable, MION_ROUTES} from '@mionkit/core';
 import {rawHook} from '../lib/handlers';
-import {getRouteExecutableFromPath, getRouteExecutionPath} from '../router';
+import {getRouteExecutableFromPath, getRouteExecutionPath, getAnyExecutable} from '../router';
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
@@ -115,6 +115,24 @@ function stringifyBody(context: CallContext, executionPath: RemoteMethod[], resp
             onErrorResponse(context, err);
         }
     }
+
+    // Serialize unexpectedErrors if they exist
+    const unexpectedErrors = respBody[MION_ROUTES.unexpectedError];
+    if (unexpectedErrors) {
+        const unexpectedErrorRoute = getAnyExecutable(MION_ROUTES.unexpectedError);
+        if (unexpectedErrorRoute) {
+            try {
+                const jsonValue = stringifyHandlerReturnValue(unexpectedErrorRoute, unexpectedErrors, opts);
+                if (jsonValue) {
+                    props.push(`${JSON.stringify(MION_ROUTES.unexpectedError)}:${jsonValue}`);
+                }
+            } catch (e: any) {
+                // If serialization fails, fall back to JSON.stringify
+                props.push(`${JSON.stringify(MION_ROUTES.unexpectedError)}:${JSON.stringify(unexpectedErrors)}`);
+            }
+        }
+    }
+
     return `{${props.join(',')}}`;
 }
 
@@ -126,9 +144,13 @@ function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any, opt
 
 function onErrorResponse(context: CallContext, err: any) {
     const response = context.response as Mutable<MionResponse>;
+    const request = context.request as Mutable<MionRequest>;
     response.statusCode = err.statusCode;
     response.hasErrors = true;
-    (context.request.internalErrors as Mutable<any[]>).push(err);
+    // Store serialization error in unexpectedErrors
+    const unexpectedErrors = request.unexpectedErrors || ({} as Record<string, RpcError<string>>);
+    unexpectedErrors['mionSerializeResponse'] = err;
+    request.unexpectedErrors = unexpectedErrors;
 }
 
 export const serializerHooks = {

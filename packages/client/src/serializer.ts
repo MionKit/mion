@@ -59,14 +59,25 @@ export async function deserializeResponseBody(response: Response): Promise<Respo
         throw new Error('Binary deserialization not yet implemented');
     }
 
-    // Check if this is a global error response
-    // Global errors occur when the request failed before reaching the router
-    if (MION_ROUTES.globalError in parsedBody) {
-        const globalErrorValue = parsedBody[MION_ROUTES.globalError];
-        const globalError = isRpcError(globalErrorValue) ? new RpcError(globalErrorValue) : globalErrorValue;
-        // Return the global error as-is - it will be handled by the request processing
-        // which will apply it to all subrequests
-        return {[MION_ROUTES.globalError]: globalError};
+    // Check if there are unexpected errors
+    // Unexpected errors are errors thrown during route execution that are not part of the return type union
+    // Global errors (errors before reaching router) are also stored in unexpectedErrors with a special key
+    if (MION_ROUTES.unexpectedError in parsedBody) {
+        const unexpectedErrors = parsedBody[MION_ROUTES.unexpectedError];
+
+        // Check if this is a global error (stored with special globalError key)
+        if (MION_ROUTES.globalError in unexpectedErrors) {
+            const globalErrorValue = unexpectedErrors[MION_ROUTES.globalError];
+            const globalError = isRpcError(globalErrorValue) ? new RpcError(globalErrorValue) : globalErrorValue;
+            // Return the global error as-is - it will be handled by the request processing
+            // which will apply it to all subrequests
+            return {[MION_ROUTES.globalError]: globalError};
+        }
+
+        // Merge unexpected errors into the main response body
+        // so they appear at their original route paths
+        Object.assign(parsedBody, unexpectedErrors);
+        delete parsedBody[MION_ROUTES.unexpectedError];
     }
 
     // Deserialize each method's return value

@@ -22,7 +22,7 @@ export const getPet = route(async (ctx, id: string): Promise<Pet | RpcError<'pet
          * Only statusCode and publicMessage will be returned in the response.body.
          *
          * Full RpcError containing dbError message and stacktrace will be added
-         * to ctx.request.internalErrors, so it can be logged or managed after
+         * to ctx.request.unexpectedErrors, so it can be logged or managed after
          */
         return new RpcError({statusCode, publicMessage, originalError: dbError as Error, type: 'db-error'});
     }

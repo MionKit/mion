@@ -89,7 +89,9 @@ describe('route & hooks init functions', () => {
             wrongRequest,
             {}
         );
-        expect(wrongResponse.body.auth).toEqual(expect.objectContaining({type: 'headers-validation-error', statusCode: 400}));
+        expect(wrongResponse.body['@mionkit/unexpectedError']?.auth).toEqual(
+            expect.objectContaining({type: 'headers-validation-error', statusCode: 400})
+        );
         expect(wrongResponse.headers.get('Authorization')).toEqual(undefined);
     });
 });

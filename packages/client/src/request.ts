@@ -77,6 +77,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
             // Check if this is a global error response
             // Global errors occur when the request failed before reaching the router
+            // They are extracted from unexpectedErrors by the deserializer
             if (MION_ROUTES.globalError in deserialized) {
                 const globalError = deserialized[MION_ROUTES.globalError];
                 // Apply the global error to all subrequests
@@ -87,6 +88,8 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                 });
                 return Promise.reject(errors);
             }
+
+            // Unexpected errors are already merged into deserialized by the deserializer
 
             Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
                 const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);

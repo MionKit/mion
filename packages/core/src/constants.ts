@@ -26,7 +26,10 @@ export const MION_ROUTES = {
     getRemoteMethodsMetadataById: 'mion_GetRemoteMethodsMetadataById',
     /** get remote methods metadata by route path, this include all hooks in the execution path of the route. */
     getRemoteMethodsMetadataByPath: 'mion_GetRemoteMethodsMetadataByPath',
-    globalError: 'mion_GlobalError*',
+    /** global error route for errors that occur before reaching the router */
+    globalError: '@mionkit/globalError',
+    /** unexpected error route for errors thrown during route execution that are not part of the return type union */
+    unexpectedError: '@mionkit/unexpectedError',
 } as const;
 
 /**
