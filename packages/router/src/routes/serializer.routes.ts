@@ -15,7 +15,6 @@ import {getRouteExecutableFromPath, getRouteExecutionPath, getAnyExecutable} fro
 import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
-import {getNotFoundExecutionPath} from '../lib/notFound';
 
 // ############# PUBLIC METHODS #############
 
@@ -77,9 +76,16 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
         case 'J': {
             // json
             response.headers.set('content-type', 'application/json; charset=utf-8');
-            const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
-            const body = stringifyBody(context, executionPath.methods, respBody, opts);
-            response.rawBody = body;
+            const executionPath = getRouteExecutionPath(context.path);
+            if (!executionPath) {
+                // This should only happen for not-found routes, which don't have an execution path
+                // In this case, we only need to serialize the unexpectedErrors
+                const body = stringifyBody(context, [], respBody, opts);
+                response.rawBody = body;
+            } else {
+                const body = stringifyBody(context, executionPath.methods, respBody, opts);
+                response.rawBody = body;
+            }
             break;
         }
         case 'B': // binary

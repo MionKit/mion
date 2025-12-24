@@ -15,10 +15,9 @@ import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoute
 import {HandlerType} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection';
 import {serializerHooks} from './routes/serializer.routes';
-import {getRouterItemId, getRoutePath, getENV} from '@mionkit/core';
+import {getRouterItemId, getRoutePath, getENV, MION_ROUTES} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
-import {getNotFoundExecutionPath} from './lib/notFound';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache';
 import {mionRoutes} from './routes/mion.routes';
 
@@ -175,7 +174,11 @@ export function shouldFullGenerateSpec(): boolean {
 }
 
 export function getRouteExecutableFromPath(path: string): RouteMethod {
-    const executionPath = flatRouter.get(path) || getNotFoundExecutionPath();
+    const executionPath = flatRouter.get(path);
+    if (!executionPath) {
+        // Return the not-found route executable
+        return getAnyExecutable(MION_ROUTES.notFound) as RouteMethod;
+    }
     return executionPath.methods[executionPath.routeIndex] as RouteMethod;
 }
 

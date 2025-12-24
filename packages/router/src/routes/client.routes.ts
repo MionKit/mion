@@ -29,6 +29,9 @@ export const defaultClientRouteOptions = {
     getAllRemoteMethodsMaxNumber: 100,
 };
 
+// Internal mion routes that should not be exposed to clients
+const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
+
 /**
  * Returns the metadata for the given method ids.
  * If getAllRemoteMethods is true, all public methods and hooks are returned.
@@ -51,10 +54,7 @@ function mionGetRemoteMethodsDataById(
     const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
     const idsToReturn = shouldReturnAll
         ? getAllExecutablesIds().filter(
-              (id) =>
-                  id !== MION_ROUTES.getRemoteMethodsMetadataById &&
-                  id !== MION_ROUTES.getRemoteMethodsMetadataByPath &&
-                  !isPrivateExecutable(getAnyExecutable(id) as RemoteMethod)
+              (id) => !mionInternalRoutes.includes(id) && !isPrivateExecutable(getAnyExecutable(id) as RemoteMethod)
           )
         : methodsIds;
     idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
