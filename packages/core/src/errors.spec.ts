@@ -10,19 +10,18 @@ import {RpcError, TypedError, setErrorOptions, isTypedError, isRpcError} from '.
 describe('Route errors should', () => {
     it('automatically generate an id when RouteOptions autoGenerateErrorId is set to true', () => {
         setErrorOptions({autoGenerateErrorId: true});
-        const error = new RpcError({statusCode: 400, publicMessage: 'error', type: 'test-error'});
+        const error = new RpcError({publicMessage: 'error', type: 'test-error'});
         expect(typeof error.id).toEqual('string');
         expect((error.id as string).length).toEqual(36);
 
         setErrorOptions({autoGenerateErrorId: false});
-        const error2 = new RpcError({statusCode: 400, publicMessage: 'error', type: 'test-error'});
+        const error2 = new RpcError({publicMessage: 'error', type: 'test-error'});
         expect(error2.id).toEqual(undefined);
     });
 
     it('Parse and Stringify errors using JSON', () => {
         const error = new RpcError({
             id: '123WS',
-            statusCode: 400,
             publicMessage: 'this is a public message',
             errorData: {data: 'data'},
             type: 'test-error',
@@ -34,7 +33,6 @@ describe('Route errors should', () => {
 
         const errorWithSameMessage = new RpcError({
             id: '123WX',
-            statusCode: 400,
             publicMessage: 'this is a message',
             errorData: {data: 'data'},
             type: 'test-error',
@@ -97,7 +95,6 @@ describe('TypedError should', () => {
 describe('RpcError inheritance should', () => {
     it('extend TypedError correctly', () => {
         const error = new RpcError({
-            statusCode: 400,
             type: 'validation-error',
             publicMessage: 'Bad request',
             message: 'Invalid request',
@@ -107,13 +104,15 @@ describe('RpcError inheritance should', () => {
         expect(error instanceof RpcError).toBe(true);
         expect(error['mion:isΣrrθr']).toBe(true);
         expect(error.type).toBe('validation-error');
-        expect(error.statusCode).toBe(400);
         expect(error.publicMessage).toBe('Bad request');
         expect(error.message).toBe('Invalid request');
     });
 
     it('be identified by both type guards', () => {
-        const error = new RpcError({statusCode: 500, publicMessage: 'Server error', type: 'server-error'});
+        const error = new RpcError({
+            publicMessage: 'Server error',
+            type: 'server-error',
+        });
 
         expect(isTypedError(error)).toBe(true);
         expect(isRpcError(error)).toBe(true);

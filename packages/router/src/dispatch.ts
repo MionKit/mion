@@ -42,7 +42,6 @@ export async function dispatchRoute<Req, Resp>(
             executionPath = getRouteExecutionPath(NOT_FOUND_PATH);
             if (!executionPath) {
                 throw new RpcError({
-                    statusCode: StatusCodes.UNEXPECTED_ERROR,
                     type: 'not-found',
                     publicMessage: 'Not-found route is not registered. This should never happen.',
                 });
@@ -120,7 +119,7 @@ async function runExecutionPath(
             // runRawHook , runHeaderHook & runRouteOrHook must always accept the same parameters in the same order
             const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
             if (result === undefined) continue;
-            if (isAnyError(result)) onErrorResponse(context, executable, result);
+            if (isAnyError(result)) onErrorResponse(context, executable, result, true); // returned errors are expected application errors
 
             // TODO: when returning headerList on an union there could be another types that are array but not HeaderList
             // Not sure we this scenario can be easily fixed maybe returning a class or something that adds a unique prop to the returned data
@@ -134,33 +133,37 @@ async function runExecutionPath(
                 (response.body as Mutable<AnyObject>)[executable.id] = result;
             }
         } catch (err: any | RpcError<string> | Error) {
-            onErrorResponse(context, executable, err);
+            onErrorResponse(context, executable, err, false); // thrown errors are unexpected
         }
     }
 
     return context.response;
 }
 
-function onErrorResponse(context: CallContext, executable: RemoteMethod, err: any | RpcError<string> | Error) {
+function onErrorResponse(
+    context: CallContext,
+    executable: RemoteMethod,
+    err: any | RpcError<string> | Error,
+    isExpected: boolean
+) {
     const response = context.response as Mutable<MionResponse>;
     const path = executable.id;
     const rpcError =
         err instanceof RpcError
             ? err
             : new RpcError({
-                  statusCode: StatusCodes.UNEXPECTED_ERROR,
                   publicMessage: `Unknown error in handler "${path}" of route execution path.`,
                   originalError: err,
                   type: 'unknown-error',
               });
 
-    response.statusCode = rpcError.statusCode;
+    // Set response status code based on whether error is expected or unexpected
+    response.statusCode = rpcError.statusCode ?? (isExpected ? StatusCodes.APPLICATION_ERROR : StatusCodes.UNEXPECTED_ERROR);
     response.hasErrors = true;
 
-    // Expected errors have statusCode === APPLICATION_ERROR (strongly typed, part of return type union)
-    // Unexpected errors have statusCode !== APPLICATION_ERROR (validation, serialization, not-found, etc.)
-    const isExpected = rpcError.statusCode === StatusCodes.APPLICATION_ERROR;
-    if (isExpected) return; // Expected errors are added to response.body at line 130
+    // Expected errors (returned from handler) are added to response.body at line 130
+    // Unexpected errors (thrown or validation/serialization errors) are stored in unexpectedErrors
+    if (isExpected) return;
 
     // Unexpected errors are stored in unexpectedErrors for serialization
     const unexpectedErrors = context.request.unexpectedErrors || ({} as Record<string, RpcError<string>>);
@@ -218,7 +221,6 @@ function deserializeBodyParams(request: MionRequest, executable: RemoteMethod): 
         return request.body[executable.id] as any[];
     } catch (e: any) {
         throw new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'serialization-error',
             publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
             originalError: e,
@@ -230,7 +232,6 @@ function deserializeBodyParams(request: MionRequest, executable: RemoteMethod): 
 function validateParametersOrThrow(params: any[], executable: RemoteMethod): void {
     if (!executable.paramsJitFns.isType.fn(params)) {
         throw new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'validation-error',
             publicMessage: `Invalid params in '${executable.id}', validation failed.`,
             errorData: executable.paramsJitFns.typeErrors.fn(params),
@@ -241,7 +242,6 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
 function validateHeaderParamsOrThrow(headers: string[], executable: HeaderMethod): void {
     if (!executable.headersParam.jitFns.isType.fn(headers)) {
         throw new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'headers-validation-error',
             publicMessage: `Invalid headers in '${executable.id}', validation failed.`,
             errorData: executable.headersParam.jitFns.typeErrors.fn(headers),

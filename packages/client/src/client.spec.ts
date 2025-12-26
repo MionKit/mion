@@ -112,7 +112,6 @@ describe('client', () => {
         const expectedError = new RpcError({
             publicMessage: 'Something fails',
             type: 'unknown-error',
-            statusCode: 500,
         });
 
         try {
@@ -122,7 +121,6 @@ describe('client', () => {
         }
 
         expect(error).toEqual(expectedError);
-        expect(error.statusCode).toEqual(expectedError.statusCode);
     });
 
     it('throw error if a route is missing hook data', async () => {
@@ -142,8 +140,6 @@ describe('client', () => {
         expect(isRpcError(error)).toBe(true);
 
         // The error should indicate missing authentication or validation failure
-        // Based on the server setup, this should be a 400 error for missing auth
-        expect(error.statusCode).toBe(400);
         expect(error.name).toBe('RpcError');
         expect(error.message).toContain('auth');
     });
@@ -182,7 +178,6 @@ describe('client', () => {
         const expectedError = new RpcError({
             publicMessage: `Invalid params for Route or Hook 'auth', validation failed.`,
             type: 'validation-error',
-            statusCode: 400,
         });
 
         try {
@@ -191,6 +186,5 @@ describe('client', () => {
             error = e;
         }
         expect(error).toEqual(expectedError);
-        expect(error.statusCode).toEqual(expectedError.statusCode);
     });
 });

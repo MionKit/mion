@@ -85,14 +85,14 @@ export class RpcError<ErrType extends string, ErrData = any>
      * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
      * */
     public readonly id?: number | string;
-    /** response status code */
-    public readonly statusCode: number;
     /** the message that will be returned in the response */
     public readonly publicMessage: string;
     /** options data related to the error, ie validation data, must be json serializable */
     public readonly errorData?: Readonly<ErrData>;
+    /** optional http status code */
+    statusCode?: number;
 
-    constructor({statusCode, message, publicMessage, originalError, errorData, type, id}: AnyErrorParams<ErrType, ErrData>) {
+    constructor({message, publicMessage, originalError, errorData, type, id}: AnyErrorParams<ErrType, ErrData>) {
         const originalMessage = message || originalError?.message || publicMessage || '';
 
         // Call parent TypedError constructor
@@ -104,7 +104,6 @@ export class RpcError<ErrType extends string, ErrData = any>
 
         const {autoGenerateErrorId} = options;
         this.id = id ?? (autoGenerateErrorId ? randomUUID_V7() : undefined);
-        this.statusCode = statusCode;
         this.publicMessage = publicMessage || '';
         this.errorData = errorData;
 
@@ -141,18 +140,9 @@ export function isRpcError(error: any): error is RpcError<string> {
     return (
         error &&
         error['mion:isΣrrθr'] === true &&
-        typeof error.statusCode === 'number' &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
         (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
-        !getJitUtils().hasUnknownKeysFromArray(error, [
-            'mion:isΣrrθr',
-            'id',
-            'statusCode',
-            'message',
-            'publicMessage',
-            'errorData',
-            'type',
-        ])
+        !getJitUtils().hasUnknownKeysFromArray(error, ['mion:isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type'])
     );
 }
 

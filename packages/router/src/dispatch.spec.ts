@@ -11,7 +11,6 @@ import {CallContext, MionHeaders} from './types/context';
 import {HeadersList} from './types/HeadersList';
 import {Routes} from './types/general';
 import {PublicRpcError, RpcError, MION_ROUTES} from '@mionkit/core';
-import {StatusCodes} from '@mionkit/core';
 import {headersHook, hook, route} from './lib/handlers';
 import {headersFromRecord} from './lib/headers';
 
@@ -53,7 +52,6 @@ describe('Dispatch routes', () => {
     const auth = headersHook((ctx, [token]: HeadersList<['Authorization']>): void | RpcError<'not-authorized'> => {
         if (token !== '1234')
             return new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 publicMessage: 'Not Authorized',
                 type: 'not-authorized',
             });
@@ -260,7 +258,6 @@ describe('Dispatch routes', () => {
             // Not-found errors are returned by the not-found route and stored in unexpectedErrors
             const error = response.body[MION_ROUTES.unexpectedError][MION_ROUTES.notFound];
             const expected = new RpcError({
-                statusCode: 500,
                 type: 'route-not-found',
                 publicMessage: 'Route not found',
             });
@@ -284,7 +281,6 @@ describe('Dispatch routes', () => {
             // Validation errors are unexpected errors (not part of return type union)
             const error = response.body[MION_ROUTES.unexpectedError]?.auth;
             const expected = new RpcError({
-                statusCode: 500,
                 type: 'headers-validation-error',
                 publicMessage: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),
@@ -309,10 +305,8 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            // Deserialization errors are unexpected errors (statusCode !== APPLICATION_ERROR)
             const error = response.body[MION_ROUTES.unexpectedError]['mionDeserializeRequest'];
             const expected = new RpcError({
-                statusCode: 500,
                 type: 'invalid-request-body',
                 publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             });
@@ -331,12 +325,10 @@ describe('Dispatch routes', () => {
                 request2,
                 {}
             );
-            // Deserialization errors are unexpected errors (statusCode !== APPLICATION_ERROR)
             const errorResp = response2.body[MION_ROUTES.unexpectedError]['mionDeserializeRequest'];
             expect(errorResp).toMatchObject({
                 'mion:isΣrrθr': true,
                 type: 'parsing-json-request-error',
-                statusCode: 500,
                 publicMessage: expect.stringContaining('Invalid json request body:'), // Nodejs error is slightly different depending on node version
             });
         });
@@ -358,7 +350,6 @@ describe('Dispatch routes', () => {
             // Validation errors are unexpected errors (not part of return type union)
             const error = response.body[MION_ROUTES.unexpectedError]?.changeUserName;
             const expected = new RpcError({
-                statusCode: 500,
                 type: `validation-error`,
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [{expected: 'object', path: [0]}],
@@ -383,7 +374,6 @@ describe('Dispatch routes', () => {
             const error = response.body[MION_ROUTES.unexpectedError]['getSameDate'];
             expect(error).toMatchObject({
                 'mion:isΣrrθr': true,
-                statusCode: 500,
                 type: 'serialization-error',
                 publicMessage: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
                 errorData: {deserializeError: `Cannot read properties of undefined (reading 'date')`},
@@ -407,7 +397,6 @@ describe('Dispatch routes', () => {
             );
             const expected = new RpcError({
                 type: 'validation-error',
-                statusCode: 500,
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [{expected: 'string', path: [0, 'name']}],
             });
@@ -432,7 +421,6 @@ describe('Dispatch routes', () => {
             );
             const expected = new RpcError({
                 type: 'validation-error',
-                statusCode: 500,
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [
                     {expected: 'string', path: [0, 'name']},
@@ -458,7 +446,6 @@ describe('Dispatch routes', () => {
             const error = response.body[MION_ROUTES.unexpectedError]['routeFail'];
             expect(error).toMatchObject({
                 'mion:isΣrrθr': true,
-                statusCode: 500,
                 type: 'unknown-error',
                 publicMessage: 'Unknown error in handler "routeFail" of route execution path.',
             });
@@ -482,7 +469,6 @@ describe('Dispatch routes', () => {
             );
             const error = response.body[MION_ROUTES.unexpectedError]['getSameDate'];
             const expected = new RpcError({
-                statusCode: 500,
                 publicMessage: `Invalid params 'getSameDate', can not validate parameters.`,
                 type: 'validation-error',
             });
@@ -568,7 +554,6 @@ describe('Dispatch routes', () => {
             expect(response.body[MION_ROUTES.unexpectedError]?.changeUserName).toMatchObject({
                 'mion:isΣrrθr': true,
                 type: 'validation-error',
-                statusCode: 500,
             });
         });
     });
@@ -578,12 +563,12 @@ describe('Route errors should', () => {
     it('automatically generate error ids when RouteOptions autoGenerateErrorId is set to true', () => {
         resetRouter();
         initRouter({autoGenerateErrorId: true});
-        const error = new RpcError({statusCode: 400, publicMessage: 'error', type: 'test-error'});
+        const error = new RpcError({publicMessage: 'error', type: 'test-error'});
         expect(typeof error.id).toEqual('string');
 
         resetRouter();
         initRouter({autoGenerateErrorId: false});
-        const error2 = new RpcError({statusCode: 400, publicMessage: 'error', type: 'test-error'});
+        const error2 = new RpcError({publicMessage: 'error', type: 'test-error'});
         expect(error2.id).toEqual(undefined);
     });
 });

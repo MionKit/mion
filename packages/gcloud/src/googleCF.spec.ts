@@ -125,7 +125,6 @@ describe('serverless router should', () => {
             'mion:isΣrrθr': true,
             publicMessage: `Invalid params in 'getDate', validation failed.`,
             type: 'validation-error',
-            statusCode: 400,
             errorData: expect.anything(),
         };
         expect(reply).toEqual({getDate: expectedError});

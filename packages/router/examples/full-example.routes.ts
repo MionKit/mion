@@ -1,34 +1,32 @@
 import {RpcError} from '@mionkit/core';
-import {StatusCodes} from '@mionkit/core';
 import {HeadersList, initMionRouter, route} from '@mionkit/router';
 import {headersHook, rawHook, hook, Routes} from '@mionkit/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app';
 import {User} from '@mionkit/codegen/src/test/myApi.types';
 
-const getUser = route((ctx: Context, id: number): User => {
+const getUser = route((ctx: Context, id: number): User | RpcError<'user-not-found'> => {
     const user = myApp.store.getUser(id);
-    if (!user) throw {statusCode: 200, message: 'user not found'};
+    if (!user) return new RpcError({publicMessage: 'User not found', type: 'user-not-found'});
     return user;
 });
 
 const createUser = route((ctx: Context, newUser: NewUser): User => myApp.store.createUser(newUser));
 
-const updateUser = route((ctx: Context, user: User): User => {
+const updateUser = route((ctx: Context, user: User): User | RpcError<'user-not-found'> => {
     const updated = myApp.store.updateUser(user);
-    if (!updated) throw {statusCode: 200, message: 'user not found, can not be updated'};
+    if (!updated) return new RpcError({publicMessage: 'User not found, can not be updated', type: 'user-not-found'});
     return updated;
 });
 
-const deleteUser = route((ctx: Context, id: number): User => {
+const deleteUser = route((ctx: Context, id: number): User | RpcError<'user-not-found'> => {
     const deleted = myApp.store.deleteUser(id);
-    if (!deleted) throw {statusCode: 200, message: 'user not found, can not be deleted'};
+    if (!deleted) return new RpcError({publicMessage: 'User not found, can not be deleted', type: 'user-not-found'});
     return deleted;
 });
 
 const auth = headersHook((ctx: Context, [token]: HeadersList<['Authorization']>): void => {
     if (!myApp.auth.isAuthorized(token))
         throw new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
             publicMessage: 'Not Authorized',
             type: 'not-authorized',
         });

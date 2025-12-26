@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, StatusCodes} from '@mionkit/core';
+import {RpcError} from '@mionkit/core';
 import {dispatchRoute, getGlobalErrorResponse, resetRouter} from '@mionkit/router';
 import type {MionHeaders, MionResponse} from '@mionkit/router';
 import {Request, Response} from 'express';
@@ -56,7 +56,6 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
             err instanceof RpcError
                 ? err
                 : new RpcError({
-                      statusCode: 500,
                       publicMessage: 'Internal Error',
                       originalError: err as Error,
                       type: 'unknown-error',
@@ -93,7 +92,6 @@ function reply(mionResp: MionResponse, resp: Response): void {
         }
         default: {
             const error = new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 publicMessage: 'unknown-mion-response-format',
                 type: 'unknown-error',
                 errorData: {bodyType},

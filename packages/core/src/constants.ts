@@ -52,7 +52,7 @@ export const StatusCodes = {
     /** Any expected error in the application, ie: validation error, not found, etc...
      * These error should be typically handled in each handler, ie, not found will show an empty state.
      */
-    APPLICATION_ERROR: 400,
+    APPLICATION_ERROR: 409,
     /**  Any unexpected error in the application, ie: database error, serialization error, etc...
      * These are are typically irrecoverable and can be handled globally, ie redirect to login page if auth fails
      */

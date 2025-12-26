@@ -12,9 +12,7 @@ const routes = {
     sayHello2: route((c, name: string): string => 'hello' + name),
     sayHello3: route((): string => 'hello'),
     sayHello4: route((): string => 'hello'),
-    sayHelloError: route(
-        (): RpcError<'typed-error'> => new RpcError({statusCode: 400, publicMessage: 'error', type: 'typed-error'})
-    ),
+    sayHelloError: route((): RpcError<'typed-error'> => new RpcError({publicMessage: 'error', type: 'typed-error'})),
     maybeError: route((): string | RpcError<'typed-error'> => 'hello'),
 } satisfies Routes;
 

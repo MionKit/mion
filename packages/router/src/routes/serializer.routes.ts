@@ -9,11 +9,10 @@ import type {MionResponse, MionRequest, CallContext} from '../types/context';
 import type {RouterOptions} from '../types/general';
 import type {HooksCollection, MayReturnError} from '../types/publicMethods';
 import type {ResponseBody} from '../types/context';
-import {AnyObject, Mutable, MION_ROUTES} from '@mionkit/core';
+import {AnyObject, Mutable, MION_ROUTES, StatusCodes} from '@mionkit/core';
 import {rawHook} from '../lib/handlers';
 import {getRouteExecutableFromPath, getRouteExecutionPath, getAnyExecutable} from '../router';
 import {RpcError} from '@mionkit/core';
-import {StatusCodes} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
 
 // ############# PUBLIC METHODS #############
@@ -32,7 +31,6 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
                 parsedBody = JSON.parse(context.request.rawBody as string);
             } catch (err: any) {
                 return new RpcError({
-                    statusCode: StatusCodes.UNEXPECTED_ERROR,
                     type: 'parsing-json-request-error',
                     publicMessage: `Invalid json request body: ${err?.message || 'unknown parsing error.'}`,
                 });
@@ -55,7 +53,6 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
         }
         if (typeof parsedBody !== 'object')
             return new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'invalid-request-body',
                 publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             });
@@ -111,7 +108,6 @@ function stringifyBody(context: CallContext, executionPath: RemoteMethod[], resp
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (e: any) {
             const err = new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'json-stringify-response-error',
                 publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.jsonStringify.typeName}`,
                 originalError: e,
@@ -151,7 +147,7 @@ function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any, opt
 function onErrorResponse(context: CallContext, err: any) {
     const response = context.response as Mutable<MionResponse>;
     const request = context.request as Mutable<MionRequest>;
-    response.statusCode = err.statusCode;
+    response.statusCode = StatusCodes.UNEXPECTED_ERROR; // Serialization errors are always unexpected
     response.hasErrors = true;
     // Store serialization error in unexpectedErrors
     const unexpectedErrors = request.unexpectedErrors || ({} as Record<string, RpcError<string>>);

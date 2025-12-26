@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, StatusCodes, routesCache} from '@mionkit/core';
+import {RpcError, routesCache} from '@mionkit/core';
 import {RequestErrors, SubRequest} from './types';
 import type {MionRequest} from './request';
 
@@ -64,7 +64,6 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
         const validationsResponse = paramsJit.isType.fn(params) || paramsJit.typeErrors.fn(params);
         if ((validationsResponse as [])?.length) {
             return new RpcError({
-                statusCode: StatusCodes.APPLICATION_ERROR,
                 type: 'validation-error',
                 publicMessage: `Invalid params for Route or Hook '${method.id}', validation failed.`,
                 errorData: validationsResponse,
@@ -72,7 +71,6 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
         }
     } catch (e: any | Error) {
         return new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'unexpected-validation-error',
             publicMessage: `Could not validate params for Route or Hook '${method.id}': ${e.message} `,
         });

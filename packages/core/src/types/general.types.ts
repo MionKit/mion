@@ -76,8 +76,6 @@ export interface RpcErrorParams<ErrType extends StrNumber, ErrData = any> {
     type: ErrType;
     /** id of the error. */
     id?: number | string;
-    /** response status code */
-    statusCode: number;
     /** the message that will be returned in the response */
     publicMessage?: string;
     /**
@@ -89,6 +87,9 @@ export interface RpcErrorParams<ErrType extends StrNumber, ErrData = any> {
     errorData?: ErrData;
     /** original error used to create the RpcError */
     originalError?: Error;
+
+    /** optional http status code */
+    statusCode?: number;
 }
 
 export interface RpcErrorWithPublic<ErrType extends StrNumber, ErrData = any> extends RpcErrorParams<ErrType, ErrData> {
@@ -102,14 +103,12 @@ export interface RpcErrorWithPrivate<ErrType extends StrNumber, ErrData = any> e
 /** Error data returned to the clients  */
 export interface PublicRpcError<ErrType extends StrNumber, ErrData = any>
     extends Omit<RpcErrorParams<ErrType, ErrData>, 'message' | 'originalError'> {
-    'mion:isΣrrθr': true; //weird enough name so it does not collide with other props when deserializing
     type: ErrType;
+    errorData?: ErrData;
     /**
      * When a RpcError gets sent to client only publicMessage is set.
      * */
     publicMessage: string;
-    statusCode: number;
-    errorData?: ErrData;
 }
 
 export type AnyErrorParams<ErrType extends StrNumber, ErrData = any> =

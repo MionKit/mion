@@ -13,7 +13,7 @@ import type {NodeHttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionkit/router';
-import {getENV, StatusCodes} from '@mionkit/core';
+import {getENV} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 
@@ -98,7 +98,6 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         if (size > httpOptions.maxBodySize && !replied) {
             replied = true;
             const error = new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 publicMessage: 'Payload Too Large',
                 type: 'request-payload-too-large',
             });
@@ -110,7 +109,6 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         if (replied) return;
         replied = true;
         const error = new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
             publicMessage: 'Connection Error',
             type: 'request-connection-error',
             originalError: e,
@@ -134,7 +132,6 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
                 if (replied) return;
                 replied = true;
                 const error = new RpcError({
-                    statusCode: StatusCodes.UNEXPECTED_ERROR,
                     publicMessage: 'Unknown Error',
                     type: 'unknown-error',
                     originalError: e,
@@ -147,7 +144,6 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         if (replied) return;
         replied = true;
         const error = new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
             publicMessage: 'Connection Error',
             type: 'response-connection-error',
             originalError: e,
@@ -188,7 +184,6 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
         }
         default: {
             const error = new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 publicMessage: 'unknown-mion-response-format',
                 type: 'unknown-error',
                 errorData: {bodyType},

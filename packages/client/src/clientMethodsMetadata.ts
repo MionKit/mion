@@ -46,7 +46,6 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
         if (isRpcError(serializableMethodsData)) throw serializableMethodsData;
         if (!serializableMethodsData)
             throw new RpcError({
-                statusCode: 500,
                 type: 'cant-fetch-remote-methods-metadata',
                 publicMessage: 'Failed to fetch remote methods metadata',
                 errorData: {response},

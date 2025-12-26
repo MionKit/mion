@@ -469,7 +469,6 @@ export const SERIALIZATION_SPEC = {
             getTestData: (dataOnly = false) => {
                 const rt = dataOnly ? (null as any) : runType<RpcError<'test-error'>>();
                 const error = new RpcError({
-                    statusCode: 400,
                     publicMessage: 'error',
                     message: 'error',
                     type: 'test-error',
