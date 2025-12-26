@@ -16,7 +16,6 @@ it('can validate RpcError class', () => {
     const rt = runType<RpcError<'test-error'>>();
     const validate = rt.createJitFunction(JitFunctions.isType);
     const error = new RpcError({
-        statusCode: 400,
         message: 'error',
         publicMessage: 'error',
         type: 'test-error',
@@ -28,7 +27,6 @@ it('can validate RpcError class + errors', () => {
     const rt = runType<RpcError<'test-error'>>();
     const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
     const error = new RpcError({
-        statusCode: 400,
         message: 'error',
         publicMessage: 'error',
         type: 'test-error',
@@ -38,7 +36,6 @@ it('can validate RpcError class + errors', () => {
 
 it('should ensure JSON.stringify excludes message and name from RpcError', () => {
     const error = new RpcError({
-        statusCode: 400,
         message: 'private error message',
         publicMessage: 'public error message',
         type: 'test-error',
@@ -57,7 +54,6 @@ it('should ensure JSON.stringify excludes message and name from RpcError', () =>
     expect(errorJson).toEqual({
         'mion:isΣrrθr': true,
         type: 'test-error',
-        statusCode: 400,
         publicMessage: 'public error message',
         id: 'error-123',
         errorData: {field: 'value'},
@@ -78,7 +74,6 @@ it('check hasUnknownKeys', () => {
     const error = {
         'mion:isΣrrθr': true,
         type: 'test-error',
-        statusCode: 400,
         publicMessage: 'error',
     };
     expect(hasUnknownKeys(error)).toBe(false);
@@ -92,7 +87,6 @@ it('check unknownKeyErrors', () => {
     const error = {
         'mion:isΣrrθr': true,
         type: 'test-error',
-        statusCode: 400,
         publicMessage: 'error',
     };
     expect(unknownKeyErrors(error)).toEqual([]);
@@ -106,7 +100,6 @@ it('check stripUnknownKeys', () => {
     const error = {
         'mion:isΣrrθr': true,
         type: 'test-error',
-        statusCode: 400,
         publicMessage: 'error',
     };
     (error as any).extra = 'extra';
@@ -114,7 +107,6 @@ it('check stripUnknownKeys', () => {
     expect(error).toEqual({
         'mion:isΣrrθr': true,
         type: 'test-error',
-        statusCode: 400,
         publicMessage: 'error',
     });
 });
@@ -125,7 +117,6 @@ it('check unknownKeysToUndefined', () => {
     const error = {
         'mion:isΣrrθr': true,
         type: 'test-error',
-        statusCode: 400,
         publicMessage: 'error',
     };
     (error as any).extra = 'extra';
@@ -133,7 +124,6 @@ it('check unknownKeysToUndefined', () => {
     expect(error).toEqual({
         'mion:isΣrrθr': true,
         type: 'test-error',
-        statusCode: 400,
         publicMessage: 'error',
         extra: undefined,
     });

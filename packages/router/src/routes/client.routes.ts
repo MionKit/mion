@@ -61,7 +61,6 @@ function mionGetRemoteMethodsDataById(
 
     if (Object.keys(errorData).length)
         return new RpcError({
-            statusCode: 404,
             type: 'rpc-metadata-not-found',
             publicMessage: 'Errors getting Remote Methods Metadata',
             errorData,
@@ -83,7 +82,6 @@ function mionGetRemoteMethodsDataByPath(
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({
-            statusCode: 404,
             type: 'rpc-metadata-not-found',
             publicMessage: `Route ${path} not found`,
         });

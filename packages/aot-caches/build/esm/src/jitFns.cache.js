@@ -308,24 +308,24 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	is_e6YoYA: {
+	is_lH7jh7: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "is",
-		jitFnHash: "is_e6YoYA",
+		jitFnHash: "is_lH7jh7",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const is_OeGakG = utl.getJIT("is_OeGakG");\nconst is_R7hJ5T = utl.getJIT("is_R7hJ5T"); return function is_e6YoYA(v){return ((typeof v === \'object\' && v !== null && (is_OeGakG.fn(v) || is_R7hJ5T.fn(v))))}',
-		dependenciesSet: new Set(["is_OeGakG", "is_R7hJ5T"]),
+		code: 'const is_OeGakG = utl.getJIT("is_OeGakG");\nconst is_E044oE = utl.getJIT("is_E044oE"); return function is_lH7jh7(v){return ((typeof v === \'object\' && v !== null && (is_OeGakG.fn(v) || is_E044oE.fn(v))))}',
+		dependenciesSet: new Set(["is_OeGakG", "is_E044oE"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const is_OeGakG = utl.getJIT("is_OeGakG");
-			const is_R7hJ5T = utl.getJIT("is_R7hJ5T");
-			return function is_e6YoYA(v) {
+			const is_E044oE = utl.getJIT("is_E044oE");
+			return function is_lH7jh7(v) {
 				return (
 					typeof v === "object" &&
 					v !== null &&
-					(is_OeGakG.fn(v) || is_R7hJ5T.fn(v))
+					(is_OeGakG.fn(v) || is_E044oE.fn(v))
 				);
 			};
 		},
@@ -623,29 +623,27 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	is_R7hJ5T: {
+	is_E044oE: {
 		isNoop: false,
 		typeName: "RpcError",
 		fnID: "is",
-		jitFnHash: "is_R7hJ5T",
+		jitFnHash: "is_E044oE",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const is_WEWIGI = utl.getJIT(\"is_WEWIGI\"); return function is_R7hJ5T(v){return (typeof v.publicMessage === 'string' && v[\"mion:isΣrrθr\"] === true && v.type === \"rpc-metadata-not-found\" && typeof v.message === 'string' && typeof v.name === 'string' && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && Number.isFinite(v.statusCode) && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)))}",
+		code: 'const is_WEWIGI = utl.getJIT("is_WEWIGI"); return function is_E044oE(v){return ((v.statusCode === undefined || Number.isFinite(v.statusCode)) && v["mion:isΣrrθr"] === true && v.type === "rpc-metadata-not-found" && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === \'string\')) && typeof v.publicMessage === \'string\' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)))}',
 		dependenciesSet: new Set(["is_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const is_WEWIGI = utl.getJIT("is_WEWIGI");
-			return function is_R7hJ5T(v) {
+			return function is_E044oE(v) {
 				return (
-					typeof v.publicMessage === "string" &&
+					(v.statusCode === undefined || Number.isFinite(v.statusCode)) &&
 					v["mion:isΣrrθr"] === true &&
 					v.type === "rpc-metadata-not-found" &&
-					typeof v.message === "string" &&
-					typeof v.name === "string" &&
 					(v.id === undefined ||
 						Number.isFinite(v.id) ||
 						typeof v.id === "string") &&
-					Number.isFinite(v.statusCode) &&
+					typeof v.publicMessage === "string" &&
 					(v.errorData === undefined || is_WEWIGI.fn(v.errorData))
 				);
 			};
@@ -674,25 +672,25 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	te_e6YoYA: {
+	te_lH7jh7: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "te",
-		jitFnHash: "te_e6YoYA",
+		jitFnHash: "te_lH7jh7",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: 'const is_OeGakG = utl.getJIT("is_OeGakG");\nconst is_R7hJ5T = utl.getJIT("is_R7hJ5T"); return function te_e6YoYA(v,pth=[],er=[]){if (!((typeof v === \'object\' && v !== null && (is_OeGakG.fn(v) || is_R7hJ5T.fn(v))))) utl.err(pth,er,"union"); return er}',
-		dependenciesSet: new Set(["is_OeGakG", "is_R7hJ5T"]),
+		code: 'const is_OeGakG = utl.getJIT("is_OeGakG");\nconst is_E044oE = utl.getJIT("is_E044oE"); return function te_lH7jh7(v,pth=[],er=[]){if (!((typeof v === \'object\' && v !== null && (is_OeGakG.fn(v) || is_E044oE.fn(v))))) utl.err(pth,er,"union"); return er}',
+		dependenciesSet: new Set(["is_OeGakG", "is_E044oE"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const is_OeGakG = utl.getJIT("is_OeGakG");
-			const is_R7hJ5T = utl.getJIT("is_R7hJ5T");
-			return function te_e6YoYA(v, pth = [], er = []) {
+			const is_E044oE = utl.getJIT("is_E044oE");
+			return function te_lH7jh7(v, pth = [], er = []) {
 				if (
 					!(
 						typeof v === "object" &&
 						v !== null &&
-						(is_OeGakG.fn(v) || is_R7hJ5T.fn(v))
+						(is_OeGakG.fn(v) || is_E044oE.fn(v))
 					)
 				)
 					utl.err(pth, er, "union");
@@ -701,21 +699,21 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tj_e6YoYA: {
+	tj_lH7jh7: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "tj",
-		jitFnHash: "tj_e6YoYA",
+		jitFnHash: "tj_lH7jh7",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not json encode union: item does not belong to the union";\nconst tj_OeGakG = utl.getJIT("tj_OeGakG");\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst tj_R7hJ5T = utl.getJIT("tj_R7hJ5T");\nconst fj_R7hJ5T = utl.getJIT("fj_R7hJ5T");\nconst is_R7hJ5T = utl.getJIT("is_R7hJ5T"); return function tj_e6YoYA(v){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {v = tj_OeGakG.fn(v); v = [0, v]}else if (is_R7hJ5T.fn(v)) {v = tj_R7hJ5T.fn(v); v = [1, v]}else {throw new Error(uErr0);} return v}',
+		code: 'const uErr0 = "Can not json encode union: item does not belong to the union";\nconst tj_OeGakG = utl.getJIT("tj_OeGakG");\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst tj_E044oE = utl.getJIT("tj_E044oE");\nconst fj_E044oE = utl.getJIT("fj_E044oE");\nconst is_E044oE = utl.getJIT("is_E044oE"); return function tj_lH7jh7(v){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {v = tj_OeGakG.fn(v); v = [0, v]}else if (is_E044oE.fn(v)) {v = tj_E044oE.fn(v); v = [1, v]}else {throw new Error(uErr0);} return v}',
 		dependenciesSet: new Set([
 			"tj_OeGakG",
 			"fj_OeGakG",
 			"is_OeGakG",
-			"tj_R7hJ5T",
-			"fj_R7hJ5T",
-			"is_R7hJ5T",
+			"tj_E044oE",
+			"fj_E044oE",
+			"is_E044oE",
 		]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -724,17 +722,17 @@ const jitFnsCache = {
 			const tj_OeGakG = utl.getJIT("tj_OeGakG");
 			const fj_OeGakG = utl.getJIT("fj_OeGakG");
 			const is_OeGakG = utl.getJIT("is_OeGakG");
-			const tj_R7hJ5T = utl.getJIT("tj_R7hJ5T");
-			const fj_R7hJ5T = utl.getJIT("fj_R7hJ5T");
-			const is_R7hJ5T = utl.getJIT("is_R7hJ5T");
-			return function tj_e6YoYA(v) {
+			const tj_E044oE = utl.getJIT("tj_E044oE");
+			const fj_E044oE = utl.getJIT("fj_E044oE");
+			const is_E044oE = utl.getJIT("is_E044oE");
+			return function tj_lH7jh7(v) {
 				if (!(typeof v === "object" && v !== null)) {
 					throw new Error(uErr0);
 				} else if (is_OeGakG.fn(v)) {
 					v = tj_OeGakG.fn(v);
 					v = [0, v];
-				} else if (is_R7hJ5T.fn(v)) {
-					v = tj_R7hJ5T.fn(v);
+				} else if (is_E044oE.fn(v)) {
+					v = tj_E044oE.fn(v);
 					v = [1, v];
 				} else {
 					throw new Error(uErr0);
@@ -1114,20 +1112,20 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tj_R7hJ5T: {
+	tj_E044oE: {
 		isNoop: false,
 		typeName: "RpcError",
 		fnID: "tj",
-		jitFnHash: "tj_R7hJ5T",
+		jitFnHash: "tj_E044oE",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const uErr0 = \"Can not json encode union: item does not belong to the union\"; return function tj_R7hJ5T(v){if (v.id !== undefined) {if (Number.isFinite(v.id)) { /*noop*/}else if (typeof v.id === 'string') { /*noop*/} else {throw new Error(uErr0);}} return v}",
+		code: "const uErr0 = \"Can not json encode union: item does not belong to the union\"; return function tj_E044oE(v){if (v.id !== undefined) {if (Number.isFinite(v.id)) { /*noop*/}else if (typeof v.id === 'string') { /*noop*/} else {throw new Error(uErr0);}} return v}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not json encode union: item does not belong to the union";
-			return function tj_R7hJ5T(v) {
+			return function tj_E044oE(v) {
 				if (v.id !== undefined) {
 					if (Number.isFinite(v.id)) {
 						/*noop*/
@@ -1159,19 +1157,19 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	fj_R7hJ5T: {
+	fj_E044oE: {
 		isNoop: false,
 		typeName: "RpcError",
 		fnID: "fj",
-		jitFnHash: "fj_R7hJ5T",
+		jitFnHash: "fj_E044oE",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not json decode union: invalid union index"; return function fj_R7hJ5T(v){\n if (v.id !== undefined) {\n if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === \'number\') {\n const dec0 = v.id[0]; v.id = v.id[1];\n if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}\n else {throw new Error(uErr0)}\n }\n ;};\n let desFn1 = utl.getDeserializeFn("RpcError");\n if (desFn1) {v = desFn1(v)}\n else if (desFn1 = utl.getSerializeClass("RpcError")) {v = new desFn1(v)}\n ; return v}',
+		code: 'const uErr0 = "Can not json decode union: invalid union index"; return function fj_E044oE(v){\n if (v.id !== undefined) {\n if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === \'number\') {\n const dec0 = v.id[0]; v.id = v.id[1];\n if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}\n else {throw new Error(uErr0)}\n }\n ;};\n let desFn1 = utl.getDeserializeFn("RpcError");\n if (desFn1) {v = desFn1(v)}\n else if (desFn1 = utl.getSerializeClass("RpcError")) {v = new desFn1(v)}\n ; return v}',
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 = "Can not json decode union: invalid union index";
-			return function fj_R7hJ5T(v) {
+			return function fj_E044oE(v) {
 				if (v.id !== undefined) {
 					if (
 						v.id?.length === 2 &&
@@ -1217,28 +1215,28 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	fj_e6YoYA: {
+	fj_lH7jh7: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "fj",
-		jitFnHash: "fj_e6YoYA",
+		jitFnHash: "fj_lH7jh7",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not json decode union: invalid union index";\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst fj_R7hJ5T = utl.getJIT("fj_R7hJ5T"); return function fj_e6YoYA(v){\n if (v?.length === 2 && Array.isArray(v) && typeof v[0] === \'number\') {\n const dec0 = v[0]; v = v[1];\n if (dec0 === 0) {v = fj_OeGakG.fn(v)}else if (dec0 === 1) {v = fj_R7hJ5T.fn(v)}\n else {throw new Error(uErr0)}\n }\n ; return v}',
-		dependenciesSet: new Set(["fj_OeGakG", "fj_R7hJ5T"]),
+		code: 'const uErr0 = "Can not json decode union: invalid union index";\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst fj_E044oE = utl.getJIT("fj_E044oE"); return function fj_lH7jh7(v){\n if (v?.length === 2 && Array.isArray(v) && typeof v[0] === \'number\') {\n const dec0 = v[0]; v = v[1];\n if (dec0 === 0) {v = fj_OeGakG.fn(v)}else if (dec0 === 1) {v = fj_E044oE.fn(v)}\n else {throw new Error(uErr0)}\n }\n ; return v}',
+		dependenciesSet: new Set(["fj_OeGakG", "fj_E044oE"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 = "Can not json decode union: invalid union index";
 			const fj_OeGakG = utl.getJIT("fj_OeGakG");
-			const fj_R7hJ5T = utl.getJIT("fj_R7hJ5T");
-			return function fj_e6YoYA(v) {
+			const fj_E044oE = utl.getJIT("fj_E044oE");
+			return function fj_lH7jh7(v) {
 				if (v?.length === 2 && Array.isArray(v) && typeof v[0] === "number") {
 					const dec0 = v[0];
 					v = v[1];
 					if (dec0 === 0) {
 						v = fj_OeGakG.fn(v);
 					} else if (dec0 === 1) {
-						v = fj_R7hJ5T.fn(v);
+						v = fj_E044oE.fn(v);
 					} else {
 						throw new Error(uErr0);
 					}
@@ -1248,23 +1246,23 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_e6YoYA: {
+	js_lH7jh7: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "js",
-		jitFnHash: "js_e6YoYA",
+		jitFnHash: "js_lH7jh7",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_OeGakG = utl.getJIT("js_OeGakG");\nconst tj_OeGakG = utl.getJIT("tj_OeGakG");\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst js_R7hJ5T = utl.getJIT("js_R7hJ5T");\nconst tj_R7hJ5T = utl.getJIT("tj_R7hJ5T");\nconst fj_R7hJ5T = utl.getJIT("fj_R7hJ5T");\nconst is_R7hJ5T = utl.getJIT("is_R7hJ5T"); return function js_e6YoYA(v){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {return \'[0,\' + js_OeGakG.fn(v) + \']\'}else if (is_R7hJ5T.fn(v)) {return \'[1,\' + js_R7hJ5T.fn(v) + \']\'}else {throw new Error(uErr0);}}',
+		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_OeGakG = utl.getJIT("js_OeGakG");\nconst tj_OeGakG = utl.getJIT("tj_OeGakG");\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst js_E044oE = utl.getJIT("js_E044oE");\nconst tj_E044oE = utl.getJIT("tj_E044oE");\nconst fj_E044oE = utl.getJIT("fj_E044oE");\nconst is_E044oE = utl.getJIT("is_E044oE"); return function js_lH7jh7(v){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {return \'[0,\' + js_OeGakG.fn(v) + \']\'}else if (is_E044oE.fn(v)) {return \'[1,\' + js_E044oE.fn(v) + \']\'}else {throw new Error(uErr0);}}',
 		dependenciesSet: new Set([
 			"js_OeGakG",
 			"tj_OeGakG",
 			"fj_OeGakG",
 			"is_OeGakG",
-			"js_R7hJ5T",
-			"tj_R7hJ5T",
-			"fj_R7hJ5T",
-			"is_R7hJ5T",
+			"js_E044oE",
+			"tj_E044oE",
+			"fj_E044oE",
+			"is_E044oE",
 		]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -1274,17 +1272,17 @@ const jitFnsCache = {
 			const tj_OeGakG = utl.getJIT("tj_OeGakG");
 			const fj_OeGakG = utl.getJIT("fj_OeGakG");
 			const is_OeGakG = utl.getJIT("is_OeGakG");
-			const js_R7hJ5T = utl.getJIT("js_R7hJ5T");
-			const tj_R7hJ5T = utl.getJIT("tj_R7hJ5T");
-			const fj_R7hJ5T = utl.getJIT("fj_R7hJ5T");
-			const is_R7hJ5T = utl.getJIT("is_R7hJ5T");
-			return function js_e6YoYA(v) {
+			const js_E044oE = utl.getJIT("js_E044oE");
+			const tj_E044oE = utl.getJIT("tj_E044oE");
+			const fj_E044oE = utl.getJIT("fj_E044oE");
+			const is_E044oE = utl.getJIT("is_E044oE");
+			return function js_lH7jh7(v) {
 				if (!(typeof v === "object" && v !== null)) {
 					throw new Error(uErr0);
 				} else if (is_OeGakG.fn(v)) {
 					return "[0," + js_OeGakG.fn(v) + "]";
-				} else if (is_R7hJ5T.fn(v)) {
-					return "[1," + js_R7hJ5T.fn(v) + "]";
+				} else if (is_E044oE.fn(v)) {
+					return "[1," + js_E044oE.fn(v) + "]";
 				} else {
 					throw new Error(uErr0);
 				}
@@ -1661,23 +1659,26 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_R7hJ5T: {
+	js_E044oE: {
 		isNoop: false,
 		typeName: "RpcError",
 		fnID: "js",
-		jitFnHash: "js_R7hJ5T",
+		jitFnHash: "js_E044oE",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_R7hJ5T(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+","+"\\"mion:isΣrrθr\\""+\':\'+(v["mion:isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"message":\'+utl.asJSONString(v.message)+","+\'"name":\'+utl.asJSONString(v.name)+","+\'"statusCode":\'+v.statusCode+\'}\'}',
+		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_E044oE(v){return \'{\'+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+"\\"mion:isΣrrθr\\""+\':\'+(v["mion:isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
 		dependenciesSet: new Set(["js_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not JsonStringify union: item does not belong to the union";
 			const js_WEWIGI = utl.getJIT("js_WEWIGI");
-			return function js_R7hJ5T(v) {
+			return function js_E044oE(v) {
 				return (
 					"{" +
+					(v.statusCode === undefined
+						? ""
+						: '"statusCode":' + v.statusCode + ",") +
 					(v.id === undefined
 						? ""
 						: '"id":' +
@@ -1694,9 +1695,6 @@ const jitFnsCache = {
 					(v.errorData === undefined
 						? ""
 						: '"errorData":' + js_WEWIGI.fn(v.errorData) + ",") +
-					'"publicMessage":' +
-					utl.asJSONString(v.publicMessage) +
-					"," +
 					'"mion:isΣrrθr"' +
 					":" +
 					(v["mion:isΣrrθr"] ? "true" : "false") +
@@ -1704,14 +1702,8 @@ const jitFnsCache = {
 					'"type":' +
 					utl.asJSONString(v.type) +
 					"," +
-					'"message":' +
-					utl.asJSONString(v.message) +
-					"," +
-					'"name":' +
-					utl.asJSONString(v.name) +
-					"," +
-					'"statusCode":' +
-					v.statusCode +
+					'"publicMessage":' +
+					utl.asJSONString(v.publicMessage) +
 					"}"
 				);
 			};
@@ -1749,19 +1741,19 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tBi_e6YoYA: {
+	tBi_lH7jh7: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "tBi",
-		jitFnHash: "tBi_e6YoYA",
+		jitFnHash: "tBi_lH7jh7",
 		args: { sεr: "Ser", vλl: "v" },
 		defaultParamValues: { sεr: "", vλl: "" },
-		code: 'const uErr0 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_OeGakG = utl.getJIT("tBi_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst tBi_R7hJ5T = utl.getJIT("tBi_R7hJ5T");\nconst is_R7hJ5T = utl.getJIT("is_R7hJ5T"); return function tBi_e6YoYA(v,Ser){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {Ser.view.setUint8(Ser.index++, 0);tBi_OeGakG.fn(v,Ser)}else if (is_R7hJ5T.fn(v)) {Ser.view.setUint8(Ser.index++, 1);tBi_R7hJ5T.fn(v,Ser)}else {throw new Error(uErr0);} return Ser}',
+		code: 'const uErr0 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_OeGakG = utl.getJIT("tBi_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst tBi_E044oE = utl.getJIT("tBi_E044oE");\nconst is_E044oE = utl.getJIT("is_E044oE"); return function tBi_lH7jh7(v,Ser){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {Ser.view.setUint8(Ser.index++, 0);tBi_OeGakG.fn(v,Ser)}else if (is_E044oE.fn(v)) {Ser.view.setUint8(Ser.index++, 1);tBi_E044oE.fn(v,Ser)}else {throw new Error(uErr0);} return Ser}',
 		dependenciesSet: new Set([
 			"tBi_OeGakG",
 			"is_OeGakG",
-			"tBi_R7hJ5T",
-			"is_R7hJ5T",
+			"tBi_E044oE",
+			"is_E044oE",
 		]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -1769,17 +1761,17 @@ const jitFnsCache = {
 				"Can not encode union to binary: item does not belong to the union";
 			const tBi_OeGakG = utl.getJIT("tBi_OeGakG");
 			const is_OeGakG = utl.getJIT("is_OeGakG");
-			const tBi_R7hJ5T = utl.getJIT("tBi_R7hJ5T");
-			const is_R7hJ5T = utl.getJIT("is_R7hJ5T");
-			return function tBi_e6YoYA(v, Ser) {
+			const tBi_E044oE = utl.getJIT("tBi_E044oE");
+			const is_E044oE = utl.getJIT("is_E044oE");
+			return function tBi_lH7jh7(v, Ser) {
 				if (!(typeof v === "object" && v !== null)) {
 					throw new Error(uErr0);
 				} else if (is_OeGakG.fn(v)) {
 					Ser.view.setUint8(Ser.index++, 0);
 					tBi_OeGakG.fn(v, Ser);
-				} else if (is_R7hJ5T.fn(v)) {
+				} else if (is_E044oE.fn(v)) {
 					Ser.view.setUint8(Ser.index++, 1);
-					tBi_R7hJ5T.fn(v, Ser);
+					tBi_E044oE.fn(v, Ser);
 				} else {
 					throw new Error(uErr0);
 				}
@@ -2076,24 +2068,21 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tBi_R7hJ5T: {
+	tBi_E044oE: {
 		isNoop: false,
 		typeName: "RpcError",
 		fnID: "tBi",
-		jitFnHash: "tBi_R7hJ5T",
+		jitFnHash: "tBi_E044oE",
 		args: { sεr: "Ser", vλl: "v" },
 		defaultParamValues: { sεr: "", vλl: "" },
-		code: 'const uErr1 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_WEWIGI = utl.getJIT("tBi_WEWIGI"); return function tBi_R7hJ5T(v,Ser){;Ser.serString(v.message);Ser.serString(v.name);Ser.view.setFloat64(Ser.index,v.statusCode, 1, (Ser.index += 8));Ser.serString(v.publicMessage);\nconst bmI0 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.id !== undefined) {if (Number.isFinite(v.id)) {Ser.view.setUint8(Ser.index++, 0);Ser.view.setFloat64(Ser.index,v.id, 1, (Ser.index += 8));}else if (typeof v.id === \'string\') {Ser.view.setUint8(Ser.index++, 1);Ser.serString(v.id);} else {throw new Error(uErr1);};Ser.setBitMask(bmI0, 0 & 7)}if (v.errorData !== undefined) {tBi_WEWIGI.fn(v.errorData,Ser);Ser.setBitMask(bmI0, 1 & 7)} return Ser}',
+		code: 'const uErr1 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_WEWIGI = utl.getJIT("tBi_WEWIGI"); return function tBi_E044oE(v,Ser){;Ser.serString(v.publicMessage);\nconst bmI0 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.id !== undefined) {if (Number.isFinite(v.id)) {Ser.view.setUint8(Ser.index++, 0);Ser.view.setFloat64(Ser.index,v.id, 1, (Ser.index += 8));}else if (typeof v.id === \'string\') {Ser.view.setUint8(Ser.index++, 1);Ser.serString(v.id);} else {throw new Error(uErr1);};Ser.setBitMask(bmI0, 0 & 7)}if (v.errorData !== undefined) {tBi_WEWIGI.fn(v.errorData,Ser);Ser.setBitMask(bmI0, 1 & 7)}if (v.statusCode !== undefined) {Ser.view.setFloat64(Ser.index,v.statusCode, 1, (Ser.index += 8));Ser.setBitMask(bmI0, 2 & 7)} return Ser}',
 		dependenciesSet: new Set(["tBi_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr1 =
 				"Can not encode union to binary: item does not belong to the union";
 			const tBi_WEWIGI = utl.getJIT("tBi_WEWIGI");
-			return function tBi_R7hJ5T(v, Ser) {
-				Ser.serString(v.message);
-				Ser.serString(v.name);
-				Ser.view.setFloat64(Ser.index, v.statusCode, 1, (Ser.index += 8));
+			return function tBi_E044oE(v, Ser) {
 				Ser.serString(v.publicMessage);
 				const bmI0 = Ser.index;
 				Ser.view.setUint8(Ser.index++, 0);
@@ -2112,6 +2101,10 @@ const jitFnsCache = {
 				if (v.errorData !== undefined) {
 					tBi_WEWIGI.fn(v.errorData, Ser);
 					Ser.setBitMask(bmI0, 1 & 7);
+				}
+				if (v.statusCode !== undefined) {
+					Ser.view.setFloat64(Ser.index, v.statusCode, 1, (Ser.index += 8));
+					Ser.setBitMask(bmI0, 2 & 7);
 				}
 				return Ser;
 			};
@@ -2144,26 +2137,26 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	fBi_e6YoYA: {
+	fBi_lH7jh7: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "fBi",
-		jitFnHash: "fBi_e6YoYA",
+		jitFnHash: "fBi_lH7jh7",
 		args: { dεs: "Des", vλl: "ret" },
 		defaultParamValues: { dεs: "", vλl: "" },
-		code: 'const uErr0 = "Can not binary decode union: invalid union index";\nconst fBi_OeGakG = utl.getJIT("fBi_OeGakG");\nconst fBi_R7hJ5T = utl.getJIT("fBi_R7hJ5T"); return function fBi_e6YoYA(ret,Des){\n const dec0 = Des.view.getUint8(Des.index++);\n if (dec0 === 0) {ret = fBi_OeGakG.fn(undefined,Des)}else if (dec0 === 1) {ret = fBi_R7hJ5T.fn(undefined,Des)}\n else {throw new Error(uErr0)}\n ; return ret}',
-		dependenciesSet: new Set(["fBi_OeGakG", "fBi_R7hJ5T"]),
+		code: 'const uErr0 = "Can not binary decode union: invalid union index";\nconst fBi_OeGakG = utl.getJIT("fBi_OeGakG");\nconst fBi_E044oE = utl.getJIT("fBi_E044oE"); return function fBi_lH7jh7(ret,Des){\n const dec0 = Des.view.getUint8(Des.index++);\n if (dec0 === 0) {ret = fBi_OeGakG.fn(undefined,Des)}else if (dec0 === 1) {ret = fBi_E044oE.fn(undefined,Des)}\n else {throw new Error(uErr0)}\n ; return ret}',
+		dependenciesSet: new Set(["fBi_OeGakG", "fBi_E044oE"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 = "Can not binary decode union: invalid union index";
 			const fBi_OeGakG = utl.getJIT("fBi_OeGakG");
-			const fBi_R7hJ5T = utl.getJIT("fBi_R7hJ5T");
-			return function fBi_e6YoYA(ret, Des) {
+			const fBi_E044oE = utl.getJIT("fBi_E044oE");
+			return function fBi_lH7jh7(ret, Des) {
 				const dec0 = Des.view.getUint8(Des.index++);
 				if (dec0 === 0) {
 					ret = fBi_OeGakG.fn(undefined, Des);
 				} else if (dec0 === 1) {
-					ret = fBi_R7hJ5T.fn(undefined, Des);
+					ret = fBi_E044oE.fn(undefined, Des);
 				} else {
 					throw new Error(uErr0);
 				}
@@ -2465,26 +2458,23 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	fBi_R7hJ5T: {
+	fBi_E044oE: {
 		isNoop: false,
 		typeName: "RpcError",
 		fnID: "fBi",
-		jitFnHash: "fBi_R7hJ5T",
+		jitFnHash: "fBi_E044oE",
 		args: { dεs: "Des", vλl: "ret" },
 		defaultParamValues: { dεs: "", vλl: "" },
-		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_R7hJ5T(ret,Des){ret = {"mion:isΣrrθr":true,type:"rpc-metadata-not-found",message:Des.desString(),name:Des.desString(),statusCode:Des.view.getFloat64(Des.index, 1, (Des.index += 8)),publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
+		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_E044oE(ret,Des){ret = {"mion:isΣrrθr":true,type:"rpc-metadata-not-found",publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
 		dependenciesSet: new Set(["fBi_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr1 = "Can not binary decode union: invalid union index";
 			const fBi_WEWIGI = utl.getJIT("fBi_WEWIGI");
-			return function fBi_R7hJ5T(ret, Des) {
+			return function fBi_E044oE(ret, Des) {
 				ret = {
 					"mion:isΣrrθr": true,
 					type: "rpc-metadata-not-found",
-					message: Des.desString(),
-					name: Des.desString(),
-					statusCode: Des.view.getFloat64(Des.index, 1, (Des.index += 8)),
 					publicMessage: Des.desString(),
 				};
 
@@ -2502,6 +2492,9 @@ const jitFnsCache = {
 				}
 				if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {
 					ret.errorData = fBi_WEWIGI.fn(undefined, Des);
+				}
+				if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {
+					ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));
 				}
 				let desFn0 = utl.getDeserializeFn("RpcError");
 				if (desFn0) {
@@ -2693,6 +2686,906 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
+	is_Io24ck: {
+		isNoop: false,
+		typeName: "params",
+		fnID: "is",
+		jitFnHash: "is_Io24ck",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: " return function is_Io24ck(v){return v.length === 0}",
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			return function is_Io24ck(v) {
+				return v.length === 0;
+			};
+		},
+		fn: undefined,
+	},
+	te_Io24ck: {
+		isNoop: false,
+		typeName: "params",
+		fnID: "te",
+		jitFnHash: "te_Io24ck",
+		args: { pλth: "pth", εrr: "er", vλl: "v" },
+		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
+		code: ' return function te_Io24ck(v,pth=[],er=[]){if (v.length !== 0) utl.err(pth,er,"params"); return er}',
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			return function te_Io24ck(v, pth = [], er = []) {
+				if (v.length !== 0) utl.err(pth, er, "params");
+				return er;
+			};
+		},
+		fn: undefined,
+	},
+	tj_Io24ck: {
+		isNoop: true,
+		typeName: "params",
+		fnID: "tj",
+		jitFnHash: "tj_Io24ck",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: " return function tj_Io24ck(v){return v}",
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			return function tj_Io24ck(v) {
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	fj_Io24ck: {
+		isNoop: true,
+		typeName: "params",
+		fnID: "fj",
+		jitFnHash: "fj_Io24ck",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: " return function fj_Io24ck(v){return v}",
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			return function fj_Io24ck(v) {
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	js_Io24ck: {
+		isNoop: false,
+		typeName: "params",
+		fnID: "js",
+		jitFnHash: "js_Io24ck",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: " return function js_Io24ck(v){return '[]'}",
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			return function js_Io24ck(v) {
+				return "[]";
+			};
+		},
+		fn: undefined,
+	},
+	tBi_Io24ck: {
+		isNoop: false,
+		typeName: "params",
+		fnID: "tBi",
+		jitFnHash: "tBi_Io24ck",
+		args: { sεr: "Ser", vλl: "v" },
+		defaultParamValues: { sεr: "", vλl: "" },
+		code: " return function tBi_Io24ck(v,Ser){}",
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			return function tBi_Io24ck(v, Ser) {};
+		},
+		fn: undefined,
+	},
+	fBi_Io24ck: {
+		isNoop: false,
+		typeName: "params",
+		fnID: "fBi",
+		jitFnHash: "fBi_Io24ck",
+		args: { dεs: "Des", vλl: "ret" },
+		defaultParamValues: { dεs: "", vλl: "" },
+		code: " return function fBi_Io24ck(ret,Des){ret = new Array(0); return ret}",
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			return function fBi_Io24ck(ret, Des) {
+				ret = new Array(0);
+				return ret;
+			};
+		},
+		fn: undefined,
+	},
+	is_K6wYsQ: {
+		isNoop: false,
+		typeName: "Record",
+		fnID: "is",
+		jitFnHash: "is_K6wYsQ",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: "const is_xhFNjx = utl.getJIT(\"is_xhFNjx\"); return function is_K6wYsQ(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){if (!(is_xhFNjx.fn(v[p0]))) return false;} return true;})())}",
+		dependenciesSet: new Set(["is_xhFNjx"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const is_xhFNjx = utl.getJIT("is_xhFNjx");
+			return function is_K6wYsQ(v) {
+				return (
+					typeof v === "object" &&
+					v !== null &&
+					!Array.isArray(v) &&
+					Object.prototype.toString.call(v) === "[object Object]" &&
+					(function () {
+						for (const p0 in v) {
+							if (!is_xhFNjx.fn(v[p0])) return false;
+						}
+						return true;
+					})()
+				);
+			};
+		},
+		fn: undefined,
+	},
+	is_xhFNjx: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "is",
+		jitFnHash: "is_xhFNjx",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: "const is_WEWIGI = utl.getJIT(\"is_WEWIGI\"); return function is_xhFNjx(v){return (typeof v === 'object' && v !== null && v[\"mion:isΣrrθr\"] === true && typeof v.type === 'string' && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)) && (v.statusCode === undefined || Number.isFinite(v.statusCode)))}",
+		dependenciesSet: new Set(["is_WEWIGI"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const is_WEWIGI = utl.getJIT("is_WEWIGI");
+			return function is_xhFNjx(v) {
+				return (
+					typeof v === "object" &&
+					v !== null &&
+					v["mion:isΣrrθr"] === true &&
+					typeof v.type === "string" &&
+					(v.id === undefined ||
+						Number.isFinite(v.id) ||
+						typeof v.id === "string") &&
+					typeof v.publicMessage === "string" &&
+					(v.errorData === undefined || is_WEWIGI.fn(v.errorData)) &&
+					(v.statusCode === undefined || Number.isFinite(v.statusCode))
+				);
+			};
+		},
+		fn: undefined,
+	},
+	te_K6wYsQ: {
+		isNoop: false,
+		typeName: "Record",
+		fnID: "te",
+		jitFnHash: "te_K6wYsQ",
+		args: { pλth: "pth", εrr: "er", vλl: "v" },
+		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
+		code: "const te_xhFNjx = utl.getJIT(\"te_xhFNjx\"); return function te_K6wYsQ(v,pth=[],er=[]){\n if (!(typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'))) {\n utl.err(pth,er,\"object\");\n } else {\n for (const p0 in v) {pth.push(p0); te_xhFNjx.fn(v[p0],pth,er); pth.splice(-1);}\n }\n ; return er}",
+		dependenciesSet: new Set(["te_xhFNjx"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const te_xhFNjx = utl.getJIT("te_xhFNjx");
+			return function te_K6wYsQ(v, pth = [], er = []) {
+				if (
+					!(
+						typeof v === "object" &&
+						v !== null &&
+						!Array.isArray(v) &&
+						Object.prototype.toString.call(v) === "[object Object]"
+					)
+				) {
+					utl.err(pth, er, "object");
+				} else {
+					for (const p0 in v) {
+						pth.push(p0);
+						te_xhFNjx.fn(v[p0], pth, er);
+						pth.splice(-1);
+					}
+				}
+				return er;
+			};
+		},
+		fn: undefined,
+	},
+	te_xhFNjx: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "te",
+		jitFnHash: "te_xhFNjx",
+		args: { pλth: "pth", εrr: "er", vλl: "v" },
+		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
+		code: 'const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_xhFNjx(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n utl.err(pth,er,"class");\n } else {\n if (v["mion:isΣrrθr"] !== true) utl.err(pth,er,"literal",["mion:isΣrrθr"]);if (typeof v.type !== \'string\') utl.err(pth,er,"string",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) utl.err(pth,er,"union",["id"]);};if (typeof v.publicMessage !== \'string\') utl.err(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) utl.err(pth,er,"number",["statusCode"]);}\n }\n ; return er}',
+		dependenciesSet: new Set(["te_WEWIGI"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const te_WEWIGI = utl.getJIT("te_WEWIGI");
+			return function te_xhFNjx(v, pth = [], er = []) {
+				if (!(typeof v === "object" && v !== null)) {
+					utl.err(pth, er, "class");
+				} else {
+					if (v["mion:isΣrrθr"] !== true)
+						utl.err(pth, er, "literal", ["mion:isΣrrθr"]);
+					if (typeof v.type !== "string") utl.err(pth, er, "string", ["type"]);
+					if (v.id !== undefined) {
+						if (!(Number.isFinite(v.id) || typeof v.id === "string"))
+							utl.err(pth, er, "union", ["id"]);
+					}
+					if (typeof v.publicMessage !== "string")
+						utl.err(pth, er, "string", ["publicMessage"]);
+					if (v.errorData !== undefined) {
+						pth.push("errorData");
+						te_WEWIGI.fn(v.errorData, pth, er);
+						pth.splice(-1);
+					}
+					if (v.statusCode !== undefined) {
+						if (!Number.isFinite(v.statusCode))
+							utl.err(pth, er, "number", ["statusCode"]);
+					}
+				}
+				return er;
+			};
+		},
+		fn: undefined,
+	},
+	te_WEWIGI: {
+		isNoop: false,
+		typeName: "Readonly",
+		fnID: "te",
+		jitFnHash: "te_WEWIGI",
+		args: { pλth: "pth", εrr: "er", vλl: "v" },
+		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
+		code: " return function te_WEWIGI(v,pth=[],er=[]){\n if (!(typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'))) {\n utl.err(pth,er,\"object\");\n } else {\n \n }\n ; return er}",
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			return function te_WEWIGI(v, pth = [], er = []) {
+				if (
+					!(
+						typeof v === "object" &&
+						v !== null &&
+						!Array.isArray(v) &&
+						Object.prototype.toString.call(v) === "[object Object]"
+					)
+				) {
+					utl.err(pth, er, "object");
+				} else {
+				}
+				return er;
+			};
+		},
+		fn: undefined,
+	},
+	tj_K6wYsQ: {
+		isNoop: false,
+		typeName: "Record",
+		fnID: "tj",
+		jitFnHash: "tj_K6wYsQ",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: 'const tj_xhFNjx = utl.getJIT("tj_xhFNjx"); return function tj_K6wYsQ(v){for (const p0 in v){ v[p0] = tj_xhFNjx.fn(v[p0]);} return v}',
+		dependenciesSet: new Set(["tj_xhFNjx"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const tj_xhFNjx = utl.getJIT("tj_xhFNjx");
+			return function tj_K6wYsQ(v) {
+				for (const p0 in v) {
+					v[p0] = tj_xhFNjx.fn(v[p0]);
+				}
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	tj_xhFNjx: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "tj",
+		jitFnHash: "tj_xhFNjx",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: "const uErr0 = \"Can not json encode union: item does not belong to the union\"; return function tj_xhFNjx(v){if (v.id !== undefined) {if (Number.isFinite(v.id)) { /*noop*/}else if (typeof v.id === 'string') { /*noop*/} else {throw new Error(uErr0);}} return v}",
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 =
+				"Can not json encode union: item does not belong to the union";
+			return function tj_xhFNjx(v) {
+				if (v.id !== undefined) {
+					if (Number.isFinite(v.id)) {
+						/*noop*/
+					} else if (typeof v.id === "string") {
+						/*noop*/
+					} else {
+						throw new Error(uErr0);
+					}
+				}
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	fj_K6wYsQ: {
+		isNoop: false,
+		typeName: "Record",
+		fnID: "fj",
+		jitFnHash: "fj_K6wYsQ",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: 'const fj_xhFNjx = utl.getJIT("fj_xhFNjx"); return function fj_K6wYsQ(v){for (const p0 in v){ v[p0] = fj_xhFNjx.fn(v[p0]);} return v}',
+		dependenciesSet: new Set(["fj_xhFNjx"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const fj_xhFNjx = utl.getJIT("fj_xhFNjx");
+			return function fj_K6wYsQ(v) {
+				for (const p0 in v) {
+					v[p0] = fj_xhFNjx.fn(v[p0]);
+				}
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	fj_xhFNjx: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "fj",
+		jitFnHash: "fj_xhFNjx",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: 'const uErr0 = "Can not json decode union: invalid union index"; return function fj_xhFNjx(v){\n if (v.id !== undefined) {\n if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === \'number\') {\n const dec0 = v.id[0]; v.id = v.id[1];\n if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}\n else {throw new Error(uErr0)}\n }\n ;};\n let desFn1 = utl.getDeserializeFn("RpcError");\n if (desFn1) {v = desFn1(v)}\n else if (desFn1 = utl.getSerializeClass("RpcError")) {v = new desFn1(v)}\n ; return v}',
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 = "Can not json decode union: invalid union index";
+			return function fj_xhFNjx(v) {
+				if (v.id !== undefined) {
+					if (
+						v.id?.length === 2 &&
+						Array.isArray(v.id) &&
+						typeof v.id[0] === "number"
+					) {
+						const dec0 = v.id[0];
+						v.id = v.id[1];
+						if (dec0 === 0) {
+							/*noop*/
+						} else if (dec0 === 1) {
+							/*noop*/
+						} else {
+							throw new Error(uErr0);
+						}
+					}
+				}
+				let desFn1 = utl.getDeserializeFn("RpcError");
+				if (desFn1) {
+					v = desFn1(v);
+				} else if ((desFn1 = utl.getSerializeClass("RpcError"))) {
+					v = new desFn1(v);
+				}
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	js_K6wYsQ: {
+		isNoop: false,
+		typeName: "Record",
+		fnID: "js",
+		jitFnHash: "js_K6wYsQ",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: "const js_xhFNjx = utl.getJIT(\"js_xhFNjx\"); return function js_K6wYsQ(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + js_xhFNjx.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		dependenciesSet: new Set(["js_xhFNjx"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const js_xhFNjx = utl.getJIT("js_xhFNjx");
+			return function js_K6wYsQ(v) {
+				return (function () {
+					const ns0 = [];
+					ns0.push(
+						(function () {
+							const ls1 = [];
+							for (const p1 in v) {
+								if (p1 !== undefined)
+									ls1.push(utl.asJSONString(p1) + ":" + js_xhFNjx.fn(v[p1]));
+							}
+							if (!ls1.length) return "";
+							return ls1.join(",");
+						})(),
+					);
+					return "{" + ns0.join(",") + "}";
+				})();
+			};
+		},
+		fn: undefined,
+	},
+	js_xhFNjx: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "js",
+		jitFnHash: "js_xhFNjx",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_xhFNjx(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion:isΣrrθr\\""+\':\'+(v["mion:isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		dependenciesSet: new Set(["js_WEWIGI"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 =
+				"Can not JsonStringify union: item does not belong to the union";
+			const js_WEWIGI = utl.getJIT("js_WEWIGI");
+			return function js_xhFNjx(v) {
+				return (
+					"{" +
+					(v.id === undefined
+						? ""
+						: '"id":' +
+							(function () {
+								if (Number.isFinite(v.id)) {
+									return v.id;
+								} else if (typeof v.id === "string") {
+									return utl.asJSONString(v.id);
+								} else {
+									throw new Error(uErr0);
+								}
+							})() +
+							",") +
+					(v.errorData === undefined
+						? ""
+						: '"errorData":' + js_WEWIGI.fn(v.errorData) + ",") +
+					(v.statusCode === undefined
+						? ""
+						: '"statusCode":' + v.statusCode + ",") +
+					'"mion:isΣrrθr"' +
+					":" +
+					(v["mion:isΣrrθr"] ? "true" : "false") +
+					"," +
+					'"type":' +
+					utl.asJSONString(v.type) +
+					"," +
+					'"publicMessage":' +
+					utl.asJSONString(v.publicMessage) +
+					"}"
+				);
+			};
+		},
+		fn: undefined,
+	},
+	tBi_K6wYsQ: {
+		isNoop: false,
+		typeName: "Record",
+		fnID: "tBi",
+		jitFnHash: "tBi_K6wYsQ",
+		args: { sεr: "Ser", vλl: "v" },
+		defaultParamValues: { sεr: "", vλl: "" },
+		code: 'const tBi_xhFNjx = utl.getJIT("tBi_xhFNjx"); return function tBi_K6wYsQ(v,Ser){\n let cnt0 = 0; const piI0 = Ser.index; Ser.index += 4;\n for (const p0 in v) {Ser.serString(p0); tBi_xhFNjx.fn(v[p0],Ser); cnt0++;}\n Ser.view.setUint32(piI0, cnt0, 1);\n ; return Ser}',
+		dependenciesSet: new Set(["tBi_xhFNjx"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const tBi_xhFNjx = utl.getJIT("tBi_xhFNjx");
+			return function tBi_K6wYsQ(v, Ser) {
+				let cnt0 = 0;
+				const piI0 = Ser.index;
+				Ser.index += 4;
+				for (const p0 in v) {
+					Ser.serString(p0);
+					tBi_xhFNjx.fn(v[p0], Ser);
+					cnt0++;
+				}
+				Ser.view.setUint32(piI0, cnt0, 1);
+				return Ser;
+			};
+		},
+		fn: undefined,
+	},
+	tBi_xhFNjx: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "tBi",
+		jitFnHash: "tBi_xhFNjx",
+		args: { sεr: "Ser", vλl: "v" },
+		defaultParamValues: { sεr: "", vλl: "" },
+		code: 'const uErr1 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_WEWIGI = utl.getJIT("tBi_WEWIGI"); return function tBi_xhFNjx(v,Ser){;Ser.serString(v.type);Ser.serString(v.publicMessage);\nconst bmI0 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.id !== undefined) {if (Number.isFinite(v.id)) {Ser.view.setUint8(Ser.index++, 0);Ser.view.setFloat64(Ser.index,v.id, 1, (Ser.index += 8));}else if (typeof v.id === \'string\') {Ser.view.setUint8(Ser.index++, 1);Ser.serString(v.id);} else {throw new Error(uErr1);};Ser.setBitMask(bmI0, 0 & 7)}if (v.errorData !== undefined) {tBi_WEWIGI.fn(v.errorData,Ser);Ser.setBitMask(bmI0, 1 & 7)}if (v.statusCode !== undefined) {Ser.view.setFloat64(Ser.index,v.statusCode, 1, (Ser.index += 8));Ser.setBitMask(bmI0, 2 & 7)} return Ser}',
+		dependenciesSet: new Set(["tBi_WEWIGI"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr1 =
+				"Can not encode union to binary: item does not belong to the union";
+			const tBi_WEWIGI = utl.getJIT("tBi_WEWIGI");
+			return function tBi_xhFNjx(v, Ser) {
+				Ser.serString(v.type);
+				Ser.serString(v.publicMessage);
+				const bmI0 = Ser.index;
+				Ser.view.setUint8(Ser.index++, 0);
+				if (v.id !== undefined) {
+					if (Number.isFinite(v.id)) {
+						Ser.view.setUint8(Ser.index++, 0);
+						Ser.view.setFloat64(Ser.index, v.id, 1, (Ser.index += 8));
+					} else if (typeof v.id === "string") {
+						Ser.view.setUint8(Ser.index++, 1);
+						Ser.serString(v.id);
+					} else {
+						throw new Error(uErr1);
+					}
+					Ser.setBitMask(bmI0, 0 & 7);
+				}
+				if (v.errorData !== undefined) {
+					tBi_WEWIGI.fn(v.errorData, Ser);
+					Ser.setBitMask(bmI0, 1 & 7);
+				}
+				if (v.statusCode !== undefined) {
+					Ser.view.setFloat64(Ser.index, v.statusCode, 1, (Ser.index += 8));
+					Ser.setBitMask(bmI0, 2 & 7);
+				}
+				return Ser;
+			};
+		},
+		fn: undefined,
+	},
+	fBi_K6wYsQ: {
+		isNoop: false,
+		typeName: "Record",
+		fnID: "fBi",
+		jitFnHash: "fBi_K6wYsQ",
+		args: { dεs: "Des", vλl: "ret" },
+		defaultParamValues: { dεs: "", vλl: "" },
+		code: 'const fBi_xhFNjx = utl.getJIT("fBi_xhFNjx"); return function fBi_K6wYsQ(ret,Des){const cnt0 = Des.view.getUint32(Des.index, 1); Des.index += 4; ret = {}; for (let propI0 = 0; propI0 < cnt0; propI0++) {const p0 = Des.desSafePropName();ret[p0] = fBi_xhFNjx.fn(undefined,Des);} return ret}',
+		dependenciesSet: new Set(["fBi_xhFNjx"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const fBi_xhFNjx = utl.getJIT("fBi_xhFNjx");
+			return function fBi_K6wYsQ(ret, Des) {
+				const cnt0 = Des.view.getUint32(Des.index, 1);
+				Des.index += 4;
+				ret = {};
+				for (let propI0 = 0; propI0 < cnt0; propI0++) {
+					const p0 = Des.desSafePropName();
+					ret[p0] = fBi_xhFNjx.fn(undefined, Des);
+				}
+				return ret;
+			};
+		},
+		fn: undefined,
+	},
+	fBi_xhFNjx: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "fBi",
+		jitFnHash: "fBi_xhFNjx",
+		args: { dεs: "Des", vλl: "ret" },
+		defaultParamValues: { dεs: "", vλl: "" },
+		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_xhFNjx(ret,Des){ret = {"mion:isΣrrθr":true,type:Des.desString(),publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
+		dependenciesSet: new Set(["fBi_WEWIGI"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr1 = "Can not binary decode union: invalid union index";
+			const fBi_WEWIGI = utl.getJIT("fBi_WEWIGI");
+			return function fBi_xhFNjx(ret, Des) {
+				ret = {
+					"mion:isΣrrθr": true,
+					type: Des.desString(),
+					publicMessage: Des.desString(),
+				};
+
+				const bimI0 = Des.index;
+				Des.index += 1;
+				if (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {
+					const dec1 = Des.view.getUint8(Des.index++);
+					if (dec1 === 0) {
+						ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8));
+					} else if (dec1 === 1) {
+						ret.id = Des.desString();
+					} else {
+						throw new Error(uErr1);
+					}
+				}
+				if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {
+					ret.errorData = fBi_WEWIGI.fn(undefined, Des);
+				}
+				if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {
+					ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));
+				}
+				let desFn0 = utl.getDeserializeFn("RpcError");
+				if (desFn0) {
+					ret = desFn0(ret);
+				} else if ((desFn0 = utl.getSerializeClass("RpcError"))) {
+					ret = new desFn0(ret);
+				}
+				return ret;
+			};
+		},
+		fn: undefined,
+	},
+	is_waSi6A: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "is",
+		jitFnHash: "is_waSi6A",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: "const is_WEWIGI = utl.getJIT(\"is_WEWIGI\"); return function is_waSi6A(v){return (typeof v === 'object' && v !== null && v[\"mion:isΣrrθr\"] === true && v.type === \"route-not-found\" && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)) && (v.statusCode === undefined || Number.isFinite(v.statusCode)))}",
+		dependenciesSet: new Set(["is_WEWIGI"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const is_WEWIGI = utl.getJIT("is_WEWIGI");
+			return function is_waSi6A(v) {
+				return (
+					typeof v === "object" &&
+					v !== null &&
+					v["mion:isΣrrθr"] === true &&
+					v.type === "route-not-found" &&
+					(v.id === undefined ||
+						Number.isFinite(v.id) ||
+						typeof v.id === "string") &&
+					typeof v.publicMessage === "string" &&
+					(v.errorData === undefined || is_WEWIGI.fn(v.errorData)) &&
+					(v.statusCode === undefined || Number.isFinite(v.statusCode))
+				);
+			};
+		},
+		fn: undefined,
+	},
+	te_waSi6A: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "te",
+		jitFnHash: "te_waSi6A",
+		args: { pλth: "pth", εrr: "er", vλl: "v" },
+		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
+		code: 'const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_waSi6A(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n utl.err(pth,er,"class");\n } else {\n if (v["mion:isΣrrθr"] !== true) utl.err(pth,er,"literal",["mion:isΣrrθr"]);if (v.type !== "route-not-found") utl.err(pth,er,"literal",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) utl.err(pth,er,"union",["id"]);};if (typeof v.publicMessage !== \'string\') utl.err(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) utl.err(pth,er,"number",["statusCode"]);}\n }\n ; return er}',
+		dependenciesSet: new Set(["te_WEWIGI"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const te_WEWIGI = utl.getJIT("te_WEWIGI");
+			return function te_waSi6A(v, pth = [], er = []) {
+				if (!(typeof v === "object" && v !== null)) {
+					utl.err(pth, er, "class");
+				} else {
+					if (v["mion:isΣrrθr"] !== true)
+						utl.err(pth, er, "literal", ["mion:isΣrrθr"]);
+					if (v.type !== "route-not-found")
+						utl.err(pth, er, "literal", ["type"]);
+					if (v.id !== undefined) {
+						if (!(Number.isFinite(v.id) || typeof v.id === "string"))
+							utl.err(pth, er, "union", ["id"]);
+					}
+					if (typeof v.publicMessage !== "string")
+						utl.err(pth, er, "string", ["publicMessage"]);
+					if (v.errorData !== undefined) {
+						pth.push("errorData");
+						te_WEWIGI.fn(v.errorData, pth, er);
+						pth.splice(-1);
+					}
+					if (v.statusCode !== undefined) {
+						if (!Number.isFinite(v.statusCode))
+							utl.err(pth, er, "number", ["statusCode"]);
+					}
+				}
+				return er;
+			};
+		},
+		fn: undefined,
+	},
+	tj_waSi6A: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "tj",
+		jitFnHash: "tj_waSi6A",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: "const uErr0 = \"Can not json encode union: item does not belong to the union\"; return function tj_waSi6A(v){if (v.id !== undefined) {if (Number.isFinite(v.id)) { /*noop*/}else if (typeof v.id === 'string') { /*noop*/} else {throw new Error(uErr0);}} return v}",
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 =
+				"Can not json encode union: item does not belong to the union";
+			return function tj_waSi6A(v) {
+				if (v.id !== undefined) {
+					if (Number.isFinite(v.id)) {
+						/*noop*/
+					} else if (typeof v.id === "string") {
+						/*noop*/
+					} else {
+						throw new Error(uErr0);
+					}
+				}
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	fj_waSi6A: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "fj",
+		jitFnHash: "fj_waSi6A",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: 'const uErr0 = "Can not json decode union: invalid union index"; return function fj_waSi6A(v){\n if (v.id !== undefined) {\n if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === \'number\') {\n const dec0 = v.id[0]; v.id = v.id[1];\n if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}\n else {throw new Error(uErr0)}\n }\n ;};\n let desFn1 = utl.getDeserializeFn("RpcError");\n if (desFn1) {v = desFn1(v)}\n else if (desFn1 = utl.getSerializeClass("RpcError")) {v = new desFn1(v)}\n ; return v}',
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 = "Can not json decode union: invalid union index";
+			return function fj_waSi6A(v) {
+				if (v.id !== undefined) {
+					if (
+						v.id?.length === 2 &&
+						Array.isArray(v.id) &&
+						typeof v.id[0] === "number"
+					) {
+						const dec0 = v.id[0];
+						v.id = v.id[1];
+						if (dec0 === 0) {
+							/*noop*/
+						} else if (dec0 === 1) {
+							/*noop*/
+						} else {
+							throw new Error(uErr0);
+						}
+					}
+				}
+				let desFn1 = utl.getDeserializeFn("RpcError");
+				if (desFn1) {
+					v = desFn1(v);
+				} else if ((desFn1 = utl.getSerializeClass("RpcError"))) {
+					v = new desFn1(v);
+				}
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	js_waSi6A: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "js",
+		jitFnHash: "js_waSi6A",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_waSi6A(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion:isΣrrθr\\""+\':\'+(v["mion:isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		dependenciesSet: new Set(["js_WEWIGI"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 =
+				"Can not JsonStringify union: item does not belong to the union";
+			const js_WEWIGI = utl.getJIT("js_WEWIGI");
+			return function js_waSi6A(v) {
+				return (
+					"{" +
+					(v.id === undefined
+						? ""
+						: '"id":' +
+							(function () {
+								if (Number.isFinite(v.id)) {
+									return v.id;
+								} else if (typeof v.id === "string") {
+									return utl.asJSONString(v.id);
+								} else {
+									throw new Error(uErr0);
+								}
+							})() +
+							",") +
+					(v.errorData === undefined
+						? ""
+						: '"errorData":' + js_WEWIGI.fn(v.errorData) + ",") +
+					(v.statusCode === undefined
+						? ""
+						: '"statusCode":' + v.statusCode + ",") +
+					'"mion:isΣrrθr"' +
+					":" +
+					(v["mion:isΣrrθr"] ? "true" : "false") +
+					"," +
+					'"type":' +
+					utl.asJSONString(v.type) +
+					"," +
+					'"publicMessage":' +
+					utl.asJSONString(v.publicMessage) +
+					"}"
+				);
+			};
+		},
+		fn: undefined,
+	},
+	tBi_waSi6A: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "tBi",
+		jitFnHash: "tBi_waSi6A",
+		args: { sεr: "Ser", vλl: "v" },
+		defaultParamValues: { sεr: "", vλl: "" },
+		code: 'const uErr1 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_WEWIGI = utl.getJIT("tBi_WEWIGI"); return function tBi_waSi6A(v,Ser){;Ser.serString(v.publicMessage);\nconst bmI0 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.id !== undefined) {if (Number.isFinite(v.id)) {Ser.view.setUint8(Ser.index++, 0);Ser.view.setFloat64(Ser.index,v.id, 1, (Ser.index += 8));}else if (typeof v.id === \'string\') {Ser.view.setUint8(Ser.index++, 1);Ser.serString(v.id);} else {throw new Error(uErr1);};Ser.setBitMask(bmI0, 0 & 7)}if (v.errorData !== undefined) {tBi_WEWIGI.fn(v.errorData,Ser);Ser.setBitMask(bmI0, 1 & 7)}if (v.statusCode !== undefined) {Ser.view.setFloat64(Ser.index,v.statusCode, 1, (Ser.index += 8));Ser.setBitMask(bmI0, 2 & 7)} return Ser}',
+		dependenciesSet: new Set(["tBi_WEWIGI"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr1 =
+				"Can not encode union to binary: item does not belong to the union";
+			const tBi_WEWIGI = utl.getJIT("tBi_WEWIGI");
+			return function tBi_waSi6A(v, Ser) {
+				Ser.serString(v.publicMessage);
+				const bmI0 = Ser.index;
+				Ser.view.setUint8(Ser.index++, 0);
+				if (v.id !== undefined) {
+					if (Number.isFinite(v.id)) {
+						Ser.view.setUint8(Ser.index++, 0);
+						Ser.view.setFloat64(Ser.index, v.id, 1, (Ser.index += 8));
+					} else if (typeof v.id === "string") {
+						Ser.view.setUint8(Ser.index++, 1);
+						Ser.serString(v.id);
+					} else {
+						throw new Error(uErr1);
+					}
+					Ser.setBitMask(bmI0, 0 & 7);
+				}
+				if (v.errorData !== undefined) {
+					tBi_WEWIGI.fn(v.errorData, Ser);
+					Ser.setBitMask(bmI0, 1 & 7);
+				}
+				if (v.statusCode !== undefined) {
+					Ser.view.setFloat64(Ser.index, v.statusCode, 1, (Ser.index += 8));
+					Ser.setBitMask(bmI0, 2 & 7);
+				}
+				return Ser;
+			};
+		},
+		fn: undefined,
+	},
+	fBi_waSi6A: {
+		isNoop: false,
+		typeName: "RpcError",
+		fnID: "fBi",
+		jitFnHash: "fBi_waSi6A",
+		args: { dεs: "Des", vλl: "ret" },
+		defaultParamValues: { dεs: "", vλl: "" },
+		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_waSi6A(ret,Des){ret = {"mion:isΣrrθr":true,type:"route-not-found",publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
+		dependenciesSet: new Set(["fBi_WEWIGI"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr1 = "Can not binary decode union: invalid union index";
+			const fBi_WEWIGI = utl.getJIT("fBi_WEWIGI");
+			return function fBi_waSi6A(ret, Des) {
+				ret = {
+					"mion:isΣrrθr": true,
+					type: "route-not-found",
+					publicMessage: Des.desString(),
+				};
+
+				const bimI0 = Des.index;
+				Des.index += 1;
+				if (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {
+					const dec1 = Des.view.getUint8(Des.index++);
+					if (dec1 === 0) {
+						ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8));
+					} else if (dec1 === 1) {
+						ret.id = Des.desString();
+					} else {
+						throw new Error(uErr1);
+					}
+				}
+				if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {
+					ret.errorData = fBi_WEWIGI.fn(undefined, Des);
+				}
+				if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {
+					ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));
+				}
+				let desFn0 = utl.getDeserializeFn("RpcError");
+				if (desFn0) {
+					ret = desFn0(ret);
+				} else if ((desFn0 = utl.getSerializeClass("RpcError"))) {
+					ret = new desFn0(ret);
+				}
+				return ret;
+			};
+		},
+		fn: undefined,
+	},
 	is_q2ck2E: {
 		isNoop: false,
 		typeName: "params",
@@ -2807,324 +3700,6 @@ const jitFnsCache = {
 		createJitFn: function (utl) {
 			return function fBi_q2ck2E(ret, Des) {
 				ret = new Array(0);
-				return ret;
-			};
-		},
-		fn: undefined,
-	},
-	is_iGQesm: {
-		isNoop: false,
-		typeName: "RpcError",
-		fnID: "is",
-		jitFnHash: "is_iGQesm",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: "const is_WEWIGI = utl.getJIT(\"is_WEWIGI\"); return function is_iGQesm(v){return (typeof v === 'object' && v !== null && v[\"mion:isΣrrθr\"] === true && typeof v.type === 'string' && typeof v.message === 'string' && typeof v.name === 'string' && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && Number.isFinite(v.statusCode) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)))}",
-		dependenciesSet: new Set(["is_WEWIGI"]),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			const is_WEWIGI = utl.getJIT("is_WEWIGI");
-			return function is_iGQesm(v) {
-				return (
-					typeof v === "object" &&
-					v !== null &&
-					v["mion:isΣrrθr"] === true &&
-					typeof v.type === "string" &&
-					typeof v.message === "string" &&
-					typeof v.name === "string" &&
-					(v.id === undefined ||
-						Number.isFinite(v.id) ||
-						typeof v.id === "string") &&
-					Number.isFinite(v.statusCode) &&
-					typeof v.publicMessage === "string" &&
-					(v.errorData === undefined || is_WEWIGI.fn(v.errorData))
-				);
-			};
-		},
-		fn: undefined,
-	},
-	te_iGQesm: {
-		isNoop: false,
-		typeName: "RpcError",
-		fnID: "te",
-		jitFnHash: "te_iGQesm",
-		args: { pλth: "pth", εrr: "er", vλl: "v" },
-		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: 'const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_iGQesm(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n utl.err(pth,er,"class");\n } else {\n if (v["mion:isΣrrθr"] !== true) utl.err(pth,er,"literal",["mion:isΣrrθr"]);if (typeof v.type !== \'string\') utl.err(pth,er,"string",["type"]);if (typeof v.message !== \'string\') utl.err(pth,er,"string",["message"]);if (typeof v.name !== \'string\') utl.err(pth,er,"string",["name"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) utl.err(pth,er,"union",["id"]);};if(!(Number.isFinite(v.statusCode))) utl.err(pth,er,"number",["statusCode"]);if (typeof v.publicMessage !== \'string\') utl.err(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);}\n }\n ; return er}',
-		dependenciesSet: new Set(["te_WEWIGI"]),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			const te_WEWIGI = utl.getJIT("te_WEWIGI");
-			return function te_iGQesm(v, pth = [], er = []) {
-				if (!(typeof v === "object" && v !== null)) {
-					utl.err(pth, er, "class");
-				} else {
-					if (v["mion:isΣrrθr"] !== true)
-						utl.err(pth, er, "literal", ["mion:isΣrrθr"]);
-					if (typeof v.type !== "string") utl.err(pth, er, "string", ["type"]);
-					if (typeof v.message !== "string")
-						utl.err(pth, er, "string", ["message"]);
-					if (typeof v.name !== "string") utl.err(pth, er, "string", ["name"]);
-					if (v.id !== undefined) {
-						if (!(Number.isFinite(v.id) || typeof v.id === "string"))
-							utl.err(pth, er, "union", ["id"]);
-					}
-					if (!Number.isFinite(v.statusCode))
-						utl.err(pth, er, "number", ["statusCode"]);
-					if (typeof v.publicMessage !== "string")
-						utl.err(pth, er, "string", ["publicMessage"]);
-					if (v.errorData !== undefined) {
-						pth.push("errorData");
-						te_WEWIGI.fn(v.errorData, pth, er);
-						pth.splice(-1);
-					}
-				}
-				return er;
-			};
-		},
-		fn: undefined,
-	},
-	te_WEWIGI: {
-		isNoop: false,
-		typeName: "Readonly",
-		fnID: "te",
-		jitFnHash: "te_WEWIGI",
-		args: { pλth: "pth", εrr: "er", vλl: "v" },
-		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: " return function te_WEWIGI(v,pth=[],er=[]){\n if (!(typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'))) {\n utl.err(pth,er,\"object\");\n } else {\n \n }\n ; return er}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function te_WEWIGI(v, pth = [], er = []) {
-				if (
-					!(
-						typeof v === "object" &&
-						v !== null &&
-						!Array.isArray(v) &&
-						Object.prototype.toString.call(v) === "[object Object]"
-					)
-				) {
-					utl.err(pth, er, "object");
-				} else {
-				}
-				return er;
-			};
-		},
-		fn: undefined,
-	},
-	tj_iGQesm: {
-		isNoop: false,
-		typeName: "RpcError",
-		fnID: "tj",
-		jitFnHash: "tj_iGQesm",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: "const uErr0 = \"Can not json encode union: item does not belong to the union\"; return function tj_iGQesm(v){if (v.id !== undefined) {if (Number.isFinite(v.id)) { /*noop*/}else if (typeof v.id === 'string') { /*noop*/} else {throw new Error(uErr0);}} return v}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			const uErr0 =
-				"Can not json encode union: item does not belong to the union";
-			return function tj_iGQesm(v) {
-				if (v.id !== undefined) {
-					if (Number.isFinite(v.id)) {
-						/*noop*/
-					} else if (typeof v.id === "string") {
-						/*noop*/
-					} else {
-						throw new Error(uErr0);
-					}
-				}
-				return v;
-			};
-		},
-		fn: undefined,
-	},
-	fj_iGQesm: {
-		isNoop: false,
-		typeName: "RpcError",
-		fnID: "fj",
-		jitFnHash: "fj_iGQesm",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not json decode union: invalid union index"; return function fj_iGQesm(v){\n if (v.id !== undefined) {\n if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === \'number\') {\n const dec0 = v.id[0]; v.id = v.id[1];\n if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}\n else {throw new Error(uErr0)}\n }\n ;};\n let desFn1 = utl.getDeserializeFn("RpcError");\n if (desFn1) {v = desFn1(v)}\n else if (desFn1 = utl.getSerializeClass("RpcError")) {v = new desFn1(v)}\n ; return v}',
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			const uErr0 = "Can not json decode union: invalid union index";
-			return function fj_iGQesm(v) {
-				if (v.id !== undefined) {
-					if (
-						v.id?.length === 2 &&
-						Array.isArray(v.id) &&
-						typeof v.id[0] === "number"
-					) {
-						const dec0 = v.id[0];
-						v.id = v.id[1];
-						if (dec0 === 0) {
-							/*noop*/
-						} else if (dec0 === 1) {
-							/*noop*/
-						} else {
-							throw new Error(uErr0);
-						}
-					}
-				}
-				let desFn1 = utl.getDeserializeFn("RpcError");
-				if (desFn1) {
-					v = desFn1(v);
-				} else if ((desFn1 = utl.getSerializeClass("RpcError"))) {
-					v = new desFn1(v);
-				}
-				return v;
-			};
-		},
-		fn: undefined,
-	},
-	js_iGQesm: {
-		isNoop: false,
-		typeName: "RpcError",
-		fnID: "js",
-		jitFnHash: "js_iGQesm",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_iGQesm(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+"\\"mion:isΣrrθr\\""+\':\'+(v["mion:isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"message":\'+utl.asJSONString(v.message)+","+\'"name":\'+utl.asJSONString(v.name)+","+\'"statusCode":\'+v.statusCode+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
-		dependenciesSet: new Set(["js_WEWIGI"]),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			const uErr0 =
-				"Can not JsonStringify union: item does not belong to the union";
-			const js_WEWIGI = utl.getJIT("js_WEWIGI");
-			return function js_iGQesm(v) {
-				return (
-					"{" +
-					(v.id === undefined
-						? ""
-						: '"id":' +
-							(function () {
-								if (Number.isFinite(v.id)) {
-									return v.id;
-								} else if (typeof v.id === "string") {
-									return utl.asJSONString(v.id);
-								} else {
-									throw new Error(uErr0);
-								}
-							})() +
-							",") +
-					(v.errorData === undefined
-						? ""
-						: '"errorData":' + js_WEWIGI.fn(v.errorData) + ",") +
-					'"mion:isΣrrθr"' +
-					":" +
-					(v["mion:isΣrrθr"] ? "true" : "false") +
-					"," +
-					'"type":' +
-					utl.asJSONString(v.type) +
-					"," +
-					'"message":' +
-					utl.asJSONString(v.message) +
-					"," +
-					'"name":' +
-					utl.asJSONString(v.name) +
-					"," +
-					'"statusCode":' +
-					v.statusCode +
-					"," +
-					'"publicMessage":' +
-					utl.asJSONString(v.publicMessage) +
-					"}"
-				);
-			};
-		},
-		fn: undefined,
-	},
-	tBi_iGQesm: {
-		isNoop: false,
-		typeName: "RpcError",
-		fnID: "tBi",
-		jitFnHash: "tBi_iGQesm",
-		args: { sεr: "Ser", vλl: "v" },
-		defaultParamValues: { sεr: "", vλl: "" },
-		code: 'const uErr1 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_WEWIGI = utl.getJIT("tBi_WEWIGI"); return function tBi_iGQesm(v,Ser){;Ser.serString(v.type);Ser.serString(v.message);Ser.serString(v.name);Ser.view.setFloat64(Ser.index,v.statusCode, 1, (Ser.index += 8));Ser.serString(v.publicMessage);\nconst bmI0 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.id !== undefined) {if (Number.isFinite(v.id)) {Ser.view.setUint8(Ser.index++, 0);Ser.view.setFloat64(Ser.index,v.id, 1, (Ser.index += 8));}else if (typeof v.id === \'string\') {Ser.view.setUint8(Ser.index++, 1);Ser.serString(v.id);} else {throw new Error(uErr1);};Ser.setBitMask(bmI0, 0 & 7)}if (v.errorData !== undefined) {tBi_WEWIGI.fn(v.errorData,Ser);Ser.setBitMask(bmI0, 1 & 7)} return Ser}',
-		dependenciesSet: new Set(["tBi_WEWIGI"]),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			const uErr1 =
-				"Can not encode union to binary: item does not belong to the union";
-			const tBi_WEWIGI = utl.getJIT("tBi_WEWIGI");
-			return function tBi_iGQesm(v, Ser) {
-				Ser.serString(v.type);
-				Ser.serString(v.message);
-				Ser.serString(v.name);
-				Ser.view.setFloat64(Ser.index, v.statusCode, 1, (Ser.index += 8));
-				Ser.serString(v.publicMessage);
-				const bmI0 = Ser.index;
-				Ser.view.setUint8(Ser.index++, 0);
-				if (v.id !== undefined) {
-					if (Number.isFinite(v.id)) {
-						Ser.view.setUint8(Ser.index++, 0);
-						Ser.view.setFloat64(Ser.index, v.id, 1, (Ser.index += 8));
-					} else if (typeof v.id === "string") {
-						Ser.view.setUint8(Ser.index++, 1);
-						Ser.serString(v.id);
-					} else {
-						throw new Error(uErr1);
-					}
-					Ser.setBitMask(bmI0, 0 & 7);
-				}
-				if (v.errorData !== undefined) {
-					tBi_WEWIGI.fn(v.errorData, Ser);
-					Ser.setBitMask(bmI0, 1 & 7);
-				}
-				return Ser;
-			};
-		},
-		fn: undefined,
-	},
-	fBi_iGQesm: {
-		isNoop: false,
-		typeName: "RpcError",
-		fnID: "fBi",
-		jitFnHash: "fBi_iGQesm",
-		args: { dεs: "Des", vλl: "ret" },
-		defaultParamValues: { dεs: "", vλl: "" },
-		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_iGQesm(ret,Des){ret = {"mion:isΣrrθr":true,type:Des.desString(),message:Des.desString(),name:Des.desString(),statusCode:Des.view.getFloat64(Des.index, 1, (Des.index += 8)),publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
-		dependenciesSet: new Set(["fBi_WEWIGI"]),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			const uErr1 = "Can not binary decode union: invalid union index";
-			const fBi_WEWIGI = utl.getJIT("fBi_WEWIGI");
-			return function fBi_iGQesm(ret, Des) {
-				ret = {
-					"mion:isΣrrθr": true,
-					type: Des.desString(),
-					message: Des.desString(),
-					name: Des.desString(),
-					statusCode: Des.view.getFloat64(Des.index, 1, (Des.index += 8)),
-					publicMessage: Des.desString(),
-				};
-
-				const bimI0 = Des.index;
-				Des.index += 1;
-				if (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {
-					const dec1 = Des.view.getUint8(Des.index++);
-					if (dec1 === 0) {
-						ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8));
-					} else if (dec1 === 1) {
-						ret.id = Des.desString();
-					} else {
-						throw new Error(uErr1);
-					}
-				}
-				if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {
-					ret.errorData = fBi_WEWIGI.fn(undefined, Des);
-				}
-				let desFn0 = utl.getDeserializeFn("RpcError");
-				if (desFn0) {
-					ret = desFn0(ret);
-				} else if ((desFn0 = utl.getSerializeClass("RpcError"))) {
-					ret = new desFn0(ret);
-				}
 				return ret;
 			};
 		},

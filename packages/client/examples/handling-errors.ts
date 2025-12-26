@@ -13,7 +13,7 @@ try {
     console.log(sayHello); // Hello John Doe
 } catch (error: RpcError<string> | any) {
     // in this case the request has failed because the authorization hook is missing
-    console.log(error); // {statusCode: 400, type: 'validation-error', message: `Invalid params for Route or Hook 'auth'.`}
+    console.log(error); // { type: 'validation-error', message: `Invalid params for Route or Hook 'auth'.`}
 
     if (isRpcError(error)) {
         // ... handle the error as required
@@ -25,5 +25,5 @@ try {
     const sayHello = await routes.users.sayHello(null as any).typeErrors();
     console.log(sayHello); // Hello John Doe
 } catch (error: RpcError<string> | any) {
-    console.log(error); // { statusCode: 400, type: 'validation-error', message: `Invalid params ...`, errorData : {...}}
+    console.log(error); // { type: 'validation-error', message: `Invalid params ...`, errorData : {...}}
 }

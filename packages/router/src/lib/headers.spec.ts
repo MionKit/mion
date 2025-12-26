@@ -112,7 +112,6 @@ describe('Request and Response Headers', () => {
             expect(response.hasErrors).toBeTruthy();
             const error = response.body['@mionkit/unexpectedError']?.auth;
             const expected = new RpcError({
-                statusCode: 400,
                 type: 'headers-validation-error',
                 publicMessage: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),
@@ -388,7 +387,6 @@ describe('Request and Response Headers', () => {
             expect(response.hasErrors).toBeTruthy();
             const error = response.body['@mionkit/unexpectedError']?.auth;
             const expected = new RpcError({
-                statusCode: 400,
                 type: 'headers-validation-error',
                 publicMessage: `Invalid headers in 'auth', validation failed.`,
                 errorData: expect.anything(),

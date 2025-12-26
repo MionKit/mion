@@ -3,10 +3,10 @@ import {Routes, initMionRouter, headersHook, route, HeadersList} from '@mionkit/
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const authorizationHook = headersHook(
-    async (context, [token, userId]: HeadersList<['Authorization', 'User-id']>): Promise<void> => {
+    async (context, [token, userId]: HeadersList<['Authorization', 'User-id']>): Promise<void | RpcError<'not-authorized'>> => {
         const me = await getAuthUser(token, userId);
         if (!isAuthorized(me)) {
-            throw new RpcError({statusCode: 401, publicMessage: 'user is not authorized', type: 'not-authorized'});
+            return new RpcError({publicMessage: 'user is not authorized', type: 'not-authorized'});
         }
         context.shared.myUser = me; // user is added to ctx to shared with other routes/hooks
     }

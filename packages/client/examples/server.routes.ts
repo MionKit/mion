@@ -7,7 +7,7 @@ export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 
 const routes = {
     auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void | RpcError<'not-authorized'> => {
-        if (!token) throw new RpcError({statusCode: 401, publicMessage: 'Not Authorized', type: 'not-authorized'});
+        if (!token) throw new RpcError({publicMessage: 'Not Authorized', type: 'not-authorized'});
     }),
     users: {
         getById: route((ctx, id: string): User => ({id, name: 'John', surname: 'Smith'})),

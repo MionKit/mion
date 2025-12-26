@@ -7,7 +7,6 @@
 
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import {Route, RouterEntry, Routes} from './general';
-import {NotFoundMethod} from './remoteMethods';
 import {RawMethod} from './remoteMethods';
 import {HeaderMethod} from './remoteMethods';
 import {RouteMethod} from './remoteMethods';
@@ -61,10 +60,6 @@ export function isPublicExecutable(entry: RemoteMethod): entry is RemoteMethod {
         !!entry.paramNames?.length ||
         !!(entry as HeaderMethod).headersParam?.headerNames?.length
     );
-}
-
-export function isNotFoundExecutable(entry: RemoteMethod): entry is NotFoundMethod {
-    return (entry as NotFoundMethod).is404;
 }
 
 export function isHeaderExecutable(entry: RemoteMethod): entry is HeaderMethod {

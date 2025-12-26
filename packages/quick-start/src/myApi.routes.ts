@@ -9,8 +9,7 @@ export const myApi = initMionRouter(
     // all function parameters will be automatically validated before the function is called
     {
         auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void | RpcError<'not-authorized'> => {
-            if (!token)
-                return new RpcError<'not-authorized'>({statusCode: 401, publicMessage: 'Not Authorized', type: 'not-authorized'});
+            if (!token) return new RpcError<'not-authorized'>({publicMessage: 'Not Authorized', type: 'not-authorized'});
         }),
         users: {
             sayHello: route((ctx, user: User): string => `Hello ${user.name} ${user.surname}`),

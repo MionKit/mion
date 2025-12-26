@@ -223,7 +223,7 @@ it('should compile router methods cache to code', () => {
                 [token]: HeadersList<['Authorization']>, // testing headers serialization
                 userid: string // ensure we accept extra regular params
             ): HeadersList<['x-user-id']> => {
-                if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', type: 'not-authorized'});
+                if (!token) throw new RpcError({message: 'Not Authorized', type: 'not-authorized'});
                 return [userid];
             }
         ),

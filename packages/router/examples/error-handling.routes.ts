@@ -1,5 +1,4 @@
 import {RpcError} from '@mionkit/core';
-import {StatusCodes} from '@mionkit/core';
 import {Route, route} from '@mionkit/router';
 import type {Pet} from './myModels';
 import {myApp} from './myApp';
@@ -8,23 +7,24 @@ export const getPet = route(async (ctx, id: string): Promise<Pet | RpcError<'pet
     try {
         const pet = await myApp.db.getPet(id);
         if (!pet) {
-            // Only statusCode and publicMessage will be returned in the response.body
-            const statusCode = StatusCodes.APPLICATION_ERROR;
             const publicMessage = `Pet with id ${id} can't be found`;
-            // either return or throw are allowed
-            return new RpcError({statusCode, publicMessage, type: 'pet-not-found'});
+            // application errors should be returned and strongly typed,
+            // so can be correctly managed by client
+            return new RpcError({publicMessage, type: 'pet-not-found'});
         }
         return pet;
     } catch (dbError) {
-        const statusCode = StatusCodes.UNEXPECTED_ERROR;
         const publicMessage = `Cant fetch data.`;
+        const message = (dbError as Error).message;
         /*
-         * Only statusCode and publicMessage will be returned in the response.body.
+         * Thrown or Unexpected error are not strongly typed
          *
          * Full RpcError containing dbError message and stacktrace will be added
          * to ctx.request.unexpectedErrors, so it can be logged or managed after
+         *
+         * only publicMessage will be returned in the response
          */
-        return new RpcError({statusCode, publicMessage, originalError: dbError as Error, type: 'db-error'});
+        throw new RpcError({publicMessage, message, originalError: dbError as Error, type: 'db-error'});
     }
 }) satisfies Route;
 

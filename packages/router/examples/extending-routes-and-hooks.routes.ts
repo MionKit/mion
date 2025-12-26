@@ -1,8 +1,12 @@
 import {Route, HookDef} from '@mionkit/router';
 import {myApp} from './myApp';
 
-type MyRoute = Route & {doNotFail: boolean};
-type MyHook = HookDef & {shouldLog: boolean};
+interface MyRoute extends Route {
+    doNotFail: boolean;
+}
+interface MyHook extends HookDef {
+    shouldLog: boolean;
+}
 
 const someRoute: MyRoute = {
     doNotFail: true,
@@ -10,7 +14,7 @@ const someRoute: MyRoute = {
         if (someRoute.doNotFail) {
             // do something
         } else {
-            throw {statusCode: 400, message: 'operation failed'};
+            throw {message: 'operation failed'};
         }
     },
 };

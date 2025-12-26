@@ -6,7 +6,7 @@
  * ######## */
 
 import type {ResponseBody} from '@mionkit/router';
-import {type MethodWithJitFns, StatusCodes, RpcError, isRpcError, routesCache, MION_ROUTES} from '@mionkit/core';
+import {type MethodWithJitFns, RpcError, isRpcError, routesCache, MION_ROUTES} from '@mionkit/core';
 import type {MionRequest} from './request';
 
 // ############# SERIALIZATION #############
@@ -49,7 +49,6 @@ export async function deserializeResponseBody(response: Response): Promise<Respo
             parsedBody = await response.json();
         } catch (err: any) {
             throw new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'parsing-json-response-error',
                 publicMessage: `Invalid json response body: ${err?.message || 'unknown parsing error.'}`,
             });
@@ -108,7 +107,6 @@ function stringifyBody(req: MionRequest<any, any>): string {
             props.push(`${JSON.stringify(id)}:${jsonValue}`);
         } catch (e: any) {
             const err = new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'json-stringify-request-error',
                 publicMessage: `Failed to stringify params for handler ${id}`,
                 originalError: e,
@@ -137,7 +135,6 @@ function parseHandlerReturnValue(method: MethodWithJitFns, returnValue: any): an
         return returnJit.restoreFromJson.fn(returnValue);
     } catch (e: any) {
         return new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'deserialization-error',
             publicMessage: `Invalid response from Route or Hook '${method.id}', can not deserialize return value: ${e.message}`,
             errorData: e?.errors,

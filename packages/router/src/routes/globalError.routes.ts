@@ -25,7 +25,7 @@ export function getGlobalErrorResponse(returnErr: RpcError<string>, respHeaders:
     const body = {[MION_ROUTES.unexpectedError]: unexpectedErrors};
     respHeaders.set('content-type', 'application/json; charset=utf-8');
     const response: Mutable<MionResponse> = {
-        statusCode: returnErr.statusCode,
+        statusCode: StatusCodes.UNEXPECTED_ERROR, // Global errors are always unexpected
         hasErrors: true,
         headers: respHeaders,
         body,
@@ -57,7 +57,6 @@ export const mionUnexpectedErrorRoute = {
 export const mionNotFoundRoute = {
     [MION_ROUTES.notFound]: route((ctx: CallContext): RpcError<'route-not-found'> => {
         return new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
             publicMessage: `Route not found`,
             type: 'route-not-found',
         });

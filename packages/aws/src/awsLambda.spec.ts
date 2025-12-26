@@ -10,7 +10,7 @@ import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambd
 import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
-import {PublicRpcError} from '@mionkit/core';
+import type {PublicRpcError} from '@mionkit/core';
 
 describe('serverless router should', () => {
     // Router.forceConsoleLogs();
@@ -104,7 +104,6 @@ describe('serverless router should', () => {
         const expectedError: PublicRpcError<'validation-error'> = {
             'mion:isΣrrθr': true,
             publicMessage: `Invalid params in 'getDate', validation failed.`,
-            statusCode: 400,
             type: 'validation-error',
             errorData: expect.anything(),
         };

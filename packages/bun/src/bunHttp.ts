@@ -8,7 +8,7 @@
 import {dispatchRoute, getGlobalErrorResponse, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
-import {getENV, StatusCodes} from '@mionkit/core';
+import {getENV} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {Server} from 'bun';
 
@@ -62,7 +62,6 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
                 .then((routeResp: MionResponse) => reply(routeResp, responseHeaders))
                 .catch((e: Error) => {
                     const error = new RpcError({
-                        statusCode: StatusCodes.UNEXPECTED_ERROR,
                         publicMessage: 'Unknown Error',
                         type: 'unknown-error',
                         originalError: e,
@@ -76,7 +75,6 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
                 ...httpOptions.defaultResponseHeaders,
             });
             const error = new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 publicMessage: 'Connection Error',
                 type: 'response-connection-error',
                 originalError: errReq,
@@ -135,7 +133,6 @@ function reply(
         }
         default: {
             const error = new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 publicMessage: 'unknown-mion-response-format',
                 type: 'unknown-error',
                 errorData: {bodyType},

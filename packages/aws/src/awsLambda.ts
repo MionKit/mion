@@ -47,7 +47,6 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
                 err instanceof RpcError
                     ? err
                     : new RpcError({
-                          statusCode: 500,
                           publicMessage: 'Internal Error',
                           originalError: err,
                           type: 'unknown-error',

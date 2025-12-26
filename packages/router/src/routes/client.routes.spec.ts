@@ -40,9 +40,15 @@ describe('PublicMethods run type functionality', () => {
     it('can validate return type ClientReturn', () => {
         const rt = runType<ClientReturn>();
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error', type: 'test-error'}))).toBe(
-            true
-        );
+        expect(
+            validate(
+                new RpcError({
+                    publicMessage: 'error',
+                    message: 'error',
+                    type: 'test-error',
+                })
+            )
+        ).toBe(true);
     });
 
     it('can validate return type ClientReturn + errors', () => {
@@ -68,9 +74,15 @@ describe('PublicMethods run type functionality', () => {
         expect(typeErrorsMethodsData(response)).toEqual([]); // seems this is working but not the union type so we need to review runType Union errors
         // also only returning the Error a Union is not usefull, maybe if we detect is one of the types in the union we should return the errors of that type
         expect(typeErrors(response)).toEqual([]);
-        expect(typeErrors(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error', type: 'test-error'}))).toEqual(
-            []
-        );
+        expect(
+            typeErrors(
+                new RpcError({
+                    publicMessage: 'error',
+                    message: 'error',
+                    type: 'test-error',
+                })
+            )
+        ).toEqual([]);
     });
 
     it('can serialize/deserialize return type PublicMethods | RpcError>', () => {
@@ -86,8 +98,16 @@ describe('PublicMethods run type functionality', () => {
         const rt = runType<ClientReturn>();
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
         const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
-        const error = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error', type: 'test-error'});
-        const errorClone = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error', type: 'test-error'});
+        const error = new RpcError({
+            publicMessage: 'error',
+            message: 'error',
+            type: 'test-error',
+        });
+        const errorClone = new RpcError({
+            publicMessage: 'error',
+            message: 'error',
+            type: 'test-error',
+        });
         // operations modify the original object so we need to clone it before serializing
         const roundTrip = restoreFromJson(JSON.parse(jsonStringify(errorClone)));
         expect(roundTrip instanceof RpcError).toBeTruthy();
@@ -353,7 +373,6 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedResponse = new RpcError({
-            statusCode: 404,
             type: 'rpc-metadata-not-found',
             publicMessage: 'Errors getting Remote Methods Metadata',
             errorData: {
@@ -378,7 +397,6 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedResponse = new RpcError({
-            statusCode: 404,
             type: 'rpc-metadata-not-found',
             publicMessage: 'Route /abcd not found',
         });
