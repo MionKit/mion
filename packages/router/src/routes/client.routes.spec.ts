@@ -347,7 +347,7 @@ describe('Client Routes should', () => {
             auth: methodsMetadata.auth,
             'users/getUser': methodsMetadata['users/getUser'],
             last: methodsMetadata.last,
-            '@mionkit/unexpectedError': methodsMetadata['@mionkit/unexpectedError'],
+            'mion@unexpectedErrors': methodsMetadata['mion@unexpectedErrors'],
         };
         const methodsData = response.body[routeMethodsId] as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods

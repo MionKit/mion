@@ -7,11 +7,12 @@
 
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody, RawRequestBodyType} from './types/context';
 import {type RouterOptions} from './types/general';
+import {NOT_FOUND_PATH} from './constants';
 import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {Mutable, AnyObject, createDataViewDeserializer, MION_ROUTES, isAnyError} from '@mionkit/core';
 import {RpcError, HandlerType, StatusCodes} from '@mionkit/core';
-import {NOT_FOUND_PATH} from './constants';
+import {onExecutableError} from './lib/dispatchError';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -111,7 +112,7 @@ async function runExecutionPath(
             request.unexpectedErrors &&
             Object.keys(request.unexpectedErrors).length > 0
         ) {
-            (response.body as Mutable<AnyObject>)[MION_ROUTES.unexpectedError] = request.unexpectedErrors;
+            (response.body as Mutable<AnyObject>)[MION_ROUTES.unexpectedErrors] = request.unexpectedErrors;
         }
 
         try {
@@ -119,7 +120,12 @@ async function runExecutionPath(
             // runRawHook , runHeaderHook & runRouteOrHook must always accept the same parameters in the same order
             const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
             if (result === undefined) continue;
-            if (isAnyError(result)) onErrorResponse(context, executable, result, true); // returned errors are expected application errors
+            if (isAnyError(result)) {
+                // returned errors are expected application errors unless explicitly stated
+                const isExpected = (result as RpcError<any>).statusCode !== StatusCodes.UNEXPECTED_ERROR;
+                onExecutableError(context, executable, result, isExpected);
+                if (!isExpected) continue; // unexpected errors are handled by the unexpectedErrors hook
+            }
 
             // TODO: when returning headerList on an union there could be another types that are array but not HeaderList
             // Not sure we this scenario can be easily fixed maybe returning a class or something that adds a unique prop to the returned data
@@ -133,42 +139,11 @@ async function runExecutionPath(
                 (response.body as Mutable<AnyObject>)[executable.id] = result;
             }
         } catch (err: any | RpcError<string> | Error) {
-            onErrorResponse(context, executable, err, false); // thrown errors are unexpected
+            onExecutableError(context, executable, err, false); // thrown errors are unexpected
         }
     }
 
     return context.response;
-}
-
-function onErrorResponse(
-    context: CallContext,
-    executable: RemoteMethod,
-    err: any | RpcError<string> | Error,
-    isExpected: boolean
-) {
-    const response = context.response as Mutable<MionResponse>;
-    const path = executable.id;
-    const rpcError =
-        err instanceof RpcError
-            ? err
-            : new RpcError({
-                  publicMessage: `Unknown error in handler "${path}" of route execution path.`,
-                  originalError: err,
-                  type: 'unknown-error',
-              });
-
-    // Set response status code based on whether error is expected or unexpected
-    response.statusCode = rpcError.statusCode ?? (isExpected ? StatusCodes.APPLICATION_ERROR : StatusCodes.UNEXPECTED_ERROR);
-    response.hasErrors = true;
-
-    // Expected errors (returned from handler) are added to response.body at line 130
-    // Unexpected errors (thrown or validation/serialization errors) are stored in unexpectedErrors
-    if (isExpected) return;
-
-    // Unexpected errors are stored in unexpectedErrors for serialization
-    const unexpectedErrors = context.request.unexpectedErrors || ({} as Record<string, RpcError<string>>);
-    unexpectedErrors[path] = rpcError;
-    (context.request as Mutable<MionRequest>).unexpectedErrors = unexpectedErrors;
 }
 
 async function runRawHook(

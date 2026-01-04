@@ -23,26 +23,26 @@ const routerCache = {
 		pointer: ["mion_GetRemoteMethodsMetadataByPath"],
 		nestLevel: 0,
 	},
-	"@mionkit/unexpectedError": {
+	"mion@unexpectedErrors": {
 		paramNames: [],
 		type: 1,
-		id: "@mionkit/unexpectedError",
+		id: "mion@unexpectedErrors",
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "Io24ck",
 		returnJitHash: "K6wYsQ",
-		pointer: ["@mionkit/unexpectedError"],
+		pointer: ["mion@unexpectedErrors"],
 		nestLevel: 0,
 	},
-	"@mionkit/notFound": {
+	"mion@notFound": {
 		paramNames: [],
 		type: 1,
-		id: "@mionkit/notFound",
+		id: "mion@notFound",
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "Io24ck",
 		returnJitHash: "waSi6A",
-		pointer: ["@mionkit/notFound"],
+		pointer: ["mion@notFound"],
 		nestLevel: 0,
 	},
 	"@mionkit/mionEmptyHook": {

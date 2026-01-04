@@ -16,6 +16,7 @@ export * from './src/types/publicMethods';
 export * from './src/constants';
 export * from './src/router';
 export * from './src/dispatch';
+export * from './src/lib/dispatchError';
 export * from './src/lib/headers';
 export * from './src/lib/remoteMethods';
 export * from './src/lib/handlers';

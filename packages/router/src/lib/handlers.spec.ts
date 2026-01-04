@@ -89,7 +89,7 @@ describe('route & hooks init functions', () => {
             wrongRequest,
             {}
         );
-        expect(wrongResponse.body['@mionkit/unexpectedError']?.auth).toEqual(
+        expect(wrongResponse.body['mion@unexpectedErrors']?.auth).toEqual(
             expect.objectContaining({type: 'headers-validation-error'})
         );
         expect(wrongResponse.headers.get('Authorization')).toEqual(undefined);

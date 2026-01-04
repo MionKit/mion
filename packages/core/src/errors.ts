@@ -92,7 +92,7 @@ export class RpcError<ErrType extends string, ErrData = any>
     /** optional http status code */
     statusCode?: number;
 
-    constructor({message, publicMessage, originalError, errorData, type, id}: AnyErrorParams<ErrType, ErrData>) {
+    constructor({message, publicMessage, originalError, errorData, type, id, statusCode}: AnyErrorParams<ErrType, ErrData>) {
         const originalMessage = message || originalError?.message || publicMessage || '';
 
         // Call parent TypedError constructor
@@ -106,6 +106,7 @@ export class RpcError<ErrType extends string, ErrData = any>
         this.id = id ?? (autoGenerateErrorId ? randomUUID_V7() : undefined);
         this.publicMessage = publicMessage || '';
         this.errorData = errorData;
+        this.statusCode = statusCode;
 
         // Override name to be non-enumerable
         Object.defineProperty(this, 'name', {

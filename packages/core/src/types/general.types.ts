@@ -87,7 +87,6 @@ export interface RpcErrorParams<ErrType extends StrNumber, ErrData = any> {
     errorData?: ErrData;
     /** original error used to create the RpcError */
     originalError?: Error;
-
     /** optional http status code */
     statusCode?: number;
 }

@@ -256,7 +256,7 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/abcd', request.body, request.headers, headersFromRecord({}), request, {});
             // Not-found errors are returned by the not-found route and stored in unexpectedErrors
-            const error = response.body[MION_ROUTES.unexpectedError][MION_ROUTES.notFound];
+            const error = response.body[MION_ROUTES.unexpectedErrors][MION_ROUTES.notFound];
             const expected = new RpcError({
                 type: 'route-not-found',
                 publicMessage: 'Route not found',
@@ -279,7 +279,7 @@ describe('Dispatch routes', () => {
                 {}
             );
             // Validation errors are unexpected errors (not part of return type union)
-            const error = response.body[MION_ROUTES.unexpectedError]?.auth;
+            const error = response.body[MION_ROUTES.unexpectedErrors]?.auth;
             const expected = new RpcError({
                 type: 'headers-validation-error',
                 publicMessage: `Invalid headers in 'auth', validation failed.`,
@@ -305,7 +305,7 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const error = response.body[MION_ROUTES.unexpectedError]['mionDeserializeRequest'];
+            const error = response.body[MION_ROUTES.unexpectedErrors]['mionDeserializeRequest'];
             const expected = new RpcError({
                 type: 'invalid-request-body',
                 publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
@@ -325,7 +325,7 @@ describe('Dispatch routes', () => {
                 request2,
                 {}
             );
-            const errorResp = response2.body[MION_ROUTES.unexpectedError]['mionDeserializeRequest'];
+            const errorResp = response2.body[MION_ROUTES.unexpectedErrors]['mionDeserializeRequest'];
             expect(errorResp).toMatchObject({
                 'mion:isΣrrθr': true,
                 type: 'parsing-json-request-error',
@@ -348,7 +348,7 @@ describe('Dispatch routes', () => {
                 {}
             );
             // Validation errors are unexpected errors (not part of return type union)
-            const error = response.body[MION_ROUTES.unexpectedError]?.changeUserName;
+            const error = response.body[MION_ROUTES.unexpectedErrors]?.changeUserName;
             const expected = new RpcError({
                 type: `validation-error`,
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
@@ -371,7 +371,7 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const error = response.body[MION_ROUTES.unexpectedError]['getSameDate'];
+            const error = response.body[MION_ROUTES.unexpectedErrors]['getSameDate'];
             expect(error).toMatchObject({
                 'mion:isΣrrθr': true,
                 type: 'serialization-error',
@@ -401,7 +401,7 @@ describe('Dispatch routes', () => {
                 errorData: [{expected: 'string', path: [0, 'name']}],
             });
             // Validation errors are unexpected errors (not part of return type union)
-            const error = response.body[MION_ROUTES.unexpectedError]?.changeUserName;
+            const error = response.body[MION_ROUTES.unexpectedErrors]?.changeUserName;
             expect(error).toEqual(expected);
         });
 
@@ -428,7 +428,7 @@ describe('Dispatch routes', () => {
                 ],
             });
             // Validation errors are unexpected errors (not part of return type union)
-            const error = response.body[MION_ROUTES.unexpectedError]?.changeUserName;
+            const error = response.body[MION_ROUTES.unexpectedErrors]?.changeUserName;
             expect(error).toEqual(expected);
         });
 
@@ -443,7 +443,7 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('routeFail', []);
 
             const response = await dispatchRoute('/routeFail', request.body, request.headers, headersFromRecord({}), request, {});
-            const error = response.body[MION_ROUTES.unexpectedError]['routeFail'];
+            const error = response.body[MION_ROUTES.unexpectedErrors]['routeFail'];
             expect(error).toMatchObject({
                 'mion:isΣrrθr': true,
                 type: 'unknown-error',
@@ -467,7 +467,7 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const error = response.body[MION_ROUTES.unexpectedError]['getSameDate'];
+            const error = response.body[MION_ROUTES.unexpectedErrors]['getSameDate'];
             const expected = new RpcError({
                 publicMessage: `Invalid params 'getSameDate', can not validate parameters.`,
                 type: 'validation-error',
@@ -551,7 +551,7 @@ describe('Dispatch routes', () => {
             // leaving request.body as empty object, then route fails validation (correct behavior)
             expect(response.hasErrors).toBeTruthy();
             // Validation errors are unexpected errors (not part of return type union)
-            expect(response.body[MION_ROUTES.unexpectedError]?.changeUserName).toMatchObject({
+            expect(response.body[MION_ROUTES.unexpectedErrors]?.changeUserName).toMatchObject({
                 'mion:isΣrrθr': true,
                 type: 'validation-error',
             });

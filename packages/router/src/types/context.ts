@@ -63,7 +63,7 @@ export interface MionRequest {
      * - Any other errors thrown during execution
      *
      * These errors are serialized separately from the route response and sent to the client
-     * in the unexpectedError hook response, allowing them to be properly deserialized
+     * in the unexpectedErrors hook response, allowing them to be properly deserialized
      * without being part of the route's type signature.
      */
     readonly unexpectedErrors?: Readonly<Record<string, RpcError<string>>>;
