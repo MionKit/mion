@@ -21,15 +21,15 @@ const routerCache = {
 		pointer: ["mion_GetRemoteMethodsMetadataByPath"],
 		nestLevel: 0,
 	},
-	"mion@unexpectedErrors": {
+	"@thrownErrors": {
 		paramNames: [],
 		type: 1,
-		id: "mion@unexpectedErrors",
+		id: "@thrownErrors",
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "Io24ck",
 		returnJitHash: "K6wYsQ",
-		pointer: ["mion@unexpectedErrors"],
+		pointer: ["@thrownErrors"],
 		nestLevel: 0,
 	},
 	"mion@notFound": {

@@ -9,11 +9,12 @@ import type {MionResponse, MionRequest, CallContext} from '../types/context';
 import type {RouterOptions} from '../types/general';
 import type {HooksCollection, MayReturnError} from '../types/publicMethods';
 import type {ResponseBody} from '../types/context';
-import {AnyObject, Mutable, MION_ROUTES, StatusCodes} from '@mionkit/core';
+import {AnyObject, Mutable, MION_ROUTES} from '@mionkit/core';
 import {rawHook} from '../lib/handlers';
-import {getRouteExecutableFromPath, getRouteExecutionPath, getAnyExecutable} from '../router';
+import {getRouteExecutableFromPath, getRouteExecutionPath, getRouteExecutable} from '../router';
 import {RpcError} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
+import {onExecutableError} from '../lib/dispatchError';
 
 // ############# PUBLIC METHODS #############
 
@@ -30,8 +31,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
             try {
                 parsedBody = JSON.parse(context.request.rawBody as string);
             } catch (err: any) {
-                return new RpcError({
-                    statusCode: StatusCodes.UNEXPECTED_ERROR,
+                throw new RpcError({
                     type: 'parsing-json-request-error',
                     publicMessage: `Invalid json request body: ${err?.message || 'unknown parsing error.'}`,
                 });
@@ -53,8 +53,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
             parsedBody = {[getRouteExecutableFromPath(context.path).id]: parsedBody};
         }
         if (typeof parsedBody !== 'object')
-            return new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
+            throw new RpcError({
                 type: 'invalid-request-body',
                 publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             });
@@ -78,7 +77,7 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
             const executionPath = getRouteExecutionPath(context.path);
             if (!executionPath) {
                 // This should only happen for not-found routes, which don't have an execution path
-                // In this case, we only need to serialize the unexpectedErrors
+                // In this case, we only need to serialize the thrownErrors
                 const body = stringifyBody(context, [], respBody, opts);
                 response.rawBody = body;
             } else {
@@ -107,38 +106,33 @@ function stringifyBody(context: CallContext, executionPath: RemoteMethod[], resp
             const jsonValue = stringifyHandlerReturnValue(method, returnValue, opts);
             if (!jsonValue) continue;
             props.push(`${JSON.stringify(method.id)}:${jsonValue}`);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (e: any) {
-            const err = new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
-                type: 'json-stringify-response-error',
-                publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.jsonStringify.typeName}`,
-                originalError: e,
-            });
-            const errorJsonVal = JSON.stringify(err);
-            props.push(`${JSON.stringify(method.id)}:${errorJsonVal}`);
-            onErrorResponse(context, err);
+            onStringifyExecutableError(context, method, e);
         }
     }
 
-    // Serialize unexpectedErrors if they exist
-    const unexpectedErrors = respBody[MION_ROUTES.unexpectedErrors];
-    if (unexpectedErrors) {
-        const unexpectedErrorRoute = getAnyExecutable(MION_ROUTES.unexpectedErrors);
-        if (unexpectedErrorRoute) {
-            try {
-                const jsonValue = stringifyHandlerReturnValue(unexpectedErrorRoute, unexpectedErrors, opts);
-                if (jsonValue) {
-                    props.push(`${JSON.stringify(MION_ROUTES.unexpectedErrors)}:${jsonValue}`);
-                }
-            } catch (e: any) {
-                // If serialization fails, fall back to JSON.stringify
-                props.push(`${JSON.stringify(MION_ROUTES.unexpectedErrors)}:${JSON.stringify(unexpectedErrors)}`);
-            }
+    // Serialize thrownErrors if they exist
+    const thrownErrors = respBody[MION_ROUTES.thrownErrors];
+    if (thrownErrors) {
+        const method = getRouteExecutable(MION_ROUTES.thrownErrors)!;
+        try {
+            const jsonValue = stringifyHandlerReturnValue(method, thrownErrors, opts);
+            if (jsonValue) props.push(`${JSON.stringify(method.id)}:${jsonValue}`);
+        } catch (e: any) {
+            onStringifyExecutableError(context, method, e);
         }
     }
-
     return `{${props.join(',')}}`;
+}
+
+function onStringifyExecutableError(context: CallContext, method: RemoteMethod, e: any) {
+    const err = new RpcError({
+        type: 'json-stringify-response-error',
+        publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.jsonStringify.typeName}`,
+        originalError: e,
+        errorData: {methodId: method.id},
+    });
+    onExecutableError(context, method, err);
 }
 
 function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any, opts: RouterOptions): string {

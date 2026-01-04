@@ -110,7 +110,7 @@ describe('Request and Response Headers', () => {
             const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
 
             expect(response.hasErrors).toBeTruthy();
-            const error = response.body['mion@unexpectedErrors']?.auth;
+            const error = response.body['@thrownErrors']?.auth;
             const expected = new RpcError({
                 type: 'headers-validation-error',
                 publicMessage: `Invalid headers in 'auth', validation failed.`,
@@ -385,7 +385,7 @@ describe('Request and Response Headers', () => {
             const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
 
             expect(response.hasErrors).toBeTruthy();
-            const error = response.body['mion@unexpectedErrors']?.auth;
+            const error = response.body['@thrownErrors']?.auth;
             const expected = new RpcError({
                 type: 'headers-validation-error',
                 publicMessage: `Invalid headers in 'auth', validation failed.`,

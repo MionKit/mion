@@ -10,8 +10,8 @@ import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
 import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
-import {Mutable, AnyObject, createDataViewDeserializer, MION_ROUTES, isAnyError} from '@mionkit/core';
-import {RpcError, HandlerType, StatusCodes} from '@mionkit/core';
+import {Mutable, AnyObject, createDataViewDeserializer, MION_ROUTES, StatusCodes} from '@mionkit/core';
+import {RpcError, HandlerType} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
 
 /*
@@ -75,7 +75,7 @@ export function createCallContext(
             body: {},
             binDeserializer:
                 bodyType === 'B' ? createDataViewDeserializer(transformedPath, reqRawBody as ArrayBuffer) : undefined,
-            unexpectedErrors: undefined,
+            thrownErrors: undefined,
         },
         response: {
             statusCode: StatusCodes.OK,
@@ -106,13 +106,9 @@ async function runExecutionPath(
         const executable = executables[i];
         if (response.hasErrors && !executable.options.runOnError) continue;
 
-        // Add unexpectedErrors to response body before the serializer runs
-        if (
-            executable.id === 'mionSerializeResponse' &&
-            request.unexpectedErrors &&
-            Object.keys(request.unexpectedErrors).length > 0
-        ) {
-            (response.body as Mutable<AnyObject>)[MION_ROUTES.unexpectedErrors] = request.unexpectedErrors;
+        // Add thrownErrors to response body before the serializer runs
+        if (executable.id === 'mionSerializeResponse' && request.thrownErrors && Object.keys(request.thrownErrors).length > 0) {
+            (response.body as Mutable<AnyObject>)[MION_ROUTES.thrownErrors] = request.thrownErrors;
         }
 
         try {
@@ -120,12 +116,6 @@ async function runExecutionPath(
             // runRawHook , runHeaderHook & runRouteOrHook must always accept the same parameters in the same order
             const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
             if (result === undefined) continue;
-            if (isAnyError(result)) {
-                // returned errors are expected application errors unless explicitly stated
-                const isExpected = (result as RpcError<any>).statusCode !== StatusCodes.UNEXPECTED_ERROR;
-                onExecutableError(context, executable, result, isExpected);
-                if (!isExpected) continue; // unexpected errors are handled by the unexpectedErrors hook
-            }
 
             // TODO: when returning headerList on an union there could be another types that are array but not HeaderList
             // Not sure we this scenario can be easily fixed maybe returning a class or something that adds a unique prop to the returned data
@@ -139,7 +129,8 @@ async function runExecutionPath(
                 (response.body as Mutable<AnyObject>)[executable.id] = result;
             }
         } catch (err: any | RpcError<string> | Error) {
-            onExecutableError(context, executable, err, false); // thrown errors are unexpected
+            // All thrown errors are unexpected
+            onExecutableError(context, executable, err);
         }
     }
 
