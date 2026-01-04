@@ -54,7 +54,7 @@ export interface MionRequest {
     /** parsed request body */
     readonly body: Readonly<AnyObject>;
     /**
-     * Unexpected errors that are not part of the route/handler return type union.
+     * Unexpected or thrown errors that are not part of the route/handler return type.
      * This includes:
      * - Validation errors (params, headers)
      * - Deserialization/serialization errors
@@ -63,10 +63,10 @@ export interface MionRequest {
      * - Any other errors thrown during execution
      *
      * These errors are serialized separately from the route response and sent to the client
-     * in the unexpectedErrors hook response, allowing them to be properly deserialized
+     * in the thrownErrors hook response, allowing them to be properly deserialized
      * without being part of the route's type signature.
      */
-    readonly unexpectedErrors?: Readonly<Record<string, RpcError<string>>>;
+    readonly thrownErrors?: Readonly<Record<string, RpcError<string>>>;
     readonly binDeserializer?: DataViewDeserializer | undefined;
 }
 
@@ -106,4 +106,6 @@ export interface MionHeaders {
 export type ContextDataFactory<ContextData extends Record<string, any>> = () => ContextData;
 
 /** Response body, a record containing the result of each handler or an error. */
-export type ResponseBody = Record<string, any>;
+export interface ResponseBody extends Record<string, any> {
+    '@thrownErrors'?: Record<string, RpcError<string>>;
+}

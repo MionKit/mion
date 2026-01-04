@@ -6,16 +6,19 @@ import type {RemoteMethod} from '../types/remoteMethods';
  * Return a Response mion response for any error that happens before the route execution.
  * to be used by any transport layer. ie: node/http, aws/lambda, bun, etc.
  * basically is a global error response when when anything fails outside the router.
- * Uses unexpectedErrors with a special globalError key to maintain consistency with route errors.
+ * Uses thrownErrors with a special globalError key to maintain consistency with route errors.
  * @param returnErr
  * @param respHeaders
  * @returns
  */
 
 export function getGlobalErrorResponse(returnErr: RpcError<string>, respHeaders: MionHeaders): MionResponse {
-    // Store global error in unexpectedErrors with special globalError key
-    const unexpectedErrors = {[MION_ROUTES.globalError]: returnErr};
-    const body = {[MION_ROUTES.unexpectedErrors]: unexpectedErrors};
+    // Store global error in thrownErrors with special globalError key
+    const body = {
+        [MION_ROUTES.thrownErrors]: {
+            [MION_ROUTES.globalError]: returnErr,
+        },
+    };
     respHeaders.set('content-type', 'application/json; charset=utf-8');
     const response: Mutable<MionResponse> = {
         statusCode: StatusCodes.UNEXPECTED_ERROR, // Global errors are always unexpected
@@ -29,19 +32,15 @@ export function getGlobalErrorResponse(returnErr: RpcError<string>, respHeaders:
 }
 
 /**
- * Handles errors during route dispatch
+ * Handles errors during route dispatch.
+ * All errors passed to this function are unexpected (thrown errors).
+ * Expected errors are returned from handlers and added directly to response.body.
  * @param context
  * @param executable
  * @param err
- * @param isExpected
  * @returns
  */
-export function onExecutableError(
-    context: CallContext,
-    executable: RemoteMethod,
-    err: any | RpcError<string> | Error,
-    isExpected: boolean
-) {
+export function onExecutableError(context: CallContext, executable: RemoteMethod, err: any | RpcError<string> | Error) {
     const response = context.response as Mutable<MionResponse>;
     const path = executable.id;
     const rpcError =
@@ -53,16 +52,12 @@ export function onExecutableError(
                   type: 'unknown-error',
               });
 
-    // Set response status code based on whether error is expected or unexpected
-    response.statusCode = rpcError.statusCode ?? (isExpected ? StatusCodes.APPLICATION_ERROR : StatusCodes.UNEXPECTED_ERROR);
+    // All thrown errors are unexpected
+    response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
     response.hasErrors = true;
 
-    // Expected errors (returned from handler) are added to response.body at line 130
-    // Unexpected errors (thrown or validation/serialization errors) are stored in unexpectedErrors
-    if (isExpected) return;
-
-    // Unexpected errors are stored in unexpectedErrors for serialization
-    const unexpectedErrors = context.request.unexpectedErrors || ({} as Record<string, RpcError<string>>);
-    unexpectedErrors[path] = rpcError;
-    (context.request as Mutable<MionRequest>).unexpectedErrors = unexpectedErrors;
+    // Store unexpected errors for serialization
+    const thrownErrors = context.request.thrownErrors || ({} as Record<string, RpcError<string>>);
+    thrownErrors[path] = rpcError;
+    (context.request as Mutable<MionRequest>).thrownErrors = thrownErrors;
 }

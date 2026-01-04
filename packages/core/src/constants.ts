@@ -23,15 +23,20 @@ export const MAX_STACK_DEPTH = 50;
  */
 export const MION_ROUTES = {
     /** get remote methods metadata by method id */
-    getRemoteMethodsMetadataById: 'mion_GetRemoteMethodsMetadataById',
+    getRemoteMethodsMetadataById: 'mion@GetRemoteMethodsMetadataById',
     /** get remote methods metadata by route path, this include all hooks in the execution path of the route. */
-    getRemoteMethodsMetadataByPath: 'mion_GetRemoteMethodsMetadataByPath',
+    getRemoteMethodsMetadataByPath: 'mion@GetRemoteMethodsMetadataByPath',
     /** global error route for errors that occur before reaching the router */
     globalError: 'mion@globalError',
-    /** unexpected errors route for errors thrown during route execution that are not part of the return type union */
-    unexpectedErrors: 'mion@unexpectedErrors',
     /** not-found route for when a requested route doesn't exist */
     notFound: 'mion@notFound',
+    /**
+     * !IMPORTANT!!
+     * This is technically not a route, but a special key used to store unexpected errors in the response body.
+     * is declared as a route to reuse existing router serialization/deserialization logic.
+     * Errors thrown by routes/hooks, these are not strongly typed
+     * */
+    thrownErrors: '@thrownErrors',
 } as const;
 
 /**
