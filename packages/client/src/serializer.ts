@@ -61,8 +61,8 @@ export async function deserializeResponseBody(response: Response): Promise<Respo
     // Check if there are unexpected errors
     // Unexpected errors are errors thrown during route execution that are not part of the return type union
     // Global errors (errors before reaching router) are also stored in unexpectedErrors with a special key
-    if (MION_ROUTES.unexpectedError in parsedBody) {
-        const unexpectedErrors = parsedBody[MION_ROUTES.unexpectedError];
+    if (MION_ROUTES.unexpectedErrors in parsedBody) {
+        const unexpectedErrors = parsedBody[MION_ROUTES.unexpectedErrors];
 
         // Check if this is a global error (stored with special globalError key)
         if (MION_ROUTES.globalError in unexpectedErrors) {
@@ -76,7 +76,7 @@ export async function deserializeResponseBody(response: Response): Promise<Respo
         // Merge unexpected errors into the main response body
         // so they appear at their original route paths
         Object.assign(parsedBody, unexpectedErrors);
-        delete parsedBody[MION_ROUTES.unexpectedError];
+        delete parsedBody[MION_ROUTES.unexpectedErrors];
     }
 
     // Deserialize each method's return value
