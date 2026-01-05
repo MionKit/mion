@@ -16,6 +16,7 @@ export const mionErrorsRoutes = {
      * This is declared as route mostly to reuse existing router serialization/deserialization functionality.
      * But "@thrownErrors" is expected to be a field in response body that contain all thrown errors from other executables.
      * thrown Errors are not strongly typed and are all serialized/deserialized as RpcError<string>.
+     * this also prevents users to register a route with the same name.
      */
     [MION_ROUTES.thrownErrors]: route((ctx: CallContext): Record<string, RpcError<string>> => {
         return ctx.request.thrownErrors || {};
