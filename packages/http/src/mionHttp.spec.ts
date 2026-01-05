@@ -96,7 +96,13 @@ describe('node http router should', () => {
             method: 'POST',
             body: JSON.stringify(requestData),
         });
-        const reply = await response.json();
+        const text = await response.text();
+        console.log({
+            text,
+            response,
+            headers: Object.fromEntries(response.headers.entries()),
+        });
+        const reply = JSON.parse(text);
         const headers = Object.fromEntries(response.headers.entries());
 
         const expectedError: PublicRpcError<'validation-error'> = {
@@ -105,7 +111,7 @@ describe('node http router should', () => {
             type: 'validation-error',
             errorData: expect.anything(),
         };
-        expect(reply).toEqual({'mion@unexpectedErrors': {getDate: expectedError}});
+        expect(reply).toEqual({'@thrownErrors': {getDate: expectedError}});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('191');
@@ -158,7 +164,7 @@ describe('node http router should', () => {
             publicMessage: `Payload Too Large`,
             type: 'request-payload-too-large',
         };
-        expect(reply).toEqual({'mion@unexpectedErrors': {'mion@globalError': expectedError}});
+        expect(reply).toEqual({'@thrownErrors': {'mion@platformError': expectedError}});
         expect(headers['x-app-name']).toEqual('MyApp');
         expect(headers['x-instance-id']).toEqual('3089');
         expect(headers['connection']).toEqual('close');
@@ -187,6 +193,6 @@ describe('node http router should', () => {
         const smallServer = await startNodeServer();
         const persistedMethods = getPersistedMethods();
         expect(smallServer.listening).toBe(false);
-        expect(Object.keys(persistedMethods)).toEqual(['mion@unexpectedErrors', 'changeUserName', 'getDate', 'updateHeaders']);
+        expect(Object.keys(persistedMethods)).toEqual(['changeUserName', 'getDate', 'updateHeaders']);
     });
 });

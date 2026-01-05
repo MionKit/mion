@@ -111,7 +111,7 @@ describe('Create routes should', () => {
         initRouter();
         registerRoutes(routes);
 
-        expect(geRoutesSize()).toEqual(5);
+        expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes
         expect(geHooksSize()).toEqual(5);
 
         expect(getRouteExecutionPath('/users/getUser')?.methods).toEqual(
@@ -199,7 +199,7 @@ describe('Create routes should', () => {
         initRouter({prefix: 'api/v1', suffix: '.json'});
         registerRoutes(routes);
 
-        expect(geRoutesSize()).toEqual(5);
+        expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes
         expect(geHooksSize()).toEqual(5);
 
         expect(getRouteExecutionPath('/api/v1/users/getUser.json')).toBeTruthy();

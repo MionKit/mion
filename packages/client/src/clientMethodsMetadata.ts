@@ -16,7 +16,7 @@ import type {MionRoutes} from '@mionkit/router';
 
 type GetRemoteMethodsMetadataById = MionRoutes[typeof MION_ROUTES.getRemoteMethodsMetadataById]['handler'];
 type MethodsMetadataResponse = Awaited<ReturnType<GetRemoteMethodsMetadataById>>;
-type GlobalErrorRoute = MionRoutes[typeof MION_ROUTES.globalError]['handler'];
+type GlobalErrorRoute = MionRoutes[typeof MION_ROUTES.platformError]['handler'];
 type GlobalErrorResponse = Awaited<ReturnType<GlobalErrorRoute>>;
 
 /**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
@@ -39,10 +39,10 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
 
         // jit functions and routes metadata needs to be in caches before calling deserialize
         const deserialized = await deserializeResponseBody(response);
-        const globalError = deserialized[MION_ROUTES.globalError] as GlobalErrorResponse | undefined;
+        const platformError = deserialized[MION_ROUTES.platformError] as GlobalErrorResponse | undefined;
         const serializableMethodsData = deserialized[MION_ROUTES.getRemoteMethodsMetadataById] as MethodsMetadataResponse;
 
-        if (isRpcError(globalError)) throw globalError;
+        if (isRpcError(platformError)) throw platformError;
         if (isRpcError(serializableMethodsData)) throw serializableMethodsData;
         if (!serializableMethodsData)
             throw new RpcError({

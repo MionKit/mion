@@ -7,7 +7,7 @@
 
 import type {Routes} from '../types/general';
 import type {CallContext} from '../types/context';
-import {RpcError, MION_ROUTES} from '@mionkit/core';
+import {RpcError, MION_ROUTES, StatusCodes} from '@mionkit/core';
 import {route} from '../lib/handlers';
 
 export const mionErrorsRoutes = {
@@ -28,6 +28,7 @@ export const mionErrorsRoutes = {
      */
     [MION_ROUTES.notFound]: route((ctx: CallContext): RpcError<'route-not-found'> => {
         throw new RpcError({
+            statusCode: StatusCodes.NOT_FOUND,
             publicMessage: `Route not found`,
             type: 'route-not-found',
         });

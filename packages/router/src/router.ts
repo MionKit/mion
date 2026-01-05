@@ -19,7 +19,8 @@ import {getRouterItemId, getRoutePath, getENV, MION_ROUTES} from '@mionkit/core'
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache';
-import {mionRoutes} from './routes/mion.routes';
+import {mionClientRoutes} from './routes/client.routes';
+import {mionErrorsRoutes} from './routes/errors.routes';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -101,7 +102,8 @@ export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOption
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
     isRouterInitialized = true;
-    if (!routerOptions.skipClientRoutes) registerRoutes({...mionRoutes});
+    registerRoutes({...mionErrorsRoutes});
+    if (!routerOptions.skipClientRoutes) registerRoutes({...mionClientRoutes});
     return routerOptions;
 }
 

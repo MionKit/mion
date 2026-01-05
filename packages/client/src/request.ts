@@ -74,16 +74,16 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             // if there are any errors they are part of the deserialized body
             const deserialized = await deserializeResponseBody(this.response);
 
-            // Check if this is a global error response
+            // Check if this is a platform error response
             // Global errors occur when the request failed before reaching the router
             // They are extracted from unexpectedErrors by the deserializer
-            if (MION_ROUTES.globalError in deserialized) {
-                const globalError = deserialized[MION_ROUTES.globalError];
-                // Apply the global error to all subrequests
+            if (MION_ROUTES.platformError in deserialized) {
+                const platformError = deserialized[MION_ROUTES.platformError];
+                // Apply the platform error to all subrequests
                 Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
                     methodMeta.isResolved = true;
-                    methodMeta.error = globalError as RpcError<string>;
-                    errors.set(id, globalError as RpcError<string>);
+                    methodMeta.error = platformError as RpcError<string>;
+                    errors.set(id, platformError as RpcError<string>);
                 });
                 return Promise.reject(errors);
             }

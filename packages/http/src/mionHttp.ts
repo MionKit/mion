@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getGlobalErrorResponse, resetRouter} from '@mionkit/router';
+import {dispatchRoute, getPlatformErrorResponse, resetRouter} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -155,11 +155,12 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
 // only called when there is an http error or weird unhandled route errors
 function unexpectedFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error: RpcError<string>) {
     if (httpResponse.writableEnded) return;
-    const routeResponse = getGlobalErrorResponse(error, respHeaders);
+    const routeResponse = getPlatformErrorResponse(error, respHeaders);
     reply(httpResponse, routeResponse);
 }
 
 function reply(httpResp: ServerResponse, mionResp: MionResponse) {
+    console.log('response ===>', {thrown: mionResp.body['@thrownErrors']});
     httpResp.statusCode = mionResp.statusCode;
     const bodyType = mionResp.bodyType;
     switch (bodyType) {

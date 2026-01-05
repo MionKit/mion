@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import {dispatchRoute, getGlobalErrorResponse, resetRouter} from '@mionkit/router';
+import {dispatchRoute, getPlatformErrorResponse, resetRouter} from '@mionkit/router';
 import type {MionHeaders, MionResponse} from '@mionkit/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants';
@@ -60,7 +60,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
                       originalError: err as Error,
                       type: 'unknown-error',
                   });
-        const routeResponse = getGlobalErrorResponse(error, respHeaders);
+        const routeResponse = getPlatformErrorResponse(error, respHeaders);
         reply(routeResponse, rawResponse);
     }
 }
@@ -103,6 +103,6 @@ function reply(mionResp: MionResponse, resp: Response): void {
 
 function unexpectedFail(resp: Response, respHeaders: MionHeaders, error: RpcError<string>) {
     if (resp.writableEnded) return;
-    const routeResponse = getGlobalErrorResponse(error, respHeaders);
+    const routeResponse = getPlatformErrorResponse(error, respHeaders);
     reply(routeResponse, resp);
 }
