@@ -102,7 +102,7 @@ export interface RpcErrorWithPrivate<ErrType extends StrNumber, ErrData = any> e
 /** Error data returned to the clients  */
 export interface PublicRpcError<ErrType extends StrNumber, ErrData = any>
     extends Omit<RpcErrorParams<ErrType, ErrData>, 'message' | 'originalError'> {
-    readonly 'mion:isΣrrθr': true;
+    readonly 'mion@isΣrrθr': true;
     type: ErrType;
     errorData?: ErrData;
     /**

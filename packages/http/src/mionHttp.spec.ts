@@ -100,7 +100,7 @@ describe('node http router should', () => {
         const headers = Object.fromEntries(response.headers.entries());
 
         const expectedError: PublicRpcError<'validation-error'> = {
-            'mion:isΣrrθr': true,
+            'mion@isΣrrθr': true,
             publicMessage: `Invalid params in 'getDate', validation failed.`,
             type: 'validation-error',
             errorData: expect.anything(),
@@ -155,7 +155,7 @@ describe('node http router should', () => {
         const reply = await response.json();
 
         const expectedError: PublicRpcError<'request-payload-too-large'> = {
-            'mion:isΣrrθr': true,
+            'mion@isΣrrθr': true,
             publicMessage: `Payload Too Large`,
             type: 'request-payload-too-large',
         };

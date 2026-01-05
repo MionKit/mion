@@ -52,7 +52,7 @@ it('should ensure JSON.stringify excludes message and name from RpcError', () =>
 
     // Should have the expected structure (excluding stack, message, and name)
     expect(errorJson).toEqual({
-        'mion:isΣrrθr': true,
+        'mion@isΣrrθr': true,
         type: 'test-error',
         publicMessage: 'public error message',
         id: 'error-123',
@@ -72,7 +72,7 @@ it('check hasUnknownKeys', () => {
     const rt = runType<RpcError<'test-error'>>();
     const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
     const error = {
-        'mion:isΣrrθr': true,
+        'mion@isΣrrθr': true,
         type: 'test-error',
         publicMessage: 'error',
     };
@@ -85,7 +85,7 @@ it('check unknownKeyErrors', () => {
     const rt = runType<RpcError<'test-error'>>();
     const unknownKeyErrors = rt.createJitFunction(JitFunctions.unknownKeyErrors);
     const error = {
-        'mion:isΣrrθr': true,
+        'mion@isΣrrθr': true,
         type: 'test-error',
         publicMessage: 'error',
     };
@@ -98,14 +98,14 @@ it('check stripUnknownKeys', () => {
     const rt = runType<RpcError<'test-error'>>();
     const stripUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
     const error = {
-        'mion:isΣrrθr': true,
+        'mion@isΣrrθr': true,
         type: 'test-error',
         publicMessage: 'error',
     };
     (error as any).extra = 'extra';
     stripUnknownKeys(error);
     expect(error).toEqual({
-        'mion:isΣrrθr': true,
+        'mion@isΣrrθr': true,
         type: 'test-error',
         publicMessage: 'error',
     });
@@ -115,14 +115,14 @@ it('check unknownKeysToUndefined', () => {
     const rt = runType<RpcError<'test-error'>>();
     const unknownKeysToUndefined = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
     const error = {
-        'mion:isΣrrθr': true,
+        'mion@isΣrrθr': true,
         type: 'test-error',
         publicMessage: 'error',
     };
     (error as any).extra = 'extra';
     unknownKeysToUndefined(error);
     expect(error).toEqual({
-        'mion:isΣrrθr': true,
+        'mion@isΣrrθr': true,
         type: 'test-error',
         publicMessage: 'error',
         extra: undefined,

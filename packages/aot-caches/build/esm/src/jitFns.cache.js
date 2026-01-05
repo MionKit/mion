@@ -630,7 +630,7 @@ const jitFnsCache = {
 		jitFnHash: "is_E044oE",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const is_WEWIGI = utl.getJIT("is_WEWIGI"); return function is_E044oE(v){return ((v.statusCode === undefined || Number.isFinite(v.statusCode)) && v["mion:isΣrrθr"] === true && v.type === "rpc-metadata-not-found" && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === \'string\')) && typeof v.publicMessage === \'string\' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)))}',
+		code: 'const is_WEWIGI = utl.getJIT("is_WEWIGI"); return function is_E044oE(v){return ((v.statusCode === undefined || Number.isFinite(v.statusCode)) && v["mion@isΣrrθr"] === true && v.type === "rpc-metadata-not-found" && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === \'string\')) && typeof v.publicMessage === \'string\' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)))}',
 		dependenciesSet: new Set(["is_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -638,7 +638,7 @@ const jitFnsCache = {
 			return function is_E044oE(v) {
 				return (
 					(v.statusCode === undefined || Number.isFinite(v.statusCode)) &&
-					v["mion:isΣrrθr"] === true &&
+					v["mion@isΣrrθr"] === true &&
 					v.type === "rpc-metadata-not-found" &&
 					(v.id === undefined ||
 						Number.isFinite(v.id) ||
@@ -1666,7 +1666,7 @@ const jitFnsCache = {
 		jitFnHash: "js_E044oE",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_E044oE(v){return \'{\'+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+"\\"mion:isΣrrθr\\""+\':\'+(v["mion:isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_E044oE(v){return \'{\'+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
 		dependenciesSet: new Set(["js_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -1695,9 +1695,9 @@ const jitFnsCache = {
 					(v.errorData === undefined
 						? ""
 						: '"errorData":' + js_WEWIGI.fn(v.errorData) + ",") +
-					'"mion:isΣrrθr"' +
+					'"mion@isΣrrθr"' +
 					":" +
-					(v["mion:isΣrrθr"] ? "true" : "false") +
+					(v["mion@isΣrrθr"] ? "true" : "false") +
 					"," +
 					'"type":' +
 					utl.asJSONString(v.type) +
@@ -2465,7 +2465,7 @@ const jitFnsCache = {
 		jitFnHash: "fBi_E044oE",
 		args: { dεs: "Des", vλl: "ret" },
 		defaultParamValues: { dεs: "", vλl: "" },
-		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_E044oE(ret,Des){ret = {"mion:isΣrrθr":true,type:"rpc-metadata-not-found",publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
+		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_E044oE(ret,Des){ret = {"mion@isΣrrθr":true,type:"rpc-metadata-not-found",publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
 		dependenciesSet: new Set(["fBi_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -2473,7 +2473,7 @@ const jitFnsCache = {
 			const fBi_WEWIGI = utl.getJIT("fBi_WEWIGI");
 			return function fBi_E044oE(ret, Des) {
 				ret = {
-					"mion:isΣrrθr": true,
+					"mion@isΣrrθr": true,
 					type: "rpc-metadata-not-found",
 					publicMessage: Des.desString(),
 				};
@@ -2841,7 +2841,7 @@ const jitFnsCache = {
 		jitFnHash: "is_xhFNjx",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const is_WEWIGI = utl.getJIT(\"is_WEWIGI\"); return function is_xhFNjx(v){return (typeof v === 'object' && v !== null && v[\"mion:isΣrrθr\"] === true && typeof v.type === 'string' && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)) && (v.statusCode === undefined || Number.isFinite(v.statusCode)))}",
+		code: "const is_WEWIGI = utl.getJIT(\"is_WEWIGI\"); return function is_xhFNjx(v){return (typeof v === 'object' && v !== null && v[\"mion@isΣrrθr\"] === true && typeof v.type === 'string' && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)) && (v.statusCode === undefined || Number.isFinite(v.statusCode)))}",
 		dependenciesSet: new Set(["is_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -2850,7 +2850,7 @@ const jitFnsCache = {
 				return (
 					typeof v === "object" &&
 					v !== null &&
-					v["mion:isΣrrθr"] === true &&
+					v["mion@isΣrrθr"] === true &&
 					typeof v.type === "string" &&
 					(v.id === undefined ||
 						Number.isFinite(v.id) ||
@@ -2904,7 +2904,7 @@ const jitFnsCache = {
 		jitFnHash: "te_xhFNjx",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: 'const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_xhFNjx(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n utl.err(pth,er,"class");\n } else {\n if (v["mion:isΣrrθr"] !== true) utl.err(pth,er,"literal",["mion:isΣrrθr"]);if (typeof v.type !== \'string\') utl.err(pth,er,"string",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) utl.err(pth,er,"union",["id"]);};if (typeof v.publicMessage !== \'string\') utl.err(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) utl.err(pth,er,"number",["statusCode"]);}\n }\n ; return er}',
+		code: 'const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_xhFNjx(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n utl.err(pth,er,"class");\n } else {\n if (v["mion@isΣrrθr"] !== true) utl.err(pth,er,"literal",["mion@isΣrrθr"]);if (typeof v.type !== \'string\') utl.err(pth,er,"string",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) utl.err(pth,er,"union",["id"]);};if (typeof v.publicMessage !== \'string\') utl.err(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) utl.err(pth,er,"number",["statusCode"]);}\n }\n ; return er}',
 		dependenciesSet: new Set(["te_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -2913,8 +2913,8 @@ const jitFnsCache = {
 				if (!(typeof v === "object" && v !== null)) {
 					utl.err(pth, er, "class");
 				} else {
-					if (v["mion:isΣrrθr"] !== true)
-						utl.err(pth, er, "literal", ["mion:isΣrrθr"]);
+					if (v["mion@isΣrrθr"] !== true)
+						utl.err(pth, er, "literal", ["mion@isΣrrθr"]);
 					if (typeof v.type !== "string") utl.err(pth, er, "string", ["type"]);
 					if (v.id !== undefined) {
 						if (!(Number.isFinite(v.id) || typeof v.id === "string"))
@@ -3115,7 +3115,7 @@ const jitFnsCache = {
 		jitFnHash: "js_xhFNjx",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_xhFNjx(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion:isΣrrθr\\""+\':\'+(v["mion:isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_xhFNjx(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
 		dependenciesSet: new Set(["js_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -3144,9 +3144,9 @@ const jitFnsCache = {
 					(v.statusCode === undefined
 						? ""
 						: '"statusCode":' + v.statusCode + ",") +
-					'"mion:isΣrrθr"' +
+					'"mion@isΣrrθr"' +
 					":" +
-					(v["mion:isΣrrθr"] ? "true" : "false") +
+					(v["mion@isΣrrθr"] ? "true" : "false") +
 					"," +
 					'"type":' +
 					utl.asJSONString(v.type) +
@@ -3262,7 +3262,7 @@ const jitFnsCache = {
 		jitFnHash: "fBi_xhFNjx",
 		args: { dεs: "Des", vλl: "ret" },
 		defaultParamValues: { dεs: "", vλl: "" },
-		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_xhFNjx(ret,Des){ret = {"mion:isΣrrθr":true,type:Des.desString(),publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
+		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_xhFNjx(ret,Des){ret = {"mion@isΣrrθr":true,type:Des.desString(),publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
 		dependenciesSet: new Set(["fBi_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -3270,7 +3270,7 @@ const jitFnsCache = {
 			const fBi_WEWIGI = utl.getJIT("fBi_WEWIGI");
 			return function fBi_xhFNjx(ret, Des) {
 				ret = {
-					"mion:isΣrrθr": true,
+					"mion@isΣrrθr": true,
 					type: Des.desString(),
 					publicMessage: Des.desString(),
 				};
@@ -3311,7 +3311,7 @@ const jitFnsCache = {
 		jitFnHash: "is_waSi6A",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const is_WEWIGI = utl.getJIT(\"is_WEWIGI\"); return function is_waSi6A(v){return (typeof v === 'object' && v !== null && v[\"mion:isΣrrθr\"] === true && v.type === \"route-not-found\" && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)) && (v.statusCode === undefined || Number.isFinite(v.statusCode)))}",
+		code: "const is_WEWIGI = utl.getJIT(\"is_WEWIGI\"); return function is_waSi6A(v){return (typeof v === 'object' && v !== null && v[\"mion@isΣrrθr\"] === true && v.type === \"route-not-found\" && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)) && (v.statusCode === undefined || Number.isFinite(v.statusCode)))}",
 		dependenciesSet: new Set(["is_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -3320,7 +3320,7 @@ const jitFnsCache = {
 				return (
 					typeof v === "object" &&
 					v !== null &&
-					v["mion:isΣrrθr"] === true &&
+					v["mion@isΣrrθr"] === true &&
 					v.type === "route-not-found" &&
 					(v.id === undefined ||
 						Number.isFinite(v.id) ||
@@ -3340,7 +3340,7 @@ const jitFnsCache = {
 		jitFnHash: "te_waSi6A",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: 'const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_waSi6A(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n utl.err(pth,er,"class");\n } else {\n if (v["mion:isΣrrθr"] !== true) utl.err(pth,er,"literal",["mion:isΣrrθr"]);if (v.type !== "route-not-found") utl.err(pth,er,"literal",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) utl.err(pth,er,"union",["id"]);};if (typeof v.publicMessage !== \'string\') utl.err(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) utl.err(pth,er,"number",["statusCode"]);}\n }\n ; return er}',
+		code: 'const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_waSi6A(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n utl.err(pth,er,"class");\n } else {\n if (v["mion@isΣrrθr"] !== true) utl.err(pth,er,"literal",["mion@isΣrrθr"]);if (v.type !== "route-not-found") utl.err(pth,er,"literal",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) utl.err(pth,er,"union",["id"]);};if (typeof v.publicMessage !== \'string\') utl.err(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) utl.err(pth,er,"number",["statusCode"]);}\n }\n ; return er}',
 		dependenciesSet: new Set(["te_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -3349,8 +3349,8 @@ const jitFnsCache = {
 				if (!(typeof v === "object" && v !== null)) {
 					utl.err(pth, er, "class");
 				} else {
-					if (v["mion:isΣrrθr"] !== true)
-						utl.err(pth, er, "literal", ["mion:isΣrrθr"]);
+					if (v["mion@isΣrrθr"] !== true)
+						utl.err(pth, er, "literal", ["mion@isΣrrθr"]);
 					if (v.type !== "route-not-found")
 						utl.err(pth, er, "literal", ["type"]);
 					if (v.id !== undefined) {
@@ -3450,7 +3450,7 @@ const jitFnsCache = {
 		jitFnHash: "js_waSi6A",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_waSi6A(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion:isΣrrθr\\""+\':\'+(v["mion:isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_waSi6A(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
 		dependenciesSet: new Set(["js_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -3479,9 +3479,9 @@ const jitFnsCache = {
 					(v.statusCode === undefined
 						? ""
 						: '"statusCode":' + v.statusCode + ",") +
-					'"mion:isΣrrθr"' +
+					'"mion@isΣrrθr"' +
 					":" +
-					(v["mion:isΣrrθr"] ? "true" : "false") +
+					(v["mion@isΣrrθr"] ? "true" : "false") +
 					"," +
 					'"type":' +
 					utl.asJSONString(v.type) +
@@ -3544,7 +3544,7 @@ const jitFnsCache = {
 		jitFnHash: "fBi_waSi6A",
 		args: { dεs: "Des", vλl: "ret" },
 		defaultParamValues: { dεs: "", vλl: "" },
-		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_waSi6A(ret,Des){ret = {"mion:isΣrrθr":true,type:"route-not-found",publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
+		code: 'const uErr1 = "Can not binary decode union: invalid union index";\nconst fBi_WEWIGI = utl.getJIT("fBi_WEWIGI"); return function fBi_waSi6A(ret,Des){ret = {"mion@isΣrrθr":true,type:"route-not-found",publicMessage:Des.desString()}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {\n const dec1 = Des.view.getUint8(Des.index++);\n if (dec1 === 0) {ret.id = Des.view.getFloat64(Des.index, 1, (Des.index += 8))}else if (dec1 === 1) {ret.id = Des.desString()}\n else {throw new Error(uErr1)}\n ;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.errorData = fBi_WEWIGI.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.statusCode = Des.view.getFloat64(Des.index, 1, (Des.index += 8));};let desFn0 = utl.getDeserializeFn("RpcError");if (desFn0) {ret = desFn0(ret)} else if (desFn0 = utl.getSerializeClass("RpcError")) {ret = new desFn0(ret)} return ret}',
 		dependenciesSet: new Set(["fBi_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -3552,7 +3552,7 @@ const jitFnsCache = {
 			const fBi_WEWIGI = utl.getJIT("fBi_WEWIGI");
 			return function fBi_waSi6A(ret, Des) {
 				ret = {
-					"mion:isΣrrθr": true,
+					"mion@isΣrrθr": true,
 					type: "route-not-found",
 					publicMessage: Des.desString(),
 				};
