@@ -331,7 +331,7 @@ describe('Dispatch routes', () => {
             const errorResp = response2.body[MION_ROUTES.thrownErrors]?.['mionDeserializeRequest'];
             expect(errorResp).toMatchObject({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
-                'mion:isΣrrθr': true,
+                'mion@isΣrrθr': true,
                 type: 'parsing-json-request-error',
                 publicMessage: expect.stringContaining('Invalid json request body:'), // Nodejs error is slightly different depending on node version
             });
@@ -379,7 +379,7 @@ describe('Dispatch routes', () => {
             const error = response.body[MION_ROUTES.thrownErrors]?.['getSameDate'];
             expect(error).toMatchObject({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
-                'mion:isΣrrθr': true,
+                'mion@isΣrrθr': true,
                 type: 'serialization-error',
                 publicMessage: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
                 errorData: {deserializeError: `Cannot read properties of undefined (reading 'date')`},
@@ -453,7 +453,7 @@ describe('Dispatch routes', () => {
             const error = response.body[MION_ROUTES.thrownErrors]?.['routeFail'];
             expect(error).toMatchObject({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
-                'mion:isΣrrθr': true,
+                'mion@isΣrrθr': true,
                 type: 'unknown-error',
                 publicMessage: 'Unknown error in handler "routeFail" of route execution path.',
             });
@@ -561,7 +561,7 @@ describe('Dispatch routes', () => {
             expect(response.hasErrors).toBeTruthy();
             // Validation errors are unexpected errors (not part of return type union)
             expect(response.body[MION_ROUTES.thrownErrors]?.changeUserName).toMatchObject({
-                'mion:isΣrrθr': true,
+                'mion@isΣrrθr': true,
                 type: 'validation-error',
             });
         });

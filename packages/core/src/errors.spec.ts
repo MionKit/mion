@@ -51,7 +51,7 @@ describe('TypedError should', () => {
             type: 'validation-error',
         });
 
-        expect(error['mion:isΣrrθr']).toBe(true);
+        expect(error['mion@isΣrrθr']).toBe(true);
         expect(error.message).toBe('Invalid input');
         expect(error.type).toBe('validation-error');
         expect(error instanceof Error).toBe(true);
@@ -74,7 +74,7 @@ describe('TypedError should', () => {
             type: 'typed-error',
         });
 
-        expect(error['mion:isΣrrθr']).toBe(true);
+        expect(error['mion@isΣrrθr']).toBe(true);
         expect(error.type).toBe('typed-error');
         expect(error.message).toBe('');
     });
@@ -82,7 +82,7 @@ describe('TypedError should', () => {
     it('be identified by type guard', () => {
         const error = new TypedError({type: 'fake'});
         const plainError = new Error('plain');
-        const plainObject = {'mion:isΣrrθr': true, type: 'fake', message: ''};
+        const plainObject = {'mion@isΣrrθr': true, type: 'fake', message: ''};
 
         expect(isTypedError(error)).toBe(true);
         expect(isTypedError(plainError)).toBe(false);
@@ -102,7 +102,7 @@ describe('RpcError inheritance should', () => {
 
         expect(error instanceof TypedError).toBe(true);
         expect(error instanceof RpcError).toBe(true);
-        expect(error['mion:isΣrrθr']).toBe(true);
+        expect(error['mion@isΣrrθr']).toBe(true);
         expect(error.type).toBe('validation-error');
         expect(error.publicMessage).toBe('Bad request');
         expect(error.message).toBe('Invalid request');

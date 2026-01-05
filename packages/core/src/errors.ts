@@ -18,7 +18,7 @@ export function setErrorOptions(opts: CoreOptions) {
 
 /**
  * Generic strongly typed error class that can be used outside RPC context.
- * Contains the core error properties: mion:isΣrrθr, type, and message.
+ * Contains the core error properties: mion@isΣrrθr, type, and message.
  */
 export class TypedError<ErrType extends string> extends Error {
     /**
@@ -26,7 +26,7 @@ export class TypedError<ErrType extends string> extends Error {
      * Ideally this should be a symbol but we need to be able to serialize it so a namespaced prop is used instead
      */
     // eslint-disable-next-line @typescript-eslint/prefer-as-const
-    public readonly 'mion:isΣrrθr': true = true;
+    public readonly 'mion@isΣrrθr': true = true;
     /** Error type, can be used as discriminator in union types switch, etc*/
     public readonly type: ErrType;
     // Note: message and name are NOT declared as properties here
@@ -128,9 +128,9 @@ export function isTypedError(error: any): error is TypedError<any> {
     if (error instanceof TypedError) return true;
     return (
         error &&
-        error['mion:isΣrrθr'] === true &&
+        error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        !getJitUtils().hasUnknownKeysFromArray(error, ['mion:isΣrrθr', 'type', 'message'])
+        !getJitUtils().hasUnknownKeysFromArray(error, ['mion@isΣrrθr', 'type', 'message'])
     );
 }
 
@@ -140,23 +140,23 @@ export function isRpcError(error: any): error is RpcError<string> {
     if (error instanceof RpcError) return true;
     return (
         error &&
-        error['mion:isΣrrθr'] === true &&
+        error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
         (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
-        !getJitUtils().hasUnknownKeysFromArray(error, ['mion:isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type'])
+        !getJitUtils().hasUnknownKeysFromArray(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type'])
     );
 }
 
 /**
  * Returns true if the error is a TypedError, RpcError, or any other Javascript Error.
- * if available uses Error.isError() or 'mion:isΣrrθr' prop from TypedError
+ * if available uses Error.isError() or 'mion@isΣrrθr' prop from TypedError
  * Does not do strict type checking. This function is intended to quickly identify errors.
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
  */
 export function isAnyError(error: any): error is TypedError<any> | RpcError<string> | Error {
     if (!error) return false;
     const tErr = error as TypedError<string>;
-    if (tErr['mion:isΣrrθr'] === true) return true;
+    if (tErr['mion@isΣrrθr'] === true) return true;
     if (typeof (Error as any).isError === 'function') return (Error as any).isError(error);
     return error instanceof Error;
 }
