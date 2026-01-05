@@ -10,7 +10,7 @@ import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
 import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
-import {Mutable, AnyObject, createDataViewDeserializer, MION_ROUTES, StatusCodes} from '@mionkit/core';
+import {Mutable, AnyObject, createDataViewDeserializer, StatusCodes} from '@mionkit/core';
 import {RpcError, HandlerType} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
 
@@ -43,6 +43,7 @@ export async function dispatchRoute<Req, Resp>(
             executionPath = getRouteExecutionPath(NOT_FOUND_PATH);
             if (!executionPath) {
                 throw new RpcError({
+                    statusCode: StatusCodes.UNEXPECTED_ERROR,
                     type: 'not-found',
                     publicMessage: 'Not-found route is not registered. This should never happen.',
                 });
@@ -108,7 +109,7 @@ async function runExecutionPath(
 
         // Add thrownErrors to response body before the serializer runs
         if (executable.id === 'mionSerializeResponse' && request.thrownErrors && Object.keys(request.thrownErrors).length > 0) {
-            (response.body as Mutable<AnyObject>)[MION_ROUTES.thrownErrors] = request.thrownErrors;
+            (response.body as Mutable<AnyObject>)['@thrownErrors'] = request.thrownErrors;
         }
 
         try {
@@ -187,6 +188,7 @@ function deserializeBodyParams(request: MionRequest, executable: RemoteMethod): 
         return request.body[executable.id] as any[];
     } catch (e: any) {
         throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'serialization-error',
             publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
             originalError: e,
@@ -198,6 +200,7 @@ function deserializeBodyParams(request: MionRequest, executable: RemoteMethod): 
 function validateParametersOrThrow(params: any[], executable: RemoteMethod): void {
     if (!executable.paramsJitFns.isType.fn(params)) {
         throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'validation-error',
             publicMessage: `Invalid params in '${executable.id}', validation failed.`,
             errorData: executable.paramsJitFns.typeErrors.fn(params),
@@ -208,6 +211,7 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
 function validateHeaderParamsOrThrow(headers: string[], executable: HeaderMethod): void {
     if (!executable.headersParam.jitFns.isType.fn(headers)) {
         throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'headers-validation-error',
             publicMessage: `Invalid headers in '${executable.id}', validation failed.`,
             errorData: executable.headersParam.jitFns.typeErrors.fn(headers),

@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import {dispatchRoute, getGlobalErrorResponse, headersFromRecord, resetRouter} from '@mionkit/router';
+import {dispatchRoute, getPlatformErrorResponse, headersFromRecord, resetRouter} from '@mionkit/router';
 import type {MionResponse, MionHeaders} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants';
@@ -51,7 +51,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
                           originalError: err,
                           type: 'unknown-error',
                       });
-            return reply(getGlobalErrorResponse(error, respHeaders), respHeaders);
+            return reply(getPlatformErrorResponse(error, respHeaders), respHeaders);
         });
 }
 

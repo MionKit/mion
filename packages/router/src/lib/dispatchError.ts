@@ -1,27 +1,24 @@
 import {RpcError, MION_ROUTES, Mutable, StatusCodes} from '@mionkit/core';
-import type {CallContext, MionHeaders, MionRequest, MionResponse} from '../types/context';
+import type {CallContext, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context';
 import type {RemoteMethod} from '../types/remoteMethods';
 
 /**
- * Return a Response mion response for any error that happens before the route execution.
- * to be used by any transport layer. ie: node/http, aws/lambda, bun, etc.
- * basically is a global error response when when anything fails outside the router.
- * Uses thrownErrors with a special globalError key to maintain consistency with route errors.
+ * Return a Response mion response for any error that happens before or outside the router.
+ * to be used by any adapter layer. ie: node/http, aws/lambda, bun, etc.
+ * Uses thrownErrors with a special platformError key to maintain consistency with route errors.
  * @param returnErr
  * @param respHeaders
  * @returns
  */
 
-export function getGlobalErrorResponse(returnErr: RpcError<string>, respHeaders: MionHeaders): MionResponse {
-    // Store global error in thrownErrors with special globalError key
-    const body = {
-        [MION_ROUTES.thrownErrors]: {
-            [MION_ROUTES.globalError]: returnErr,
-        },
+export function getPlatformErrorResponse(returnErr: RpcError<string>, respHeaders: MionHeaders): MionResponse {
+    // Store platform error in thrownErrors with special platformError key
+    const body: ResponseBody = {
+        '@thrownErrors': {[MION_ROUTES.platformError]: returnErr},
     };
     respHeaders.set('content-type', 'application/json; charset=utf-8');
     const response: Mutable<MionResponse> = {
-        statusCode: StatusCodes.UNEXPECTED_ERROR, // Global errors are always unexpected
+        statusCode: returnErr.statusCode || StatusCodes.SERVER_ERROR, // Global errors are always unexpected
         hasErrors: true,
         headers: respHeaders,
         body,
@@ -43,19 +40,19 @@ export function getGlobalErrorResponse(returnErr: RpcError<string>, respHeaders:
 export function onExecutableError(context: CallContext, executable: RemoteMethod, err: any | RpcError<string> | Error) {
     const response = context.response as Mutable<MionResponse>;
     const path = executable.id;
-    const rpcError =
+    const rpcError: RpcError<string> =
         err instanceof RpcError
             ? err
             : new RpcError({
+                  statusCode: StatusCodes.UNEXPECTED_ERROR,
                   publicMessage: `Unknown error in handler "${path}" of route execution path.`,
                   originalError: err,
                   type: 'unknown-error',
               });
-
-    // All thrown errors are unexpected
+    // only first error sets the error header
+    if (!response.hasErrors) response.headers.set('x-rpc-error', rpcError.type);
     response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
     response.hasErrors = true;
-
     // Store unexpected errors for serialization
     const thrownErrors = context.request.thrownErrors || ({} as Record<string, RpcError<string>>);
     thrownErrors[path] = rpcError;

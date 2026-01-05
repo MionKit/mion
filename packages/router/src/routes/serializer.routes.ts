@@ -9,7 +9,7 @@ import type {MionResponse, MionRequest, CallContext} from '../types/context';
 import type {RouterOptions} from '../types/general';
 import type {HooksCollection, MayReturnError} from '../types/publicMethods';
 import type {ResponseBody} from '../types/context';
-import {AnyObject, Mutable, MION_ROUTES} from '@mionkit/core';
+import {AnyObject, Mutable, MION_ROUTES, StatusCodes} from '@mionkit/core';
 import {rawHook} from '../lib/handlers';
 import {getRouteExecutableFromPath, getRouteExecutionPath, getRouteExecutable} from '../router';
 import {RpcError} from '@mionkit/core';
@@ -32,6 +32,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
                 parsedBody = JSON.parse(context.request.rawBody as string);
             } catch (err: any) {
                 throw new RpcError({
+                    statusCode: StatusCodes.UNEXPECTED_ERROR,
                     type: 'parsing-json-request-error',
                     publicMessage: `Invalid json request body: ${err?.message || 'unknown parsing error.'}`,
                 });
@@ -54,6 +55,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
         }
         if (typeof parsedBody !== 'object')
             throw new RpcError({
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'invalid-request-body',
                 publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             });
@@ -112,9 +114,10 @@ function stringifyBody(context: CallContext, executionPath: RemoteMethod[], resp
     }
 
     // Serialize thrownErrors if they exist
-    const thrownErrors = respBody[MION_ROUTES.thrownErrors];
+    const thrownErrors = respBody['@thrownErrors'];
     if (thrownErrors) {
         const method = getRouteExecutable(MION_ROUTES.thrownErrors)!;
+        // console.log('thrownErrors method', method);
         try {
             const jsonValue = stringifyHandlerReturnValue(method, thrownErrors, opts);
             if (jsonValue) props.push(`${JSON.stringify(method.id)}:${jsonValue}`);
@@ -127,6 +130,7 @@ function stringifyBody(context: CallContext, executionPath: RemoteMethod[], resp
 
 function onStringifyExecutableError(context: CallContext, method: RemoteMethod, e: any) {
     const err = new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'json-stringify-response-error',
         publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.jsonStringify.typeName}`,
         originalError: e,

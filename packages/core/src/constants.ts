@@ -26,8 +26,8 @@ export const MION_ROUTES = {
     getRemoteMethodsMetadataById: 'mion@GetRemoteMethodsMetadataById',
     /** get remote methods metadata by route path, this include all hooks in the execution path of the route. */
     getRemoteMethodsMetadataByPath: 'mion@GetRemoteMethodsMetadataByPath',
-    /** global error route for errors that occur before reaching the router */
-    globalError: 'mion@globalError',
+    /** platform or adapters errors that occur before reaching the router or outside the router and are platform/adapter related */
+    platformError: 'mion@platformError',
     /** not-found route for when a requested route doesn't exist */
     notFound: 'mion@notFound',
     /**
@@ -54,14 +54,16 @@ export const MIME_TYPES = {
  * They are used mostly for backwards compatibility with HTTP.
  */
 export const StatusCodes = {
-    /** Any expected error in the application, ie: validation error, not found, etc...
-     * These error should be typically handled in each handler, ie, not found will show an empty state.
-     */
-    APPLICATION_ERROR: 409,
-    /**  Any unexpected error in the application, ie: database error, serialization error, etc...
+    /** Any error in the server that is not related to the application, ie: server not ready, etc... */
+    SERVER_ERROR: 500,
+    /** Any expected and strongly typed error returned by a route/hook. ie: entity not found, etc. */
+    APPLICATION_ERROR: 400,
+    /**  Any thrown or unexpected error in the application, ie: validation error, not found, etc, database error, serialization error, etc...
      * These are are typically irrecoverable and can be handled globally, ie redirect to login page if auth fails
      */
-    UNEXPECTED_ERROR: 500,
+    UNEXPECTED_ERROR: 422,
+    /** Not found error */
+    NOT_FOUND: 404,
     /** Standard success code */
     OK: 200,
 } as const;

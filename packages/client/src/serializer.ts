@@ -64,13 +64,13 @@ export async function deserializeResponseBody(response: Response): Promise<Respo
     if (MION_ROUTES.thrownErrors in parsedBody) {
         const unexpectedErrors = parsedBody[MION_ROUTES.thrownErrors];
 
-        // Check if this is a global error (stored with special globalError key)
-        if (MION_ROUTES.globalError in unexpectedErrors) {
-            const globalErrorValue = unexpectedErrors[MION_ROUTES.globalError];
-            const globalError = isRpcError(globalErrorValue) ? new RpcError(globalErrorValue) : globalErrorValue;
-            // Return the global error as-is - it will be handled by the request processing
+        // Check if this is a platform error (stored with special platformError key)
+        if (MION_ROUTES.platformError in unexpectedErrors) {
+            const globalErrorValue = unexpectedErrors[MION_ROUTES.platformError];
+            const platformError = isRpcError(globalErrorValue) ? new RpcError(globalErrorValue) : globalErrorValue;
+            // Return the platform error as-is - it will be handled by the request processing
             // which will apply it to all subrequests
-            return {[MION_ROUTES.globalError]: globalError};
+            return {[MION_ROUTES.platformError]: platformError};
         }
 
         // Merge unexpected errors into the main response body
