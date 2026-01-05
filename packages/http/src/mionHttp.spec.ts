@@ -7,7 +7,7 @@
 import {getPersistedMethods, initRouter, registerRoutes, route} from '@mionkit/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
-import type {PublicRpcError} from '@mionkit/core';
+import {StatusCodes, type PublicRpcError} from '@mionkit/core';
 // In theory node 18 supports fetch but not working fine with jest, we should update to jest 29
 // update to jest 29 gonna take some changes as all globals must be imported from @jest/globals
 // also the types for fetch are not available in node 18, fix here: https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6#answer-75676044
@@ -96,13 +96,7 @@ describe('node http router should', () => {
             method: 'POST',
             body: JSON.stringify(requestData),
         });
-        const text = await response.text();
-        console.log({
-            text,
-            response,
-            headers: Object.fromEntries(response.headers.entries()),
-        });
-        const reply = JSON.parse(text);
+        const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
         const expectedError: PublicRpcError<'validation-error'> = {
@@ -110,11 +104,12 @@ describe('node http router should', () => {
             publicMessage: `Invalid params in 'getDate', validation failed.`,
             type: 'validation-error',
             errorData: expect.anything(),
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
         };
         expect(reply).toEqual({'@thrownErrors': {getDate: expectedError}});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('191');
+        expect(headers['content-length']).toEqual('224');
         expect(headers['server']).toEqual('@mionkit');
     });
 
@@ -169,7 +164,7 @@ describe('node http router should', () => {
         expect(headers['x-instance-id']).toEqual('3089');
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('133');
+        expect(headers['content-length']).toEqual('135');
         expect(headers['server']).toEqual('@mionkit');
 
         await closeServer(smallServer);
@@ -193,6 +188,7 @@ describe('node http router should', () => {
         const smallServer = await startNodeServer();
         const persistedMethods = getPersistedMethods();
         expect(smallServer.listening).toBe(false);
-        expect(Object.keys(persistedMethods)).toEqual(['changeUserName', 'getDate', 'updateHeaders']);
+        const mionRoutes = ['@thrownErrors', 'mion@notFound'];
+        expect(Object.keys(persistedMethods)).toEqual([...mionRoutes, 'changeUserName', 'getDate', 'updateHeaders']);
     });
 });

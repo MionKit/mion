@@ -10,7 +10,7 @@ import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambd
 import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
-import type {PublicRpcError} from '@mionkit/core';
+import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionkit/core';
 
 describe('serverless router should', () => {
     // Router.forceConsoleLogs();
@@ -105,9 +105,10 @@ describe('serverless router should', () => {
             'mion:isΣrrθr': true,
             publicMessage: `Invalid params in 'getDate', validation failed.`,
             type: 'validation-error',
-            errorData: expect.anything(),
+            errorData: {typeErrors: expect.any(Array)},
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
         };
-        expect(parsedResponse).toEqual({getDate: expectedError});
+        expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         // expect(headers['content-length']).toEqual('180'); // AWS manages content-length automatically
         expect(headers['server']).toEqual('@mionkit');

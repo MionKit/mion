@@ -160,7 +160,6 @@ function unexpectedFail(httpResponse: ServerResponse, respHeaders: MionHeaders, 
 }
 
 function reply(httpResp: ServerResponse, mionResp: MionResponse) {
-    console.log('response ===>', {thrown: mionResp.body['@thrownErrors']});
     httpResp.statusCode = mionResp.statusCode;
     const bodyType = mionResp.bodyType;
     switch (bodyType) {

@@ -8,7 +8,7 @@
 import {initRouter, registerRoutes, route} from '@mionkit/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF';
 import type {CallContext, Route} from '@mionkit/router';
-import {PublicRpcError} from '@mionkit/core';
+import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionkit/core';
 import {Server} from 'http';
 import {getTestServer} from '@google-cloud/functions-framework/testing';
 import * as functions from '@google-cloud/functions-framework';
@@ -125,15 +125,17 @@ describe('serverless router should', () => {
             'mion:isΣrrθr': true,
             publicMessage: `Invalid params in 'getDate', validation failed.`,
             type: 'validation-error',
-            errorData: expect.anything(),
+            errorData: {typeErrors: expect.anything()},
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
         };
-        expect(reply).toEqual({getDate: expectedError});
+        console.log(reply[MION_ROUTES.thrownErrors]);
+        expect(reply[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
         expect(headers['connection']).toEqual('keep-alive');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         // TODO: seems that deepkit error type are slightly different when running on bun and node so length is different
         // bun: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to UnknownTypeName:() => __\\u{3a9}DataPoint'
         // node: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to DataPoint'
-        expect(headers['content-length']).toEqual('191');
+        expect(headers['content-length']).toEqual('224');
         expect(headers['server']).toEqual('@mionkit');
     });
 

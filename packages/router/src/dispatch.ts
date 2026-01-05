@@ -154,7 +154,7 @@ async function runRawHook(
 async function runHeaderHook(context: CallContext, executable: HeaderMethod, request: MionRequest) {
     const headerNames = executable.headersParam.headerNames;
     const headerValues = headerNames.map((name) => request.headers.get(name));
-    const params = deserializeBodyParams(request, executable as RemoteMethod);
+    const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
     validateHeaderParamsOrThrow(headerValues as string[], executable as HeaderMethod);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderMethod);
 
@@ -163,7 +163,7 @@ async function runHeaderHook(context: CallContext, executable: HeaderMethod, req
 }
 
 async function runRouteOrHook(context: CallContext, executable: HeaderMethod, request: MionRequest) {
-    const params = deserializeBodyParams(request, executable as RemoteMethod);
+    const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as RemoteMethod);
     const result = await executable.handler(context, ...params);
     return result;
@@ -180,7 +180,7 @@ function getMethodCaller(executable: RemoteMethod) {
     return executable.methodCaller;
 }
 
-function deserializeBodyParams(request: MionRequest, executable: RemoteMethod): any[] {
+function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMethod): any[] {
     const params: any[] = (request.body[executable.id] as any[]) || [];
     if (executable.paramsJitFns.restoreFromJson.isNoop) return params;
     try {
@@ -192,7 +192,9 @@ function deserializeBodyParams(request: MionRequest, executable: RemoteMethod): 
             type: 'serialization-error',
             publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
             originalError: e,
-            errorData: {deserializeError: e.message},
+            errorData: {
+                deserializeError: e?.message || 'Unknown error',
+            },
         });
     }
 }
@@ -203,7 +205,9 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
             statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'validation-error',
             publicMessage: `Invalid params in '${executable.id}', validation failed.`,
-            errorData: executable.paramsJitFns.typeErrors.fn(params),
+            errorData: {
+                typeErrors: executable.paramsJitFns.typeErrors.fn(params),
+            },
         });
     }
 }
@@ -214,7 +218,9 @@ function validateHeaderParamsOrThrow(headers: string[], executable: HeaderMethod
             statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'headers-validation-error',
             publicMessage: `Invalid headers in '${executable.id}', validation failed.`,
-            errorData: executable.headersParam.jitFns.typeErrors.fn(headers),
+            errorData: {
+                typeErrors: executable.headersParam.jitFns.typeErrors.fn(headers),
+            },
         });
     }
 }
