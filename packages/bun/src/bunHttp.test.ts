@@ -8,7 +8,7 @@ import {expect, test, beforeAll, afterAll, describe} from 'bun:test';
 import {initRouter, registerRoutes, route} from '@mionkit/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp';
 import {CallContext} from '@mionkit/router';
-import {PublicRpcError, StatusCodes} from '@mionkit/core';
+import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionkit/core';
 // In theory node 18 supports fetch but not working fine with jest, we should update to jest 29
 // update to jest 29 gonna take some changes as all globals must be imported from @jest/globals
 // also the types for fetch are not available in node 18, fix here: https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6#answer-75676044
@@ -90,13 +90,13 @@ describe('bun router should', () => {
             'mion:isΣrrθr': true,
             publicMessage: `Invalid params in 'getDate', validation failed.`,
             type: 'validation-error',
-            errorData: expect.anything(),
+            errorData: {typeErrors: expect.anything()},
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
         };
 
-        expect(reply).toEqual({getDate: expectedError});
+        expect(reply[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        // Error message changed from serialization to validation error, so content length will be different
-        expect(headers['content-length']).toEqual('191');
+        expect(headers['content-length']).toEqual('224');
         expect(headers['server']).toEqual('@mionkit');
     });
 
