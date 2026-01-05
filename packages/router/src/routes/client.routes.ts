@@ -110,6 +110,6 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
 }
 
 export const mionClientRoutes = {
-    [MION_ROUTES.getRemoteMethodsMetadataById]: route(mionGetRemoteMethodsDataById),
-    [MION_ROUTES.getRemoteMethodsMetadataByPath]: route(mionGetRemoteMethodsDataByPath),
+    [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById),
+    [MION_ROUTES.methodsMetadataByPath]: route(mionGetRemoteMethodsDataByPath),
 } satisfies Routes;

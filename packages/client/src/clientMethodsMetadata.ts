@@ -14,7 +14,7 @@ import {STORAGE_KEY} from './constants';
 import {deserializeResponseBody} from './serializer';
 import type {MionRoutes} from '@mionkit/router';
 
-type GetRemoteMethodsMetadataById = MionRoutes[typeof MION_ROUTES.getRemoteMethodsMetadataById]['handler'];
+type GetRemoteMethodsMetadataById = MionRoutes[typeof MION_ROUTES.methodsMetadataById]['handler'];
 type MethodsMetadataResponse = Awaited<ReturnType<GetRemoteMethodsMetadataById>>;
 type GlobalErrorRoute = MionRoutes[typeof MION_ROUTES.platformError]['handler'];
 type GlobalErrorResponse = Awaited<ReturnType<GlobalErrorRoute>>;
@@ -27,10 +27,10 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
     // TODO change for a configurable name
     const shouldReturnAllMethods = true;
     const body: RequestBody = {
-        [MION_ROUTES.getRemoteMethodsMetadataById]: [missingAfterLocal, shouldReturnAllMethods],
+        [MION_ROUTES.methodsMetadataById]: [missingAfterLocal, shouldReturnAllMethods],
     };
     try {
-        const url = new URL(MION_ROUTES.getRemoteMethodsMetadataById, options.baseURL);
+        const url = new URL(MION_ROUTES.methodsMetadataById, options.baseURL);
         const response = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -40,7 +40,7 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
         // jit functions and routes metadata needs to be in caches before calling deserialize
         const deserialized = await deserializeResponseBody(response);
         const platformError = deserialized[MION_ROUTES.platformError] as GlobalErrorResponse | undefined;
-        const serializableMethodsData = deserialized[MION_ROUTES.getRemoteMethodsMetadataById] as MethodsMetadataResponse;
+        const serializableMethodsData = deserialized[MION_ROUTES.methodsMetadataById] as MethodsMetadataResponse;
 
         if (isRpcError(platformError)) throw platformError;
         if (isRpcError(serializableMethodsData)) throw serializableMethodsData;

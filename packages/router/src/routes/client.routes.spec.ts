@@ -241,8 +241,8 @@ describe('Client Routes should', () => {
         },
     } satisfies MethodsCache;
 
-    const methodsId = MION_ROUTES.getRemoteMethodsMetadataById;
-    const routeMethodsId = MION_ROUTES.getRemoteMethodsMetadataByPath;
+    const methodsId = MION_ROUTES.methodsMetadataById;
+    const routeMethodsId = MION_ROUTES.methodsMetadataByPath;
     const methodsPath = getRoutePath([methodsId], {prefix: '', suffix: ''});
     const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
     const jitFnRt = runType<JitCompiledFnData>();
@@ -418,7 +418,7 @@ describe('Restore Client Routes jit functions', () => {
         },
     } satisfies Routes;
 
-    const routeMethodsId = MION_ROUTES.getRemoteMethodsMetadataByPath;
+    const routeMethodsId = MION_ROUTES.methodsMetadataByPath;
     const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
 
     afterEach(() => resetRouter());
