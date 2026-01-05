@@ -26,9 +26,9 @@ export const MION_ROUTES = {
     methodsMetadataById: 'mion@methodsMetadataById',
     /** get remote methods metadata by route path, this include all hooks in the execution path of the route. */
     methodsMetadataByPath: 'mion@methodsMetadataByPath',
-    /** platform or adapters errors that occur before reaching the router or outside the router and are platform/adapter related */
+    /** Platform or adapters errors that occur before reaching the router or outside the router and are platform/adapter related */
     platformError: 'mion@platformError',
-    /** not-found  when a requested route doesn't exist */
+    /** not-found route. This route is called when a requested route doesn't exist */
     notFound: 'mion@notFound',
     /**
      * !IMPORTANT!!
