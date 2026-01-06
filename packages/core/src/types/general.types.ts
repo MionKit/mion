@@ -265,7 +265,7 @@ export interface JitCompiledFunctions {
     typeErrors: JitCompiledFn<TypeErrorsFn>;
     prepareForJson: JitCompiledFn<PrepareForJsonFn>;
     restoreFromJson: JitCompiledFn<RestoreFromJsonFn>;
-    jsonStringify: JitCompiledFn<JsonStringifyFn>;
+    stringifyJson: JitCompiledFn<JsonStringifyFn>;
     toBinary: JitCompiledFn<ToBinaryFn>;
     fromBinary: JitCompiledFn<FromBinaryFn>;
 }
@@ -274,7 +274,7 @@ export interface SerializableJITFunctions {
     typeErrors: JitCompiledFnData;
     prepareForJson: JitCompiledFnData;
     restoreFromJson: JitCompiledFnData;
-    jsonStringify: JitCompiledFnData;
+    stringifyJson: JitCompiledFnData;
     toBinary: JitCompiledFnData;
     fromBinary: JitCompiledFnData;
 }
@@ -283,7 +283,7 @@ export interface JitFunctionsHashes {
     typeErrors: string;
     prepareForJson: string;
     restoreFromJson: string;
-    jsonStringify: string;
+    stringifyJson: string;
     toBinary: string;
     fromBinary: string;
 }

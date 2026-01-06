@@ -21,7 +21,7 @@ import {addFullStop, getJitFnArgCallVarName, toLiteral, toLiteralInContext} from
 import {registerPureFnClosure} from './pureFn';
 import {getPureFunctionKey} from './pureFn';
 import {getRunTypeFormat} from './formats';
-import {emitJsonStringify} from '../jitCompilers/json/jsonStringify';
+import {emitJsonStringify} from '../jitCompilers/json/stringifyJson';
 import {emitToBinary} from '../jitCompilers/binary/toBinary';
 import {emitFromBinary} from '../jitCompilers/binary/fromBinary';
 import {emitToCode} from '../jitCompilers/json/toJsCode';
@@ -294,13 +294,13 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
                         jCode = this.compileFormatter(rt, fnID,rt.emitPrepareForJson(this, expectedCType), expectedCType, ';'); break;
                     case JitFunctions.restoreFromJson.id:
                         jCode = this.compileFormatter(rt, fnID,rt.emitRestoreFromJson(this, expectedCType), expectedCType, ';'); break;
-                    case JitFunctions.jsonStringify.id:
+                    case JitFunctions.stringifyJson.id:
                         jCode = this.compileFormatter(rt, fnID,emitJsonStringify(rt, this), expectedCType, ';'); break;
                     case JitFunctions.toBinary.id:
                         jCode = this.compileFormatter(rt, fnID,emitToBinary(rt, this as any), expectedCType, ';'); break;
                     case JitFunctions.fromBinary.id:
                         jCode = this.compileFormatter(rt, fnID,emitFromBinary(rt, this as any), expectedCType, ';'); break;
-                    case JitFunctions.toJavascript.id:
+                    case JitFunctions.toJSCode.id:
                         jCode =this.compileFormatter(rt, fnID, emitToCode(rt, this), expectedCType, ';'); break;
                     case JitFunctions.unknownKeyErrors.id:
                         jCode = rt.emitUnknownKeyErrors(this as any, expectedCType); break;
@@ -522,7 +522,7 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         return this.compile(rt, expectedCType, JitFunctions.restoreFromJson.id);
     }
     compileJsonStringify(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
-        return this.compile(rt, expectedCType, JitFunctions.jsonStringify.id);
+        return this.compile(rt, expectedCType, JitFunctions.stringifyJson.id);
     }
     compileToBinary(rt: BaseRunType | undefined, expectedCType: CodeType): JitCode {
         return this.compile(rt, expectedCType, JitFunctions.toBinary.id);
@@ -695,12 +695,12 @@ export function createJitCompiler(
         case JitFunctions.isType.id:
         case JitFunctions.prepareForJson.id:
         case JitFunctions.restoreFromJson.id:
-        case JitFunctions.jsonStringify.id:
+        case JitFunctions.stringifyJson.id:
         case JitFunctions.hasUnknownKeys.id:
         case JitFunctions.stripUnknownKeys.id:
         case JitFunctions.unknownKeysToUndefined.id:
         case JitFunctions.format.id:
-        case JitFunctions.toJavascript.id:
+        case JitFunctions.toJSCode.id:
         case JitFunctions.toBinary.id:
         case JitFunctions.fromBinary.id:
             return new JitFnCompiler(rt, fnID, parent, jitFnHash, typeID, opts);

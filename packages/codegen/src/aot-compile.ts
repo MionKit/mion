@@ -26,7 +26,7 @@ export interface AOTCompileOptions {
     templateDir: string;
 }
 
-export const EXCLUDED_FNS: JitFnID[] = [JitFunctions.toJavascript.id];
+export const EXCLUDED_FNS: JitFnID[] = [JitFunctions.toJSCode.id];
 export const EXCLUDED_PURE_FNS: string[] = ['pf_sanitizeCompiledFn'];
 
 /**

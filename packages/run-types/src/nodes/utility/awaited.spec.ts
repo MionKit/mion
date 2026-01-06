@@ -35,7 +35,7 @@ describe('Awaited typescript utility type', () => {
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringify = rt.createJitFunction(JitFunctions.stringifyJson);
         const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
         const jsonString = stringify({...myType});
         const parsed = JSON.parse(jsonString);

@@ -96,7 +96,7 @@ describe('PublicMethods run type functionality', () => {
             purFnDeps: {},
         };
         const rt = runType<ClientReturn>();
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyJson = rt.createJitFunction(JitFunctions.stringifyJson);
         const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const error = new RpcError({
             publicMessage: 'error',
@@ -109,7 +109,7 @@ describe('PublicMethods run type functionality', () => {
             type: 'test-error',
         });
         // operations modify the original object so we need to clone it before serializing
-        const roundTrip = restoreFromJson(JSON.parse(jsonStringify(errorClone)));
+        const roundTrip = restoreFromJson(JSON.parse(stringifyJson(errorClone)));
         expect(roundTrip instanceof RpcError).toBeTruthy();
         expect(roundTrip).toEqual(error);
 
@@ -119,7 +119,7 @@ describe('PublicMethods run type functionality', () => {
             deps: {},
             purFnDeps: {},
         };
-        const jsonStr = jsonStringify(responseClone);
+        const jsonStr = stringifyJson(responseClone);
         const roundTrip2 = restoreFromJson(JSON.parse(jsonStr));
         // we need to remove the function handler before comparing and is not restored after round trip
         delete (publicMethod as any).handler;

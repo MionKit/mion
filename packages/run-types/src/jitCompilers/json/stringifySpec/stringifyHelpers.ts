@@ -10,7 +10,7 @@ import type {InterfaceRunType} from '../../../nodes/collection/interface';
 import type {FunctionRunType} from '../../../nodes/function/function';
 import type {RunType} from '../../../types';
 
-const SERIALIZE_FN = JitFunctions.jsonStringify;
+const SERIALIZE_FN = JitFunctions.stringifyJson;
 const DESERIALIZE_FN = JitFunctions.restoreFromJson;
 
 export function createSerializationFns(rt: RunType) {

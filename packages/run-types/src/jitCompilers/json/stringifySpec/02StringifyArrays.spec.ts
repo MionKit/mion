@@ -9,7 +9,7 @@ import {SERIALIZATION_SPEC} from '../../serialization-suite';
 import {JitFunctions} from '../../../constants.functions';
 import {roundTrip, createSerializationFns} from './stringifyHelpers';
 
-const SERIALIZE_FN = JitFunctions.jsonStringify;
+const SERIALIZE_FN = JitFunctions.stringifyJson;
 const DESERIALIZE_FN = JitFunctions.restoreFromJson;
 
 let ranTests = 0;

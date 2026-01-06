@@ -1,123 +1,4 @@
 const jitFnsCache = {
-	is_Io24ck: {
-		isNoop: false,
-		typeName: "params",
-		fnID: "is",
-		jitFnHash: "is_Io24ck",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function is_Io24ck(v){return v.length === 0}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function is_Io24ck(v) {
-				return v.length === 0;
-			};
-		},
-		fn: undefined,
-	},
-	te_Io24ck: {
-		isNoop: false,
-		typeName: "params",
-		fnID: "te",
-		jitFnHash: "te_Io24ck",
-		args: { pλth: "pth", εrr: "er", vλl: "v" },
-		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: ' return function te_Io24ck(v,pth=[],er=[]){if (v.length !== 0) utl.err(pth,er,"params"); return er}',
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function te_Io24ck(v, pth = [], er = []) {
-				if (v.length !== 0) utl.err(pth, er, "params");
-				return er;
-			};
-		},
-		fn: undefined,
-	},
-	tj_Io24ck: {
-		isNoop: true,
-		typeName: "params",
-		fnID: "tj",
-		jitFnHash: "tj_Io24ck",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function tj_Io24ck(v){return v}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function tj_Io24ck(v) {
-				return v;
-			};
-		},
-		fn: undefined,
-	},
-	fj_Io24ck: {
-		isNoop: true,
-		typeName: "params",
-		fnID: "fj",
-		jitFnHash: "fj_Io24ck",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function fj_Io24ck(v){return v}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function fj_Io24ck(v) {
-				return v;
-			};
-		},
-		fn: undefined,
-	},
-	js_Io24ck: {
-		isNoop: false,
-		typeName: "params",
-		fnID: "js",
-		jitFnHash: "js_Io24ck",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function js_Io24ck(v){return '[]'}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function js_Io24ck(v) {
-				return "[]";
-			};
-		},
-		fn: undefined,
-	},
-	tBi_Io24ck: {
-		isNoop: false,
-		typeName: "params",
-		fnID: "tBi",
-		jitFnHash: "tBi_Io24ck",
-		args: { sεr: "Ser", vλl: "v" },
-		defaultParamValues: { sεr: "", vλl: "" },
-		code: " return function tBi_Io24ck(v,Ser){}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function tBi_Io24ck(v, Ser) {};
-		},
-		fn: undefined,
-	},
-	fBi_Io24ck: {
-		isNoop: false,
-		typeName: "params",
-		fnID: "fBi",
-		jitFnHash: "fBi_Io24ck",
-		args: { dεs: "Des", vλl: "ret" },
-		defaultParamValues: { dεs: "", vλl: "" },
-		code: " return function fBi_Io24ck(ret,Des){ret = new Array(0); return ret}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function fBi_Io24ck(ret, Des) {
-				ret = new Array(0);
-				return ret;
-			};
-		},
-		fn: undefined,
-	},
 	is_cm6MsK: {
 		isNoop: false,
 		typeName: "Record",
@@ -445,19 +326,19 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_cm6MsK: {
+	sj_cm6MsK: {
 		isNoop: false,
 		typeName: "Record",
-		fnID: "js",
-		jitFnHash: "js_cm6MsK",
+		fnID: "sj",
+		jitFnHash: "sj_cm6MsK",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const js_zxRrbt = utl.getJIT(\"js_zxRrbt\"); return function js_cm6MsK(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + js_zxRrbt.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
-		dependenciesSet: new Set(["js_zxRrbt"]),
+		code: "const sj_zxRrbt = utl.getJIT(\"sj_zxRrbt\"); return function sj_cm6MsK(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_zxRrbt.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		dependenciesSet: new Set(["sj_zxRrbt"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const js_zxRrbt = utl.getJIT("js_zxRrbt");
-			return function js_cm6MsK(v) {
+			const sj_zxRrbt = utl.getJIT("sj_zxRrbt");
+			return function sj_cm6MsK(v) {
 				return (function () {
 					const ns0 = [];
 					ns0.push(
@@ -465,7 +346,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + js_zxRrbt.fn(v[p1]));
+									ls1.push(utl.asJSONString(p1) + ":" + sj_zxRrbt.fn(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -477,21 +358,21 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_zxRrbt: {
+	sj_zxRrbt: {
 		isNoop: false,
 		typeName: "RpcError",
-		fnID: "js",
-		jitFnHash: "js_zxRrbt",
+		fnID: "sj",
+		jitFnHash: "sj_zxRrbt",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_zxRrbt(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
-		dependenciesSet: new Set(["js_WEWIGI"]),
+		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_zxRrbt(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+sj_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		dependenciesSet: new Set(["sj_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 =
-				"Can not JsonStringify union: item does not belong to the union";
-			const js_WEWIGI = utl.getJIT("js_WEWIGI");
-			return function js_zxRrbt(v) {
+				"Can not StringifyJson union: item does not belong to the union";
+			const sj_WEWIGI = utl.getJIT("sj_WEWIGI");
+			return function sj_zxRrbt(v) {
 				return (
 					"{" +
 					(v.id === undefined
@@ -509,7 +390,7 @@ const jitFnsCache = {
 							",") +
 					(v.errorData === undefined
 						? ""
-						: '"errorData":' + js_WEWIGI.fn(v.errorData) + ",") +
+						: '"errorData":' + sj_WEWIGI.fn(v.errorData) + ",") +
 					(v.statusCode === undefined
 						? ""
 						: '"statusCode":' + v.statusCode + ",") +
@@ -528,18 +409,18 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_WEWIGI: {
+	sj_WEWIGI: {
 		isNoop: false,
 		typeName: "Readonly",
-		fnID: "js",
-		jitFnHash: "js_WEWIGI",
+		fnID: "sj",
+		jitFnHash: "sj_WEWIGI",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function js_WEWIGI(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + JSON.stringify(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		code: " return function sj_WEWIGI(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + JSON.stringify(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			return function js_WEWIGI(v) {
+			return function sj_WEWIGI(v) {
 				return (function () {
 					const ns0 = [];
 					ns0.push(
@@ -893,21 +774,21 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_a8UQwC: {
+	sj_a8UQwC: {
 		isNoop: false,
 		typeName: "RpcError",
-		fnID: "js",
-		jitFnHash: "js_a8UQwC",
+		fnID: "sj",
+		jitFnHash: "sj_a8UQwC",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_a8UQwC(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
-		dependenciesSet: new Set(["js_WEWIGI"]),
+		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_a8UQwC(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+sj_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		dependenciesSet: new Set(["sj_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 =
-				"Can not JsonStringify union: item does not belong to the union";
-			const js_WEWIGI = utl.getJIT("js_WEWIGI");
-			return function js_a8UQwC(v) {
+				"Can not StringifyJson union: item does not belong to the union";
+			const sj_WEWIGI = utl.getJIT("sj_WEWIGI");
+			return function sj_a8UQwC(v) {
 				return (
 					"{" +
 					(v.id === undefined
@@ -925,7 +806,7 @@ const jitFnsCache = {
 							",") +
 					(v.errorData === undefined
 						? ""
-						: '"errorData":' + js_WEWIGI.fn(v.errorData) + ",") +
+						: '"errorData":' + sj_WEWIGI.fn(v.errorData) + ",") +
 					(v.statusCode === undefined
 						? ""
 						: '"statusCode":' + v.statusCode + ",") +
@@ -1205,22 +1086,22 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_JtnVhp: {
+	sj_JtnVhp: {
 		isNoop: false,
 		typeName: "params",
-		fnID: "js",
-		jitFnHash: "js_JtnVhp",
+		fnID: "sj",
+		jitFnHash: "sj_JtnVhp",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const js_b1N57x = utl.getJIT(\"js_b1N57x\"); return function js_JtnVhp(v){return '['+js_b1N57x.fn(v[0])+(v[1] === undefined ? ','+'null' : ','+(v[1] ? 'true' : 'false'))+']'}",
-		dependenciesSet: new Set(["js_b1N57x"]),
+		code: "const sj_b1N57x = utl.getJIT(\"sj_b1N57x\"); return function sj_JtnVhp(v){return '['+sj_b1N57x.fn(v[0])+(v[1] === undefined ? ','+'null' : ','+(v[1] ? 'true' : 'false'))+']'}",
+		dependenciesSet: new Set(["sj_b1N57x"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const js_b1N57x = utl.getJIT("js_b1N57x");
-			return function js_JtnVhp(v) {
+			const sj_b1N57x = utl.getJIT("sj_b1N57x");
+			return function sj_JtnVhp(v) {
 				return (
 					"[" +
-					js_b1N57x.fn(v[0]) +
+					sj_b1N57x.fn(v[0]) +
 					(v[1] === undefined
 						? "," + "null"
 						: "," + (v[1] ? "true" : "false")) +
@@ -1230,18 +1111,18 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_b1N57x: {
+	sj_b1N57x: {
 		isNoop: false,
 		typeName: "array",
-		fnID: "js",
-		jitFnHash: "js_b1N57x",
+		fnID: "sj",
+		jitFnHash: "sj_b1N57x",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function js_b1N57x(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = utl.asJSONString(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
+		code: " return function sj_b1N57x(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = utl.asJSONString(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			return function js_b1N57x(v) {
+			return function sj_b1N57x(v) {
 				const ls0 = [];
 				for (let i0 = 0; i0 < v.length; i0++) {
 					const res0 = utl.asJSONString(v[i0]);
@@ -2227,20 +2108,20 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_bNdbvR: {
+	sj_bNdbvR: {
 		isNoop: false,
 		typeName: "union",
-		fnID: "js",
-		jitFnHash: "js_bNdbvR",
+		fnID: "sj",
+		jitFnHash: "sj_bNdbvR",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_OeGakG = utl.getJIT("js_OeGakG");\nconst tj_OeGakG = utl.getJIT("tj_OeGakG");\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst js_OQaagS = utl.getJIT("js_OQaagS");\nconst tj_OQaagS = utl.getJIT("tj_OQaagS");\nconst fj_OQaagS = utl.getJIT("fj_OQaagS");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function js_bNdbvR(v){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {return \'[0,\' + js_OeGakG.fn(v) + \']\'}else if (is_OQaagS.fn(v)) {return \'[1,\' + js_OQaagS.fn(v) + \']\'}else {throw new Error(uErr0);}}',
+		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_OeGakG = utl.getJIT("sj_OeGakG");\nconst tj_OeGakG = utl.getJIT("tj_OeGakG");\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst sj_OQaagS = utl.getJIT("sj_OQaagS");\nconst tj_OQaagS = utl.getJIT("tj_OQaagS");\nconst fj_OQaagS = utl.getJIT("fj_OQaagS");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function sj_bNdbvR(v){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {return \'[0,\' + sj_OeGakG.fn(v) + \']\'}else if (is_OQaagS.fn(v)) {return \'[1,\' + sj_OQaagS.fn(v) + \']\'}else {throw new Error(uErr0);}}',
 		dependenciesSet: new Set([
-			"js_OeGakG",
+			"sj_OeGakG",
 			"tj_OeGakG",
 			"fj_OeGakG",
 			"is_OeGakG",
-			"js_OQaagS",
+			"sj_OQaagS",
 			"tj_OQaagS",
 			"fj_OQaagS",
 			"is_OQaagS",
@@ -2248,22 +2129,22 @@ const jitFnsCache = {
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 =
-				"Can not JsonStringify union: item does not belong to the union";
-			const js_OeGakG = utl.getJIT("js_OeGakG");
+				"Can not StringifyJson union: item does not belong to the union";
+			const sj_OeGakG = utl.getJIT("sj_OeGakG");
 			const tj_OeGakG = utl.getJIT("tj_OeGakG");
 			const fj_OeGakG = utl.getJIT("fj_OeGakG");
 			const is_OeGakG = utl.getJIT("is_OeGakG");
-			const js_OQaagS = utl.getJIT("js_OQaagS");
+			const sj_OQaagS = utl.getJIT("sj_OQaagS");
 			const tj_OQaagS = utl.getJIT("tj_OQaagS");
 			const fj_OQaagS = utl.getJIT("fj_OQaagS");
 			const is_OQaagS = utl.getJIT("is_OQaagS");
-			return function js_bNdbvR(v) {
+			return function sj_bNdbvR(v) {
 				if (!(typeof v === "object" && v !== null)) {
 					throw new Error(uErr0);
 				} else if (is_OeGakG.fn(v)) {
-					return "[0," + js_OeGakG.fn(v) + "]";
+					return "[0," + sj_OeGakG.fn(v) + "]";
 				} else if (is_OQaagS.fn(v)) {
-					return "[1," + js_OQaagS.fn(v) + "]";
+					return "[1," + sj_OQaagS.fn(v) + "]";
 				} else {
 					throw new Error(uErr0);
 				}
@@ -2271,50 +2152,50 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_OeGakG: {
+	sj_OeGakG: {
 		isNoop: false,
 		typeName: "SerializableMethodsData",
-		fnID: "js",
-		jitFnHash: "js_OeGakG",
+		fnID: "sj",
+		jitFnHash: "sj_OeGakG",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const js_tP7Vvb = utl.getJIT("js_tP7Vvb");\nconst js_EWye4A = utl.getJIT("js_EWye4A");\nconst js_tf5dpV = utl.getJIT("js_tf5dpV"); return function js_OeGakG(v){return \'{\'+\'"purFnDeps":\'+js_tP7Vvb.fn(v.purFnDeps)+","+\'"methods":\'+js_EWye4A.fn(v.methods)+","+\'"deps":\'+js_tf5dpV.fn(v.deps)+\'}\'}',
-		dependenciesSet: new Set(["js_tP7Vvb", "js_EWye4A", "js_tf5dpV"]),
+		code: 'const sj_tP7Vvb = utl.getJIT("sj_tP7Vvb");\nconst sj_EWye4A = utl.getJIT("sj_EWye4A");\nconst sj_tf5dpV = utl.getJIT("sj_tf5dpV"); return function sj_OeGakG(v){return \'{\'+\'"purFnDeps":\'+sj_tP7Vvb.fn(v.purFnDeps)+","+\'"methods":\'+sj_EWye4A.fn(v.methods)+","+\'"deps":\'+sj_tf5dpV.fn(v.deps)+\'}\'}',
+		dependenciesSet: new Set(["sj_tP7Vvb", "sj_EWye4A", "sj_tf5dpV"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const js_tP7Vvb = utl.getJIT("js_tP7Vvb");
-			const js_EWye4A = utl.getJIT("js_EWye4A");
-			const js_tf5dpV = utl.getJIT("js_tf5dpV");
-			return function js_OeGakG(v) {
+			const sj_tP7Vvb = utl.getJIT("sj_tP7Vvb");
+			const sj_EWye4A = utl.getJIT("sj_EWye4A");
+			const sj_tf5dpV = utl.getJIT("sj_tf5dpV");
+			return function sj_OeGakG(v) {
 				return (
 					"{" +
 					'"purFnDeps":' +
-					js_tP7Vvb.fn(v.purFnDeps) +
+					sj_tP7Vvb.fn(v.purFnDeps) +
 					"," +
 					'"methods":' +
-					js_EWye4A.fn(v.methods) +
+					sj_EWye4A.fn(v.methods) +
 					"," +
 					'"deps":' +
-					js_tf5dpV.fn(v.deps) +
+					sj_tf5dpV.fn(v.deps) +
 					"}"
 				);
 			};
 		},
 		fn: undefined,
 	},
-	js_tP7Vvb: {
+	sj_tP7Vvb: {
 		isNoop: false,
 		typeName: "PureFnsDataCache",
-		fnID: "js",
-		jitFnHash: "js_tP7Vvb",
+		fnID: "sj",
+		jitFnHash: "sj_tP7Vvb",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const js_cE6uKo = utl.getJIT(\"js_cE6uKo\"); return function js_tP7Vvb(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + js_cE6uKo.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
-		dependenciesSet: new Set(["js_cE6uKo"]),
+		code: "const sj_cE6uKo = utl.getJIT(\"sj_cE6uKo\"); return function sj_tP7Vvb(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_cE6uKo.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		dependenciesSet: new Set(["sj_cE6uKo"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const js_cE6uKo = utl.getJIT("js_cE6uKo");
-			return function js_tP7Vvb(v) {
+			const sj_cE6uKo = utl.getJIT("sj_cE6uKo");
+			return function sj_tP7Vvb(v) {
 				return (function () {
 					const ns0 = [];
 					ns0.push(
@@ -2322,7 +2203,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + js_cE6uKo.fn(v[p1]));
+									ls1.push(utl.asJSONString(p1) + ":" + sj_cE6uKo.fn(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -2334,23 +2215,23 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_cE6uKo: {
+	sj_cE6uKo: {
 		isNoop: false,
 		typeName: "PureFunctionData",
-		fnID: "js",
-		jitFnHash: "js_cE6uKo",
+		fnID: "sj",
+		jitFnHash: "sj_cE6uKo",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const js_Ei8qua = utl.getJIT(\"js_Ei8qua\"); return function js_cE6uKo(v){return '{'+'\"paramNames\":'+js_Ei8qua.fn(v.paramNames)+\",\"+'\"code\":'+utl.asJSONString(v.code)+\",\"+'\"pureFnHash\":'+utl.asJSONString(v.pureFnHash)+\",\"+'\"dependencies\":'+(function(){\n const ls0 = [];\n for (const it0 of v.dependencies) {\n const res0 = utl.asJSONString(it0);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']'\n })()+'}'}",
-		dependenciesSet: new Set(["js_Ei8qua"]),
+		code: "const sj_Ei8qua = utl.getJIT(\"sj_Ei8qua\"); return function sj_cE6uKo(v){return '{'+'\"paramNames\":'+sj_Ei8qua.fn(v.paramNames)+\",\"+'\"code\":'+utl.asJSONString(v.code)+\",\"+'\"pureFnHash\":'+utl.asJSONString(v.pureFnHash)+\",\"+'\"dependencies\":'+(function(){\n const ls0 = [];\n for (const it0 of v.dependencies) {\n const res0 = utl.asJSONString(it0);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']'\n })()+'}'}",
+		dependenciesSet: new Set(["sj_Ei8qua"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const js_Ei8qua = utl.getJIT("js_Ei8qua");
-			return function js_cE6uKo(v) {
+			const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
+			return function sj_cE6uKo(v) {
 				return (
 					"{" +
 					'"paramNames":' +
-					js_Ei8qua.fn(v.paramNames) +
+					sj_Ei8qua.fn(v.paramNames) +
 					"," +
 					'"code":' +
 					utl.asJSONString(v.code) +
@@ -2373,18 +2254,18 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_Ei8qua: {
+	sj_Ei8qua: {
 		isNoop: false,
 		typeName: "array",
-		fnID: "js",
-		jitFnHash: "js_Ei8qua",
+		fnID: "sj",
+		jitFnHash: "sj_Ei8qua",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function js_Ei8qua(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = utl.asJSONString(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
+		code: " return function sj_Ei8qua(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = utl.asJSONString(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			return function js_Ei8qua(v) {
+			return function sj_Ei8qua(v) {
 				const ls0 = [];
 				for (let i0 = 0; i0 < v.length; i0++) {
 					const res0 = utl.asJSONString(v[i0]);
@@ -2395,19 +2276,19 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_EWye4A: {
+	sj_EWye4A: {
 		isNoop: false,
 		typeName: "MethodsCache",
-		fnID: "js",
-		jitFnHash: "js_EWye4A",
+		fnID: "sj",
+		jitFnHash: "sj_EWye4A",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const js_H5Jbv1 = utl.getJIT(\"js_H5Jbv1\"); return function js_EWye4A(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + js_H5Jbv1.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
-		dependenciesSet: new Set(["js_H5Jbv1"]),
+		code: "const sj_H5Jbv1 = utl.getJIT(\"sj_H5Jbv1\"); return function sj_EWye4A(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_H5Jbv1.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		dependenciesSet: new Set(["sj_H5Jbv1"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const js_H5Jbv1 = utl.getJIT("js_H5Jbv1");
-			return function js_EWye4A(v) {
+			const sj_H5Jbv1 = utl.getJIT("sj_H5Jbv1");
+			return function sj_EWye4A(v) {
 				return (function () {
 					const ns0 = [];
 					ns0.push(
@@ -2415,7 +2296,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + js_H5Jbv1.fn(v[p1]));
+									ls1.push(utl.asJSONString(p1) + ":" + sj_H5Jbv1.fn(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -2427,34 +2308,34 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_H5Jbv1: {
+	sj_H5Jbv1: {
 		isNoop: false,
 		typeName: "MethodMetadata",
-		fnID: "js",
-		jitFnHash: "js_H5Jbv1",
+		fnID: "sj",
+		jitFnHash: "sj_H5Jbv1",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const js_Ei8qua = utl.getJIT("js_Ei8qua");\nconst js_s8eky2 = utl.getJIT("js_s8eky2"); return function js_H5Jbv1(v){return \'{\'+(v.paramNames === undefined ? \'\' : \'"paramNames":\'+js_Ei8qua.fn(v.paramNames)+",")+(v.headersParam === undefined ? \'\' : \'"headersParam":\'+js_s8eky2.fn(v.headersParam)+",")+(v.headersReturn === undefined ? \'\' : \'"headersReturn":\'+js_s8eky2.fn(v.headersReturn)+",")+(v.hookIds === undefined ? \'\' : \'"hookIds":\'+js_Ei8qua.fn(v.hookIds)+",")+\'"type":\'+v.type+","+\'"id":\'+utl.asJSONString(v.id)+","+\'"isAsync":\'+(v.isAsync ? \'true\' : \'false\')+","+\'"hasReturnData":\'+(v.hasReturnData ? \'true\' : \'false\')+","+\'"paramsJitHash":\'+utl.asJSONString(v.paramsJitHash)+","+\'"returnJitHash":\'+utl.asJSONString(v.returnJitHash)+","+\'"pointer":\'+js_Ei8qua.fn(v.pointer)+","+\'"nestLevel":\'+v.nestLevel+\'}\'}',
-		dependenciesSet: new Set(["js_Ei8qua", "js_s8eky2"]),
+		code: 'const sj_Ei8qua = utl.getJIT("sj_Ei8qua");\nconst sj_s8eky2 = utl.getJIT("sj_s8eky2"); return function sj_H5Jbv1(v){return \'{\'+(v.paramNames === undefined ? \'\' : \'"paramNames":\'+sj_Ei8qua.fn(v.paramNames)+",")+(v.headersParam === undefined ? \'\' : \'"headersParam":\'+sj_s8eky2.fn(v.headersParam)+",")+(v.headersReturn === undefined ? \'\' : \'"headersReturn":\'+sj_s8eky2.fn(v.headersReturn)+",")+(v.hookIds === undefined ? \'\' : \'"hookIds":\'+sj_Ei8qua.fn(v.hookIds)+",")+\'"type":\'+v.type+","+\'"id":\'+utl.asJSONString(v.id)+","+\'"isAsync":\'+(v.isAsync ? \'true\' : \'false\')+","+\'"hasReturnData":\'+(v.hasReturnData ? \'true\' : \'false\')+","+\'"paramsJitHash":\'+utl.asJSONString(v.paramsJitHash)+","+\'"returnJitHash":\'+utl.asJSONString(v.returnJitHash)+","+\'"pointer":\'+sj_Ei8qua.fn(v.pointer)+","+\'"nestLevel":\'+v.nestLevel+\'}\'}',
+		dependenciesSet: new Set(["sj_Ei8qua", "sj_s8eky2"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const js_Ei8qua = utl.getJIT("js_Ei8qua");
-			const js_s8eky2 = utl.getJIT("js_s8eky2");
-			return function js_H5Jbv1(v) {
+			const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
+			const sj_s8eky2 = utl.getJIT("sj_s8eky2");
+			return function sj_H5Jbv1(v) {
 				return (
 					"{" +
 					(v.paramNames === undefined
 						? ""
-						: '"paramNames":' + js_Ei8qua.fn(v.paramNames) + ",") +
+						: '"paramNames":' + sj_Ei8qua.fn(v.paramNames) + ",") +
 					(v.headersParam === undefined
 						? ""
-						: '"headersParam":' + js_s8eky2.fn(v.headersParam) + ",") +
+						: '"headersParam":' + sj_s8eky2.fn(v.headersParam) + ",") +
 					(v.headersReturn === undefined
 						? ""
-						: '"headersReturn":' + js_s8eky2.fn(v.headersReturn) + ",") +
+						: '"headersReturn":' + sj_s8eky2.fn(v.headersReturn) + ",") +
 					(v.hookIds === undefined
 						? ""
-						: '"hookIds":' + js_Ei8qua.fn(v.hookIds) + ",") +
+						: '"hookIds":' + sj_Ei8qua.fn(v.hookIds) + ",") +
 					'"type":' +
 					v.type +
 					"," +
@@ -2474,7 +2355,7 @@ const jitFnsCache = {
 					utl.asJSONString(v.returnJitHash) +
 					"," +
 					'"pointer":' +
-					js_Ei8qua.fn(v.pointer) +
+					sj_Ei8qua.fn(v.pointer) +
 					"," +
 					'"nestLevel":' +
 					v.nestLevel +
@@ -2484,23 +2365,23 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_s8eky2: {
+	sj_s8eky2: {
 		isNoop: false,
 		typeName: "HeadersMetaData",
-		fnID: "js",
-		jitFnHash: "js_s8eky2",
+		fnID: "sj",
+		jitFnHash: "sj_s8eky2",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const js_Ei8qua = utl.getJIT(\"js_Ei8qua\"); return function js_s8eky2(v){return '{'+'\"headerNames\":'+js_Ei8qua.fn(v.headerNames)+\",\"+'\"jitHash\":'+utl.asJSONString(v.jitHash)+'}'}",
-		dependenciesSet: new Set(["js_Ei8qua"]),
+		code: "const sj_Ei8qua = utl.getJIT(\"sj_Ei8qua\"); return function sj_s8eky2(v){return '{'+'\"headerNames\":'+sj_Ei8qua.fn(v.headerNames)+\",\"+'\"jitHash\":'+utl.asJSONString(v.jitHash)+'}'}",
+		dependenciesSet: new Set(["sj_Ei8qua"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const js_Ei8qua = utl.getJIT("js_Ei8qua");
-			return function js_s8eky2(v) {
+			const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
+			return function sj_s8eky2(v) {
 				return (
 					"{" +
 					'"headerNames":' +
-					js_Ei8qua.fn(v.headerNames) +
+					sj_Ei8qua.fn(v.headerNames) +
 					"," +
 					'"jitHash":' +
 					utl.asJSONString(v.jitHash) +
@@ -2510,19 +2391,19 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_tf5dpV: {
+	sj_tf5dpV: {
 		isNoop: false,
 		typeName: "FnsDataCache",
-		fnID: "js",
-		jitFnHash: "js_tf5dpV",
+		fnID: "sj",
+		jitFnHash: "sj_tf5dpV",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const js_EmCqyw = utl.getJIT(\"js_EmCqyw\"); return function js_tf5dpV(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + js_EmCqyw.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
-		dependenciesSet: new Set(["js_EmCqyw"]),
+		code: "const sj_EmCqyw = utl.getJIT(\"sj_EmCqyw\"); return function sj_tf5dpV(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_EmCqyw.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		dependenciesSet: new Set(["sj_EmCqyw"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const js_EmCqyw = utl.getJIT("js_EmCqyw");
-			return function js_tf5dpV(v) {
+			const sj_EmCqyw = utl.getJIT("sj_EmCqyw");
+			return function sj_tf5dpV(v) {
 				return (function () {
 					const ns0 = [];
 					ns0.push(
@@ -2530,7 +2411,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + js_EmCqyw.fn(v[p1]));
+									ls1.push(utl.asJSONString(p1) + ":" + sj_EmCqyw.fn(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -2542,20 +2423,20 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_EmCqyw: {
+	sj_EmCqyw: {
 		isNoop: false,
 		typeName: "JitCompiledFnData",
-		fnID: "js",
-		jitFnHash: "js_EmCqyw",
+		fnID: "sj",
+		jitFnHash: "sj_EmCqyw",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const js_Ei8qua = utl.getJIT(\"js_Ei8qua\");\nconst js_gCQYSg = utl.getJIT(\"js_gCQYSg\"); return function js_EmCqyw(v){return '{'+(v.isNoop === undefined ? '' : '\"isNoop\":'+(v.isNoop ? 'true' : 'false')+\",\")+(v.paramNames === undefined ? '' : '\"paramNames\":'+js_Ei8qua.fn(v.paramNames)+\",\")+'\"typeName\":'+utl.asJSONString(v.typeName)+\",\"+'\"fnID\":'+utl.asJSONString(v.fnID)+\",\"+'\"jitFnHash\":'+utl.asJSONString(v.jitFnHash)+\",\"+'\"args\":'+js_gCQYSg.fn(v.args)+\",\"+'\"defaultParamValues\":'+js_gCQYSg.fn(v.defaultParamValues)+\",\"+'\"code\":'+utl.asJSONString(v.code)+\",\"+'\"dependenciesSet\":'+(function(){\n const ls0 = [];\n for (const it0 of v.dependenciesSet) {\n const res0 = utl.asJSONString(it0);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']'\n })()+\",\"+'\"pureFnDependencies\":'+(function(){\n const ls1 = [];\n for (const it1 of v.pureFnDependencies) {\n const res1 = utl.asJSONString(it1);\n ls1.push(res1);\n }\n return '[' + ls1.join(',') + ']'\n })()+'}'}",
-		dependenciesSet: new Set(["js_Ei8qua", "js_gCQYSg"]),
+		code: "const sj_Ei8qua = utl.getJIT(\"sj_Ei8qua\");\nconst sj_gCQYSg = utl.getJIT(\"sj_gCQYSg\"); return function sj_EmCqyw(v){return '{'+(v.isNoop === undefined ? '' : '\"isNoop\":'+(v.isNoop ? 'true' : 'false')+\",\")+(v.paramNames === undefined ? '' : '\"paramNames\":'+sj_Ei8qua.fn(v.paramNames)+\",\")+'\"typeName\":'+utl.asJSONString(v.typeName)+\",\"+'\"fnID\":'+utl.asJSONString(v.fnID)+\",\"+'\"jitFnHash\":'+utl.asJSONString(v.jitFnHash)+\",\"+'\"args\":'+sj_gCQYSg.fn(v.args)+\",\"+'\"defaultParamValues\":'+sj_gCQYSg.fn(v.defaultParamValues)+\",\"+'\"code\":'+utl.asJSONString(v.code)+\",\"+'\"dependenciesSet\":'+(function(){\n const ls0 = [];\n for (const it0 of v.dependenciesSet) {\n const res0 = utl.asJSONString(it0);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']'\n })()+\",\"+'\"pureFnDependencies\":'+(function(){\n const ls1 = [];\n for (const it1 of v.pureFnDependencies) {\n const res1 = utl.asJSONString(it1);\n ls1.push(res1);\n }\n return '[' + ls1.join(',') + ']'\n })()+'}'}",
+		dependenciesSet: new Set(["sj_Ei8qua", "sj_gCQYSg"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const js_Ei8qua = utl.getJIT("js_Ei8qua");
-			const js_gCQYSg = utl.getJIT("js_gCQYSg");
-			return function js_EmCqyw(v) {
+			const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
+			const sj_gCQYSg = utl.getJIT("sj_gCQYSg");
+			return function sj_EmCqyw(v) {
 				return (
 					"{" +
 					(v.isNoop === undefined
@@ -2563,7 +2444,7 @@ const jitFnsCache = {
 						: '"isNoop":' + (v.isNoop ? "true" : "false") + ",") +
 					(v.paramNames === undefined
 						? ""
-						: '"paramNames":' + js_Ei8qua.fn(v.paramNames) + ",") +
+						: '"paramNames":' + sj_Ei8qua.fn(v.paramNames) + ",") +
 					'"typeName":' +
 					utl.asJSONString(v.typeName) +
 					"," +
@@ -2574,10 +2455,10 @@ const jitFnsCache = {
 					utl.asJSONString(v.jitFnHash) +
 					"," +
 					'"args":' +
-					js_gCQYSg.fn(v.args) +
+					sj_gCQYSg.fn(v.args) +
 					"," +
 					'"defaultParamValues":' +
-					js_gCQYSg.fn(v.defaultParamValues) +
+					sj_gCQYSg.fn(v.defaultParamValues) +
 					"," +
 					'"code":' +
 					utl.asJSONString(v.code) +
@@ -2607,18 +2488,18 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_gCQYSg: {
+	sj_gCQYSg: {
 		isNoop: false,
 		typeName: "JitFnArgs",
-		fnID: "js",
-		jitFnHash: "js_gCQYSg",
+		fnID: "sj",
+		jitFnHash: "sj_gCQYSg",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function js_gCQYSg(v){return '{'+(function(){\n const ls0 = [];\n for (const p0 in v) {\n if (\"vλl\" === p0) continue;\n if (p0 !== undefined) ls0.push(utl.asJSONString(p0) + ':' + utl.asJSONString(v[p0]));\n }\n if (!ls0.length) return '';\n return ls0.join(',')+\",\";\n })()+\"\\\"vλl\\\"\"+':'+utl.asJSONString(v[\"vλl\"])+'}'}",
+		code: " return function sj_gCQYSg(v){return '{'+(function(){\n const ls0 = [];\n for (const p0 in v) {\n if (\"vλl\" === p0) continue;\n if (p0 !== undefined) ls0.push(utl.asJSONString(p0) + ':' + utl.asJSONString(v[p0]));\n }\n if (!ls0.length) return '';\n return ls0.join(',')+\",\";\n })()+\"\\\"vλl\\\"\"+':'+utl.asJSONString(v[\"vλl\"])+'}'}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			return function js_gCQYSg(v) {
+			return function sj_gCQYSg(v) {
 				return (
 					"{" +
 					(function () {
@@ -2640,21 +2521,21 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_OQaagS: {
+	sj_OQaagS: {
 		isNoop: false,
 		typeName: "RpcError",
-		fnID: "js",
-		jitFnHash: "js_OQaagS",
+		fnID: "sj",
+		jitFnHash: "sj_OQaagS",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not JsonStringify union: item does not belong to the union";\nconst js_WEWIGI = utl.getJIT("js_WEWIGI"); return function js_OQaagS(v){return \'{\'+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+js_WEWIGI.fn(v.errorData)+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
-		dependenciesSet: new Set(["js_WEWIGI"]),
+		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_OQaagS(v){return \'{\'+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)} else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+sj_WEWIGI.fn(v.errorData)+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		dependenciesSet: new Set(["sj_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 =
-				"Can not JsonStringify union: item does not belong to the union";
-			const js_WEWIGI = utl.getJIT("js_WEWIGI");
-			return function js_OQaagS(v) {
+				"Can not StringifyJson union: item does not belong to the union";
+			const sj_WEWIGI = utl.getJIT("sj_WEWIGI");
+			return function sj_OQaagS(v) {
 				return (
 					"{" +
 					(v.statusCode === undefined
@@ -2675,7 +2556,7 @@ const jitFnsCache = {
 							",") +
 					(v.errorData === undefined
 						? ""
-						: '"errorData":' + js_WEWIGI.fn(v.errorData) + ",") +
+						: '"errorData":' + sj_WEWIGI.fn(v.errorData) + ",") +
 					'"mion@isΣrrθr"' +
 					":" +
 					(v["mion@isΣrrθr"] ? "true" : "false") +
@@ -3516,18 +3397,18 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	js_hZzD9z: {
+	sj_hZzD9z: {
 		isNoop: false,
 		typeName: "params",
-		fnID: "js",
-		jitFnHash: "js_hZzD9z",
+		fnID: "sj",
+		jitFnHash: "sj_hZzD9z",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function js_hZzD9z(v){return '['+utl.asJSONString(v[0])+(v[1] === undefined ? ','+'null' : ','+(v[1] ? 'true' : 'false'))+']'}",
+		code: " return function sj_hZzD9z(v){return '['+utl.asJSONString(v[0])+(v[1] === undefined ? ','+'null' : ','+(v[1] ? 'true' : 'false'))+']'}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			return function js_hZzD9z(v) {
+			return function sj_hZzD9z(v) {
 				return (
 					"[" +
 					utl.asJSONString(v[0]) +
@@ -3582,246 +3463,6 @@ const jitFnsCache = {
 					ret[1] = Des.view.getUint8(Des.index++) === 1;
 				}
 				return ret;
-			};
-		},
-		fn: undefined,
-	},
-	is_q2ck2E: {
-		isNoop: false,
-		typeName: "params",
-		fnID: "is",
-		jitFnHash: "is_q2ck2E",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function is_q2ck2E(v){return v.length === 0}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function is_q2ck2E(v) {
-				return v.length === 0;
-			};
-		},
-		fn: undefined,
-	},
-	te_q2ck2E: {
-		isNoop: false,
-		typeName: "params",
-		fnID: "te",
-		jitFnHash: "te_q2ck2E",
-		args: { pλth: "pth", εrr: "er", vλl: "v" },
-		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: ' return function te_q2ck2E(v,pth=[],er=[]){if (v.length !== 0) utl.err(pth,er,"params"); return er}',
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function te_q2ck2E(v, pth = [], er = []) {
-				if (v.length !== 0) utl.err(pth, er, "params");
-				return er;
-			};
-		},
-		fn: undefined,
-	},
-	tj_q2ck2E: {
-		isNoop: true,
-		typeName: "params",
-		fnID: "tj",
-		jitFnHash: "tj_q2ck2E",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function tj_q2ck2E(v){return v}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function tj_q2ck2E(v) {
-				return v;
-			};
-		},
-		fn: undefined,
-	},
-	fj_q2ck2E: {
-		isNoop: true,
-		typeName: "params",
-		fnID: "fj",
-		jitFnHash: "fj_q2ck2E",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function fj_q2ck2E(v){return v}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function fj_q2ck2E(v) {
-				return v;
-			};
-		},
-		fn: undefined,
-	},
-	js_q2ck2E: {
-		isNoop: false,
-		typeName: "params",
-		fnID: "js",
-		jitFnHash: "js_q2ck2E",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function js_q2ck2E(v){return '[]'}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function js_q2ck2E(v) {
-				return "[]";
-			};
-		},
-		fn: undefined,
-	},
-	tBi_q2ck2E: {
-		isNoop: false,
-		typeName: "params",
-		fnID: "tBi",
-		jitFnHash: "tBi_q2ck2E",
-		args: { sεr: "Ser", vλl: "v" },
-		defaultParamValues: { sεr: "", vλl: "" },
-		code: " return function tBi_q2ck2E(v,Ser){}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function tBi_q2ck2E(v, Ser) {};
-		},
-		fn: undefined,
-	},
-	fBi_q2ck2E: {
-		isNoop: false,
-		typeName: "params",
-		fnID: "fBi",
-		jitFnHash: "fBi_q2ck2E",
-		args: { dεs: "Des", vλl: "ret" },
-		defaultParamValues: { dεs: "", vλl: "" },
-		code: " return function fBi_q2ck2E(ret,Des){ret = new Array(0); return ret}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function fBi_q2ck2E(ret, Des) {
-				ret = new Array(0);
-				return ret;
-			};
-		},
-		fn: undefined,
-	},
-	is_dPDpXF: {
-		isNoop: false,
-		typeName: "void",
-		fnID: "is",
-		jitFnHash: "is_dPDpXF",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function is_dPDpXF(v){return v === undefined}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function is_dPDpXF(v) {
-				return v === undefined;
-			};
-		},
-		fn: undefined,
-	},
-	te_dPDpXF: {
-		isNoop: false,
-		typeName: "void",
-		fnID: "te",
-		jitFnHash: "te_dPDpXF",
-		args: { pλth: "pth", εrr: "er", vλl: "v" },
-		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: ' return function te_dPDpXF(v,pth=[],er=[]){if (v !== undefined) utl.err(pth,er,"void"); return er}',
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function te_dPDpXF(v, pth = [], er = []) {
-				if (v !== undefined) utl.err(pth, er, "void");
-				return er;
-			};
-		},
-		fn: undefined,
-	},
-	tj_dPDpXF: {
-		isNoop: false,
-		typeName: "void",
-		fnID: "tj",
-		jitFnHash: "tj_dPDpXF",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function tj_dPDpXF(v){return v = undefined}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function tj_dPDpXF(v) {
-				return (v = undefined);
-			};
-		},
-		fn: undefined,
-	},
-	fj_dPDpXF: {
-		isNoop: false,
-		typeName: "void",
-		fnID: "fj",
-		jitFnHash: "fj_dPDpXF",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function fj_dPDpXF(v){return v = undefined}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function fj_dPDpXF(v) {
-				return (v = undefined);
-			};
-		},
-		fn: undefined,
-	},
-	js_dPDpXF: {
-		isNoop: false,
-		typeName: "void",
-		fnID: "js",
-		jitFnHash: "js_dPDpXF",
-		args: { vλl: "v" },
-		defaultParamValues: { vλl: "" },
-		code: " return function js_dPDpXF(v){return undefined}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function js_dPDpXF(v) {
-				return undefined;
-			};
-		},
-		fn: undefined,
-	},
-	tBi_dPDpXF: {
-		isNoop: false,
-		typeName: "void",
-		fnID: "tBi",
-		jitFnHash: "tBi_dPDpXF",
-		args: { sεr: "Ser", vλl: "v" },
-		defaultParamValues: { sεr: "", vλl: "" },
-		code: " return function tBi_dPDpXF(v,Ser){Ser.view.setUint8(Ser.index++, 1); return Ser}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function tBi_dPDpXF(v, Ser) {
-				Ser.view.setUint8(Ser.index++, 1);
-				return Ser;
-			};
-		},
-		fn: undefined,
-	},
-	fBi_dPDpXF: {
-		isNoop: false,
-		typeName: "void",
-		fnID: "fBi",
-		jitFnHash: "fBi_dPDpXF",
-		args: { dεs: "Des", vλl: "ret" },
-		defaultParamValues: { dεs: "", vλl: "" },
-		code: " return function fBi_dPDpXF(ret,Des){return (Des.index++, undefined)}",
-		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
-		createJitFn: function (utl) {
-			return function fBi_dPDpXF(ret, Des) {
-				return Des.index++, undefined;
 			};
 		},
 		fn: undefined,

@@ -55,8 +55,8 @@ describe('Parameters & ReturnType typescript utility type', () => {
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const stringifyReturn = rtReturn.createJitFunction(JitFunctions.jsonStringify);
+        const stringify = rt.createJitFunction(JitFunctions.stringifyJson);
+        const stringifyReturn = rtReturn.createJitFunction(JitFunctions.stringifyJson);
         const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
         const decodeReturn = rtReturn.createJitFunction(JitFunctions.restoreFromJson);
 
@@ -113,7 +113,7 @@ describe('ConstructorParameter typescript utility type', () => {
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringify = rt.createJitFunction(JitFunctions.stringifyJson);
         const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
 
         const params1 = [...params];

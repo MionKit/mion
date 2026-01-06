@@ -28,7 +28,7 @@ import type {MemberRunType} from '../../lib/baseRunTypes';
 import type {LiteralRunType} from '../../nodes/atomic/literal';
 import type {IterableRunType} from '../../nodes/native/Iterable';
 
-type Operation = typeof JitFunctions.jsonStringify.id | typeof JitFunctions.toJavascript.id;
+type Operation = typeof JitFunctions.stringifyJson.id | typeof JitFunctions.toJSCode.id;
 
 export function createStringifyCompiler(fnID: Operation) {
     const compileStringifyIterable = createStringifyIterable(fnID);
@@ -51,7 +51,7 @@ export function createStringifyCompiler(fnID: Operation) {
                 if (src.indexType.kind === ReflectionKind.number) return {code: comp.vλl, type: 'E'};
                 return {code: `JSON.stringify(${comp.vλl})`, type: 'E'};
             case ReflectionKind.enumMember:
-                throw new Error('JsonStringify enum member is not supported.');
+                throw new Error('StringifyJson enum member is not supported.');
             case ReflectionKind.literal: {
                 const rt = runType as LiteralRunType;
                 if (src.literal instanceof RegExp) return compileStringify({src: {kind: ReflectionKind.regexp}} as any, comp);
@@ -321,9 +321,9 @@ export function createStringifyCompiler(fnID: Operation) {
 
     function getOperationName() {
         switch (fnID) {
-            case JitFunctions.jsonStringify.id:
-                return 'JsonStringify';
-            case JitFunctions.toJavascript.id:
+            case JitFunctions.stringifyJson.id:
+                return 'StringifyJson';
+            case JitFunctions.toJSCode.id:
                 return 'ToCode';
             default:
                 throw new Error(`Unknown operation: ${fnID}`);
@@ -332,7 +332,7 @@ export function createStringifyCompiler(fnID: Operation) {
 
     function getPropName(rt: PropertyRunType, comp: JitFnCompiler): string {
         if (!isSafePropName(rt.src.name)) return `${JSON.stringify(rt.getChildLiteral(comp) as string)}+':'`;
-        if (fnID === JitFunctions.toJavascript.id) return `'${rt.getChildVarName(comp)}:'`;
+        if (fnID === JitFunctions.toJSCode.id) return `'${rt.getChildVarName(comp)}:'`;
         return `'"${rt.getChildVarName(comp)}":'`;
     }
 
@@ -466,4 +466,4 @@ export function createStringifyIterable(fnID: Operation) {
     };
 }
 
-export const emitJsonStringify = createStringifyCompiler(JitFunctions.jsonStringify.id);
+export const emitJsonStringify = createStringifyCompiler(JitFunctions.stringifyJson.id);

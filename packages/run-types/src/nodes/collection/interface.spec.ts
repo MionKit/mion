@@ -182,8 +182,8 @@ describe('Interface', () => {
         const typeValue = {name: 'John', surname: 'Doe'};
         expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(typeValue))))).toEqual(typeValue);
 
-        const jsonStringify = rtI.createJitFunction(JitFunctions.jsonStringify);
-        const roundTrip = restoreFromJson(JSON.parse(jsonStringify(typeValue)));
+        const stringifyJson = rtI.createJitFunction(JitFunctions.stringifyJson);
+        const roundTrip = restoreFromJson(JSON.parse(stringifyJson(typeValue)));
         expect(roundTrip).toEqual(typeValue);
     });
 

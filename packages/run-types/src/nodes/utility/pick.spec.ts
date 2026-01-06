@@ -84,8 +84,8 @@ describe('Pick typescript utility type only pick selected properties', () => {
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const stringifyPick = rtPick.createJitFunction(JitFunctions.jsonStringify);
+        const stringify = rt.createJitFunction(JitFunctions.stringifyJson);
+        const stringifyPick = rtPick.createJitFunction(JitFunctions.stringifyJson);
         const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
         const decodePick = rtPick.createJitFunction(JitFunctions.restoreFromJson);
 

@@ -84,8 +84,8 @@ describe('Omit typescript utility type only pick selected properties', () => {
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const stringifyOmit = rtOmit.createJitFunction(JitFunctions.jsonStringify);
+        const stringify = rt.createJitFunction(JitFunctions.stringifyJson);
+        const stringifyOmit = rtOmit.createJitFunction(JitFunctions.stringifyJson);
         const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
         const decodeOmit = rtOmit.createJitFunction(JitFunctions.restoreFromJson);
 

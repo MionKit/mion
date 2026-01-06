@@ -15,11 +15,11 @@ import {ReflectionSubKind} from '../../constants.kind';
 import {JitFunctions} from '../../constants.functions';
 import {JitFnCompiler} from '../../lib/jitFnCompiler';
 import {isSafePropName} from '../../lib/utils';
-import {createStringifyCompiler, createStringifyIterable} from './jsonStringify';
+import {createStringifyCompiler, createStringifyIterable} from './stringifyJson';
 import {registerPureFnClosure} from '../../lib/pureFn';
 
 export function createToCodeCompiler() {
-    const fnID = JitFunctions.toJavascript.id;
+    const fnID = JitFunctions.toJSCode.id;
     const visitJsonStringify = createStringifyCompiler(fnID);
     const visitJsonStringifyIterable = createStringifyIterable(fnID);
 

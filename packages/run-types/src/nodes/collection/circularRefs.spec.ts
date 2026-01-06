@@ -68,7 +68,7 @@ describe('Circular object', () => {
         expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy3))))).toEqual(c3);
     });
 
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 329-336)
+    // Test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 329-336)
 });
 
 /**  Test Circular array + union type:
@@ -127,7 +127,7 @@ describe('Circular array + union', () => {
         expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy3))))).toEqual(cu3);
     });
 
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 743-754)
+    // Test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 743-754)
 
     it('mock CircularUnion array', async () => {
         const mocked = await rt.mock();
@@ -196,7 +196,7 @@ describe('Circular object with tuple', () => {
         expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy3))))).toEqual(c3);
     });
 
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 766-777)
+    // Test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 766-777)
 
     it('mock CircularTuple object', async () => {
         const mocked = await rt.mock();
@@ -262,7 +262,7 @@ describe('Circular Object with index property', () => {
         expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy3))))).toEqual(c3);
     });
 
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 790-801)
+    // Test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 790-801)
 
     it('mock CircularIndex object', async () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
@@ -330,7 +330,7 @@ describe('Circular Object with deep nested properties', () => {
         expect(restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(copy2))))).toEqual(c2);
     });
 
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 813-822)
+    // Test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 813-822)
 
     it('mock CircularDeep object', async () => {
         const mocked = await rt.mock();

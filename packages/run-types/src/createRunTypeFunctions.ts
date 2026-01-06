@@ -70,7 +70,7 @@ export async function createRestoreFromJsonFn<T>(opts?: RunTypeOptions, type?: R
  */
 export async function createJsonStringifyFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): Promise<JsonStringifyFn> {
     const rt = runType(type);
-    return rt.createJitFunction(JitFunctions.jsonStringify, opts);
+    return rt.createJitFunction(JitFunctions.stringifyJson, opts);
 }
 
 /** Returns a function that serializes any type value to a binary format. */
@@ -88,7 +88,7 @@ export async function createFromBinaryFn<T>(opts?: RunTypeOptions, type?: Receiv
 /** Returns a function that mocks a value of the specified type. */
 export function createToJavascriptFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): ToCodeFn {
     const rt = runType(type);
-    return rt.createJitFunction(JitFunctions.toJavascript, opts);
+    return rt.createJitFunction(JitFunctions.toJSCode, opts);
 }
 
 /** Returns a function that mocks a value of the specified type. */

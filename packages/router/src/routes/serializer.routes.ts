@@ -132,7 +132,7 @@ function onStringifyExecutableError(context: CallContext, method: RemoteMethod, 
     const err = new RpcError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'json-stringify-response-error',
-        publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.jsonStringify.typeName}`,
+        publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.stringifyJson.typeName}`,
         originalError: e,
         errorData: {methodId: method.id},
     });
@@ -141,7 +141,7 @@ function onStringifyExecutableError(context: CallContext, method: RemoteMethod, 
 
 function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any, opts: RouterOptions): string {
     if (!method.hasReturnData) return '';
-    if (opts.useJitStringify) return method.returnJitFns.jsonStringify.fn(returnValue);
+    if (opts.useJitStringify) return method.returnJitFns.stringifyJson.fn(returnValue);
     if (method.returnJitFns.prepareForJson.isNoop) return JSON.stringify(returnValue);
     return JSON.stringify(method.returnJitFns.prepareForJson.fn(returnValue));
 }

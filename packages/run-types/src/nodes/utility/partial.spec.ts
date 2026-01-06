@@ -59,8 +59,8 @@ describe('Partial typescript utility type makes all properties optional', () => 
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const stringifyPartial = rtPartial.createJitFunction(JitFunctions.jsonStringify);
+        const stringify = rt.createJitFunction(JitFunctions.stringifyJson);
+        const stringifyPartial = rtPartial.createJitFunction(JitFunctions.stringifyJson);
         const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
         const decodePartial = rtPartial.createJitFunction(JitFunctions.restoreFromJson);
 
