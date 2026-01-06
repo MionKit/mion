@@ -119,6 +119,7 @@ function stringifyBody(req: MionRequest<any, any>): string {
 }
 
 function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string {
+    if (!method.paramNames || method.paramNames.length === 0) return '';
     const paramsJit = method.paramsJitFns;
     // Note: client doesn't have useJitStringify option, always use prepareForJson + JSON.stringify
     if (paramsJit.prepareForJson.isNoop) return JSON.stringify(params);
@@ -126,6 +127,7 @@ function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string
 }
 
 function parseHandlerReturnValue(method: MethodWithJitFns, returnValue: any): any {
+    if (!method.hasReturnData) return returnValue;
     const returnJit = method.returnJitFns;
     if (returnJit.restoreFromJson.isNoop || !returnValue) return returnValue;
 

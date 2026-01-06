@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT} from './constants';
+import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants';
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
 import type {MethodMetadata, MethodsCache, MethodWithJitFns} from './types/method.types';
 import type {JitCompiledFunctions, JitFunctionsHashes} from './types/general.types';
@@ -186,8 +186,12 @@ export function getJitFnHashes(jitHash: string): JitFunctionsHashes {
 
 /**
  * Helper function to get JIT functions from a JIT hash
+ * Returns nullJitFns for empty hash (handlers with no params or void return)
  */
 export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
+    // Empty hash means no JIT functions were generated (optimization for no params or void return)
+    if (jitHash === EMPTY_HASH) return nullJitFns;
+
     const hashes = getJitFnHashes(jitHash);
     const jUtils = getJitUtils();
     const jitFns = {
@@ -248,4 +252,24 @@ export function getRoutePath(pathPointer: string[], routerOptions: {prefix: stri
 export function resetRoutesCache() {
     for (const k in methodsCache) delete methodsCache[k];
     routesCacheLoaded = false;
+}
+
+// Null JIT functions used for handlers with no params or void return
+// prettier-ignore
+const nullJitFns: JitCompiledFunctions = {
+    isType: fakeJitFn(),
+    typeErrors: fakeJitFn(),
+    prepareForJson: fakeJitFn(),
+    restoreFromJson: fakeJitFn(),
+    jsonStringify: fakeJitFn(),
+    toBinary: fakeJitFn(),
+    fromBinary: fakeJitFn(),
+} as any;
+
+function fakeJitFn(): (...args: any[]) => any {
+    return () => {
+        throw new Error(
+            'Raw Hooks and Handlers with no params or void return do not have JIT functions and should not be called.'
+        );
+    };
 }

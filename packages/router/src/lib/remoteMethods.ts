@@ -11,7 +11,15 @@ import type {PublicApi} from '../types/publicMethods';
 import type {AnyObject, JitCompiledFn, JitCompiledFnData, PureFunctionData, MethodMetadata} from '@mionkit/core';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from '../types/guards';
 import {getHookExecutable, getRouteExecutable, getRouteExecutionPath, getRouterOptions, isPrivateDefinition} from '../router';
-import {getRoutePath, getRouterItemId, MAX_STACK_DEPTH, getJitFnHashes, getJitUtils, HandlerType} from '@mionkit/core';
+import {
+    getRoutePath,
+    getRouterItemId,
+    MAX_STACK_DEPTH,
+    getJitFnHashes,
+    getJitUtils,
+    HandlerType,
+    EMPTY_HASH,
+} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
 const publicMethods: Map<string, MethodMetadata> = new Map();
@@ -128,10 +136,15 @@ export function serializeMethodDeps(
     purFnDeps: Record<string, PureFunctionData>
 ) {
     const {paramsJitHash, returnJitHash} = method;
-    const paramsJitHashes = getJitFnHashes(paramsJitHash);
-    const returnJitHashes = getJitFnHashes(returnJitHash);
-    for (const k in paramsJitHashes) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
-    for (const k in returnJitHashes) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+    // Skip serialization for empty hashes (no params or void return)
+    if (paramsJitHash !== EMPTY_HASH) {
+        const paramsJitHashes = getJitFnHashes(paramsJitHash);
+        for (const k in paramsJitHashes) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+    }
+    if (returnJitHash !== EMPTY_HASH) {
+        const returnJitHashes = getJitFnHashes(returnJitHash);
+        for (const k in returnJitHashes) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+    }
 }
 
 function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {

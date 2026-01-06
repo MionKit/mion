@@ -140,6 +140,7 @@ function onStringifyExecutableError(context: CallContext, method: RemoteMethod, 
 }
 
 function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any, opts: RouterOptions): string {
+    if (!method.hasReturnData) return '';
     if (opts.useJitStringify) return method.returnJitFns.jsonStringify.fn(returnValue);
     if (method.returnJitFns.prepareForJson.isNoop) return JSON.stringify(returnValue);
     return JSON.stringify(method.returnJitFns.prepareForJson.fn(returnValue));

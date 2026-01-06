@@ -23,6 +23,7 @@ import {
 import {Handler} from '../types/handlers';
 import {RouterOptions} from '../types/general';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants';
+import {EMPTY_HASH} from '@mionkit/core';
 import {HeadersList} from '../types/HeadersList';
 
 // ############ This file should be the only one importing '@mionkit/run-types' within the router ########
@@ -52,7 +53,14 @@ export function getHandlerReflection(
 
     try {
         reflectionItems.paramNames = handlerRunType.getParameterNames(paramsOpts);
-        reflectionItems.paramsJitFns = getParamsJitFns(handler, paramsOpts);
+        // Skip JIT generation if handler has no params (optimization for AOT cache size)
+        if (reflectionItems.paramNames.length === 0) {
+            reflectionItems.paramsJitFns = nullJitFns;
+            reflectionItems.paramsJitHash = EMPTY_HASH;
+        } else {
+            reflectionItems.paramsJitFns = getParamsJitFns(handler, paramsOpts);
+            reflectionItems.paramsJitHash = handlerRunType.getParameters().getJitHash(paramsOpts);
+        }
     } catch (error: any) {
         throw new Error(`Can not compile Jit Functions for Parameters of route/hook "${routeId}." Error: ${error?.message}`);
     }
@@ -85,18 +93,23 @@ export function getHandlerReflection(
     }
 
     const returnOpts: RunTypeOptions = runTypeOptions;
+    // If the return type is HeadersList or if it's a headersHook with array return, don't treat it as return data
+    reflectionItems.hasReturnData = handlerRunType.hasReturnData();
+
     try {
-        // returnJitFns contains all run type functionality for the return value, it compiles the when the property is first accessed
-        reflectionItems.returnJitFns = getReturnJitFns(handler, returnOpts);
+        // Skip JIT generation if handler has void return (optimization for AOT cache size)
+        if (!reflectionItems.hasReturnData) {
+            reflectionItems.returnJitFns = nullJitFns;
+            reflectionItems.returnJitHash = EMPTY_HASH;
+        } else {
+            // returnJitFns contains all run type functionality for the return value, it compiles when the property is first accessed
+            reflectionItems.returnJitFns = getReturnJitFns(handler, returnOpts);
+            reflectionItems.returnJitHash = handlerRunType.getReturnType().getJitHash(returnOpts);
+        }
     } catch (error: any) {
         throw new Error(`Can not get Jit Functions for Return of route/hook "${routeId}." Error: ${error?.message}`);
     }
 
-    // Use the same options when calculating hashes as when compiling JIT functions
-    reflectionItems.paramsJitHash = handlerRunType.getParameters().getJitHash(paramsOpts);
-    reflectionItems.returnJitHash = handlerRunType.getReturnType().getJitHash(returnOpts);
-    // If the return type is HeadersList or if it's a headersHook with array return, don't treat it as return data
-    reflectionItems.hasReturnData = handlerRunType.hasReturnData();
     reflectionItems.isAsync = handlerRunType.isAsync();
 
     return reflectionItems as MethodReflect;
@@ -208,7 +221,7 @@ function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCo
 }
 
 // prettier-ignore
-const nullJitFns: JitCompiledFunctions = {
+export const nullJitFns: JitCompiledFunctions = {
     isType: fakeJitFn(),
     typeErrors: fakeJitFn(),
     prepareForJson: fakeJitFn(),
@@ -220,6 +233,8 @@ const nullJitFns: JitCompiledFunctions = {
 
 function fakeJitFn(): (...args: any[]) => any {
     return () => {
-        throw new Error('Raw hooks do not have params or return types and are not supposed to be uses as rpc methods.');
+        throw new Error(
+            'Raw Hooks and Handlers with no params or void return do not have JIT functions and should not be called.'
+        );
     };
 }

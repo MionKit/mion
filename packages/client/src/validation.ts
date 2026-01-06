@@ -58,6 +58,8 @@ export function validateSubRequest(id: string, subRequest: SubRequest<any>, erro
 
 function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-error' | 'unexpected-validation-error'> {
     const method = routesCache.useMethodJitFns(id);
+    // Skip validation if handler has no params
+    if (!method.paramNames || method.paramNames.length === 0) return;
     const paramsJit = method.paramsJitFns;
     if (paramsJit.typeErrors.isNoop) return;
     try {
