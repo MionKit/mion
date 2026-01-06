@@ -93,3 +93,6 @@ export const JIT_FUNCTION_IDS = {
     mock: 'mock',
     pureFunction: 'pf',
 } as const;
+
+/** Empty hash used when no params exist or return type is void (no JIT functions generated) */
+export const EMPTY_HASH = '';
