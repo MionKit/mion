@@ -15,7 +15,7 @@ it('all jit compile function should throw and error', () => {
     expect(() => rt.createJitFunction(JitFunctions.typeErrors)).toThrow(errorMessage);
     expect(() => rt.createJitFunction(JitFunctions.prepareForJson)).toThrow(errorMessage);
     expect(() => rt.createJitFunction(JitFunctions.restoreFromJson)).toThrow(errorMessage);
-    // jsonStringify test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1845-1847)
+    // stringifyJson test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 1845-1847)
 });
 
 it('mock', async () => {

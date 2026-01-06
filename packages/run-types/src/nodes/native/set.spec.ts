@@ -240,7 +240,7 @@ describe('SerRunType with nested sets', () => {
         expect(decoded).toEqual(obj);
     });
 
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1713-1729)
+    // Test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 1713-1729)
 
     it('has unknown keys in objects with nested sets', () => {
         const hasUnknownKeys = rtDeepWithSet.createJitFunction(JitFunctions.hasUnknownKeys);

@@ -51,8 +51,8 @@ describe('Exclude typescript utility type, exclude atomic elements from an union
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const stringifyExclude = rtExclude.createJitFunction(JitFunctions.jsonStringify);
+        const stringify = rt.createJitFunction(JitFunctions.stringifyJson);
+        const stringifyExclude = rtExclude.createJitFunction(JitFunctions.stringifyJson);
         const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
         const decodeExclude = rtExclude.createJitFunction(JitFunctions.restoreFromJson);
 
@@ -114,8 +114,8 @@ describe('Exclude typescript utility type, exclude items from objects union', ()
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const stringifyExclude = rtExclude.createJitFunction(JitFunctions.jsonStringify);
+        const stringify = rt.createJitFunction(JitFunctions.stringifyJson);
+        const stringifyExclude = rtExclude.createJitFunction(JitFunctions.stringifyJson);
         const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
         const decodeExclude = rtExclude.createJitFunction(JitFunctions.restoreFromJson);
 

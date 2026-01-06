@@ -51,8 +51,8 @@ describe('NonNull typescript utility type, exclude atomic elements from an union
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
-        const stringifyNonNull = rtNonNull.createJitFunction(JitFunctions.jsonStringify);
+        const stringify = rt.createJitFunction(JitFunctions.stringifyJson);
+        const stringifyNonNull = rtNonNull.createJitFunction(JitFunctions.stringifyJson);
         const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
         const decodeNonNull = rtNonNull.createJitFunction(JitFunctions.restoreFromJson);
 

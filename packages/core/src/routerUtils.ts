@@ -178,7 +178,7 @@ export function getJitFnHashes(jitHash: string): JitFunctionsHashes {
         typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
         prepareForJson: `${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`,
         restoreFromJson: `${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`,
-        jsonStringify: `${JIT_FUNCTION_IDS.jsonStringify}_${jitHash}`,
+        stringifyJson: `${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`,
         toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
         fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`,
     };
@@ -199,7 +199,7 @@ export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
         typeErrors: jUtils.getJIT(hashes.typeErrors),
         prepareForJson: jUtils.getJIT(hashes.prepareForJson),
         restoreFromJson: jUtils.getJIT(hashes.restoreFromJson),
-        jsonStringify: jUtils.getJIT(hashes.jsonStringify),
+        stringifyJson: jUtils.getJIT(hashes.stringifyJson),
         toBinary: jUtils.getJIT(hashes.toBinary),
         fromBinary: jUtils.getJIT(hashes.fromBinary),
     } as JitCompiledFunctions;
@@ -261,7 +261,7 @@ const nullJitFns: JitCompiledFunctions = {
     typeErrors: fakeJitFn(),
     prepareForJson: fakeJitFn(),
     restoreFromJson: fakeJitFn(),
-    jsonStringify: fakeJitFn(),
+    stringifyJson: fakeJitFn(),
     toBinary: fakeJitFn(),
     fromBinary: fakeJitFn(),
 } as any;

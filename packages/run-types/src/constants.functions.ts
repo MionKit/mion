@@ -19,7 +19,7 @@ export interface JitFnSettings {
     id: string;
     name: string;
     /** dynamically imports a single compiler function that is capable of compiling any node
-     * @see {@link ./jitCompilers/jsonStringify.ts#visitJsonStringify} as example of compiler function
+     * @see {@link ./jitCompilers/stringifyJson.ts#visitJsonStringify} as example of compiler function
      */
     import?: () => Promise<(...args: any[]) => any>;
     jitArgs: JitFnArgs;
@@ -97,17 +97,17 @@ export const jitSerializationFunctions = {
         jitDefaultArgs,
         returnName: jitArgs.vλl,
     },
-    jsonStringify: {
-        id: JIT_FUNCTION_IDS.jsonStringify,
-        name: 'jsonStringify',
+    stringifyJson: {
+        id: JIT_FUNCTION_IDS.stringifyJson,
+        name: 'stringifyJson',
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
     },
     // similar to json stringify but outputs js code, including pure functions, already imported as size is quite small
-    toJavascript: {
-        id: JIT_FUNCTION_IDS.toJavascript,
-        name: 'toJavascript',
+    toJSCode: {
+        id: JIT_FUNCTION_IDS.toJSCode,
+        name: 'toJSCode',
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,

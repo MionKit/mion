@@ -9,7 +9,7 @@ import {SERIALIZATION_SPEC} from '../../serialization-suite';
 import {JitFunctions} from '../../../constants.functions';
 import {createSerializationFns, roundTrip} from './stringifyHelpers';
 
-const SERIALIZE_FN = JitFunctions.jsonStringify;
+const SERIALIZE_FN = JitFunctions.stringifyJson;
 const DESERIALIZE_FN = JitFunctions.restoreFromJson;
 
 let ranTests = 0;
@@ -32,7 +32,7 @@ it('throw errors when item not belongs to the union', () => {
     const jsonValues = values.map((item) => JSON.stringify([-1, item])); // invalid union index
 
     values.forEach((value, i) => {
-        expect(() => serialize(value)).toThrow('Can not JsonStringify union: item does not belong to the union');
+        expect(() => serialize(value)).toThrow('Can not StringifyJson union: item does not belong to the union');
         expect(() => deserialize(jsonValues[i])).toThrow('Can not json decode union: invalid union index');
     });
 });

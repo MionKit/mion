@@ -29,7 +29,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     skipJit(comp: JitFnCompiler): boolean {
         const index = (this.src as TypeIndexSignature).index?.kind;
         if (index === ReflectionKind.symbol) {
-            return comp?.fnID !== JitFunctions.toJavascript.id;
+            return comp?.fnID !== JitFunctions.toJSCode.id;
         }
         return false;
     }

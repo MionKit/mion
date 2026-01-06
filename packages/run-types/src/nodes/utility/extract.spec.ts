@@ -50,7 +50,7 @@ describe('Extract typescript utility type, extract atomic elements from an union
         expect(decodeExtract(JSON.parse(JSON.stringify(encodeExtract(excludeAge))))).toEqual(excludeAge);
     });
 
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 242-250)
+    // Test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 242-250)
 
     it('mock', async () => {
         const mocked = await rt.mock();
@@ -109,7 +109,7 @@ describe('Extract typescript utility type, extract items from objects union', ()
         expect(decodeExtract(JSON.parse(JSON.stringify(encodeExtract(excludeShape))))).toEqual(excludeShape);
     });
 
-    // Test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 263-271)
+    // Test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 263-271)
 
     it('mock', async () => {
         const mocked = await rt.mock();

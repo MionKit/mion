@@ -17,7 +17,7 @@ import {
     roundTrip,
 } from './stringifyHelpers';
 
-const SERIALIZE_FN = JitFunctions.jsonStringify;
+const SERIALIZE_FN = JitFunctions.stringifyJson;
 const DESERIALIZE_FN = JitFunctions.restoreFromJson;
 
 let ranTests = 0;
@@ -26,7 +26,7 @@ afterEach(() => ranTests++);
 it('throw errors for functions', () => {
     const {rt} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_functions.getTestData();
     expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
-        `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
+        `Compile function StringifyJson not supported, call compileParams or compileReturn instead.`
     );
     expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
         `Compile function RestoreFromJson not supported, call compileParams or compileReturn instead.`
@@ -200,7 +200,7 @@ it('call signature return', () => {
 it('throw errors for call signatures', () => {
     const {rt} = SERIALIZATION_SPEC.FUNCTIONS.throw_errors_for_call_signature.getTestData();
     expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(
-        `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
+        `Compile function StringifyJson not supported, call compileParams or compileReturn instead.`
     );
     expect(() => rt.createJitFunction(DESERIALIZE_FN)).toThrow(
         `Compile function RestoreFromJson not supported, call compileParams or compileReturn instead.`

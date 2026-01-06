@@ -37,7 +37,7 @@ describe('non serializable general behavior', () => {
         expect(() => rt.createJitFunction(JitFunctions.typeErrors)).toThrow(errorMessage);
         expect(() => rt.createJitFunction(JitFunctions.prepareForJson)).toThrow(errorMessage);
         expect(() => rt.createJitFunction(JitFunctions.restoreFromJson)).toThrow(errorMessage);
-        // jsonStringify test moved to packages/run-types/src/jitCompilers/json/jsonStringify.spec.ts (lines 1856-1868)
+        // stringifyJson test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 1856-1868)
         expect(() => rt.createJitFunction(JitFunctions.hasUnknownKeys)).toThrow(errorMessage);
         expect(() => rt.createJitFunction(JitFunctions.stripUnknownKeys)).toThrow(errorMessage);
         expect(() => rt.createJitFunction(JitFunctions.unknownKeyErrors)).toThrow(errorMessage);

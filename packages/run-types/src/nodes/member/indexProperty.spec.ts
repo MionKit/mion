@@ -105,7 +105,7 @@ describe('IndexType', () => {
 
         const prepareForJson = multipleIndex.createJitFunction(JitFunctions.prepareForJson);
         const restoreFromJson = multipleIndex.createJitFunction(JitFunctions.restoreFromJson);
-        const stringify = multipleIndex.createJitFunction(JitFunctions.jsonStringify);
+        const stringify = multipleIndex.createJitFunction(JitFunctions.stringifyJson);
 
         expect(prepareForJson(obj)).toEqual(obj);
         expect(restoreFromJson({key1: 'value1', key2: 'value2'})).toEqual({key1: 'value1', key2: 'value2'});

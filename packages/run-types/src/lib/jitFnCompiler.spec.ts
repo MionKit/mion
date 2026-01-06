@@ -39,12 +39,12 @@ describe('MethodsCache JitCompiler', () => {
         expect(restored).toEqual(restoredMethodsData.methods);
     });
 
-    it('jsonStringify', () => {
+    it('stringifyJson', () => {
         const rt = runType<MethodsCache>();
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyJson = rt.createJitFunction(JitFunctions.stringifyJson);
         const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const clone = mockData();
-        const jsonString = jsonStringify(clone.methods);
+        const jsonString = stringifyJson(clone.methods);
         const restored = restoreFromJson(JSON.parse(jsonString));
         expect(restored).toEqual(restoredMethodsData.methods);
     });
@@ -75,12 +75,12 @@ describe('SerializableMethodsData JitCompiler', () => {
         expect(restored).toEqual(restoredMethodsData);
     });
 
-    it('jsonStringify', () => {
+    it('stringifyJson', () => {
         const rt = runType<SerializableMethodsData>();
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyJson = rt.createJitFunction(JitFunctions.stringifyJson);
         const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const clone = mockData();
-        const jsonString = jsonStringify(clone);
+        const jsonString = stringifyJson(clone);
         const restored = restoreFromJson(JSON.parse(jsonString));
         expect(restored).toEqual(restoredMethodsData);
     });
@@ -121,19 +121,19 @@ describe('MethodsResponse JitCompiler on union', () => {
         expect(restoredMethodsData).toEqual(restoredMethodsData);
     });
 
-    it('jsonStringify', () => {
+    it('stringifyJson', () => {
         const rt = runType<MethodsResponse>();
-        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyJson = rt.createJitFunction(JitFunctions.stringifyJson);
         const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
 
         const rpcError = new RpcError({type: 'test-error', publicMessage: 'error', message: 'error'});
         const rpcErrorClone = new RpcError({type: 'test-error', publicMessage: 'error', message: 'error'});
-        const jsonStringRpcError = jsonStringify(rpcErrorClone);
+        const jsonStringRpcError = stringifyJson(rpcErrorClone);
         const restoredRpcError = restoreFromJson(JSON.parse(jsonStringRpcError));
         expect(restoredRpcError).toEqual(rpcError);
 
         const clone = mockData();
-        const jsonString = jsonStringify(clone);
+        const jsonString = stringifyJson(clone);
         const restored = restoreFromJson(JSON.parse(jsonString));
         expect(restored).toEqual(restoredMethodsData);
     });

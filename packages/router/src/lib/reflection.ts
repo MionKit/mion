@@ -184,7 +184,7 @@ function getJitFunctions(rt: BaseRunType, opts?: RunTypeOptions): JitCompiledFun
         typeErrors: rt.createJitCompiledFunction(JitFunctions.typeErrors.id, undefined, opts),
         prepareForJson: rt.createJitCompiledFunction(JitFunctions.prepareForJson.id, undefined, opts),
         restoreFromJson: rt.createJitCompiledFunction(JitFunctions.restoreFromJson.id, undefined, opts),
-        jsonStringify: rt.createJitCompiledFunction(JitFunctions.jsonStringify.id, undefined, opts),
+        stringifyJson: rt.createJitCompiledFunction(JitFunctions.stringifyJson.id, undefined, opts),
         toBinary: rt.createJitCompiledFunction(JitFunctions.toBinary.id, undefined, opts),
         fromBinary: rt.createJitCompiledFunction(JitFunctions.fromBinary.id, undefined, opts),
     };
@@ -198,7 +198,7 @@ function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCo
         typeErrors: rt.createJitCompiledParamsFunction(JitFunctions.typeErrors, opts),
         prepareForJson: rt.createJitCompiledParamsFunction(JitFunctions.prepareForJson, opts),
         restoreFromJson: rt.createJitCompiledParamsFunction(JitFunctions.restoreFromJson, opts),
-        jsonStringify: rt.createJitCompiledParamsFunction(JitFunctions.jsonStringify, opts),
+        stringifyJson: rt.createJitCompiledParamsFunction(JitFunctions.stringifyJson, opts),
         toBinary: rt.createJitCompiledParamsFunction(JitFunctions.toBinary, opts),
         fromBinary: rt.createJitCompiledParamsFunction(JitFunctions.fromBinary, opts),
     };
@@ -213,7 +213,7 @@ function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCo
         typeErrors: rt.createJitCompiledReturnFunction(JitFunctions.typeErrors, opts),
         prepareForJson: rt.createJitCompiledReturnFunction(JitFunctions.prepareForJson, opts),
         restoreFromJson: rt.createJitCompiledReturnFunction(JitFunctions.restoreFromJson, opts),
-        jsonStringify: rt.createJitCompiledReturnFunction(JitFunctions.jsonStringify, opts),
+        stringifyJson: rt.createJitCompiledReturnFunction(JitFunctions.stringifyJson, opts),
         toBinary: rt.createJitCompiledReturnFunction(JitFunctions.toBinary, opts),
         fromBinary: rt.createJitCompiledReturnFunction(JitFunctions.fromBinary, opts),
     };
@@ -226,7 +226,7 @@ export const nullJitFns: JitCompiledFunctions = {
     typeErrors: fakeJitFn(),
     prepareForJson: fakeJitFn(),
     restoreFromJson: fakeJitFn(),
-    jsonStringify: fakeJitFn(),
+    stringifyJson: fakeJitFn(),
     toBinary: fakeJitFn(),
     fromBinary: fakeJitFn(),
 } as any;
