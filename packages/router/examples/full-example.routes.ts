@@ -1,8 +1,7 @@
-import {RpcError} from '@mionkit/core';
-import {HeadersList, initMionRouter, route} from '@mionkit/router';
-import {headersHook, rawHook, hook, Routes} from '@mionkit/router';
+import {RpcError, HeadersSubset} from '@mionkit/core';
+import {headersHook, rawHook, hook, Routes, initMionRouter, route} from '@mionkit/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app';
-import {User} from '@mionkit/codegen/src/test/myApi.types';
+import {User} from './myApi.types';
 
 const getUser = route((ctx: Context, id: number): User | RpcError<'user-not-found'> => {
     const user = myApp.store.getUser(id);
@@ -24,7 +23,8 @@ const deleteUser = route((ctx: Context, id: number): User | RpcError<'user-not-f
     return deleted;
 });
 
-const auth = headersHook((ctx: Context, [token]: HeadersList<['Authorization']>): void => {
+const auth = headersHook((ctx: Context, headers: HeadersSubset<'Authorization'>): void => {
+    const token = headers.values.Authorization;
     if (!myApp.auth.isAuthorized(token))
         throw new RpcError({
             publicMessage: 'Not Authorized',

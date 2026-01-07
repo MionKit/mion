@@ -10,7 +10,7 @@ import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
 import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
-import {Mutable, AnyObject, createDataViewDeserializer, StatusCodes} from '@mionkit/core';
+import {Mutable, AnyObject, createDataViewDeserializer, StatusCodes, HeadersSubset} from '@mionkit/core';
 import {RpcError, HandlerType} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
 
@@ -118,14 +118,15 @@ async function runExecutionPath(
             const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
             if (result === undefined) continue;
 
-            // TODO: when returning headerList on an union there could be another types that are array but not HeaderList
-            // Not sure we this scenario can be easily fixed maybe returning a class or something that adds a unique prop to the returned data
-            if (executable.headersReturn && Array.isArray(result)) {
-                executable.headersReturn.headerNames.forEach((name: string, i: string | number) => {
-                    const headerValue = result[i];
-                    if (!headerValue) return;
-                    response.headers.set(name, headerValue);
-                });
+            // Check if result is a HeadersSubset instance
+            if (executable.headersReturn && result instanceof HeadersSubset) {
+                // Extract headers from the HeadersSubset instance
+                const headersMap = result.values;
+                for (const [name, value] of Object.entries(headersMap)) {
+                    if (value !== undefined && value !== null) {
+                        response.headers.set(name, value);
+                    }
+                }
             } else if (executable.hasReturnData) {
                 (response.body as Mutable<AnyObject>)[executable.id] = result;
             }
@@ -153,12 +154,24 @@ async function runRawHook(
 
 async function runHeaderHook(context: CallContext, executable: HeaderMethod, request: MionRequest) {
     const headerNames = executable.headersParam.headerNames;
-    const headerValues = headerNames.map((name) => request.headers.get(name));
     const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
-    validateHeaderParamsOrThrow(headerValues as string[], executable as HeaderMethod);
+
+    // Create HeadersSubset instance with header values mapped to their names
+    // Only include headers that are defined and not null/empty
+    const headersMap: Record<string, string> = {};
+    headerNames.forEach((name) => {
+        const value = request.headers.get(name);
+        if (value !== undefined && value !== null && value !== '') {
+            headersMap[name] = value;
+        }
+    });
+    const headersSubset = new HeadersSubset(headersMap);
+
+    // Validate the HeadersSubset instance
+    validateHeaderParamsOrThrow(headersSubset, executable as HeaderMethod);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderMethod);
 
-    const result = await executable.handler(context, headerValues, ...params);
+    const result = await executable.handler(context, headersSubset, ...params);
     return result;
 }
 
@@ -214,7 +227,7 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
     }
 }
 
-function validateHeaderParamsOrThrow(headers: string[], executable: HeaderMethod): void {
+function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, executable: HeaderMethod): void {
     if (!executable.headersParam.jitFns.isType.fn(headers)) {
         throw new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,

@@ -10,8 +10,7 @@ import {dispatchRoute} from '../dispatch';
 import {route, headersHook, hook} from './handlers';
 import {headersFromRecord} from './headers';
 import {MionHeaders} from '../types/context';
-import {HeadersList} from '../types/HeadersList';
-import {PublicRpcError, RpcError} from '@mionkit/core';
+import {HeadersSubset, RpcError} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
 
 type RawRequest = {
@@ -28,25 +27,42 @@ describe('Request and Response Headers', () => {
     beforeEach(() => resetRouter());
 
     describe('can compile jit functions for headers', () => {
-        const MyHeaders = runType<HeadersList<['Authorization', 'X-User-Id'?]>>();
+        it('should compile isType function for headers - only required', () => {
+            const OnlyRequired = runType<HeadersSubset<'Authorization'>>();
+            const isType = OnlyRequired.createJitFunction(JitFunctions.isType);
+            expect(isType(new HeadersSubset({Authorization: 'Bearer 1234'}))).toEqual(true);
+            expect(isType(new HeadersSubset({}))).toEqual(false);
+            expect(isType(3)).toEqual(false);
+            expect(isType({Authorization: 'Bearer 1234'})).toEqual(false);
+        });
 
-        it('should compile isType function for headers', () => {
-            const isType = MyHeaders.createJitFunction(JitFunctions.isType, {noIsArrayCheck: true});
-
-            expect(isType(['Bearer 1234'])).toEqual(true);
-            expect(isType(['Bearer 1234', 'user-1234'])).toEqual(true);
-            expect(isType([undefined, 'user-1234'])).toEqual(false);
+        it('should compile isType function for headers - only optional', () => {
+            const OnlyOptional = runType<HeadersSubset<never, 'X-User-Id'>>();
+            const isType = OnlyOptional.createJitFunction(JitFunctions.isType);
+            expect(isType(new HeadersSubset({}))).toEqual(true);
+            expect(isType(new HeadersSubset({'X-User-Id': 'user-123'}))).toEqual(true);
             expect(isType(3)).toEqual(false);
         });
 
-        it('should compile typeErrors function for headers', () => {
-            const typeErrors = MyHeaders.createJitFunction(JitFunctions.typeErrors, {noIsArrayCheck: true});
+        it('should compile isType function for headers - both required and optional', () => {
+            const BothRequiredAndOptional = runType<HeadersSubset<'Authorization', 'X-User-Id'>>();
+            const isType = BothRequiredAndOptional.createJitFunction(JitFunctions.isType);
+            expect(isType(new HeadersSubset({Authorization: 'Bearer 1234'}))).toEqual(true);
+            expect(isType(new HeadersSubset({Authorization: 'Bearer 1234', 'X-User-Id': 'user-1234'}))).toEqual(true);
+            expect(isType(new HeadersSubset({'X-User-Id': 'user-1234'}))).toEqual(false);
+            expect(isType(3)).toEqual(false);
+            expect(isType({Authorization: 'Bearer 1234'})).toEqual(false);
+        });
 
-            expect(typeErrors(['Bearer 1234'])).toEqual([]);
-            expect(typeErrors(['Bearer 1234', 'user-1234'])).toEqual([]);
-            expect(typeErrors([undefined, 'user-1234'])).toEqual([{path: [0], expected: 'string'}]);
-            // as we using noIsArrayCheck, it will not check if it is an array, and will fail when checking v[0]
-            expect(typeErrors(3)).toEqual([{path: [0], expected: 'string'}]);
+        it('should compile typeErrors function for headers', () => {
+            const MyHeaders = runType<HeadersSubset<'Authorization', 'X-User-Id'>>();
+            const typeErrors = MyHeaders.createJitFunction(JitFunctions.typeErrors);
+            expect(typeErrors(new HeadersSubset({Authorization: 'Bearer 1234'}))).toEqual([]);
+            expect(typeErrors(new HeadersSubset({Authorization: 'Bearer 1234', 'X-User-Id': 'user-1234'}))).toEqual([]);
+            expect(typeErrors(new HeadersSubset({'X-User-Id': 'user-1234'}))).toEqual([
+                {path: ['values', 'Authorization'], expected: 'string'},
+            ]);
+            expect(typeErrors(3)).toEqual([{path: [], expected: 'class'}]);
         });
     });
 
@@ -57,7 +73,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
+                    const token = headers.values.Authorization;
                     ctx.shared.auth.token = token;
                 }),
                 getUser: route((ctx): string => `Token: ${ctx.shared.auth.token}`),
@@ -77,7 +94,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
+                    const token = headers.values.Authorization;
                     ctx.shared.auth.token = token;
                 }),
                 getUser: route((ctx): string => `Token: ${ctx.shared.auth.token}`),
@@ -98,7 +116,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
+                    const token = headers.values.Authorization;
                     ctx.shared.auth.token = token;
                 }),
                 getUser: route((ctx): string => 'user'),
@@ -125,7 +144,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
+                    const token = headers.values.Authorization;
                     ctx.shared.auth.token = token;
                 }),
                 getUser: route((ctx): string => `Token: ${ctx.shared.auth.token || 'empty'}`),
@@ -146,7 +166,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token]: HeadersList<['Authorization'?]>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<never, 'Authorization'>): void => {
+                    const token = headers.values.Authorization;
                     ctx.shared.auth.token = token;
                 }),
                 getUser: route((ctx): string => `Token: ${ctx.shared.auth.token || 'empty'}`),
@@ -169,8 +190,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                setHeaderHook: hook((ctx): HeadersList<['x-custom']> => {
-                    return ['custom-value'];
+                setHeaderHook: hook((ctx): HeadersSubset<'x-custom'> => {
+                    return new HeadersSubset({'x-custom': 'custom-value'});
                 }),
                 testRoute: route((): string => 'ok'),
             });
@@ -189,8 +210,12 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                setHeadersHook: hook((ctx): HeadersList<['x-custom', 'x-token', 'x-version']> => {
-                    return ['custom-value', 'token-value', 'v1.0'];
+                setHeadersHook: hook((ctx): HeadersSubset<'x-custom' | 'x-token' | 'x-version'> => {
+                    return new HeadersSubset({
+                        'x-custom': 'custom-value',
+                        'x-token': 'token-value',
+                        'x-version': 'v1.0',
+                    });
                 }),
                 testRoute: route((): string => 'ok'),
             });
@@ -211,8 +236,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                setHeaderHook: hook((ctx): HeadersList<['X-Custom']> => {
-                    return ['custom-value'];
+                setHeaderHook: hook((ctx): HeadersSubset<'X-Custom'> => {
+                    return new HeadersSubset({'X-Custom': 'custom-value'});
                 }),
                 testRoute: route((): string => 'ok'),
             });
@@ -233,8 +258,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                setHeadersHook: hook((ctx): HeadersList<['x-custom', 'x-token'?]> => {
-                    return ['custom-value'];
+                setHeadersHook: hook((ctx): HeadersSubset<'x-custom', 'x-token'> => {
+                    return new HeadersSubset({'x-custom': 'custom-value'});
                 }),
                 testRoute: route((): string => 'ok'),
             });
@@ -256,8 +281,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                getUser: route((ctx): HeadersList<['x-user-id']> => {
-                    return ['user-123'];
+                getUser: route((ctx): HeadersSubset<'x-user-id'> => {
+                    return new HeadersSubset({'x-user-id': 'user-123'});
                 }),
             });
 
@@ -275,8 +300,12 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                getUser: route((ctx): HeadersList<['x-user-id', 'x-user-role', 'x-timestamp']> => {
-                    return ['user-123', 'admin', '1234567890'];
+                getUser: route((ctx): HeadersSubset<'x-user-id' | 'x-user-role' | 'x-timestamp'> => {
+                    return new HeadersSubset({
+                        'x-user-id': 'user-123',
+                        'x-user-role': 'admin',
+                        'x-timestamp': '1234567890',
+                    });
                 }),
             });
 
@@ -296,8 +325,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                getUser: route((ctx): HeadersList<['x-user-id']> | RpcError<'x-some-error'> => {
-                    return ['user-123'];
+                getUser: route((ctx): HeadersSubset<'x-user-id'> | RpcError<'x-some-error'> => {
+                    return new HeadersSubset({'x-user-id': 'user-123'});
                 }),
             });
 
@@ -318,10 +347,12 @@ describe('Request and Response Headers', () => {
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
                 auth: headersHook(
-                    (ctx, [token, userId]: HeadersList<['Authorization', 'X-User-Id']>): HeadersList<['x-auth-status']> => {
+                    (ctx, headers: HeadersSubset<'Authorization' | 'X-User-Id'>): HeadersSubset<'x-auth-status'> => {
+                        const token = headers.values.Authorization;
+                        const userId = headers.values['X-User-Id'];
                         ctx.shared.auth.token = token;
                         ctx.shared.auth.userId = userId;
-                        return ['authenticated'];
+                        return new HeadersSubset({'x-auth-status': 'authenticated'});
                     }
                 ),
                 getUser: route((ctx): string => `User ${ctx.shared.auth.userId} with token ${ctx.shared.auth.token}`),
@@ -345,7 +376,9 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token, userId]: HeadersList<['Authorization', 'X-User-Id']>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<'Authorization' | 'X-User-Id'>): void => {
+                    const token = headers.values.Authorization;
+                    const userId = headers.values['X-User-Id'];
                     ctx.shared.auth.token = token;
                     ctx.shared.auth.userId = userId;
                 }),
@@ -370,7 +403,9 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token, userId]: HeadersList<['Authorization', 'X-User-Id']>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<'Authorization' | 'X-User-Id'>): void => {
+                    const token = headers.values.Authorization;
+                    const userId = headers.values['X-User-Id'];
                     ctx.shared.auth.token = token;
                     ctx.shared.auth.userId = userId;
                 }),
@@ -402,7 +437,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
+                    const token = headers.values.Authorization;
                     ctx.shared.auth.token = token;
                 }),
                 getUser: route((ctx): string => `Token: ${ctx.shared.auth.token}`),
@@ -425,7 +461,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
+                    const token = headers.values.Authorization;
                     ctx.shared.auth.token = token;
                 }),
                 getUser: route((ctx): string => `Token: ${ctx.shared.auth.token}`),
@@ -447,7 +484,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
+                    const token = headers.values.Authorization;
                     ctx.shared.auth.token = token;
                 }),
                 getUser: route((ctx): string => `Token length: ${ctx.shared.auth.token.length}`),
@@ -470,8 +508,12 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                setHeadersHook: hook((ctx): HeadersList<['x-first', 'x-second', 'x-third']> => {
-                    return ['first-value', 'second-value', 'third-value'];
+                setHeadersHook: hook((ctx): HeadersSubset<'x-first' | 'x-second' | 'x-third'> => {
+                    return new HeadersSubset({
+                        'x-first': 'first-value',
+                        'x-second': 'second-value',
+                        'x-third': 'third-value',
+                    });
                 }),
                 testRoute: route((): string => 'ok'),
             });
@@ -492,11 +534,11 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                firstHook: hook((ctx): HeadersList<['x-custom']> => {
-                    return ['first-value'];
+                firstHook: hook((ctx): HeadersSubset<'X-Custom'> => {
+                    return new HeadersSubset({'X-Custom': 'first-value'});
                 }),
-                secondHook: hook((ctx): HeadersList<['x-custom']> => {
-                    return ['second-value'];
+                secondHook: hook((ctx): HeadersSubset<'X-Custom'> => {
+                    return new HeadersSubset({'X-Custom': 'second-value'});
                 }),
                 testRoute: route((): string => 'ok'),
             });
@@ -516,7 +558,8 @@ describe('Request and Response Headers', () => {
 
             initRouter({contextDataFactory: getSharedData});
             registerRoutes({
-                auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
+                auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
+                    const token = headers.values.Authorization;
                     ctx.shared.auth.token = token;
                 }),
                 getUser: route((ctx): string => `Token: ${ctx.shared.auth.token}`),

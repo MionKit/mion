@@ -8,9 +8,8 @@
 import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
 import {CallContext, MionHeaders} from './types/context';
-import {HeadersList} from './types/HeadersList';
 import {Routes} from './types/general';
-import {PublicRpcError, RpcError, MION_ROUTES, StatusCodes} from '@mionkit/core';
+import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes} from '@mionkit/core';
 import {headersHook, hook, route} from './lib/handlers';
 import {headersFromRecord} from './lib/headers';
 
@@ -49,7 +48,8 @@ describe('Dispatch routes', () => {
         return data;
     });
 
-    const auth = headersHook((ctx, [token]: HeadersList<['Authorization']>): void | RpcError<'not-authorized'> => {
+    const auth = headersHook((ctx, headers: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+        const token = headers.values.Authorization;
         if (token !== '1234')
             return new RpcError({
                 publicMessage: 'Not Authorized',
@@ -129,10 +129,10 @@ describe('Dispatch routes', () => {
 
         it('request and response headers are case insensitive', async () => {
             initRouter({contextDataFactory: getSharedData});
-            const auth = headersHook(
-                (ctx, [token]: HeadersList<['Authorization']>): HeadersList<['User-Id']> =>
-                    token === '1234' ? ['MyUser-Id'] : ['Unknown']
-            );
+            const auth = headersHook((ctx, headers: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+                const token = headers.values.Authorization;
+                return new HeadersSubset({'User-Id': token === '1234' ? 'MyUser-Id' : 'Unknown'});
+            });
             registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
@@ -154,7 +154,7 @@ describe('Dispatch routes', () => {
 
         it('should be able to accept request headers and regular rpc params', async () => {
             initRouter({contextDataFactory: getSharedData});
-            const auth = headersHook((ctx, [token]: HeadersList<['Authorization']>, userId: string): string => userId);
+            const auth = headersHook((ctx, headers: HeadersSubset<'Authorization'>, userId: string): string => userId);
             registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {

@@ -6,7 +6,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initMionRouter, route, hook, headersHook, HeadersList, Routes} from '@mionkit/router';
+import {HeadersSubset} from '@mionkit/core';
+import {initMionRouter, route, hook, headersHook, Routes} from '@mionkit/router';
 
 // Simple type for testing
 interface User {
@@ -17,7 +18,9 @@ interface User {
 
 // Define routes for AOT compilation testing
 const routes = {
-    auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): HeadersList<['x-user-id']> => [`user-123`]),
+    auth: headersHook(
+        (ctx, headers: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-123'})
+    ),
     users: {
         getUser: route((ctx, id: string): User => ({id, name: 'Test User', age: 30})),
         createUser: route((ctx, user: User): string => `Created user ${user.name}`),

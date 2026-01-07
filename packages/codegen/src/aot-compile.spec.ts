@@ -9,8 +9,8 @@ import {existsSync, rmSync, mkdirSync, readFileSync} from 'fs';
 import {join, resolve} from 'path';
 import {writeAOTCachesToFiles, compileAOT, type CacheData} from './aot-compile';
 import {initAOT} from './cli-init-aot';
-import {headersHook, HeadersList, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
-import {getJitFnCaches, resetJitFnCaches, addAOTCaches} from '@mionkit/core';
+import {headersHook, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
+import {getJitFnCaches, resetJitFnCaches, addAOTCaches, HeadersSubset} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
 import {hook, route} from '@mionkit/router';
 
@@ -73,9 +73,9 @@ describe('AOT Cache Compilation E2E', () => {
             auth: headersHook(
                 (
                     ctx,
-                    [token]: HeadersList<['Authorization']>, // testing headers serialization
+                    headers: HeadersSubset<'Authorization'>, // testing headers serialization
                     userid: string // ensure we accept extra params
-                ): HeadersList<['x-user-id']> => [userid]
+                ): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': userid})
             ),
             users: {
                 getUser: route((id: string): string => `User ${id}`),
