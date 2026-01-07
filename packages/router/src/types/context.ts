@@ -29,20 +29,27 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
 
 /** The request raw body can be a string, arrayBuffer or an object in the case of a pre-parsed body */
 export type RawRequestBodyTypes = {
+    /** Json string */
     json: 'J';
+    /** Binary data */
     binary: 'B';
+    /** Pre-parsed body */
     object: 'O';
 };
 export type RawResponseBodyTypes = {
+    /** Use run-types jit stringify Json */
     json: 'J';
+    /** Use run-types jit binary serialization */
     binary: 'B';
+    /** Using only PrepareForJson JSON serialization is done at PLatform Adapter level */
+    preSerialized: 'O';
 };
 export type RawRequestBody = string | ArrayBuffer | AnyObject;
 export type RawRequestBodyType = RawRequestBodyTypes[keyof RawRequestBodyTypes];
 export type RawResponseBodyType = RawResponseBodyTypes[keyof RawResponseBodyTypes];
 
-/** Response body can be a string or an arrayBuffer */
-export type RawResponseBody = string | ArrayBuffer;
+/** Response body can be a string, an arrayBuffer, or an object (for pre-serialized responses) */
+export type RawResponseBody = string | ArrayBuffer | AnyObject;
 
 /** Router's own request object, do not confuse with the underlying raw request */
 export interface MionRequest {

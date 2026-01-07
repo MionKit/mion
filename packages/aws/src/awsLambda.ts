@@ -70,11 +70,29 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
         }
         singleHeaders[name] = value;
     });
-    if (typeof routeResponse.rawBody !== 'string') throw new Error('Binary responses are not yet supported on AWS Lambda');
+
+    const bodyType = routeResponse.bodyType;
+    let responseBody: string;
+
+    switch (bodyType) {
+        case 'J':
+            responseBody = routeResponse.rawBody as string;
+            break;
+        case 'O':
+            // Platform adapter stringifies the prepared body object
+            responseBody = JSON.stringify(routeResponse.body);
+            singleHeaders['content-type'] = 'application/json; charset=utf-8';
+            break;
+        case 'B':
+            throw new Error('Binary responses are not yet supported on AWS Lambda');
+        default:
+            throw new Error(`Unknown body type: ${bodyType}`);
+    }
+
     const resp: APIGatewayProxyResult = {
         statusCode: routeResponse.statusCode,
         headers: singleHeaders,
-        body: routeResponse.rawBody,
+        body: responseBody,
     };
     if (multiHeaderCount) resp.multiValueHeaders = multiHeaders;
     return resp;

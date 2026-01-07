@@ -84,7 +84,7 @@ export function createCallContext(
             headers: respHeaders,
             body: {},
             rawBody: '',
-            bodyType: opts.useBinarySerialization ? 'B' : 'J',
+            bodyType: opts.useBinarySerialization ? 'B' : opts.useJitStringify ? 'J' : 'O',
             binSerializer: undefined, // we can create deserializer lazily
         },
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},

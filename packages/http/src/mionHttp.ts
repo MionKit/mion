@@ -170,6 +170,15 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
             httpResp.end(buffer);
             break;
         }
+        case 'O': {
+            // Platform adapter stringifies the prepared body object
+            const jsonString = JSON.stringify(mionResp.body);
+            const buffer = Buffer.from(jsonString, 'utf8');
+            httpResp.setHeader('content-type', 'application/json; charset=utf-8');
+            httpResp.setHeader('content-length', buffer.byteLength);
+            httpResp.end(buffer);
+            break;
+        }
         case 'B': {
             const serializer = mionResp.binSerializer!;
             httpResp.setHeader('content-length', serializer.getLength());
