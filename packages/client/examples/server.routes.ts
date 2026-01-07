@@ -6,8 +6,8 @@ export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 
 const routes = {
-    auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
-        const token = headers.values.Authorization;
+    auth: headersHook((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+        const token = h.headers.Authorization;
         if (!token) throw new RpcError({publicMessage: 'Not Authorized', type: 'not-authorized'});
     }),
     users: {

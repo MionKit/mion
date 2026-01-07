@@ -12,7 +12,7 @@ route((ctx, name: string): string => `hello ${name}`);
 hook((ctx, data: number): void => {
     console.log(data);
 });
-headersHook((c: CallContext, headers: HeadersSubset<'auth'>): void => {
+headersHook((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
     // do something
 });
 
@@ -26,15 +26,15 @@ route(validArrowHandler);
 
 // 3. Type annotations
 const typedHandler: Handler = (ctx, name: string): string => `hello ${name}`;
-const typedHeaderHandler: HeaderHandler = (c: CallContext, headers: HeadersSubset<'auth'>): void => {
-    const token = headers.values.auth;
+const typedHeaderHandler: HeaderHandler = (c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
+    const token = headers.auth;
     console.log(token);
 };
 
 // 4. Satisfies expressions
 const satisfiesHandler = ((ctx, name: string): string => `hello ${name}`) satisfies Handler;
-const satisfiesHeaderHandler = ((c: CallContext, headers: HeadersSubset<'auth'>): void => {
-    const token = headers.values.auth;
+const satisfiesHeaderHandler = ((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
+    const token = headers.auth;
     console.log(token);
 }) satisfies HeaderHandler;
 
@@ -56,8 +56,8 @@ const hookWithJSDoc = (ctx, data: number): void => {
 /**
  * @mion:headersHook
  */
-function headersHookWithJSDoc(c: CallContext, headers: HeadersSubset<'auth'>): void {
-    const token = headers.values.auth;
+function headersHookWithJSDoc(c: CallContext, {headers}: HeadersSubset<'auth'>): void {
+    const token = headers.auth;
     console.log(token);
 }
 
@@ -105,15 +105,15 @@ route(invalidArrowHandler); // Should error: missing both types
 
 // 3. Type annotations missing types
 const invalidTypedHandler: Handler = (ctx, name) => `hello ${name}`; // Missing both types
-const invalidTypedHeaderHandler: HeaderHandler = (c: CallContext, headers: HeadersSubset<'auth'>) => {
-    const token = headers.values.auth;
+const invalidTypedHeaderHandler: HeaderHandler = (c: CallContext, {headers}: HeadersSubset<'auth'>) => {
+    const token = headers.auth;
     console.log(token);
 }; // Missing return type
 
 // 4. Satisfies expressions missing types
 const invalidSatisfiesHandler = ((ctx, name) => `hello ${name}`) satisfies Handler; // Missing both types
-const invalidSatisfiesHeaderHandler = ((c: CallContext, headers): void => {
-    const token = headers.values.auth;
+const invalidSatisfiesHeaderHandler = ((c: CallContext, {headers}): void => {
+    const token = headers.auth;
     console.log(token);
 }) satisfies HeaderHandler; // Missing param type
 
@@ -135,8 +135,8 @@ const invalidHookJSDoc = (ctx, data: number) => {
 /**
  * @mion:headersHook
  */
-function invalidHeadersHookJSDoc(c: CallContext, headers): void {
-    const token = headers.values.auth;
+function invalidHeadersHookJSDoc(c: CallContext, {headers}): void {
+    const token = headers.auth;
     console.log(token);
 } // Missing param type
 
@@ -167,7 +167,7 @@ route((ctx): MultipleUnreachable => ({a: 'hello'}));
 
 // 6. Unreachable in headersHook parameter (third parameter)
 type UnreachableHeaderParam = {x: number} | {x: number; y: number}; // Second type is unreachable
-headersHook((ctx, headers: HeadersSubset<'auth'>, data: UnreachableHeaderParam): void => {
+headersHook((ctx, {headers}: HeadersSubset<'auth'>, data: UnreachableHeaderParam): void => {
     console.log(data.x);
 });
 

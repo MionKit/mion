@@ -73,7 +73,7 @@ describe('AOT Cache Compilation E2E', () => {
             auth: headersHook(
                 (
                     ctx,
-                    headers: HeadersSubset<'Authorization'>, // testing headers serialization
+                    h: HeadersSubset<'Authorization'>, // testing headers serialization
                     userid: string // ensure we accept extra params
                 ): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': userid})
             ),

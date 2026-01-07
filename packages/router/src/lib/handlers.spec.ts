@@ -21,8 +21,7 @@ describe('route & hooks init functions', () => {
 
     const routes = {
         auth: headersHook(
-            (ctx, headers: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> =>
-                new HeadersSubset({'x-user-id': 'user-1234'})
+            (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1234'})
         ),
         timestamp: hook((ctx, time: number): string => `time: ${time}`),
         nothing: rawHook((ctx, req: unknown, resp: unknown): void => undefined),

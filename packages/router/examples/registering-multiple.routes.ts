@@ -12,7 +12,7 @@ const authRoutes = {
 } satisfies Routes;
 
 const routes = {
-    auth: headersHook((c: Context, headers: HeadersSubset<'Authorization'>): void => undefined),
+    auth: headersHook((c: Context, h: HeadersSubset<'Authorization'>): void => undefined),
     sayHello: route((c, name: string): string => 'hello' + name),
     sayHello2: route((c, name: string): string => 'hello' + name),
 } satisfies Routes;

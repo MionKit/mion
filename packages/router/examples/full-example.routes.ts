@@ -23,8 +23,8 @@ const deleteUser = route((ctx: Context, id: number): User | RpcError<'user-not-f
     return deleted;
 });
 
-const auth = headersHook((ctx: Context, headers: HeadersSubset<'Authorization'>): void => {
-    const token = headers.values.Authorization;
+const auth = headersHook((ctx: Context, {headers}: HeadersSubset<'Authorization'>): void => {
+    const token = headers.Authorization;
     if (!myApp.auth.isAuthorized(token))
         throw new RpcError({
             publicMessage: 'Not Authorized',

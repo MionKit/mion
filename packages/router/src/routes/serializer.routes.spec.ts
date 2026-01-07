@@ -36,7 +36,7 @@ interface User {
 }
 
 const routes = {
-    auth: headersHook((ctx, headers: HeadersSubset<'auth'>): void => {}),
+    auth: headersHook((ctx, h: HeadersSubset<'auth'>): void => {}),
     users: {
         updateUser: route((ctx, user: User): User => ({...user, lastActivity})),
     },
