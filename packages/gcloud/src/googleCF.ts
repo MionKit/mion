@@ -78,6 +78,15 @@ function reply(mionResp: MionResponse, resp: Response): void {
             resp.end(buffer);
             break;
         }
+        case 'O': {
+            // Platform adapter stringifies the prepared body object
+            const jsonString = JSON.stringify(mionResp.body);
+            const buffer = Buffer.from(jsonString, 'utf8');
+            resp.set('content-type', 'application/json; charset=utf-8');
+            resp.set('content-length', `${buffer.byteLength}`);
+            resp.end(buffer);
+            break;
+        }
         case 'B': {
             const serializer = mionResp.binSerializer!;
             resp.set('content-length', `${serializer.getLength()}`);

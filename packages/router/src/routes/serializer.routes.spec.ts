@@ -107,7 +107,7 @@ describe('deserialize json Request Body', () => {
     });
 });
 
-describe('serialize json Response Body', () => {
+describe('serialize json Response Body using jit stringify Json (body type J)', () => {
     beforeEach(() => resetRouter());
 
     it('should return the stringify function for the execution path of "updateUser" route', () => {
@@ -152,5 +152,88 @@ describe('serialize json Response Body', () => {
 
         // we need to parse back results to objects as json stringify can change the order of properties
         expect(JSON.parse(response.rawBody as string)).toEqual(JSON.parse(expectedString));
+    });
+});
+
+describe('serialize Response Body with useJitStringify=false (body type O)', () => {
+    beforeEach(() => resetRouter());
+
+    it('should prepare response.body for platform adapter JSON.stringify for "updateUser" route', () => {
+        initMionRouter(routes, {useJitStringify: false});
+        const opts = getRouterOptions();
+        const context = getNewJsonContext('/users/updateUser', {});
+        const response = context.response as Mutable<MionResponse>;
+        response.body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
+        expect(context.response.bodyType).toEqual('O');
+        serializeResponseBody(context, opts);
+        expect(response.body).toEqual({
+            'users/updateUser': {name: 'John', age: 30, lastActivity},
+        });
+        const jsonString = JSON.stringify(response.body);
+        expect(jsonString).toEqual(
+            '{"users/updateUser":{"name":"John","age":30,"lastActivity":"' + lastActivity.toISOString() + '"}}'
+        );
+        expect(response.rawBody).toEqual('');
+    });
+
+    it('should prepare response.body for platform adapter JSON.stringify for "sayHello" route', () => {
+        initMionRouter(routes, {useJitStringify: false});
+        const opts = getRouterOptions();
+        const context = getNewJsonContext('/sayHello', {});
+        const response = context.response as Mutable<MionResponse>;
+        response.body = {sayHello: 'Hello, Jack!'};
+        expect(context.response.bodyType).toEqual('O');
+        serializeResponseBody(context, opts);
+        expect(response.body).toEqual({sayHello: 'Hello, Jack!'});
+        const jsonString = JSON.stringify(response.body);
+        expect(jsonString).toEqual('{"sayHello":"Hello, Jack!"}');
+        expect(response.rawBody).toEqual('');
+    });
+
+    it('should correctly prepare complex objects for platform adapter JSON.stringify', () => {
+        initMionRouter(routes, {useJitStringify: false});
+        const opts = getRouterOptions();
+        const context = getNewJsonContext('/users/updateUser', {});
+        const response = context.response as Mutable<MionResponse>;
+        response.body = {
+            'users/updateUser': {
+                name: 'John',
+                age: 30,
+                lastActivity,
+                extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
+            },
+        };
+        expect(context.response.bodyType).toEqual('O');
+        serializeResponseBody(context, opts);
+        expect(response.body).toEqual({
+            'users/updateUser': {
+                name: 'John',
+                age: 30,
+                lastActivity,
+                extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
+            },
+        });
+        const jsonString = JSON.stringify(response.body);
+        const parsed = JSON.parse(jsonString);
+        expect(parsed).toEqual({
+            'users/updateUser': {
+                name: 'John',
+                age: 30,
+                lastActivity: lastActivity.toISOString(),
+                extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
+            },
+        });
+        expect(response.rawBody).toEqual('');
+    });
+
+    it('should handle routes with void return (no return data)', () => {
+        initMionRouter(routes, {useJitStringify: false});
+        const opts = getRouterOptions();
+        const context = getNewJsonContext('/sayHello', {});
+        const response = context.response as Mutable<MionResponse>;
+        response.body = {auth: undefined, logs: undefined};
+        serializeResponseBody(context, opts);
+        expect(response.body).toEqual({auth: undefined, logs: undefined});
+        expect(response.rawBody).toEqual('');
     });
 });

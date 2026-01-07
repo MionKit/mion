@@ -119,6 +119,14 @@ function reply(
                 headers: responseHeaders,
             });
         }
+        case 'O': {
+            // Platform adapter uses Response.json() which handles JSON.stringify internally
+            responseHeaders.set('content-type', 'application/json; charset=utf-8');
+            return Response.json(mionResp.body, {
+                status: mionResp.statusCode,
+                headers: responseHeaders,
+            });
+        }
         case 'B': {
             const serializer = mionResp.binSerializer!;
             responseHeaders.set('content-length', String(serializer.getLength()));

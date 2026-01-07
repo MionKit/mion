@@ -47,8 +47,8 @@ describe('bun router should', () => {
     }); // satisfies Route
 
     let server: Server<any>;
-
     const port = 8079;
+
     beforeAll(async () => {
         initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
         registerRoutes({changeUserName, getDate, updateHeaders});
@@ -132,33 +132,25 @@ describe('bun router should', () => {
         setBunHttpOpts(bunOpts);
         registerRoutes({changeUserName, getDate, updateHeaders});
         const smallServer = await startBunServer();
-        let err;
-        try {
-            const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-            const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
-                method: 'POST',
-                body: JSON.stringify(requestData),
-            });
-            const headers = Object.fromEntries(response.headers.entries());
-            // const reply = await response.json();
-
-            // const expectedError: PublicRpcError<'request-payload-too-large'> = {
-            //     'mion@isΣrrθr': true,
-            //     message: `request-payload-too-large`,
-            //     type: 'request-payload-too-large',
-            // };
-            // expect(reply).toEqual({httpRequest: expectedError});
-            expect(headers['x-app-name']).toEqual('MyApp');
-            expect(headers['x-instance-id']).toEqual('3089');
-            expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-            // expect(headers['content-length']).toEqual('107');
-            expect(headers['server']).toEqual('@mionkit');
-        } catch (e) {
-            err = e;
-        }
+        const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+        const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
+            method: 'POST',
+            body: JSON.stringify(requestData),
+        });
+        const headers = Object.fromEntries(response.headers.entries());
+        expect(headers['x-app-name']).toEqual('MyApp');
+        expect(headers['x-instance-id']).toEqual('3089');
+        expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+        // expect(headers['content-length']).toEqual('107');
+        expect(headers['server']).toEqual('@mionkit');
 
         smallServer.stop(true);
-        if (err) throw err;
+
+        // Restore router state for the main server
+        resetBunHttpOpts();
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        setBunHttpOpts({port});
     });
 
     test('compile routes metadata and skip server initialization', async () => {
@@ -178,5 +170,84 @@ describe('bun router should', () => {
         registerRoutes({changeUserName, getDate, updateHeaders});
         const smallServer = await startBunServer();
         expect(smallServer).toBeUndefined();
+
+        // Restore router state for the main server
+        delete process.env.MION_COMPILE;
+        resetBunHttpOpts();
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        setBunHttpOpts({port});
+    });
+
+    test('get an ok response from a route with Date objects using useJitStringify=false', async () => {
+        // Stop the main server
+        server.stop(true);
+
+        // Start a new server with useJitStringify=false
+        const testPort = 8081;
+        resetBunHttpOpts();
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
+        registerRoutes({changeUserName, getDate});
+        setBunHttpOpts({port: testPort});
+        const testServer = await startBunServer();
+
+        const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+        const response = await fetch(`http://127.0.0.1:${testPort}/api/getDate`, {
+            method: 'POST',
+            body: JSON.stringify(requestData),
+        });
+
+        const reply = await response.json();
+        const headers = Object.fromEntries(response.headers.entries());
+
+        expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
+        expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+        expect(headers['server']).toEqual('@mionkit');
+
+        // Stop the test server
+        testServer.stop(true);
+
+        // Restart the main server
+        resetBunHttpOpts();
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        setBunHttpOpts({port});
+        server = await startBunServer();
+    });
+
+    test('get an ok response from a route with complex objects using useJitStringify=false', async () => {
+        // Stop the main server
+        server.stop(true);
+
+        // Start a new server with useJitStringify=false
+        const testPort = 8081;
+        resetBunHttpOpts();
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
+        registerRoutes({changeUserName, getDate});
+        setBunHttpOpts({port: testPort});
+        const testServer = await startBunServer();
+
+        const requestData = {changeUserName: [{name: 'John', surname: 'Doe'}]};
+        const response = await fetch(`http://127.0.0.1:${testPort}/api/changeUserName`, {
+            method: 'POST',
+            body: JSON.stringify(requestData),
+        });
+
+        const reply = await response.json();
+        const headers = Object.fromEntries(response.headers.entries());
+
+        expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
+        expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+        expect(headers['server']).toEqual('@mionkit');
+
+        // Stop the test server
+        testServer.stop(true);
+
+        // Restart the main server
+        resetBunHttpOpts();
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        setBunHttpOpts({port});
+        server = await startBunServer();
     });
 });
