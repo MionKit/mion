@@ -8,7 +8,6 @@
 import {compileTypeToJs} from './cacheCompiler';
 import {AOTConfig} from './types';
 import {
-    HeadersMetaData,
     JitCompiledFn,
     RpcError,
     SrcCodeJITCompiledFnsCache,
@@ -18,9 +17,10 @@ import {
     resetJitFnCaches,
     MethodMetadata,
     MethodsCache,
+    HeadersSubset,
 } from '@mionkit/core';
 import {BaseRunType, JitFunctions, registerPureFnClosure, runType} from '@mionkit/run-types';
-import {getPersistedMethods, headersHook, HeadersList, initRouter, registerRoutes, route, Routes} from '@mionkit/router';
+import {getPersistedMethods, headersHook, initRouter, registerRoutes, route, Routes} from '@mionkit/router';
 
 afterEach(() => resetJitFnCaches());
 
@@ -220,11 +220,12 @@ it('should compile router methods cache to code', () => {
         auth: headersHook(
             (
                 ctx,
-                [token]: HeadersList<['Authorization']>, // testing headers serialization
+                headers: HeadersSubset<'Authorization'>, // testing headers serialization
                 userid: string // ensure we accept extra regular params
-            ): HeadersList<['x-user-id']> => {
+            ): HeadersSubset<'x-user-id'> => {
+                const token = headers.values.Authorization;
                 if (!token) throw new RpcError({message: 'Not Authorized', type: 'not-authorized'});
-                return [userid];
+                return new HeadersSubset({'x-user-id': userid});
             }
         ),
         getUser: route((_ctx: any, name: string): User => ({name, age: 30})),

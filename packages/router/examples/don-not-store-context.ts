@@ -1,9 +1,11 @@
-import {Routes, initMionRouter, headersHook, route, HeadersList} from '@mionkit/router';
+import {HeadersSubset} from '@mionkit/core';
+import {Routes, initMionRouter, headersHook, route} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 let currentSharedData: any = null;
 
-const authorizationHook = headersHook(async (ctx, [token]: HeadersList<['Authorization']>): Promise<void> => {
+const authorizationHook = headersHook(async (ctx, headers: HeadersSubset<'Authorization'>): Promise<void> => {
+    const token = headers.values.Authorization;
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
     ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks

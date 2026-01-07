@@ -10,9 +10,8 @@ import {registerRoutes, initRouter} from '../router';
 import {dispatchRoute} from '../dispatch';
 import {route, headersHook, hook, rawHook} from './handlers';
 import {MionHeaders} from '../types/context';
-import {HeadersList} from '../types/HeadersList';
 import {headersFromRecord} from './headers';
-import {HandlerType} from '@mionkit/core';
+import {HandlerType, HeadersSubset} from '@mionkit/core';
 
 describe('route & hooks init functions', () => {
     type RawRequest = {
@@ -21,7 +20,10 @@ describe('route & hooks init functions', () => {
     };
 
     const routes = {
-        auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): HeadersList<['x-user-id']> => [`user-1234`]),
+        auth: headersHook(
+            (ctx, headers: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> =>
+                new HeadersSubset({'x-user-id': 'user-1234'})
+        ),
         timestamp: hook((ctx, time: number): string => `time: ${time}`),
         nothing: rawHook((ctx, req: unknown, resp: unknown): void => undefined),
         print: route((ctx, name: string): string => `name: ${name}`),

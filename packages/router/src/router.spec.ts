@@ -20,9 +20,8 @@ import {
 } from './router';
 import {type Routes} from './types/general';
 import {hook, route, rawHook, headersHook} from './lib/handlers';
-import {HandlerType} from '@mionkit/core';
+import {HandlerType, HeadersSubset} from '@mionkit/core';
 import {isPublicExecutable} from './types/guards';
-import {HeadersList} from './types/HeadersList';
 
 describe('Create routes should', () => {
     const hook1 = hook((): void => undefined);
@@ -354,7 +353,7 @@ describe('Create routes should', () => {
     it('header hooks should be considered public (non-private)', () => {
         initRouter();
         const routesWithHeaderHook = {
-            auth: headersHook((ctx, [token]: HeadersList<['Authorization']>): void => {
+            auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
                 // Header hook with no return data and no body params
             }),
             sayHello: route((): string => 'hello'),

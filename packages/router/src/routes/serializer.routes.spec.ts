@@ -8,7 +8,7 @@
 import type {Mutable} from '@mionkit/core';
 import type {Routes} from '../types/general';
 import type {MionResponse, RawRequestBody} from '../types/context';
-import {HeadersList} from '../types/HeadersList';
+import {HeadersSubset} from '@mionkit/core';
 import {headersHook, hook, route} from '../lib/handlers';
 import {getRouterOptions, initMionRouter, resetRouter} from '../router';
 import {createCallContext} from '../dispatch';
@@ -36,7 +36,7 @@ interface User {
 }
 
 const routes = {
-    auth: headersHook((ctx, [token]: HeadersList<['auth']>): void => {}),
+    auth: headersHook((ctx, headers: HeadersSubset<'auth'>): void => {}),
     users: {
         updateUser: route((ctx, user: User): User => ({...user, lastActivity})),
     },

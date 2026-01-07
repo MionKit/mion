@@ -11,7 +11,6 @@ export * from './src/types/remoteMethods';
 export * from './src/types/general';
 export * from './src/types/guards';
 export * from './src/types/handlers';
-export * from './src/types/HeadersList';
 export * from './src/types/publicMethods';
 export * from './src/constants';
 export * from './src/router';

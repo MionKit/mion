@@ -13,3 +13,4 @@ export * from './src/errors';
 export * from './src/jitUtils';
 export * from './src/routerUtils';
 export * from './src/utils';
+export * from './src/headers';

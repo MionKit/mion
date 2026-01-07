@@ -10,21 +10,19 @@ import {
     type FunctionRunType,
     type BaseRunType,
     type MemberRunType,
-    type ArrayRunType,
     type RunTypeOptions,
     JitFunctions,
     reflectFunction,
-    isTupleRunType,
     JitFnCompiler,
-    runType,
-    getParsedAnnotationOptions,
     isUnionRunType,
+    isClassRunType,
+    isLiteralRunType,
+    isNeverRunType,
 } from '@mionkit/run-types';
 import {Handler} from '../types/handlers';
 import {RouterOptions} from '../types/general';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants';
-import {EMPTY_HASH} from '@mionkit/core';
-import {HeadersList} from '../types/HeadersList';
+import {EMPTY_HASH, HeadersSubset} from '@mionkit/core';
 
 // ############ This file should be the only one importing '@mionkit/run-types' within the router ########
 // TODO: in the future we can load things from cache and load run types only when needed
@@ -73,8 +71,8 @@ export function getHandlerReflection(
             const opts: RunTypeOptions = {
                 ...runTypeOptions,
                 paramsSlice: undefined,
-                noIsArrayCheck: true,
             };
+
             const jitFns: JitCompiledFunctions = getJitFunctions(headersRunType, opts);
             const jitHash = headersRunType.getJitHash(opts);
             reflectionItems.headersParam = {headerNames, jitFns, jitHash};
@@ -93,7 +91,7 @@ export function getHandlerReflection(
     }
 
     const returnOpts: RunTypeOptions = runTypeOptions;
-    // If the return type is HeadersList or if it's a headersHook with array return, don't treat it as return data
+    // If the return type is HeadersSubset or if it's a headersHook with array return, don't treat it as return data
     reflectionItems.hasReturnData = handlerRunType.hasReturnData();
 
     try {
@@ -138,37 +136,98 @@ export function getRawMethodReflection(handler: Handler, routeId: string): Metho
     return reflectionItems;
 }
 
-function getParamsHeadersRunType(handlerRunType: FunctionRunType, routeId: string, routerOptions: RouterOptions): ArrayRunType {
+function getParamsHeadersRunType(handlerRunType: FunctionRunType, routeId: string, routerOptions: RouterOptions): BaseRunType {
     const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getFakeCompiler(routerOptions));
-    const headersTuple = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // headers tuple is always index 1 after context
-    if (!isHeaderListRunType(headersTuple)) {
-        throw new Error(`Header Hook '${routeId}' first parameter must be a tuple of HttpHeader.`);
+    const headersSubset = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // HeadersSubset is always index 1 after context
+
+    if (!isHeaderSubSetRunType(headersSubset)) {
+        throw new Error(`Header Hook '${routeId}' second parameter must be a HeadersSubset.`);
     }
-    return headersTuple;
+    return headersSubset;
 }
 
-function getReturnHeadersRunType(handlerRunType: FunctionRunType): ArrayRunType | undefined {
+function getReturnHeadersRunType(handlerRunType: FunctionRunType): BaseRunType | undefined {
     const returnRunType = handlerRunType.getReturnType();
     if (isUnionRunType(returnRunType)) {
-        const headerList = returnRunType.getChildRunTypes().find(isHeaderListRunType);
-        if (!headerList) return undefined;
-        return headerList;
+        const headersSubset = returnRunType.getChildRunTypes().find(isHeaderSubSetRunType);
+        if (!headersSubset) return undefined;
+        return headersSubset;
     }
-    if (!isHeaderListRunType(returnRunType)) return undefined;
+    if (!isHeaderSubSetRunType(returnRunType)) return undefined;
     return returnRunType;
 }
 
-function isHeaderListRunType(rt: BaseRunType | undefined): rt is ArrayRunType {
+function isHeaderSubSetRunType(rt: BaseRunType | undefined): rt is BaseRunType {
     if (!rt) return false;
-    const headersListRt = runType<HeadersList<[]>>() as BaseRunType;
-    return isTupleRunType(rt) && rt.getTypeName() === headersListRt.getTypeName();
+    return isClassRunType(rt, HeadersSubset);
 }
 
-function getHeaderNames(rt: BaseRunType, routeId): string[] {
-    const headerNames = getParsedAnnotationOptions(rt)[0];
-    if (!Array.isArray(headerNames)) throw new Error(`Header names must be an array of strings in route/hook ${routeId}`);
-    if (headerNames.length === 0) throw new Error(`Header names array cannot be empty in route/hook ${routeId}`);
+function getHeaderNames(rt: BaseRunType, routeId: string): string[] {
+    // HeadersSubset is a generic class: HeadersSubset<Required, Optional>
+    // We need to extract the literal string values from the Required and Optional type arguments
+    // Use 'typeArguments' (not 'arguments') to get both Required and Optional with their defaults
+    const typeArguments = (rt.src as any).typeArguments;
+    if (!typeArguments || typeArguments.length === 0) {
+        throw new Error(`HeadersSubset must have type arguments in route/hook ${routeId}`);
+    }
+    const headerNames: string[] = [];
+    // Extract header names from Required type argument (first argument)
+    const requiredArg = typeArguments[0];
+    if (requiredArg) {
+        const requiredNames = extractLiteralStringsFromType(requiredArg._rt);
+        headerNames.push(...requiredNames);
+    }
+    // Extract header names from Optional type argument (second argument, if present)
+    if (typeArguments.length > 1) {
+        const optionalArg = typeArguments[1];
+        if (optionalArg) {
+            const optionalNames = extractLiteralStringsFromType(optionalArg._rt);
+            headerNames.push(...optionalNames);
+        }
+    }
+    if (headerNames.length === 0) {
+        throw new Error(`Header names array cannot be empty in route/hook ${routeId}`);
+    }
     return headerNames;
+}
+
+/**
+ * Internal recursive function to extract literal string values from a type.
+ * Handles single literal strings and union types (including nested unions).
+ */
+function extractLiteralStringsFromTypeRecursive(rt: BaseRunType): string[] {
+    // Handle single literal string
+    if (isLiteralRunType(rt)) {
+        const literal = (rt as any).getLiteralValue();
+        if (typeof literal === 'string') {
+            return [literal];
+        }
+        return [];
+    }
+
+    // Handle union of literal strings (recursively for nested unions)
+    if (isUnionRunType(rt)) {
+        const children = rt.getChildRunTypes();
+        const literals: string[] = [];
+        for (const child of children) {
+            // Recursively extract from each child (handles nested unions)
+            const childLiterals = extractLiteralStringsFromTypeRecursive(child);
+            literals.push(...childLiterals);
+        }
+        return literals;
+    }
+
+    return [];
+}
+
+/**
+ * Extracts literal string values from a type.
+ * Handles 'never' type only at the root level, then delegates to recursive extraction.
+ */
+function extractLiteralStringsFromType(rt: BaseRunType): string[] {
+    // Handle 'never' type at root level only (no headers)
+    if (isNeverRunType(rt)) return [];
+    return extractLiteralStringsFromTypeRecursive(rt);
 }
 
 // Create a fake compiler object with just the opts property needed by getParamRunTypes.

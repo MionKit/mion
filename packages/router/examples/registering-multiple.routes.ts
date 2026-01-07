@@ -1,4 +1,5 @@
-import {initMionRouter, Routes, CallContext, registerRoutes, route, headersHook, HeadersList} from '@mionkit/router';
+import {HeadersSubset} from '@mionkit/core';
+import {initMionRouter, Routes, CallContext, registerRoutes, route, headersHook} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 
 export type HttpRequest = IncomingMessage & {body: string};
@@ -11,7 +12,7 @@ const authRoutes = {
 } satisfies Routes;
 
 const routes = {
-    auth: headersHook((c: Context, [token]: HeadersList<['Authorization']>): void => undefined),
+    auth: headersHook((c: Context, headers: HeadersSubset<'Authorization'>): void => undefined),
     sayHello: route((c, name: string): string => 'hello' + name),
     sayHello2: route((c, name: string): string => 'hello' + name),
 } satisfies Routes;
