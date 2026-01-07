@@ -353,7 +353,7 @@ describe('Create routes should', () => {
     it('header hooks should be considered public (non-private)', () => {
         initRouter();
         const routesWithHeaderHook = {
-            auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
+            auth: headersHook((ctx, h: HeadersSubset<'Authorization'>): void => {
                 // Header hook with no return data and no body params
             }),
             sayHello: route((): string => 'hello'),

@@ -121,7 +121,7 @@ async function runExecutionPath(
             // Check if result is a HeadersSubset instance
             if (executable.headersReturn && result instanceof HeadersSubset) {
                 // Extract headers from the HeadersSubset instance
-                const headersMap = result.values;
+                const headersMap = result.headers;
                 for (const [name, value] of Object.entries(headersMap)) {
                     if (value !== undefined && value !== null) {
                         response.headers.set(name, value);
@@ -155,19 +155,12 @@ async function runRawHook(
 async function runHeaderHook(context: CallContext, executable: HeaderMethod, request: MionRequest) {
     const headerNames = executable.headersParam.headerNames;
     const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
-
-    // Create HeadersSubset instance with header values mapped to their names
-    // Only include headers that are defined and not null/empty
     const headersMap: Record<string, string> = {};
     headerNames.forEach((name) => {
         const value = request.headers.get(name);
-        if (value !== undefined && value !== null && value !== '') {
-            headersMap[name] = value;
-        }
+        if (value) headersMap[name] = value;
     });
     const headersSubset = new HeadersSubset(headersMap);
-
-    // Validate the HeadersSubset instance
     validateHeaderParamsOrThrow(headersSubset, executable as HeaderMethod);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderMethod);
 

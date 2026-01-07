@@ -220,10 +220,10 @@ it('should compile router methods cache to code', () => {
         auth: headersHook(
             (
                 ctx,
-                headers: HeadersSubset<'Authorization'>, // testing headers serialization
+                h: HeadersSubset<'Authorization'>, // testing headers serialization
                 userid: string // ensure we accept extra regular params
             ): HeadersSubset<'x-user-id'> => {
-                const token = headers.values.Authorization;
+                const token = h.headers.Authorization;
                 if (!token) throw new RpcError({message: 'Not Authorized', type: 'not-authorized'});
                 return new HeadersSubset({'x-user-id': userid});
             }

@@ -8,8 +8,8 @@ export const routerOptions: Partial<RouterOptions> = {prefix: 'api/v1'};
 export const myApi = initMionRouter(
     // all function parameters will be automatically validated before the function is called
     {
-        auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
-            const token = headers.values.Authorization;
+        auth: headersHook((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+            const token = h.headers.Authorization;
             if (!token) return new RpcError<'not-authorized'>({publicMessage: 'Not Authorized', type: 'not-authorized'});
         }),
         users: {

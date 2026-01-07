@@ -19,7 +19,7 @@ interface User {
 // Define routes for AOT compilation testing
 const routes = {
     auth: headersHook(
-        (ctx, headers: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-123'})
+        (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-123'})
     ),
     users: {
         getUser: route((ctx, id: string): User => ({id, name: 'Test User', age: 30})),

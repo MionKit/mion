@@ -15,7 +15,7 @@ type Product = {id: string; name: string; price: number};
 
 const routes = {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    auth: headersHook((ctx, headers: HeadersSubset<'Authorization'>): void => {
+    auth: headersHook((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
     sayHello: route((_ctx, user: User): string | RpcError<'some-error'> => `Hello ${user.name} ${user.surname}`),

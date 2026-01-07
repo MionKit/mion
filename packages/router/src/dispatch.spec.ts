@@ -48,8 +48,8 @@ describe('Dispatch routes', () => {
         return data;
     });
 
-    const auth = headersHook((ctx, headers: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
-        const token = headers.values.Authorization;
+    const auth = headersHook((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+        const token = h.headers.Authorization;
         if (token !== '1234')
             return new RpcError({
                 publicMessage: 'Not Authorized',
@@ -129,8 +129,8 @@ describe('Dispatch routes', () => {
 
         it('request and response headers are case insensitive', async () => {
             initRouter({contextDataFactory: getSharedData});
-            const auth = headersHook((ctx, headers: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
-                const token = headers.values.Authorization;
+            const auth = headersHook((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+                const token = h.headers.Authorization;
                 return new HeadersSubset({'User-Id': token === '1234' ? 'MyUser-Id' : 'Unknown'});
             });
             registerRoutes({auth, changeUserName});
@@ -154,7 +154,7 @@ describe('Dispatch routes', () => {
 
         it('should be able to accept request headers and regular rpc params', async () => {
             initRouter({contextDataFactory: getSharedData});
-            const auth = headersHook((ctx, headers: HeadersSubset<'Authorization'>, userId: string): string => userId);
+            const auth = headersHook((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
             registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
