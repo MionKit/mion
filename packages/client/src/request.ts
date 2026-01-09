@@ -8,7 +8,7 @@
 import type {ResponseBody} from '@mionkit/router';
 import {ClientOptions, HookSubRequest, SubRequest, RouteSubRequest, RequestErrors} from './types';
 import type {RunTypeError} from '@mionkit/core';
-import {RpcError, isRpcError, HandlerType, routesCache, MION_ROUTES} from '@mionkit/core';
+import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
@@ -53,15 +53,17 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         // make the request
         try {
             const body = serializeRequestBody(this);
+            const headersFromParams = extractRequestHeaders(this);
 
             const url = new URL(this.path, this.options.baseURL);
             const fetchOptions: RequestInit = {
                 ...this.options.fetchOptions,
                 headers: {
                     ...this.options.fetchOptions.headers,
-                    // TODO: set headers from hook headers
+                    // Headers extracted from HeadersSubset params in headersHooks
+                    ...headersFromParams,
                 },
-                body: body,
+                body,
             };
             this.response = await fetch(url, fetchOptions);
         } catch (error: any) {
@@ -183,14 +185,10 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     }
 
     private getResponseValueFromBodyOrHeader(id: string, respBody: ResponseBody, headers: Headers): any {
-        const methodMeta = routesCache.getMetadata(id);
-        if (
-            methodMeta &&
-            methodMeta.type === HandlerType.headerHook &&
-            methodMeta.headersParam?.headerNames &&
-            methodMeta.headersParam?.headerNames.length > 0
-        ) {
-            return headers.get(methodMeta.headersParam.headerNames[0]);
+        // Check if method has headersReturn and reconstruct HeadersSubset from response headers
+        const headersSubset = reconstructHeadersSubsetFromResponse(id, headers);
+        if (headersSubset) {
+            return headersSubset;
         }
         return respBody[id];
     }
@@ -285,4 +283,100 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     private getSubRequestStorageKey(id: string) {
         return `${STORAGE_KEY}:remote-request-preset:${this.options.baseURL}:x${id}`;
     }
+}
+
+// ############# HELPER FUNCTIONS #############
+
+/**
+ * Extracts headers from HeadersSubset params in headersHook methods.
+ * This mirrors how the router extracts headers in runHeaderHook (dispatch.ts).
+ *
+ * For headersHook methods, the first param (after context) is the HeadersSubset.
+ * This function extracts those header values to be sent as HTTP headers.
+ *
+ * @returns Record of header names to values
+ */
+function extractRequestHeaders(req: MionRequest<any, any>): Record<string, string> {
+    const headers: Record<string, string> = {};
+    const subRequestIds = Object.keys(req.subRequestList);
+
+    for (let i = 0; i < subRequestIds.length; i++) {
+        const id = subRequestIds[i];
+        const subRequest = req.subRequestList[id];
+        if (!subRequest) continue;
+
+        const method = routesCache.getMetadata(id);
+        if (!method || method.type !== HandlerType.headerHook || !method.headersParam) continue;
+
+        const params = subRequest.params;
+        const extracted = extractHeadersFromParams(params);
+        Object.assign(headers, extracted);
+    }
+
+    return headers;
+}
+
+/**
+ * Extracts headers from a HeadersSubset parameter.
+ * The first param must be a HeadersSubset instance.
+ * This mirrors how the router extracts headers in runHeaderHook (dispatch.ts).
+ *
+ * @param params The params array from the subRequest
+ * @returns The headers record from the HeadersSubset
+ */
+function extractHeadersFromParams(params: any[]): Record<string, string> {
+    if (!params || params.length === 0) {
+        throw new RpcError({
+            type: 'missing-headers-param',
+            publicMessage: 'HeadersHook requires a HeadersSubset parameter.',
+        });
+    }
+
+    const firstParam = params[0];
+    if (!(firstParam instanceof HeadersSubset)) {
+        throw new RpcError({
+            type: 'invalid-headers-param',
+            publicMessage: 'HeadersHook first parameter must be a HeadersSubset instance.',
+        });
+    }
+
+    return firstParam.headers as Record<string, string>;
+}
+
+/**
+ * Reconstructs a HeadersSubset from HTTP response headers for methods that return HeadersSubset.
+ * When a hook or route returns HeadersSubset, the router sets those values as HTTP response headers
+ * instead of including them in the body. This function reads those headers and creates a HeadersSubset.
+ *
+ * @param methodId The method ID to check for headersReturn
+ * @param responseHeaders The HTTP response headers from fetch
+ * @returns HeadersSubset if the method has headersReturn, undefined otherwise
+ */
+function reconstructHeadersSubsetFromResponse(
+    methodId: string,
+    responseHeaders: Headers
+): HeadersSubset<string, string> | undefined {
+    const method = routesCache.getMetadata(methodId);
+
+    // Check if this method returns headers
+    if (!method?.headersReturn?.headerNames || method.headersReturn.headerNames.length === 0) {
+        return undefined;
+    }
+
+    const headerNames = method.headersReturn.headerNames;
+    const headersMap: Record<string, string> = {};
+
+    for (const name of headerNames) {
+        const value = responseHeaders.get(name);
+        if (value !== undefined && value !== null) {
+            headersMap[name] = value;
+        }
+    }
+
+    // Only return HeadersSubset if we found at least one header
+    if (Object.keys(headersMap).length > 0) {
+        return new HeadersSubset(headersMap);
+    }
+
+    return undefined;
 }

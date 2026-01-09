@@ -6,7 +6,7 @@
  * ######## */
 
 import type {ResponseBody} from '@mionkit/router';
-import {type MethodWithJitFns, RpcError, isRpcError, routesCache, MION_ROUTES} from '@mionkit/core';
+import {type MethodWithJitFns, RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType} from '@mionkit/core';
 import type {MionRequest} from './request';
 
 // ############# SERIALIZATION #############
@@ -14,6 +14,9 @@ import type {MionRequest} from './request';
 /**
  * Serializes the request body and returns it as a string.
  * This is the inverse of the router's deserializeRequestBody.
+ *
+ * Note: For headersHook methods, the HeadersSubset parameter is NOT included in the body.
+ * Use extractRequestHeaders() to get headers to send as HTTP headers.
  */
 export function serializeRequestBody(req: MionRequest<any, any>): string {
     const bodyType: 'J' | 'B' = 'J'; // JSON for now, binary later
@@ -21,8 +24,7 @@ export function serializeRequestBody(req: MionRequest<any, any>): string {
     switch (bodyType) {
         case 'J': {
             // json
-            const body = stringifyBody(req);
-            return body;
+            return stringifyBody(req);
         }
         case 'B':
             // binary
@@ -35,6 +37,10 @@ export function serializeRequestBody(req: MionRequest<any, any>): string {
 /**
  * Deserializes the response body from a fetch Response object.
  * This is the inverse of the router's serializeResponseBody.
+ *
+ * Note: Methods with headersReturn are NOT included in the response body.
+ * The router sets those values as HTTP response headers instead.
+ * Use reconstructHeadersSubsetFromResponse() to get the HeadersSubset for those methods.
  */
 export async function deserializeResponseBody(response: Response): Promise<ResponseBody> {
     let parsedBody: any;
@@ -98,8 +104,14 @@ function stringifyBody(req: MionRequest<any, any>): string {
         const id = subRequestIds[i];
         const subRequest = req.subRequestList[id];
         if (!subRequest) continue; // Skip if not required
-        const params = subRequest.params;
+        let params = subRequest.params;
         const method = routesCache.useMethodJitFns(id);
+
+        // For headersHook methods, skip the HeadersSubset param (first param after context)
+        // Headers are extracted separately by extractRequestHeaders()
+        if (method.type === HandlerType.headerHook && method.headersParam) {
+            params = getParamsWithoutHeadersSubset(params);
+        }
 
         try {
             const jsonValue = stringifyHandlerParams(method, params);
@@ -116,6 +128,15 @@ function stringifyBody(req: MionRequest<any, any>): string {
     }
 
     return `{${props.join(',')}}`;
+}
+
+/**
+ * Returns params array without the HeadersSubset (first param).
+ * HeadersSubset is sent as HTTP headers, not in the body.
+ */
+function getParamsWithoutHeadersSubset(params: any[]): any[] {
+    if (!params || params.length === 0) return [];
+    return params.slice(1);
 }
 
 function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string {
