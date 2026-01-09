@@ -13,19 +13,19 @@ Mion provides a sophisticated error handling system that separates concerns betw
 **Hook Errors** - Global concerns (authentication, permissions, rate limiting)
 
 - hook.prefill() - return an event listener Handled once, globally
-- Use `.onError<Type>()` - called **multiple times** (every request that fails)
+- Use `.onError(type, handler)` - called **multiple times** (every request that fails)
 - Examples: `invalid-token`, `rate-limit-exceeded`, `insufficient-permissions`
 
 **Route Errors** - Business logic concerns (validation, not found, etc.)
 
 - Handled per-request
-- Use `.catchError<Type>()` - called **once** (for this specific request)
+- Use `.catchError(type, handler)` - called **once** (for this specific request)
 - Examples: `cart-empty`, `payment-declined`, `user-not-found`
 
 ### 2. Automatic Error Suppression
 
-If a hook error is handled by `.onError()`, the route's `.catchError<'X-error'>()` or `catch()` is **not called** - preventing duplicate error messages.
-a method called `unknownCatch()` will be called with any errors not defined in route return type. (this included errors that might already been handled by `hooks.onError()` )
+If a hook error is handled by `.onError()`, the route's `.catchError('X-error', handler)` or `catch()` is **not called** - preventing duplicate error messages.
+a method called `catchUnknown()` will be called with any errors not defined in route return type. (this included errors that might already been handled by `hooks.onError()` )
 
 ### 3. Type Safety
 
@@ -40,7 +40,7 @@ export const createOrder = route(
 );
 ```
 
-TypeScript validates that `.catchError<Type>()` types exist in the union.
+TypeScript validates that `.catchError(type, handler)` types exist in the union.
 
 ---
 
@@ -55,10 +55,10 @@ routes
   .then((result) => {
     /* Success - result is never RpcError */
   })
-  .catchError<'specific-error'>((error) => {
+  .catchError('specific-error', (error) => {
     /* Handle specific error */
   })
-  .unknownCatch((error) => {
+  .catchUnknown((error) => {
     /* Handle any unhandled error */
   })
   .finally(() => {
@@ -72,7 +72,7 @@ routes
 hooks
   .someHook(params)
   .prefill()
-  .onError<'specific-error'>((error) => {
+  .onError('specific-error', (error) => {
     /* Called every time this error occurs */
   });
 ```
@@ -81,40 +81,7 @@ hooks
 
 ## Usage Examples
 
-### Example 1: Login Flow (Setup Global Credentials Handler)
-
-```typescript
-function LoginPage() {
-  async function handleLogin(email: string, password: string) {
-    try {
-      const response = await routes.auth.login(email, password).call();
-
-      // Store credentials for ALL future requests
-      // Handle credential errors GLOBALLY
-      hooks.credentials({ token: response.token })
-        .prefill()
-        .onError<'invalid-token'>((error) => {
-          // Called EVERY TIME any future request fails with invalid-token
-          toast.error('Session expired. Please login again.');
-          redirectToLogin();
-        })
-        .onError<'token-expired'>((error) => {
-          // Called EVERY TIME any future request fails with token-expired
-          toast.error('Session expired. Please login again.');
-          redirectToLogin();
-        });
-
-      navigate('/dashboard');
-    } catch (error) {
-      toast.error('Invalid email or password');
-    }
-  }
-
-  return <LoginForm onSubmit={handleLogin} />;
-}
-```
-
-### Example 2: Checkout Flow (Handle Business Logic Errors)
+### Example 1: Checkout Flow (Handle Business Logic Errors)
 
 ```typescript
 function CheckoutPage() {
@@ -133,22 +100,22 @@ function CheckoutPage() {
         setOrder(orderData);
         toast.success('Order created!');
       })
-      .catchError<'cart-empty'>((error) => {
+      .catchError('cart-empty', (error) => {
         // Handle specific error
         toast.error('Your cart is empty!');
         navigate('/cart');
       })
-      .catchError<'payment-declined'>((error) => {
+      .catchError('payment-declined', (error) => {
         // Handle specific error with typed error data
         toast.error(`Payment declined: ${error.errorData.reason}`);
         // Stay on page, user can update payment method
       })
-      .catchError<'out-of-stock'>((error) => {
+      .catchError('out-of-stock', (error) => {
         // Handle specific error
         toast.error(`Sorry, ${error.errorData.itemName} is out of stock`);
         // Stay on page, user can remove item
       })
-      .unknownCatch((error) => {
+      .catchUnknown((error) => {
         // Handle any other error:
         // - Hook errors (if not handled by hook.onError())
         // - Unlisted route errors
@@ -171,7 +138,7 @@ function CheckoutPage() {
 }
 ```
 
-### Example 3: Simple Case (Only Unknown Errors)
+### Example 2: Simple Case (Only Unknown Errors)
 
 ```typescript
 function UserProfile() {
@@ -184,7 +151,7 @@ function UserProfile() {
       .then((data) => {
         setProfile(data);
       })
-      .unknownCatch((error) => {
+      .catchUnknown((error) => {
         // Handle all errors generically
         toast.error('Failed to load profile');
       })
@@ -198,13 +165,13 @@ function UserProfile() {
 }
 ```
 
-### Example 4: Multiple Hooks (Rate Limiting + Credentials)
+### Example 3: Multiple Hooks (Rate Limiting + Credentials)
 
 ```typescript
 // Setup rate limiting hook globally
 hooks.rateLimit({ apiKey: getApiKey() })
   .prefill()
-  .onError<'rate-limit-exceeded'>((error) => {
+  .onError('rate-limit-exceeded', (error) => {
     toast.error('Rate limit exceeded. Please upgrade your plan.');
     showUpgradeModal();
   });
@@ -212,7 +179,7 @@ hooks.rateLimit({ apiKey: getApiKey() })
 // Setup credentials hook globally
 hooks.credentials({ token: getToken() })
   .prefill()
-  .onError<'invalid-token'>((error) => {
+  .onError('invalid-token', (error) => {
     toast.error('Session expired. Please login again.');
     redirectToLogin();
   });
@@ -225,10 +192,10 @@ function DataTable() {
       .then((data) => {
         setData(data);
       })
-      .catchError<'invalid-query'>((error) => {
+      .catchError('invalid-query', (error) => {
         toast.error('Invalid query parameters');
       })
-      .unknownCatch((error) => {
+      .catchUnknown((error) => {
         // This is NOT called if rate limit or credentials fail
         // (those are handled by hook.onError())
         toast.error('Failed to load data');
@@ -239,7 +206,7 @@ function DataTable() {
 }
 ```
 
-### Example 5: React Hook Pattern
+### Example 4: React Hook Pattern
 
 ```typescript
 function useAuthenticatedRoute<T>(routeCall: () => Promise<T>) {
@@ -255,7 +222,7 @@ function useAuthenticatedRoute<T>(routeCall: () => Promise<T>) {
       .then((result) => {
         setData(result);
       })
-      .unknownCatch((err) => {
+      .catchUnknown((err) => {
         // Credentials errors are handled globally (redirect to login)
         // This only handles route-specific errors
         setError(err.publicMessage);
@@ -290,22 +257,22 @@ function UserProfile() {
 
 ### 1. No Duplicate Error Messages
 
-Hook errors handled by `.onError()` automatically suppress route `.unknownCatch()`:
+Hook errors handled by `.onError()` automatically suppress route `.catchUnknown()`:
 
 ```typescript
 // If credentials fail:
 // ✅ Hook .onError() shows: "Session expired. Please login again."
-// ❌ Route .unknownCatch() is NOT called (no duplicate message)
+// ❌ Route .catchUnknown() is NOT called (no duplicate message)
 ```
 
 ### 2. Separation of Concerns
 
 ```typescript
 // Login page: Handle auth errors ONCE
-hooks.credentials({token}).prefill().onError(redirectToLogin);
+hooks.credentials({token}).prefill().onError('invalid-token', redirectToLogin);
 
 // Every other page: Just handle business logic
-routes.someRoute(data).call().catchError<'business-error'>(handleBusinessError).unknownCatch(handleGenericError);
+routes.someRoute(data).call().catchError('business-error', handleBusinessError).catchUnknown(handleGenericError);
 ```
 
 ### 3. Type Safety
@@ -314,8 +281,8 @@ routes.someRoute(data).call().catchError<'business-error'>(handleBusinessError).
 // TypeScript validates error types
 routes.checkout.createOrder(data)
   .call()
-  .catchError<'cart-empty'>((error) => { ... })      // ✅ Valid
-  .catchError<'invalid-type'>((error) => { ... });   // ❌ TypeScript error!
+  .catchError('cart-empty', (error) => { ... })      // ✅ Valid
+  .catchError('invalid-type', (error) => { ... });   // ❌ TypeScript error!
 ```
 
 ### 4. Progressive Enhancement
@@ -326,21 +293,21 @@ Start simple, add specific handlers as needed:
 // Day 1: Generic error handling
 routes.someRoute(data)
   .call()
-  .unknownCatch((error) => toast.error(error.publicMessage));
+  .catchUnknown((error) => toast.error(error.publicMessage));
 
 // Day 30: Add specific handlers
 routes.someRoute(data)
   .call()
-  .catchError<'common-error'>((error) => { ... })
-  .unknownCatch((error) => toast.error(error.publicMessage));
+  .catchError('common-error', (error) => { ... })
+  .catchUnknown((error) => toast.error(error.publicMessage));
 
 // Day 90: Handle all errors specifically
 routes.someRoute(data)
   .call()
-  .catchError<'error-1'>((error) => { ... })
-  .catchError<'error-2'>((error) => { ... })
-  .catchError<'error-3'>((error) => { ... })
-  .unknownCatch((error) => { ... });
+  .catchError('error-1', (error) => { ... })
+  .catchError('error-2', (error) => { ... })
+  .catchError('error-3', (error) => { ... })
+  .catchUnknown((error) => { ... });
 ```
 
 ---
@@ -360,14 +327,14 @@ export const createOrder = route(
 // Client - Missing handler
 routes.checkout.createOrder(data)
   .call()
-  .catchError<'cart-empty'>((error) => { ... })
-  .catchError<'payment-declined'>((error) => { ... })
+  .catchError('cart-empty', (error) => { ... })
+  .catchError('payment-declined', (error) => { ... })
   // Missing: 'out-of-stock'
-  .unknownCatch((error) => { ... });
+  .catchUnknown((error) => { ... });
 
 // ⚠️ ESLint warning:
 // "Unhandled error type 'out-of-stock' from route 'checkout.createOrder'.
-//  Add .catchError<'out-of-stock'>() or use .ignoreErrors(['out-of-stock'])"
+//  Add .catchError('out-of-stock', handler) or use .ignoreErrors(['out-of-stock'])"
 ```
 
 ### Explicitly Ignore Errors
@@ -375,9 +342,9 @@ routes.checkout.createOrder(data)
 ```typescript
 routes.checkout.createOrder(data)
   .call()
-  .catchError<'cart-empty'>((error) => { ... })
+  .catchError('cart-empty', (error) => { ... })
   .ignoreErrors(['payment-declined', 'out-of-stock'])
-  .unknownCatch((error) => { ... });
+  .catchUnknown((error) => { ... });
 
 // ✅ No ESLint warning (explicitly acknowledged)
 ```
@@ -390,9 +357,9 @@ routes.checkout.createOrder(data)
 
 - `.call()` - Execute the request
 - `.then()` - Handle success (result is never RpcError)
-- `.catchError<Type>()` - Handle specific error type (one-time, for this request)
-- `.unknownCatch()` - Handle any unhandled error (catch-all)
-- `.onError<Type>()` - Handle hook error (persistent, for all future requests)
+- `.catchError(type, handler)` - Handle specific error type (one-time, for this request)
+- `.catchUnknown()` - Handle any unhandled error (catch-all)
+- `.onError(type, handler)` - Handle hook error (persistent, for all future requests)
 - `.prefill()` - Store hook params for all future requests
 - `.ignoreErrors([...])` - Explicitly ignore error types (for ESLint)
 - `.finally()` - Cleanup (always runs)
@@ -401,7 +368,7 @@ routes.checkout.createOrder(data)
 
 1. Hook errors are handled globally (once, in login/setup)
 2. Route errors are handled locally (per-request)
-3. Hook error handlers suppress route error handlers (no duplicates)
+3. Hook error handlers suppress route error handlers (no duplicates), Hooks only handled known errors.
 4. Type safety ensures error types are valid
 5. ESLint enforces exhaustive error handling
 6. Progressive enhancement (start simple, add specificity)
