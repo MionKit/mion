@@ -103,6 +103,14 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                 }
             });
 
+            // Check for errors on methods NOT in subRequestList (e.g., required hooks that weren't sent)
+            // These errors occur when server-side hooks fail but weren't explicitly requested by client
+            Object.entries(deserialized).forEach(([id, value]) => {
+                if (!(id in this.subRequestList) && isRpcError(value)) {
+                    errors.set(id, value);
+                }
+            });
+
             if (errors.size) return Promise.reject(errors);
             return deserialized;
         } catch (error) {
@@ -318,7 +326,8 @@ function extractRequestHeaders(req: MionRequest<any, any>): Record<string, strin
 
 /**
  * Extracts headers from a HeadersSubset parameter.
- * The first param must be a HeadersSubset instance.
+ * The first param must be a HeadersSubset instance or an object with 'headers' property
+ * (for when restored from localStorage where class instances are serialized to plain objects).
  * This mirrors how the router extracts headers in runHeaderHook (dispatch.ts).
  *
  * @param params The params array from the subRequest
@@ -333,14 +342,23 @@ function extractHeadersFromParams(params: any[]): Record<string, string> {
     }
 
     const firstParam = params[0];
-    if (!(firstParam instanceof HeadersSubset)) {
-        throw new RpcError({
-            type: 'invalid-headers-param',
-            publicMessage: 'HeadersHook first parameter must be a HeadersSubset instance.',
-        });
+
+    // Check for HeadersSubset instance OR duck-typed object with headers property
+    // Duck typing is needed because when restored from localStorage, class instances
+    // are serialized to plain objects
+    if (firstParam instanceof HeadersSubset) {
+        return firstParam.headers as Record<string, string>;
     }
 
-    return firstParam.headers as Record<string, string>;
+    // Duck type check: object with headers property that is an object
+    if (firstParam && typeof firstParam === 'object' && 'headers' in firstParam && typeof firstParam.headers === 'object') {
+        return firstParam.headers as Record<string, string>;
+    }
+
+    throw new RpcError({
+        type: 'invalid-headers-param',
+        publicMessage: 'HeadersHook first parameter must be a HeadersSubset instance or object with headers property.',
+    });
 }
 
 /**

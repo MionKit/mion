@@ -23,6 +23,17 @@ const routerCache = {
 		pointer: ["mion@notFound"],
 		nestLevel: 0,
 	},
+	"mion@platformError": {
+		paramNames: [],
+		type: 1,
+		id: "mion@platformError",
+		isAsync: false,
+		hasReturnData: true,
+		paramsJitHash: "",
+		returnJitHash: "zxRrbt",
+		pointer: ["mion@platformError"],
+		nestLevel: 0,
+	},
 	"mion@methodsMetadataById": {
 		paramNames: ["methodsIds", "getAllRemoteMethods"],
 		type: 1,

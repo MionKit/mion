@@ -13,11 +13,28 @@ import {RpcError, HeadersSubset} from '@mionkit/core';
 type User = {name: string; surname: string};
 type Product = {id: string; name: string; price: number};
 
+// Session info returned by session hook
+type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
+
 const routes = {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     auth: headersHook((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
+    // Hook that returns session info on every request
+    session: hook(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        (ctx, sessionToken: string): SessionInfo | RpcError<'session-expired'> => {
+            if (sessionToken === 'expired') {
+                return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});
+            }
+            return {
+                userId: 'user-123',
+                role: 'admin',
+                expiresAt: Date.now() + 3600000, // 1 hour from now
+            };
+        }
+    ),
     sayHello: route((_ctx, user: User): string | RpcError<'some-error'> => `Hello ${user.name} ${user.surname}`),
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     alwaysFails: route((ctx, user: User): User | RpcError<'unknown-error'> => {

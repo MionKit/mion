@@ -34,4 +34,19 @@ export const mionErrorsRoutes = {
             type: 'route-not-found',
         });
     }),
+    /**
+     * Platform error route for strongly typing platform/adapter errors.
+     * Platform errors occur before reaching the router or outside the router
+     * and are platform/adapter related (e.g., HTTP server errors, connection issues).
+     * This route is used for serialization/deserialization of platform errors.
+     * This also prevents users to register a route with the same name.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    [MION_ROUTES.platformError]: route((_ctx: CallContext): RpcError<string> => {
+        // Platform errors are passed through context, this route is for type serialization
+        return new RpcError({
+            publicMessage: 'Platform error',
+            type: 'platform-error',
+        });
+    }),
 } satisfies Routes;
