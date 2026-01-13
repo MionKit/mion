@@ -14,12 +14,13 @@ const execAsync = promisify(exec);
 /**
  * Port mapping for different test files to avoid conflicts when running in parallel
  * Each test file should use a unique port from this mapping
+ * NOTE: Port 8076 is used by http package tests, so we use 8086+ for client tests
  */
 export const TEST_PORT_MAPPING = {
-    client: 8076,
-    clientMethodsMetadata: 8077,
+    client: 8086,
+    clientMethodsMetadata: 8087,
     // Add more test files here as needed
-    // 'anotherTest.spec.ts': 8078,
+    // 'anotherTest.spec.ts': 8088,
 } as const;
 
 /**

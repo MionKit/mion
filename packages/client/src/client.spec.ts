@@ -7,7 +7,7 @@
 
 import {initClient} from './client';
 import {HookSubRequest, RouteSubRequest} from './types';
-import {isRpcError, RpcError} from '@mionkit/core';
+import {isRpcError, RpcError, HeadersSubset} from '@mionkit/core';
 import {TestServerApi} from '../test/test-server';
 import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
 
@@ -16,6 +16,11 @@ import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '
 const Storage = require('dom-storage');
 global.localStorage = new Storage(null, {strict: true});
 global.sessionStorage = new Storage(null, {strict: true});
+
+// Helper to create auth headers for the test server's headersHook
+function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
+    return new HeadersSubset({Authorization: token});
+}
 
 // TODO: test & write client
 describe('client', () => {
@@ -31,14 +36,20 @@ describe('client', () => {
     beforeAll(serverHooks.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
     afterAll(serverHooks.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
+    // Clear localStorage between tests to ensure prefilled hooks don't leak between tests
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
         const {routes, hooks} = initClient<MyApi>({baseURL});
+        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         const expectedAuthSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
             pointer: ['auth'],
             id: 'auth',
             isResolved: false,
-            params: ['XWYZ-TOKEN'],
+            params: [authHeaders],
             call: expect.any(Function),
             hooks: expect.any(Function),
             prefill: expect.any(Function),
@@ -70,7 +81,7 @@ describe('client', () => {
             typeErrors: expect.any(Function),
         };
 
-        expect(hooks.auth('XWYZ-TOKEN')).toEqual(expect.objectContaining(expectedAuthSubRequest));
+        expect(hooks.auth(authHeaders)).toEqual(expect.objectContaining(expectedAuthSubRequest));
         expect(routes.sayHello(someUser)).toEqual(expect.objectContaining(expectedSayHelloSubRequest));
         expect(routes.utils.sumTwo(2)).toEqual(expect.objectContaining(expectedSumTwoSubRequest));
 
@@ -93,20 +104,23 @@ describe('client', () => {
 
     it('make a route call and get a valid response', async () => {
         const {routes, hooks} = initClient<MyApi>({baseURL});
+        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const response = await routes.sayHello(someUser).hooks(hooks.auth('XWYZ-TOKEN')).call();
+        const response = await routes.sayHello(someUser).hooks(hooks.auth(authHeaders)).call();
         expect(response).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
     });
 
     it('make a route call using chainable hooks method', async () => {
         const {routes, hooks} = initClient<MyApi>({baseURL});
+        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const response = await routes.sayHello(someUser).hooks(hooks.auth('XWYZ-TOKEN')).call();
+        const response = await routes.sayHello(someUser).hooks(hooks.auth(authHeaders)).call();
         expect(response).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
     });
 
     it('throw error if a route call fails', async () => {
         const {routes, hooks} = initClient<MyApi>({baseURL});
+        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         let error: any;
         const expectedError = new RpcError({
@@ -115,7 +129,7 @@ describe('client', () => {
         });
 
         try {
-            await routes.alwaysFails(someUser).hooks(hooks.auth('XWYZ-TOKEN')).call();
+            await routes.alwaysFails(someUser).hooks(hooks.auth(authHeaders)).call();
         } catch (e: RpcError<string> | any) {
             error = e;
         }
@@ -140,8 +154,9 @@ describe('client', () => {
         expect(isRpcError(error)).toBe(true);
 
         // The error should indicate missing authentication or validation failure
-        expect(error.name).toBe('RpcError');
-        expect(error.message).toContain('auth');
+        // Error is a plain object with RpcError structure (not an instance)
+        expect(error['mion@isΣrrθr']).toBe(true);
+        expect(error.publicMessage).toContain('auth');
     });
 
     it('typeErrors method returns validation errors', async () => {
@@ -157,8 +172,9 @@ describe('client', () => {
 
     it('prefill and remove prefill from a request', async () => {
         const {routes, hooks} = initClient<MyApi>({baseURL});
+        const authHeaders = createAuthHeaders('ABYWZ-TOKEN');
 
-        const request = hooks.auth('ABYWZ-TOKEN');
+        const request = hooks.auth(authHeaders);
         await request.prefill();
         // note auth has been prefilled and is not required to be sent in the call
 
@@ -175,16 +191,342 @@ describe('client', () => {
         request.removePrefill();
 
         let error: any;
-        const expectedError = new RpcError({
-            publicMessage: `Invalid params for Route or Hook 'auth', validation failed.`,
-            type: 'validation-error',
-        });
-
         try {
             await routes.sayHello(someUser).call();
         } catch (e) {
             error = e;
         }
-        expect(error).toEqual(expectedError);
+
+        // After removing prefill, the auth hook is not sent, so server returns headers validation error
+        expect(error).toBeDefined();
+        expect(isRpcError(error)).toBe(true);
+        expect(error['mion@isΣrrθr']).toBe(true);
+        expect(error.publicMessage).toContain('auth');
+    });
+
+    // ========== Error Handler Tests ==========
+
+    describe('error handlers', () => {
+        it('catchError should be called for matching error type', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let catchErrorCalled = false;
+            let caughtError: any = null;
+
+            await routes
+                .alwaysFails(someUser)
+                .hooks(hooks.auth(authHeaders))
+                .call()
+                .catchError('unknown-error', (error) => {
+                    catchErrorCalled = true;
+                    caughtError = error;
+                });
+
+            expect(catchErrorCalled).toBe(true);
+            expect(caughtError).toBeDefined();
+            expect(caughtError.type).toBe('unknown-error');
+            expect(caughtError.publicMessage).toBe('Something fails');
+        });
+
+        it('catchUnknown should NOT be called when catchError handles the error', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let catchErrorCalled = false;
+            let catchUnknownCalled = false;
+
+            await routes
+                .alwaysFails(someUser)
+                .hooks(hooks.auth(authHeaders))
+                .call()
+                .catchError('unknown-error', () => {
+                    catchErrorCalled = true;
+                })
+                .catchUnknown(() => {
+                    catchUnknownCalled = true;
+                });
+
+            expect(catchErrorCalled).toBe(true);
+            expect(catchUnknownCalled).toBe(false);
+        });
+
+        it('catchUnknown should be called when no catchError matches', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let catchErrorCalled = false;
+            let catchUnknownCalled = false;
+            let caughtError: any = null;
+
+            await routes
+                .alwaysFails(someUser)
+                .hooks(hooks.auth(authHeaders))
+                .call()
+                .catchError('some-other-error' as any, () => {
+                    catchErrorCalled = true;
+                })
+                .catchUnknown((error) => {
+                    catchUnknownCalled = true;
+                    caughtError = error;
+                });
+
+            expect(catchErrorCalled).toBe(false);
+            expect(catchUnknownCalled).toBe(true);
+            expect(caughtError.type).toBe('unknown-error');
+        });
+
+        it('catch should NOT be called when catchError handles the error', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let catchErrorCalled = false;
+            let catchCalled = false;
+
+            await routes
+                .alwaysFails(someUser)
+                .hooks(hooks.auth(authHeaders))
+                .call()
+                .catchError('unknown-error', () => {
+                    catchErrorCalled = true;
+                })
+                .catch(() => {
+                    catchCalled = true;
+                });
+
+            expect(catchErrorCalled).toBe(true);
+            expect(catchCalled).toBe(false);
+        });
+
+        it('catch should NOT be called when catchUnknown handles the error', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let catchUnknownCalled = false;
+            let catchCalled = false;
+
+            await routes
+                .alwaysFails(someUser)
+                .hooks(hooks.auth(authHeaders))
+                .call()
+                .catchUnknown(() => {
+                    catchUnknownCalled = true;
+                })
+                .catch(() => {
+                    catchCalled = true;
+                });
+
+            expect(catchUnknownCalled).toBe(true);
+            expect(catchCalled).toBe(false);
+        });
+
+        it('catch should be called with error record when no other handler matches', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let catchCalled = false;
+            let caughtErrors: Record<string, any> = {};
+
+            await routes
+                .alwaysFails(someUser)
+                .hooks(hooks.auth(authHeaders))
+                .call()
+                .catchError('some-other-error' as any, () => {
+                    // This won't match
+                })
+                .catch((errors) => {
+                    catchCalled = true;
+                    caughtErrors = errors;
+                });
+
+            expect(catchCalled).toBe(true);
+            expect(Object.keys(caughtErrors).length).toBeGreaterThan(0);
+            // The error should be keyed by method ID
+            const errorKeys = Object.keys(caughtErrors);
+            expect(errorKeys.some((key) => key.includes('alwaysFails'))).toBe(true);
+            expect(Object.values(caughtErrors)[0].type).toBe('unknown-error');
+        });
+
+        it('promise should reject when no error handler is registered', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let thrownError: any = null;
+
+            try {
+                await routes.alwaysFails(someUser).hooks(hooks.auth(authHeaders)).call();
+            } catch (e) {
+                thrownError = e;
+            }
+
+            expect(thrownError).toBeDefined();
+            expect(thrownError.type).toBe('unknown-error');
+        });
+
+        it('then should receive success value when no error occurs', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let thenCalled = false;
+            let receivedValue: any = null;
+
+            await routes
+                .sayHello(someUser)
+                .hooks(hooks.auth(authHeaders))
+                .call()
+                .then((value) => {
+                    thenCalled = true;
+                    receivedValue = value;
+                });
+
+            expect(thenCalled).toBe(true);
+            expect(receivedValue).toBe('Hello John Doe');
+        });
+    });
+
+    // ========== TypedEvent Hook Success Handler Tests ==========
+
+    describe('TypedEvent onSuccess handlers', () => {
+        it('onSuccess should be called on every successful request', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let successCallCount = 0;
+            let receivedSessionInfo: any = null;
+
+            // Prefill the session hook and register onSuccess handler
+            hooks
+                .session('valid-token')
+                .prefill()
+                .onSuccess((sessionInfo) => {
+                    successCallCount++;
+                    receivedSessionInfo = sessionInfo;
+                });
+
+            // Make first request
+            await routes.sayHello(someUser).hooks(hooks.auth(authHeaders)).call();
+            expect(successCallCount).toBe(1);
+            expect(receivedSessionInfo).toBeDefined();
+            expect(receivedSessionInfo.userId).toBe('user-123');
+            expect(receivedSessionInfo.role).toBe('admin');
+
+            // Make second request - onSuccess should be called again
+            await routes.sayHello(someUser).hooks(hooks.auth(authHeaders)).call();
+            expect(successCallCount).toBe(2);
+
+            // Clean up
+            await hooks.session('valid-token').removePrefill();
+        });
+
+        it('onSuccess should NOT be called when hook fails', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let successCalled = false;
+            let errorCalled = false;
+
+            // Prefill with expired token and register handlers
+            hooks
+                .session('expired')
+                .prefill()
+                .onSuccess(() => {
+                    successCalled = true;
+                })
+                .onError('session-expired', () => {
+                    errorCalled = true;
+                });
+
+            // Make request - should fail with session-expired
+            await routes.sayHello(someUser).hooks(hooks.auth(authHeaders)).call();
+
+            expect(successCalled).toBe(false);
+            expect(errorCalled).toBe(true);
+
+            // Clean up
+            await hooks.session('expired').removePrefill();
+        });
+
+        it('offSuccess should remove success handler', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let successCallCount = 0;
+
+            // Prefill and register onSuccess handler
+            const typedEvent = hooks
+                .session('valid-token')
+                .prefill()
+                .onSuccess(() => {
+                    successCallCount++;
+                });
+
+            // First request - handler should be called
+            await routes.sayHello(someUser).hooks(hooks.auth(authHeaders)).call();
+            expect(successCallCount).toBe(1);
+
+            // Remove the success handler
+            typedEvent.offSuccess();
+
+            // Second request - handler should NOT be called
+            await routes.sayHello(someUser).hooks(hooks.auth(authHeaders)).call();
+            expect(successCallCount).toBe(1); // Still 1
+
+            // Clean up
+            await hooks.session('valid-token').removePrefill();
+        });
+
+        it('both onSuccess and onError can be registered on same TypedEvent', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            let successCalled = false;
+            let errorCalled = false;
+
+            // Register both handlers
+            hooks
+                .session('valid-token')
+                .prefill()
+                .onSuccess(() => {
+                    successCalled = true;
+                })
+                .onError('session-expired', () => {
+                    errorCalled = true;
+                });
+
+            // Make successful request
+            await routes.sayHello(someUser).hooks(hooks.auth(authHeaders)).call();
+
+            expect(successCalled).toBe(true);
+            expect(errorCalled).toBe(false);
+
+            // Clean up
+            await hooks.session('valid-token').removePrefill();
+        });
+
+        it('removePrefill should clear both success and error handlers', async () => {
+            const {hooks} = initClient<MyApi>({baseURL});
+
+            // Register handlers
+            const typedEvent = hooks
+                .session('valid-token')
+                .prefill()
+                .onSuccess(() => {
+                    // Handler registered
+                })
+                .onError('session-expired', () => {
+                    // Handler registered
+                });
+
+            // Verify handlers are registered
+            expect(typedEvent.hasSuccessHandler()).toBe(true);
+            expect(typedEvent.hasErrorHandler('session-expired')).toBe(true);
+
+            // Remove prefill (should clear handlers)
+            await hooks.session('valid-token').removePrefill();
+
+            // Verify handlers are cleared
+            expect(typedEvent.hasSuccessHandler()).toBe(false);
+            expect(typedEvent.hasErrorHandler('session-expired')).toBe(false);
+        });
     });
 });

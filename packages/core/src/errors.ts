@@ -143,7 +143,15 @@ export function isRpcError(error: any): error is RpcError<string> {
         error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
         (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
-        !getJitUtils().hasUnknownKeysFromArray(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type'])
+        !getJitUtils().hasUnknownKeysFromArray(error, [
+            'mion@isΣrrθr',
+            'id',
+            'message',
+            'publicMessage',
+            'errorData',
+            'type',
+            'statusCode',
+        ])
     );
 }
 
