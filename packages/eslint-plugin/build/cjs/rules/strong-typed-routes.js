@@ -1,48 +1,60 @@
 "use strict";
 const utils = require("@typescript-eslint/utils");
-function getRouterFunctionName(node, context) {
-  const routerFunctions = ["route", "hook", "headersHook"];
-  if (node.callee.type !== utils.AST_NODE_TYPES.Identifier || !routerFunctions.includes(node.callee.name)) {
-    return null;
-  }
-  const functionName = node.callee.name;
-  const sourceCode = context.sourceCode;
-  const program = sourceCode.ast;
+const ROUTER_FUNCTIONS = ["route", "hook", "headersHook"];
+const HANDLER_TYPES = ["Handler", "HeaderHandler"];
+function buildImportCache(program) {
+  const routerFunctions = /* @__PURE__ */ new Set();
+  const handlerTypes = /* @__PURE__ */ new Set();
   for (const statement of program.body) {
     if (statement.type === utils.AST_NODE_TYPES.ImportDeclaration) {
       const source = statement.source.value;
       if (source === "@mionkit/router" || source === "@mionkit/router/") {
         for (const specifier of statement.specifiers) {
-          if (specifier.type === utils.AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === utils.AST_NODE_TYPES.Identifier && specifier.imported.name === functionName) {
-            return functionName;
+          if (specifier.type === utils.AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === utils.AST_NODE_TYPES.Identifier) {
+            const name = specifier.imported.name;
+            if (ROUTER_FUNCTIONS.includes(name)) {
+              routerFunctions.add(name);
+            }
+            if (HANDLER_TYPES.includes(name)) {
+              handlerTypes.add(name);
+            }
           }
         }
       }
     }
   }
+  return { routerFunctions, handlerTypes };
+}
+function getRouterFunctionName(node, importCache) {
+  if (node.callee.type !== utils.AST_NODE_TYPES.Identifier) {
+    return null;
+  }
+  const functionName = node.callee.name;
+  if (importCache.routerFunctions.has(functionName)) {
+    return functionName;
+  }
   return null;
 }
-function findFunctionByName(name, context) {
+function buildFunctionCache(program) {
   var _a, _b, _c;
-  const sourceCode = context.sourceCode;
-  const program = sourceCode.ast;
+  const cache = /* @__PURE__ */ new Map();
   for (const statement of program.body) {
-    if (statement.type === utils.AST_NODE_TYPES.FunctionDeclaration && ((_a = statement.id) == null ? void 0 : _a.name) === name) {
-      return statement;
+    if (statement.type === utils.AST_NODE_TYPES.FunctionDeclaration && ((_a = statement.id) == null ? void 0 : _a.name)) {
+      cache.set(statement.id.name, statement);
     }
     if (statement.type === utils.AST_NODE_TYPES.VariableDeclaration) {
       for (const declarator of statement.declarations) {
-        if (declarator.id.type === utils.AST_NODE_TYPES.Identifier && declarator.id.name === name) {
+        if (declarator.id.type === utils.AST_NODE_TYPES.Identifier) {
           if (((_b = declarator.init) == null ? void 0 : _b.type) === utils.AST_NODE_TYPES.ArrowFunctionExpression || ((_c = declarator.init) == null ? void 0 : _c.type) === utils.AST_NODE_TYPES.FunctionExpression) {
-            return declarator.init;
+            cache.set(declarator.id.name, declarator.init);
           }
         }
       }
     }
   }
-  return null;
+  return cache;
 }
-function getHandlerFunction(node, _functionName, context) {
+function getHandlerFunction(node, functionCache) {
   const handlerIndex = 0;
   if (node.arguments.length <= handlerIndex) {
     return null;
@@ -52,12 +64,28 @@ function getHandlerFunction(node, _functionName, context) {
     return handlerArg;
   }
   if (handlerArg.type === utils.AST_NODE_TYPES.Identifier) {
-    return findFunctionByName(handlerArg.name, context);
+    return functionCache.get(handlerArg.name) ?? null;
   }
   return null;
 }
 function hasExplicitReturnType(func) {
   return func.returnType !== void 0;
+}
+function isPrimitiveLiteral(node) {
+  if (node.type === utils.AST_NODE_TYPES.Literal) {
+    const value = node.value;
+    if ("bigint" in node) {
+      return true;
+    }
+    return typeof value === "boolean" || typeof value === "string" || typeof value === "number" || value === null;
+  }
+  if (node.type === utils.AST_NODE_TYPES.Identifier && node.name === "undefined") {
+    return true;
+  }
+  if (node.type === utils.AST_NODE_TYPES.UnaryExpression && node.operator === "-" && node.argument.type === utils.AST_NODE_TYPES.Literal) {
+    return typeof node.argument.value === "number";
+  }
+  return false;
 }
 function validateParameterTypes(func) {
   const missingTypeParams = [];
@@ -80,8 +108,13 @@ function validateParameterTypes(func) {
         missingParamNodes.push(param);
       }
     } else if (param.type === utils.AST_NODE_TYPES.AssignmentPattern) {
-      if (!param.typeAnnotation) {
-        missingTypeParams.push(`parameter ${i + 1}`);
+      const hasTypeAnnotationOnPattern = param.typeAnnotation !== void 0;
+      const hasTypeAnnotationOnLeft = param.left.type === utils.AST_NODE_TYPES.Identifier && param.left.typeAnnotation !== void 0;
+      const hasTypeAnnotation = hasTypeAnnotationOnPattern || hasTypeAnnotationOnLeft;
+      const hasPrimitiveDefault = isPrimitiveLiteral(param.right);
+      if (!hasTypeAnnotation && !hasPrimitiveDefault) {
+        const paramName = param.left.type === utils.AST_NODE_TYPES.Identifier ? param.left.name : `parameter ${i + 1}`;
+        missingTypeParams.push(paramName);
         missingParamNodes.push(param);
       }
     } else if (!("typeAnnotation" in param) || !param.typeAnnotation) {
@@ -118,24 +151,24 @@ function getReturnTypeReportNode(func) {
   }
   return func;
 }
-function getHandlerTypeFromAnnotation(typeAnnotation, context) {
+function getHandlerTypeFromAnnotation(typeAnnotation, importCache) {
   if (typeAnnotation.typeAnnotation.type === utils.AST_NODE_TYPES.TSTypeReference) {
     const typeName = typeAnnotation.typeAnnotation.typeName;
     if (typeName.type === utils.AST_NODE_TYPES.Identifier) {
       const name = typeName.name;
-      if ((name === "Handler" || name === "HeaderHandler") && isImportedFromMionRouter(name, context)) {
+      if ((name === "Handler" || name === "HeaderHandler") && importCache.handlerTypes.has(name)) {
         return name;
       }
     }
   }
   return null;
 }
-function getHandlerTypeFromSatisfies(satisfiesExpression, context) {
+function getHandlerTypeFromSatisfies(satisfiesExpression, importCache) {
   if (satisfiesExpression.typeAnnotation.type === utils.AST_NODE_TYPES.TSTypeReference) {
     const typeName = satisfiesExpression.typeAnnotation.typeName;
     if (typeName.type === utils.AST_NODE_TYPES.Identifier) {
       const name = typeName.name;
-      if ((name === "Handler" || name === "HeaderHandler") && isImportedFromMionRouter(name, context)) {
+      if ((name === "Handler" || name === "HeaderHandler") && importCache.handlerTypes.has(name)) {
         return name;
       }
     }
@@ -161,23 +194,6 @@ function getHandlerTypeFromJSDoc(node, context) {
   }
   return null;
 }
-function isImportedFromMionRouter(name, context) {
-  const sourceCode = context.sourceCode;
-  const program = sourceCode.ast;
-  for (const statement of program.body) {
-    if (statement.type === utils.AST_NODE_TYPES.ImportDeclaration) {
-      const source = statement.source.value;
-      if (source === "@mionkit/router" || source === "@mionkit/router/") {
-        for (const specifier of statement.specifiers) {
-          if (specifier.type === utils.AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === utils.AST_NODE_TYPES.Identifier && specifier.imported.name === name) {
-            return true;
-          }
-        }
-      }
-    }
-  }
-  return false;
-}
 const rule = {
   meta: {
     type: "problem",
@@ -195,13 +211,21 @@ const rule = {
   },
   defaultOptions: [],
   create(context) {
+    let importCache = null;
+    let functionCache = null;
     return {
+      // Build caches once when we start processing the file
+      Program(node) {
+        importCache = buildImportCache(node);
+        functionCache = buildFunctionCache(node);
+      },
       CallExpression(node) {
-        const functionName = getRouterFunctionName(node, context);
+        if (!importCache || !functionCache) return;
+        const functionName = getRouterFunctionName(node, importCache);
         if (!functionName) {
           return;
         }
-        const handlerFunc = getHandlerFunction(node, functionName, context);
+        const handlerFunc = getHandlerFunction(node, functionCache);
         if (!handlerFunc) {
           return;
         }
@@ -229,10 +253,11 @@ const rule = {
       // Check variable declarations with type annotations or JSDoc tags
       VariableDeclarator(node) {
         var _a, _b, _c;
+        if (!importCache) return;
         if (node.id.type === utils.AST_NODE_TYPES.Identifier) {
           let handlerType = null;
           if (node.id.typeAnnotation) {
-            handlerType = getHandlerTypeFromAnnotation(node.id.typeAnnotation, context);
+            handlerType = getHandlerTypeFromAnnotation(node.id.typeAnnotation, importCache);
           }
           if (!handlerType && ((_a = node.parent) == null ? void 0 : _a.type) === utils.AST_NODE_TYPES.VariableDeclaration) {
             handlerType = getHandlerTypeFromJSDoc(node.parent, context);
@@ -244,7 +269,8 @@ const rule = {
       },
       // Check satisfies expressions
       TSSatisfiesExpression(node) {
-        const handlerType = getHandlerTypeFromSatisfies(node, context);
+        if (!importCache) return;
+        const handlerType = getHandlerTypeFromSatisfies(node, importCache);
         if (handlerType && (node.expression.type === utils.AST_NODE_TYPES.ArrowFunctionExpression || node.expression.type === utils.AST_NODE_TYPES.FunctionExpression)) {
           checkHandlerFunction(node.expression, handlerType, context);
         }

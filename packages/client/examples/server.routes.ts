@@ -30,7 +30,7 @@ const routes = {
         (
             ctx,
             h: HeadersSubset<'Authorization'>,
-            returnSession?: boolean
+            returnSession = false
         ): SessionInfo | void | RpcError<'not-authorized', NotAuthorizedData> => {
             const token = h.headers.Authorization;
             if (!token) {

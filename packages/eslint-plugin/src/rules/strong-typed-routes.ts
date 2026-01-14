@@ -7,99 +7,119 @@
 
 import {TSESTree, TSESLint, AST_NODE_TYPES} from '@typescript-eslint/utils';
 
+// List of router functions that should have strongly typed handlers
+const ROUTER_FUNCTIONS = ['route', 'hook', 'headersHook'] as const;
+// List of handler types that can be used with type annotations
+const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
+
 /**
- * Checks if a call expression is calling router functions from @mionkit/router
- * @param node The call expression node
- * @param context The ESLint context
- * @returns The function name if it's a router function from @mionkit/router, null otherwise
+ * Cache for imports from @mionkit/router - computed once per file
  */
-function getRouterFunctionName(node: TSESTree.CallExpression, context: TSESLint.RuleContext<any, any>): string | null {
-    // List of router functions that should have strongly typed handlers
-    const routerFunctions = ['route', 'hook', 'headersHook'];
+interface MionRouterImports {
+    /** Set of function names imported from @mionkit/router (route, hook, headersHook) */
+    routerFunctions: Set<string>;
+    /** Set of type names imported from @mionkit/router (Handler, HeaderHandler) */
+    handlerTypes: Set<string>;
+}
 
-    // Check if the callee is an identifier with one of the router function names
-    if (node.callee.type !== AST_NODE_TYPES.Identifier || !routerFunctions.includes(node.callee.name)) {
-        return null;
-    }
+/**
+ * Builds a cache of all imports from @mionkit/router
+ * This is called once per file in the Program visitor
+ */
+function buildImportCache(program: TSESTree.Program): MionRouterImports {
+    const routerFunctions = new Set<string>();
+    const handlerTypes = new Set<string>();
 
-    const functionName = node.callee.name;
-
-    // Get the source code to check imports
-    const sourceCode = context.sourceCode;
-    const program = sourceCode.ast;
-
-    // Look for import statements that import router functions from @mionkit/router
     for (const statement of program.body) {
         if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
             const source = statement.source.value;
             // Check for @mionkit/router package
             if (source === '@mionkit/router' || source === '@mionkit/router/') {
-                // Check if the function is imported
                 for (const specifier of statement.specifiers) {
                     if (
                         specifier.type === AST_NODE_TYPES.ImportSpecifier &&
-                        specifier.imported.type === AST_NODE_TYPES.Identifier &&
-                        specifier.imported.name === functionName
+                        specifier.imported.type === AST_NODE_TYPES.Identifier
                     ) {
-                        return functionName;
+                        const name = specifier.imported.name;
+                        if (ROUTER_FUNCTIONS.includes(name as (typeof ROUTER_FUNCTIONS)[number])) {
+                            routerFunctions.add(name);
+                        }
+                        if (HANDLER_TYPES.includes(name as (typeof HANDLER_TYPES)[number])) {
+                            handlerTypes.add(name);
+                        }
                     }
                 }
             }
         }
     }
 
+    return {routerFunctions, handlerTypes};
+}
+
+/**
+ * Checks if a call expression is calling router functions from @mionkit/router
+ * Uses the cached import information for performance
+ */
+function getRouterFunctionName(node: TSESTree.CallExpression, importCache: MionRouterImports): string | null {
+    // Check if the callee is an identifier with one of the router function names
+    if (node.callee.type !== AST_NODE_TYPES.Identifier) {
+        return null;
+    }
+
+    const functionName = node.callee.name;
+
+    // Check if this function is imported from @mionkit/router
+    if (importCache.routerFunctions.has(functionName)) {
+        return functionName;
+    }
+
     return null;
 }
 
 /**
- * Finds a function declaration or variable assignment with function expression by name
- * @param name The function name to search for
- * @param context The ESLint context
- * @returns The function node or null
+ * Cache for top-level function declarations and variable function expressions
+ * This avoids iterating through the program body for each function reference
  */
-function findFunctionByName(
-    name: string,
-    context: TSESLint.RuleContext<any, any>
-): TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration | null {
-    const sourceCode = context.sourceCode;
-    const program = sourceCode.ast;
+type FunctionCache = Map<string, TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration>;
 
-    // Search through all top-level statements
+/**
+ * Builds a cache of all top-level function declarations and function variable assignments
+ * This is called once per file in the Program visitor
+ */
+function buildFunctionCache(program: TSESTree.Program): FunctionCache {
+    const cache: FunctionCache = new Map();
+
     for (const statement of program.body) {
         // Check function declarations
-        if (statement.type === AST_NODE_TYPES.FunctionDeclaration && statement.id?.name === name) {
-            return statement;
+        if (statement.type === AST_NODE_TYPES.FunctionDeclaration && statement.id?.name) {
+            cache.set(statement.id.name, statement);
         }
 
         // Check variable declarations
         if (statement.type === AST_NODE_TYPES.VariableDeclaration) {
             for (const declarator of statement.declarations) {
-                if (declarator.id.type === AST_NODE_TYPES.Identifier && declarator.id.name === name) {
+                if (declarator.id.type === AST_NODE_TYPES.Identifier) {
                     if (
                         declarator.init?.type === AST_NODE_TYPES.ArrowFunctionExpression ||
                         declarator.init?.type === AST_NODE_TYPES.FunctionExpression
                     ) {
-                        return declarator.init;
+                        cache.set(declarator.id.name, declarator.init);
                     }
                 }
             }
         }
     }
 
-    return null;
+    return cache;
 }
 
 /**
  * Gets the handler function from a router function call
- * @param node The call expression node
- * @param functionName The name of the router function
- * @param context The ESLint context
- * @returns The handler function node or null
+ * Uses the cached function information for performance
  */
 function getHandlerFunction(
     node: TSESTree.CallExpression,
-    _functionName: string, // kept for future use if different handler functions have different signatures
-    context: TSESLint.RuleContext<any, any>
+    functionCache: FunctionCache
 ): TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration | null {
     // Handler is always the first parameter for route, hook, and headersHook
     const handlerIndex = 0;
@@ -115,9 +135,9 @@ function getHandlerFunction(
         return handlerArg;
     }
 
-    // Handle function references (identifiers)
+    // Handle function references (identifiers) - use cached function lookup
     if (handlerArg.type === AST_NODE_TYPES.Identifier) {
-        return findFunctionByName(handlerArg.name, context);
+        return functionCache.get(handlerArg.name) ?? null;
     }
 
     return null;
@@ -132,6 +152,32 @@ function hasExplicitReturnType(
     func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration
 ): boolean {
     return func.returnType !== undefined;
+}
+
+/**
+ * Checks if a node represents a primitive literal value
+ * @param node The node to check
+ * @returns True if the node is a primitive literal (boolean, string, number, null, undefined, bigint)
+ */
+function isPrimitiveLiteral(node: TSESTree.Node): boolean {
+    // Check for boolean, string, number, null, or bigint literals
+    if (node.type === AST_NODE_TYPES.Literal) {
+        const value = node.value;
+        // BigInt literals have a 'bigint' property and value is null
+        if ('bigint' in node) {
+            return true;
+        }
+        return typeof value === 'boolean' || typeof value === 'string' || typeof value === 'number' || value === null;
+    }
+    // Check for undefined identifier
+    if (node.type === AST_NODE_TYPES.Identifier && node.name === 'undefined') {
+        return true;
+    }
+    // Check for negative numbers (UnaryExpression with -)
+    if (node.type === AST_NODE_TYPES.UnaryExpression && node.operator === '-' && node.argument.type === AST_NODE_TYPES.Literal) {
+        return typeof node.argument.value === 'number';
+    }
+    return false;
 }
 
 /**
@@ -170,9 +216,20 @@ function validateParameterTypes(
                 missingParamNodes.push(param);
             }
         } else if (param.type === AST_NODE_TYPES.AssignmentPattern) {
-            // For default parameters, check the left side
-            if (!param.typeAnnotation) {
-                missingTypeParams.push(`parameter ${i + 1}`);
+            // For default parameters (e.g., `name = 'default'` or `name: string = 'default'`), check if:
+            // 1. There's an explicit type annotation on the AssignmentPattern itself, OR
+            // 2. There's an explicit type annotation on the left side (for `name: Type = value` pattern), OR
+            // 3. The default value is a primitive literal (type can be inferred)
+            const hasTypeAnnotationOnPattern = param.typeAnnotation !== undefined;
+            const hasTypeAnnotationOnLeft =
+                param.left.type === AST_NODE_TYPES.Identifier && param.left.typeAnnotation !== undefined;
+            const hasTypeAnnotation = hasTypeAnnotationOnPattern || hasTypeAnnotationOnLeft;
+            const hasPrimitiveDefault = isPrimitiveLiteral(param.right);
+
+            if (!hasTypeAnnotation && !hasPrimitiveDefault) {
+                // Need explicit type annotation since type cannot be inferred from default value
+                const paramName = param.left.type === AST_NODE_TYPES.Identifier ? param.left.name : `parameter ${i + 1}`;
+                missingTypeParams.push(paramName);
                 missingParamNodes.push(param);
             }
         }
@@ -228,19 +285,17 @@ function getReturnTypeReportNode(
 
 /**
  * Checks if a type annotation references Handler or HeaderHandler from @mionkit/router
- * @param typeAnnotation The type annotation node
- * @param context The ESLint context
- * @returns The handler type if it matches, null otherwise
+ * Uses the cached import information for performance
  */
 function getHandlerTypeFromAnnotation(
     typeAnnotation: TSESTree.TSTypeAnnotation,
-    context: TSESLint.RuleContext<any, any>
+    importCache: MionRouterImports
 ): 'Handler' | 'HeaderHandler' | null {
     if (typeAnnotation.typeAnnotation.type === AST_NODE_TYPES.TSTypeReference) {
         const typeName = typeAnnotation.typeAnnotation.typeName;
         if (typeName.type === AST_NODE_TYPES.Identifier) {
             const name = typeName.name;
-            if ((name === 'Handler' || name === 'HeaderHandler') && isImportedFromMionRouter(name, context)) {
+            if ((name === 'Handler' || name === 'HeaderHandler') && importCache.handlerTypes.has(name)) {
                 return name as 'Handler' | 'HeaderHandler';
             }
         }
@@ -250,19 +305,17 @@ function getHandlerTypeFromAnnotation(
 
 /**
  * Checks if a satisfies expression references Handler or HeaderHandler from @mionkit/router
- * @param satisfiesExpression The satisfies expression node
- * @param context The ESLint context
- * @returns The handler type if it matches, null otherwise
+ * Uses the cached import information for performance
  */
 function getHandlerTypeFromSatisfies(
     satisfiesExpression: TSESTree.TSSatisfiesExpression,
-    context: TSESLint.RuleContext<any, any>
+    importCache: MionRouterImports
 ): 'Handler' | 'HeaderHandler' | null {
     if (satisfiesExpression.typeAnnotation.type === AST_NODE_TYPES.TSTypeReference) {
         const typeName = satisfiesExpression.typeAnnotation.typeName;
         if (typeName.type === AST_NODE_TYPES.Identifier) {
             const name = typeName.name;
-            if ((name === 'Handler' || name === 'HeaderHandler') && isImportedFromMionRouter(name, context)) {
+            if ((name === 'Handler' || name === 'HeaderHandler') && importCache.handlerTypes.has(name)) {
                 return name as 'Handler' | 'HeaderHandler';
             }
         }
@@ -304,35 +357,6 @@ function getHandlerTypeFromJSDoc(
     return null;
 }
 
-/**
- * Checks if a name is imported from @mionkit/router
- * @param name The identifier name to check
- * @param context The ESLint context
- * @returns True if imported from @mionkit/router
- */
-function isImportedFromMionRouter(name: string, context: TSESLint.RuleContext<any, any>): boolean {
-    const sourceCode = context.sourceCode;
-    const program = sourceCode.ast;
-
-    for (const statement of program.body) {
-        if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
-            const source = statement.source.value;
-            if (source === '@mionkit/router' || source === '@mionkit/router/') {
-                for (const specifier of statement.specifiers) {
-                    if (
-                        specifier.type === AST_NODE_TYPES.ImportSpecifier &&
-                        specifier.imported.type === AST_NODE_TYPES.Identifier &&
-                        specifier.imported.name === name
-                    ) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    return false;
-}
-
 const rule: TSESLint.RuleModule<
     'missingReturnType' | 'missingParamTypes' | 'missingReturnTypeRouter' | 'missingParamTypesRouter',
     []
@@ -352,14 +376,25 @@ const rule: TSESLint.RuleModule<
     },
     defaultOptions: [],
     create(context) {
+        // Caches built once per file for performance
+        let importCache: MionRouterImports | null = null;
+        let functionCache: FunctionCache | null = null;
+
         return {
+            // Build caches once when we start processing the file
+            Program(node: TSESTree.Program) {
+                importCache = buildImportCache(node);
+                functionCache = buildFunctionCache(node);
+            },
             CallExpression(node: TSESTree.CallExpression) {
-                const functionName = getRouterFunctionName(node, context);
+                if (!importCache || !functionCache) return;
+
+                const functionName = getRouterFunctionName(node, importCache);
                 if (!functionName) {
                     return;
                 }
 
-                const handlerFunc = getHandlerFunction(node, functionName, context);
+                const handlerFunc = getHandlerFunction(node, functionCache);
                 if (!handlerFunc) {
                     return;
                 }
@@ -391,12 +426,14 @@ const rule: TSESLint.RuleModule<
             },
             // Check variable declarations with type annotations or JSDoc tags
             VariableDeclarator(node: TSESTree.VariableDeclarator) {
+                if (!importCache) return;
+
                 if (node.id.type === AST_NODE_TYPES.Identifier) {
                     let handlerType: 'Handler' | 'HeaderHandler' | 'HookHandler' | null = null;
 
                     // Check for type annotation
                     if (node.id.typeAnnotation) {
-                        handlerType = getHandlerTypeFromAnnotation(node.id.typeAnnotation, context);
+                        handlerType = getHandlerTypeFromAnnotation(node.id.typeAnnotation, importCache);
                     }
 
                     // Check for JSDoc tags on the variable declaration
@@ -415,7 +452,9 @@ const rule: TSESLint.RuleModule<
             },
             // Check satisfies expressions
             TSSatisfiesExpression(node: TSESTree.TSSatisfiesExpression) {
-                const handlerType = getHandlerTypeFromSatisfies(node, context);
+                if (!importCache) return;
+
+                const handlerType = getHandlerTypeFromSatisfies(node, importCache);
                 if (
                     handlerType &&
                     (node.expression.type === AST_NODE_TYPES.ArrowFunctionExpression ||

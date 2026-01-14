@@ -188,6 +188,55 @@ ruleTester.run('strong-typed-routes', rule, {
                 }
             `,
         },
+        // Valid with default boolean parameter (primitive - type can be inferred)
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, enabled = true): string => enabled ? 'yes' : 'no');
+            `,
+        },
+        // Valid with default string parameter (primitive - type can be inferred)
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, name = 'default'): string => \`hello \${name}\`);
+            `,
+        },
+        // Valid with default number parameter (primitive - type can be inferred)
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, count = 0): number => count + 1);
+            `,
+        },
+        // Valid with default null parameter (primitive - type can be inferred)
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, value = null): string => value ?? 'default');
+            `,
+        },
+        // Valid with default negative number parameter
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, offset = -1): number => offset);
+            `,
+        },
+        // Valid with default parameter and explicit type (still valid)
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, enabled: boolean = true): string => enabled ? 'yes' : 'no');
+            `,
+        },
+        // Valid headersHook with default boolean parameter
+        {
+            code: `
+                import { headersHook } from '@mionkit/router';
+                headersHook((ctx, h: {headers: {token: string}}, returnSession = false): void => { console.log(returnSession); });
+            `,
+        },
     ],
     invalid: [
         // Missing return type
@@ -444,6 +493,67 @@ ruleTester.run('strong-typed-routes', rule, {
             errors: [
                 {
                     messageId: 'missingParamTypes',
+                },
+            ],
+        },
+        // Default parameter with non-primitive value (object) requires explicit type
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, options = {}): string => 'result');
+            `,
+            errors: [
+                {
+                    messageId: 'missingParamTypesRouter',
+                },
+            ],
+        },
+        // Default parameter with non-primitive value (array) requires explicit type
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, items = []): string => 'result');
+            `,
+            errors: [
+                {
+                    messageId: 'missingParamTypesRouter',
+                },
+            ],
+        },
+        // Default parameter with non-primitive value (function call) requires explicit type
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, date = new Date()): string => 'result');
+            `,
+            errors: [
+                {
+                    messageId: 'missingParamTypesRouter',
+                },
+            ],
+        },
+        // Default parameter with non-primitive value (identifier/variable) requires explicit type
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                const defaultValue = {foo: 'bar'};
+                route((ctx, options = defaultValue): string => 'result');
+            `,
+            errors: [
+                {
+                    messageId: 'missingParamTypesRouter',
+                },
+            ],
+        },
+        // Mix of valid primitive default and invalid non-primitive default
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                route((ctx, enabled = true, options = {}): string => 'result');
+            `,
+            errors: [
+                {
+                    messageId: 'missingParamTypesRouter',
                 },
             ],
         },
