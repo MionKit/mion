@@ -6,21 +6,13 @@
  * ######## */
 
 import type {ResponseBody} from '@mionkit/router';
-import {ClientOptions, HookSubRequest, SubRequest, RouteSubRequest, RequestErrors} from './types';
+import {ClientOptions, HookSubRequest, SubRequest, RouteSubRequest, RequestErrors, PrefilledHooksCache} from './types';
 import type {RunTypeError} from '@mionkit/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {validateSubRequests} from './validation';
 import {serializeRequestBody, deserializeResponseBody} from './serializer';
-
-/** In-memory cache for prefilled hook subrequests (keyed by baseURL:hookId) */
-const prefilledHooksCache = new Map<string, SubRequest<any>>();
-
-/** Clears the prefilled hooks cache (useful for testing) */
-export function clearPrefilledHooksCache(): void {
-    prefilledHooksCache.clear();
-}
 
 export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
     readonly path: string;
@@ -29,6 +21,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     response: Response | undefined;
     constructor(
         public readonly options: ClientOptions,
+        private readonly prefilledHooksCache: PrefilledHooksCache,
         public readonly route?: RR,
         public readonly hooks?: HookRequestsList
     ) {
@@ -224,7 +217,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             const subRequest = this.subRequestList[id];
             if (subRequest) return;
             const cacheKey = this.getPrefilledHookCacheKey(id);
-            const cachedSubRequest = prefilledHooksCache.get(cacheKey);
+            const cachedSubRequest = this.prefilledHooksCache.get(cacheKey);
             if (cachedSubRequest) {
                 // Clone the subRequest to avoid mutating the cached version
                 // (each request needs its own isResolved state)
@@ -256,7 +249,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                 return;
             }
             const cacheKey = this.getPrefilledHookCacheKey(id);
-            prefilledHooksCache.set(cacheKey, subRequest);
+            this.prefilledHooksCache.set(cacheKey, subRequest);
         });
     }
 
@@ -264,7 +257,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     private removePrefilledHooks(): void {
         Object.keys(this.subRequestList).forEach((id) => {
             const cacheKey = this.getPrefilledHookCacheKey(id);
-            prefilledHooksCache.delete(cacheKey);
+            this.prefilledHooksCache.delete(cacheKey);
         });
     }
 

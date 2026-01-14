@@ -171,3 +171,5 @@ export type SuccessClientResponse<RS extends RouteSubRequest<any>, RHList extend
     SuccessResponse<RS>,
     ...SuccessResponses<RHList>,
 ];
+
+export type PrefilledHooksCache = Map<string, SubRequest<any>>;
