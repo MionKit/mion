@@ -10,6 +10,7 @@ import {type MethodWithJitFns, RpcError, isRpcError, routesCache, MION_ROUTES, H
 import type {MionClientRequest} from './request';
 
 // ############# SERIALIZATION #############
+type BodyType = 'J' | 'B';
 
 /**
  * Serializes the request body and returns it as a string.
@@ -19,9 +20,9 @@ import type {MionClientRequest} from './request';
  * Use extractRequestHeaders() to get headers to send as HTTP headers.
  */
 export function serializeRequestBody(req: MionClientRequest<any, any>): string {
-    const bodyType: 'J' | 'B' = 'J'; // JSON for now, binary later
+    const bodyType: BodyType = 'J'; // JSON for now, binary later
 
-    switch (bodyType) {
+    switch (bodyType as BodyType) {
         case 'J': {
             // json
             return stringifyBody(req);

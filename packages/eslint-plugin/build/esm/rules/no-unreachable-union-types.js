@@ -219,3 +219,4 @@ const rule = {
 export {
   rule as default
 };
+//# sourceMappingURL=no-unreachable-union-types.js.map

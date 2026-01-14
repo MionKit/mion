@@ -220,3 +220,4 @@ const rule = {
 export {
   rule as default
 };
+//# sourceMappingURL=no-mixed-union-properties.js.map

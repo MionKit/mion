@@ -30,6 +30,9 @@ const entry: Record<string, string> = {
 };
 
 export default defineConfig({
+    esbuild: {
+        legalComments: 'none',
+    },
     plugins: [
         dts({
             outDir: ['build/cjs', 'build/esm'],
@@ -44,6 +47,7 @@ export default defineConfig({
         },
         outDir: 'build',
         emptyOutDir: true,
+        sourcemap: true,
         minify: false,
         rollupOptions: {
             output: [

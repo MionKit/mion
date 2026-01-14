@@ -31,6 +31,12 @@ const entry: Record<string, string> = {
 };
 
 export default defineConfig({
+    esbuild: {
+        legalComments: 'none',
+        minifyIdentifiers: false,
+        minifyWhitespace: true,
+        minifySyntax: true,
+    },
     plugins: [
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
@@ -46,7 +52,8 @@ export default defineConfig({
         },
         outDir: '.dist',
         emptyOutDir: true,
-        minify: false,
+        sourcemap: true,
+        minify: 'esbuild',
         rollupOptions: {
             output: [
                 {
