@@ -35,9 +35,15 @@ const entry: Record<string, string> = {
 };
 
 export default defineConfig({
+    esbuild: {
+        legalComments: 'none',
+    },
     plugins: [
         deepkitType({
             tsConfig: resolve(__dirname, 'tsconfig.json'),
+            compilerOptions: {
+                sourceMap: true,
+            },
         }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
@@ -53,6 +59,7 @@ export default defineConfig({
         },
         outDir: '.dist',
         emptyOutDir: true,
+        sourcemap: true,
         minify: false,
         rollupOptions: {
             output: [

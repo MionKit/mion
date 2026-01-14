@@ -219,3 +219,4 @@ const rule = {
   }
 };
 module.exports = rule;
+//# sourceMappingURL=no-mixed-union-properties.js.map

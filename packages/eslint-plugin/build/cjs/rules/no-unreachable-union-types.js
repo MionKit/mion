@@ -218,3 +218,4 @@ const rule = {
   }
 };
 module.exports = rule;
+//# sourceMappingURL=no-unreachable-union-types.js.map
