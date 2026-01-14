@@ -14,4 +14,4 @@ export * from './src/request';
 export * from './src/client';
 export * from './src/typedPromise';
 export * from './src/typedEvent';
-export * from './src/errorRegistry';
+export * from './src/handlersRegistry';

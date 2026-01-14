@@ -6,15 +6,15 @@
  * ######## */
 
 import type {RpcError} from '@mionkit/core';
-import type {ErrorRegistry} from './errorRegistry';
+import type {HandlersRegistry} from './handlersRegistry';
 import type {ErrorHandler, SuccessHandler} from './types';
 
 /**
  * Persistent event emitter for hook success and error handling.
- * This is a passive container - the Client triggers handler execution via ErrorRegistry.
+ * This is a passive container - the Client triggers handler execution via HandlersRegistry.
  *
- * TypedEvent stores handlers in the ErrorRegistry, where they persist across requests.
- * When a hook succeeds or fails, the Client checks the ErrorRegistry and executes the appropriate handler.
+ * TypedEvent stores handlers in the HandlersRegistry, where they persist across requests.
+ * When a hook succeeds or fails, the Client checks the HandlersRegistry and executes the appropriate handler.
  *
  * @typeParam S - The success type returned by the hook
  * @typeParam E - Union of RpcError types (e.g., RpcError<'not-authorized', void> | RpcError<'rate-limited', {retryAfter: number}>)
@@ -23,18 +23,18 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
     /**
      * Create a TypedEvent linked to a specific hook.
      * @param handlerId - The unique identifier for the hook (e.g., 'auth', 'rateLimit')
-     * @param registry - The shared ErrorRegistry instance
+     * @param registry - The shared HandlersRegistry instance
      */
     constructor(
         private readonly handlerId: string,
-        private readonly registry: ErrorRegistry
+        private readonly registry: HandlersRegistry
     ) {}
 
     // ############# Public Methods (User-facing, chainable) #############
 
     /**
      * Register a persistent success handler for this hook.
-     * Handler is stored in ErrorRegistry and called by Client for ALL future requests
+     * Handler is stored in HandlersRegistry and called by Client for ALL future requests
      * that succeed with this hook.
      *
      * @param handler - The callback to execute when the hook succeeds
@@ -46,7 +46,7 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
     }
 
     /**
-     * Remove a previously registered success handler from ErrorRegistry.
+     * Remove a previously registered success handler from HandlersRegistry.
      * After calling this, successful results will no longer be delivered.
      *
      * @returns this TypedEvent for chaining
@@ -58,7 +58,7 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
 
     /**
      * Register a persistent error handler for this hook.
-     * Handler is stored in ErrorRegistry and called by Client for ALL future requests
+     * Handler is stored in HandlersRegistry and called by Client for ALL future requests
      * that fail with this error type from this hook.
      * The error parameter is fully typed including errorData.
      *
@@ -72,7 +72,7 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
     }
 
     /**
-     * Remove a previously registered error handler from ErrorRegistry.
+     * Remove a previously registered error handler from HandlersRegistry.
      * After calling this, the error will no longer be handled by this hook's handler.
      *
      * @param errorType - The error type to stop handling

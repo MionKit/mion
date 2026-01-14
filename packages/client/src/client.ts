@@ -21,7 +21,7 @@ import {registerErrorDeserializers, RpcError} from '@mionkit/core';
 import {getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
 import type {RunTypeError} from '@mionkit/core';
-import {ErrorRegistry} from './errorRegistry';
+import {HandlersRegistry} from './handlersRegistry';
 import {TypedPromise} from './typedPromise';
 import {TypedEvent} from './typedEvent';
 
@@ -46,7 +46,7 @@ export function initClient<RM extends RemoteApi>(
 // state is managed inside a class in case multiple clients are required (using multiple apis)
 export class MionClient {
     /** Shared registry for persistent hook error handlers */
-    readonly errorRegistry: ErrorRegistry = new ErrorRegistry();
+    readonly handlersRegistry = new HandlersRegistry();
 
     constructor(private clientOptions: ClientOptions) {}
 
@@ -54,7 +54,7 @@ export class MionClient {
      * Executes a route call and distributes results to the TypedPromise.
      * This is the main orchestration method that:
      * 1. Executes the request via MionRequest
-     * 2. Processes hook errors first (via ErrorRegistry for suppression)
+     * 2. Processes hook errors first (via HandlersRegistry for suppression)
      * 3. Processes route result/error
      * 4. Calls finally handler
      */
@@ -115,14 +115,14 @@ export class MionClient {
      */
     private processHookSuccess(hookSubRequests: HookSubRequest<any>[]): void {
         for (const hook of hookSubRequests) {
-            // Execute success handler if registered in ErrorRegistry
-            this.errorRegistry.executeSuccessHandler(hook.id, hook.result);
+            // Execute success handler if registered in HandlersRegistry
+            this.handlersRegistry.executeSuccessHandler(hook.id, hook.result);
         }
     }
 
     /**
-     * Process hook errors and check if they're handled by ErrorRegistry.
-     * If handled by ErrorRegistry, mark them. Otherwise pass to TypedPromise handlers.
+     * Process hook errors and check if they're handled by HandlersRegistry.
+     * If handled by HandlersRegistry, mark them. Otherwise pass to TypedPromise handlers.
      */
     private processHookErrors(
         hookSubRequests: HookSubRequest<any>[],
@@ -132,13 +132,13 @@ export class MionClient {
         for (const hook of hookSubRequests) {
             const hookError = errors.get(hook.id);
             if (hookError) {
-                // Check if hook has onError handler in ErrorRegistry
-                const handled = this.errorRegistry.executeHandler(hook.id, hookError);
+                // Check if hook has onError handler in HandlersRegistry
+                const handled = this.handlersRegistry.executeHandler(hook.id, hookError);
                 if (handled) {
                     // Mark as handled - will suppress catchUnknown and catchError
                     typedPromise.markErrorHandled(hookError.type);
                 } else {
-                    // Not handled by ErrorRegistry - try TypedPromise handlers
+                    // Not handled by HandlersRegistry - try TypedPromise handlers
                     const hookMethodId = hook.pointer.join('.');
                     typedPromise.handleError(hookError, hookMethodId);
                 }
@@ -166,7 +166,7 @@ export class MionClient {
      * Called when client is destroyed.
      */
     destroy(): void {
-        this.errorRegistry.clearAll();
+        this.handlersRegistry.clearAll();
     }
 }
 
@@ -197,8 +197,8 @@ class MethodProxy {
                  * - onError handlers called for ALL future requests that fail with specific error types
                  */
                 prefill: (): TypedEvent<any, any> => {
-                    // Create TypedEvent linked to this hook's ID and the shared ErrorRegistry
-                    const typedEvent = new TypedEvent<any, any>(handlerId, this.client.errorRegistry);
+                    // Create TypedEvent linked to this hook's ID and the shared HandlersRegistry
+                    const typedEvent = new TypedEvent<any, any>(handlerId, this.client.handlersRegistry);
 
                     // Execute validation and storage asynchronously
                     this.client.prefill(subRequest).catch((errors) => {
@@ -216,8 +216,8 @@ class MethodProxy {
                  */
                 removePrefill: (): Promise<void> => {
                     // Clear error handlers for this hook from the registry
-                    this.client.errorRegistry.clearHandlers(handlerId);
-                    return this.client.removePrefill(subRequest).catch((errors) => Promise.reject(findError(subRequest, errors)));
+                    this.client.handlersRegistry.clearHandlers(handlerId);
+                    return this.client.removePrefill(subRequest);
                 },
 
                 /**

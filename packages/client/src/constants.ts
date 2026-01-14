@@ -9,7 +9,6 @@ import {ClientOptions} from './types';
 
 export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
     baseURL: '',
-    storage: 'localStorage',
     fetchOptions: {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},

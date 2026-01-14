@@ -21,10 +21,11 @@ const routes = {
     auth: headersHook((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
-    // Hook that returns session info on every request
+    // Hook that returns session info on every request (optional param for flexibility in tests)
     session: hook(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        (ctx, sessionToken: string): SessionInfo | RpcError<'session-expired'> => {
+        (ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
+            if (!sessionToken) return null;
             if (sessionToken === 'expired') {
                 return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});
             }
