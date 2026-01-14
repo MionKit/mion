@@ -82,7 +82,7 @@
     "packages/codegen",
     "packages/core",
     "packages/eslint-plugin",
-    "packages/formats",
+    "packages/type-formats",
     "packages/gcloud",
     "packages/http",
     "packages/quick-start",
