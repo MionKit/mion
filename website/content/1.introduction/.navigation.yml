@@ -1,4 +1,4 @@
 title: Introduction
-navigation:
-  redirect: /introduction/about-mion
+navigation: 
   icon: icon-park-outline:home
+  redirect: /introduction/about-mion
