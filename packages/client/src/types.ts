@@ -11,11 +11,8 @@ import type {PublicHeadersHook, PublicHook, RemoteApi, PublicRoute} from '@mionk
 import type {TypedPromise} from './typedPromise';
 import type {TypedEvent} from './typedEvent';
 
-export type StorageType = 'localStorage' | 'sessionStorage';
-
 export type ClientOptions = {
     baseURL: string;
-    storage: StorageType;
     fetchOptions: RequestInit;
 
     // ############# ROUTER OPTIONS (should match router options) #############
@@ -88,7 +85,6 @@ export interface SubRequest<PH extends PublicHandler> {
     result?: HandlerSuccessResponse<PH>;
     error?: HandlerFailResponse<PH>;
     serializedParams?: any[];
-    // note this type can't contain functions, so it can be stored/restored from localStorage
 }
 
 /** structure returned from the proxy, containing info of the remote route to execute
@@ -124,7 +120,7 @@ export interface HookSubRequest<PH extends PublicHandler> extends SubRequest<PH>
     typeErrors: () => Promise<RunTypeError[]>;
     /**
      * Prefills Hook's parameters for any future request and returns TypedEvent for persistent event handling.
-     * Parameters are validated, serialized, and persisted in local storage for future requests.
+     * Parameters are validated and serialized for future requests.
      * The TypedEvent allows registering:
      * - onSuccess handlers called for ALL future successful requests from this hook
      * - onError handlers called for ALL future requests that fail with specific error types

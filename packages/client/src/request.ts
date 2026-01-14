@@ -10,10 +10,17 @@ import {ClientOptions, HookSubRequest, SubRequest, RouteSubRequest, RequestError
 import type {RunTypeError} from '@mionkit/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
-import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {validateSubRequests} from './validation';
 import {serializeRequestBody, deserializeResponseBody} from './serializer';
+
+/** In-memory cache for prefilled hook subrequests (keyed by baseURL:hookId) */
+const prefilledHooksCache = new Map<string, SubRequest<any>>();
+
+/** Clears the prefilled hooks cache (useful for testing) */
+export function clearPrefilledHooksCache(): void {
+    prefilledHooksCache.clear();
+}
 
 export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
     readonly path: string;
@@ -40,7 +47,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             const subRequestIds = Object.keys(this.subRequestList);
             await fetchRemoteMethodsMetadata(subRequestIds, this.options);
 
-            this.restorePersistedSubRequest(errors);
+            this.restorePrefilledHooks(errors);
             if (errors.size) return Promise.reject(errors);
 
             validateSubRequests(subRequestIds, this, errors);
@@ -152,7 +159,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
             serializeRequestBody(this);
 
-            this.persistedSubRequest(errors);
+            this.storePrefilledHooks(errors);
             if (errors.size) return Promise.reject(errors);
 
             return;
@@ -167,9 +174,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     async removePrefill(subRequests?: SubRequest<any>[]): Promise<void> {
         if (subRequests) subRequests.forEach((subRequest) => this.addSubRequest(subRequest));
 
-        const errors: RequestErrors = new Map();
-        this.removePersistedSubRequest(errors);
-        if (errors.size) return Promise.reject(errors);
+        this.removePrefilledHooks();
     }
 
     addSubRequest(subRequest: SubRequest<any>) {
@@ -201,8 +206,8 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         return respBody[id];
     }
 
-    // subRequests must be already validated and serialized (so only valid requests are stored)
-    private restorePersistedSubRequest(errors: RequestErrors): void {
+    // Restore prefilled hooks from in-memory cache
+    private restorePrefilledHooks(errors: RequestErrors): void {
         const methodMeta = routesCache.getMetadata(this.requestId);
         if (!methodMeta) {
             errors.set(
@@ -218,78 +223,53 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         missingIds.forEach((id) => {
             const subRequest = this.subRequestList[id];
             if (subRequest) return;
-            const storageKey = this.getSubRequestStorageKey(id);
-            const jsonValue = localStorage.getItem(storageKey);
-            if (!jsonValue) return;
-            try {
-                const restoredSubRequest = JSON.parse(jsonValue);
-                this.addSubRequest(restoredSubRequest);
-            } catch (err: any) {
-                localStorage.removeItem(storageKey);
-                errors.set(
-                    id,
-                    new RpcError({
-                        type: 'reading-persisted-request-from-storage',
-                        publicMessage: `Error reading persisted request ${id}: ${err?.message}`,
-                    })
-                );
+            const cacheKey = this.getPrefilledHookCacheKey(id);
+            const cachedSubRequest = prefilledHooksCache.get(cacheKey);
+            if (cachedSubRequest) {
+                // Clone the subRequest to avoid mutating the cached version
+                // (each request needs its own isResolved state)
+                const clonedSubRequest: SubRequest<any> = {
+                    ...cachedSubRequest,
+                    isResolved: false,
+                    result: undefined,
+                    error: undefined,
+                };
+                this.addSubRequest(clonedSubRequest);
             }
         });
-        return;
     }
 
-    private persistedSubRequest(errors: RequestErrors): void {
+    // Store prefilled hooks in in-memory cache
+    private storePrefilledHooks(errors: RequestErrors): void {
         Object.keys(this.subRequestList).forEach((id) => {
             const subRequest = this.subRequestList[id];
             const methodMeta = routesCache.getMetadata(id);
             if (!methodMeta) throw new Error(`Remote method ${id} not found.`);
             if (methodMeta.type === HandlerType.route) {
-                errors[id] = new RpcError({
-                    type: 'routes-cant-be-persisted',
-                    publicMessage: `Remote method ${id} is a route and can't be persisted.`,
-                });
+                errors.set(
+                    id,
+                    new RpcError({
+                        type: 'routes-cant-be-prefilled',
+                        publicMessage: `Remote method ${id} is a route and can't be prefilled.`,
+                    })
+                );
                 return;
             }
-            const storageKey = this.getSubRequestStorageKey(id);
-            try {
-                const jsonSubRequest = JSON.stringify(subRequest);
-                localStorage.setItem(storageKey, jsonSubRequest);
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (e) {
-                localStorage.removeItem(storageKey);
-                errors.set(
-                    id,
-                    new RpcError({
-                        type: 'adding-persisting-request-to-storage',
-                        publicMessage: `Error persisting request ${id}.`,
-                    })
-                );
-            }
+            const cacheKey = this.getPrefilledHookCacheKey(id);
+            prefilledHooksCache.set(cacheKey, subRequest);
         });
-        return;
     }
 
-    private removePersistedSubRequest(errors: RequestErrors): void {
+    // Remove prefilled hooks from in-memory cache
+    private removePrefilledHooks(): void {
         Object.keys(this.subRequestList).forEach((id) => {
-            try {
-                const storageKey = this.getSubRequestStorageKey(id);
-                localStorage.removeItem(storageKey);
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (e) {
-                errors.set(
-                    id,
-                    new RpcError({
-                        type: 'removing-persisted-request-from-storage',
-                        publicMessage: `Error removing persisted request ${id}.`,
-                    })
-                );
-            }
+            const cacheKey = this.getPrefilledHookCacheKey(id);
+            prefilledHooksCache.delete(cacheKey);
         });
-        return;
     }
 
-    private getSubRequestStorageKey(id: string) {
-        return `${STORAGE_KEY}:remote-request-preset:${this.options.baseURL}:x${id}`;
+    private getPrefilledHookCacheKey(id: string): string {
+        return `${this.options.baseURL}:${id}`;
     }
 }
 
@@ -326,8 +306,7 @@ function extractRequestHeaders(req: MionRequest<any, any>): Record<string, strin
 
 /**
  * Extracts headers from a HeadersSubset parameter.
- * The first param must be a HeadersSubset instance or an object with 'headers' property
- * (for when restored from localStorage where class instances are serialized to plain objects).
+ * The first param must be a HeadersSubset instance or an object with 'headers' property.
  * This mirrors how the router extracts headers in runHeaderHook (dispatch.ts).
  *
  * @param params The params array from the subRequest
@@ -344,8 +323,6 @@ function extractHeadersFromParams(params: any[]): Record<string, string> {
     const firstParam = params[0];
 
     // Check for HeadersSubset instance OR duck-typed object with headers property
-    // Duck typing is needed because when restored from localStorage, class instances
-    // are serialized to plain objects
     if (firstParam instanceof HeadersSubset) {
         return firstParam.headers as Record<string, string>;
     }

@@ -30,7 +30,6 @@ describe('fetchRemoteMethodsMetadata', () => {
     beforeEach(() => {
         options = {
             baseURL,
-            storage: 'localStorage',
             fetchOptions: {},
             prefix: '',
             suffix: '',
@@ -96,6 +95,8 @@ describe('fetchRemoteMethodsMetadata', () => {
         expect(createProductJit.paramsJitFns.isType.fn([{invalid: 'object'}])).toBe(false);
     });
 
+    // The restoreAllDependencies function needs to be called to restore JIT functions before methods can be properly restored.
+    // Currently the test clears caches but doesn't call restoreAllDependencies.
     it('should store and restore from localStorage', async () => {
         // First call - fetch from server
         await fetchRemoteMethodsMetadata(['sayHello'], options);
@@ -104,7 +105,7 @@ describe('fetchRemoteMethodsMetadata', () => {
         expect(routesCache.hasMetadata('sayHello')).toBe(true);
 
         // Verify data was stored in localStorage
-        const storageKey = `mion-client:serialized-method-data:${baseURL}:sayHello`;
+        const storageKey = `mionkit:client:serialized-method-data:${baseURL}:sayHello`;
         const storedData = localStorage.getItem(storageKey);
         expect(storedData).toBeTruthy();
 

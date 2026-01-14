@@ -17,7 +17,7 @@ import type {ErrorHandler, SuccessHandler} from './types';
  * - errorHandlers: handlerId -> errorType -> handler
  * - successHandlers: handlerId -> handler
  */
-export class ErrorRegistry {
+export class HandlersRegistry {
     /** Map of handlerId -> (errorType -> handler) */
     private errorHandlers: Map<string, Map<string, ErrorHandler<any>>> = new Map();
 

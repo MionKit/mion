@@ -10,8 +10,9 @@ import {HookSubRequest, RouteSubRequest} from './types';
 import {isRpcError, RpcError, HeadersSubset} from '@mionkit/core';
 import {TestServerApi} from '../test/test-server';
 import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
+import {clearPrefilledHooksCache} from './request';
 
-// TODO move this into global jest config file if it is required by more tests
+// Mock localStorage for method metadata storage (still needed for clientMethodsMetadata)
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
 const Storage = require('dom-storage');
 global.localStorage = new Storage(null, {strict: true});
@@ -36,9 +37,9 @@ describe('client', () => {
     beforeAll(serverHooks.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
     afterAll(serverHooks.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
-    // Clear localStorage between tests to ensure prefilled hooks don't leak between tests
+    // Clear prefilled hooks cache between tests to ensure prefilled hooks don't leak between tests
     beforeEach(() => {
-        localStorage.clear();
+        clearPrefilledHooksCache();
     });
 
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
