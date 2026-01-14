@@ -17,13 +17,13 @@ import {
     ClientHooks,
 } from './types';
 import type {RemoteApi} from '@mionkit/router';
-import {registerErrorDeserializers, RpcError} from '@mionkit/core';
+import {registerErrorDeserializers} from '@mionkit/core';
 import {getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
 import type {RunTypeError} from '@mionkit/core';
 import {HandlersRegistry} from './handlersRegistry';
 import {TypedPromise} from './typedPromise';
-import {TypedEvent} from './typedEvent';
+import {MionSubRequest, findSubRequestError} from './subRequest';
 
 export function initClient<RM extends RemoteApi>(
     options: InitOptions
@@ -48,6 +48,9 @@ export class MionClient {
     /** Shared registry for persistent hook error handlers */
     readonly handlersRegistry = new HandlersRegistry();
 
+    /** In-memory cache for prefilled hook subrequests (keyed by baseURL:hookId) */
+    readonly prefilledHooksCache = new Map<string, SubRequest<any>>();
+
     constructor(private clientOptions: ClientOptions) {}
 
     /**
@@ -63,7 +66,7 @@ export class MionClient {
         hookSubRequests: RHList,
         typedPromise: TypedPromise<any, any>
     ): void {
-        const request = new MionRequest(this.clientOptions, routeSubRequest, hookSubRequests);
+        const request = new MionRequest(this.clientOptions, this.prefilledHooksCache, routeSubRequest, hookSubRequests);
 
         request
             .call()
@@ -86,7 +89,7 @@ export class MionClient {
                 this.processHookErrors(allHooks, errors, typedPromise);
 
                 // Process route error
-                const routeError = errors.get(routeSubRequest.id) || findError(routeSubRequest, errors);
+                const routeError = errors.get(routeSubRequest.id) || findSubRequestError(routeSubRequest, errors);
                 const routeMethodId = routeSubRequest.pointer.join('.');
                 typedPromise.handleError(routeError, routeMethodId);
 
@@ -147,17 +150,17 @@ export class MionClient {
     }
 
     typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
-        const request = new MionRequest(this.clientOptions);
+        const request = new MionRequest(this.clientOptions, this.prefilledHooksCache);
         return request.validateParams(subRequest);
     }
 
     prefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions);
+        const request = new MionRequest(this.clientOptions, this.prefilledHooksCache);
         return request.prefill(subRequest);
     }
 
     removePrefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions);
+        const request = new MionRequest(this.clientOptions, this.prefilledHooksCache);
         return request.removePrefill(subRequest);
     }
 
@@ -178,81 +181,8 @@ class MethodProxy {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         apply: (_target: any, _thisArg: any, argArray?: any): RouteSubRequest<any> & HookSubRequest<any> => {
-            let storedHooks: HookSubRequest<any>[] = [];
             const handlerId = getRouterItemId(this.parentProps);
-
-            // Using 'as any' because this is a dynamic proxy - actual types are inferred by ClientRoutes/ClientHooks
-            const subRequest = {
-                pointer: [...this.parentProps],
-                id: handlerId,
-                isResolved: false,
-                params: argArray,
-                result: undefined, // resolved once request gets resolved
-                error: undefined, // resolved once request gets resolved
-
-                /**
-                 * Prefills Hook's parameters and returns TypedEvent for event handler registration.
-                 * The TypedEvent allows registering:
-                 * - onSuccess handlers called for ALL future successful requests from this hook
-                 * - onError handlers called for ALL future requests that fail with specific error types
-                 */
-                prefill: (): TypedEvent<any, any> => {
-                    // Create TypedEvent linked to this hook's ID and the shared HandlersRegistry
-                    const typedEvent = new TypedEvent<any, any>(handlerId, this.client.handlersRegistry);
-
-                    // Execute validation and storage asynchronously
-                    this.client.prefill(subRequest).catch((errors) => {
-                        // Prefill errors are logged but not handled by TypedEvent
-                        // They should be caught by the caller if needed
-                        console.error('Prefill error:', findError(subRequest, errors));
-                    });
-
-                    // Return TypedEvent immediately for chaining handlers
-                    return typedEvent;
-                },
-
-                /**
-                 * Removes prefilled value and clears any registered error handlers for this hook.
-                 */
-                removePrefill: (): Promise<void> => {
-                    // Clear error handlers for this hook from the registry
-                    this.client.handlersRegistry.clearHandlers(handlerId);
-                    return this.client.removePrefill(subRequest);
-                },
-
-                /**
-                 * Sets hooks to be used for the route call.
-                 */
-                hooks: (...hooks: HookSubRequest<any>[]): RouteSubRequest<any> & HookSubRequest<any> => {
-                    storedHooks = hooks;
-                    return subRequest;
-                },
-
-                /**
-                 * Calls a remote route and returns TypedPromise for chainable error handling.
-                 * The TypedPromise is returned immediately and handlers are executed when the request completes.
-                 */
-                call: (): TypedPromise<any, any> => {
-                    // Create TypedPromise (passive container)
-                    const typedPromise = new TypedPromise<any, any>();
-
-                    // Execute the request asynchronously - Client distributes results to TypedPromise
-                    this.client.executeCall(subRequest, storedHooks, typedPromise);
-
-                    // Return immediately - user chains handlers
-                    return typedPromise;
-                },
-
-                /**
-                 * Validates parameters and returns type errors.
-                 */
-                typeErrors: (): Promise<RunTypeError[]> => {
-                    return this.client
-                        .typeErrors(subRequest as any)
-                        .catch((errors) => Promise.reject(findError(subRequest as any, errors)));
-                },
-            } as unknown as RouteSubRequest<any> & HookSubRequest<any>;
-            return subRequest;
+            return new MionSubRequest(this.parentProps, handlerId, argArray, this.client);
         },
 
         get: (_target: any, prop: string): typeof Proxy => {
@@ -275,18 +205,4 @@ class MethodProxy {
         const target = () => null;
         this.proxy = new Proxy(target, this.handler);
     }
-}
-
-function findError(req: SubRequest<any>, errors: RequestErrors): RpcError<string> {
-    const specificError = errors.get(req.id);
-    if (specificError) return specificError;
-
-    const firstError = errors.values().next().value;
-    if (firstError) return firstError;
-
-    // Fallback error if no errors found (shouldn't happen)
-    return new RpcError({
-        type: 'unknown-error',
-        publicMessage: 'An unknown error occurred',
-    });
 }

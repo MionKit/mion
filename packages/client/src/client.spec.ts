@@ -10,7 +10,6 @@ import {HookSubRequest, RouteSubRequest} from './types';
 import {isRpcError, RpcError, HeadersSubset} from '@mionkit/core';
 import {TestServerApi} from '../test/test-server';
 import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
-import {clearPrefilledHooksCache} from './request';
 
 // Mock localStorage for method metadata storage (still needed for clientMethodsMetadata)
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -37,10 +36,7 @@ describe('client', () => {
     beforeAll(serverHooks.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
     afterAll(serverHooks.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
-    // Clear prefilled hooks cache between tests to ensure prefilled hooks don't leak between tests
-    beforeEach(() => {
-        clearPrefilledHooksCache();
-    });
+    // Note: prefilledHooksCache is now per-client instance, so each test with a fresh client starts with empty cache
 
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
         const {routes, hooks} = initClient<MyApi>({baseURL});
@@ -99,8 +95,8 @@ describe('client', () => {
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
         };
-        expect((routes as any).abcd(1, 'a')).toEqual(expectedUnknownSubRequest);
-        expect((hooks as any).abcd(1, 'a')).toEqual(expectedUnknownSubRequest);
+        expect((routes as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
+        expect((hooks as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
     });
 
     it('make a route call and get a valid response', async () => {
