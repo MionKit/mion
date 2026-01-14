@@ -7,7 +7,7 @@
 
 import {RpcError, routesCache} from '@mionkit/core';
 import {RequestErrors, SubRequest} from './types';
-import type {MionRequest} from './request';
+import type {MionClientRequest} from './request';
 
 // ############# VALIDATION #############
 
@@ -17,7 +17,7 @@ import type {MionRequest} from './request';
  */
 export function validateSubRequests(
     subRequestIds: string[],
-    req: MionRequest<any, any>,
+    req: MionClientRequest<any, any>,
     errors: RequestErrors,
     validateRouteHooks = true
 ): void {
