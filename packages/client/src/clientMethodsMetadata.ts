@@ -201,9 +201,13 @@ export function restoreAllDependencies(options: ClientOptions) {
 
 /**
  * Restores method metadata from localStorage using the new storage format
- * Dependencies are assumed to be already loaded globally via restoreAllDependencies()
+ * Will first restore all dependencies globally if not already loaded
  */
 function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
+    // First ensure all JIT function dependencies are restored from localStorage
+    // This must happen before restoring method metadata so JIT functions are available
+    restoreAllDependencies(options);
+
     const methods: Record<string, MethodMetadata> = {};
     let anyMethodsRestored = false;
 

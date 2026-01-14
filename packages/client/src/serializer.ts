@@ -7,7 +7,7 @@
 
 import type {ResponseBody} from '@mionkit/router';
 import {type MethodWithJitFns, RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType} from '@mionkit/core';
-import type {MionRequest} from './request';
+import type {MionClientRequest} from './request';
 
 // ############# SERIALIZATION #############
 
@@ -18,7 +18,7 @@ import type {MionRequest} from './request';
  * Note: For headersHook methods, the HeadersSubset parameter is NOT included in the body.
  * Use extractRequestHeaders() to get headers to send as HTTP headers.
  */
-export function serializeRequestBody(req: MionRequest<any, any>): string {
+export function serializeRequestBody(req: MionClientRequest<any, any>): string {
     const bodyType: 'J' | 'B' = 'J'; // JSON for now, binary later
 
     switch (bodyType) {
@@ -96,7 +96,7 @@ export async function deserializeResponseBody(response: Response): Promise<Respo
     return deserializedBody;
 }
 
-function stringifyBody(req: MionRequest<any, any>): string {
+function stringifyBody(req: MionClientRequest<any, any>): string {
     const props: string[] = [];
     const subRequestIds = Object.keys(req.subRequestList);
 

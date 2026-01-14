@@ -19,7 +19,7 @@ import {
 import type {RemoteApi} from '@mionkit/router';
 import {registerErrorDeserializers} from '@mionkit/core';
 import {getRouterItemId} from '@mionkit/core';
-import {MionRequest} from './request';
+import {MionClientRequest} from './request';
 import type {RunTypeError} from '@mionkit/core';
 import {HandlersRegistry} from './handlersRegistry';
 import {TypedPromise} from './typedPromise';
@@ -66,7 +66,7 @@ export class MionClient {
         hookSubRequests: RHList,
         typedPromise: TypedPromise<any, any>
     ): void {
-        const request = new MionRequest(this.clientOptions, this.prefilledHooksCache, routeSubRequest, hookSubRequests);
+        const request = new MionClientRequest(this.clientOptions, this.prefilledHooksCache, routeSubRequest, hookSubRequests);
 
         request
             .call()
@@ -104,7 +104,7 @@ export class MionClient {
      * This includes both explicitly passed hooks and prefilled hooks restored from storage.
      */
     private getAllHooksFromRequest(
-        request: MionRequest<RouteSubRequest<any>, HookSubRequest<any>[]>,
+        request: MionClientRequest<RouteSubRequest<any>, HookSubRequest<any>[]>,
         routeId: string
     ): HookSubRequest<any>[] {
         return Object.entries(request.subRequestList)
@@ -150,17 +150,17 @@ export class MionClient {
     }
 
     typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
-        const request = new MionRequest(this.clientOptions, this.prefilledHooksCache);
+        const request = new MionClientRequest(this.clientOptions, this.prefilledHooksCache);
         return request.validateParams(subRequest);
     }
 
     prefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions, this.prefilledHooksCache);
+        const request = new MionClientRequest(this.clientOptions, this.prefilledHooksCache);
         return request.prefill(subRequest);
     }
 
     removePrefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions, this.prefilledHooksCache);
+        const request = new MionClientRequest(this.clientOptions, this.prefilledHooksCache);
         return request.removePrefill(subRequest);
     }
 

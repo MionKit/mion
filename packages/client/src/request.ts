@@ -14,7 +14,7 @@ import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {validateSubRequests} from './validation';
 import {serializeRequestBody, deserializeResponseBody} from './serializer';
 
-export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
+export class MionClientRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
     readonly path: string;
     readonly requestId: string;
     readonly subRequestList: {[key: string]: SubRequest<any>} = {};
@@ -277,7 +277,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
  *
  * @returns Record of header names to values
  */
-function extractRequestHeaders(req: MionRequest<any, any>): Record<string, string> {
+function extractRequestHeaders(req: MionClientRequest<any, any>): Record<string, string> {
     const headers: Record<string, string> = {};
     const subRequestIds = Object.keys(req.subRequestList);
 
