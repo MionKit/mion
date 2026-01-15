@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {initClient} from '@mionkit/client';
 import type {HeadersSubset} from '@mionkit/core';
 // importing only the RemoteApi type from server
@@ -113,17 +114,78 @@ routes.users
         }
     });
 
-// ========== Example 5: Using async/await ==========
-// TypedPromise implements PromiseLike for async/await support
-async function example() {
+// ========== Example 5: Using callWithHooks() for per-request hooks ==========
+// Use callWithHooks() when you need to pass hooks for a SINGLE request
+// Returns {data, errors} pattern similar to toResult()
+
+// Create a hook with temporary credentials for this specific request
+const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
+
+// callWithHooks() takes a record of hooks and returns a typed result
+async function exampleWithCallWithHooks() {
+    const {data, errors} = await routes.users.getById('USER-123').callWithHooks({
+        auth: hooks.auth(tempAuthHeaders, true),
+    });
+
+    // Check for errors
+    if (errors.route?.type === 'user-not-found') {
+        console.log('User not found:', errors.route.errorData?.requestedId);
+    }
+
+    // Check hook errors
+    if (errors.hooks.auth?.type === 'not-authorized') {
+        const authError = errors.hooks.auth;
+        const reason = authError.errorData?.reason;
+        if (reason === 'expired-token') {
+            console.log('Temp token expired, requesting new one...');
+        }
+    }
+
+    // Access success data
+    if (data.route) {
+        console.log('Found user:', data.route.name);
+    }
+    if (data.hooks.auth) {
+        console.log('Authenticated as:', data.hooks.auth.userId);
+    }
+}
+
+// ========== Example 6: Multiple Hooks with callWithHooks() ==========
+// Pass multiple hooks in the record - each gets its own typed result
+async function exampleWithMultipleHooks() {
+    const {data, errors} = await routes.users.getById('USER-123').callWithHooks({
+        auth: hooks.auth(tempAuthHeaders),
+        // session: hooks.session('session-token'), // If you have a session hook
+    });
+
+    // Handle each hook's errors independently
+    if (errors.hooks.auth) {
+        console.log('Auth failed:', errors.hooks.auth.publicMessage);
+    }
+
+    // if (errors.hooks.session?.type === 'session-expired') {
+    //     console.log('Session expired, redirecting to login...');
+    // }
+
+    // Access success data
+    if (data.route) {
+        console.log('User:', data.route.name);
+    }
+}
+
+// ========== Example 7: Using async/await with promise() ==========
+// Use promise() when you want to opt-out of typed error handling
+// Note: This loses strong error typing - errors become generic
+async function exampleWithPromise() {
     try {
+        // promise() returns a regular Promise
         // If user exists, returns User
-        // If user-not-found error, throws and caught by catch block
-        const user = await routes.users.getById('USER-999').call();
+        // If error occurs, throws and caught by catch block
+        const user = await routes.users.getById('USER-999').promise();
         console.log('User:', user.name);
     } catch (error: any) {
-        // With async/await, unhandled errors are thrown
-        // errorData is available here too
+        // With promise(), unhandled errors are thrown
+        // Note: error typing is lost here (error is 'any')
         console.log('Error:', error.publicMessage, error.errorData);
     }
 
@@ -132,4 +194,26 @@ async function example() {
     console.log(validationResp); // []
 }
 
-example();
+// ========== Example 8: Using async/await with result() (recommended) ==========
+// Use result() to get async/await ergonomics WITH full type safety
+// Returns { data: SuccessType } | { error: ErrorType } discriminated union
+async function exampleWithResult() {
+    // result() never throws - returns a discriminated union
+    // Use destructuring with rename: { data: user } renames data to user
+    const {data: user, error} = await routes.users.getById('USER-999').result();
+
+    if (error) {
+        // TypeScript knows error is the typed error here
+        // Each error type can be checked
+        if (error.type === 'user-not-found') {
+            // error.errorData is still strongly typed!
+            console.log('User not found:', error.errorData?.requestedId);
+        } else {
+            console.log('Other error:', error.publicMessage);
+        }
+        return;
+    }
+
+    // TypeScript knows user is User here (not undefined)
+    console.log('User:', user.name, user.surname);
+}
