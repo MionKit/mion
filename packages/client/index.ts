@@ -12,6 +12,5 @@ export * from './src/serializer';
 export * from './src/clientMethodsMetadata';
 export * from './src/request';
 export * from './src/client';
-export * from './src/typedPromise';
 export * from './src/typedEvent';
 export * from './src/handlersRegistry';

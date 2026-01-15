@@ -10,7 +10,6 @@ import type {RunTypeError} from '@mionkit/core';
 import type {CallWithHooksResult, HookSubRequest, RequestErrors, Result, RouteSubRequest, SubRequest} from './types';
 import type {MionClient} from './client';
 import {TypedEvent} from './typedEvent';
-import {TypedPromise} from './typedPromise';
 
 /**
  * Implementation of both RouteSubRequest and HookSubRequest interfaces.
@@ -74,40 +73,14 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     }
 
     /**
-     * Calls a remote route without hooks and returns TypedPromise for chainable error handling.
-     * The TypedPromise is returned immediately and handlers are executed when the request completes.
-     */
-    call(): TypedPromise<S, E> {
-        // Create TypedPromise (passive container)
-        const typedPromise = new TypedPromise<S, E>();
-
-        // Execute the request asynchronously - Client distributes results to TypedPromise
-        this.client.executeCall(this as unknown as RouteSubRequest<any>, [], typedPromise);
-
-        // Return immediately - user chains handlers
-        return typedPromise;
-    }
-
-    /**
-     * Calls a remote route and returns a standard Promise for async/await.
-     * WARNING: You lose strong error typing when using this!
-     *
-     * @example
-     * ```typescript
-     * const user = await routes.users.getById('123').promise();
-     * ```
-     */
-    promise(): Promise<S> {
-        return this.call().toPromise();
-    }
-
-    /**
      * Calls a remote route and returns a Result object with full typing preserved.
-     * Best option when async/await is needed but you want to keep type safety.
+     * Never throws - errors are always in the result object.
+     *
+     * @returns Promise that resolves to Result with {data, error} pattern
      *
      * @example
      * ```typescript
-     * const {data: user, error} = await routes.users.getById('123').result();
+     * const {data: user, error} = await routes.users.getById('123').call();
      * if (error) {
      *     console.log(error.errorData?.userId);
      * } else {
@@ -115,8 +88,8 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
      * }
      * ```
      */
-    result(): Promise<Result<S, E>> {
-        return this.call().toResult();
+    call(): Promise<Result<S, E>> {
+        return this.client.executeCall(this as unknown as RouteSubRequest<any>);
     }
 
     /**
@@ -128,24 +101,21 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
      *
      * @example
      * ```typescript
-     * const result = await routes.users.getById('123').callWithHooks({
+     * const {data, errors} = await routes.users.getById('123').callWithHooks({
      *     auth: hooks.auth(headers),
      *     session: hooks.session(token)
      * });
      *
-     * if (result.route.error) {
-     *     console.log('Route failed:', result.route.error.type);
-     * } else if (result.route.data) {
-     *     console.log('User:', result.route.data.name);
+     * if (errors.route) {
+     *     console.log('Route failed:', errors.route.type);
+     * } else if (data.route) {
+     *     console.log('User:', data.route.name);
      * }
      * ```
      */
     callWithHooks<H extends Record<string, HookSubRequest<any>>>(hooks: H): Promise<CallWithHooksResult<S, E, H>> {
-        // Convert hooks record to array for the client
         const hookEntries = Object.entries(hooks);
         const hookSubRequests = hookEntries.map(([, hook]) => hook);
-
-        // Execute the request and return a promise that resolves to the result
         return this.client.executeCallWithHooks(this as RouteSubRequest<any>, hooks, hookSubRequests) as Promise<
             CallWithHooksResult<S, E, H>
         >;

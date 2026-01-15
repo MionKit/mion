@@ -8,7 +8,6 @@
 import {RpcError} from '@mionkit/core';
 import type {Prettify, RunTypeError} from '@mionkit/core';
 import type {PublicHeadersHook, PublicHook, RemoteApi, PublicRoute} from '@mionkit/router';
-import type {TypedPromise} from './typedPromise';
 import type {TypedEvent} from './typedEvent';
 
 // ############# Result Type #############
@@ -182,30 +181,14 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
     typeErrors: () => Promise<RunTypeError[]>;
 
     /**
-     * Calls a remote route without hooks and returns TypedPromise for chainable error handling.
-     * Validates route parameters locally before calling the remote route.
-     * @returns TypedPromise that resolves to success response or allows typed error handling via catchError/catchUnknown
-     */
-    call: () => TypedPromise<HandlerSuccessResponse<PH>, HandlerErrors<PH>>;
-
-    /**
-     * Calls a remote route and returns a standard Promise for async/await.
-     * WARNING: You lose strong error typing when using this!
-     *
-     * @example
-     * ```typescript
-     * const user = await routes.users.getById('123').promise();
-     * ```
-     */
-    promise: () => Promise<HandlerSuccessResponse<PH>>;
-
-    /**
      * Calls a remote route and returns a Result object with full typing preserved.
-     * Best option when async/await is needed but you want to keep type safety.
+     * Never throws - errors are always in the result object.
+     *
+     * @returns Promise that resolves to Result with {data, error} pattern
      *
      * @example
      * ```typescript
-     * const {data: user, error} = await routes.users.getById('123').result();
+     * const {data: user, error} = await routes.users.getById('123').call();
      * if (error) {
      *     console.log(error.errorData?.userId);
      * } else {
@@ -213,7 +196,7 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
      * }
      * ```
      */
-    result: () => Promise<Result<HandlerSuccessResponse<PH>, HandlerErrors<PH>>>;
+    call: () => Promise<Result<HandlerSuccessResponse<PH>, HandlerErrors<PH>>>;
 
     /**
      * Calls a remote route with hooks and returns a fully-typed result object.

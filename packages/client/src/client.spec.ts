@@ -52,8 +52,6 @@ describe('client', () => {
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
-            promise: expect.any(Function),
-            result: expect.any(Function),
         };
 
         const expectedSayHelloSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
@@ -66,8 +64,6 @@ describe('client', () => {
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
-            promise: expect.any(Function),
-            result: expect.any(Function),
         };
 
         const expectedSumTwoSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
@@ -80,8 +76,6 @@ describe('client', () => {
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
-            promise: expect.any(Function),
-            result: expect.any(Function),
         };
 
         expect(hooks.auth(authHeaders)).toEqual(expect.objectContaining(expectedAuthSubRequest));
@@ -100,8 +94,6 @@ describe('client', () => {
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
-            promise: expect.any(Function),
-            result: expect.any(Function),
         };
         expect((routes as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
         expect((hooks as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
@@ -186,268 +178,27 @@ describe('client', () => {
         // Small delay to ensure prefill completes
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        let response: any;
-        try {
-            response = await routes.sayHello(someUser).promise();
-        } catch (e) {
-            console.trace(e);
-        }
+        const {data: response, error: callError} = await routes.sayHello(someUser).call();
+        expect(callError).toBeUndefined();
         expect(response).toEqual(`Hello John Doe`);
 
         // same call should fail after removing the prefill
 
         request.removePrefill();
 
-        let error: any;
-        try {
-            await routes.sayHello(someUser).promise();
-        } catch (e) {
-            error = e;
-        }
+        const {error} = await routes.sayHello(someUser).call();
 
         // After removing prefill, the auth hook is not sent, so server returns headers validation error
         expect(error).toBeDefined();
         expect(isRpcError(error)).toBe(true);
-        expect(error['mion@isΣrrθr']).toBe(true);
-        expect(error.publicMessage).toContain('auth');
+        expect(error?.['mion@isΣrrθr']).toBe(true);
+        expect(error?.publicMessage).toContain('auth');
     });
 
-    // ========== Error Handler Tests (using call() with prefilled auth) ==========
+    // ========== Result Pattern Tests (using call() with prefilled auth) ==========
 
-    describe('error handlers', () => {
-        it('catchError should be called for matching error type', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-            let catchErrorCalled = false;
-            let caughtError: any = null;
-
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            await routes
-                .alwaysFails(someUser)
-                .call()
-                .catchError('unknown-error', (error) => {
-                    catchErrorCalled = true;
-                    caughtError = error;
-                })
-                .toPromise();
-
-            expect(catchErrorCalled).toBe(true);
-            expect(caughtError).toBeDefined();
-            expect(caughtError.type).toBe('unknown-error');
-            expect(caughtError.publicMessage).toBe('Something fails');
-
-            // Clean up
-            await hooks.auth(authHeaders).removePrefill();
-        });
-
-        it('catchUnknown should NOT be called when catchError handles the error', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-            let catchErrorCalled = false;
-            let catchUnknownCalled = false;
-
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            await routes
-                .alwaysFails(someUser)
-                .call()
-                .catchError('unknown-error', () => {
-                    catchErrorCalled = true;
-                })
-                .catchUnknown(() => {
-                    catchUnknownCalled = true;
-                })
-                .toPromise();
-
-            expect(catchErrorCalled).toBe(true);
-            expect(catchUnknownCalled).toBe(false);
-
-            // Clean up
-            await hooks.auth(authHeaders).removePrefill();
-        });
-
-        it('catchUnknown should be called when no catchError matches', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-            let catchErrorCalled = false;
-            let catchUnknownCalled = false;
-            let caughtError: any = null;
-
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            await routes
-                .alwaysFails(someUser)
-                .call()
-                .catchError('some-other-error' as any, () => {
-                    catchErrorCalled = true;
-                })
-                .catchUnknown((error) => {
-                    catchUnknownCalled = true;
-                    caughtError = error;
-                })
-                .toPromise();
-
-            expect(catchErrorCalled).toBe(false);
-            expect(catchUnknownCalled).toBe(true);
-            expect(caughtError.type).toBe('unknown-error');
-
-            // Clean up
-            await hooks.auth(authHeaders).removePrefill();
-        });
-
-        it('catch should NOT be called when catchError handles the error', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-            let catchErrorCalled = false;
-            let catchCalled = false;
-
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            await routes
-                .alwaysFails(someUser)
-                .call()
-                .catchError('unknown-error', () => {
-                    catchErrorCalled = true;
-                })
-                .catch(() => {
-                    catchCalled = true;
-                })
-                .toPromise();
-
-            expect(catchErrorCalled).toBe(true);
-            expect(catchCalled).toBe(false);
-
-            // Clean up
-            await hooks.auth(authHeaders).removePrefill();
-        });
-
-        it('catch should NOT be called when catchUnknown handles the error', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-            let catchUnknownCalled = false;
-            let catchCalled = false;
-
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            await routes
-                .alwaysFails(someUser)
-                .call()
-                .catchUnknown(() => {
-                    catchUnknownCalled = true;
-                })
-                .catch(() => {
-                    catchCalled = true;
-                })
-                .toPromise();
-
-            expect(catchUnknownCalled).toBe(true);
-            expect(catchCalled).toBe(false);
-
-            // Clean up
-            await hooks.auth(authHeaders).removePrefill();
-        });
-
-        it('catch should be called with error record when no other handler matches', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-            let catchCalled = false;
-            let caughtErrors: Record<string, any> = {};
-
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            await routes
-                .alwaysFails(someUser)
-                .call()
-                .catchError('some-other-error' as any, () => {
-                    // This won't match
-                })
-                .catch((errors) => {
-                    catchCalled = true;
-                    caughtErrors = errors;
-                })
-                .toPromise();
-
-            expect(catchCalled).toBe(true);
-            expect(Object.keys(caughtErrors).length).toBeGreaterThan(0);
-            // The error should be keyed by method ID
-            const errorKeys = Object.keys(caughtErrors);
-            expect(errorKeys.some((key) => key.includes('alwaysFails'))).toBe(true);
-            expect(Object.values(caughtErrors)[0].type).toBe('unknown-error');
-
-            // Clean up
-            await hooks.auth(authHeaders).removePrefill();
-        });
-
-        it('promise should reject when no error handler is registered', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-            let thrownError: any = null;
-
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            try {
-                await routes.alwaysFails(someUser).promise();
-            } catch (e) {
-                thrownError = e;
-            }
-
-            expect(thrownError).toBeDefined();
-            expect(thrownError.type).toBe('unknown-error');
-
-            // Clean up
-            await hooks.auth(authHeaders).removePrefill();
-        });
-
-        it('then should receive success value when no error occurs', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-            let thenCalled = false;
-            let receivedValue: any = null;
-
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            await routes
-                .sayHello(someUser)
-                .call()
-                .then((value) => {
-                    thenCalled = true;
-                    receivedValue = value;
-                })
-                .toPromise();
-
-            expect(thenCalled).toBe(true);
-            expect(receivedValue).toBe('Hello John Doe');
-
-            // Clean up
-            await hooks.auth(authHeaders).removePrefill();
-        });
-
-        it('promise() should return a promise that resolves on success', async () => {
+    describe('Result pattern', () => {
+        it('call() should return data on success', async () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -455,53 +206,16 @@ describe('client', () => {
             hooks.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const result = await routes.sayHello(someUser).promise();
-            expect(result).toBe('Hello John Doe');
-
-            // Clean up
-            await hooks.auth(authHeaders).removePrefill();
-        });
-
-        it('promise() should return a promise that rejects on error', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            let thrownError: any = null;
-            try {
-                await routes.alwaysFails(someUser).promise();
-            } catch (e) {
-                thrownError = e;
-            }
-
-            expect(thrownError).toBeDefined();
-            expect(thrownError.type).toBe('unknown-error');
-
-            // Clean up
-            await hooks.auth(authHeaders).removePrefill();
-        });
-
-        it('result() should return data on success', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            const result = await routes.sayHello(someUser).result();
+            const result = await routes.sayHello(someUser).call();
 
             expect(result.data).toBe('Hello John Doe');
             expect(result.error).toBeUndefined();
 
             // Clean up
-            await hooks.auth(authHeaders).removePrefill();
+            hooks.auth(authHeaders).removePrefill();
         });
 
-        it('result() should return error on failure', async () => {
+        it('call() should return error on failure', async () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -509,17 +223,18 @@ describe('client', () => {
             hooks.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const result = await routes.alwaysFails(someUser).result();
+            const result = await routes.alwaysFails(someUser).call();
 
             expect(result.data).toBeUndefined();
             expect(result.error).toBeDefined();
             expect(result.error?.type).toBe('unknown-error');
+            expect(result.error?.publicMessage).toBe('Something fails');
 
             // Clean up
-            await hooks.auth(authHeaders).removePrefill();
+            hooks.auth(authHeaders).removePrefill();
         });
 
-        it('result() should not throw even on error', async () => {
+        it('call() should not throw even on error', async () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -530,7 +245,7 @@ describe('client', () => {
             // This should NOT throw
             let didThrow = false;
             try {
-                const result = await routes.alwaysFails(someUser).result();
+                const result = await routes.alwaysFails(someUser).call();
                 expect(result.error).toBeDefined();
             } catch {
                 didThrow = true;
@@ -539,7 +254,26 @@ describe('client', () => {
             expect(didThrow).toBe(false);
 
             // Clean up
-            await hooks.auth(authHeaders).removePrefill();
+            hooks.auth(authHeaders).removePrefill();
+        });
+
+        it('call() should return typed error that can be checked', async () => {
+            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            // Prefill auth hook so call() works without callWithHooks
+            hooks.auth(authHeaders).prefill();
+            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            const {data, error} = await routes.alwaysFails(someUser).call();
+
+            // alwaysFails always returns an error, so we expect error to be defined
+            expect(error).toBeDefined();
+            expect(error?.type).toBe('unknown-error');
+            expect(data).toBeUndefined();
+
+            // Clean up
+            hooks.auth(authHeaders).removePrefill();
         });
     });
 
@@ -567,14 +301,14 @@ describe('client', () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Make first request
-            await routes.sayHello(someUser).promise();
+            await routes.sayHello(someUser).call();
             expect(successCallCount).toBe(1);
             expect(receivedSessionInfo).toBeDefined();
             expect(receivedSessionInfo.userId).toBe('user-123');
             expect(receivedSessionInfo.role).toBe('admin');
 
             // Make second request - onSuccess should be called again
-            await routes.sayHello(someUser).promise();
+            await routes.sayHello(someUser).call();
             expect(successCallCount).toBe(2);
 
             // Clean up
@@ -605,7 +339,7 @@ describe('client', () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Make request - should fail with session-expired
-            await routes.sayHello(someUser).promise();
+            await routes.sayHello(someUser).call();
 
             expect(successCalled).toBe(false);
             expect(errorCalled).toBe(true);
@@ -634,14 +368,14 @@ describe('client', () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // First request - handler should be called
-            await routes.sayHello(someUser).promise();
+            await routes.sayHello(someUser).call();
             expect(successCallCount).toBe(1);
 
             // Remove the success handler
             typedEvent.offSuccess();
 
             // Second request - handler should NOT be called
-            await routes.sayHello(someUser).promise();
+            await routes.sayHello(someUser).call();
             expect(successCallCount).toBe(1); // Still 1
 
             // Clean up
@@ -672,7 +406,7 @@ describe('client', () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Make successful request
-            await routes.sayHello(someUser).promise();
+            await routes.sayHello(someUser).call();
 
             expect(successCalled).toBe(true);
             expect(errorCalled).toBe(false);
