@@ -18,6 +18,7 @@ import {
     RequestErrors,
     ClientRoutes,
     ClientHooks,
+    Result,
 } from './types';
 import type {RemoteApi} from '@mionkit/router';
 import {registerErrorDeserializers} from '@mionkit/core';
@@ -25,7 +26,6 @@ import {getRouterItemId} from '@mionkit/core';
 import {MionClientRequest} from './request';
 import type {RunTypeError} from '@mionkit/core';
 import {HandlersRegistry} from './handlersRegistry';
-import {TypedPromise} from './typedPromise';
 import {MionSubRequest, findSubRequestError} from './subRequest';
 
 export function initClient<RM extends RemoteApi>(
@@ -57,49 +57,40 @@ export class MionClient {
     constructor(private clientOptions: ClientOptions) {}
 
     /**
-     * Executes a route call and distributes results to the TypedPromise.
+     * Executes a route call and returns a Result object.
      * This is the main orchestration method that:
      * 1. Executes the request via MionRequest
-     * 2. Processes hook errors first (via HandlersRegistry for suppression)
-     * 3. Processes route result/error
-     * 4. Calls finally handler
+     * 2. Processes hook success/error handlers (fire-and-forget for prefill)
+     * 3. Returns Result with data or error
      */
-    executeCall<RR extends RouteSubRequest<any>, RHList extends HookSubRequest<any>[]>(
-        routeSubRequest: RR,
-        hookSubRequests: RHList,
-        typedPromise: TypedPromise<any, any>
-    ): void {
-        const request = new MionClientRequest(this.clientOptions, this.prefilledHooksCache, routeSubRequest, hookSubRequests);
+    executeCall<RR extends RouteSubRequest<any>>(routeSubRequest: RR): Promise<Result<any, any>> {
+        return new Promise((resolve) => {
+            const request = new MionClientRequest(this.clientOptions, this.prefilledHooksCache, routeSubRequest, []);
 
-        request
-            .call()
-            .then(() => {
-                // Get ALL hooks from request.subRequestList (includes prefilled hooks restored from storage)
-                const allHooks = this.getAllHooksFromRequest(request, routeSubRequest.id);
+            request
+                .call()
+                .then(() => {
+                    // Get ALL hooks from request.subRequestList (includes prefilled hooks restored from storage)
+                    const allHooks = this.getAllHooksFromRequest(request, routeSubRequest.id);
 
-                // Success - distribute hook results to their registered success handlers
-                this.processHookSuccess(allHooks);
+                    // Success - distribute hook results to their registered success handlers (fire-and-forget)
+                    this.processHookSuccess(allHooks);
 
-                // Success - distribute the route result
-                typedPromise.handleSuccess(routeSubRequest.resolvedValue);
-                typedPromise.handleFinally();
-            })
-            .catch((errors: RequestErrors) => {
-                // Get ALL hooks from request.subRequestList (includes prefilled hooks restored from storage)
-                const allHooks = this.getAllHooksFromRequest(request, routeSubRequest.id);
+                    // Return success result
+                    resolve({data: routeSubRequest.resolvedValue});
+                })
+                .catch((errors: RequestErrors) => {
+                    // Get ALL hooks from request.subRequestList (includes prefilled hooks restored from storage)
+                    const allHooks = this.getAllHooksFromRequest(request, routeSubRequest.id);
 
-                // Process hook errors first (they can suppress route's catchUnknown)
-                this.processHookErrors(allHooks, errors, typedPromise);
+                    // Process hook errors (fire-and-forget for prefill handlers)
+                    this.processHookErrors(allHooks, errors);
 
-                // Process route error
-                const routeError = errors.get(routeSubRequest.id) || findSubRequestError(routeSubRequest, errors);
-                const routeMethodId = routeSubRequest.pointer.join('.');
-                typedPromise.handleError(routeError, routeMethodId);
-
-                // Finalize - call catch handler or reject promise if unhandled errors
-                typedPromise.finalizeErrors();
-                typedPromise.handleFinally();
-            });
+                    // Return error result
+                    const routeError = errors.get(routeSubRequest.id) || findSubRequestError(routeSubRequest, errors);
+                    resolve({error: routeError});
+                });
+        });
     }
 
     /**
@@ -127,28 +118,15 @@ export class MionClient {
     }
 
     /**
-     * Process hook errors and check if they're handled by HandlersRegistry.
-     * If handled, mark them. Otherwise pass to route's TypedPromise handlers.
+     * Process hook errors - fire-and-forget for prefill handlers.
+     * Errors are passed to registered handlers but are not suppressed from the result.
      */
-    private processHookErrors(
-        hookSubRequests: HookSubRequest<any>[],
-        errors: RequestErrors,
-        typedPromise: TypedPromise<any, any>
-    ): void {
+    private processHookErrors(hookSubRequests: HookSubRequest<any>[], errors: RequestErrors): void {
         for (const hook of hookSubRequests) {
             const hookError = errors.get(hook.id);
             if (hookError) {
-                const hookMethodId = hook.pointer.join('.');
-
-                // Check if hook has onError handler in HandlersRegistry (persistent handlers from prefill)
-                const handledByRegistry = this.handlersRegistry.executeHandler(hook.id, hookError);
-                if (handledByRegistry) {
-                    // Mark as handled - will suppress catchUnknown and catchError
-                    typedPromise.markErrorHandled(hookError.type);
-                } else {
-                    // Not handled by registry - pass to route's TypedPromise handlers
-                    typedPromise.handleError(hookError, hookMethodId);
-                }
+                // Execute handler from HandlersRegistry if registered (for prefill) - fire-and-forget
+                this.handlersRegistry.executeHandler(hook.id, hookError);
             }
         }
     }

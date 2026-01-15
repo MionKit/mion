@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/require-await */
 import {initClient} from '@mionkit/client';
 import type {HeadersSubset} from '@mionkit/core';
 // importing only the RemoteApi type from server
@@ -48,71 +48,51 @@ hooks
 
 // ========== Example 1: Route with strongly-typed errorData ==========
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
-// TypedPromise provides type-safe error handling with fully typed errorData
-routes.users
-    .getById('USER-123')
-    .call()
-    .then((user) => {
-        // user is guaranteed to be User (not RpcError) here
-        console.log('Found user:', user.name, user.surname);
-    })
-    .catchError('user-not-found', (error) => {
-        // error.errorData is strongly typed as UserNotFoundData!
-        // TypeScript knows: error.errorData has { requestedId: string; suggestedIds?: string[] }
-        console.log('User not found. Requested ID:', error.errorData?.requestedId);
-        if (error.errorData?.suggestedIds?.length) {
-            console.log('Did you mean one of these?', error.errorData.suggestedIds.join(', '));
+// call() returns Result<User, RpcError<'user-not-found', UserNotFoundData>>
+async function exampleWithTypedError() {
+    const {data: user, error} = await routes.users.getById('USER-123').call();
+
+    if (error) {
+        if (error.type === 'user-not-found') {
+            // error.errorData is strongly typed as UserNotFoundData!
+            console.log('User not found. Requested ID:', error.errorData?.requestedId);
+            if (error.errorData?.suggestedIds?.length) {
+                console.log('Did you mean one of these?', error.errorData.suggestedIds.join(', '));
+            }
+        } else {
+            // Catches any other errors (network errors, hook errors, etc.)
+            console.log('Unexpected error:', error.publicMessage);
         }
-    })
-    .catchUnknown((error) => {
-        // Catches any other errors (network errors, hook errors, etc.)
-        console.log('Unexpected error:', error.publicMessage);
-    })
-    .finally(() => {
-        console.log('Request completed');
-    });
+        return;
+    }
+
+    // user is guaranteed to be User here
+    console.log('Found user:', user.name, user.surname);
+}
 
 // ========== Example 2: Order error with typed errorData ==========
 // Order getById returns Order | RpcError<'order-not-found', OrderNotFoundData>
-routes.orders
-    .getById('ORDER-404')
-    .call()
-    .then((order) => {
-        console.log('Order total:', order.totalUSD);
-    })
-    .catchError('order-not-found', (error) => {
-        // error.errorData is strongly typed as OrderNotFoundData!
-        console.log('Order not found. Requested ID:', error.errorData?.requestedId);
-    });
+async function exampleWithOrderError() {
+    const {data: order, error} = await routes.orders.getById('ORDER-404').call();
 
-// ========== Example 3: Route without specific error types ==========
-// sayHello doesn't define specific error types, use catchUnknown
-routes.users
-    .sayHello(john)
-    .call()
-    .then((result) => {
-        console.log(result); // Hello John Doe
-    })
-    .catchUnknown((error) => {
-        console.log('Error:', error.publicMessage);
-    });
-
-// ========== Example 4: Using catch() for unhandled errors ==========
-// The catch method receives a record of all unhandled errors keyed by method/hook ID
-routes.users
-    .getById('USER-999')
-    .call()
-    .catchError('user-not-found', (error) => {
-        // This handles user-not-found specifically
-        console.log('User not found:', error.errorData?.requestedId);
-    })
-    .catch((errors) => {
-        // Called only if there are unhandled errors (not caught by catchError)
-        // errors is a record: { [methodId]: RpcError }
-        for (const [methodId, error] of Object.entries(errors)) {
-            console.log(`Unhandled error from ${methodId}:`, error.publicMessage);
+    if (error) {
+        if (error.type === 'order-not-found') {
+            // error.errorData is strongly typed as OrderNotFoundData!
+            console.log('Order not found. Requested ID:', error.errorData?.requestedId);
         }
-    });
+        return;
+    }
+
+    console.log('Order total:', order.totalUSD);
+}
+
+// ========== Example 3: Route that always succeeds ==========
+// sayHello returns just string (no error type), so error is always undefined
+async function exampleAlwaysSucceeds() {
+    const {data: result} = await routes.users.sayHello(john).call();
+    // sayHello never has an error type, so we can use the result directly
+    console.log(result); // Hello John Doe
+}
 
 // ========== Example 5: Using callWithHooks() for per-request hooks ==========
 // Use callWithHooks() when you need to pass hooks for a SINGLE request
@@ -173,34 +153,13 @@ async function exampleWithMultipleHooks() {
     }
 }
 
-// ========== Example 7: Using async/await with promise() ==========
-// Use promise() when you want to opt-out of typed error handling
-// Note: This loses strong error typing - errors become generic
-async function exampleWithPromise() {
-    try {
-        // promise() returns a regular Promise
-        // If user exists, returns User
-        // If error occurs, throws and caught by catch block
-        const user = await routes.users.getById('USER-999').promise();
-        console.log('User:', user.name);
-    } catch (error: any) {
-        // With promise(), unhandled errors are thrown
-        // Note: error typing is lost here (error is 'any')
-        console.log('Error:', error.publicMessage, error.errorData);
-    }
-
-    // validate parameters locally without calling the server
-    const validationResp = await routes.users.sayHello(john).typeErrors();
-    console.log(validationResp); // []
-}
-
-// ========== Example 8: Using async/await with result() (recommended) ==========
-// Use result() to get async/await ergonomics WITH full type safety
-// Returns { data: SuccessType } | { error: ErrorType } discriminated union
-async function exampleWithResult() {
-    // result() never throws - returns a discriminated union
+// ========== Example 7: Using call() with async/await (recommended) ==========
+// call() returns Result<S, E> - never throws, always returns { data } or { error }
+// This is the standard pattern for all route calls
+async function exampleWithCall() {
+    // call() never throws - returns a discriminated union
     // Use destructuring with rename: { data: user } renames data to user
-    const {data: user, error} = await routes.users.getById('USER-999').result();
+    const {data: user, error} = await routes.users.getById('USER-999').call();
 
     if (error) {
         // TypeScript knows error is the typed error here
@@ -216,4 +175,8 @@ async function exampleWithResult() {
 
     // TypeScript knows user is User here (not undefined)
     console.log('User:', user.name, user.surname);
+
+    // validate parameters locally without calling the server
+    const validationResp = await routes.users.sayHello(john).typeErrors();
+    console.log(validationResp); // []
 }
