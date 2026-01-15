@@ -1,4 +1,5 @@
-<script>
+<script setup lang="ts">
+import { onMounted, nextTick } from 'vue';
 import chartHelloRequests from './charts/charts-servers-hello/requests.json';
 import chartHelloLatency from './charts/charts-servers-hello/latency.json';
 import chartHelloThroughput from './charts/charts-servers-hello/throughput.json';
@@ -11,7 +12,7 @@ import chartUpdateMaxMemory from './charts/charts-servers/maxMem.json';
 import chartUpdateMemorySeries from './charts/charts-servers/memSeries.json';
 import chartColdStarts from './charts/charts/cold-starts.json';
 
-const chartList = {
+const chartList: Record<string, unknown> = {
   'hello-requests': chartHelloRequests,
   'hello-latency': chartHelloLatency,
   'hello-throughput': chartHelloThroughput,
@@ -24,29 +25,22 @@ const chartList = {
   'update-mem-series': chartUpdateMemorySeries,
   'cold-starts': chartColdStarts,
 };
-</script>
 
-<script setup>
-import "billboard.js/dist/billboard.css";
-import {bb, area, bar, zoom} from "billboard.js";
-import {onMounted, nextTick} from 'vue';
-
-const props = defineProps({
-  id: {
-    type: String,
-    required: true,
-    validator: (value) => {
-      return chartList[value] !== undefined;
-    },
-  },
-});
+const props = defineProps<{
+  id: string;
+}>();
 
 const chartId = `benchmark-chart-${props.id}`;
 
 onMounted(() => {
   nextTick(() => {
     const chartData = chartList[props.id];
-    const chart = bb.generate({
+    if (!chartData) {
+      console.error(`BenchChart: Unknown chart id "${props.id}"`);
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).bb.generate({
       bindto: `#${chartId}`,
       ...chartData,
       tooltip: {
@@ -58,5 +52,5 @@ onMounted(() => {
 </script>
 
 <template>
-  <div :id="chartId"></div>
+  <div :id="chartId" />
 </template>
