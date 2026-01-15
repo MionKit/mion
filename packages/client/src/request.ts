@@ -99,7 +99,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, HookRequestsList
                     methodMeta.error = resp;
                     errors.set(id, resp);
                 } else {
-                    methodMeta.result = resp;
+                    methodMeta.resolvedValue = resp;
                 }
             });
 
@@ -224,7 +224,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, HookRequestsList
                 const clonedSubRequest: SubRequest<any> = {
                     ...cachedSubRequest,
                     isResolved: false,
-                    result: undefined,
+                    resolvedValue: undefined,
                     error: undefined,
                 };
                 this.addSubRequest(clonedSubRequest);

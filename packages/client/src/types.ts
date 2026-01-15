@@ -11,6 +11,90 @@ import type {PublicHeadersHook, PublicHook, RemoteApi, PublicRoute} from '@mionk
 import type {TypedPromise} from './typedPromise';
 import type {TypedEvent} from './typedEvent';
 
+// ############# Result Type #############
+
+/**
+ * Result type for result() method - discriminated union.
+ * Provides type-safe async/await pattern without losing error typing.
+ */
+export type Result<S, E> = {data: S; error?: never} | {data?: never; error: E};
+
+// ############# callWithHooks Result Types #############
+
+/**
+ * Extract success type from a HookSubRequest.
+ */
+export type HookSuccess<H> = H extends HookSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
+
+/**
+ * Extract error type from a HookSubRequest.
+ */
+export type HookError<H> = H extends HookSubRequest<infer PH> ? HandlerErrors<PH> : never;
+
+/**
+ * Data portion of CallWithHooksResult - contains all success values.
+ * Values are optional because hooks/route may not have executed (e.g., earlier hook failed)
+ * or may have returned an error instead.
+ */
+export type CallWithHooksData<RouteSuccess, Hooks extends Record<string, HookSubRequest<any>>> = {
+    route?: RouteSuccess;
+    hooks: {
+        [K in keyof Hooks]?: HookSuccess<Hooks[K]>;
+    };
+};
+
+/**
+ * Errors portion of CallWithHooksResult - contains all error values.
+ * Values are optional because hooks/route may have succeeded or not executed.
+ */
+export type CallWithHooksErrors<RouteError, Hooks extends Record<string, HookSubRequest<any>>> = {
+    route?: RouteError;
+    hooks: {
+        [K in keyof Hooks]?: HookError<Hooks[K]>;
+    };
+};
+
+/**
+ * Result type for callWithHooks method.
+ * Uses {data, errors} pattern similar to toResult() for consistency.
+ * - data.route: success value if route succeeded
+ * - data.hooks[name]: success value for each hook that succeeded
+ * - errors.route: error if route failed
+ * - errors.hooks[name]: error for each hook that failed
+ *
+ * @typeParam RouteSuccess - The success type of the route
+ * @typeParam RouteError - The error type of the route
+ * @typeParam Hooks - Record of hook names to HookSubRequest types
+ *
+ * @example
+ * ```typescript
+ * const {data, errors} = await routes.users.getById('123').callWithHooks({
+ *     auth: hooks.auth(headers),
+ *     session: hooks.session(token)
+ * });
+ *
+ * // Check for errors
+ * if (errors.route) {
+ *     console.log('Route failed:', errors.route.publicMessage);
+ * }
+ * if (errors.hooks.auth) {
+ *     console.log('Auth failed:', errors.hooks.auth.publicMessage);
+ * }
+ *
+ * // Access success data
+ * if (data.route) {
+ *     console.log('User:', data.route.name);
+ * }
+ * if (data.hooks.auth) {
+ *     console.log('Session:', data.hooks.auth.userId);
+ * }
+ * ```
+ */
+export type CallWithHooksResult<RouteSuccess, RouteError, Hooks extends Record<string, HookSubRequest<any>>> = {
+    data: CallWithHooksData<RouteSuccess, Hooks>;
+    errors: CallWithHooksErrors<RouteError, Hooks>;
+};
+
 export type ClientOptions = {
     baseURL: string;
     fetchOptions: RequestInit;
@@ -37,7 +121,7 @@ export type RequestBody = {[key: string]: any[]};
 export type HandlerResponse<PH extends PublicHandler> = Awaited<ReturnType<PH>>;
 export type HandlerSuccessResponse<PH extends PublicHandler> = Exclude<HandlerResponse<PH>, RpcError<string>>;
 export type HandlerFailResponse<PH extends PublicHandler> = Extract<HandlerResponse<PH>, RpcError<string>>;
-export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['result'];
+export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['resolvedValue'];
 export type SuccessResponses<List extends SubRequest<any>[]> = {[P in keyof List]: SuccessResponse<List[P]>};
 export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
@@ -82,7 +166,8 @@ export interface SubRequest<PH extends PublicHandler> {
     id: string;
     isResolved: boolean;
     params: Parameters<PH>;
-    result?: HandlerSuccessResponse<PH>;
+    /** The resolved value after the request completes successfully */
+    resolvedValue?: HandlerSuccessResponse<PH>;
     error?: HandlerFailResponse<PH>;
     serializedParams?: any[];
 }
@@ -95,19 +180,69 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
      * Validates Route's parameters and returns type errors. Throws RpcError if validation fails.
      */
     typeErrors: () => Promise<RunTypeError[]>;
+
     /**
-     * Sets hooks to be used for the route call in a chainable manner.
-     * @param hooks HookSubRequests to be used by the route
-     * @returns The same RouteSubRequest for chaining
-     */
-    hooks: <RHList extends HookSubRequest<any>[]>(...hooks: RHList) => RouteSubRequest<PH>;
-    /**
-     * Calls a remote route and returns TypedPromise for chainable error handling.
-     * Validates route and required hooks request parameters locally before calling the remote route.
-     * Uses hooks set via the hooks() method.
+     * Calls a remote route without hooks and returns TypedPromise for chainable error handling.
+     * Validates route parameters locally before calling the remote route.
      * @returns TypedPromise that resolves to success response or allows typed error handling via catchError/catchUnknown
      */
     call: () => TypedPromise<HandlerSuccessResponse<PH>, HandlerErrors<PH>>;
+
+    /**
+     * Calls a remote route and returns a standard Promise for async/await.
+     * WARNING: You lose strong error typing when using this!
+     *
+     * @example
+     * ```typescript
+     * const user = await routes.users.getById('123').promise();
+     * ```
+     */
+    promise: () => Promise<HandlerSuccessResponse<PH>>;
+
+    /**
+     * Calls a remote route and returns a Result object with full typing preserved.
+     * Best option when async/await is needed but you want to keep type safety.
+     *
+     * @example
+     * ```typescript
+     * const {data: user, error} = await routes.users.getById('123').result();
+     * if (error) {
+     *     console.log(error.errorData?.userId);
+     * } else {
+     *     console.log(user.name);
+     * }
+     * ```
+     */
+    result: () => Promise<Result<HandlerSuccessResponse<PH>, HandlerErrors<PH>>>;
+
+    /**
+     * Calls a remote route with hooks and returns a fully-typed result object.
+     * Always returns (never throws) - can have partial success where some hooks/route succeed and others fail.
+     *
+     * @param hooks Record of hook names to HookSubRequest instances
+     * @returns Promise that resolves to CallWithHooksResult containing route and hooks results
+     *
+     * @example
+     * ```typescript
+     * const {data, errors} = await routes.users.getById('123').callWithHooks({
+     *     auth: hooks.auth(headers),
+     *     session: hooks.session(token)
+     * });
+     *
+     * if (errors.route) {
+     *     console.log('Route failed:', errors.route.type);
+     * } else if (data.route) {
+     *     console.log('User:', data.route.name);
+     * }
+     *
+     * if (errors.hooks.auth) {
+     *     console.log('Auth failed:', errors.hooks.auth.type);
+     * }
+     * ```
+     */
+    callWithHooks: <H extends Record<string, HookSubRequest<any>>>(
+        hooks: H
+    ) => Promise<CallWithHooksResult<HandlerSuccessResponse<PH>, HandlerErrors<PH>, H>>;
 }
 
 /** structure returned from the proxy, containing info of the remote hook to execute

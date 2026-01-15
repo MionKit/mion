@@ -7,7 +7,7 @@
 
 import {RpcError} from '@mionkit/core';
 import type {RunTypeError} from '@mionkit/core';
-import type {HookSubRequest, RequestErrors, RouteSubRequest, SubRequest} from './types';
+import type {CallWithHooksResult, HookSubRequest, RequestErrors, Result, RouteSubRequest, SubRequest} from './types';
 import type {MionClient} from './client';
 import {TypedEvent} from './typedEvent';
 import {TypedPromise} from './typedPromise';
@@ -25,15 +25,12 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     isResolved: boolean = false;
     /** Parameters to pass to the method */
     params: any[];
-    /** Result after resolution (undefined until resolved) */
-    result?: S;
+    /** The resolved value after the request completes successfully */
+    resolvedValue?: S;
     /** Error after resolution (undefined until resolved) */
     error?: E;
     /** Serialized parameters for transport */
     serializedParams?: any[];
-
-    /** Stored hooks for route calls */
-    private storedHooks: HookSubRequest<any>[] = [];
 
     constructor(
         parentProps: string[],
@@ -77,15 +74,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     }
 
     /**
-     * Sets hooks to be used for the route call.
-     */
-    hooks(...hooks: HookSubRequest<any>[]): RouteSubRequest<any> & HookSubRequest<any> {
-        this.storedHooks = hooks;
-        return this as RouteSubRequest<any> & HookSubRequest<any>;
-    }
-
-    /**
-     * Calls a remote route and returns TypedPromise for chainable error handling.
+     * Calls a remote route without hooks and returns TypedPromise for chainable error handling.
      * The TypedPromise is returned immediately and handlers are executed when the request completes.
      */
     call(): TypedPromise<S, E> {
@@ -93,10 +82,73 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         const typedPromise = new TypedPromise<S, E>();
 
         // Execute the request asynchronously - Client distributes results to TypedPromise
-        this.client.executeCall(this as RouteSubRequest<any>, this.storedHooks, typedPromise);
+        this.client.executeCall(this as unknown as RouteSubRequest<any>, [], typedPromise);
 
         // Return immediately - user chains handlers
         return typedPromise;
+    }
+
+    /**
+     * Calls a remote route and returns a standard Promise for async/await.
+     * WARNING: You lose strong error typing when using this!
+     *
+     * @example
+     * ```typescript
+     * const user = await routes.users.getById('123').promise();
+     * ```
+     */
+    promise(): Promise<S> {
+        return this.call().toPromise();
+    }
+
+    /**
+     * Calls a remote route and returns a Result object with full typing preserved.
+     * Best option when async/await is needed but you want to keep type safety.
+     *
+     * @example
+     * ```typescript
+     * const {data: user, error} = await routes.users.getById('123').result();
+     * if (error) {
+     *     console.log(error.errorData?.userId);
+     * } else {
+     *     console.log(user.name);
+     * }
+     * ```
+     */
+    result(): Promise<Result<S, E>> {
+        return this.call().toResult();
+    }
+
+    /**
+     * Calls a remote route with hooks and returns a fully-typed result object.
+     * Always returns (never throws) - can have partial success where some hooks/route succeed and others fail.
+     *
+     * @param hooks Record of hook names to HookSubRequest instances
+     * @returns Promise that resolves to CallWithHooksResult containing route and hooks results
+     *
+     * @example
+     * ```typescript
+     * const result = await routes.users.getById('123').callWithHooks({
+     *     auth: hooks.auth(headers),
+     *     session: hooks.session(token)
+     * });
+     *
+     * if (result.route.error) {
+     *     console.log('Route failed:', result.route.error.type);
+     * } else if (result.route.data) {
+     *     console.log('User:', result.route.data.name);
+     * }
+     * ```
+     */
+    callWithHooks<H extends Record<string, HookSubRequest<any>>>(hooks: H): Promise<CallWithHooksResult<S, E, H>> {
+        // Convert hooks record to array for the client
+        const hookEntries = Object.entries(hooks);
+        const hookSubRequests = hookEntries.map(([, hook]) => hook);
+
+        // Execute the request and return a promise that resolves to the result
+        return this.client.executeCallWithHooks(this as RouteSubRequest<any>, hooks, hookSubRequests) as Promise<
+            CallWithHooksResult<S, E, H>
+        >;
     }
 
     /**

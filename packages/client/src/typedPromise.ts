@@ -12,13 +12,16 @@ import type {ErrorHandler, UnknownErrorHandler} from './types';
  * A Promise wrapper that provides typed error handling with chainable methods.
  * This is a passive container - the Client triggers handler execution.
  *
- * TypedPromise implements PromiseLike<S> for compatibility with async/await.
+ * TypedPromise does NOT implement PromiseLike - it cannot be awaited directly.
+ * This is by design to prevent loss of strong error typing.
+ * Use `.toPromise()` for async/await (loses typing) or `.toResult()` for Result pattern (preserves typing).
  *
  * @typeParam S - Success type (the resolved value type, excluding RpcError)
  * @typeParam E - Union of RpcError types (e.g., RpcError<'not-found', {id: string}> | RpcError<'forbidden', void>)
  *
  * @example
  * ```typescript
+ * // Recommended: Use chaining for full type safety
  * routes.users.getById('123').call()
  *   .catchError('user-not-found', (e) => {
  *     // e.errorData is fully typed based on the error type!
@@ -27,12 +30,26 @@ import type {ErrorHandler, UnknownErrorHandler} from './types';
  *   .catchUnknown((e) => console.log('Unknown error'))
  *   .finally(() => setLoading(false))
  *   .then((user) => console.log(user.name));
+ *
+ * // Alternative: Use toResult() for async/await with type safety
+ * const result = await routes.users.getById('123').call().toResult();
+ * if (result.error) {
+ *   console.log(result.error.errorData?.userId);
+ * } else {
+ *   console.log(result.data.name);
+ * }
+ *
+ * // Alternative: Use toPromise() for async/await (loses error typing)
+ * const user = await routes.users.getById('123').call().toPromise();
  * ```
  */
 /** Handler for the catch method - receives all unhandled errors as a record */
 export type CatchHandler = (errors: Record<string, RpcError<string, any>>) => void;
 
-export class TypedPromise<S, E extends RpcError<string, any> = never> implements PromiseLike<S> {
+/** Result type for toResult() method - discriminated union */
+export type TypedPromiseResult<S, E> = {data: S; error?: never} | {data?: never; error: E};
+
+export class TypedPromise<S, E extends RpcError<string, any> = never> {
     /** Map of error type -> handler */
     private errorHandlers: Map<string, ErrorHandler<any>> = new Map();
     /** Handler for unknown/unhandled errors */
@@ -46,15 +63,15 @@ export class TypedPromise<S, E extends RpcError<string, any> = never> implements
     /** Accumulated unhandled errors keyed by method/hook ID */
     private unhandledErrors: Record<string, RpcError<string, any>> = {};
 
-    /** The underlying promise for async/await support */
-    private readonly promise: Promise<S>;
+    /** The underlying promise for async/await support - exposed for MionSubRequest.promise() and result() */
+    private readonly internalPromise: Promise<S>;
     /** Resolve function for the underlying promise */
     private resolvePromise!: (value: S) => void;
     /** Reject function for the underlying promise */
     private rejectPromise!: (error: RpcError<string, any>) => void;
 
     constructor() {
-        this.promise = new Promise<S>((resolve, reject) => {
+        this.internalPromise = new Promise<S>((resolve, reject) => {
             this.resolvePromise = resolve;
             this.rejectPromise = reject;
         });
@@ -66,14 +83,12 @@ export class TypedPromise<S, E extends RpcError<string, any> = never> implements
      * Register success handler. Result is guaranteed to NOT be an RpcError.
      * Returns this TypedPromise for chaining - order doesn't matter.
      *
-     * Also enables async/await support - `await typedPromise` works as expected.
+     * Note: This is NOT the PromiseLike.then() - TypedPromise cannot be awaited directly.
+     * Use .toPromise() or .toResult() if you need async/await.
      */
-    then<TResult1 = S, TResult2 = never>(
-        onFulfilled?: ((value: S) => TResult1 | PromiseLike<TResult1>) | null,
-        onRejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
-    ): TypedPromise<S, E> & PromiseLike<TResult1 | TResult2> {
-        this.promise.then(onFulfilled, onRejected);
-        return this as TypedPromise<S, E> & PromiseLike<TResult1 | TResult2>;
+    then(onFulfilled: (value: S) => void): TypedPromise<S, E> {
+        this.internalPromise.then(onFulfilled);
+        return this;
     }
 
     /**
@@ -127,6 +142,26 @@ export class TypedPromise<S, E extends RpcError<string, any> = never> implements
     finally(onFinally: () => void): TypedPromise<S, E> {
         this.finallyHandler = onFinally;
         return this;
+    }
+
+    // ############# Internal Methods (for MionSubRequest.promise() and result()) #############
+
+    /**
+     * Convert to a standard Promise. Used internally by MionSubRequest.promise().
+     * @internal
+     */
+    toPromise(): Promise<S> {
+        return this.internalPromise;
+    }
+
+    /**
+     * Convert to a Result object. Used internally by MionSubRequest.result().
+     * @internal
+     */
+    toResult(): Promise<TypedPromiseResult<S, E>> {
+        return new Promise((resolve) => {
+            this.internalPromise.then((data) => resolve({data})).catch((error) => resolve({error}));
+        });
     }
 
     // ############# Internal Methods (Called by Client) #############
