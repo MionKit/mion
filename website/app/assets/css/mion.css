@@ -114,6 +114,17 @@ body .video-player > img {
   width: 100%;
 }
 
+pre.text-sm\/6 {
+  font-size: 0.8rem;
+  letter-spacing: -0.01rem;
+  line-height: 1.1rem;
+}
+
+pre.px-4 {
+  padding-left: 0.8rem;
+  padding-right: 0.4rem;
+}
+
 @media screen and (max-width: 639px) {
   body .block-hero .content h1.title {
     min-height: 6rem;

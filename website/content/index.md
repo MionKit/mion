@@ -23,10 +23,10 @@ Full Stack APIs<br/> :typed-title
   ---
   color: neutral
   size: xl
-  to: /introduction/quick-start
-  trailing-icon: i-lucide-arrow-right
+  to: /introduction/about-mion
+  icon: icon-park-outline:book-one
   ---
-  Quick Start
+  Read the Docs
   :::
 
   :::u-button
@@ -37,7 +37,7 @@ Full Stack APIs<br/> :typed-title
   to: https://github.com/MionKit/mion
   variant: outline
   ---
-  Star us on Github
+  Give us Star
   :::
 ::
 
