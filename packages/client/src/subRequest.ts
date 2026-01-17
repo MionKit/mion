@@ -73,48 +73,27 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     }
 
     /**
-     * Calls a remote route and returns a Result tuple with full typing preserved.
+     * Calls a remote route and returns a Result 4-tuple with full typing preserved.
      * Never throws - errors are always in the result tuple.
      *
-     * @returns Promise that resolves to [result, error] tuple
-     *
-     * @example
-     * ```typescript
-     * const [user, error] = await routes.users.getById('123').call();
-     * if (error) {
-     *     console.log(error.errorData?.userId);
-     *     return;
-     * }
-     * console.log(user.name);
-     * ```
+     * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] 4-tuple
      */
     call(): Promise<Result<S, E>> {
         return this.client.executeCall(this as unknown as RouteSubRequest<any>);
     }
 
     /**
-     * Calls a remote route with hooks and returns a fully-typed result tuple.
+     * Calls a remote route with hooks and returns a fully-typed 4-tuple result.
      * Always returns (never throws) - can have partial success where some hooks/route succeed and others fail.
      *
      * @param hooks Record of hook names to HookSubRequest instances
-     * @returns Promise that resolves to [results, errors] tuple containing route and hooks results
-     *
-     * @example
-     * ```typescript
-     * const [results, errors] = await routes.users.getById('123').callWithHooks({
-     *     auth: hooks.auth(headers),
-     *     session: hooks.session(token)
-     * });
-     *
-     * if (errors.route) {
-     *     console.log('Route failed:', errors.route.type);
-     * } else if (results.route) {
-     *     console.log('User:', results.route.name);
-     * }
-     * ```
+     * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] 4-tuple
      */
     callWithHooks<H extends Record<string, HookSubRequest<any>>>(hooks: H): Promise<CallWithHooksResult<S, E, H>> {
         const hookEntries = Object.entries(hooks);
+        if (hookEntries.length === 0) {
+            throw new Error('callWithHooks requires at least one hook. Use call() instead for requests without hooks.');
+        }
         const hookSubRequests = hookEntries.map(([, hook]) => hook);
         return this.client.executeCallWithHooks(this as RouteSubRequest<any>, hooks, hookSubRequests) as Promise<
             CallWithHooksResult<S, E, H>

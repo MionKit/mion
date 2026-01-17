@@ -78,10 +78,6 @@ function getJitPureFnKey(pureFnHash: string, options: ClientOptions) {
 
 /**
  * Stores JIT compiled functions and pure functions globally in localStorage
- *
- * @example
- * // Store dependencies globally (called by fetchRemoteMethodsMetadata)
- * storeDependencies(deps, pureFnDeps, options);
  */
 export function storeDependencies(
     deps: Record<string, JitCompiledFnData>,
@@ -122,10 +118,6 @@ export function storeDependencies(
 
 /**
  * Stores method metadata in localStorage using the new storage format
- *
- * @example
- * // Store method metadata (called by fetchRemoteMethodsMetadata)
- * storeMethodsMetadata(serializableMethodsData.methods, options);
  */
 export function storeMethodsMetadata(methods: Record<string, MethodMetadata>, options: ClientOptions) {
     Object.entries(methods).forEach(([methodId, methodData]) => {
@@ -140,10 +132,6 @@ export function storeMethodsMetadata(methods: Record<string, MethodMetadata>, op
 
 /**
  * Restores all JIT compiled functions and pure functions from localStorage and deserializes them
- *
- * @example
- * // Call this once at client initialization to restore all dependencies
- * restoreAllDependencies(options);
  *
  * // After this, all JIT functions are available in the cache and methods can be fetched as needed
  * await fetchRemoteMethodsMetadata(['method1', 'method2'], options, metadataById, jitFunctionsById);
