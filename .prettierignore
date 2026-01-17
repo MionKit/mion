@@ -25,3 +25,9 @@ old-website
 # deepkit
 ########################
 _deepkit
+
+########################
+# AI Agent Guidelines
+########################
+.augment-*
+**/AGENTS.md

@@ -70,7 +70,6 @@ typings/
 .netbeans
 nbproject
 .idea
-.vscode
 
 ########################
 # generated files
