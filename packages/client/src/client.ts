@@ -57,11 +57,11 @@ export class MionClient {
     constructor(private clientOptions: ClientOptions) {}
 
     /**
-     * Executes a route call and returns a Result object.
+     * Executes a route call and returns a Result tuple.
      * This is the main orchestration method that:
      * 1. Executes the request via MionRequest
      * 2. Processes hook success/error handlers (fire-and-forget for prefill)
-     * 3. Returns Result with data or error
+     * 3. Returns [data, undefined] or [undefined, error] tuple
      */
     executeCall<RR extends RouteSubRequest<any>>(routeSubRequest: RR): Promise<Result<any, any>> {
         return new Promise((resolve) => {
@@ -76,8 +76,8 @@ export class MionClient {
                     // Success - distribute hook results to their registered success handlers (fire-and-forget)
                     this.processHookSuccess(allHooks);
 
-                    // Return success result
-                    resolve({data: routeSubRequest.resolvedValue});
+                    // Return success result tuple
+                    resolve([routeSubRequest.resolvedValue, undefined]);
                 })
                 .catch((errors: RequestErrors) => {
                     // Get ALL hooks from request.subRequestList (includes prefilled hooks restored from storage)
@@ -86,9 +86,9 @@ export class MionClient {
                     // Process hook errors (fire-and-forget for prefill handlers)
                     this.processHookErrors(allHooks, errors);
 
-                    // Return error result
+                    // Return error result tuple
                     const routeError = errors.get(routeSubRequest.id) || findSubRequestError(routeSubRequest, errors);
-                    resolve({error: routeError});
+                    resolve([undefined, routeError]);
                 });
         });
     }
@@ -190,8 +190,8 @@ export class MionClient {
     }
 
     /**
-     * Build the CallWithHooksResult object from the request results.
-     * Returns {data, errors} pattern similar to toResult().
+     * Build the CallWithHooksResult tuple from the request results.
+     * Returns [data, errors] tuple.
      */
     private buildCallWithHooksResult<H extends Record<string, HookSubRequest<any>>>(
         routeSubRequest: RouteSubRequest<any>,
@@ -227,7 +227,7 @@ export class MionClient {
             // If neither error nor resolvedValue, the hook didn't execute - leave undefined
         }
 
-        return {data, errors: resultErrors};
+        return [data, resultErrors];
     }
 
     typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {

@@ -73,19 +73,19 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     }
 
     /**
-     * Calls a remote route and returns a Result object with full typing preserved.
-     * Never throws - errors are always in the result object.
+     * Calls a remote route and returns a Result tuple with full typing preserved.
+     * Never throws - errors are always in the result tuple.
      *
-     * @returns Promise that resolves to Result with {data, error} pattern
+     * @returns Promise that resolves to [data, error] tuple
      *
      * @example
      * ```typescript
-     * const {data: user, error} = await routes.users.getById('123').call();
+     * const [user, error] = await routes.users.getById('123').call();
      * if (error) {
      *     console.log(error.errorData?.userId);
-     * } else {
-     *     console.log(user.name);
+     *     return;
      * }
+     * console.log(user.name);
      * ```
      */
     call(): Promise<Result<S, E>> {
@@ -93,15 +93,15 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     }
 
     /**
-     * Calls a remote route with hooks and returns a fully-typed result object.
+     * Calls a remote route with hooks and returns a fully-typed result tuple.
      * Always returns (never throws) - can have partial success where some hooks/route succeed and others fail.
      *
      * @param hooks Record of hook names to HookSubRequest instances
-     * @returns Promise that resolves to CallWithHooksResult containing route and hooks results
+     * @returns Promise that resolves to [data, errors] tuple containing route and hooks results
      *
      * @example
      * ```typescript
-     * const {data, errors} = await routes.users.getById('123').callWithHooks({
+     * const [data, errors] = await routes.users.getById('123').callWithHooks({
      *     auth: hooks.auth(headers),
      *     session: hooks.session(token)
      * });

@@ -7,10 +7,10 @@ import {isRpcError} from '@mionkit/core';
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // ========== Result pattern (never throws) ==========
-// call() always returns a Result object, never throws
+// call() always returns a Result tuple [data, error], never throws
 
 // calls sayHello route in the server
-const {data: sayHello, error} = await routes.users.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
+const [sayHello, error] = await routes.users.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
 
 if (error) {
     // in this case the request has failed because the authorization hook is missing

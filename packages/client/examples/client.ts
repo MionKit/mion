@@ -50,7 +50,7 @@ hooks
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
 // call() returns Result<User, RpcError<'user-not-found', UserNotFoundData>>
 async function exampleWithTypedError() {
-    const {data: user, error} = await routes.users.getById('USER-123').call();
+    const [user, error] = await routes.users.getById('USER-123').call();
 
     if (error) {
         if (error.type === 'user-not-found') {
@@ -73,7 +73,7 @@ async function exampleWithTypedError() {
 // ========== Example 2: Order error with typed errorData ==========
 // Order getById returns Order | RpcError<'order-not-found', OrderNotFoundData>
 async function exampleWithOrderError() {
-    const {data: order, error} = await routes.orders.getById('ORDER-404').call();
+    const [order, error] = await routes.orders.getById('ORDER-404').call();
 
     if (error) {
         if (error.type === 'order-not-found') {
@@ -89,21 +89,21 @@ async function exampleWithOrderError() {
 // ========== Example 3: Route that always succeeds ==========
 // sayHello returns just string (no error type), so error is always undefined
 async function exampleAlwaysSucceeds() {
-    const {data: result} = await routes.users.sayHello(john).call();
+    const [result] = await routes.users.sayHello(john).call();
     // sayHello never has an error type, so we can use the result directly
     console.log(result); // Hello John Doe
 }
 
 // ========== Example 5: Using callWithHooks() for per-request hooks ==========
 // Use callWithHooks() when you need to pass hooks for a SINGLE request
-// Returns {data, errors} pattern similar to toResult()
+// Returns [data, errors] tuple
 
 // Create a hook with temporary credentials for this specific request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
 
-// callWithHooks() takes a record of hooks and returns a typed result
+// callWithHooks() takes a record of hooks and returns a typed result tuple
 async function exampleWithCallWithHooks() {
-    const {data, errors} = await routes.users.getById('USER-123').callWithHooks({
+    const [data, errors] = await routes.users.getById('USER-123').callWithHooks({
         auth: hooks.auth(tempAuthHeaders, true),
     });
 
@@ -133,7 +133,7 @@ async function exampleWithCallWithHooks() {
 // ========== Example 6: Multiple Hooks with callWithHooks() ==========
 // Pass multiple hooks in the record - each gets its own typed result
 async function exampleWithMultipleHooks() {
-    const {data, errors} = await routes.users.getById('USER-123').callWithHooks({
+    const [data, errors] = await routes.users.getById('USER-123').callWithHooks({
         auth: hooks.auth(tempAuthHeaders),
         // session: hooks.session('session-token'), // If you have a session hook
     });
@@ -154,12 +154,12 @@ async function exampleWithMultipleHooks() {
 }
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
-// call() returns Result<S, E> - never throws, always returns { data } or { error }
+// call() returns Result<S, E> - never throws, always returns [data, error] tuple
 // This is the standard pattern for all route calls
 async function exampleWithCall() {
-    // call() never throws - returns a discriminated union
-    // Use destructuring with rename: { data: user } renames data to user
-    const {data: user, error} = await routes.users.getById('USER-999').call();
+    // call() never throws - returns a tuple [data, error]
+    // Tuple destructuring allows natural naming
+    const [user, error] = await routes.users.getById('USER-999').call();
 
     if (error) {
         // TypeScript knows error is the typed error here
