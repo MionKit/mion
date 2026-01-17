@@ -36,7 +36,8 @@
     {"path": "./packages/bun"},
     {"path": "./packages/cli"},
     {"path": "./packages/eslint-plugin"},
-    {"path": "./packages/quick-start"}
+    {"path": "./packages/quick-start"},
+    {"path": "./website"}
   ],
   "files": [],
   "exclude": ["node_modules", ".dist"],

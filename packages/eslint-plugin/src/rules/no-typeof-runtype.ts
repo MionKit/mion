@@ -36,7 +36,7 @@ function containsTypeof(typeNode: TSESTree.Node | null): boolean {
  */
 function isRunTypeFromMionKit(node: TSESTree.CallExpression, context: TSESLint.RuleContext<any, any>): boolean {
     // List of functions that should not use typeof
-    const runTypeFunctions = ['runType', 'isTypeFn', 'typeErrorsFn', 'isStrictTypeFn', 'mockTypeFn', 'toJavascriptFn'];
+    const runTypeFunctions = ['runType', 'isTypeFn', 'typeErrorsFn', 'mockTypeFn', 'toJavascriptFn'];
 
     // Check if the callee is an identifier with one of the runType function names
     if (node.callee.type !== AST_NODE_TYPES.Identifier || !runTypeFunctions.includes(node.callee.name)) {

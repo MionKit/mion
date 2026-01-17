@@ -97,29 +97,30 @@ export interface CustomVλl {
 export interface RunTypeOptions {
     /** Slice parameters when parsing functions, so some parameter can be omitted from jit generation */
     paramsSlice?: {start?: number; end?: number};
-    /**
-     * Used when compiling objects that contain jit functions,
-     * this will generate the function's code from JitCompiler data instead of calling function.toString()
-     * TODO: we could skip this and instead check runType is JitCompiler
-     */
-    isJitFnCode?: boolean;
-    /**
-     * Used whe compiling objects that contain pure functions,
-     * this will generate the function's code from JitCompiler instead of calling function.toString()
-     */
-    isPureFnCode?: boolean;
     mock?: MockOptions;
     /**
      * When compiling literals will use the  Literal's type instead of the literal value.
      * ie `type A = 'a'`  will be compiled as it was `type A = string` so will accept any string value not only 'a'
      */
     noLiterals?: boolean;
-
     /**
      * Skip checking array and just check for items type
      * this speeds up isType and typeErrors functions but will not validate array length.
      */
     noIsArrayCheck?: boolean;
+    /**
+     * Used internally by mion!!!
+     * Used when compiling objects that contain jit functions,
+     * this will generate the function's code from JitCompiler data instead of calling function.toString()
+     * TODO: we could skip this and instead check runType is JitCompiler
+     */
+    isJitFnCode?: boolean;
+    /**
+     * Used internally by mion!!!
+     * Used whe compiling objects that contain pure functions,
+     * this will generate the function's code from JitCompiler instead of calling function.toString()
+     */
+    isPureFnCode?: boolean;
 }
 
 export type PartialRunTypeOptions = DeepPartial<RunTypeOptions>;

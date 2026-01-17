@@ -1,8 +1,10 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+   site: {
+    name: 'mion',
+  },
    css: [
      '~/assets/css/mion.css',
-     // billboard.js CSS is loaded via CDN in plugins/billboard.client.ts
    ],
    app: {
     // baseURL: '/mion/', // working with github pages mionkit.github.io/mion/ - Remove when using mion.io

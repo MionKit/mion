@@ -39,12 +39,6 @@ export async function createTypeErrorsFn<T>(opts?: RunTypeOptions, type?: Receiv
     return rt.createJitFunction(JitFunctions.typeErrors, opts);
 }
 
-/** Returns a function that checks if the given value is of the specified type, but ignore type transformations like uppercase, lowercase etc */
-export async function createIsStrictTypeFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): Promise<IsTypeFn> {
-    const rt = runType(type);
-    return rt.createJitFunction(JitFunctions.isTypeStrict, opts);
-}
-
 /**
  * Returns a function that prepares a javascript type to be compatible with json.stringify.
  * Allows json.stringify special types like dates, bigints, maps, set, etc... that are not supported by json.stringify
