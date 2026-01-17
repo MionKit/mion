@@ -96,14 +96,14 @@ async function exampleAlwaysSucceeds() {
 
 // ========== Example 5: Using callWithHooks() for per-request hooks ==========
 // Use callWithHooks() when you need to pass hooks for a SINGLE request
-// Returns [data, errors] tuple
+// Returns [results, errors] tuple
 
 // Create a hook with temporary credentials for this specific request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
 
 // callWithHooks() takes a record of hooks and returns a typed result tuple
 async function exampleWithCallWithHooks() {
-    const [data, errors] = await routes.users.getById('USER-123').callWithHooks({
+    const [results, errors] = await routes.users.getById('USER-123').callWithHooks({
         auth: hooks.auth(tempAuthHeaders, true),
     });
 
@@ -122,18 +122,18 @@ async function exampleWithCallWithHooks() {
     }
 
     // Access success data
-    if (data.route) {
-        console.log('Found user:', data.route.name);
+    if (results.route) {
+        console.log('Found user:', results.route.name);
     }
-    if (data.hooks.auth) {
-        console.log('Authenticated as:', data.hooks.auth.userId);
+    if (results.hooks.auth) {
+        console.log('Authenticated as:', results.hooks.auth.userId);
     }
 }
 
 // ========== Example 6: Multiple Hooks with callWithHooks() ==========
 // Pass multiple hooks in the record - each gets its own typed result
 async function exampleWithMultipleHooks() {
-    const [data, errors] = await routes.users.getById('USER-123').callWithHooks({
+    const [results, errors] = await routes.users.getById('USER-123').callWithHooks({
         auth: hooks.auth(tempAuthHeaders),
         // session: hooks.session('session-token'), // If you have a session hook
     });
@@ -148,16 +148,16 @@ async function exampleWithMultipleHooks() {
     // }
 
     // Access success data
-    if (data.route) {
-        console.log('User:', data.route.name);
+    if (results.route) {
+        console.log('User:', results.route.name);
     }
 }
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
-// call() returns Result<S, E> - never throws, always returns [data, error] tuple
+// call() returns Result<S, E> - never throws, always returns [result, error] tuple
 // This is the standard pattern for all route calls
 async function exampleWithCall() {
-    // call() never throws - returns a tuple [data, error]
+    // call() never throws - returns a tuple [result, error]
     // Tuple destructuring allows natural naming
     const [user, error] = await routes.users.getById('USER-999').call();
 
