@@ -2,20 +2,39 @@
 @import "@nuxt/ui";
 
 @theme static {
-  --color-green-50: #f6fbf1;
-  --color-green-100: #e1f2d0;
-  --color-green-200: #cae8ab;
-  --color-green-300: #afdc82;
-  --color-green-400: #8dcb4e;
-  --color-green-500: #79af43;
-  --color-green-600: #649037;
-  --color-green-700: #52762d;
-  --color-green-800: #446225;
-  --color-green-900: #30451b;
+  --color-green-50: #f7f9f4;
+  --color-green-100: #e8edd9;
+  --color-green-200: #d4dfbc;
+  --color-green-300: #bdd09d;
+  --color-green-400: #a3be7a;
+  --color-green-500: #8aa85e;
+  --color-green-600: #728c4d;
+  --color-green-700: #5c7240;
+  --color-green-800: #4a5c35;
+  --color-green-900: #374428;
+}
+
+:root {
+  --ui-saturated: #79af43;
 }
 
 :root.dark {
   --elements-text-secondary-color-static: var(--color-gray-300);
+}
+
+/* Home Page header */
+:root.dark header {
+  background-color: rgba(20, 20, 20, 0.55);
+}
+:root.light header {
+  background-color: rgba(255, 255, 255, 0.65);
+}
+/* Remove header background on home page */
+:root.dark:has(.typed-title-container) header {
+  background-color: transparent;
+}
+:root.light:has(.typed-title-container) header {
+  background-color: transparent;
 }
 
 :root.light {
@@ -23,8 +42,8 @@
   --ui-bg: #f0f0f0;
 }
 
-:root.light header {
-  background-color: rgba(255, 255, 255, 0.65);
+body h1 {
+  color: var(--ui-primary);
 }
 
 

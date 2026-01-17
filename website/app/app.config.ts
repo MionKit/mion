@@ -1,7 +1,7 @@
 export default defineAppConfig({
   seo: {
     title: 'mion - Full Stack APIs at the speed of light',
-    description: 'mion is a lightweight typescript framework designed to build Full Stack APIs, and offer the best developer experience.',
+    description: 'mion is the definitive TypeScript framework for Full Stack APIs, built for exceptional developer experience.',
     image: 'https://mion.io/banners/mion-website-banner-1-2.png',
   },
   docus: {

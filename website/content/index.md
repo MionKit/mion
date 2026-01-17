@@ -1,21 +1,38 @@
 ---
 seo:
-  title: mion - Full Stack APIs at the speed of light
-  description: mion is a lightweight typescript framework designed to build Full Stack APIs, 
-    And offer the best developer experience.
+  title: mion - the definitive TypeScript framework for Full Stack APIs
+  description: mion is the definitive TypeScript framework for Full Stack APIs, built for exceptional developer experience.
   image: https://mion.io/banners/mion-website-banner-1-2.png
+pageClass: home-page
 ---
 
-:ellipsis{right=0px width=75% blur=150px}
+:home-page-body
+
+::gradient-bg
+---
+angle: 70
+opacity: 0.2
+blur: 150px
+---
+::
 
 ::u-page-hero{class="home-hero"}
-#title
-Full Stack APIs<br/> :typed-title 
-
-<!-- :icon{name="icon-park-outline:flash-payment"} -->
-
-#description
-## mion is a lightweight framework designed to build APIs that are type-safe, and offer the best developer experience.
+#header
+  :::typed-title
+  ---
+  leading: "Typescript Full Stack APIs"
+  titles:
+    - 'At The Speed Of Light ⚡'
+    - 'Are Safer To Refactor'
+    - 'Are Developer Friendly'
+    - 'Are Not RestFull APIs'
+    - 'Are Serverless Ready'
+    - 'Are Made For SaaS'
+    - 'Are RPC like'
+  ---
+  #description
+  mion is the definitive TypeScript framework for Full Stack APIs, built for exceptional developer experience.
+  :::
 
 #links
   :::u-button
@@ -24,6 +41,7 @@ Full Stack APIs<br/> :typed-title
   size: xl
   to: /introduction/about-mion
   icon: icon-park-outline:book-one
+  class: btn-docs
   ---
   Read the Docs
   :::
@@ -45,87 +63,81 @@ Full Stack APIs<br/> :typed-title
 Features
 
 #root
-:ellipsis{left=0px width=40rem top=10rem blur=140px}
+:::gradient-bg
+---
+angle: 70
+opacity: 0.15
+top: 10rem
+blur: 140px
+---
+:::
 
 #body
-  :::u-page-grid
-    ::::u-page-card
+  :::card-group
+  ---
+  class: lg:grid-cols-3
+  ---
+    ::::card
     ---
-    icon: icon-park-outline:rectangular-circular-separation
+    title: RPC like
+    to: /introduction/about-mion#rpc-like
     ---
-    #title
-    [RPC like](./1.introduction/1.about-mion.md#rpc-like)
-    #description
     RPC like architecture for simpler and easier to consume APIs.
     Just use remote methods as any other local async method.
     ::::
 
-    ::::u-page-card
+    ::::card
     ---
-    icon: icon-park-outline:code-computer
+    title: Fully Typed Client
+    to: /client/client-overview
     ---
-    #title
-    [Fully Typed Client](./2.client/0.client-overview.md)
-    #description
     Fully typed client with static type checking, autocompletion, automatic validation and serialization.
     ::::
 
-    ::::u-page-card
+    ::::card
     ---
-    icon: icon-park-outline:flash-payment
+    title: Fast
+    to: /benchmarks/hello-world
     ---
-    #title
-    [Fast](./4.benchmarks/1.hello-world.md)
-    #description
     Quick cold starts and a simple in-memory map for route lookup makes mion extremely fast.
     ::::
 
-    ::::u-page-card
+    ::::card
     ---
-    icon: icon-park-outline:protect
+    title: Automatic Validation
+    to: /server/validation-and-serialization
     ---
-    #title
-    [Automatic Validation](./2.server/7.validation-and-serialization.md)
-    #description
     Out of the box validation of Remote function parameters and return types.
     Full type safety without needed for schema libraries, just from Typescript types.
     ::::
 
-    ::::u-page-card
+    ::::card
     ---
-    icon: icon-park-outline:text
+    title: Automatic Serialization
+    to: /server/validation-and-serialization
     ---
-    #title
-    [Automatic Serialization](./2.server/7.validation-and-serialization.md)
-    #description
     Out of the box serialization of native objects like Date, Map or Class, all of them can be directly serialized to JSON.
     ::::
 
-    ::::u-page-card
+    ::::card
     ---
-    icon: simple-icons:typescript
     title: End To End Type Safety
+    to: /run-types/overview
     ---
-    #title
-    [End To End Type Safety](./4.run-types/0.overview.md)
-
-    #description
     You can easily refactor your API and changes will be safely picked by the client or
     validate data directly on the client.
     ::::
 
-    ::::u-page-card
+    ::::card
     ---
-    class: group sm:col-span-2 lg:col-span-3 text-center flex flex-col items-center justify-center
+    title: Write Once Run Everywhere
+    to: /platforms/overview
+    class: sm:col-span-2 lg:col-span-3 text-center
     ---
-    #title
-    [Write Once Run Everywhere](./3.platforms/0.overview.md)
-
-    #description
 
     :platform-tiles
 
-    Run mion APIs in [Node.js](./3.platforms/1.node-js.md), [Bun](./3.platforms/2.bun.md) or Serverless platforms like [Aws Lambda](./3.platforms/1.aws-lambda.md) and [Google cloud functions](./3.platforms/1.google-cloud-functions.md).
+    Run mion APIs in [Node.js](/platforms/node-js), [Bun](/platforms/bun) or Serverless platforms like [Aws Lambda](/platforms/aws-lambda) and [Google cloud functions](/platforms/google-cloud-functions).
     ::::
   :::
 ::
