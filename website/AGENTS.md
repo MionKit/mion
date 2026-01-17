@@ -15,6 +15,10 @@
   - `components/content/` - Custom MDC components (`:component-name` syntax)
   - `components/global/` - Global Vue components
 
+## Generating Documentation about packages
+- when generating documentation about some feature, please always check that feature's tests for examples and guidance on how to use that feature.
+- notes, tips, warnings, components should be added after code examples when possible 
+
 ## MDC Syntax
 
 ### Inline Components
@@ -72,3 +76,5 @@ Features
 
 ## External Links
 - Use `{target="_blank"}` or `{blank}` for external links
+
+
