@@ -72,14 +72,6 @@ export const jitValidationFunctions = {
         jitDefaultArgs: jitDefaultErrorArgs,
         returnName: jitErrorArgs.εrr,
     },
-    // not yet implemented, this will check and include type formats, ie, lowercase, uppercase, etc
-    isTypeStrict: {
-        id: 'isNF',
-        name: 'isTypeStrict',
-        jitArgs,
-        jitDefaultArgs,
-        returnName: jitArgs.vλl,
-    },
 } as const satisfies JitFunctionsGroup;
 
 export const jitSerializationFunctions = {

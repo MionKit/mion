@@ -9,6 +9,7 @@ const titles = [
   'Are Made For SaaS',
   'Are RPC like',
 ];
+console.log('here');
 </script>
 
 <template>
