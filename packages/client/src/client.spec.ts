@@ -148,7 +148,7 @@ describe('client', () => {
         // If auth is required, we should get an error
         // If auth is not required, the route should succeed
         // Either way, callWithHooks should not throw
-        expect(data).toBeDefined();
+        expect(results).toBeDefined();
         expect(errors).toBeDefined();
 
         // If there's an error, it should be an RpcError
@@ -206,9 +206,9 @@ describe('client', () => {
             hooks.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const [data, error] = await routes.sayHello(someUser).call();
+            const [greeting, error] = await routes.sayHello(someUser).call();
 
-            expect(data).toBe('Hello John Doe');
+            expect(greeting).toBe('Hello John Doe');
             expect(error).toBeUndefined();
 
             // Clean up
@@ -223,9 +223,9 @@ describe('client', () => {
             hooks.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const [data, error] = await routes.alwaysFails(someUser).call();
+            const [response, error] = await routes.alwaysFails(someUser).call();
 
-            expect(data).toBeUndefined();
+            expect(response).toBeUndefined();
             expect(error).toBeDefined();
             expect(error?.type).toBe('unknown-error');
             expect(error?.publicMessage).toBe('Something fails');
@@ -265,12 +265,12 @@ describe('client', () => {
             hooks.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const [data, error] = await routes.alwaysFails(someUser).call();
+            const [response, error] = await routes.alwaysFails(someUser).call();
 
             // alwaysFails always returns an error, so we expect error to be defined
             expect(error).toBeDefined();
             expect(error?.type).toBe('unknown-error');
-            expect(data).toBeUndefined();
+            expect(response).toBeUndefined();
 
             // Clean up
             hooks.auth(authHeaders).removePrefill();
@@ -450,11 +450,11 @@ describe('client', () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [data, errors] = await routes.sayHello(someUser).callWithHooks({
+            const [results, errors] = await routes.sayHello(someUser).callWithHooks({
                 auth: hooks.auth(authHeaders),
             });
 
-            expect(data.route).toBe('Hello John Doe');
+            expect(results.route).toBe('Hello John Doe');
             expect(errors.route).toBeUndefined();
         });
 
@@ -462,26 +462,26 @@ describe('client', () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [data, errors] = await routes.sayHello(someUser).callWithHooks({
+            const [results, errors] = await routes.sayHello(someUser).callWithHooks({
                 auth: hooks.auth(authHeaders),
                 session: hooks.session('valid-token'),
             });
 
-            expect(data.route).toBe('Hello John Doe');
+            expect(results.route).toBe('Hello John Doe');
             expect(errors.hooks.auth).toBeUndefined();
-            expect(data.hooks.session).toBeDefined();
-            expect(data.hooks.session?.userId).toBe('user-123');
+            expect(results.hooks.session).toBeDefined();
+            expect(results.hooks.session?.userId).toBe('user-123');
         });
 
         it('callWithHooks should return route error on failure', async () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [data, errors] = await routes.alwaysFails(someUser).callWithHooks({
+            const [results, errors] = await routes.alwaysFails(someUser).callWithHooks({
                 auth: hooks.auth(authHeaders),
             });
 
-            expect(data.route).toBeUndefined();
+            expect(results.route).toBeUndefined();
             expect(errors.route).toBeDefined();
             expect(errors.route?.type).toBe('unknown-error');
         });
@@ -526,9 +526,9 @@ describe('client', () => {
             hooks.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const [data, errors] = await routes.sayHello(someUser).callWithHooks({});
+            const [results, errors] = await routes.sayHello(someUser).callWithHooks({});
 
-            expect(data.route).toBe('Hello John Doe');
+            expect(results.route).toBe('Hello John Doe');
             expect(Object.keys(errors.hooks)).toHaveLength(0);
 
             // Clean up
@@ -555,41 +555,41 @@ describe('client', () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [data] = await routes.sayHello(someUser).callWithHooks({
+            const [results] = await routes.sayHello(someUser).callWithHooks({
                 auth: hooks.auth(authHeaders),
                 session: hooks.session('valid-token'),
             });
 
             // Session hook should have data
-            expect(data.hooks.session).toBeDefined();
-            expect(data.hooks.session?.userId).toBe('user-123');
+            expect(results.hooks.session).toBeDefined();
+            expect(results.hooks.session?.userId).toBe('user-123');
         });
 
         it('callWithHooks should work with multiple hooks', async () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [data, errors] = await routes.sayHello(someUser).callWithHooks({
+            const [results, errors] = await routes.sayHello(someUser).callWithHooks({
                 auth: hooks.auth(authHeaders),
                 session: hooks.session('valid-token'),
             });
 
-            expect(data.route).toBe('Hello John Doe');
+            expect(results.route).toBe('Hello John Doe');
             expect(errors.hooks.auth).toBeUndefined();
-            expect(data.hooks.session).toBeDefined();
+            expect(results.hooks.session).toBeDefined();
         });
 
         it('callWithHooks result should have correct types', async () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [data, errors] = await routes.sayHello(someUser).callWithHooks({
+            const [results, errors] = await routes.sayHello(someUser).callWithHooks({
                 auth: hooks.auth(authHeaders),
             });
 
             // Type checks - these should compile
             // Use variables to avoid conditional expects
-            const greeting: string | undefined = data.route;
+            const greeting: string | undefined = results.route;
             const errorType: string | undefined = errors.route?.type;
 
             // At least one should be defined (either success or error)
@@ -604,11 +604,11 @@ describe('client', () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [data, errors] = await routes.alwaysFails(someUser).callWithHooks({
+            const [results, errors] = await routes.alwaysFails(someUser).callWithHooks({
                 auth: hooks.auth(authHeaders),
             });
 
-            expect(data.route).toBeUndefined();
+            expect(results.route).toBeUndefined();
             expect(errors.route).toBeDefined();
             expect(errors.route?.type).toBe('unknown-error');
             expect(errors.route?.publicMessage).toBe('Something fails');

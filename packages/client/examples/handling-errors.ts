@@ -7,7 +7,7 @@ import {isRpcError} from '@mionkit/core';
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // ========== Result pattern (never throws) ==========
-// call() always returns a Result tuple [data, error], never throws
+// call() always returns a Result tuple [result, error], never throws
 
 // calls sayHello route in the server
 const [sayHello, error] = await routes.users.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
