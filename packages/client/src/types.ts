@@ -13,21 +13,26 @@ import type {TypedEvent} from './typedEvent';
 // ############# Result Type #############
 
 /**
- * Result type for call() method - tuple pattern.
+ * Result type for call() and callWithHooks() methods - 4-tuple pattern.
  * Provides type-safe async/await pattern without losing error typing.
- * Tuple allows natural naming: `const [user, error] = await routes.users.getById('123').call();`
+ * Tuple allows natural naming: `const [user, error, hookResults, hookErrors] = await routes.users.getById('123').call();`
  *
- * @example
- * ```typescript
- * const [user, error] = await routes.users.getById('123').call();
- * if (error) {
- *     console.log(error.publicMessage);
- *     return;
- * }
- * console.log(user.name);
- * ```
+ * The 4-tuple pattern provides:
+ * - Direct access to route result/error
+ * - Access to hook results/errors for both prefilled and explicit hooks
+ * - Backward compatible - `const [user, error] = ...` still works (partial destructuring)
+ *
+ * @typeParam RouteSuccess - The success type of the route
+ * @typeParam RouteError - The error type of the route
+ * @typeParam HooksResults - Record of hook names to their success types
+ * @typeParam HooksErrors - Record of hook names to their error types
  */
-export type Result<S, E> = [S, undefined] | [undefined, E];
+export type Result<
+    RouteSuccess,
+    RouteError,
+    HooksResults extends Record<string, unknown> = Record<string, unknown>,
+    HooksErrors extends Record<string, RpcError<string, unknown>> = Record<string, RpcError<string, unknown>>,
+> = [RouteSuccess | undefined, RouteError | undefined, HooksResults | undefined, HooksErrors | undefined];
 
 // ############# callWithHooks Result Types #############
 
@@ -42,67 +47,24 @@ export type HookSuccess<H> = H extends HookSubRequest<infer PH> ? HandlerSuccess
 export type HookError<H> = H extends HookSubRequest<infer PH> ? HandlerErrors<PH> : never;
 
 /**
- * Data portion of CallWithHooksResult - contains all success values.
- * Values are optional because hooks/route may not have executed (e.g., earlier hook failed)
- * or may have returned an error instead.
- */
-export type CallWithHooksData<RouteSuccess, Hooks extends Record<string, HookSubRequest<any>>> = {
-    route?: RouteSuccess;
-    hooks: {
-        [K in keyof Hooks]?: HookSuccess<Hooks[K]>;
-    };
-};
-
-/**
- * Errors portion of CallWithHooksResult - contains all error values.
- * Values are optional because hooks/route may have succeeded or not executed.
- */
-export type CallWithHooksErrors<RouteError, Hooks extends Record<string, HookSubRequest<any>>> = {
-    route?: RouteError;
-    hooks: {
-        [K in keyof Hooks]?: HookError<Hooks[K]>;
-    };
-};
-
-/**
- * Result type for callWithHooks method - tuple pattern.
- * Returns [results, errors] where:
- * - results.route: success value if route succeeded
- * - results.hooks[name]: success value for each hook that succeeded
- * - errors.route: error if route failed
- * - errors.hooks[name]: error for each hook that failed
+ * Result type for callWithHooks method - 4-tuple pattern.
+ * Returns [routeResult, routeError, hooksResults, hooksErrors] where:
+ * - routeResult: success value if route succeeded (undefined if failed)
+ * - routeError: error if route failed (undefined if succeeded)
+ * - hooksResults: record of hook names to their success values
+ * - hooksErrors: record of hook names to their error values
+ *
+ * This provides the same structure as Result for consistency and direct access.
  *
  * @typeParam RouteSuccess - The success type of the route
  * @typeParam RouteError - The error type of the route
  * @typeParam Hooks - Record of hook names to HookSubRequest types
- *
- * @example
- * ```typescript
- * const [results, errors] = await routes.users.getById('123').callWithHooks({
- *     auth: hooks.auth(headers),
- *     session: hooks.session(token)
- * });
- *
- * // Check for errors
- * if (errors.route) {
- *     console.log('Route failed:', errors.route.publicMessage);
- * }
- * if (errors.hooks.auth) {
- *     console.log('Auth failed:', errors.hooks.auth.publicMessage);
- * }
- *
- * // Access success data
- * if (results.route) {
- *     console.log('User:', results.route.name);
- * }
- * if (results.hooks.auth) {
- *     console.log('Session:', results.hooks.auth.userId);
- * }
- * ```
  */
 export type CallWithHooksResult<RouteSuccess, RouteError, Hooks extends Record<string, HookSubRequest<any>>> = [
-    CallWithHooksData<RouteSuccess, Hooks>,
-    CallWithHooksErrors<RouteError, Hooks>,
+    RouteSuccess | undefined,
+    RouteError | undefined,
+    {[K in keyof Hooks]?: HookSuccess<Hooks[K]>} | undefined,
+    {[K in keyof Hooks]?: HookError<Hooks[K]>} | undefined,
 ];
 
 export type ClientOptions = {
@@ -192,47 +154,21 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
     typeErrors: () => Promise<RunTypeError[]>;
 
     /**
-     * Calls a remote route and returns a Result tuple with full typing preserved.
+     * Calls a remote route and returns a Result 4-tuple with full typing preserved.
      * Never throws - errors are always in the result tuple.
      *
-     * @returns Promise that resolves to [result, error] tuple
-     *
-     * @example
-     * ```typescript
-     * const [user, error] = await routes.users.getById('123').call();
-     * if (error) {
-     *     console.log(error.errorData?.userId);
-     *     return;
-     * }
-     * console.log(user.name);
-     * ```
+     * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] tuple
      */
-    call: () => Promise<Result<HandlerSuccessResponse<PH>, HandlerErrors<PH>>>;
+    call: () => Promise<
+        Result<HandlerSuccessResponse<PH>, HandlerErrors<PH>, Record<string, unknown>, Record<string, RpcError<string, unknown>>>
+    >;
 
     /**
-     * Calls a remote route with hooks and returns a fully-typed result tuple.
+     * Calls a remote route with hooks and returns a fully-typed 4-tuple result.
      * Always returns (never throws) - can have partial success where some hooks/route succeed and others fail.
      *
      * @param hooks Record of hook names to HookSubRequest instances
-     * @returns Promise that resolves to [results, errors] tuple containing route and hooks results
-     *
-     * @example
-     * ```typescript
-     * const [results, errors] = await routes.users.getById('123').callWithHooks({
-     *     auth: hooks.auth(headers),
-     *     session: hooks.session(token)
-     * });
-     *
-     * if (errors.route) {
-     *     console.log('Route failed:', errors.route.type);
-     * } else if (results.route) {
-     *     console.log('User:', results.route.name);
-     * }
-     *
-     * if (errors.hooks.auth) {
-     *     console.log('Auth failed:', errors.hooks.auth.type);
-     * }
-     * ```
+     * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] tuple
      */
     callWithHooks: <H extends Record<string, HookSubRequest<any>>>(
         hooks: H

@@ -48,7 +48,7 @@ hooks
 
 // ========== Example 1: Route with strongly-typed errorData ==========
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
-// call() returns Result<User, RpcError<'user-not-found', UserNotFoundData>>
+// call() returns 4-tuple: [routeResult, routeError, hooksResults, hooksErrors]
 async function exampleWithTypedError() {
     const [user, error] = await routes.users.getById('USER-123').call();
 
@@ -66,8 +66,9 @@ async function exampleWithTypedError() {
         return;
     }
 
-    // user is guaranteed to be User here
-    console.log('Found user:', user.name, user.surname);
+    // After error check, user is guaranteed to be User here
+    // Use optional chaining for TypeScript strictness
+    console.log('Found user:', user?.name, user?.surname);
 }
 
 // ========== Example 2: Order error with typed errorData ==========
@@ -83,7 +84,8 @@ async function exampleWithOrderError() {
         return;
     }
 
-    console.log('Order total:', order.totalUSD);
+    // After error check, order is guaranteed to be Order here
+    console.log('Order total:', order?.totalUSD);
 }
 
 // ========== Example 3: Route that always succeeds ==========
@@ -96,25 +98,25 @@ async function exampleAlwaysSucceeds() {
 
 // ========== Example 5: Using callWithHooks() for per-request hooks ==========
 // Use callWithHooks() when you need to pass hooks for a SINGLE request
-// Returns [results, errors] tuple
+// Returns 4-tuple: [routeResult, routeError, hooksResults, hooksErrors]
 
 // Create a hook with temporary credentials for this specific request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
 
-// callWithHooks() takes a record of hooks and returns a typed result tuple
+// callWithHooks() takes a record of hooks and returns a typed 4-tuple
 async function exampleWithCallWithHooks() {
-    const [results, errors] = await routes.users.getById('USER-123').callWithHooks({
+    const [user, routeError, hookResults, hookErrors] = await routes.users.getById('USER-123').callWithHooks({
         auth: hooks.auth(tempAuthHeaders, true),
     });
 
-    // Check for errors
-    if (errors.route?.type === 'user-not-found') {
-        console.log('User not found:', errors.route.errorData?.requestedId);
+    // Check for route errors
+    if (routeError?.type === 'user-not-found') {
+        console.log('User not found:', routeError.errorData?.requestedId);
     }
 
     // Check hook errors
-    if (errors.hooks.auth?.type === 'not-authorized') {
-        const authError = errors.hooks.auth;
+    if (hookErrors?.auth?.type === 'not-authorized') {
+        const authError = hookErrors.auth;
         const reason = authError.errorData?.reason;
         if (reason === 'expired-token') {
             console.log('Temp token expired, requesting new one...');
@@ -122,43 +124,43 @@ async function exampleWithCallWithHooks() {
     }
 
     // Access success data
-    if (results.route) {
-        console.log('Found user:', results.route.name);
+    if (user) {
+        console.log('Found user:', user.name);
     }
-    if (results.hooks.auth) {
-        console.log('Authenticated as:', results.hooks.auth.userId);
+    if (hookResults?.auth) {
+        console.log('Authenticated as:', hookResults.auth.userId);
     }
 }
 
 // ========== Example 6: Multiple Hooks with callWithHooks() ==========
 // Pass multiple hooks in the record - each gets its own typed result
 async function exampleWithMultipleHooks() {
-    const [results, errors] = await routes.users.getById('USER-123').callWithHooks({
+    const [user, routeError, hookResults, hookErrors] = await routes.users.getById('USER-123').callWithHooks({
         auth: hooks.auth(tempAuthHeaders),
         // session: hooks.session('session-token'), // If you have a session hook
     });
 
     // Handle each hook's errors independently
-    if (errors.hooks.auth) {
-        console.log('Auth failed:', errors.hooks.auth.publicMessage);
+    if (hookErrors?.auth) {
+        console.log('Auth failed:', hookErrors.auth.publicMessage);
     }
 
-    // if (errors.hooks.session?.type === 'session-expired') {
+    // if (hookErrors?.session?.type === 'session-expired') {
     //     console.log('Session expired, redirecting to login...');
     // }
 
     // Access success data
-    if (results.route) {
-        console.log('User:', results.route.name);
+    if (user) {
+        console.log('User:', user.name);
     }
 }
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
-// call() returns Result<S, E> - never throws, always returns [result, error] tuple
+// call() returns 4-tuple: [routeResult, routeError, hooksResults, hooksErrors]
 // This is the standard pattern for all route calls
 async function exampleWithCall() {
-    // call() never throws - returns a tuple [result, error]
-    // Tuple destructuring allows natural naming
+    // call() never throws - returns a 4-tuple
+    // Partial destructuring still works for backward compatibility
     const [user, error] = await routes.users.getById('USER-999').call();
 
     if (error) {
@@ -173,8 +175,9 @@ async function exampleWithCall() {
         return;
     }
 
-    // TypeScript knows user is User here (not undefined)
-    console.log('User:', user.name, user.surname);
+    // After error check, user is guaranteed to be User here
+    // Use optional chaining for TypeScript strictness
+    console.log('User:', user?.name, user?.surname);
 
     // validate parameters locally without calling the server
     const validationResp = await routes.users.sayHello(john).typeErrors();

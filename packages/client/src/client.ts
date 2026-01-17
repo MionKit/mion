@@ -8,10 +8,10 @@
 import {DEFAULT_PREFILL_OPTIONS} from './constants';
 import {
     CallWithHooksResult,
-    CallWithHooksData,
-    CallWithHooksErrors,
     ClientOptions,
     HookSubRequest,
+    HookSuccess,
+    HookError,
     InitOptions,
     RouteSubRequest,
     SubRequest,
@@ -21,7 +21,7 @@ import {
     Result,
 } from './types';
 import type {RemoteApi} from '@mionkit/router';
-import {registerErrorDeserializers} from '@mionkit/core';
+import {registerErrorDeserializers, RpcError} from '@mionkit/core';
 import {getRouterItemId} from '@mionkit/core';
 import {MionClientRequest} from './request';
 import type {RunTypeError} from '@mionkit/core';
@@ -57,11 +57,11 @@ export class MionClient {
     constructor(private clientOptions: ClientOptions) {}
 
     /**
-     * Executes a route call and returns a Result tuple.
+     * Executes a route call and returns a Result 4-tuple.
      * This is the main orchestration method that:
      * 1. Executes the request via MionRequest
      * 2. Processes hook success/error handlers (fire-and-forget for prefill)
-     * 3. Returns [data, undefined] or [undefined, error] tuple
+     * 3. Returns [routeResult, routeError, hooksResults, hooksErrors] 4-tuple
      */
     executeCall<RR extends RouteSubRequest<any>>(routeSubRequest: RR): Promise<Result<any, any>> {
         return new Promise((resolve) => {
@@ -73,24 +73,75 @@ export class MionClient {
                     // Get ALL hooks from request.subRequestList (includes prefilled hooks restored from storage)
                     const allHooks = this.getAllHooksFromRequest(request, routeSubRequest.id);
 
-                    // Success - distribute hook results to their registered success handlers (fire-and-forget)
-                    this.processHookSuccess(allHooks);
+                    // Process all hook responses - call success/error handlers for each hook individually
+                    this.processHooksResponses(allHooks, undefined);
 
-                    // Return success result tuple
-                    resolve([routeSubRequest.resolvedValue, undefined]);
+                    // Build hooks results/errors from prefilled hooks (and any server-side hook errors)
+                    const {hooksResults, hooksErrors} = this.buildHooksResultsFromList(allHooks, undefined, routeSubRequest.id);
+
+                    // Return success result 4-tuple
+                    resolve([routeSubRequest.resolvedValue, undefined, hooksResults, hooksErrors]);
                 })
                 .catch((errors: RequestErrors) => {
                     // Get ALL hooks from request.subRequestList (includes prefilled hooks restored from storage)
                     const allHooks = this.getAllHooksFromRequest(request, routeSubRequest.id);
 
-                    // Process hook errors (fire-and-forget for prefill handlers)
-                    this.processHookErrors(allHooks, errors);
+                    // Process all hook responses - call success/error handlers for each hook individually
+                    // Hooks with runOnError=true may succeed even when the route fails
+                    this.processHooksResponses(allHooks, errors);
 
-                    // Return error result tuple
+                    // Build hooks results/errors from prefilled hooks (and any server-side hook errors)
+                    const {hooksResults, hooksErrors} = this.buildHooksResultsFromList(allHooks, errors, routeSubRequest.id);
+
+                    // Return error result 4-tuple
                     const routeError = errors.get(routeSubRequest.id) || findSubRequestError(routeSubRequest, errors);
-                    resolve([undefined, routeError]);
+                    // route result is never successful if there is an error
+                    resolve([undefined, routeError, hooksResults, hooksErrors]);
                 });
         });
+    }
+
+    /**
+     * Build hooks results and errors from a list of hook sub-requests.
+     * Used by executeCall() to collect prefilled hook data.
+     * Also includes errors from hooks that ran on the server but weren't explicitly requested by the client
+     * (e.g., from @thrownErrors in the response body - validation errors, serialization errors, etc.)
+     */
+    private buildHooksResultsFromList(
+        hookSubRequests: HookSubRequest<any>[],
+        errors: RequestErrors | undefined,
+        routeId?: string
+    ): {hooksResults: Record<string, unknown>; hooksErrors: Record<string, RpcError<string, unknown>>} {
+        const hooksResults: Record<string, unknown> = {};
+        const hooksErrors: Record<string, RpcError<string, unknown>> = {};
+
+        // Collect IDs of hooks we've explicitly processed
+        const processedIds = new Set<string>();
+        if (routeId) {
+            processedIds.add(routeId);
+        }
+
+        for (const hook of hookSubRequests) {
+            processedIds.add(hook.id);
+            const hookError = errors?.get(hook.id);
+            if (hookError) {
+                hooksErrors[hook.id] = hookError;
+            } else if (hook.resolvedValue !== undefined) {
+                hooksResults[hook.id] = hook.resolvedValue;
+            }
+        }
+
+        // Also include errors from hooks that ran on the server but weren't explicitly requested
+        // These come from @thrownErrors in the response body (e.g., validation errors, serialization errors)
+        if (errors) {
+            for (const [id, error] of errors) {
+                if (!processedIds.has(id)) {
+                    hooksErrors[id] = error;
+                }
+            }
+        }
+
+        return {hooksResults, hooksErrors};
     }
 
     /**
@@ -107,26 +158,19 @@ export class MionClient {
     }
 
     /**
-     * Process hook success results and call their registered success handlers.
-     * Called by Client on successful requests to deliver hook results to listeners.
+     * Process all hook responses - call success or error handlers for each hook individually.
+     * This is indifferent to the overall request success/error - each hook is processed based on its own result.
+     * Hooks with runOnError=true may succeed even when the route fails, and their success handlers should be called.
      */
-    private processHookSuccess(hookSubRequests: HookSubRequest<any>[]): void {
+    private processHooksResponses(hookSubRequests: HookSubRequest<any>[], errors: RequestErrors | undefined): void {
         for (const hook of hookSubRequests) {
-            // Execute success handler if registered in HandlersRegistry (persistent handlers from prefill)
-            this.handlersRegistry.executeSuccessHandler(hook.id, hook.resolvedValue);
-        }
-    }
-
-    /**
-     * Process hook errors - fire-and-forget for prefill handlers.
-     * Errors are passed to registered handlers but are not suppressed from the result.
-     */
-    private processHookErrors(hookSubRequests: HookSubRequest<any>[], errors: RequestErrors): void {
-        for (const hook of hookSubRequests) {
-            const hookError = errors.get(hook.id);
+            const hookError = errors?.get(hook.id);
             if (hookError) {
-                // Execute handler from HandlersRegistry if registered (for prefill) - fire-and-forget
+                // Hook failed - execute error handler if registered
                 this.handlersRegistry.executeHandler(hook.id, hookError);
+            } else if (hook.resolvedValue !== undefined) {
+                // Hook succeeded - execute success handler if registered
+                this.handlersRegistry.executeSuccessHandler(hook.id, hook.resolvedValue);
             }
         }
     }
@@ -154,8 +198,8 @@ export class MionClient {
                     // Get ALL hooks from request.subRequestList (includes prefilled hooks restored from storage)
                     const allHooks = this.getAllHooksFromRequest(request, routeSubRequest.id);
 
-                    // Success - distribute hook results to their registered success handlers (prefill)
-                    this.processHookSuccess(allHooks);
+                    // Process all hook responses - call success/error handlers for each hook individually
+                    this.processHooksResponses(allHooks, undefined);
 
                     // Build the result object
                     const result = this.buildCallWithHooksResult(routeSubRequest, hooksRecord, undefined);
@@ -165,8 +209,9 @@ export class MionClient {
                     // Get ALL hooks from request.subRequestList (includes prefilled hooks restored from storage)
                     const allHooks = this.getAllHooksFromRequest(request, routeSubRequest.id);
 
-                    // Process hook errors for prefill handlers only
-                    this.processHookErrorsForPrefill(allHooks, errors);
+                    // Process all hook responses - call success/error handlers for each hook individually
+                    // Hooks with runOnError=true may succeed even when the route fails
+                    this.processHooksResponses(allHooks, errors);
 
                     // Build the result object with errors
                     const result = this.buildCallWithHooksResult(routeSubRequest, hooksRecord, errors);
@@ -176,58 +221,51 @@ export class MionClient {
     }
 
     /**
-     * Process hook errors for prefill handlers only (no TypedPromise involvement).
-     * Used by callWithHooks where errors are returned in the result object.
-     */
-    private processHookErrorsForPrefill(hookSubRequests: HookSubRequest<any>[], errors: RequestErrors): void {
-        for (const hook of hookSubRequests) {
-            const hookError = errors.get(hook.id);
-            if (hookError) {
-                // Execute handler from HandlersRegistry if registered (for prefill)
-                this.handlersRegistry.executeHandler(hook.id, hookError);
-            }
-        }
-    }
-
-    /**
-     * Build the CallWithHooksResult tuple from the request results.
-     * Returns [data, errors] tuple.
+     * Build the CallWithHooksResult 4-tuple from the request results.
+     * Returns [routeResult, routeError, hooksResults, hooksErrors] 4-tuple.
+     * Also includes errors from hooks that ran on the server but weren't explicitly requested
+     * (e.g., from @thrownErrors in the response body - validation errors, serialization errors, etc.)
      */
     private buildCallWithHooksResult<H extends Record<string, HookSubRequest<any>>>(
         routeSubRequest: RouteSubRequest<any>,
         hooksRecord: H,
         errors: RequestErrors | undefined
     ): CallWithHooksResult<any, any, H> {
-        // Build data portion
-        const data: CallWithHooksData<any, H> = {
-            hooks: {} as CallWithHooksData<any, H>['hooks'],
-        };
-
-        // Build errors portion
-        const resultErrors: CallWithHooksErrors<any, H> = {
-            hooks: {} as CallWithHooksErrors<any, H>['hooks'],
-        };
-
         // Process route
         const routeError = errors?.get(routeSubRequest.id);
-        if (routeError) {
-            resultErrors.route = routeError;
-        } else if (routeSubRequest.resolvedValue !== undefined) {
-            data.route = routeSubRequest.resolvedValue;
-        }
+        const routeResult = routeError ? undefined : routeSubRequest.resolvedValue;
+
+        // Build hooks results/errors
+        const hooksResults = {} as {[K in keyof H]?: HookSuccess<H[K]>};
+        const hooksErrors = {} as {[K in keyof H]?: HookError<H[K]>};
+
+        // Collect IDs of hooks and route we've explicitly processed
+        const processedIds = new Set<string>([routeSubRequest.id]);
 
         // Process hooks
         for (const [name, hook] of Object.entries(hooksRecord)) {
+            processedIds.add(hook.id);
             const hookError = errors?.get(hook.id);
             if (hookError) {
-                (resultErrors.hooks as Record<string, any>)[name] = hookError;
+                (hooksErrors as Record<string, any>)[name] = hookError;
             } else if (hook.resolvedValue !== undefined) {
-                (data.hooks as Record<string, any>)[name] = hook.resolvedValue;
+                (hooksResults as Record<string, any>)[name] = hook.resolvedValue;
             }
             // If neither error nor resolvedValue, the hook didn't execute - leave undefined
         }
 
-        return [data, resultErrors];
+        // Also include errors from hooks that ran on the server but weren't explicitly requested
+        // These come from @thrownErrors in the response body (e.g., validation errors, serialization errors)
+        // Store them using their ID as the key (since they're not in the typed hooksRecord)
+        if (errors) {
+            for (const [id, error] of errors) {
+                if (!processedIds.has(id)) {
+                    (hooksErrors as Record<string, any>)[id] = error;
+                }
+            }
+        }
+
+        return [routeResult, routeError, hooksResults, hooksErrors];
     }
 
     typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
