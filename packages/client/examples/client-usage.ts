@@ -6,7 +6,7 @@ import type {MyApi} from './server.routes';
 const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // calls sumTwo route in the server using callWithHooks API
-const {data: sumTwoResp} = await routes.utils.sum(5, 2).callWithHooks({
+const [sumTwoResp] = await routes.utils.sum(5, 2).callWithHooks({
     auth: hooks.auth(['myToken-XYZ']),
 });
 console.log(sumTwoResp.route); // 7
@@ -15,7 +15,7 @@ console.log(sumTwoResp.route); // 7
 hooks.auth(['myToken-XYZ']).prefill();
 
 // calls sumTwo route in the server (auth is prefilled, so call() works)
-const {data: sumTwoResponse, error: sumError} = await routes.utils.sum(5, 2).call();
+const [sumTwoResponse, sumError] = await routes.utils.sum(5, 2).call();
 if (!sumError) {
     console.log(sumTwoResponse); // 7
 }

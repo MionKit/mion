@@ -13,10 +13,21 @@ import type {TypedEvent} from './typedEvent';
 // ############# Result Type #############
 
 /**
- * Result type for result() method - discriminated union.
+ * Result type for call() method - tuple pattern.
  * Provides type-safe async/await pattern without losing error typing.
+ * Tuple allows natural naming: `const [user, error] = await routes.users.getById('123').call();`
+ *
+ * @example
+ * ```typescript
+ * const [user, error] = await routes.users.getById('123').call();
+ * if (error) {
+ *     console.log(error.publicMessage);
+ *     return;
+ * }
+ * console.log(user.name);
+ * ```
  */
-export type Result<S, E> = {data: S; error?: never} | {data?: never; error: E};
+export type Result<S, E> = [S, undefined] | [undefined, E];
 
 // ############# callWithHooks Result Types #############
 
@@ -54,8 +65,8 @@ export type CallWithHooksErrors<RouteError, Hooks extends Record<string, HookSub
 };
 
 /**
- * Result type for callWithHooks method.
- * Uses {data, errors} pattern similar to toResult() for consistency.
+ * Result type for callWithHooks method - tuple pattern.
+ * Returns [data, errors] where:
  * - data.route: success value if route succeeded
  * - data.hooks[name]: success value for each hook that succeeded
  * - errors.route: error if route failed
@@ -67,7 +78,7 @@ export type CallWithHooksErrors<RouteError, Hooks extends Record<string, HookSub
  *
  * @example
  * ```typescript
- * const {data, errors} = await routes.users.getById('123').callWithHooks({
+ * const [data, errors] = await routes.users.getById('123').callWithHooks({
  *     auth: hooks.auth(headers),
  *     session: hooks.session(token)
  * });
@@ -89,10 +100,10 @@ export type CallWithHooksErrors<RouteError, Hooks extends Record<string, HookSub
  * }
  * ```
  */
-export type CallWithHooksResult<RouteSuccess, RouteError, Hooks extends Record<string, HookSubRequest<any>>> = {
-    data: CallWithHooksData<RouteSuccess, Hooks>;
-    errors: CallWithHooksErrors<RouteError, Hooks>;
-};
+export type CallWithHooksResult<RouteSuccess, RouteError, Hooks extends Record<string, HookSubRequest<any>>> = [
+    CallWithHooksData<RouteSuccess, Hooks>,
+    CallWithHooksErrors<RouteError, Hooks>,
+];
 
 export type ClientOptions = {
     baseURL: string;
@@ -181,33 +192,33 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
     typeErrors: () => Promise<RunTypeError[]>;
 
     /**
-     * Calls a remote route and returns a Result object with full typing preserved.
-     * Never throws - errors are always in the result object.
+     * Calls a remote route and returns a Result tuple with full typing preserved.
+     * Never throws - errors are always in the result tuple.
      *
-     * @returns Promise that resolves to Result with {data, error} pattern
+     * @returns Promise that resolves to [data, error] tuple
      *
      * @example
      * ```typescript
-     * const {data: user, error} = await routes.users.getById('123').call();
+     * const [user, error] = await routes.users.getById('123').call();
      * if (error) {
      *     console.log(error.errorData?.userId);
-     * } else {
-     *     console.log(user.name);
+     *     return;
      * }
+     * console.log(user.name);
      * ```
      */
     call: () => Promise<Result<HandlerSuccessResponse<PH>, HandlerErrors<PH>>>;
 
     /**
-     * Calls a remote route with hooks and returns a fully-typed result object.
+     * Calls a remote route with hooks and returns a fully-typed result tuple.
      * Always returns (never throws) - can have partial success where some hooks/route succeed and others fail.
      *
      * @param hooks Record of hook names to HookSubRequest instances
-     * @returns Promise that resolves to CallWithHooksResult containing route and hooks results
+     * @returns Promise that resolves to [data, errors] tuple containing route and hooks results
      *
      * @example
      * ```typescript
-     * const {data, errors} = await routes.users.getById('123').callWithHooks({
+     * const [data, errors] = await routes.users.getById('123').callWithHooks({
      *     auth: hooks.auth(headers),
      *     session: hooks.session(token)
      * });
