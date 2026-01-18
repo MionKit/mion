@@ -171,106 +171,84 @@ function findMarkdownFiles(relativePath: string): string[] {
   }
 }
 
-/**
- * Update the timestamp in code-import tags to trigger Nuxt Content re-processing
- */
-function updateTimestamp(mdFilePath: string, relativePath: string): boolean {
-  const newTs = Date.now()
-  try {
-    const content = readFileSync(mdFilePath, 'utf-8')
-    const escapedPath = relativePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-    // Match code-import tags with this path and update ts attribute
-    const regex = new RegExp(
-      `(<code-import[^>]*?)\\bts="\\d+"([^>]*path="${escapedPath}"[^>]*/>)|(<code-import[^>]*path="${escapedPath}"[^>]*?)\\bts="\\d+"([^>]*/>)`,
-      'g'
-    )
-
-    const updated = content.replace(regex, (_match, g1, g2, g3, g4) => {
-      if (g1 && g2) return `${g1}ts="${newTs}"${g2}`
-      if (g3 && g4) return `${g3}ts="${newTs}"${g4}`
-      return _match
-    })
-
-    if (updated !== content) {
-      writeFileSync(mdFilePath, updated, 'utf-8')
-      return true
-    }
-  } catch (e) {
-    console.error(`   ✗ Failed to update: ${mdFilePath}`, e)
-  }
-  return false
-}
+// Module-level state to prevent multiple watchers
+let watcherInstance: FSWatcher | null = null
+// Debounce map to prevent duplicate events for the same file
+const debounceMap = new Map<string, NodeJS.Timeout>()
 
 /**
- * Vite plugin that watches example files and updates markdown timestamps
- * to trigger Nuxt Content re-processing when examples change.
+ * Vite plugin that watches example files and invalidates the Vite cache
+ * for markdown files that reference them, triggering Nuxt Content re-processing.
  */
 export function exampleWatcherPlugin(): Plugin {
-  let watcher: FSWatcher | null = null
-
   return {
     name: 'code-examples-watcher',
     configureServer(server: ViteDevServer) {
+      // Prevent duplicate watchers (configureServer is called for both client and server)
+      if (watcherInstance) return
+
       // All examples are centralized in packages/examples/src
       const watchPath = resolve(MONOREPO_ROOT, 'packages', 'examples', 'src')
 
       console.log('\n👀 Watching example folders for changes...')
 
-      watcher = watch(watchPath, {
+      watcherInstance = watch(watchPath, {
         ignoreInitial: true,
         persistent: true
       })
 
-      watcher.on('all', (event, filePath) => {
+      watcherInstance.on('all', (event, filePath) => {
         if (!filePath.endsWith('.ts')) return
 
-        const relativePath = filePath.replace(MONOREPO_ROOT + '/', '')
-        console.log(`\n📝 Example ${event}:`)
-        console.log(`   src: ${relativePath}`)
-
-        // Find markdown files that reference this example
-        const mdFiles = findMarkdownFiles(relativePath)
-        if (mdFiles.length > 0) {
-          let updated = 0
-          mdFiles.forEach(mdFile => {
-            const relMdFile = mdFile.replace(MONOREPO_ROOT + '/', '')
-            if (updateTimestamp(mdFile, relativePath)) {
-              console.log(`   doc: ${relMdFile} ✓`)
-              updated++
-
-              // Invalidate Vite's module cache for this markdown file
-              invalidateModule(server, mdFile)
-            }
-          })
-          if (updated === 0) {
-            console.log('   ⚠ No timestamps updated (ensure ts="0" exists in code-import tags)')
-          }
-        } else {
-          console.log('   ⚠ No markdown files reference this example')
+        // Debounce: ignore duplicate events for the same file within 300ms
+        const existingTimeout = debounceMap.get(filePath)
+        if (existingTimeout) {
+          clearTimeout(existingTimeout)
         }
+
+        debounceMap.set(
+          filePath,
+          setTimeout(() => {
+            debounceMap.delete(filePath)
+
+            const relativePath = filePath.replace(MONOREPO_ROOT + '/', '')
+            console.log(`\n📝 Example ${event}:`)
+            console.log(`   src: ${relativePath}`)
+
+            // Find markdown files that reference this example
+            const mdFiles = findMarkdownFiles(relativePath)
+            if (mdFiles.length > 0) {
+              mdFiles.forEach(mdFile => {
+                const relMdFile = mdFile.replace(MONOREPO_ROOT + '/', '')
+
+                // Update timestamp comment at the end of the file to trigger Nuxt Content reload
+                const content = readFileSync(mdFile, 'utf-8')
+                const timestampComment = `<!-- code-import-timestamp ${Date.now()} -->`
+                const timestampRegex = /\n?<!-- code-import-timestamp \d+ -->\n?$/
+
+                let newContent: string
+                if (timestampRegex.test(content)) {
+                  // Replace existing timestamp (preserve newlines before and after)
+                  newContent = content.replace(timestampRegex, '\n' + timestampComment + '\n')
+                } else {
+                  // Add timestamp at the end with newline before and after
+                  newContent = content.trimEnd() + '\n\n' + timestampComment + '\n'
+                }
+
+                writeFileSync(mdFile, newContent)
+                console.log(`   doc: ${relMdFile} ✓`)
+              })
+            } else {
+              console.log('   ⚠ No markdown files reference this example')
+            }
+          }, 300)
+        )
       })
 
       server.httpServer?.on('close', () => {
-        watcher?.close()
+        watcherInstance?.close()
+        watcherInstance = null
       })
     }
   }
-}
-
-/**
- * Invalidate a module in Vite's module graph to force re-processing
- */
-function invalidateModule(server: ViteDevServer, filePath: string): void {
-  const mod = server.moduleGraph.getModuleById(filePath)
-  if (mod) {
-    server.moduleGraph.invalidateModule(mod)
-    console.log(`   cache: invalidated ✓`)
-  }
-
-  // Also try to trigger a full reload for the page
-  server.ws.send({
-    type: 'full-reload',
-    path: '*'
-  })
 }
