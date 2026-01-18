@@ -22,5 +22,3 @@ export const myApi = initMionRouter(
 
 // Export the type of the Api (used by the client)
 export type MyApi = typeof myApi;
-
-// hello world
