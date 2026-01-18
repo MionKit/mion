@@ -178,6 +178,14 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
             case JitFunctions.fromBinary.id:
                 result = this.emitFromBinary ? this.emitFromBinary(comp, rt) : {code: undefined, type: 'S'};
                 break;
+            // JSON serialization functions - formats don't need special handling for JSON
+            // Just return the value as-is (expression type 'E' with empty code means use vλl)
+            case JitFunctions.prepareForJson.id:
+            case JitFunctions.restoreFromJson.id:
+            case JitFunctions.stringifyJson.id:
+            case JitFunctions.toJSCode.id:
+                result = {code: '', type: 'E'};
+                break;
             default:
                 throw new Error(`Method not implemented: ${fnID}`);
         }

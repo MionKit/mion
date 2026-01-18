@@ -127,9 +127,11 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
             const subRequestIds = Object.keys(this.subRequestList);
             await fetchRemoteMethodsMetadata(subRequestIds, this.options);
 
+            // Validate and collect errors in subRequest.error (don't reject on validation errors)
             validateSubRequests(subRequestIds, this, errors, false);
-            if (errors.size) return Promise.reject(errors);
 
+            // Return all validation errors (RunTypeError[]) from subRequest.error.errorData
+            // Note: validation errors are returned as data, not rejected - only unexpected errors reject
             return Object.values(this.subRequestList)
                 .map((subRequest) => subRequest.error?.errorData || [])
                 .flat();
@@ -180,12 +182,18 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
     // ############# PRIVATE METHODS #############
 
     private onError(error: any, stageMessage: string, errors: RequestErrors): void {
+        if (isRpcError(error)) {
+            errors.set(this.requestId, error);
+            return;
+        }
         const message = error?.message ? `${stageMessage}: ${error.message}` : `${stageMessage}: Unknown Error`;
         errors.set(
             this.requestId,
             new RpcError({
-                type: error.name || 'unknown-error',
+                type: error?.name || 'unknown-error',
                 publicMessage: message,
+                // Preserve the original error for debugging and proper error chaining
+                originalError: error instanceof Error ? error : undefined,
             })
         );
     }

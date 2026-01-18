@@ -7,9 +7,11 @@
 
 export * from './src/types/general.types';
 export * from './src/types/method.types';
+export * from './src/types/friendlyErrors.types';
 export * from './src/binarySerializer';
 export * from './src/constants';
 export * from './src/errors';
+export * from './src/friendlyErrors';
 export * from './src/jitUtils';
 export * from './src/routerUtils';
 export * from './src/utils';
