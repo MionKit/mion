@@ -47,10 +47,12 @@ export type PublicApi<Type extends Routes> = Prettify<{
         : never;
 }>;
 
+// type-remote-api-start
 /** Same as Public Api but no type mapping, should be easier to use than PublicApi when non strong types are required. */
 export type RemoteApi = {
     [key: string]: PublicRoute | PublicHook | PublicHeadersHook | RemoteApi;
 };
+// type-remote-api-end
 
 /** Public Routes, handler type is the same as RemoteRoute but does not include the context  */
 export interface PublicRoute<H extends Handler = any> extends MethodMetadata {

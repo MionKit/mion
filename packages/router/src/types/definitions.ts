@@ -19,21 +19,28 @@ import {
 
 // #######  Routes Definitions #######
 
+// type-route-def-start
 /** Route definition */
 export type RouteDef<H extends Handler = any> = Pick<RouteMethod<H>, 'type' | 'handler'> & {
     options?: RouteOptions;
 };
+// type-route-def-end
 
+// type-hook-def-start
 /** Hook definition, a function that hooks into the execution path */
 export type HookDef<H extends Handler = any> = Pick<HookMethod<H>, 'type' | 'handler'> & {
     options?: HookOptions;
 };
+// type-hook-def-end
 
+// type-header-hook-def-start
 /** Header Hook definition, used to handle header params */
 export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderMethod<H>, 'type' | 'handler'> & {
     options?: HeaderHookOptions;
 };
+// type-header-hook-def-end
 
+// type-raw-hook-def-start
 /**
  * Raw hook, used only to access raw request/response and modify the call context.
  * Can not declare extra parameters.
@@ -41,5 +48,6 @@ export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderMethod<H>,
 export type RawHookDef<H extends RawHookHandler = any> = Pick<RawMethod<H>, 'type' | 'handler'> & {
     options?: RawHookOptions;
 };
+// type-raw-hook-def-end
 
 export type AnyHandlerDef = RouteDef | HookDef | HeaderHookDef | RawHookDef;

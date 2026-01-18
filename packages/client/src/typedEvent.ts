@@ -9,6 +9,7 @@ import type {RpcError} from '@mionkit/core';
 import type {HandlersRegistry} from './handlersRegistry';
 import type {ErrorHandler, SuccessHandler} from './types';
 
+// type-typed-event-start
 /**
  * Persistent event emitter for hook success and error handling.
  * This is a passive container - the Client triggers handler execution via HandlersRegistry.
@@ -107,3 +108,4 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
         return this.registry.hasSuccessHandler(this.handlerId);
     }
 }
+// type-typed-event-end

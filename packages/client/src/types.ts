@@ -12,6 +12,7 @@ import type {TypedEvent} from './typedEvent';
 
 // ############# Result Type #############
 
+// type-result-start
 /**
  * Result type for call() and callWithHooks() methods - 4-tuple pattern.
  * Provides type-safe async/await pattern without losing error typing.
@@ -33,6 +34,7 @@ export type Result<
     HooksResults extends Record<string, unknown> = Record<string, unknown>,
     HooksErrors extends Record<string, RpcError<string, unknown>> = Record<string, RpcError<string, unknown>>,
 > = [RouteSuccess | undefined, RouteError | undefined, HooksResults | undefined, HooksErrors | undefined];
+// type-result-end
 
 // ############# callWithHooks Result Types #############
 
@@ -60,12 +62,14 @@ export type HookError<H> = H extends HSubRequest<infer PH> ? Simplify<HandlerErr
  * @typeParam RouteError - The error type of the route
  * @typeParam Hooks - Record of hook names to HookSubRequest types
  */
+// type-call-with-hooks-result-start
 export type CallWithHooksResult<RouteSuccess, RouteError, Hooks extends Record<string, HSubRequest<any>>> = [
     RouteSuccess | undefined,
     RouteError | ValidationError | undefined,
     {[K in keyof Hooks]?: HookSuccess<Hooks[K]>} | undefined,
     {[K in keyof Hooks]?: HookError<Hooks[K]>} | undefined,
 ];
+// type-call-with-hooks-result-end
 
 export type ClientOptions = {
     baseURL: string;
@@ -140,6 +144,7 @@ export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplif
 
 // ############# Remote Methods Request #############
 
+// type-sub-request-start
 /** Represents a remote method (sub request).
  * A route request can contains multiple subRequest to the route itself and any required hook*/
 export interface SubRequest<PH extends PublicHandler> {
@@ -152,7 +157,9 @@ export interface SubRequest<PH extends PublicHandler> {
     error?: HandlerFailResponse<PH>;
     serializedParams?: any[];
 }
+// type-sub-request-end
 
+// type-route-sub-request-start
 /** structure returned from the proxy, containing info of the remote route to execute
  * Note routePointer is using as differentiating key from hookPointer in HookInfo, so types can't overlap.
  */
@@ -188,7 +195,9 @@ export interface RSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
         hooks: H
     ) => Promise<CallWithHooksResult<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, H>>;
 }
+// type-route-sub-request-end
 
+// type-hook-sub-request-start
 /** structure returned from the proxy, containing info of the remote hook to execute
  * Note hookPointer is using as differentiating key from routePointer in RouteInfo, so types can't overlap.
  */
@@ -214,6 +223,7 @@ export interface HSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
      */
     removePrefill: () => Promise<void>;
 }
+// type-hook-sub-request-end
 
 export type NonClientRoute = never | PublicHook | PublicHeadersHook;
 

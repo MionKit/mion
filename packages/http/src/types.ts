@@ -7,6 +7,7 @@
 
 import {ServerOptions} from 'https';
 
+// type-node-http-options-start
 export interface NodeHttpOptions {
     protocol: 'http' | 'https';
     port: number;
@@ -20,6 +21,7 @@ export interface NodeHttpOptions {
      * */
     maxBodySize: number; // default 256KB
 }
+// type-node-http-options-end
 
 // // fix for missing fetch types in node 18
 // // @see https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6
