@@ -118,7 +118,19 @@ export function getFriendlyErrors<T>(errors: RunTypeError[], errorsMap?: Friendl
     for (const error of errors) {
         const errorParams = buildErrorParams(error);
         const handler = getHandler(errorsMap, error.path);
-        const message = handler ? handler(errorParams) : defaultErrorPrinter(error);
+        let message: string;
+
+        if (handler) {
+            message = handler(errorParams);
+        } else {
+            // Log warning when using default error printer (once per unique path)
+            const pathKey = error.path.join('.');
+            console.warn(
+                `[mion] Using defaultErrorPrinter for "${pathKey || '$root'}". ` +
+                    `Consider providing a custom error handler for better user-facing messages.`
+            );
+            message = defaultErrorPrinter(error);
+        }
 
         if (error.path.length === 0) {
             // Root level error - shouldn't happen often but handle it
