@@ -12,14 +12,15 @@ import {MayReturnError} from './publicMethods';
 
 // #######  Route Handlers #######
 
+// type-handler-start
 /** Route or Hook Handler  */
-
 export type Handler<Context extends CallContext = any, Params extends any[] = any[], Ret = any> = (
     /** Call Context */
     context: Context,
     /** Remote Call parameters */
     ...parameters: Params
 ) => Ret | Promise<Ret>;
+// type-handler-end
 
 /** Header Hook Handler, hook handler for when params are sent in the header  */
 export type HeaderHandler<

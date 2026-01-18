@@ -91,6 +91,7 @@ export class TypedError<ErrType extends string> extends Error {
     }
 }
 
+// type-rpc-error-start
 export class RpcError<ErrType extends string, ErrData = any>
     extends TypedError<ErrType>
     implements RpcErrorParams<ErrType, ErrData>
@@ -137,6 +138,7 @@ export class RpcError<ErrType extends string, ErrData = any>
         Object.setPrototypeOf(this, RpcError.prototype);
     }
 }
+// type-rpc-error-end
 
 // #######  Error Type Guards #######
 

@@ -10,6 +10,7 @@ import type {RpcError} from '@mionkit/core';
 
 // ####### Call Context #######
 
+// type-call-context-start
 /** The call Context object passed as first parameter to any hook or route */
 export interface CallContext<ContextData extends Record<string, any> = any> {
     /** Route's path after internal transformation */
@@ -21,6 +22,7 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
     /** context data between handlers (route/hooks) and that is not returned in the response. */
     shared: ContextData;
 }
+// type-call-context-end
 
 // ####### REQUEST & RESPONSE #######
 
@@ -51,6 +53,7 @@ export type RawResponseBodyType = RawResponseBodyTypes[keyof RawResponseBodyType
 /** Response body can be a string, an arrayBuffer, or an object (for pre-serialized responses) */
 export type RawResponseBody = string | ArrayBuffer | AnyObject;
 
+// type-mion-request-start
 /** Router's own request object, do not confuse with the underlying raw request */
 export interface MionRequest {
     /** parsed headers */
@@ -76,7 +79,9 @@ export interface MionRequest {
     readonly thrownErrors?: Readonly<Record<string, RpcError<string>>>;
     readonly binDeserializer?: DataViewDeserializer | undefined;
 }
+// type-mion-request-end
 
+// type-mion-response-start
 /** Router's own response object, do not confuse with the underlying raw response */
 export interface MionResponse {
     /** response http status code */
@@ -92,6 +97,7 @@ export interface MionResponse {
     readonly hasErrors: boolean;
     readonly binSerializer?: DataViewSerializer | undefined;
 }
+// type-mion-response-end
 
 /**
  * Similar to Fetch API Headers.
