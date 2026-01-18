@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import type {Prettify, RunTypeError} from '@mionkit/core';
+import type {Prettify, RunTypeError, ValidationError} from '@mionkit/core';
 import type {PublicHeadersHook, PublicHook, RemoteApi, PublicRoute} from '@mionkit/router';
 import type {TypedEvent} from './typedEvent';
 
@@ -39,12 +39,12 @@ export type Result<
 /**
  * Extract success type from a HookSubRequest.
  */
-export type HookSuccess<H> = H extends HookSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
+export type HookSuccess<H> = H extends HSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
 
 /**
  * Extract error type from a HookSubRequest.
  */
-export type HookError<H> = H extends HookSubRequest<infer PH> ? HandlerErrors<PH> : never;
+export type HookError<H> = H extends HSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
 
 /**
  * Result type for callWithHooks method - 4-tuple pattern.
@@ -60,9 +60,9 @@ export type HookError<H> = H extends HookSubRequest<infer PH> ? HandlerErrors<PH
  * @typeParam RouteError - The error type of the route
  * @typeParam Hooks - Record of hook names to HookSubRequest types
  */
-export type CallWithHooksResult<RouteSuccess, RouteError, Hooks extends Record<string, HookSubRequest<any>>> = [
+export type CallWithHooksResult<RouteSuccess, RouteError, Hooks extends Record<string, HSubRequest<any>>> = [
     RouteSuccess | undefined,
-    RouteError | undefined,
+    RouteError | ValidationError | undefined,
     {[K in keyof Hooks]?: HookSuccess<Hooks[K]>} | undefined,
     {[K in keyof Hooks]?: HookError<Hooks[K]>} | undefined,
 ];
@@ -123,11 +123,20 @@ export type UnknownErrorHandler = (error: RpcError<string, any>) => void;
 export type SuccessHandler<S> = (result: S) => void;
 
 /**
+ * Utility type to force TypeScript to evaluate/resolve the type.
+ * This improves hover display by showing the resolved union instead of the generic type alias.
+ */
+type Simplify<T> = T extends any ? T : never;
+
+/**
  * Extracts all RpcError types from a handler's return type as a union.
  * Returns the full RpcError types (with ErrData), not just the type strings.
+ * Also includes ValidationError since validation errors can be thrown for any route/hook.
  * @typeParam PH - The public handler type
  */
-export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Extract<HandlerResponse<PH>, RpcError<string, any>>;
+export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplify<
+    Extract<HandlerResponse<PH>, RpcError<string, any>> | ValidationError
+>;
 
 // ############# Remote Methods Request #############
 
@@ -147,7 +156,7 @@ export interface SubRequest<PH extends PublicHandler> {
 /** structure returned from the proxy, containing info of the remote route to execute
  * Note routePointer is using as differentiating key from hookPointer in HookInfo, so types can't overlap.
  */
-export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
+export interface RSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /**
      * Validates Route's parameters and returns type errors. Throws RpcError if validation fails.
      */
@@ -160,7 +169,12 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
      * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] tuple
      */
     call: () => Promise<
-        Result<HandlerSuccessResponse<PH>, HandlerErrors<PH>, Record<string, unknown>, Record<string, RpcError<string, unknown>>>
+        Result<
+            HandlerSuccessResponse<PH>,
+            Simplify<HandlerErrors<PH>>,
+            Record<string, unknown>, // hooks results
+            Record<string, RpcError<string, unknown> | ValidationError> // hooks errors
+        >
     >;
 
     /**
@@ -170,15 +184,15 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
      * @param hooks Record of hook names to HookSubRequest instances
      * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] tuple
      */
-    callWithHooks: <H extends Record<string, HookSubRequest<any>>>(
+    callWithHooks: <H extends Record<string, HSubRequest<any>>>(
         hooks: H
-    ) => Promise<CallWithHooksResult<HandlerSuccessResponse<PH>, HandlerErrors<PH>, H>>;
+    ) => Promise<CallWithHooksResult<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, H>>;
 }
 
 /** structure returned from the proxy, containing info of the remote hook to execute
  * Note hookPointer is using as differentiating key from routePointer in RouteInfo, so types can't overlap.
  */
-export interface HookSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
+export interface HSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /**
      * Validates Hook's parameters and returns type errors. Throws RpcError if validation fails.
      */
@@ -191,7 +205,7 @@ export interface HookSubRequest<PH extends PublicHandler> extends SubRequest<PH>
      * - onError handlers called for ALL future requests that fail with specific error types
      * @returns TypedEvent for chaining onSuccess/onError handlers
      */
-    prefill: () => TypedEvent<HandlerSuccessResponse<PH>, HandlerErrors<PH>>;
+    prefill: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
 
     /**
      * Removes prefilled value.
@@ -201,16 +215,11 @@ export interface HookSubRequest<PH extends PublicHandler> extends SubRequest<PH>
     removePrefill: () => Promise<void>;
 }
 
-export interface SuccessSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
-    result: HandlerSuccessResponse<PH>;
-    error: undefined;
-}
-
 export type NonClientRoute = never | PublicHook | PublicHeadersHook;
 
 export type ClientRoutes<RA extends RemoteApi> = Prettify<{
     [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
-        ? (...params: Parameters<RA[Property]['handler']>) => RouteSubRequest<RA[Property]['handler']>
+        ? (...params: Parameters<RA[Property]['handler']>) => RSubRequest<RA[Property]['handler']>
         : RA[Property] extends RemoteApi
           ? ClientRoutes<RA[Property]>
           : never;
@@ -222,7 +231,7 @@ export type ClientHooks<RA extends RemoteApi> = Prettify<{
     [Property in keyof RA as RA[Property] extends NonClientHook ? never : Property]: RA[Property] extends
         | PublicHook
         | PublicHeadersHook
-        ? (...params: Parameters<RA[Property]['handler']>) => HookSubRequest<RA[Property]['handler']>
+        ? (...params: Parameters<RA[Property]['handler']>) => HSubRequest<RA[Property]['handler']>
         : RA[Property] extends RemoteApi
           ? ClientHooks<RA[Property]>
           : never;
@@ -232,7 +241,7 @@ export type Cleaned<RMS extends RemoteApi> = {
     [Property in keyof RMS as RMS[Property] extends never ? never : Property]: RMS[Property];
 };
 
-export type SuccessClientResponse<RS extends RouteSubRequest<any>, RHList extends HookSubRequest<any>[]> = [
+export type SuccessClientResponse<RS extends RSubRequest<any>, RHList extends HSubRequest<any>[]> = [
     SuccessResponse<RS>,
     ...SuccessResponses<RHList>,
 ];

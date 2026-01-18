@@ -283,8 +283,8 @@ describe('Dispatch routes', () => {
             const error = response.body[MION_ROUTES.thrownErrors]?.auth;
             const expected = new RpcError({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
-                type: 'headers-validation-error',
-                publicMessage: `Invalid headers in 'auth', validation failed.`,
+                type: 'validation-error',
+                publicMessage: `Invalid params in 'auth', validation failed.`,
                 errorData: expect.anything(),
             });
             expect(error).toEqual(expected);

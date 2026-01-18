@@ -90,7 +90,7 @@ describe('route & hooks init functions', () => {
             wrongRequest,
             {}
         );
-        expect(wrongResponse.body['@thrownErrors']?.auth).toEqual(expect.objectContaining({type: 'headers-validation-error'}));
+        expect(wrongResponse.body['@thrownErrors']?.auth).toEqual(expect.objectContaining({type: 'validation-error'}));
         expect(wrongResponse.headers.get('Authorization')).toEqual(undefined);
     });
 });

@@ -131,8 +131,8 @@ describe('Request and Response Headers', () => {
             expect(response.hasErrors).toBeTruthy();
             const error = response.body['@thrownErrors']?.auth;
             const expected = new RpcError({
-                type: 'headers-validation-error',
-                publicMessage: `Invalid headers in 'auth', validation failed.`,
+                type: 'validation-error',
+                publicMessage: `Invalid params in 'auth', validation failed.`,
                 errorData: expect.anything(),
             });
             expect(error).toEqual(expected);
@@ -420,8 +420,8 @@ describe('Request and Response Headers', () => {
             expect(response.hasErrors).toBeTruthy();
             const error = response.body['@thrownErrors']?.auth;
             const expected = new RpcError({
-                type: 'headers-validation-error',
-                publicMessage: `Invalid headers in 'auth', validation failed.`,
+                type: 'validation-error',
+                publicMessage: `Invalid params in 'auth', validation failed.`,
                 errorData: expect.anything(),
             });
             expect(error).toEqual(expected);

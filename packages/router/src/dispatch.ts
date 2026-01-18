@@ -11,7 +11,7 @@ import {NOT_FOUND_PATH} from './constants';
 import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {Mutable, AnyObject, createDataViewDeserializer, StatusCodes, HeadersSubset} from '@mionkit/core';
-import {RpcError, HandlerType} from '@mionkit/core';
+import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
 
 /*
@@ -209,7 +209,7 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
 function validateParametersOrThrow(params: any[], executable: RemoteMethod): void {
     if (!executable.paramNames || executable.paramNames.length === 0) return;
     if (!executable.paramsJitFns.isType.fn(params)) {
-        throw new RpcError({
+        const validationError: ValidationError = new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'validation-error',
             publicMessage: `Invalid params in '${executable.id}', validation failed.`,
@@ -217,19 +217,21 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
                 typeErrors: executable.paramsJitFns.typeErrors.fn(params),
             },
         });
+        throw validationError;
     }
 }
 
 function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, executable: HeaderMethod): void {
     if (!executable.headersParam.jitFns.isType.fn(headers)) {
-        throw new RpcError({
+        const validationError: ValidationError = new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'headers-validation-error',
-            publicMessage: `Invalid headers in '${executable.id}', validation failed.`,
+            type: 'validation-error',
+            publicMessage: `Invalid params in '${executable.id}', validation failed.`,
             errorData: {
                 typeErrors: executable.headersParam.jitFns.typeErrors.fn(headers),
             },
         });
+        throw validationError;
     }
 }
 

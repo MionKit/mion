@@ -5,10 +5,28 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions, AnyErrorParams, TypedErrorParams, DataOnly, RpcErrorParams} from './types/general.types';
+import {CoreOptions, AnyErrorParams, TypedErrorParams, DataOnly, RpcErrorParams, RunTypeError} from './types/general.types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from './utils';
 import {getJitUtils} from './jitUtils';
+
+// ############# Validation Error Types #############
+
+/**
+ * Error data structure for validation errors.
+ * Contains the list of type errors from parameter validation.
+ */
+export interface ValidationErrorData {
+    /** List of type validation errors with paths and expected types */
+    typeErrors: RunTypeError[];
+}
+
+/**
+ * Strongly typed validation error.
+ * Thrown when route or hook parameters fail type validation.
+ * This type is included in the client error unions so validation errors can be properly typed.
+ */
+export type ValidationError = RpcError<'validation-error', ValidationErrorData>;
 
 let options: CoreOptions = {...DEFAULT_CORE_OPTIONS};
 
@@ -27,7 +45,7 @@ export class TypedError<ErrType extends string> extends Error {
      */
     // eslint-disable-next-line @typescript-eslint/prefer-as-const
     public readonly 'mion@isΣrrθr': true = true;
-    /** Error type, can be used as discriminator in union types switch, etc*/
+    /** Error type, can be used as discriminator in union types*/
     public readonly type: ErrType;
     // Note: message and name are NOT declared as properties here
     // They are inherited from Error class and assigned in constructor

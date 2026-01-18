@@ -7,7 +7,7 @@
 
 import {RpcError} from '@mionkit/core';
 import type {RunTypeError} from '@mionkit/core';
-import type {CallWithHooksResult, HookSubRequest, RequestErrors, Result, RouteSubRequest, SubRequest} from './types';
+import type {CallWithHooksResult, HSubRequest, RequestErrors, Result, RSubRequest, SubRequest} from './types';
 import type {MionClient} from './client';
 import {TypedEvent} from './typedEvent';
 
@@ -15,7 +15,7 @@ import {TypedEvent} from './typedEvent';
  * Implementation of both RouteSubRequest and HookSubRequest interfaces.
  * This is returned by the MethodProxy when a remote method is invoked.
  */
-export class MionSubRequest<S = any, E extends RpcError<string, any> = any> implements RouteSubRequest<any>, HookSubRequest<any> {
+export class MionSubRequest<S = any, E extends RpcError<string, any> = any> implements RSubRequest<any>, HSubRequest<any> {
     /** The path segments to the method */
     pointer: string[];
     /** Unique identifier for this sub-request */
@@ -53,7 +53,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         const typedEvent = new TypedEvent<S, E>(this.id, this.client.handlersRegistry);
 
         // Execute validation and storage asynchronously
-        this.client.prefill(this as HookSubRequest<any>).catch((errors: RequestErrors) => {
+        this.client.prefill(this as HSubRequest<any>).catch((errors: RequestErrors) => {
             // Prefill errors are logged but not handled by TypedEvent
             // They should be caught by the caller if needed
             console.error('Prefill error:', findSubRequestError(this, errors));
@@ -69,7 +69,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     removePrefill(): Promise<void> {
         // Clear error handlers for this hook from the registry
         this.client.handlersRegistry.clearHandlers(this.id);
-        return this.client.removePrefill(this as HookSubRequest<any>);
+        return this.client.removePrefill(this as HSubRequest<any>);
     }
 
     /**
@@ -79,7 +79,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
      * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] 4-tuple
      */
     call(): Promise<Result<S, E>> {
-        return this.client.executeCall(this as unknown as RouteSubRequest<any>);
+        return this.client.executeCall(this as unknown as RSubRequest<any>);
     }
 
     /**
@@ -89,13 +89,13 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
      * @param hooks Record of hook names to HookSubRequest instances
      * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] 4-tuple
      */
-    callWithHooks<H extends Record<string, HookSubRequest<any>>>(hooks: H): Promise<CallWithHooksResult<S, E, H>> {
+    callWithHooks<H extends Record<string, HSubRequest<any>>>(hooks: H): Promise<CallWithHooksResult<S, E, H>> {
         const hookEntries = Object.entries(hooks);
         if (hookEntries.length === 0) {
             throw new Error('callWithHooks requires at least one hook. Use call() instead for requests without hooks.');
         }
         const hookSubRequests = hookEntries.map(([, hook]) => hook);
-        return this.client.executeCallWithHooks(this as RouteSubRequest<any>, hooks, hookSubRequests) as Promise<
+        return this.client.executeCallWithHooks(this as RSubRequest<any>, hooks, hookSubRequests) as Promise<
             CallWithHooksResult<S, E, H>
         >;
     }

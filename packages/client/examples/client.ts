@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/require-await */
 import {initClient} from '@mionkit/client';
-import type {HeadersSubset} from '@mionkit/core';
+import {HeadersSubset} from '@mionkit/core';
 // importing only the RemoteApi type from server
 import type {MyApi} from './server.routes';
 
@@ -11,7 +11,7 @@ const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 // prefills auth token for any future requests, value is stored in localStorage by default
 // Returns TypedEvent for registering persistent success and error handlers
 // The auth hook returns SessionInfo on success (when returnSession=true) or RpcError<'not-authorized', NotAuthorizedData>
-const authHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer myToken-XYZ'}};
+const authHeaders = new HeadersSubset({Authorization: 'Bearer myToken-XYZ'});
 hooks
     .auth(authHeaders, true) // returnSession=true to get SessionInfo back
     .prefill()
@@ -44,6 +44,9 @@ hooks
         } else {
             console.log('Invalid token:', error.publicMessage);
         }
+    })
+    .onError('validation-error', (error) => {
+        console.log('Validation error:', error.errorData?.typeErrors);
     });
 
 // ========== Example 1: Route with strongly-typed errorData ==========
@@ -52,17 +55,16 @@ hooks
 async function exampleWithTypedError() {
     const [user, error] = await routes.users.getById('USER-123').call();
 
-    if (error) {
-        if (error.type === 'user-not-found') {
-            // error.errorData is strongly typed as UserNotFoundData!
-            console.log('User not found. Requested ID:', error.errorData?.requestedId);
-            if (error.errorData?.suggestedIds?.length) {
-                console.log('Did you mean one of these?', error.errorData.suggestedIds.join(', '));
-            }
-        } else {
-            // Catches any other errors (network errors, hook errors, etc.)
-            console.log('Unexpected error:', error.publicMessage);
+    if (error && error.type === 'user-not-found') {
+        // error.errorData is strongly typed as UserNotFoundData!
+        console.log('User not found. Requested ID:', error.errorData?.requestedId);
+        if (error.errorData?.suggestedIds?.length) {
+            console.log('Did you mean one of these?', error.errorData.suggestedIds.join(', '));
         }
+        return;
+    } else if (error) {
+        // Catches any other errors (network errors, hook errors, etc.)
+        console.log('Unexpected error:', error.publicMessage);
         return;
     }
 
@@ -91,7 +93,7 @@ async function exampleWithOrderError() {
 // ========== Example 3: Route that always succeeds ==========
 // sayHello returns just string (no error type), so error is always undefined
 async function exampleAlwaysSucceeds() {
-    const [result] = await routes.users.sayHello(john).call();
+    const [result, error] = await routes.users.sayHello(john).call();
     // sayHello never has an error type, so we can use the result directly
     console.log(result); // Hello John Doe
 }

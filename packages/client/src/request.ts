@@ -6,7 +6,7 @@
  * ######## */
 
 import type {ResponseBody} from '@mionkit/router';
-import {ClientOptions, HookSubRequest, SubRequest, RouteSubRequest, RequestErrors, PrefilledHooksCache} from './types';
+import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledHooksCache} from './types';
 import type {RunTypeError} from '@mionkit/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
@@ -14,7 +14,7 @@ import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {validateSubRequests} from './validation';
 import {serializeRequestBody, deserializeResponseBody} from './serializer';
 
-export class MionClientRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
+export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList extends HSubRequest<any>[]> {
     readonly path: string;
     readonly requestId: string;
     readonly subRequestList: {[key: string]: SubRequest<any>} = {};
