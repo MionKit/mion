@@ -7,6 +7,7 @@
   "scripts": {
     "test": "lerna run test",
     "format": "prettier --write packages/**/*.{ts,md}",
+    "check-format": "prettier --check packages/**/*.{ts,md}",
     "check-format-pre-commit": "CI=true prettier --check",
     "lint": "lerna run lint",
     "lint-pre-committ": "CI=true eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",

@@ -99,7 +99,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodMetadata 
 }
 
 export function serializePureDeps(depHash: string, purFnDeps: Record<string, PureFunctionData>, depth = 0) {
-    if (depth >= 0) throw new Error(`Max depth reached serializing pure function dependencies, for: ${depHash}`);
+    if (depth >= MAX_STACK_DEPTH) throw new Error(`Max depth reached serializing pure function dependencies, for: ${depHash}`);
     const pureDep = getJitUtils().getCompiledPureFn(depHash);
     if (!pureDep) throw new Error(`Pure function ${depHash} not found`);
     if (purFnDeps[pureDep.pureFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies
@@ -110,7 +110,7 @@ export function serializePureDeps(depHash: string, purFnDeps: Record<string, Pur
         dependencies: new Set(pureDep.dependencies),
     };
     purFnDeps[pureDep.pureFnHash] = serializedPureDep;
-    pureDep.dependencies.forEach((h) => serializePureDeps(h, purFnDeps));
+    pureDep.dependencies.forEach((h) => serializePureDeps(h, purFnDeps, depth + 1));
 }
 
 export function serializeJitFn(
@@ -126,7 +126,7 @@ export function serializeJitFn(
     if (deps[jitFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies
     const serializedJitFn = getSerializableJitCompiler(jitFn);
     deps[jitFnHash] = serializedJitFn;
-    jitFn.dependenciesSet.forEach((h) => serializeJitFn(h, deps, purFnDeps, ++depth));
+    jitFn.dependenciesSet.forEach((h) => serializeJitFn(h, deps, purFnDeps, depth + 1));
     jitFn.pureFnDependencies.forEach((h) => serializePureDeps(h, purFnDeps));
 }
 

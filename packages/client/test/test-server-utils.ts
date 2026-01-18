@@ -19,8 +19,8 @@ const execAsync = promisify(exec);
 export const TEST_PORT_MAPPING = {
     client: 8086,
     clientMethodsMetadata: 8087,
+    friendlyErrors: 8088,
     // Add more test files here as needed
-    // 'anotherTest.spec.ts': 8088,
 } as const;
 
 /**

@@ -6,7 +6,7 @@
     "composite": true,
     "rootDir": "."
   },
-  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../http"}],
+  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../http"}, {"path": "../type-formats"}],
   "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", ".dist"]

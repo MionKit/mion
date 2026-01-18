@@ -35,18 +35,33 @@ export function restoreCompiledJitFns(
     pureCache: PersistedPureFunctionsCache | PureFnsDataCache,
     jUtil: JITUtils
 ): void {
+    // Use visited sets to prevent infinite recursion on circular dependencies
+    // This is needed because during restoration, the `fn` property is not set until after
+    // all dependencies are restored, so checking `fn` alone can't prevent circular calls
+    const visitedPure = new Set<string>();
+    const visitedJit = new Set<string>();
+
     const keysPureFns = Object.keys(pureCache);
-    keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, key, jUtil));
+    keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, key, jUtil, visitedPure));
     const keysJitFns = Object.keys(jitCache);
-    keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key, jUtil));
+    keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key, jUtil, visitedPure, visitedJit));
 }
 
-function restoreCompiledPureFn(pureCache: PersistedPureFunctionsCache | PureFnsDataCache, fnName: string, jUtil: JITUtils) {
+function restoreCompiledPureFn(
+    pureCache: PersistedPureFunctionsCache | PureFnsDataCache,
+    fnName: string,
+    jUtil: JITUtils,
+    visited: Set<string>
+) {
+    // Skip if already visited (handles circular dependencies)
+    if (visited.has(fnName)) return;
+    visited.add(fnName);
+
     const pureCompiled = pureCache[fnName];
     if (!pureCompiled) throw new Error(`Pure function ${fnName} not found`);
     if ((pureCompiled as CompiledPureFunction).fn) return;
     const dependencies = pureCompiled.dependencies;
-    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName, jUtil));
+    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName, jUtil, visited));
     // persisted pure functions (AOT code caches) have the createJitFn but not the fn
     if ((pureCompiled as PersistedPureFunction).createJitFn) {
         (pureCompiled as any as Mutable<CompiledPureFunction>).fn = (pureCompiled as PersistedPureFunction).createJitFn(jUtil);
@@ -60,15 +75,21 @@ function restoreCompiledJitFn(
     jitCache: PersistedJitFunctionsCache | FnsDataCache,
     pureCache: PersistedPureFunctionsCache | PureFnsDataCache,
     fnHash: string,
-    jUtil: JITUtils
+    jUtil: JITUtils,
+    visitedPure: Set<string>,
+    visitedJit: Set<string>
 ) {
+    // Skip if already visited (handles circular dependencies)
+    if (visitedJit.has(fnHash)) return;
+    visitedJit.add(fnHash);
+
     const jitCompiled = jitCache[fnHash];
     if (!jitCompiled) throw new Error(`Jit function ${fnHash} not found`);
     if ((jitCompiled as JitCompiledFn).fn) return;
     const pureDependencies = jitCompiled.pureFnDependencies;
-    pureDependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName, jUtil));
+    pureDependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName, jUtil, visitedPure));
     const dependencies = jitCompiled.dependenciesSet;
-    dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep, jUtil));
+    dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep, jUtil, visitedPure, visitedJit));
     if ((jitCompiled as PersistedJitFn).createJitFn) {
         (jitCompiled as any as Mutable<JitCompiledFn>).fn = (jitCompiled as PersistedJitFn).createJitFn(jUtil);
         return;

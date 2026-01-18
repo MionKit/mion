@@ -8,10 +8,32 @@
 import {PublicApi, Routes, initRouter, registerRoutes, route, headersHook, hook} from '@mionkit/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
 import {RpcError, HeadersSubset} from '@mionkit/core';
+// Import format types (regular import to ensure JIT functions are created)
+import {StrFormat, StrEmail} from '@mionkit/type-formats/FormatsString';
+import {NumFormat} from '@mionkit/type-formats/FormatsNumber';
 
 // Define routes for testing different validation scenarios
 type User = {name: string; surname: string};
 type Product = {id: string; name: string; price: number};
+
+// Types for testing validation with nested objects (friendlyErrors testing)
+type UserProfile = {
+    name: string;
+    email: string;
+    age: number;
+    address?: {
+        street: string;
+        city: string;
+        zip: string;
+    };
+};
+
+// Types with format validation for friendlyErrors testing
+export type UserWithFormats = {
+    name: StrFormat<{minLength: 2; maxLength: 50}>;
+    age: NumFormat<{min: 13; max: 120; integer: true}>;
+    email: StrEmail;
+};
 
 // Session info returned by session hook
 type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
@@ -61,6 +83,18 @@ const routes = {
         multiply: route((ctx, a: number, b: number): number => a * b),
         processUser: route((ctx, user: User): string => `Processed: ${user.name} ${user.surname}`),
     },
+
+    // Routes for testing validation and friendly errors
+    createUserProfile: route((_ctx, user: UserProfile): UserProfile => user),
+    validateUserData: route(
+        (_ctx, name: string, age: number, email: string): string => `User: ${name}, Age: ${age}, Email: ${email}`
+    ),
+
+    // Routes with format types for friendlyErrors testing
+    createUserWithFormats: route((_ctx, user: UserWithFormats): UserWithFormats => user),
+    validateName: route((_ctx, name: StrFormat<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`),
+    validateAge: route((_ctx, age: NumFormat<{min: 0; max: 150; integer: true}>): string => `Age: ${age}`),
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     log: hook((ctx): void => undefined, {runOnError: true}),
 } satisfies Routes;
