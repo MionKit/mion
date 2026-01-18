@@ -9,11 +9,11 @@ import {DEFAULT_PREFILL_OPTIONS} from './constants';
 import {
     CallWithHooksResult,
     ClientOptions,
-    HookSubRequest,
+    HSubRequest,
     HookSuccess,
     HookError,
     InitOptions,
-    RouteSubRequest,
+    RSubRequest,
     SubRequest,
     RequestErrors,
     ClientRoutes,
@@ -63,7 +63,7 @@ export class MionClient {
      * 2. Processes hook success/error handlers (fire-and-forget for prefill)
      * 3. Returns [routeResult, routeError, hooksResults, hooksErrors] 4-tuple
      */
-    executeCall<RR extends RouteSubRequest<any>>(routeSubRequest: RR): Promise<Result<any, any>> {
+    executeCall<RR extends RSubRequest<any>>(routeSubRequest: RR): Promise<Result<any, any>> {
         return new Promise((resolve) => {
             const request = new MionClientRequest(this.clientOptions, this.prefilledHooksCache, routeSubRequest, []);
 
@@ -108,7 +108,7 @@ export class MionClient {
      * (e.g., from @thrownErrors in the response body - validation errors, serialization errors, etc.)
      */
     private buildHooksResultsFromList(
-        hookSubRequests: HookSubRequest<any>[],
+        hookSubRequests: HSubRequest<any>[],
         errors: RequestErrors | undefined,
         routeId?: string
     ): {hooksResults: Record<string, unknown>; hooksErrors: Record<string, RpcError<string, unknown>>} {
@@ -149,12 +149,12 @@ export class MionClient {
      * This includes both explicitly passed hooks and prefilled hooks restored from storage.
      */
     private getAllHooksFromRequest(
-        request: MionClientRequest<RouteSubRequest<any>, HookSubRequest<any>[]>,
+        request: MionClientRequest<RSubRequest<any>, HSubRequest<any>[]>,
         routeId: string
-    ): HookSubRequest<any>[] {
+    ): HSubRequest<any>[] {
         return Object.entries(request.subRequestList)
             .filter(([id]) => id !== routeId)
-            .map(([, subRequest]) => subRequest as HookSubRequest<any>);
+            .map(([, subRequest]) => subRequest as HSubRequest<any>);
     }
 
     /**
@@ -162,7 +162,7 @@ export class MionClient {
      * This is indifferent to the overall request success/error - each hook is processed based on its own result.
      * Hooks with runOnError=true may succeed even when the route fails, and their success handlers should be called.
      */
-    private processHooksResponses(hookSubRequests: HookSubRequest<any>[], errors: RequestErrors | undefined): void {
+    private processHooksResponses(hookSubRequests: HSubRequest<any>[], errors: RequestErrors | undefined): void {
         for (const hook of hookSubRequests) {
             const hookError = errors?.get(hook.id);
             if (hookError) {
@@ -184,10 +184,10 @@ export class MionClient {
      * @param hookSubRequests Array of hook subrequests to execute
      * @returns Promise resolving to CallWithHooksResult
      */
-    executeCallWithHooks<H extends Record<string, HookSubRequest<any>>>(
-        routeSubRequest: RouteSubRequest<any>,
+    executeCallWithHooks<H extends Record<string, HSubRequest<any>>>(
+        routeSubRequest: RSubRequest<any>,
         hooksRecord: H,
-        hookSubRequests: HookSubRequest<any>[]
+        hookSubRequests: HSubRequest<any>[]
     ): Promise<CallWithHooksResult<any, any, H>> {
         return new Promise((resolve) => {
             const request = new MionClientRequest(this.clientOptions, this.prefilledHooksCache, routeSubRequest, hookSubRequests);
@@ -226,8 +226,8 @@ export class MionClient {
      * Also includes errors from hooks that ran on the server but weren't explicitly requested
      * (e.g., from @thrownErrors in the response body - validation errors, serialization errors, etc.)
      */
-    private buildCallWithHooksResult<H extends Record<string, HookSubRequest<any>>>(
-        routeSubRequest: RouteSubRequest<any>,
+    private buildCallWithHooksResult<H extends Record<string, HSubRequest<any>>>(
+        routeSubRequest: RSubRequest<any>,
         hooksRecord: H,
         errors: RequestErrors | undefined
     ): CallWithHooksResult<any, any, H> {
@@ -273,12 +273,12 @@ export class MionClient {
         return request.validateParams(subRequest);
     }
 
-    prefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
+    prefill<List extends HSubRequest<any>[]>(...subRequest: List): Promise<void> {
         const request = new MionClientRequest(this.clientOptions, this.prefilledHooksCache);
         return request.prefill(subRequest);
     }
 
-    removePrefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
+    removePrefill<List extends HSubRequest<any>[]>(...subRequest: List): Promise<void> {
         const request = new MionClientRequest(this.clientOptions, this.prefilledHooksCache);
         return request.removePrefill(subRequest);
     }
@@ -299,7 +299,7 @@ class MethodProxy {
     handler = {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        apply: (_target: any, _thisArg: any, argArray?: any): RouteSubRequest<any> & HookSubRequest<any> => {
+        apply: (_target: any, _thisArg: any, argArray?: any): RSubRequest<any> & HSubRequest<any> => {
             const handlerId = getRouterItemId(this.parentProps);
             return new MionSubRequest(this.parentProps, handlerId, argArray, this.client);
         },

@@ -6,7 +6,7 @@
  * ######## */
 
 import {initClient} from './client';
-import {HookSubRequest, RouteSubRequest} from './types';
+import {HSubRequest, RSubRequest} from './types';
 import {isRpcError, HeadersSubset} from '@mionkit/core';
 import {TestServerApi} from '../test/test-server';
 import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
@@ -42,7 +42,7 @@ describe('client', () => {
         const {routes, hooks} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const expectedAuthSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
+        const expectedAuthSubRequest: RSubRequest<any> & HSubRequest<any> = {
             pointer: ['auth'],
             id: 'auth',
             isResolved: false,
@@ -54,7 +54,7 @@ describe('client', () => {
             typeErrors: expect.any(Function),
         };
 
-        const expectedSayHelloSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
+        const expectedSayHelloSubRequest: RSubRequest<any> & HSubRequest<any> = {
             pointer: ['sayHello'],
             id: 'sayHello',
             isResolved: false,
@@ -66,7 +66,7 @@ describe('client', () => {
             typeErrors: expect.any(Function),
         };
 
-        const expectedSumTwoSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
+        const expectedSumTwoSubRequest: RSubRequest<any> & HSubRequest<any> = {
             pointer: ['utils', 'sumTwo'],
             id: 'utils/sumTwo',
             isResolved: false,
@@ -84,7 +84,7 @@ describe('client', () => {
 
         // is a proxy so actually could trap any call even if does not exists in methods and is not strongly typed
         // note bellow code should not be used when using the client
-        const expectedUnknownSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
+        const expectedUnknownSubRequest: RSubRequest<any> & HSubRequest<any> = {
             pointer: ['abcd'],
             id: 'abcd',
             isResolved: false,
