@@ -1,11 +1,15 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { watch, type FSWatcher } from 'chokidar'
+import type { Plugin, ViteDevServer } from 'vite'
 
 // Get monorepo root (parent of website folder)
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const MONOREPO_ROOT = resolve(__dirname, '../../..')
+const CONTENT_DIR = resolve(__dirname, '../../content')
 
 /**
  * Parse HTML-style attributes from a string
@@ -115,8 +119,10 @@ function extractByComments(
 /**
  * Process code-import tags in markdown content
  * Replaces <code-import ... /> tags with actual code blocks
+ * @param body - The markdown content to process
+ * @param isDev - Whether to include filename comments (dev mode)
  */
-export function processCodeImports(body: string): string {
+export function processCodeImports(body: string, isDev = false): string {
   const codeImportRegex = /<code-import\s+([^>]*?)\s*\/>/g
 
   return body.replace(codeImportRegex, (_match: string, attributesStr: string) => {
@@ -135,7 +141,10 @@ export function processCodeImports(body: string): string {
 
       const code = readCodeFile(filePath, lines, commentStart, commentEnd)
 
-      return `\`\`\`${lang}\n${code}\n\`\`\``
+      // In dev mode, add filename as comment at the beginning
+      const fileComment = isDev ? `// ${filePath}\n` : ''
+
+      return `\`\`\`${lang}\n${fileComment}${code}\n\`\`\``
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       return `\`\`\`text\n// Error processing code-import:\n// ${errorMessage}\n\`\`\``
@@ -143,3 +152,110 @@ export function processCodeImports(body: string): string {
   })
 }
 
+// ============================================================================
+// Example File Watcher - Hot reload for code examples in dev mode
+// ============================================================================
+
+/**
+ * Find markdown files that reference a given example path
+ */
+function findMarkdownFiles(relativePath: string): string[] {
+  try {
+    const result = execSync(
+      `grep -rl "${relativePath}" "${CONTENT_DIR}" --include="*.md" 2>/dev/null || true`,
+      { encoding: 'utf-8' }
+    )
+    return result.trim().split('\n').filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Update the timestamp in code-import tags to trigger Nuxt Content re-processing
+ */
+function updateTimestamp(mdFilePath: string, relativePath: string): boolean {
+  const newTs = Date.now()
+  try {
+    const content = readFileSync(mdFilePath, 'utf-8')
+    const escapedPath = relativePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+    // Match code-import tags with this path and update ts attribute
+    const regex = new RegExp(
+      `(<code-import[^>]*?)\\bts="\\d+"([^>]*path="${escapedPath}"[^>]*/>)|(<code-import[^>]*path="${escapedPath}"[^>]*?)\\bts="\\d+"([^>]*/>)`,
+      'g'
+    )
+
+    const updated = content.replace(regex, (_match, g1, g2, g3, g4) => {
+      if (g1 && g2) return `${g1}ts="${newTs}"${g2}`
+      if (g3 && g4) return `${g3}ts="${newTs}"${g4}`
+      return _match
+    })
+
+    if (updated !== content) {
+      writeFileSync(mdFilePath, updated, 'utf-8')
+      return true
+    }
+  } catch (e) {
+    console.error(`   ✗ Failed to update: ${mdFilePath}`, e)
+  }
+  return false
+}
+
+/**
+ * Vite plugin that watches example files and updates markdown timestamps
+ * to trigger Nuxt Content re-processing when examples change.
+ */
+export function exampleWatcherPlugin(): Plugin {
+  let watcher: FSWatcher | null = null
+
+  return {
+    name: 'example-watcher',
+    configureServer(server: ViteDevServer) {
+      const packageFolders = [
+        'router', 'client', 'run-types', 'type-formats', 'codegen',
+        'http', 'bun', 'aws', 'gcloud', 'quick-start', 'examples'
+      ]
+      const watchPaths = packageFolders.map(pkg =>
+        resolve(MONOREPO_ROOT, 'packages', pkg, 'examples')
+      )
+
+      console.log('\n👀 Watching example folders for changes...')
+
+      watcher = watch(watchPaths, {
+        ignoreInitial: true,
+        persistent: true
+      })
+
+      watcher.on('all', (event, filePath) => {
+        if (!filePath.endsWith('.ts')) return
+
+        const relativePath = filePath.replace(MONOREPO_ROOT + '/', '')
+        console.log(`\n📝 Example ${event}:`)
+        console.log(`   src: ${relativePath}`)
+
+        // Find and update markdown files
+        const mdFiles = findMarkdownFiles(relativePath)
+        if (mdFiles.length > 0) {
+          let updated = 0
+          mdFiles.forEach(mdFile => {
+            const relMdFile = mdFile.replace(MONOREPO_ROOT + '/', '')
+            if (updateTimestamp(mdFile, relativePath)) {
+              console.log(`   doc: ${relMdFile} ✓`)
+              updated++
+            }
+          })
+          if (updated === 0) {
+            console.log('   ⚠ No timestamps updated (ensure ts="0" exists in code-import tags)')
+          }
+        } else {
+          console.log('   ⚠ No markdown files reference this example')
+        }
+      })
+
+      server.httpServer?.on('close', () => {
+        watcher?.close()
+      })
+    }
+  }
+}

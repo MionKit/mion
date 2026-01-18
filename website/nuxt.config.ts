@@ -1,4 +1,6 @@
-import { processCodeImports } from './server/utils/code-import'
+import { processCodeImports, exampleWatcherPlugin } from './server/utils/code-import'
+
+const isDev = process.env.NODE_ENV !== 'production'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -22,13 +24,19 @@ export default defineNuxtConfig({
     "@nuxt/scripts",
     "@nuxt/ui"
   ],
+  content: {
+    watch: {
+      enabled: isDev
+    }
+  },
+  vite: {
+    plugins: isDev ? [exampleWatcherPlugin()] : []
+  },
   hooks: {
     'content:file:beforeParse'(ctx) {
       const { file } = ctx
-
       if (!file.id.endsWith('.md')) return
-
-      file.body = processCodeImports(file.body)
+      file.body = processCodeImports(file.body, isDev)
     }
   }
 })

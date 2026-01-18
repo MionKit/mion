@@ -1,0 +1,9 @@
+node_modules
+dist
+jest.config.js
+.eslintrc.js
+fixtures
+shared-fixtures
+coverage
+__snapshots__
+.dist
