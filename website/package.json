@@ -2,6 +2,7 @@
   "name": "docus-starter",
   "scripts": {
     "dev": "nuxt dev --extends docus",
+    "dev:fresh": "rm -rf .nuxt .output data && npm run dev",
     "build": "nuxt build --extends docus"
   },
   "dependencies": {

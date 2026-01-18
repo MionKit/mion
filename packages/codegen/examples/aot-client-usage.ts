@@ -1,0 +1,12 @@
+// Load custom AOT caches (optional for client)
+import {jitFnsCache, pureFnsCache} from 'my-api-aot';
+import {addAOTCaches} from '@mionkit/core';
+
+addAOTCaches(jitFnsCache, pureFnsCache);
+
+// Then initialize the client
+import {initClient} from '@mionkit/client';
+import type {MyApi} from './server.routes';
+
+const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+
