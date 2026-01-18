@@ -210,19 +210,14 @@ export function exampleWatcherPlugin(): Plugin {
   let watcher: FSWatcher | null = null
 
   return {
-    name: 'example-watcher',
+    name: 'code-examples-watcher',
     configureServer(server: ViteDevServer) {
-      const packageFolders = [
-        'router', 'client', 'run-types', 'type-formats', 'codegen',
-        'http', 'bun', 'aws', 'gcloud', 'quick-start', 'examples'
-      ]
-      const watchPaths = packageFolders.map(pkg =>
-        resolve(MONOREPO_ROOT, 'packages', pkg, 'examples')
-      )
+      // All examples are centralized in packages/examples/src
+      const watchPath = resolve(MONOREPO_ROOT, 'packages', 'examples', 'src')
 
       console.log('\n👀 Watching example folders for changes...')
 
-      watcher = watch(watchPaths, {
+      watcher = watch(watchPath, {
         ignoreInitial: true,
         persistent: true
       })
@@ -234,7 +229,7 @@ export function exampleWatcherPlugin(): Plugin {
         console.log(`\n📝 Example ${event}:`)
         console.log(`   src: ${relativePath}`)
 
-        // Find and update markdown files
+        // Find markdown files that reference this example
         const mdFiles = findMarkdownFiles(relativePath)
         if (mdFiles.length > 0) {
           let updated = 0
@@ -243,6 +238,9 @@ export function exampleWatcherPlugin(): Plugin {
             if (updateTimestamp(mdFile, relativePath)) {
               console.log(`   doc: ${relMdFile} ✓`)
               updated++
+
+              // Invalidate Vite's module cache for this markdown file
+              invalidateModule(server, mdFile)
             }
           })
           if (updated === 0) {
@@ -258,4 +256,21 @@ export function exampleWatcherPlugin(): Plugin {
       })
     }
   }
+}
+
+/**
+ * Invalidate a module in Vite's module graph to force re-processing
+ */
+function invalidateModule(server: ViteDevServer, filePath: string): void {
+  const mod = server.moduleGraph.getModuleById(filePath)
+  if (mod) {
+    server.moduleGraph.invalidateModule(mod)
+    console.log(`   cache: invalidated ✓`)
+  }
+
+  // Also try to trigger a full reload for the page
+  server.ws.send({
+    type: 'full-reload',
+    path: '*'
+  })
 }
