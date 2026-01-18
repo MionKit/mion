@@ -77,4 +77,18 @@ Features
 ## External Links
 - Use `{target="_blank"}` or `{blank}` for external links
 
+## Code Import
+Use the `<code-import>` tag to import code examples from packages rather tha writing them manually. This ensures the examples are always up to date and accurate.
+prefer start and end comment markers to delimit the code to import.
+
+<!-- Full file import -->
+<code-import path="packages/router/examples/routes-definition.routes.ts" lang="ts" />
+
+<!-- Line range (1-10) -->
+<code-import path="packages/router/examples/hooks-definition.routes.ts" lang="ts" lines="1,10" />
+
+<!-- Comment markers -->
+<code-import path="packages/router/examples/example.ts" lang="ts" commentStart="start-routes" commentEnd="end-routes" />
+
+
 
