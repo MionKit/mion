@@ -5,8 +5,8 @@ const routes = {
     // using the hook function to define a hook
     logger: hook(
         async (ctx: CallContext): Promise<void> => {
-            const hasErrors = ctx.request.unexpectedErrors && Object.keys(ctx.request.unexpectedErrors).length > 0;
-            if (hasErrors) await myApp.cloudLogs.error(ctx.path, ctx.request.unexpectedErrors);
+            const hasErrors = ctx.request.thrownErrors && Object.keys(ctx.request.thrownErrors).length > 0;
+            if (hasErrors) await myApp.cloudLogs.error(ctx.path, ctx.request.thrownErrors);
             else myApp.cloudLogs.log(ctx.path, ctx.shared.me.name);
         },
         // ensures logger is executed even if there are errors in the route or other hooks
