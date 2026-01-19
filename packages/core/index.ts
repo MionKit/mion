@@ -7,6 +7,7 @@
 
 export * from './src/types/general.types';
 export * from './src/types/method.types';
+export * from './src/types/formatsParams.types';
 export * from './src/types/friendlyErrors.types';
 export * from './src/binarySerializer';
 export * from './src/constants';

@@ -1,26 +1,23 @@
-import {HeadersSubset, headersHook} from '@mionkit/router';
+import {HeadersSubset} from '@mionkit/core';
+import {headersHook} from '@mionkit/router';
 
 // HeadersSubset<RequiredHeaders, OptionalHeaders>
 // - First type parameter: required headers (must be present)
 // - Second type parameter: optional headers (may or may not be present)
 
 // Example: Authorization is required, User-Agent is optional
-const authWithOptionalAgent = headersHook(
-    'authWithOptionalAgent',
-    async (ctx, {headers}: HeadersSubset<'Authorization', 'User-Agent'>): Promise<void> => {
-        // headers.Authorization is guaranteed to exist (required)
-        const token = headers.Authorization;
+const authWithOptionalAgent = headersHook(async (ctx, {headers}: HeadersSubset<'Authorization', 'User-Agent'>): Promise<void> => {
+    // headers.Authorization is guaranteed to exist (required)
+    const token = headers.Authorization;
 
-        // headers['User-Agent'] may be undefined (optional)
-        const userAgent = headers['User-Agent'];
+    // headers['User-Agent'] may be undefined (optional)
+    const userAgent = headers['User-Agent'];
 
-        console.log(`Token: ${token}, Agent: ${userAgent ?? 'unknown'}`);
-    }
-);
+    console.log(`Token: ${token}, Agent: ${userAgent ?? 'unknown'}`);
+});
 
 // Multiple required and optional headers
 const multiHeadersHook = headersHook(
-    'multiHeadersHook',
     async (
         ctx,
         {headers}: HeadersSubset<'Authorization' | 'Content-Type', 'X-Request-Id' | 'X-Correlation-Id'>
