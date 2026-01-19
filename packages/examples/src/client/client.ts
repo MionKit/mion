@@ -20,14 +20,10 @@ hooks
         // Since we passed returnSession=true, we know sessionInfo is SessionInfo
         // TypeScript infers: sessionInfo is SessionInfo | void, so we narrow it
         if (!sessionInfo) return;
-
         // Now TypeScript knows sessionInfo is SessionInfo!
         // sessionInfo.role is 'admin' | 'user' | 'guest'
         console.log('Logged in as:', sessionInfo.userId);
         console.log('Role:', sessionInfo.role);
-        console.log('Permissions:', sessionInfo.permissions.join(', '));
-        console.log('Session expires at:', sessionInfo.expiresAt);
-
         // Use session info to configure app state
         if (sessionInfo.role === 'admin') {
             console.log('Admin features enabled');
@@ -54,7 +50,6 @@ hooks
 // call() returns 4-tuple: [routeResult, routeError, hooksResults, hooksErrors]
 async function exampleWithTypedError() {
     const [user, error] = await routes.users.getById('USER-123').call();
-
     if (error && error.type === 'user-not-found') {
         // error.errorData is strongly typed as UserNotFoundData!
         console.log('User not found. Requested ID:', error.errorData?.requestedId);
@@ -67,7 +62,6 @@ async function exampleWithTypedError() {
         console.log('Unexpected error:', error.publicMessage);
         return;
     }
-
     // After error check, user is guaranteed to be User here
     // Use optional chaining for TypeScript strictness
     console.log('Found user:', user?.name, user?.surname);
@@ -77,15 +71,11 @@ async function exampleWithTypedError() {
 // Order getById returns Order | RpcError<'order-not-found', OrderNotFoundData>
 async function exampleWithOrderError() {
     const [order, error] = await routes.orders.getById('ORDER-404').call();
-
-    if (error) {
-        if (error.type === 'order-not-found') {
-            // error.errorData is strongly typed as OrderNotFoundData!
-            console.log('Order not found. Requested ID:', error.errorData?.requestedId);
-        }
+    if (error && error.type === 'order-not-found') {
+        // error.errorData is strongly typed as OrderNotFoundData!
+        console.log('Order not found. Requested ID:', error.errorData?.requestedId);
         return;
     }
-
     // After error check, order is guaranteed to be Order here
     console.log('Order total:', order?.totalUSD);
 }
@@ -110,12 +100,10 @@ async function exampleWithCallWithHooks() {
     const [user, routeError, hookResults, hookErrors] = await routes.users.getById('USER-123').callWithHooks({
         auth: hooks.auth(tempAuthHeaders, true),
     });
-
     // Check for route errors
     if (routeError?.type === 'user-not-found') {
         console.log('User not found:', routeError.errorData?.requestedId);
     }
-
     // Check hook errors
     if (hookErrors?.auth?.type === 'not-authorized') {
         const authError = hookErrors.auth;
@@ -124,14 +112,9 @@ async function exampleWithCallWithHooks() {
             console.log('Temp token expired, requesting new one...');
         }
     }
-
     // Access success data
-    if (user) {
-        console.log('Found user:', user.name);
-    }
-    if (hookResults?.auth) {
-        console.log('Authenticated as:', hookResults.auth.userId);
-    }
+    if (user) console.log('Found user:', user.name);
+    if (hookResults?.auth) console.log('Authenticated as:', hookResults.auth.userId);
 }
 
 // ========== Example 6: Multiple Hooks with callWithHooks() ==========
@@ -141,20 +124,12 @@ async function exampleWithMultipleHooks() {
         auth: hooks.auth(tempAuthHeaders),
         // session: hooks.session('session-token'), // If you have a session hook
     });
-
     // Handle each hook's errors independently
     if (hookErrors?.auth) {
         console.log('Auth failed:', hookErrors.auth.publicMessage);
     }
-
-    // if (hookErrors?.session?.type === 'session-expired') {
-    //     console.log('Session expired, redirecting to login...');
-    // }
-
     // Access success data
-    if (user) {
-        console.log('User:', user.name);
-    }
+    if (user) console.log('User:', user.name);
 }
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
@@ -164,7 +139,6 @@ async function exampleWithCall() {
     // call() never throws - returns a 4-tuple
     // Partial destructuring still works for backward compatibility
     const [user, error] = await routes.users.getById('USER-999').call();
-
     if (error) {
         // TypeScript knows error is the typed error here
         // Each error type can be checked
@@ -176,11 +150,9 @@ async function exampleWithCall() {
         }
         return;
     }
-
     // After error check, user is guaranteed to be User here
     // Use optional chaining for TypeScript strictness
     console.log('User:', user?.name, user?.surname);
-
     // validate parameters locally without calling the server
     const validationResp = await routes.users.sayHello(john).typeErrors();
     console.log(validationResp); // []
