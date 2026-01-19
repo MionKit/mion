@@ -7,9 +7,10 @@
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode, StrNumber} from '@mionkit/run-types';
 import {registerFormatter, BaseRunTypeFormat, TypeFormat, RunTypeOptions, JitFunctions, randomItem} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {StringRunTypeFormat, stringIgnoreProps, StringParams} from './stringFormat.runtype';
-import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
-import {IPRunTypeFormat, FormatParams_IP} from './ip.runtype';
+import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype';
+import {FormatParams_Url} from '@mionkit/core';
+import {DomainRunTypeFormat} from './domain.runtype';
+import {IPRunTypeFormat} from './ip.runtype';
 import {
     FILE_URL_SAMPLES,
     HTTP_URL_SAMPLES,
@@ -206,12 +207,6 @@ export type DEFAULT_URL_SOCIAL_MEDIA_PARAMS<DomainLIst extends readonly string[]
         };
     };
 };
-
-export type FormatParams_UrlPattern = Omit<
-    StringParams,
-    'allowedChars' | 'disallowedChars' | 'allowedValues' | 'disallowedValues'
->;
-export type FormatParams_Url = FormatParams_UrlPattern & {ip?: FormatParams_IP; domain?: FormatParams_Domain};
 
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 export type StrUrl<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_PARAMS & P>;

@@ -5,11 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JITUtils, GenericPureFunction, TypeFormatError, FormatParam} from '@mionkit/core';
+import type {JITUtils, GenericPureFunction, TypeFormatError} from '@mionkit/core';
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, RunTypeOptions, JitCode} from '@mionkit/run-types';
 import {BaseRunTypeFormat, TypeFormat, registerFormatter, registerPureFnClosure} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils';
+import {FormatParams_IP} from '@mionkit/core';
 
 // IP validator
 export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
@@ -175,13 +176,6 @@ type DEFAULT_IP_PARAMS = {
     allowLocalHost: true;
 };
 
-export type FormatParams_IP = {
-    version: FormatParam<4 | 6 | 'any'>;
-    /** Allows localhost values ie: localhost, 127.0.0.1, 0::1 */
-    allowLocalHost?: FormatParam<boolean>;
-    // TODO: allow port
-    allowPort?: FormatParam<boolean>;
-};
 export type StrIP<P extends FormatParams_IP = DEFAULT_IP_PARAMS> = TypeFormat<string, 'ip', P>;
 export type StrIPv4 = StrIP<{version: 4; allowLocalHost: true}>;
 export type StrIPv6 = StrIP<{version: 6; allowLocalHost: true}>;

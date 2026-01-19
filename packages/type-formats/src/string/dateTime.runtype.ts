@@ -4,13 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {FormatParam} from '@mionkit/core';
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 import {TypeFormat, RunTypeOptions, BaseRunTypeFormat, registerFormatter} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {FormatParams_Date, DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype';
-import {DEFAULT_TIME_FORMAT_PARAMS, FormatParams_Time, TimeStringRunTypeFormat} from './time.runtype';
+import {DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype';
+import {FormatParams_DateTime} from '@mionkit/core';
+import {DEFAULT_TIME_FORMAT_PARAMS, TimeStringRunTypeFormat} from './time.runtype';
 import {stringIgnoreProps} from './stringFormat.runtype';
 import {paramVal} from '../utils';
 
@@ -107,12 +107,6 @@ export type DEFAULT_DATE_TIME_PARAMS = {
     date: DEFAULT_DATE_PARAMS;
     time: DEFAULT_TIME_FORMAT_PARAMS;
     splitChar: 'T';
-};
-
-export type FormatParams_DateTime = {
-    date: FormatParams_Date;
-    time: FormatParams_Time;
-    splitChar: FormatParam<string>;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

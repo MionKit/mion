@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JITUtils, GenericPureFunction, FormatParam} from '@mionkit/core';
+import type {JITUtils, GenericPureFunction} from '@mionkit/core';
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 import {
     BaseRunTypeFormat,
@@ -16,6 +16,7 @@ import {
 } from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils';
+import {FormatParams_Time} from '@mionkit/core';
 
 // Time validator
 export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time> {
@@ -255,8 +256,6 @@ export const TIME_RUN_TYPE_FORMATTER = registerFormatter(new TimeStringRunTypeFo
 
 export type DEFAULT_TIME_FORMAT_PARAMS = {format: 'ISO'};
 
-type TimeFmt = 'ISO' | 'HH:mm:ss[.mmm]TZ' | 'HH:mm:ss[.mmm]' | 'HH:mm:ss' | 'HH:mm' | 'mm:ss' | 'HH' | 'mm' | 'ss';
-export type FormatParams_Time = {format: FormatParam<TimeFmt>};
 export type StrTime<P extends FormatParams_Time = DEFAULT_TIME_FORMAT_PARAMS> = TypeFormat<
     string,
     typeof TimeStringRunTypeFormat.id,

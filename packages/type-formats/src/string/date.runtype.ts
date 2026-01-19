@@ -4,11 +4,12 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JITUtils, GenericPureFunction, FormatParam} from '@mionkit/core';
+import type {JITUtils, GenericPureFunction} from '@mionkit/core';
 import {ReflectionKind} from '@deepkit/type';
 import type {JitFnCompiler, JitErrorsFnCompiler, BaseRunType, RunTypeOptions, JitCode} from '@mionkit/run-types';
 import {BaseRunTypeFormat, registerFormatter, registerPureFnClosure, TypeFormat} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {paramVal} from '../utils';
+import {DateFmt, FormatParams_Date} from '@mionkit/core';
 
 // Date validator
 export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date> {
@@ -196,22 +197,6 @@ export const DATE_RUN_TYPE_FORMATTER = registerFormatter(new DateStringRunTypeFo
 // ############### Run Types ###############
 
 export type DEFAULT_DATE_PARAMS = {format: 'ISO'};
-export type DateFmt = 'ISO' | 'YYYY-MM-DD' | 'DD-MM-YYYY' | 'MM-DD-YYYY' | 'MM-DD' | 'DD-MM' | 'YYYY-MM';
-export type FormatParams_Date = {
-    format: FormatParam<DateFmt>;
-    // TODO:
-    // splitChar: string = '-';
-    // minYear?: number = 1900;
-    // maxYear?: number = 2100;
-    // year?: number;
-    // minMonth?: number;
-    // maxMonth?: number;
-    // month?: number;
-    // minDay?: number;
-    // maxDay?: number;
-    // day?: number;
-};
-
 export type StrDate<P extends Partial<FormatParams_Date> = DEFAULT_DATE_PARAMS> = TypeFormat<
     string,
     typeof DateStringRunTypeFormat.id,

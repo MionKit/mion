@@ -7,8 +7,11 @@
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, StrNumber, JitFnID, JitCode} from '@mionkit/run-types';
 import {BaseRunTypeFormat, TypeFormat, RunTypeOptions, registerFormatter, JitFunctions, randomItem} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {DEFAULT_STRICT_DOMAIN_PARAMS, FormatParams_Domain} from './domain.runtype';
-import {StringRunTypeFormat, stringIgnoreProps, StringValidators, Samples} from './stringFormat.runtype';
+import {DEFAULT_STRICT_DOMAIN_PARAMS} from './domain.runtype';
+import {FormatParams_Email} from '@mionkit/core';
+import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype';
+import {StringValidators} from '@mionkit/core';
+import {Samples} from '@mionkit/core';
 import {DomainRunTypeFormat} from './domain.runtype';
 import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock'; // do not import using type
 import {paramVal} from '../utils';
@@ -218,13 +221,6 @@ export type DEFAULT_EMAIL_PARAMS<
         mockSamples: MockSamples;
         errorMessage: 'Invalid email format';
     };
-};
-
-export type FormatParams_EmailPattern = Omit<StringValidators, 'length' | 'allowedChars' | 'disallowedChars' | 'allowedValues'>;
-
-export type FormatParams_Email = FormatParams_EmailPattern & {
-    localPart?: StringValidators;
-    domain?: FormatParams_Domain;
 };
 
 export type StrEmail<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP>;

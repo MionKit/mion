@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {StrFormat, StringParams} from './stringFormat.runtype';
+import {StrFormat} from './stringFormat.runtype';
+import {StringParams} from '@mionkit/core';
 
 // ############### Default String Formats ###############
 

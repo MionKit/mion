@@ -10,6 +10,7 @@ import {TypeFormat, registerFormatter, getToLiteralFn, BaseRunTypeFormat, RunTyp
 import {ReflectionKind} from '@deepkit/type';
 import {mockString, random, randomItem} from '@mionkit/run-types';
 import {paramVal, regexpEscape} from '../utils';
+import {FormatParam_Pattern, StringParams} from '@mionkit/core';
 
 const defaultMessages = {
     allowedChars: 'Invalid characters',
@@ -300,34 +301,5 @@ function valuesAllCases(stringList: string[]): string[] {
 
 // register Validator operations so they can be used in the jit compiler
 export const STRING_RUN_TYPE_FORMATTER = registerFormatter(new StringRunTypeFormat());
-
-// ############### String Format Params ###############
-
-export type FormatParam_Pattern = StringValidators['pattern'];
-export type Samples = string | readonly string[];
-
-export type StringValidators = {
-    // validators
-    maxLength?: number | {val: number; errorMessage: string; desc?: string};
-    minLength?: number | {val: number; errorMessage: string; desc?: string};
-    length?: number | {val: number; errorMessage: string; desc?: string};
-    disallowedChars?: {val: string; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples: string};
-    disallowedValues?: {val: readonly string[]; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples: Samples};
-    pattern?: {val: RegExp; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples: Samples};
-    allowedChars?: {val: string; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples?: Samples};
-    allowedValues?: {val: readonly string[]; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples?: Samples};
-};
-export type StringTransformers = {
-    // formatters
-    lowercase?: boolean;
-    uppercase?: boolean;
-    capitalize?: boolean;
-    trim?: boolean;
-    replace?: {searchValue: string; replaceValue: string};
-    replaceAll?: {searchValue: string; replaceValue: string};
-};
-export type StringParams = StringValidators & StringTransformers;
-
-// ############### Base String Format ###############
 
 export type StrFormat<P extends StringParams> = TypeFormat<string, typeof StringRunTypeFormat.id, P>;
