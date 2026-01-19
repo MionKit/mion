@@ -3,7 +3,9 @@
   "scripts": {
     "dev": "nuxt dev --extends docus",
     "dev:fresh": "rm -rf .nuxt .output data && npm run dev",
-    "build": "nuxt build --extends docus"
+    "build": "nuxt build --extends docus",
+    "check-links": "npx tsx scripts/check-links.ts",
+    "check-unused-examples": "npx tsx scripts/check-unused-examples.ts"
   },
   "dependencies": {
     "@nuxt/content": "^3.7.1",
