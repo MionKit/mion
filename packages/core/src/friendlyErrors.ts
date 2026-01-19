@@ -6,7 +6,7 @@
  * ######## */
 
 import type {RunTypeError, StrNumber} from './types/general.types';
-import type {FriendlyErrors, FriendlyErrorsResult, ExtractErrorParams} from './types/friendlyErrors.types';
+import type {FriendlyErrors, FriendlyErrorsResult, AnyFriendlyErrorParams, TypeErrorParam} from './types/friendlyErrors.types';
 
 // ============================================================================
 // Default Error Printer
@@ -38,12 +38,12 @@ export function defaultErrorPrinter(error: RunTypeError): string {
  * If error has format, uses formatPath[0] as key.
  * If error has no format, sets $type to the full error.
  */
-function buildErrorParams(error: RunTypeError): ExtractErrorParams<unknown> {
+function buildErrorParams(error: RunTypeError): AnyFriendlyErrorParams | TypeErrorParam {
     if (error.format) {
         const paramKey = error.format.formatPath[0];
-        return {[paramKey]: error.format} as ExtractErrorParams<unknown>;
+        return {$type: error, [paramKey]: error.format} as AnyFriendlyErrorParams;
     }
-    return {$type: error} as ExtractErrorParams<unknown>;
+    return {$type: error};
 }
 
 // ============================================================================
@@ -72,6 +72,9 @@ function getOrCreatePath(
     return {target: current, key: path[path.length - 1]};
 }
 
+/** Runtime type for error params - union of all possible error param types */
+type RuntimeErrorParams = AnyFriendlyErrorParams | TypeErrorParam;
+
 /**
  * Gets the handler for a given path from the errors map.
  * Returns null if no handler is found.
@@ -79,7 +82,7 @@ function getOrCreatePath(
 function getHandler<T>(
     errorsMap: FriendlyErrors<T> | undefined,
     path: StrNumber[]
-): ((errors: ExtractErrorParams<unknown>) => string) | null {
+): ((errors: RuntimeErrorParams) => string) | null {
     if (!errorsMap) return null;
 
     let current: unknown = errorsMap;
@@ -94,7 +97,7 @@ function getHandler<T>(
     }
 
     if (typeof current === 'function') {
-        return current as (errors: ExtractErrorParams<unknown>) => string;
+        return current as (errors: RuntimeErrorParams) => string;
     }
     return null;
 }
