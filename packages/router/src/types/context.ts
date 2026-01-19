@@ -118,7 +118,9 @@ export interface MionHeaders {
 /** Function used to create the context data object on each route call  */
 export type ContextDataFactory<ContextData extends Record<string, any>> = () => ContextData;
 
+// type-response-body-start
 /** Response body, a record containing the result of each handler or an error. */
 export interface ResponseBody extends Record<string, any> {
     '@thrownErrors'?: Record<string, RpcError<string>>;
 }
+// type-response-body-end

@@ -11,7 +11,6 @@ const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 // [routeResult, routeError, hooksResults, hooksErrors]
 
 // calls sayHello route in the server
-// Partial destructuring still works for backward compatibility
 const [sayHello, error] = await routes.users.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
 
 if (error) {
@@ -28,11 +27,7 @@ if (error) {
 // ========== Full 4-tuple with hooks ==========
 // callWithHooks() returns [routeResult, routeError, hooksResults, hooksErrors]
 const [greeting, routeError, hookResults, hookErrors] = await routes.users
-    .sayHello({
-        id: '123',
-        name: 'John',
-        surname: 'Doe',
-    })
+    .sayHello({id: '123', name: 'John', surname: 'Doe'})
     .callWithHooks({
         auth: hooks.auth({headers: {Authorization: 'Bearer token'}}),
     });
