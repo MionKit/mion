@@ -19,6 +19,7 @@ import type {
 import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils';
+import {FormatParams_Number} from '@mionkit/core';
 
 type BinarySerializer = BaseFnCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
 type BinaryDeserializer = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
@@ -30,7 +31,7 @@ type BinaryDeserializer = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeo
  * It is used to define the number format and its parameters.
  * Jit code will be generated for each one of the NumberFormat parameters.
  */
-export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
+export class NumberRunTypeFormat extends BaseRunTypeFormat<FormatParams_Number> {
     static readonly id = 'numberFormat' as const;
     readonly kind = ReflectionKind.number;
     readonly name = NumberRunTypeFormat.id;
@@ -229,7 +230,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
         return result;
     }
 
-    validateParams(rt: BaseRunType, params: NumberValidators): void {
+    validateParams(rt: BaseRunType, params: FormatParams_Number): void {
         // Check for conflicting parameters
         if (params.integer && params.float) {
             throw new Error(`Cannot specify both integer and float in ${this.printPath(rt)}`);
@@ -297,24 +298,5 @@ function getIntegerType(params: any) {
 
 export const NUMBER_RUN_TYPE_FORMATTER = registerFormatter(new NumberRunTypeFormat());
 
-// ############### Number Format Params ###############
-
-type NumberMax =
-    | {max?: number | {val: number; errorMessage: string; desc?: string}; gt?: never}
-    | {max?: never; gt?: number | {val: number; errorMessage: string; desc?: string}};
-type NumberMin =
-    | {min?: number | {val: number; errorMessage: string; desc?: string}; lt?: never}
-    | {min?: never; lt?: number | {val: number; errorMessage: string; desc?: string}};
-type NumberType =
-    | {integer?: boolean | {val: boolean; errorMessage: string; desc?: string}; float?: never}
-    | {integer?: never; float?: boolean | {val: boolean; errorMessage: string; desc?: string}};
-
-// Define the type for number format parameters
-export type NumberValidators = NumberMax &
-    NumberMin &
-    NumberType & {
-        multipleOf?: number | {val: number; errorMessage: string; desc?: string};
-    };
-
 // Define the type for number format
-export type NumFormat<P extends Partial<NumberValidators>> = TypeFormat<number, typeof NumberRunTypeFormat.id, P>;
+export type NumFormat<P extends Partial<FormatParams_Number>> = TypeFormat<number, typeof NumberRunTypeFormat.id, P>;

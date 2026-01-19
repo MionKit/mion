@@ -10,6 +10,7 @@ import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mi
 import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils';
+import {FormatParams_BigInt} from '@mionkit/core';
 
 // ############### BigInt Format ###############
 
@@ -18,7 +19,7 @@ import {paramVal} from '../utils';
  * It is used to define the bigint format and its parameters.
  * Jit code will be generated for each one of the BigIntFormat parameters.
  */
-export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntValidators> {
+export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigInt> {
     static readonly id = 'bigintFormat' as const;
     readonly kind = ReflectionKind.bigint;
     readonly name = BigIntRunTypeFormat.id;
@@ -134,7 +135,7 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
         return result;
     }
 
-    validateParams(rt: BaseRunType, params: FormatParams_BigIntValidators): void {
+    validateParams(rt: BaseRunType, params: FormatParams_BigInt): void {
         // Check for mutually exclusive lower bound parameters
         const lowerBoundCount = [params.min, params.gt].filter(Boolean).length;
         if (lowerBoundCount > 1) {
@@ -171,25 +172,6 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
 
 export const BIGINT_RUN_TYPE_FORMATTER = registerFormatter(new BigIntRunTypeFormat());
 
-// ############### BigInt Format Params ###############
-
-type BigIntMax =
-    | {max?: bigint | {val: bigint; errorMessage: string; desc?: string}; gt?: never}
-    | {max?: never; gt?: bigint | {val: bigint; errorMessage: string; desc?: string}};
-type BigIntMin =
-    | {min?: bigint | {val: bigint; errorMessage: string; desc?: string}; lt?: never}
-    | {min?: never; lt?: bigint | {val: bigint; errorMessage: string; desc?: string}};
-
-// Define the type for bigint format parameters
-export type FormatParams_BigIntValidators = BigIntMax &
-    BigIntMin & {
-        multipleOf?: bigint | {val: bigint; errorMessage: string; desc?: string};
-    };
-
 // Define the type for bigint format
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type BigNumFormat<P extends Partial<FormatParams_BigIntValidators> = {}> = TypeFormat<
-    bigint,
-    typeof BigIntRunTypeFormat.id,
-    P
->;
+export type BigNumFormat<P extends Partial<FormatParams_BigInt> = {}> = TypeFormat<bigint, typeof BigIntRunTypeFormat.id, P>;

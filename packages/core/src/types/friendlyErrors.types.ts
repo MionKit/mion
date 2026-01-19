@@ -7,6 +7,7 @@
 
 import type {RunTypeError, TypeFormatError, StrNumber} from './general.types';
 import type {ExtractFormatParams} from './formats.types';
+import {AnyFormatParams, AnyStringFormatParam, FormatParams_BigInt, FormatParams_Number} from './formatsParams.types';
 
 // ============================================================================
 // Error Params Types
@@ -25,6 +26,14 @@ export type FormatErrorParam = TypeFormatError;
 export type TypeErrorParam = {
     $type: RunTypeError;
 };
+
+export type FriendlyErrorParams<T extends AnyFormatParams> = {
+    [K in keyof T]?: RunTypeError;
+} & TypeErrorParam;
+
+export type FriendlyStringErrorParams = FriendlyErrorParams<AnyStringFormatParam>;
+export type FriendlyNumberErrorParams = FriendlyErrorParams<FormatParams_Number>;
+export type FriendlyBigIntErrorParams = FriendlyErrorParams<FormatParams_BigInt>;
 
 /**
  * Extracts error params from a type T.

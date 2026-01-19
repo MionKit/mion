@@ -4,12 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {GenericPureFunction, FormatParam} from '@mionkit/core';
+import type {GenericPureFunction} from '@mionkit/core';
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 import {registerFormatter, registerPureFnClosure, BaseRunTypeFormat, RunTypeOptions, TypeFormat} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {randomUUID_V7} from '@mionkit/core';
 import {paramVal} from '../utils';
+import {FormatParams_UUID} from '@mionkit/core';
 
 // UUID validator
 export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
@@ -69,8 +70,5 @@ export function mionIsUUID() {
 registerPureFnClosure(mionIsUUID);
 export const UUID_RUN_TYPE_FORMATTER = registerFormatter(new UUIDRunTypeFormat());
 
-// ############### Type  ###############
-
-type FormatParams_UUID = {version: FormatParam<'4' | '7'>};
 export type StrUUIDv4 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '4'}>;
 export type StrUUIDv7 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '7'}>;

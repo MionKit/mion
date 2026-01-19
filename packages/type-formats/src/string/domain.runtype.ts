@@ -4,7 +4,6 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {FormatParam} from '@mionkit/core';
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode, JitFnID, StrNumber} from '@mionkit/run-types';
 import {
     BaseRunTypeFormat,
@@ -16,14 +15,9 @@ import {
     JitFunctions,
 } from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
-import {
-    StringRunTypeFormat,
-    stringIgnoreProps,
-    StringValidators,
-    FormatParam_Pattern,
-    type StringParams,
-    Samples,
-} from './stringFormat.runtype';
+import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype';
+import {FormatParams_Domain, FormatParams_DomainName, FormatParams_Tld, StringParams, Samples} from '@mionkit/core';
+import {StringValidators} from '@mionkit/core';
 import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock';
 import {paramVal} from '../utils';
 
@@ -332,19 +326,6 @@ export type DEFAULT_STRICT_DOMAIN_PARAMS = {
     maxLength: 253;
     minLength: 5; // name 2 + tld 2 + 1 dot
 };
-export type FormatParams_DomainName = Omit<StringValidators, 'length' | 'allowedChars' | 'disallowedChars'>;
-export type FormatParams_Tld = Omit<StringValidators, 'length' | 'allowedChars' | 'disallowedChars'>;
-
-export type FormatParams_DomainCore =
-    | {names?: never; tld?: never; pattern: FormatParam_Pattern}
-    | {names: FormatParams_DomainName; tld: FormatParams_Tld; pattern?: never};
-export type FormatParams_Domain = {
-    maxLength?: FormatParam<number>;
-    minLength?: FormatParam<number>;
-    maxParts?: FormatParam<number>;
-    minParts?: FormatParam<number>;
-} & FormatParams_DomainCore;
-
 // ############### Run Types ###############
 
 /** Domain based on a pattern */
