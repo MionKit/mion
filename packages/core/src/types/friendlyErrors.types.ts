@@ -7,7 +7,21 @@
 
 import type {RunTypeError, TypeFormatError, StrNumber} from './general.types';
 import type {ExtractFormatParams} from './formats.types';
-import {AnyFormatParams, AnyStringFormatParam, FormatParams_BigInt, FormatParams_Number} from './formatsParams.types';
+import type {
+    AnyFormatParams,
+    AnyStringFormatParam,
+    FormatParams_BigInt,
+    FormatParams_Number,
+    StringParams,
+    FormatParams_Email,
+    FormatParams_Url,
+    FormatParams_Domain,
+    FormatParams_IP,
+    FormatParams_UUID,
+    FormatParams_DateTime,
+    FormatParams_Date,
+    FormatParams_Time,
+} from './formatsParams.types';
 
 // ============================================================================
 // Error Params Types
@@ -27,28 +41,66 @@ export type TypeErrorParam = {
     $type: RunTypeError;
 };
 
-export type FriendlyErrorParams<T extends AnyFormatParams> = {
-    [K in keyof T]?: RunTypeError;
-} & TypeErrorParam;
-
-export type FriendlyStringErrorParams = FriendlyErrorParams<AnyStringFormatParam>;
-export type FriendlyNumberErrorParams = FriendlyErrorParams<FormatParams_Number>;
-export type FriendlyBigIntErrorParams = FriendlyErrorParams<FormatParams_BigInt>;
+/**
+ * Extracts all keys from a union type (distributive).
+ * For a union `A | B | C`, returns `keyof A | keyof B | keyof C`.
+ */
+type UnionKeys<T> = T extends unknown ? keyof T : never;
 
 /**
- * Extracts error params from a type T.
- * For format types, extracts the format params (minLength, maxLength, min, max, etc.)
- * For basic types, provides $type with the full error.
+ * Maps format params to error params, extracting all possible keys from union types.
+ */
+export type FriendlyErrorParams<T extends AnyFormatParams> = {
+    [K in UnionKeys<T>]?: TypeFormatError;
+} & TypeErrorParam;
+
+// ============================================================================
+// Broad Error Params (union of all params for a base type)
+// ============================================================================
+
+/** All possible string format error params (union of all string formats) */
+export type FriendlyStringErrorParams = FriendlyErrorParams<AnyStringFormatParam>;
+/** Number format error params */
+export type FriendlyNumberErrorParams = FriendlyErrorParams<FormatParams_Number>;
+/** BigInt format error params */
+export type FriendlyBigIntErrorParams = FriendlyErrorParams<FormatParams_BigInt>;
+/** Union of all friendly error params types, used at runtime */
+export type AnyFriendlyErrorParams = FriendlyStringErrorParams | FriendlyNumberErrorParams | FriendlyBigIntErrorParams;
+
+// ============================================================================
+// Specific String Format Error Params (for narrowing in handlers)
+// ============================================================================
+
+export type StringErrorParams = FriendlyErrorParams<StringParams>;
+export type EmailErrorParams = FriendlyErrorParams<FormatParams_Email>;
+export type UrlErrorParams = FriendlyErrorParams<FormatParams_Url>;
+export type DomainErrorParams = FriendlyErrorParams<FormatParams_Domain>;
+export type IPErrorParams = FriendlyErrorParams<FormatParams_IP>;
+export type UUIDErrorParams = FriendlyErrorParams<FormatParams_UUID>;
+export type DateTimeErrorParams = FriendlyErrorParams<FormatParams_DateTime>;
+export type DateErrorParams = FriendlyErrorParams<FormatParams_Date>;
+export type TimeErrorParams = FriendlyErrorParams<FormatParams_Time>;
+
+/**
+ * Extracts error params from a type T based on the base type.
+ * - For string format types → FriendlyStringErrorParams
+ * - For number format types → FriendlyNumberErrorParams
+ * - For bigint format types → FriendlyBigIntErrorParams
+ * - For basic types → TypeErrorParam
  *
  * The handler receives an object where keys are format param names (e.g., 'minLength')
  * and values are FormatErrorParam objects.
  */
 export type ExtractErrorParams<T> =
-    ExtractFormatParams<T> extends infer P
-        ? P extends undefined
-            ? TypeErrorParam & Record<string, FormatErrorParam | undefined>
-            : {[K in keyof P]?: FormatErrorParam} & TypeErrorParam
-        : TypeErrorParam & Record<string, FormatErrorParam | undefined>;
+    ExtractFormatParams<T> extends undefined
+        ? TypeErrorParam // Basic type, no format params
+        : T extends string
+          ? FriendlyStringErrorParams
+          : T extends number
+            ? FriendlyNumberErrorParams
+            : T extends bigint
+              ? FriendlyBigIntErrorParams
+              : TypeErrorParam;
 
 // ============================================================================
 // Friendly Errors Handler Types

@@ -7,6 +7,6 @@
   },
   "references": [{"path": "../core"}, {"path": "../run-types"}],
   "reflection": true,
-  "include": ["."],
+  "include": [".", "../examples/src/type-formats/friendlyErrors.types.spec.ts"],
   "exclude": ["node_modules", ".dist"]
 }
