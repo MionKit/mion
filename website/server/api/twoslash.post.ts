@@ -1,8 +1,13 @@
 import { createHighlighter } from 'shiki'
 import { transformerTwoslash, rendererRich } from '@shikijs/twoslash'
+import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
+import { join, dirname, relative } from 'path'
 
 // Cache the highlighter instance
 let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
+
+// Cache for fsMap (loaded once)
+let fsMapCache: Map<string, string> | null = null
 
 async function getHighlighter() {
   if (!highlighterPromise) {
@@ -12,6 +17,73 @@ async function getHighlighter() {
     })
   }
   return highlighterPromise
+}
+
+/**
+ * Recursively find all .d.ts files in a directory
+ */
+function findDtsFiles(dir: string, files: string[] = []): string[] {
+  if (!existsSync(dir)) return files
+  const entries = readdirSync(dir)
+  for (const entry of entries) {
+    const fullPath = join(dir, entry)
+    const stat = statSync(fullPath)
+    if (stat.isDirectory()) {
+      findDtsFiles(fullPath, files)
+    } else if (entry.endsWith('.d.ts')) {
+      files.push(fullPath)
+    }
+  }
+  return files
+}
+
+/**
+ * Load all .d.ts files from mion packages into a virtual file system Map
+ */
+function loadMionPackageTypes(): Map<string, string> {
+  if (fsMapCache) return fsMapCache
+
+  const fsMap = new Map<string, string>()
+
+  // Get the repo root (parent of website directory)
+  const websiteDir = dirname(new URL(import.meta.url).pathname)
+  const repoRoot = join(websiteDir, '..', '..', '..')
+  const packagesDir = join(repoRoot, 'packages')
+
+  // Packages to load with their dist paths
+  const packageConfigs = [
+    { name: 'core', distPath: '.dist/esm' },
+    { name: 'router', distPath: '.dist/esm' },
+    { name: 'http', distPath: '.dist/esm' },
+    { name: 'client', distPath: '.dist/esm' },
+    { name: 'run-types', distPath: '.dist/esm' },
+    { name: 'aws', distPath: '.dist/esm' },
+    { name: 'bun', distPath: '.dist/esm' },
+    { name: 'aot-caches', distPath: 'build/esm' },
+  ]
+
+  for (const pkg of packageConfigs) {
+    const pkgDistDir = join(packagesDir, pkg.name, pkg.distPath)
+    const dtsFiles = findDtsFiles(pkgDistDir)
+
+    for (const dtsFile of dtsFiles) {
+      // Get relative path from dist directory
+      const relativePath = relative(pkgDistDir, dtsFile)
+      // Create virtual node_modules path
+      const virtualPath = `/node_modules/@mionkit/${pkg.name}/${relativePath}`
+
+      try {
+        const content = readFileSync(dtsFile, 'utf-8')
+        fsMap.set(virtualPath, content)
+      } catch (e) {
+        console.warn(`Failed to read ${dtsFile}:`, e)
+      }
+    }
+  }
+
+  fsMapCache = fsMap
+  console.log(`Loaded ${fsMap.size} .d.ts files for twoslash`)
+  return fsMap
 }
 
 export default defineEventHandler(async (event) => {
@@ -27,6 +99,13 @@ export default defineEventHandler(async (event) => {
 
   try {
     const highlighter = await getHighlighter()
+    const fsMap = loadMionPackageTypes()
+
+    // Log the first few files for debugging
+    console.log(`fsMap loaded: ${fsMap.size} files`)
+    if (fsMap.size > 0) {
+      console.log('Sample paths:', Array.from(fsMap.keys()).slice(0, 3))
+    }
 
     const html = highlighter.codeToHtml(code, {
       lang,
@@ -38,6 +117,21 @@ export default defineEventHandler(async (event) => {
         transformerTwoslash({
           explicitTrigger: false,
           renderer: rendererRich(),
+          twoslashOptions: {
+            fsMap,
+            compilerOptions: {
+              // Use ESNext with bundler resolution for best compatibility
+              // ModuleResolutionKind: Bundler=100, NodeNext=99
+              // ModuleKind: ESNext=99, Preserve=200
+              target: 99, // ESNext
+              module: 99, // ESNext
+              moduleResolution: 100, // Bundler (not 99 which is NodeNext!)
+              strict: false, // Allow implicit any for examples
+              esModuleInterop: true,
+              skipLibCheck: true,
+              noEmit: true,
+            },
+          },
         }),
       ],
     })
