@@ -4,17 +4,50 @@ import { computed } from 'vue'
 const props = defineProps({
   code: {
     type: String,
-    required: true,
+    required: false,
+    default: '',
   },
   lang: {
     type: String,
     default: 'ts',
   },
+  path: {
+    type: String,
+    required: false,
+    default: '',
+  },
+})
+
+// Fetch code from file path if provided
+const { data: fileCode } = await useAsyncData(
+  `twoslash-file-${props.path}`,
+  async () => {
+    if (!props.path) return null
+    try {
+      return await $fetch('/api/read-file', {
+        method: 'POST',
+        body: { path: props.path },
+      })
+    } catch {
+      return null
+    }
+  },
+  { immediate: !!props.path }
+)
+
+// Get code from prop or file
+const sourceCode = computed(() => {
+  if (props.code) return props.code
+  if (fileCode.value?.code) return fileCode.value.code
+  return ''
 })
 
 // Clean up the code - remove leading/trailing whitespace per line while preserving structure
 const cleanCode = computed(() => {
-  const lines = props.code.split('\n')
+  const code = sourceCode.value
+  if (!code) return ''
+
+  const lines = code.split('\n')
   // Find minimum indentation (ignoring empty lines)
   const minIndent = lines
     .filter(line => line.trim().length > 0)
