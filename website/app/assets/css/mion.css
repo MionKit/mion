@@ -51,11 +51,12 @@ body .video-player > img {
   width: 100%;
 }
 
-pre.text-sm\/6 {
+pre code {
   font-size: 0.8rem;
   letter-spacing: -0.01rem;
   line-height: 1.1rem;
 }
+
 
 pre.px-4 {
   padding-left: 0.8rem;

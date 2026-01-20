@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
 const props = defineProps({
   code: {
     type: String,
@@ -18,33 +16,10 @@ const props = defineProps({
   },
 })
 
-// Fetch code from file path if provided
-const { data: fileCode } = await useAsyncData(
-  `twoslash-file-${props.path}`,
-  async () => {
-    if (!props.path) return null
-    try {
-      return await $fetch('/api/read-file', {
-        method: 'POST',
-        body: { path: props.path },
-      })
-    } catch {
-      return null
-    }
-  },
-  { immediate: !!props.path }
-)
-
-// Get code from prop or file
-const sourceCode = computed(() => {
-  if (props.code) return props.code
-  if (fileCode.value?.code) return fileCode.value.code
-  return ''
-})
-
-// Clean up the code - remove leading/trailing whitespace per line while preserving structure
-const cleanCode = computed(() => {
-  const code = sourceCode.value
+/**
+ * Clean up code - remove common leading indentation while preserving structure
+ */
+function cleanCode(code: string): string {
   if (!code) return ''
 
   const lines = code.split('\n')
@@ -61,22 +36,29 @@ const cleanCode = computed(() => {
     .map(line => line.slice(minIndent === Infinity ? 0 : minIndent))
     .join('\n')
     .trim()
-})
+}
+
+// Build the request body - either pass path (server reads file) or code directly
+const getRequestBody = () => {
+  if (props.path) {
+    // Let the server read the file
+    return { path: props.path, lang: props.lang }
+  } else {
+    // Pass code directly (cleaned)
+    return { code: cleanCode(props.code), lang: props.lang }
+  }
+}
+
+// Create a unique cache key
+const cacheKey = props.path ? `twoslash-path-${props.path}` : `twoslash-code-${props.code.slice(0, 50)}`
 
 // Use useAsyncData for server-side rendering
 const { data, status, error } = await useAsyncData(
-  `twoslash-${cleanCode.value.slice(0, 50)}`,
+  cacheKey,
   () => $fetch('/api/twoslash', {
     method: 'POST',
-    body: {
-      code: cleanCode.value,
-      lang: props.lang,
-      filePath: props.path, // Pass file path for relative import resolution
-    },
-  }),
-  {
-    watch: [cleanCode],
-  }
+    body: getRequestBody(),
+  })
 )
 </script>
 
@@ -98,14 +80,14 @@ const { data, status, error } = await useAsyncData(
 }
 
 .twoslash-loading {
-  padding: 1rem;
+  padding: 0.5rem;
   background: var(--prose-code-block-backgroundColor, #1e1e1e);
   border-radius: var(--radii-md, 0.375rem);
   color: var(--prose-code-block-color, #d4d4d4);
 }
 
 .twoslash-error {
-  padding: 1rem;
+  padding: 0.5;
   background: #fee;
   border-radius: var(--radii-md, 0.375rem);
   color: #c00;
@@ -115,14 +97,11 @@ const { data, status, error } = await useAsyncData(
   border-radius: var(--radii-md, 0.375rem);
 }
 
-.twoslash-code pre {
-  margin: 0;
-  padding: 1rem;
-}
 
 .twoslash-code .shiki {
-  padding: 1rem;
   border-radius: var(--radii-md, 0.375rem);
+  padding: 12px;
+  padding-left: 6px;
 }
 
 .twoslash-code .shiki code {
@@ -150,13 +129,21 @@ const { data, status, error } = await useAsyncData(
   background: var(--prose-code-block-backgroundColor, #f6f8fa);
   border: 1px solid var(--prose-code-block-border-color, #e1e4e8);
   border-radius: var(--radii-sm, 0.25rem);
-  padding: 0.5rem;
+  padding: 0;
   font-size: 0.85em;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+:root.dark .twoslash-code .twoslash-popup-arrow {
+  background: var(--shiki-dark-bg, #1e1e1e);
+}
+
+:root.light .twoslash-code .twoslash-popup-arrow {
+  background: var(--shiki-light-bg, #1e1e1e);
+}
+
 :root.dark .twoslash-code .twoslash-popup-container {
-  background: #1e1e1e;
+  background: var(--shiki-light-bg, #1e1e1e);
   border-color: #444;
 }
 </style>

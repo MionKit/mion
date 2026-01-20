@@ -1,7 +1,7 @@
 import { createHighlighter } from 'shiki'
 import { transformerTwoslash, rendererRich } from '@shikijs/twoslash'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
-import { join, dirname, relative } from 'path'
+import { join, dirname, relative, resolve } from 'path'
 
 // Cache the highlighter instance
 let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
@@ -105,16 +105,57 @@ function loadMionPackageTypes(): Map<string, string> {
   return fsMap
 }
 
+/**
+ * Read code from a file path (only packages/examples allowed)
+ */
+function readCodeFromPath(path: string): string {
+  // Security: Only allow reading from packages/examples
+  if (!path.startsWith('packages/examples/')) {
+    throw new Error('Only files from packages/examples are allowed')
+  }
+
+  // Resolve the path relative to the repository root
+  const repoRoot = resolve(process.cwd(), '..')
+  const filePath = join(repoRoot, path)
+
+  // Prevent path traversal attacks
+  if (!filePath.startsWith(repoRoot)) {
+    throw new Error('Invalid path')
+  }
+
+  if (!existsSync(filePath)) {
+    throw new Error(`File not found: ${path}`)
+  }
+
+  return readFileSync(filePath, 'utf-8')
+}
+
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { code, lang = 'ts', filePath = '' } = body
+  const { code: rawCode, lang = 'ts', path = '' } = body
 
-  if (!code) {
+  // Get code from either direct input or file path
+  let code: string
+  if (rawCode) {
+    code = rawCode
+  } else if (path) {
+    try {
+      code = readCodeFromPath(path)
+    } catch (err) {
+      throw createError({
+        statusCode: 400,
+        message: err instanceof Error ? err.message : 'Failed to read file',
+      })
+    }
+  } else {
     throw createError({
       statusCode: 400,
-      message: 'Code is required',
+      message: 'Either code or path is required',
     })
   }
+
+  // Use path for relative import resolution (filePath for backwards compat)
+  const filePath = path
 
   try {
     const highlighter = await getHighlighter()
