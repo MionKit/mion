@@ -23,6 +23,33 @@ I need to implement TypeScript LSP-like hover information for code blocks in our
 - Verify code-import executes before twoslash functionality
 - Use playwright to Ensure type information still displays correctly
 
+example
+```MDC
+::twoslash-code
+<code-import src="packages/examples/src/introduction/about-client.ts" />
+::
+```
+
+in previous example code import is resolve before markdown is rendered,
+so the ::twoslash-code component will see code fully resolved. we just need to make sure
+the ::twoslash-code component is able to process the slot content and run it by twoslash 
+
+```MDC
+import {initClient} from '@mionkit/client';
+import type {MyApi} from './about-server.ts';
+
+const {routes} = initClient<MyApi>({
+    baseURL: 'http://localhost:3000',
+});
+
+async function example() {
+    // Call server method as if it were a local function
+    const [hello] = await routes.sayHello('World').call();
+    console.log(hello);
+}
+example();
+```
+
 **Stage 3: Full Import Resolution (Most Complex)**
 - Test with these specific files:
   - `packages/examples/src/introduction/about-client.ts`
