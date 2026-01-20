@@ -1,7 +1,90 @@
 import { createHighlighter } from 'shiki'
-import { transformerTwoslash, rendererRich } from '@shikijs/twoslash'
+import { transformerTwoslash, rendererRich, defaultHoverInfoProcessor } from '@shikijs/twoslash'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
 import { join, dirname, relative, resolve } from 'path'
+
+/**
+ * Patterns to match native type signatures that should be filtered out from hover popups.
+ * Returns empty string to hide the popup for these native types.
+ */
+const NATIVE_PATTERNS = [
+  /^var console:/,
+  /^var JSON:/,
+  /^var Math:/,
+  /^interface Console\b/,
+  /^interface JSON\b/,
+  /^interface Math\b/,
+  /^interface Array\b/,
+  /^interface Object\b/,
+  /^interface String\b/,
+  /^interface Number\b/,
+  /^interface Boolean\b/,
+  /^interface Date\b/,
+  /^interface RegExp\b/,
+  /^interface Error\b/,
+  /^interface Promise\b/,
+  /^interface Map\b/,
+  /^interface Set\b/,
+  /^namespace console\b/,
+  /^namespace JSON\b/,
+  /^namespace Math\b/,
+  /^module "console"/,
+  /^module "fs"/,
+  /^module "path"/,
+  /^module "http"/,
+  /^module "https"/,
+  /^module "url"/,
+  /^module "util"/,
+  /^module "events"/,
+  /^module "stream"/,
+  /^module "buffer"/,
+  /^module "crypto"/,
+  /^module "os"/,
+  /^module "child_process"/,
+  /^module "cluster"/,
+  /^module "dgram"/,
+  /^module "dns"/,
+  /^module "net"/,
+  /^module "readline"/,
+  /^module "repl"/,
+  /^module "tls"/,
+  /^module "tty"/,
+  /^module "v8"/,
+  /^module "vm"/,
+  /^module "zlib"/,
+]
+
+/**
+ * Custom hover info processor that filters out native types
+ */
+function filterNativeHoverInfo(info: string): string {
+  // First apply the default processing
+  const processed = defaultHoverInfoProcessor(info)
+
+  // Check if this matches any native patterns
+  for (const pattern of NATIVE_PATTERNS) {
+    if (pattern.test(info) || pattern.test(processed)) {
+      return '' // Return empty to hide the popup
+    }
+  }
+
+  // Check for console.* method signatures
+  if (info.includes('Console.') || info.includes('console.')) {
+    return ''
+  }
+
+  return processed
+}
+
+/**
+ * Hover info processor for explicit mode - hides all automatic hovers.
+ * Explicit twoslash annotations (// ^?, // ^|, errors) are handled separately
+ * by twoslash and don't go through processHoverInfo.
+ */
+function explicitModeHoverInfo(_info: string): string {
+  // Return empty string to hide all automatic hover popups
+  return ''
+}
 
 // Cache the highlighter instance
 let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
@@ -107,6 +190,7 @@ function loadMionPackageTypes(): Map<string, string> {
 
 /**
  * Read code from a file path (only packages/examples allowed)
+ * Prepends a comment with the file path and removes trailing newlines
  */
 function readCodeFromPath(path: string): string {
   // Security: Only allow reading from packages/examples
@@ -127,12 +211,14 @@ function readCodeFromPath(path: string): string {
     throw new Error(`File not found: ${path}`)
   }
 
-  return readFileSync(filePath, 'utf-8')
+  // Read file content, remove trailing newlines, add file path comment
+  const content = readFileSync(filePath, 'utf-8').trimEnd()
+  return `// ${path}\n${content}`
 }
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { code: rawCode, lang = 'ts', path = '' } = body
+  const { code: rawCode, lang = 'ts', path = '', hoverMode = 'all' } = body
 
   // Get code from either direct input or file path
   let code: string
@@ -194,6 +280,11 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Choose hover info processor based on hoverMode
+    const hoverInfoProcessor = hoverMode === 'explicit'
+      ? explicitModeHoverInfo
+      : filterNativeHoverInfo
+
     let html = highlighter.codeToHtml(code, {
       lang,
       themes: {
@@ -203,7 +294,9 @@ export default defineEventHandler(async (event) => {
       transformers: [
         transformerTwoslash({
           explicitTrigger: false,
-          renderer: rendererRich(),
+          renderer: rendererRich({
+            processHoverInfo: hoverInfoProcessor,
+          }),
           twoslashOptions: {
             fsMap,
             extraFiles,

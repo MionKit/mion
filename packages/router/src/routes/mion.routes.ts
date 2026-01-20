@@ -6,6 +6,6 @@ import {mionErrorsRoutes} from './errors.routes';
 export const mionRoutes = {
     ...mionClientRoutes,
     ...mionErrorsRoutes,
-} satisfies Routes;
+} as const satisfies Routes;
 
 export type MionRoutes = PublicApi<typeof mionRoutes>;

@@ -1,11 +1,13 @@
+// @errors: 2339 2322
+// @noErrors: 1003
 /**
- * Simple example for twoslash testing with code-import
+ * Twoslash annotations demo - explicit type queries and features
  */
-
 interface Product {
     id: number;
     name: string;
     price: number;
+    inStock?: boolean;
 }
 
 const myProduct: Product = {
@@ -14,6 +16,17 @@ const myProduct: Product = {
     price: 29.99,
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+// display type popup
 myProduct.name;
 //        ^?
+
+// display autocomplete (^| positioned right after the dot)
+// prettier-ignore
+myProduct.name;
+//        ^|
+
+// display error: Property does not exist
+myProduct.hello = 'Super Widget';
+
+// display error: Type not assignable
+myProduct.price = '29.99';

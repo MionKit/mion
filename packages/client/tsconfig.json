@@ -6,8 +6,14 @@
     "composite": true,
     "rootDir": "."
   },
-  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../http"}, {"path": "../type-formats"}],
+  "references": [
+    {"path": "../core"},
+    {"path": "../run-types"},
+    {"path": "../http"},
+    {"path": "../type-formats"},
+    {"path": "../router"}
+  ],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", ".dist"]
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "**/*.spec.ts", "**/*.test.ts", "test"]
 }

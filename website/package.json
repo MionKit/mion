@@ -1,10 +1,11 @@
 {
   "name": "docus-starter",
   "scripts": {
+    "clean": "rm -rf .nuxt .data .output",
     "dev": "npm run build:types && nuxt dev --extends docus",
-    "dev:fresh": "rm -rf .nuxt .output data && npm run dev",
+    "dev:fresh": "npm run clean && npm run dev",
     "build": "npm run build:types && nuxt build --extends docus",
-    "build:types": "cd .. && npm run build -w @mionkit/core -w @mionkit/router -w @mionkit/http -w @mionkit/client -w @mionkit/run-types -w @mionkit/aws -w @mionkit/bun && cd packages/aot-caches && npm run build",
+    "build:types": "cd .. && npm run build-ts-dts",
     "check-links": "npx tsx scripts/check-links.ts",
     "check-unused-examples": "npx tsx scripts/check-unused-examples.ts",
     "test": "npx playwright test",

@@ -15,7 +15,7 @@ function containsTypeof(typeNode) {
   }
 }
 function isRunTypeFromMionKit(node, context) {
-  const runTypeFunctions = ["runType", "isTypeFn", "typeErrorsFn", "isStrictTypeFn", "mockTypeFn", "toJavascriptFn"];
+  const runTypeFunctions = ["runType", "isTypeFn", "typeErrorsFn", "mockTypeFn", "toJavascriptFn"];
   if (node.callee.type !== utils.AST_NODE_TYPES.Identifier || !runTypeFunctions.includes(node.callee.name)) {
     return false;
   }

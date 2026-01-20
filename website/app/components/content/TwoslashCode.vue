@@ -14,6 +14,15 @@ const props = defineProps({
     required: false,
     default: '',
   },
+  /**
+   * Controls how type hovers are displayed:
+   * - 'all': Show type hovers for all identifiers (default)
+   * - 'explicit': Only show explicit twoslash annotations (// ^?, // ^|, errors, etc.)
+   */
+  hoverMode: {
+    type: String as () => 'all' | 'explicit',
+    default: 'all',
+  },
 })
 
 /**
@@ -40,17 +49,20 @@ function cleanCode(code: string): string {
 
 // Build the request body - either pass path (server reads file) or code directly
 const getRequestBody = () => {
+  const base = { lang: props.lang, hoverMode: props.hoverMode }
   if (props.path) {
     // Let the server read the file
-    return { path: props.path, lang: props.lang }
+    return { ...base, path: props.path }
   } else {
     // Pass code directly (cleaned)
-    return { code: cleanCode(props.code), lang: props.lang }
+    return { ...base, code: cleanCode(props.code) }
   }
 }
 
-// Create a unique cache key
-const cacheKey = props.path ? `twoslash-path-${props.path}` : `twoslash-code-${props.code.slice(0, 50)}`
+// Create a unique cache key (include hoverMode to differentiate cached results)
+const cacheKey = props.path
+  ? `twoslash-path-${props.path}-${props.hoverMode}`
+  : `twoslash-code-${props.code.slice(0, 50)}-${props.hoverMode}`
 
 // Use useAsyncData for server-side rendering
 const { data, status, error } = await useAsyncData(
@@ -97,11 +109,14 @@ const { data, status, error } = await useAsyncData(
   border-radius: var(--radii-md, 0.375rem);
 }
 
+.twoslash-code .twoslash {
+  padding: 12px;
+  padding-left: 6px;
+}
 
 .twoslash-code .shiki {
   border-radius: var(--radii-md, 0.375rem);
-  padding: 12px;
-  padding-left: 6px;
+  
 }
 
 .twoslash-code .shiki code {
@@ -124,15 +139,25 @@ const { data, status, error } = await useAsyncData(
   background-color: var(--shiki-dark-bg) !important;
 }
 
+/* Twoslash hover token - ensure popups stay within bounds */
+.twoslash-code .twoslash-hover {
+  position: relative;
+}
+
 /* Twoslash popup styling */
 .twoslash-code .twoslash-popup-container {
   background: var(--prose-code-block-backgroundColor, #f6f8fa);
   border: 1px solid var(--prose-code-block-border-color, #e1e4e8);
   border-radius: var(--radii-sm, 0.25rem);
   padding: 0;
-  font-size: 0.85em;
+  letter-spacing: -0.01rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  /* Keep popup within viewport */
+  left: 0;
+  right: auto;
 }
+
+
 
 :root.dark .twoslash-code .twoslash-popup-arrow {
   background: var(--shiki-dark-bg, #1e1e1e);
@@ -142,7 +167,8 @@ const { data, status, error } = await useAsyncData(
   background: var(--shiki-light-bg, #1e1e1e);
 }
 
-:root.dark .twoslash-code .twoslash-popup-container {
+:root.dark .twoslash-code .twoslash-popup-container,
+:root.dark .twoslash-code .twoslash-completion-cursor .twoslash-completion-list {
   background: var(--shiki-light-bg, #1e1e1e);
   border-color: #444;
 }
