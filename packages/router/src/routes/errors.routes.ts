@@ -49,4 +49,4 @@ export const mionErrorsRoutes = {
             type: 'platform-error',
         });
     }),
-} satisfies Routes;
+} as const satisfies Routes;

@@ -16,6 +16,8 @@
 
 :root {
   --ui-saturated: #79af43;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 :root.dark {
