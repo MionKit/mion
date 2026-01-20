@@ -90,10 +90,23 @@ export type ClientOptions = {
 };
 
 type PublicHandler = (...args: any[]) => Promise<any>;
+type PublicMethod = PublicRoute | PublicHook | PublicHeadersHook;
+type ExtractHandler<PM extends PublicMethod> = PM extends {handler: infer H} ? H : never;
 
 export type InitOptions = Partial<ClientOptions> & {baseURL: string};
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
+
+// ############# Routes Parameter Utility Types #############
+
+/** Extracts all parameters from a PublicRoute, PublicHook, or PublicHeadersHook. */
+export type RouteParamsType<PM extends PublicMethod> = Parameters<ExtractHandler<PM>>;
+/** Extracts a single parameter at a given index from a PublicRoute, PublicHook, or PublicHeadersHook. */
+export type RouteParamType<PM extends PublicMethod, Index extends number> = Parameters<ExtractHandler<PM>>[Index];
+/** Extracts the headers parameter (first param) from a PublicHeadersHook handler. */
+export type HeadersParamsType<PM extends PublicHeadersHook> = Parameters<ExtractHandler<PM>>[0];
+
+// others
 export type HandlerResponse<PH extends PublicHandler> = Awaited<ReturnType<PH>>;
 export type HandlerSuccessResponse<PH extends PublicHandler> = Exclude<HandlerResponse<PH>, RpcError<string>>;
 export type HandlerFailResponse<PH extends PublicHandler> = Extract<HandlerResponse<PH>, RpcError<string>>;
