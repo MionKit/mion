@@ -71,6 +71,7 @@ const { data, status, error } = await useAsyncData(
     body: {
       code: cleanCode.value,
       lang: props.lang,
+      filePath: props.path, // Pass file path for relative import resolution
     },
   }),
   {
@@ -112,7 +113,6 @@ const { data, status, error } = await useAsyncData(
 
 .twoslash-code {
   border-radius: var(--radii-md, 0.375rem);
-  overflow: hidden;
 }
 
 .twoslash-code pre {
@@ -125,11 +125,39 @@ const { data, status, error } = await useAsyncData(
   border-radius: var(--radii-md, 0.375rem);
 }
 
-/* Dark mode overrides for twoslash popups */
-:root.dark {
-  --twoslash-popup-bg: #1e1e1e;
-  --twoslash-popup-color: #d4d4d4;
-  --twoslash-border-color: #444;
+.twoslash-code .shiki code {
+  display: block;
+}
+
+/* Ensure empty lines (intentional blank lines in source) have proper height */
+.twoslash-code .shiki .line:empty::before {
+  content: ' ';
+}
+
+.twoslash-code .shiki .line {
+  display: block;
+}
+
+/* Dark mode: Use Shiki's dark theme CSS variables */
+:root.dark .twoslash-code .shiki,
+:root.dark .twoslash-code .shiki span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}
+
+/* Twoslash popup styling */
+.twoslash-code .twoslash-popup-container {
+  background: var(--prose-code-block-backgroundColor, #f6f8fa);
+  border: 1px solid var(--prose-code-block-border-color, #e1e4e8);
+  border-radius: var(--radii-sm, 0.25rem);
+  padding: 0.5rem;
+  font-size: 0.85em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+:root.dark .twoslash-code .twoslash-popup-container {
+  background: #1e1e1e;
+  border-color: #444;
 }
 </style>
 
