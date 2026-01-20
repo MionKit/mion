@@ -30,6 +30,13 @@ export function getENV(key: string): string | undefined {
     return undefined;
 }
 
+let isTest: boolean | undefined = undefined;
+export function isTestEnv() {
+    if (isTest !== undefined) return isTest;
+    isTest = getENV('JEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
+    return isTest;
+}
+
 /**
  * Checks if key map can be serialized/deserialized with json and still works as a key for a map.
  * ie: if a map key is an string, it can be serialized to json and deserialized back an still will identify the correct map entry.
