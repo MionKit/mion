@@ -20,17 +20,17 @@ async function getHighlighter() {
 }
 
 /**
- * Recursively find all .d.ts files in a directory
+ * Recursively find files matching a pattern in a directory
  */
-function findDtsFiles(dir: string, files: string[] = []): string[] {
+function findFiles(dir: string, pattern: RegExp, files: string[] = []): string[] {
   if (!existsSync(dir)) return files
   const entries = readdirSync(dir)
   for (const entry of entries) {
     const fullPath = join(dir, entry)
     const stat = statSync(fullPath)
     if (stat.isDirectory()) {
-      findDtsFiles(fullPath, files)
-    } else if (entry.endsWith('.d.ts')) {
+      findFiles(fullPath, pattern, files)
+    } else if (pattern.test(entry)) {
       files.push(fullPath)
     }
   }
@@ -64,7 +64,7 @@ function loadMionPackageTypes(): Map<string, string> {
 
   for (const pkg of packageConfigs) {
     const pkgDistDir = join(packagesDir, pkg.name, pkg.distPath)
-    const dtsFiles = findDtsFiles(pkgDistDir)
+    const dtsFiles = findFiles(pkgDistDir, /\.d\.ts$/)
 
     for (const dtsFile of dtsFiles) {
       // Get relative path from dist directory
@@ -81,14 +81,33 @@ function loadMionPackageTypes(): Map<string, string> {
     }
   }
 
+  // Also load source files from examples package for relative imports
+  const examplesDir = join(packagesDir, 'examples', 'src')
+  const exampleFiles = findFiles(examplesDir, /\.ts$/)
+
+  for (const srcFile of exampleFiles) {
+    // Get relative path from examples/src directory
+    const relativePath = relative(examplesDir, srcFile)
+    // Create virtual path that matches how files are imported
+    // Files like about-server.ts can be found via ./about-server.ts
+    const virtualPath = `/${relativePath}`
+
+    try {
+      const content = readFileSync(srcFile, 'utf-8')
+      fsMap.set(virtualPath, content)
+    } catch (e) {
+      console.warn(`Failed to read ${srcFile}:`, e)
+    }
+  }
+
   fsMapCache = fsMap
-  console.log(`Loaded ${fsMap.size} .d.ts files for twoslash`)
+  console.log(`Loaded ${fsMap.size} files for twoslash (d.ts + examples)`)
   return fsMap
 }
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { code, lang = 'ts' } = body
+  const { code, lang = 'ts', filePath = '' } = body
 
   if (!code) {
     throw createError({
@@ -107,7 +126,34 @@ export default defineEventHandler(async (event) => {
       console.log('Sample paths:', Array.from(fsMap.keys()).slice(0, 3))
     }
 
-    const html = highlighter.codeToHtml(code, {
+    // If we have a file path (e.g., packages/examples/src/introduction/about-client.ts)
+    // Set up the extra files so relative imports work
+    // The file path after examples/src becomes the virtual path
+    let extraFiles: Record<string, string> | undefined
+    if (filePath && filePath.includes('packages/examples/src/')) {
+      // Extract path after packages/examples/src/
+      const match = filePath.match(/packages\/examples\/src\/(.+)$/)
+      if (match) {
+        const relativePath = match[1]
+        // Get the directory of the current file
+        const fileDir = relativePath.substring(0, relativePath.lastIndexOf('/'))
+
+        // Add all other files from the same directory as extra files
+        // so that relative imports like ./about-server.ts work
+        extraFiles = {}
+        const prefix = `/${fileDir}/`
+        for (const [path, content] of fsMap.entries()) {
+          if (path.startsWith(prefix) && !path.endsWith(relativePath)) {
+            // Convert /introduction/about-server.ts to ./about-server.ts style import
+            const fileName = path.substring(prefix.length)
+            extraFiles[`./${fileName}`] = content
+          }
+        }
+        console.log(`Extra files for ${relativePath}:`, Object.keys(extraFiles))
+      }
+    }
+
+    let html = highlighter.codeToHtml(code, {
       lang,
       themes: {
         dark: 'github-dark',
@@ -119,6 +165,7 @@ export default defineEventHandler(async (event) => {
           renderer: rendererRich(),
           twoslashOptions: {
             fsMap,
+            extraFiles,
             compilerOptions: {
               // Use ESNext with bundler resolution for best compatibility
               // ModuleResolutionKind: Bundler=100, NodeNext=99
@@ -135,6 +182,11 @@ export default defineEventHandler(async (event) => {
         }),
       ],
     })
+
+    // Remove newlines between </span> and <span class="line"> to avoid double line spacing
+    // Shiki outputs formatted HTML with newlines for readability, but in <pre> they become visible
+    // Keep the empty <span class="line"></span> elements for intentional blank lines in source code
+    html = html.replace(/(<\/span>)\n(<span class="line">)/g, '$1$2')
 
     return { html }
   } catch (error) {
