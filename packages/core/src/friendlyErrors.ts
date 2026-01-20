@@ -5,20 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Prettify, RunTypeError, StrNumber} from './types/general.types';
+import type {RunTypeError, StrNumber} from './types/general.types';
 import type {FriendlyErrors, FriendlyErrorsResult, AnyFriendlyErrorParams, TypeErrorParam} from './types/friendlyErrors.types';
-
-// ============================================================================
-// Default Error Printer
-// ============================================================================
+import {isTestEnv} from './utils';
 
 /**
  * Default error message generator used when no handler is provided.
  * Generates a human-readable message from the RunTypeError.
  * Uses only the last item in the path (the property that failed).
- *
- * @param error - The validation error
- * @returns A generic error message string
  */
 export function defaultErrorPrinter(error: RunTypeError): string {
     const prop = error.path.length > 0 ? error.path[error.path.length - 1] : 'value';
@@ -28,10 +22,6 @@ export function defaultErrorPrinter(error: RunTypeError): string {
     }
     return `${prop}: expected ${error.expected}`;
 }
-
-// ============================================================================
-// Error Params Builder
-// ============================================================================
 
 /**
  * Builds error params object from a RunTypeError.
@@ -50,10 +40,6 @@ function buildErrorParams(error: RunTypeError): TypeErrorParam {
     const err: TypeErrorParam = {rtError: error, propName, index};
     return err;
 }
-
-// ============================================================================
-// Path Navigation Helpers
-// ============================================================================
 
 /**
  * Gets or creates a nested object at the given path.
@@ -134,7 +120,7 @@ function convertSetsToArrays(obj: Record<StrNumber, unknown>): void {
  * @param errorsMap - Object mapping properties to error printer functions (optional)
  * @returns Object with same shape as T containing only properties with errors (unique string arrays)
  */
-export function getFriendlyErrors<T>(errors: RunTypeError[], errorsMap?: FriendlyErrors<T>): Prettify<FriendlyErrorsResult<T>> {
+export function getFriendlyErrors<T>(errors: RunTypeError[], errorsMap?: FriendlyErrors<T>): FriendlyErrorsResult<T> {
     const result: Record<StrNumber, unknown> = {};
 
     for (const error of errors) {
@@ -144,13 +130,15 @@ export function getFriendlyErrors<T>(errors: RunTypeError[], errorsMap?: Friendl
 
         if (handler) {
             message = handler(errorParams);
-        } else {
+        } else if (!isTestEnv()) {
             // Log warning when using default error printer (once per unique path)
             const pathKey = error.path.join('.');
             console.warn(
                 `[mion] Using defaultErrorPrinter for "${pathKey || '$root'}". ` +
                     `Consider providing a custom error handler for better user-facing messages.`
             );
+            message = defaultErrorPrinter(error);
+        } else {
             message = defaultErrorPrinter(error);
         }
 
