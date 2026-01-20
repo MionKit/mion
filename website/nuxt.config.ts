@@ -9,6 +9,7 @@ export default defineNuxtConfig({
   },
   css: [
     '~/assets/css/mion.css',
+    '@shikijs/twoslash/style-rich.css',
   ],
   app: {
     // baseURL: '/mion/', // working with github pages mionkit.github.io/mion/ - Remove when using mion.io
