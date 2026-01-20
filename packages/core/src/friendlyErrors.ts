@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunTypeError, StrNumber} from './types/general.types';
+import type {Prettify, RunTypeError, StrNumber} from './types/general.types';
 import type {FriendlyErrors, FriendlyErrorsResult, AnyFriendlyErrorParams, TypeErrorParam} from './types/friendlyErrors.types';
 
 // ============================================================================
@@ -38,12 +38,17 @@ export function defaultErrorPrinter(error: RunTypeError): string {
  * If error has format, uses formatPath[0] as key.
  * If error has no format, sets $type to the full error.
  */
-function buildErrorParams(error: RunTypeError): AnyFriendlyErrorParams | TypeErrorParam {
+function buildErrorParams(error: RunTypeError): TypeErrorParam {
+    const propName = error.path[error.path.length - 1];
+    const isNumeric = typeof propName === 'number';
+    const index = isNumeric ? Number(propName) : undefined;
     if (error.format) {
         const paramKey = error.format.formatPath[0];
-        return {$type: error, [paramKey]: error.format} as AnyFriendlyErrorParams;
+        const err: TypeErrorParam = {rtError: error, propName, index, [paramKey]: error.format};
+        return err;
     }
-    return {$type: error};
+    const err: TypeErrorParam = {rtError: error, propName, index};
+    return err;
 }
 
 // ============================================================================
@@ -107,15 +112,29 @@ function getHandler<T>(
 // ============================================================================
 
 /**
+ * Recursively converts all Sets to Arrays in an object.
+ * Used to transform internal Set representation to array output.
+ */
+function convertSetsToArrays(obj: Record<StrNumber, unknown>): void {
+    for (const key of Object.keys(obj)) {
+        if (obj[key] instanceof Set) {
+            obj[key] = [...(obj[key] as Set<string>)];
+        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+            convertSetsToArrays(obj[key] as Record<StrNumber, unknown>);
+        }
+    }
+}
+
+/**
  * Converts RunTypeError[] to friendly error messages using the provided error map.
  * For properties without a handler, a default error message is generated.
- * Supports multiple errors per property (returns arrays of strings).
+ * Duplicate error messages are automatically removed.
  *
  * @param errors - Array of validation errors from createTypeErrorsFn
  * @param errorsMap - Object mapping properties to error printer functions (optional)
- * @returns Object with same shape as T containing only properties with errors (string arrays)
+ * @returns Object with same shape as T containing only properties with errors (unique string arrays)
  */
-export function getFriendlyErrors<T>(errors: RunTypeError[], errorsMap?: FriendlyErrors<T>): FriendlyErrorsResult<T> {
+export function getFriendlyErrors<T>(errors: RunTypeError[], errorsMap?: FriendlyErrors<T>): Prettify<FriendlyErrorsResult<T>> {
     const result: Record<StrNumber, unknown> = {};
 
     for (const error of errors) {
@@ -137,18 +156,21 @@ export function getFriendlyErrors<T>(errors: RunTypeError[], errorsMap?: Friendl
 
         if (error.path.length === 0) {
             // Root level error - shouldn't happen often but handle it
-            if (!result['$root']) result['$root'] = [];
-            (result['$root'] as string[]).push(message);
+            if (!result['$root']) result['$root'] = new Set<string>();
+            (result['$root'] as Set<string>).add(message);
             continue;
         }
 
         const pathInfo = getOrCreatePath(result, error.path);
         if (pathInfo) {
             const {target, key} = pathInfo;
-            if (!target[key]) target[key] = [];
-            (target[key] as string[]).push(message);
+            if (!target[key]) target[key] = new Set<string>();
+            (target[key] as Set<string>).add(message);
         }
     }
+
+    // Convert internal Sets to Arrays for FE-friendly output
+    convertSetsToArrays(result);
 
     return result as FriendlyErrorsResult<T>;
 }

@@ -93,7 +93,7 @@ describe('friendlyErrors', () => {
                 },
             ];
             const errorsMap: FriendlyErrors<User> = {
-                name: (params) => `Name must be at least ${params?.minLength?.val} characters`,
+                name: (params) => `Name must be at least ${params.minLength?.val} characters`,
             };
             const result = getFriendlyErrors<User>(errors, errorsMap);
             expect(result).toEqual({
@@ -105,7 +105,7 @@ describe('friendlyErrors', () => {
             type User = {isActive: boolean};
             const errors: RunTypeError[] = [{path: ['isActive'], expected: 'boolean'}];
             const errorsMap: FriendlyErrors<User> = {
-                isActive: (params) => `Expected ${params?.$type?.expected}`,
+                isActive: (params) => `Expected ${params.rtError?.expected}`,
             };
             const result = getFriendlyErrors<User>(errors, errorsMap);
             expect(result).toEqual({
@@ -149,7 +149,7 @@ describe('friendlyErrors', () => {
             });
         });
 
-        it('should collect multiple errors for same property', () => {
+        it('should collect unique errors for same property', () => {
             type User = {name: string};
             const errors: RunTypeError[] = [
                 {path: ['name'], expected: 'string', format: {name: 'stringFormat', val: 2, formatPath: ['minLength']}},
@@ -157,14 +157,32 @@ describe('friendlyErrors', () => {
             ];
             const errorsMap: FriendlyErrors<User> = {
                 name: (params) => {
-                    if (params?.minLength) return `Min ${params.minLength.val}`;
-                    if (params?.maxLength) return `Max ${params.maxLength.val}`;
+                    if (params.minLength) return `Min ${params.minLength.val}`;
+                    if (params.maxLength) return `Max ${params.maxLength.val}`;
                     return 'Invalid';
                 },
             };
             const result = getFriendlyErrors<User>(errors, errorsMap);
             expect(result).toEqual({
                 name: ['Min 2', 'Max 50'],
+            });
+        });
+
+        it('should deduplicate identical error messages', () => {
+            type User = {name: string};
+            const errors: RunTypeError[] = [
+                {path: ['name'], expected: 'string', format: {name: 'stringFormat', val: 2, formatPath: ['minLength']}},
+                {path: ['name'], expected: 'string', format: {name: 'stringFormat', val: 2, formatPath: ['minLength']}},
+            ];
+            const errorsMap: FriendlyErrors<User> = {
+                name: (params) => {
+                    if (params.minLength) return `Min ${params.minLength.val}`;
+                    return 'Invalid';
+                },
+            };
+            const result = getFriendlyErrors<User>(errors, errorsMap);
+            expect(result).toEqual({
+                name: ['Min 2'], // Only one unique message due to Set deduplication
             });
         });
     });
