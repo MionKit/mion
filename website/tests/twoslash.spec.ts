@@ -43,5 +43,32 @@ test.describe('Twoslash Basic Functionality', () => {
     expect(pageContent).toContain('Product.name: string');
     expect(pageContent).toContain('Product.price: number');
   });
+
+  test('Stage 3: should resolve @mionkit package imports', async ({ page }) => {
+    await page.goto('/twoslash-test/import-resolution-test');
+
+    // Wait for the twoslash code block to be rendered (use first() since popups also have pre elements)
+    const codeBlock = page.locator('.twoslash-code pre.shiki.twoslash').first();
+    await expect(codeBlock).toBeVisible({ timeout: 10000 });
+
+    // Verify the code with @mionkit imports is rendered
+    await expect(codeBlock).toContainText('@mionkit/router');
+    await expect(codeBlock).toContainText('@mionkit/http');
+
+    // Verify type annotations are present (twoslash hover popups)
+    const typeAnnotations = page.locator('.twoslash-hover, [class*="twoslash"]');
+    await expect(typeAnnotations.first()).toBeVisible();
+
+    // Verify @mionkit type information is resolved and shown
+    const pageContent = await page.content();
+    // Check for route function type signature
+    expect(pageContent).toContain('route');
+    expect(pageContent).toContain('Handler');
+    // Check for initMionRouter type signature
+    expect(pageContent).toContain('initMionRouter');
+    expect(pageContent).toContain('Routes');
+    // Check for startNodeServer type signature
+    expect(pageContent).toContain('startNodeServer');
+  });
 });
 
