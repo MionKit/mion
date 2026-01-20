@@ -5,7 +5,9 @@
     "dev:fresh": "rm -rf .nuxt .output data && npm run dev",
     "build": "nuxt build --extends docus",
     "check-links": "npx tsx scripts/check-links.ts",
-    "check-unused-examples": "npx tsx scripts/check-unused-examples.ts"
+    "check-unused-examples": "npx tsx scripts/check-unused-examples.ts",
+    "test": "npx playwright test",
+    "test:ui": "npx playwright test --ui"
   },
   "dependencies": {
     "@nuxt/content": "^3.7.1",
@@ -25,5 +27,8 @@
     "twoslash-vue": "^0.3.6",
     "typescript": "^5.9.3",
     "vue-writer": "^2.0.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
   }
 }
