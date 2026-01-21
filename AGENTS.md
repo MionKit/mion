@@ -49,3 +49,13 @@
 - Use `npm run test` to run tests
 - before committing, run `npm run lint` and `npm run format`, to ensure code style and formatting are correct (fix any errors before committing)
 - commit often after small changes
+
+## Code examples
+- There is a special package called `examples` that contains code examples that should compile
+
+## Documentation Website
+- Located in `./website` directory
+- Framework: Nuxt 4 with Docus v5 theme
+- Syntax: MDC (Markdown Components) - use Vue components directly in markdown
+- Styling: Tailwind CSS classesy
+- code examples can be imported using code-import component

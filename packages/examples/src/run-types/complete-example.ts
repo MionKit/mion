@@ -1,7 +1,7 @@
 import {
     createIsTypeFn,
     createTypeErrorsFn,
-    createJsonStringifyFn,
+    createStringifyJsonFn,
     createRestoreFromJsonFn,
     createMockTypeFn,
 } from '@mionkit/run-types';
@@ -23,7 +23,7 @@ async function completeExample() {
     // Create all needed functions
     const isPost = await createIsTypeFn<BlogPost>();
     const getErrors = await createTypeErrorsFn<BlogPost>();
-    const stringify = await createJsonStringifyFn<BlogPost>();
+    const stringify = await createStringifyJsonFn<BlogPost>();
     const restore = await createRestoreFromJsonFn<BlogPost>();
     const mockPost = await createMockTypeFn<BlogPost>();
 
@@ -45,4 +45,3 @@ async function completeExample() {
         console.log('Validation failed:', errors);
     }
 }
-

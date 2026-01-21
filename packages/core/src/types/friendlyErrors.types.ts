@@ -34,8 +34,10 @@ export type FormatErrorParam = TypeFormatError;
  * Contains the full RunTypeError for access to expected, path, etc.
  */
 export type TypeErrorParam = {
-    /** The full RunTypeError for access to expected, path, etc. */
+    /** The full RunTypeError for access to expected, path, etc. (last error if multiple) */
     rtError: RunTypeError;
+    /** All RunTypeErrors for this field (aggregated from all validation failures) */
+    rtErrors: RunTypeError[];
     /** The name of the property that failed validation */
     propName: string | number;
     /** The index of the property that failed validation, used for arrays */
@@ -104,34 +106,157 @@ export type ExtractErrorParams<T> =
  */
 export type FriendlyErrorHandler<T> = (params: ExtractErrorParams<T>) => string;
 
+// ============================================================================
+// Map and Set Error Handler Types
+// ============================================================================
+
+/**
+ * Error handlers for Map types.
+ * Supports separate handlers for key and value validation errors.
+ */
+export type MapErrorHandlers<K, V> = {
+    /** Handler for key validation errors */
+    $key?: FriendlyErrorHandler<K>;
+    /** Handler or nested map for value validation errors */
+    $value?: FriendlyErrors<V> | FriendlyErrorHandler<V>;
+};
+
+/**
+ * Error handlers for Set types.
+ * Supports handler for item validation errors.
+ */
+export type SetErrorHandlers<T> = {
+    /** Handler or nested map for item validation errors */
+    $item?: FriendlyErrors<T> | FriendlyErrorHandler<T>;
+};
+
 // start-friendly-errors-type
 /**
  * Maps object properties to error handlers.
- * Supports nested objects and arrays.
+ * Supports nested objects, arrays, Maps, Sets, and top-level types.
+ *
+ * @example Top-level array of primitives
+ * ```typescript
+ * type Tags = string[];
+ * const errorsMap: FriendlyErrors<Tags> = (params) => `Item ${params.index} is invalid`;
+ * ```
+ *
+ * @example Top-level array of objects
+ * ```typescript
+ * type Users = User[];
+ * const errorsMap: FriendlyErrors<Users> = {
+ *     name: (params) => 'Name required',
+ *     email: (params) => 'Email required'
+ * };
+ * ```
+ *
+ * @example Map with separate handlers
+ * ```typescript
+ * type UserMap = Map<string, User>;
+ * const errorsMap: FriendlyErrors<UserMap> = {
+ *     $key: (params) => 'Invalid user ID',
+ *     $value: { name: (params) => 'Name required' }
+ * };
+ * ```
+ *
+ * @example Set with handler
+ * ```typescript
+ * type TagSet = Set<string>;
+ * const errorsMap: FriendlyErrors<TagSet> = {
+ *     $item: (params) => `Tag at index ${params.index} is invalid`
+ * };
+ * ```
  */
-export type FriendlyErrors<T> = {
-    [K in keyof T]?: T[K] extends (infer U)[]
-        ? FriendlyErrors<U> | FriendlyErrorHandler<U>
-        : T[K] extends object
-          ? FriendlyErrors<T[K]> | FriendlyErrorHandler<T[K]>
-          : FriendlyErrorHandler<T[K]>;
-};
+export type FriendlyErrors<T> =
+    // Top-level array of primitives: allow handler function
+    T extends (infer U)[]
+        ? U extends object
+            ? FriendlyErrors<U> | FriendlyErrorHandler<U> // Array of objects: nested map or handler
+            : FriendlyErrorHandler<U> // Array of primitives: handler only
+        : // Top-level Map: allow handlers for key/value or single handler
+          T extends Map<infer K, infer V>
+          ? MapErrorHandlers<K, V> | FriendlyErrorHandler<V>
+          : // Top-level Set: allow handlers for items or single handler
+            T extends Set<infer U>
+            ? SetErrorHandlers<U> | FriendlyErrorHandler<U>
+            : // Object type: map properties to handlers
+              {
+                  [P in keyof T]?: T[P] extends (infer U)[]
+                      ? U extends object
+                          ? FriendlyErrors<U> | FriendlyErrorHandler<U>
+                          : FriendlyErrorHandler<U>
+                      : T[P] extends Map<infer K, infer V>
+                        ? MapErrorHandlers<K, V> | FriendlyErrorHandler<V>
+                        : T[P] extends Set<infer U>
+                          ? SetErrorHandlers<U> | FriendlyErrorHandler<U>
+                          : T[P] extends object
+                            ? FriendlyErrors<T[P]> | FriendlyErrorHandler<T[P]>
+                            : FriendlyErrorHandler<T[P]>;
+              };
 // end-friendly-errors-type
+
+// ============================================================================
+// Map and Set Result Types
+// ============================================================================
+
+/**
+ * Result type for Map errors.
+ * Contains separate records for key and value errors, indexed by position.
+ * @template _K - Key type (unused but kept for type inference consistency)
+ * @template V - Value type
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type MapErrorsResult<_K, V> = {
+    /** Key errors indexed by position in the Map */
+    $keys?: Record<StrNumber, string>;
+    /** Value errors indexed by position in the Map */
+    $values?: Record<StrNumber, V extends object ? FriendlyErrorsResult<V> : string>;
+};
+
+/**
+ * Result type for Set errors.
+ * Contains errors indexed by position in the Set.
+ */
+export type SetErrorsResult<T> = Record<StrNumber, T extends object ? FriendlyErrorsResult<T> : string>;
 
 // start-friendly-errors-result-type
 /**
  * Result type for getFriendlyErrors.
- * Mirrors the structure of T but with string arrays for unique error messages.
- * Only properties with errors are included. Duplicate messages are automatically removed.
+ * Mirrors the structure of T but with single string error messages per field.
+ * Only properties with errors are included.
+ * Each handler is called once per field with all aggregated error params.
+ *
+ * For arrays: Returns Record<StrNumber, string> where keys are the indices that failed.
+ * For Maps: Returns { $keys?: Record<StrNumber, string>, $values?: Record<StrNumber, string | nested> }
+ * For Sets: Returns Record<StrNumber, string | nested> where keys are the indices that failed.
+ * For objects: Returns nested FriendlyErrorsResult.
+ * For primitives: Returns string.
  */
-export type FriendlyErrorsResult<T> = {
-    [K in keyof T]?: T[K] extends (infer U)[]
-        ? FriendlyErrorsResult<U> | Record<StrNumber, string[]>
-        : T[K] extends object
-          ? FriendlyErrorsResult<T[K]>
-          : string[];
-} & {
-    /** Root level errors (when path is empty) */
-    $root?: string[];
-};
+export type FriendlyErrorsResult<T> =
+    // Array: Record of index -> error message or nested result
+    T extends (infer U)[]
+        ? Record<StrNumber, U extends object ? FriendlyErrorsResult<U> : string>
+        : // Map: Separate key and value error records
+          T extends Map<infer K, infer V>
+          ? MapErrorsResult<K, V>
+          : // Set: Record of index -> error message or nested result
+            T extends Set<infer U>
+            ? SetErrorsResult<U>
+            : // Object: Nested structure
+              T extends object
+              ? {
+                    [P in keyof T]?: T[P] extends (infer U)[]
+                        ? Record<StrNumber, U extends object ? FriendlyErrorsResult<U> : string>
+                        : T[P] extends Map<infer K, infer V>
+                          ? MapErrorsResult<K, V>
+                          : T[P] extends Set<infer U>
+                            ? SetErrorsResult<U>
+                            : T[P] extends object
+                              ? FriendlyErrorsResult<T[P]>
+                              : string;
+                } & {
+                    /** Root level errors (when path is empty) */
+                    $root?: string;
+                }
+              : string;
 // end-friendly-errors-result-type

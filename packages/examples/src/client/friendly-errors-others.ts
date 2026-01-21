@@ -13,18 +13,24 @@ type ContactInfo = {
 };
 
 // Use specific ErrorParams types to narrow down the failed parameters
+// Handler is called ONCE per field with ALL aggregated error params
 const contactErrors: FriendlyErrors<ContactInfo> = {
     // StringErrorParams narrows down to: minLength, maxLength, pattern, length, etc.
+    // All failed constraints are available at once in the params object
     name: (failed: StringErrorParams) => {
-        if (failed.minLength) return `Name must be at least ${failed.minLength.val} characters`;
-        if (failed.maxLength) return `Name must be at most ${failed.maxLength.val} characters`;
+        const messages: string[] = [];
+        if (failed.minLength) messages.push(`at least ${failed.minLength.val} characters`);
+        if (failed.maxLength) messages.push(`at most ${failed.maxLength.val} characters`);
+        if (messages.length > 0) return `Name must be ${messages.join(' and ')}`;
         return 'Name must be a valid string';
     },
     // EmailErrorParams narrows down to: pattern, localPart, domain, minLength, maxLength
     email: (failed: EmailErrorParams) => {
-        if (failed.pattern) return `Please enter a valid email address`;
-        if (failed.localPart) return `Email username is invalid`;
-        if (failed.domain) return `Email domain is invalid`;
+        const messages: string[] = [];
+        if (failed.pattern) messages.push('invalid format');
+        if (failed.localPart) messages.push('invalid username');
+        if (failed.domain) messages.push('invalid domain');
+        if (messages.length > 0) return `Email: ${messages.join(', ')}`;
         return 'Email must be a valid string';
     },
     // Without explicit type, `failed` contains ALL possible string format params

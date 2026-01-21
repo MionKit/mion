@@ -1,4 +1,4 @@
-import {createJsonStringifyFn} from '@mionkit/run-types';
+import {createStringifyJsonFn} from '@mionkit/run-types';
 
 interface Event {
     name: string;
@@ -13,8 +13,7 @@ async function example() {
         metadata: new Map([['source', 'web']]),
     };
 
-    const stringifyEvent = await createJsonStringifyFn<Event>();
+    const stringifyEvent = await createStringifyJsonFn<Event>();
     const jsonString = stringifyEvent(event);
     // Equivalent to: JSON.stringify(prepareForJson(event)) but faster
 }
-

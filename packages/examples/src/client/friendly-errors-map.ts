@@ -12,15 +12,20 @@ import type {MyApi} from './friendly-errors-server';
 export type User = RouteParamType<MyApi['setUser'], 0>;
 
 export const userFriendlyErrors: FriendlyErrors<User> = {
-    // Handler functions might be called multiple times with different parameters
+    // Handler is called ONCE per field with ALL aggregated error params
     name: (failed: StringErrorParams) => {
-        if (failed.minLength) return `Name must be at least ${failed.minLength.val} characters`;
-        if (failed.maxLength) return `Name must be at most ${failed.maxLength.val} characters`;
+        // All failed constraints are available at once
+        const messages: string[] = [];
+        if (failed.minLength) messages.push(`at least ${failed.minLength.val} characters`);
+        if (failed.maxLength) messages.push(`at most ${failed.maxLength.val} characters`);
+        if (messages.length > 0) return `Name must be ${messages.join(' and ')}`;
         return 'Name must be a valid string';
     },
     age: (failed: NumberErrorParams) => {
-        if (failed.min) return `Age must be at least ${failed.min.val} years`;
-        if (failed.max) return `Age must be at most ${failed.max.val} years`;
+        const messages: string[] = [];
+        if (failed.min) messages.push(`at least ${failed.min.val}`);
+        if (failed.max) messages.push(`at most ${failed.max.val}`);
+        if (messages.length > 0) return `Age must be ${messages.join(' and ')} years`;
         return 'Age must be a valid number';
     },
     balance: (failed: BigIntErrorParams) => {
@@ -32,21 +37,27 @@ export const userFriendlyErrors: FriendlyErrors<User> = {
         return `Tag ${failed.index} must be a valid string`;
     },
     createdAt: (failed: DateTimeErrorParams) => {
-        if (failed.date) return `Created date format is invalid`;
-        if (failed.time) return `Created time format is invalid`;
-        if (failed.splitChar) return `DateTime separator is invalid`;
+        const messages: string[] = [];
+        if (failed.date) messages.push('date format is invalid');
+        if (failed.time) messages.push('time format is invalid');
+        if (failed.splitChar) messages.push('separator is invalid');
+        if (messages.length > 0) return `Created at: ${messages.join(', ')}`;
         return `Created at must be a valid date-time string`;
     },
     nested: {
         email: (failed: EmailErrorParams) => {
-            if (failed.pattern) return `Please enter a valid email address`;
-            if (failed.localPart) return `Email username is invalid`;
-            if (failed.domain) return `Email domain is invalid`;
+            const messages: string[] = [];
+            if (failed.pattern) messages.push('invalid format');
+            if (failed.localPart) messages.push('invalid username');
+            if (failed.domain) messages.push('invalid domain');
+            if (messages.length > 0) return `Email: ${messages.join(', ')}`;
             return `Email must be a valid string`;
         },
         score: (failed: NumberErrorParams) => {
-            if (failed.min) return `Score must be at least ${failed.min.val}`;
-            if (failed.max) return `Score must be at most ${failed.max.val}`;
+            const messages: string[] = [];
+            if (failed.min) messages.push(`at least ${failed.min.val}`);
+            if (failed.max) messages.push(`at most ${failed.max.val}`);
+            if (messages.length > 0) return `Score must be ${messages.join(' and ')}`;
             return `Score must be a valid number`;
         },
     },

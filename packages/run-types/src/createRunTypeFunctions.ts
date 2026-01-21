@@ -62,7 +62,7 @@ export async function createRestoreFromJsonFn<T>(opts?: RunTypeOptions, type?: R
  * Stringifies special types like dates, bigints, maps, set, etc...
  * Is equivalent to calling prepareForJson and then json.stringify but more efficient.
  */
-export async function createJsonStringifyFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): Promise<JsonStringifyFn> {
+export async function createStringifyJsonFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): Promise<JsonStringifyFn> {
     const rt = runType(type);
     return rt.createJitFunction(JitFunctions.stringifyJson, opts);
 }

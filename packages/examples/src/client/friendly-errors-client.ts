@@ -23,10 +23,10 @@ async function setUser() {
     const [user, error] = await routes.setUser(invalidUser as User).call();
     if (error?.type === 'validation-error') {
         const validationErrors = error.errorData?.typeErrors || [];
-        // getFriendlyErrors() might return multiple errors for the same property
+        // getFriendlyErrors() aggregates all errors per field and calls handler once with all params
         const friendlyErrors = getFriendlyErrors<User>(validationErrors, userFriendlyErrors);
         console.log(friendlyErrors.age); // undefined, age is valid
-        console.log(friendlyErrors.name); // ['Name must be at least 2 characters long']
+        console.log(friendlyErrors.name); // 'Name must be at least 2 characters' (single string per field)
         return;
     }
     if (error?.type === 'user-exists') {
