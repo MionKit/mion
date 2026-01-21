@@ -194,10 +194,18 @@ export function exampleWatcherPlugin(): Plugin {
 
       watcherInstance = watch(watchPath, {
         ignoreInitial: true,
-        persistent: true
+        persistent: true,
+        // Use polling with longer interval to reduce CPU usage and avoid atime triggers
+        usePolling: false,
+        // Ignore permission and access time changes
+        awaitWriteFinish: {
+          stabilityThreshold: 100,
+          pollInterval: 50
+        }
       })
 
-      watcherInstance.on('all', (event, filePath) => {
+      // Handler for file changes
+      const handleFileChange = (event: string, filePath: string) => {
         if (!filePath.endsWith('.ts')) return
 
         // Debounce: ignore duplicate events for the same file within 300ms
@@ -243,7 +251,12 @@ export function exampleWatcherPlugin(): Plugin {
             }
           }, 300)
         )
-      })
+      }
+
+      // Only listen for specific events, not 'all' which may include access events on some systems
+      watcherInstance.on('add', (path) => handleFileChange('add', path))
+      watcherInstance.on('change', (path) => handleFileChange('change', path))
+      watcherInstance.on('unlink', (path) => handleFileChange('unlink', path))
 
       server.httpServer?.on('close', () => {
         watcherInstance?.close()
