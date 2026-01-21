@@ -86,6 +86,20 @@ blur: 140px
     Just use remote methods as any other local async method.
     ::::
 
+    ::::twoslash-code
+    ---
+    path: packages/examples/src/_homepage/home-server.ts
+    class: sm:col-span-2 lg:col-span-2
+    ---
+    ::::
+
+    ::::twoslash-code
+    ---
+    path: packages/examples/src/_homepage/home-client.ts
+    class: sm:col-span-2 lg:col-span-2
+    ---
+    ::::
+
     ::::card
     ---
     title: Fully Typed Client
@@ -104,29 +118,28 @@ blur: 140px
 
     ::::card
     ---
-    title: Automatic Validation
-    to: /server/validation-and-serialization
+    title: Hello World (Req/S)
+    class: lg:col-span-2
     ---
-    Out of the box validation of Remote function parameters and return types.
-    Full type safety without needed for schema libraries, just from Typescript types.
+    :bench-chart{id='hello-requests'} 
     ::::
 
     ::::card
     ---
-    title: Automatic Serialization
-    to: /server/validation-and-serialization
-    ---
-    Out of the box serialization of native objects like Date, Map or Class, all of them can be directly serialized to JSON.
-    ::::
-
-    ::::card
-    ---
-    title: End To End Type Safety
+    title: Automatic Validation & Serialization
     to: /run-types/overview
     ---
-    You can easily refactor your API and changes will be safely picked by the client or
-    validate data directly on the client.
+    mion use [RunTypes](/run-types/overview) to generate JIT-compiled validation and serialization functions directly from TypeScript types.    
+    [No schemas libraries needed — Typescript is the single source of truth.]{.text-highlighted}
     ::::
+
+    ::::twoslash-code
+    ---
+    path: packages/examples/src/_homepage/home-run-types.ts
+    class: sm:col-span-2 lg:col-span-2
+    ---
+    ::::
+
 
     ::::card
     ---
@@ -146,3 +159,5 @@ blur: 140px
 
 
 [&nbsp;]{style="padding-bottom: 6rem;"}
+
+<!-- code-import-timestamp 1768959773489 -->
