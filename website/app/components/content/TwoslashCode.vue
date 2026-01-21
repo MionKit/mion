@@ -87,31 +87,48 @@ const { data, status, error } = await useAsyncData(
 </template>
 
 <style>
+.dark .twoslash-container {
+  border: 1px solid var(--color-green-900, #8aa85e);
+  border-radius: calc(var(--ui-radius) * 1.5);
+
+  &:hover {
+    border-color: var(--color-green-500, #728c4d);
+  }
+}
+
+.light .twoslash-container {
+  border: 1px solid var(--color-green-300, #8aa85e);
+  border-radius: calc(var(--ui-radius) * 1.5);
+
+  &:hover {
+    border-color: var(--color-green-500, #728c4d);
+  }
+}
+
 .twoslash-loading {
   padding: 0.5rem;
   background: var(--prose-code-block-backgroundColor, #1e1e1e);
-  border-radius: var(--radii-md, 0.375rem);
+  border-radius: calc(var(--ui-radius) * 1.5);
   color: var(--prose-code-block-color, #d4d4d4);
 }
 
 .twoslash-error {
   padding: 0.5;
   background: #fee;
-  border-radius: var(--radii-md, 0.375rem);
+  border-radius: calc(var(--ui-radius) * 1.5);
   color: #c00;
 }
 
 .twoslash-code {
-  border-radius: var(--radii-md, 0.375rem);
+  border-radius: calc(var(--ui-radius) * 1.5);
 }
 
 .twoslash-code .twoslash {
-  padding: 12px;
-  padding-left: 6px;
+  padding: 1rem;
 }
 
 .twoslash-code .shiki {
-  border-radius: var(--radii-md, 0.375rem);
+  border-radius: calc(var(--ui-radius) * 1.5);
   
 }
 
@@ -142,19 +159,19 @@ const { data, status, error } = await useAsyncData(
 
 /* Twoslash popup styling */
 .twoslash-code .twoslash-popup-container {
-  background: var(--prose-code-block-backgroundColor, #f6f8fa);
-  border: 1px solid var(--prose-code-block-border-color, #e1e4e8);
+  background: var(--prose-code-block-backgroundColor, #8aa85e);
+  border: 1px solid var(--color-green-500, #8aa85e);
   border-radius: var(--radii-sm, 0.25rem);
   padding: 0;
   letter-spacing: -0.01rem;
-  box-shadow: 0 4px 4px rgba(134, 202, 47, 0.25);
+  box-shadow: 0 0 4px rgba(134, 202, 47, 0.25);
   /* Keep popup within viewport */
   left: 0;
   right: auto;
 }
 
 .dark .twoslash-code .twoslash-popup-container {
-  box-shadow: 0 0 10px rgba(134, 202, 47, 0.25);
+  box-shadow: 0 0 4px rgba(134, 202, 47, 0.25);
 }
 
 
@@ -170,8 +187,8 @@ const { data, status, error } = await useAsyncData(
 :root.dark .twoslash-code .twoslash-popup-container,
 :root.dark .twoslash-code .twoslash-completion-cursor .twoslash-completion-list {
   background: var(--shiki-light-bg, #1e1e1e);
-  border-color: #444;
-  box-shadow: 0 0 10px rgba(134, 202, 47, 0.25);
+  border-color: var(--color-green-500, #8aa85e);
+  box-shadow: 0 0 4px rgba(134, 202, 47, 0.25);
 }
 </style>
 

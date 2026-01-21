@@ -89,8 +89,15 @@ function explicitModeHoverInfo(_info: string): string {
 // Cache the highlighter instance
 let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
 
-// Cache for fsMap (loaded once)
+// Cache for fsMap (loaded once at startup)
 let fsMapCache: Map<string, string> | null = null
+
+// Cache for rendered twoslash results (avoids re-rendering on hot reload)
+const resultCache = new Map<string, { html: string }>()
+
+function getCacheKey(code: string, path: string | undefined, hoverMode: string | undefined): string {
+  return `${path || ''}:${hoverMode || 'default'}:${code}`
+}
 
 async function getHighlighter() {
   if (!highlighterPromise) {
@@ -243,15 +250,18 @@ export default defineEventHandler(async (event) => {
   // Use path for relative import resolution (filePath for backwards compat)
   const filePath = path
 
+  // Check cache first to avoid re-rendering on hot reload
+  const cacheKey = getCacheKey(code, path, hoverMode)
+  const cached = resultCache.get(cacheKey)
+  if (cached) {
+    console.log(`[twoslash] ${path || 'inline'} (cached)`)
+    return cached
+  }
+
   try {
+    console.log(`[twoslash] ${path || 'inline'} (${code.length} chars)`)
     const highlighter = await getHighlighter()
     const fsMap = loadMionPackageTypes()
-
-    // Log the first few files for debugging
-    console.log(`fsMap loaded: ${fsMap.size} files`)
-    if (fsMap.size > 0) {
-      console.log('Sample paths:', Array.from(fsMap.keys()).slice(0, 3))
-    }
 
     // If we have a file path (e.g., packages/examples/src/introduction/about-client.ts)
     // Set up the extra files so relative imports work
@@ -276,7 +286,6 @@ export default defineEventHandler(async (event) => {
             extraFiles[`./${fileName}`] = content
           }
         }
-        console.log(`Extra files for ${relativePath}:`, Object.keys(extraFiles))
       }
     }
 
@@ -300,6 +309,8 @@ export default defineEventHandler(async (event) => {
           twoslashOptions: {
             fsMap,
             extraFiles,
+            // Enable custom annotation tags like @log, @error, @warn, @annotate
+            customTags: ['log', 'error', 'warn', 'annotate'],
             compilerOptions: {
               // Use ESNext with bundler resolution for best compatibility
               // ModuleResolutionKind: Bundler=100, NodeNext=99
@@ -322,7 +333,9 @@ export default defineEventHandler(async (event) => {
     // Keep the empty <span class="line"></span> elements for intentional blank lines in source code
     html = html.replace(/(<\/span>)\n(<span class="line">)/g, '$1$2')
 
-    return { html }
+    const result = { html }
+    resultCache.set(cacheKey, result)
+    return result
   } catch (error) {
     console.error('Twoslash rendering error:', error)
     throw createError({

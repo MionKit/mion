@@ -93,13 +93,6 @@ blur: 140px
     ---
     ::::
 
-    ::::twoslash-code
-    ---
-    path: packages/examples/src/_homepage/home-client.ts
-    class: sm:col-span-2 lg:col-span-2
-    ---
-    ::::
-
     ::::card
     ---
     title: Fully Typed Client
@@ -108,20 +101,11 @@ blur: 140px
     Fully typed client with static type checking, autocompletion, automatic validation and serialization.
     ::::
 
-    ::::card
+    ::::twoslash-code
     ---
-    title: Fast
-    to: /benchmarks/hello-world
+    path: packages/examples/src/_homepage/home-client.ts
+    class: sm:col-span-2 lg:col-span-2
     ---
-    Quick cold starts and a simple in-memory map for route lookup makes mion extremely fast.
-    ::::
-
-    ::::card
-    ---
-    title: Hello World (Req/S)
-    class: lg:col-span-2
-    ---
-    :bench-chart{id='hello-requests'} 
     ::::
 
     ::::card
@@ -140,6 +124,18 @@ blur: 140px
     ---
     ::::
 
+    ::::card
+    ---
+    title: Fast
+    to: /benchmarks/hello-world
+    ---
+    Quick cold starts and a simple in-memory map for route lookup makes mion extremely fast.
+    ::::
+
+    ::::div{class="lg:col-span-2"}
+    #### Hello World Benchmarks (Req/S)
+    :bench-chart{id='hello-requests'}
+    ::::
 
     ::::card
     ---
@@ -160,4 +156,4 @@ blur: 140px
 
 [&nbsp;]{style="padding-bottom: 6rem;"}
 
-<!-- code-import-timestamp 1768959773489 -->
+<!-- code-import-timestamp 1768967601993 -->
