@@ -59,8 +59,12 @@ blur: 150px
 ::
 
 ::u-page-section
+---
+class: home-features
+---
+
 #title
-Features
+Mion Features
 
 #root
 :::gradient-bg
@@ -75,80 +79,96 @@ blur: 140px
 #body
   :::card-group
   ---
-  class: lg:grid-cols-3
+  class: sm:grid-cols-2 lg:grid-cols-3 home-code-cards
   ---
     ::::card
     ---
-    title: RPC like
-    to: /introduction/about-mion#rpc-like
+    class: sm:col-span-2 lg:col-span-1 home-card
     ---
-    RPC like architecture for simpler and easier to consume APIs.
+    ### RPC *<sup>Like</sup>*
+    [RPC architecture](/introduction/about-mion#rpc-like) for simpler and easier to consume APIs.
     Just use remote methods as any other local async method.
     ::::
 
     ::::twoslash-code
     ---
     path: packages/examples/src/_homepage/home-server.ts
+    title: router.ts
     class: sm:col-span-2 lg:col-span-2
     ---
     ::::
 
     ::::card
     ---
-    title: Fully Typed Client
-    to: /client/client-overview
+    class: sm:col-span-2 lg:col-span-1 home-card
     ---
-    Fully typed client with static type checking, autocompletion, automatic validation and serialization.
+    ### Fully Typed Client
+    [Fully typed client](/client/client-overview) with static type checking, autocompletion, automatic validation and serialization.
     ::::
 
     ::::twoslash-code
     ---
     path: packages/examples/src/_homepage/home-client.ts
+    title: client.ts
     class: sm:col-span-2 lg:col-span-2
     ---
     ::::
 
     ::::card
     ---
-    title: Automatic Validation & Serialization
-    to: /run-types/overview
+    class: sm:col-span-2 lg:col-span-1
     ---
-    mion use [RunTypes](/run-types/overview) to generate JIT-compiled validation and serialization functions directly from TypeScript types.    
+    ### RunTypes <sup>©</sup>
+    mion use [RunTypes](/run-types/overview) behinds the scene to generate JIT-compiled validation and serialization functions directly from TypeScript types.
+
+    RunTypes supports advanced [type formats](/run-types/type-formats) and can be used as a standalone library.
+
+    <br>
+
     [No schemas libraries needed — Typescript is the single source of truth.]{.text-highlighted}
     ::::
 
     ::::twoslash-code
     ---
     path: packages/examples/src/_homepage/home-run-types.ts
+    title: run-types.ts
     class: sm:col-span-2 lg:col-span-2
     ---
     ::::
 
     ::::card
     ---
-    title: Fast
-    to: /benchmarks/hello-world
-    ---
-    Quick cold starts and a simple in-memory map for route lookup makes mion extremely fast.
-    ::::
-
-    ::::div{class="lg:col-span-2"}
-    #### Hello World Benchmarks (Req/S)
-    :bench-chart{id='hello-requests'}
-    ::::
-
-    ::::card
-    ---
-    title: Write Once Run Everywhere
     to: /platforms/overview
     class: sm:col-span-2 lg:col-span-3 text-center
     ---
-
+    ### Write Once Run Everywhere
     :platform-tiles
-
     Run mion APIs in [Node.js](/platforms/node-js), [Bun](/platforms/bun) or Serverless platforms like [Aws Lambda](/platforms/aws-lambda) and [Google cloud functions](/platforms/google-cloud-functions).
     ::::
   :::
+
+  ## Performance
+
+  ::::card
+  ---
+  class: sm:col-span-2 lg:col-span-1 text-center
+  ---
+  
+  :::::stylish-list
+  ---
+  type: check
+  ---
+  - [RPC-style routing]{.text-highlighted} - No URL parsing or regex matching, just direct in-memory Map lookup
+  - [JIT-compiled validation/serialization]{.text-highlighted} - RunTypes generates optimized functions at startup
+  - [Fast cold starts]{.text-highlighted} - Load routes in demand, no need to load all routes and jit functions at startup
+  - [Lightweight architecture]{.text-highlighted} - Simple request/response handling
+  :::::
+
+  ::::div{class="lg:col-span-2"}
+  #### [Hello World Benchmarks (Req/S)](/benchmarks/hello-world)
+  :bench-chart{id='hello-requests'}
+  ::::
+  ::::
 ::
 
 

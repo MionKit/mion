@@ -115,12 +115,26 @@ export type AnyErrorParams<ErrType extends StrNumber, ErrData = any> =
     | RpcErrorWithPublic<ErrType, ErrData>
     | RpcErrorWithPrivate<ErrType, ErrData>;
 
+/** Path segment for Map key errors */
+export type MapKeyPathSegment = {key: unknown; index: number; failed: 'mapKey'};
+
+/** Path segment for Map value errors */
+export type MapValuePathSegment = {key: unknown; index: number; failed: 'mapVal'};
+
+/** Path segment for Set item errors */
+export type SetItemPathSegment = {key: unknown; index: number};
+
+/** Any path segment in a RunTypeError path */
+export type PathSegment = StrNumber | MapKeyPathSegment | MapValuePathSegment | SetItemPathSegment;
+
 export interface RunTypeError {
     /**
-     * Path the the property that failed validation if the validated item was an object class, etc..
+     * Path to the property that failed validation if the validated item was an object class, etc..
      * Index if item that failed validation was in an array.
-     * null if validated item was a single property */
-    path: StrNumber[];
+     * For Maps: contains {key, index, failed: 'mapKey'|'mapVal'} objects.
+     * For Sets: contains {key, index} objects.
+     * Empty array if validated item was a single property */
+    path: PathSegment[];
     /** the type of the expected data */
     expected: string;
     format?: TypeFormatError;

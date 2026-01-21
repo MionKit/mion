@@ -175,6 +175,8 @@ function findMarkdownFiles(relativePath: string): string[] {
 let watcherInstance: FSWatcher | null = null
 // Debounce map to prevent duplicate events for the same file
 const debounceMap = new Map<string, NodeJS.Timeout>()
+// Lock set to track files currently being written (prevents race conditions)
+const filesBeingProcessed = new Set<string>()
 
 /**
  * Vite plugin that watches example files and invalidates the Vite cache
@@ -208,7 +210,8 @@ export function exampleWatcherPlugin(): Plugin {
       const handleFileChange = (event: string, filePath: string) => {
         if (!filePath.endsWith('.ts')) return
 
-        // Debounce: ignore duplicate events for the same file within 300ms
+        // Debounce: ignore duplicate events for the same file within 1 second
+        // This prevents rapid successive changes (e.g., on every keystroke) from causing issues
         const existingTimeout = debounceMap.get(filePath)
         if (existingTimeout) {
           clearTimeout(existingTimeout)
@@ -227,29 +230,54 @@ export function exampleWatcherPlugin(): Plugin {
             const mdFiles = findMarkdownFiles(relativePath)
             if (mdFiles.length > 0) {
               mdFiles.forEach(mdFile => {
-                const relMdFile = mdFile.replace(MONOREPO_ROOT + '/', '')
-
-                // Update timestamp comment at the end of the file to trigger Nuxt Content reload
-                const content = readFileSync(mdFile, 'utf-8')
-                const timestampComment = `<!-- code-import-timestamp ${Date.now()} -->`
-                const timestampRegex = /\n?<!-- code-import-timestamp \d+ -->\n?$/
-
-                let newContent: string
-                if (timestampRegex.test(content)) {
-                  // Replace existing timestamp (preserve newlines before and after)
-                  newContent = content.replace(timestampRegex, '\n' + timestampComment + '\n')
-                } else {
-                  // Add timestamp at the end with newline before and after
-                  newContent = content.trimEnd() + '\n\n' + timestampComment + '\n'
+                // Check if this markdown file is currently being processed (file lock)
+                // This prevents race conditions when multiple events trigger for the same file
+                if (filesBeingProcessed.has(mdFile)) {
+                  console.log(`   ⏳ ${mdFile.replace(MONOREPO_ROOT + '/', '')} is being processed, skipping...`)
+                  return
                 }
 
-                writeFileSync(mdFile, newContent)
-                console.log(`   doc: ${relMdFile} ✓`)
+                // Acquire lock for this markdown file
+                filesBeingProcessed.add(mdFile)
+
+                try {
+                  const relMdFile = mdFile.replace(MONOREPO_ROOT + '/', '')
+
+                  // Update timestamp comment at the end of the file to trigger Nuxt Content reload
+                  const content = readFileSync(mdFile, 'utf-8')
+
+                  // Safety check: don't write if content is empty or suspiciously short
+                  if (!content || content.trim().length < 10) {
+                    console.log(`   ⚠ ${relMdFile} appears empty or corrupted, skipping update`)
+                    return
+                  }
+
+                  const timestampComment = `<!-- code-import-timestamp ${Date.now()} -->`
+                  const timestampRegex = /\n?<!-- code-import-timestamp \d+ -->\n?$/
+
+                  let newContent: string
+                  if (timestampRegex.test(content)) {
+                    // Replace existing timestamp (preserve newlines before and after)
+                    newContent = content.replace(timestampRegex, '\n' + timestampComment + '\n')
+                  } else {
+                    // Add timestamp at the end with newline before and after
+                    newContent = content.trimEnd() + '\n\n' + timestampComment + '\n'
+                  }
+
+                  // Atomic write: ensure we write the complete content
+                  writeFileSync(mdFile, newContent, { encoding: 'utf-8', flag: 'w' })
+                  console.log(`   doc: ${relMdFile} ✓`)
+                } catch (err) {
+                  console.error(`   ❌ Error updating ${mdFile}:`, err)
+                } finally {
+                  // Release lock for this markdown file
+                  filesBeingProcessed.delete(mdFile)
+                }
               })
             } else {
               console.log('   ⚠ No markdown files reference this example')
             }
-          }, 300)
+          }, 1000)
         )
       }
 

@@ -9,7 +9,8 @@
     "check-links": "npx tsx scripts/check-links.ts",
     "check-unused-examples": "npx tsx scripts/check-unused-examples.ts",
     "test": "npx playwright test",
-    "test:ui": "npx playwright test --ui"
+    "test:ui": "npx playwright test --ui",
+    "generate": "nuxt generate --extends docus"
   },
   "dependencies": {
     "@nuxt/content": "^3.7.1",

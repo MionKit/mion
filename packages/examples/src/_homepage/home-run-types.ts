@@ -1,4 +1,4 @@
-import {createIsTypeFn, createJsonStringifyFn, createMockTypeFn} from '@mionkit/run-types';
+import {createIsTypeFn, createStringifyJsonFn, createMockTypeFn} from '@mionkit/run-types';
 interface User {
     id: string;
     name: string;
@@ -7,7 +7,7 @@ interface User {
 }
 // @annotate: Create JIT-compiled functions directly from TypeScript types
 const isUser = await createIsTypeFn<User>();
-const stringify = await createJsonStringifyFn<User>();
+const stringify = await createStringifyJsonFn<User>();
 const mockUser = await createMockTypeFn<User>();
 
 // @log: Generate mock data - respects type structure
