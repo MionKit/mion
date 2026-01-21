@@ -87,10 +87,6 @@ const { data, status, error } = await useAsyncData(
 </template>
 
 <style>
-.twoslash-container {
-  margin: 1rem 0;
-}
-
 .twoslash-loading {
   padding: 0.5rem;
   background: var(--prose-code-block-backgroundColor, #1e1e1e);
@@ -151,10 +147,14 @@ const { data, status, error } = await useAsyncData(
   border-radius: var(--radii-sm, 0.25rem);
   padding: 0;
   letter-spacing: -0.01rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 4px rgba(134, 202, 47, 0.25);
   /* Keep popup within viewport */
   left: 0;
   right: auto;
+}
+
+.dark .twoslash-code .twoslash-popup-container {
+  box-shadow: 0 0 10px rgba(134, 202, 47, 0.25);
 }
 
 
@@ -171,6 +171,7 @@ const { data, status, error } = await useAsyncData(
 :root.dark .twoslash-code .twoslash-completion-cursor .twoslash-completion-list {
   background: var(--shiki-light-bg, #1e1e1e);
   border-color: #444;
+  box-shadow: 0 0 10px rgba(134, 202, 47, 0.25);
 }
 </style>
 

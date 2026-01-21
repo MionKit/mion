@@ -72,7 +72,19 @@ onMounted(() => {
   });
 });
 </script>
-
 <template>
-  <div :id="chartId" />
+  <div :id="chartId" class="mion-bench"/>
 </template>
+<style>
+.mion-bench.bb text {
+  color: var(--ui-text);
+  fill: var(--ui-text);
+}
+.dark .bb path {
+  stroke: var(--ui-text-muted)
+}
+
+.mion-bench .bb-chart-text {
+  transform: rotate(-35deg) 
+}
+</style>
