@@ -255,4 +255,47 @@ describe('function run type general', () => {
         expect(errorsOptionalParam([])).toEqual([]);
         expect(errorsOptionalParam([42])).toEqual([{expected: 'string', path: [0]}]);
     });
+
+    it('isNoop should be true for functions with no params', () => {
+        type NoParamsFunction = () => void;
+        const rtNoParams = runType<NoParamsFunction>() as FunctionRunType;
+
+        // All these jit functions should have isNoop = true for functions with no params
+        const isTypeCompiled = rtNoParams.createJitCompiledParamsFunction(JitFunctions.isType);
+        const typeErrorsCompiled = rtNoParams.createJitCompiledParamsFunction(JitFunctions.typeErrors);
+        const prepareForJsonCompiled = rtNoParams.createJitCompiledParamsFunction(JitFunctions.prepareForJson);
+        const restoreFromJsonCompiled = rtNoParams.createJitCompiledParamsFunction(JitFunctions.restoreFromJson);
+
+        expect(isTypeCompiled.isNoop).toBe(true);
+        expect(typeErrorsCompiled.isNoop).toBe(true);
+        expect(prepareForJsonCompiled.isNoop).toBe(true);
+        expect(restoreFromJsonCompiled.isNoop).toBe(true);
+
+        // The functions should still work correctly
+        expect(isTypeCompiled.fn([])).toBe(true);
+        expect(typeErrorsCompiled.fn([])).toEqual([]);
+        expect(prepareForJsonCompiled.fn([])).toEqual([]);
+        expect(restoreFromJsonCompiled.fn([])).toEqual([]);
+    });
+
+    it('isNoop should be false for functions with params that require validation/serialization', () => {
+        // rt is FunctionType = (a: number, b: boolean, c?: string) => Date
+        const isTypeCompiled = rt.createJitCompiledParamsFunction(JitFunctions.isType);
+        const typeErrorsCompiled = rt.createJitCompiledParamsFunction(JitFunctions.typeErrors);
+
+        // isType and typeErrors should not be noop for functions with params (they need to validate)
+        expect(isTypeCompiled.isNoop).toBe(false);
+        expect(typeErrorsCompiled.isNoop).toBe(false);
+
+        // rt2 is FunctionType2 = (a: Date, b?: boolean) => bigint - Date requires serialization
+        const isTypeCompiled2 = rt2.createJitCompiledParamsFunction(JitFunctions.isType);
+        const typeErrorsCompiled2 = rt2.createJitCompiledParamsFunction(JitFunctions.typeErrors);
+        const prepareForJsonCompiled2 = rt2.createJitCompiledParamsFunction(JitFunctions.prepareForJson);
+        const restoreFromJsonCompiled2 = rt2.createJitCompiledParamsFunction(JitFunctions.restoreFromJson);
+
+        expect(isTypeCompiled2.isNoop).toBe(false);
+        expect(typeErrorsCompiled2.isNoop).toBe(false);
+        expect(prepareForJsonCompiled2.isNoop).toBe(false); // Date requires serialization
+        expect(restoreFromJsonCompiled2.isNoop).toBe(false); // Date requires deserialization
+    });
 });

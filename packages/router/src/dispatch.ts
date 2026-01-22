@@ -188,7 +188,6 @@ function getMethodCaller(executable: RemoteMethod) {
 
 function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMethod): any[] {
     const params: any[] = (request.body[executable.id] as any[]) || [];
-    if (!executable.paramNames || executable.paramNames.length === 0) return params;
     if (executable.paramsJitFns.restoreFromJson.isNoop) return params;
     try {
         (request.body as Mutable<MionRequest['body']>)[executable.id] = executable.paramsJitFns.restoreFromJson.fn(params);
@@ -207,7 +206,7 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
 }
 
 function validateParametersOrThrow(params: any[], executable: RemoteMethod): void {
-    if (!executable.paramNames || executable.paramNames.length === 0) return;
+    if (executable.paramsJitFns.isType.isNoop) return;
     if (!executable.paramsJitFns.isType.fn(params)) {
         const validationError: ValidationError = new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,
