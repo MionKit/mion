@@ -9,10 +9,11 @@ import {resetRouter, initRouter, registerRoutes, getRouteExecutable, getHookExec
 import {route, hook, rawHook} from './handlers';
 import {setPersistedMethods, resetPersistedMethods, loadCompiledMethods} from './methodsCache';
 import {AOTCacheError, resetRunTypesCache} from './reflection';
-import {HandlerType, EMPTY_HASH, resetJitFnCaches} from '@mionkit/core';
+import {HandlerType, EMPTY_HASH, resetJitFnCaches, addAOTCaches, getJitFunctionsFromHash} from '@mionkit/core';
 import type {Routes} from '../types/general';
-import type {MethodsCache} from '@mionkit/core';
+import type {MethodsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache} from '@mionkit/core';
 // Import the default router cache from aot-caches package for testing
+// IMPORTANT!!! if any of the mion routes/hooks are changed we might need to recompile caches or this tests might fails
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
 
 // Default routes cache from the AOT caches package (contains error routes and client routes)
@@ -314,6 +315,171 @@ describe('AOT Lazy Loading', () => {
             expect(getRouteExecutable('route1')).toBeDefined();
             expect(getRouteExecutable('route2')).toBeDefined();
             expect(getRouteExecutable('route3')).toBeDefined();
+        });
+    });
+
+    describe('JIT function hash loading', () => {
+        // Mock JIT function hashes for testing
+        const MOCK_PARAMS_JIT_HASH = 'test-params-jit-hash-12345';
+        const MOCK_RETURN_JIT_HASH = 'test-return-jit-hash-67890';
+
+        // JIT function IDs used to generate full hashes
+        const JIT_FN_IDS = ['is', 'te', 'tj', 'fj', 'sj', 'tBi', 'fBi'];
+
+        // Helper to create a mock persisted JIT function
+        const createMockPersistedJitFn = (hash: string, fnID: string): any => ({
+            jitFnHash: hash,
+            typeName: 'TestType',
+            fnID,
+            args: {vλl: 'value'},
+            defaultParamValues: {vλl: ''},
+            code: 'return value;',
+            dependenciesSet: new Set(),
+            pureFnDependencies: new Set(),
+            createJitFn: () => (value: any) => value, // Simple pass-through function
+            fn: undefined,
+        });
+
+        // Helper to create all JIT functions for a given base hash
+        const createMockJitFnsForHash = (baseHash: string): PersistedJitFunctionsCache => {
+            const cache: PersistedJitFunctionsCache = {};
+            for (const fnID of JIT_FN_IDS) {
+                const fullHash = `${fnID}_${baseHash}`;
+                cache[fullHash] = createMockPersistedJitFn(fullHash, fnID);
+            }
+            return cache;
+        };
+
+        // Mock JIT function caches with all required function types
+        const mockJitFnsCache: PersistedJitFunctionsCache = {
+            ...createMockJitFnsForHash(MOCK_PARAMS_JIT_HASH),
+            ...createMockJitFnsForHash(MOCK_RETURN_JIT_HASH),
+        };
+
+        const mockPureFnsCache: PersistedPureFunctionsCache = {};
+
+        it('should load JIT functions from cache when hashes are non-empty', async () => {
+            // Setup: Pre-populate JIT function caches
+            addAOTCaches(mockJitFnsCache, mockPureFnsCache);
+
+            // Setup: Pre-populate router cache with non-empty JIT hashes
+            const mockCache: MethodsCache = {
+                ...defaultRoutesCache,
+                routeWithJitFns: {
+                    type: HandlerType.route,
+                    id: 'routeWithJitFns',
+                    nestLevel: 0,
+                    isAsync: false,
+                    hasReturnData: true,
+                    paramNames: ['data'],
+                    paramsJitHash: MOCK_PARAMS_JIT_HASH, // Non-empty hash
+                    returnJitHash: MOCK_RETURN_JIT_HASH, // Non-empty hash
+                    pointer: ['routeWithJitFns'],
+                },
+            };
+            setPersistedMethods(mockCache);
+
+            // Initialize router in AOT mode
+            await initRouter({aot: true});
+
+            // Register routes
+            const routes = {
+                routeWithJitFns: route((ctx: any, data: string): string => data),
+            } satisfies Routes;
+            await registerRoutes(routes);
+
+            // Verify the route was created with JIT functions loaded from cache
+            const executable = getRouteExecutable('routeWithJitFns');
+            expect(executable).toBeDefined();
+            expect(executable?.paramsJitFns).toBeDefined();
+            expect(executable?.returnJitFns).toBeDefined();
+
+            // Verify the JIT functions are the ones from the cache (not null)
+            // The JIT functions should have been loaded from the cache using getJitFunctionsFromHash
+            const paramsJitFns = getJitFunctionsFromHash(MOCK_PARAMS_JIT_HASH);
+            const returnJitFns = getJitFunctionsFromHash(MOCK_RETURN_JIT_HASH);
+            expect(paramsJitFns).toBeDefined();
+            expect(returnJitFns).toBeDefined();
+        });
+
+        it('should throw error when JIT hash is not found in cache (AOT mode)', async () => {
+            // Setup: Pre-populate router cache with non-empty JIT hashes but DON'T add to JIT cache
+            const MISSING_JIT_HASH = 'missing-jit-hash-not-in-cache';
+            const mockCache: MethodsCache = {
+                ...defaultRoutesCache,
+                routeWithMissingJit: {
+                    type: HandlerType.route,
+                    id: 'routeWithMissingJit',
+                    nestLevel: 0,
+                    isAsync: false,
+                    hasReturnData: true,
+                    paramNames: ['data'],
+                    paramsJitHash: MISSING_JIT_HASH, // Hash not in JIT cache
+                    returnJitHash: EMPTY_HASH,
+                    pointer: ['routeWithMissingJit'],
+                },
+            };
+            setPersistedMethods(mockCache);
+
+            // Initialize router in AOT mode
+            await initRouter({aot: true});
+
+            // Register routes - should throw because JIT function is not in cache
+            const routes = {
+                routeWithMissingJit: route((ctx: any, data: string): string => data),
+            } satisfies Routes;
+
+            // This should throw an error because the JIT function hash is not found
+            await expect(registerRoutes(routes)).rejects.toThrow();
+        });
+
+        it('should work with hooks that have non-empty JIT hashes', async () => {
+            // Setup: Pre-populate JIT function caches
+            addAOTCaches(mockJitFnsCache, mockPureFnsCache);
+
+            // Setup: Pre-populate router cache with hook having non-empty JIT hashes
+            const mockCache: MethodsCache = {
+                ...defaultRoutesCache,
+                hookWithJitFns: {
+                    type: HandlerType.hook,
+                    id: 'hookWithJitFns',
+                    nestLevel: 0,
+                    isAsync: false,
+                    hasReturnData: true,
+                    paramNames: ['value'],
+                    paramsJitHash: MOCK_PARAMS_JIT_HASH,
+                    returnJitHash: MOCK_RETURN_JIT_HASH,
+                    pointer: ['hookWithJitFns'],
+                },
+                testRoute: {
+                    type: HandlerType.route,
+                    id: 'testRoute',
+                    nestLevel: 0,
+                    isAsync: false,
+                    hasReturnData: true,
+                    paramNames: [],
+                    paramsJitHash: EMPTY_HASH,
+                    returnJitHash: EMPTY_HASH,
+                    pointer: ['testRoute'],
+                },
+            };
+            setPersistedMethods(mockCache);
+
+            // Initialize router in AOT mode
+            await initRouter({aot: true});
+
+            // Register routes with hook
+            const routes = {
+                hookWithJitFns: hook((ctx: any, value: number): number => value * 2),
+                testRoute: route((ctx: any): string => 'hello'),
+            } satisfies Routes;
+            await registerRoutes(routes);
+
+            // Verify the hook was created with JIT functions
+            const hookExecutable = getHookExecutable('hookWithJitFns');
+            expect(hookExecutable).toBeDefined();
+            expect(hookExecutable?.paramsJitFns).toBeDefined();
+            expect(hookExecutable?.returnJitFns).toBeDefined();
         });
     });
 
