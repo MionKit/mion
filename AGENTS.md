@@ -44,6 +44,7 @@
 - Maintain consistent formatting with existing codebase
 - Don't use @param and @returns comments in JSDoc
 - prefer one liner comments for functions ie: /** does this and that **/
+- prefer one line if statements ie: `if (condition) doSomething();`
 
 ## Development Workflow
 - Never run `npm run build` during development (only for publishing)

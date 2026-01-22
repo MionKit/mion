@@ -125,7 +125,6 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
 
 export async function registerRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
-
     startHooks = await getExecutablesFromHooksCollectionAsync(startHooksDef);
     endHooks = await getExecutablesFromHooksCollectionAsync(endHooksDef);
     await recursiveFlatRoutesAsync(routes);
