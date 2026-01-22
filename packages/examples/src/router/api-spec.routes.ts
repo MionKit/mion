@@ -28,4 +28,4 @@ const hooks = {
     log: hook((c: Context): void => undefined),
 } satisfies Routes;
 
-export const routesSpec = initMionRouter(routes);
+export const routesSpec = await initMionRouter(routes);

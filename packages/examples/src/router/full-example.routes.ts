@@ -47,7 +47,7 @@ const routes = {
     log,
 } satisfies Routes;
 
-export const apiSpec = initMionRouter(routes, {
+export const apiSpec = await initMionRouter(routes, {
     contextDataFactory: getSharedData,
     prefix: 'api/v1',
 });

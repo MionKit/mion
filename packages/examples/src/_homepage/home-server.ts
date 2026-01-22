@@ -25,7 +25,7 @@ const routes = {
     sayHello: route((ctx, name: string): string => `Hello ${name}`),
 } satisfies Routes;
 
-export const myApi = initMionRouter(routes);
+export const myApi = await initMionRouter(routes);
 
 // @annotate: Export the type to use in the client
 export type MyApi = typeof myApi;

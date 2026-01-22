@@ -19,4 +19,4 @@ const routes = {
     }),
 } satisfies Routes;
 
-export const myApi = initMionRouter(routes, {contextDataFactory: initContextData});
+export const myApi = await initMionRouter(routes, {contextDataFactory: initContextData});

@@ -5,7 +5,7 @@ export type User = {id: string; name: string; surname: string};
 
 // set options and init router
 export const routerOptions: Partial<RouterOptions> = {prefix: 'api/v1'};
-export const myApi = initMionRouter(
+export const myApi = await initMionRouter(
     // all function parameters will be automatically validated before the function is called
     {
         auth: headersHook((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
