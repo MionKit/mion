@@ -57,8 +57,8 @@ describe('route & hooks init functions', () => {
     });
 
     it('should be able to still use reflection an validate param', async () => {
-        initRouter();
-        registerRoutes(routes);
+        await initRouter();
+        await registerRoutes(routes);
 
         // send all correct parameters
         const request: RawRequest = {

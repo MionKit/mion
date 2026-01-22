@@ -66,8 +66,8 @@ describe('Dispatch routes', () => {
 
     describe('success path should', () => {
         it('read data from body & route', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({changeUserName});
 
             const id = 'changeUserName';
             const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
@@ -84,8 +84,8 @@ describe('Dispatch routes', () => {
         });
 
         it('read data from header & hook', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({auth, changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
                 headers: headersFromRecord({Authorization: '1234'}),
@@ -107,8 +107,8 @@ describe('Dispatch routes', () => {
         // when the body is an array we assume it's a single route call and we have to reconstruct the body
         // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
         it('read data from body & route, when the body is a single array we should reconstruct full body request', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({changeUserName});
 
             const id = 'changeUserName';
             const request = {
@@ -128,12 +128,12 @@ describe('Dispatch routes', () => {
         });
 
         it('request and response headers are case insensitive', async () => {
-            initRouter({contextDataFactory: getSharedData});
+            await initRouter({contextDataFactory: getSharedData});
             const auth = headersHook((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
                 const token = h.headers.Authorization;
                 return new HeadersSubset({'User-Id': token === '1234' ? 'MyUser-Id' : 'Unknown'});
             });
-            registerRoutes({auth, changeUserName});
+            await registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
                 headers: headersFromRecord({AuThoriZatioN: '1234'}),
@@ -153,9 +153,9 @@ describe('Dispatch routes', () => {
         });
 
         it('should be able to accept request headers and regular rpc params', async () => {
-            initRouter({contextDataFactory: getSharedData});
+            await initRouter({contextDataFactory: getSharedData});
             const auth = headersHook((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
-            registerRoutes({auth, changeUserName});
+            await registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
                 headers: headersFromRecord({AuThoriZatioN: 'bearer-token-1234'}),
@@ -178,8 +178,8 @@ describe('Dispatch routes', () => {
         });
 
         it('if there are no params input field can be omitted', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({sayHello: route((): string => 'hello')});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({sayHello: route((): string => 'hello')});
 
             const path = '/sayHello';
             const id = 'sayHello';
@@ -212,8 +212,8 @@ describe('Dispatch routes', () => {
                 },
                 prefix: 'api/v1',
             };
-            initRouter(options);
-            registerRoutes({
+            await initRouter(options);
+            await registerRoutes({
                 getHello: route((): string => 'hello'), // GET api/v1/Hello
             });
 
@@ -223,7 +223,7 @@ describe('Dispatch routes', () => {
 
         // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another hook it wil work
         it('support async handlers and ensure execution in order', async () => {
-            initRouter({contextDataFactory: getSharedData});
+            await initRouter({contextDataFactory: getSharedData});
             const id = 'sumTwo';
             const routes = {
                 sumTwo: route(async (ctx, val: number): Promise<number> => {
@@ -238,7 +238,7 @@ describe('Dispatch routes', () => {
                     return `the total is ${ctx.response.body[id]}`;
                 }),
             } satisfies Routes;
-            registerRoutes(routes);
+            await registerRoutes(routes);
 
             const request = getDefaultRequest(id, [2]);
             const response = await dispatchRoute('/sumTwo', request.body, request.headers, headersFromRecord({}), request, {});
@@ -249,8 +249,8 @@ describe('Dispatch routes', () => {
 
     describe('fail path should', () => {
         it('return an error if no route is found', async () => {
-            initRouter({contextDataFactory: getSharedData, skipClientRoutes: false});
-            registerRoutes({changeUserName});
+            await initRouter({contextDataFactory: getSharedData, skipClientRoutes: false});
+            await registerRoutes({changeUserName});
 
             const request = getDefaultRequest('abcd', [{name: 'Leo', surname: 'Tungsten'}]);
 
@@ -266,8 +266,8 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if data is missing from header', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({auth, changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({auth, changeUserName});
 
             const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
@@ -291,8 +291,8 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if body is not the correct type', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({changeUserName});
 
             const request: RawRequest = {
                 headers: headersFromRecord({}),
@@ -338,8 +338,8 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if data is missing from body', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({changeUserName});
 
             const request = getDefaultRequest('changeUserName', []);
 
@@ -363,8 +363,8 @@ describe('Dispatch routes', () => {
         });
 
         it("return an error if can't deserialize", async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({getSameDate});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({getSameDate});
 
             const request = getDefaultRequest('getSameDate', []);
 
@@ -387,8 +387,8 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if validation fails, incorrect type', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({changeUserName});
 
             const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
             const request = getDefaultRequest('changeUserName', [wrongSimpleUser]);
@@ -413,8 +413,8 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if validation fails, empty type', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({changeUserName});
 
             const request = getDefaultRequest('changeUserName', [{}]);
 
@@ -440,12 +440,12 @@ describe('Dispatch routes', () => {
         });
 
         it('return an unknown error if a route fails with a generic error', async () => {
-            initRouter({contextDataFactory: getSharedData});
+            await initRouter({contextDataFactory: getSharedData});
 
             const routeFail = route((): void => {
                 throw new Error('this is a generic error');
             });
-            registerRoutes({routeFail});
+            await registerRoutes({routeFail});
 
             const request = getDefaultRequest('routeFail', []);
 
@@ -462,8 +462,8 @@ describe('Dispatch routes', () => {
         // TODO: not sure how to make serialization/validation throw an error
         // eslint-disable-next-line jest/no-disabled-tests
         it.skip("return an error if can't validate", async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({getSameDate});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({getSameDate});
 
             const request = getDefaultRequest('getSameDate', [1234]);
 
@@ -487,8 +487,8 @@ describe('Dispatch routes', () => {
 
     describe('parsedBody (a js object already parsed from json) functionality should', () => {
         it('use parsedBody when provided instead of parsing rawBody', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({changeUserName});
 
             const id = 'changeUserName';
             const jsBody = {[id]: [{name: 'Leo', surname: 'Tungsten'}]};
@@ -506,8 +506,8 @@ describe('Dispatch routes', () => {
         });
 
         it('handle parsedBody with Date objects correctly', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({getSameDate});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({getSameDate});
 
             const id = 'getSameDate';
             const testDate = new Date('2022-04-22T00:17:00.000Z');
@@ -527,8 +527,8 @@ describe('Dispatch routes', () => {
         });
 
         it('fallback to parsing rawBody when parsedBody is not provided', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({changeUserName});
 
             const id = 'changeUserName';
             const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
@@ -545,8 +545,8 @@ describe('Dispatch routes', () => {
         });
 
         it('handle empty rawBody and no parsedBody correctly', async () => {
-            initRouter({contextDataFactory: getSharedData});
-            registerRoutes({changeUserName});
+            await initRouter({contextDataFactory: getSharedData});
+            await registerRoutes({changeUserName});
 
             const response = await dispatchRoute(
                 '/changeUserName',
@@ -569,14 +569,14 @@ describe('Dispatch routes', () => {
 });
 
 describe('Route errors should', () => {
-    it('automatically generate error ids when RouteOptions autoGenerateErrorId is set to true', () => {
+    it('automatically generate error ids when RouteOptions autoGenerateErrorId is set to true', async () => {
         resetRouter();
-        initRouter({autoGenerateErrorId: true});
+        await initRouter({autoGenerateErrorId: true});
         const error = new RpcError({publicMessage: 'error', type: 'test-error'});
         expect(typeof error.id).toEqual('string');
 
         resetRouter();
-        initRouter({autoGenerateErrorId: false});
+        await initRouter({autoGenerateErrorId: false});
         const error2 = new RpcError({publicMessage: 'error', type: 'test-error'});
         expect(error2.id).toEqual(undefined);
     });

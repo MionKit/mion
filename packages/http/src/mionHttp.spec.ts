@@ -68,10 +68,10 @@ describe('node http router', () => {
     });
 
     describe('with useJitStringify=true (default)', () => {
-        beforeAll(() => {
+        beforeAll(async () => {
             resetRouter();
-            initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-            registerRoutes({changeUserName, getDate, updateHeaders});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await registerRoutes({changeUserName, getDate, updateHeaders});
         });
 
         it('get an ok response from a route', async () => {
@@ -172,8 +172,8 @@ describe('node http router', () => {
 
             // Restore router state for the shared server
             resetRouter();
-            initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-            registerRoutes({changeUserName, getDate, updateHeaders});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await registerRoutes({changeUserName, getDate, updateHeaders});
         });
 
         it('skip server initialization', async () => {
@@ -190,8 +190,8 @@ describe('node http router', () => {
             resetNodeHttpOpts();
             resetRouter();
             setNodeHttpOpts(httpOpts);
-            initRouter(routerOpts);
-            registerRoutes({changeUserName, getDate, updateHeaders});
+            await initRouter(routerOpts);
+            await registerRoutes({changeUserName, getDate, updateHeaders});
             const smallServer = await startNodeServer();
             const persistedMethods = getPersistedMethods();
             expect(smallServer.listening).toBe(false);
@@ -201,13 +201,13 @@ describe('node http router', () => {
     });
 
     describe('with useJitStringify=false', () => {
-        beforeAll(() => {
+        beforeAll(async () => {
             // Reset HTTP options to clear maxBodySize from previous test
             resetNodeHttpOpts();
             setNodeHttpOpts({port});
             resetRouter();
-            initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
-            registerRoutes({changeUserName, getDate});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
+            await registerRoutes({changeUserName, getDate});
         });
 
         it('get an ok response from a route with Date objects (body type O)', async () => {

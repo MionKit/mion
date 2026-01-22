@@ -32,6 +32,8 @@ export const DEFAULT_ROUTE_OPTIONS = {
     autoGenerateErrorId: false,
     /** client routes are initialized by default */
     skipClientRoutes: false || IS_TEST_ENV,
+    /** AOT mode is disabled by default */
+    aot: false,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;

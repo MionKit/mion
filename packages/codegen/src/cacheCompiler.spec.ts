@@ -210,7 +210,7 @@ it('should compile pure functions cache to code', () => {
     compilePureCJS();
 });
 
-it('should compile router methods cache to code', () => {
+it('should compile router methods cache to code', async () => {
     const originalCompile = process.env.MION_COMPILE;
     process.env.MION_COMPILE = 'true';
     // a real scenario would use compileAndWriteRouterMethods instead compileTypeToJs to persis to fileSystem
@@ -232,8 +232,8 @@ it('should compile router methods cache to code', () => {
     } satisfies Routes;
 
     // Initialize router and register routes to create persisted methods
-    initRouter();
-    registerRoutes(testRoutes);
+    await initRouter();
+    await registerRoutes(testRoutes);
 
     // Verify that methods were persisted
     const persistedMethods = getPersistedMethods();
