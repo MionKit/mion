@@ -451,10 +451,14 @@ export const nullJitFns: JitCompiledFunctions = {
     fromBinary: fakeJitFn(),
 } as any;
 
-function fakeJitFn(): (...args: any[]) => any {
-    return () => {
-        throw new Error(
-            'Raw Hooks and Handlers with no params or void return do not have JIT functions and should not be called.'
-        );
+/** Creates a fake JIT function with isNoop=true for handlers with no params or void return */
+function fakeJitFn(): {fn: (...args: any[]) => any; isNoop: true} {
+    return {
+        fn: () => {
+            throw new Error(
+                'Raw Hooks and Handlers with no params or void return do not have JIT functions and should not be called.'
+            );
+        },
+        isNoop: true,
     };
 }

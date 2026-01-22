@@ -39,6 +39,7 @@ import type {IndexSignatureRunType} from '../nodes/member/indexProperty';
 import type {MethodSignatureRunType} from '../nodes/member/methodSignature';
 import type {CallSignatureRunType} from '../nodes/member/callSignature';
 import type {FunctionRunType} from '../nodes/function/function';
+import type {FunctionParamsRunType} from '../nodes/collection/functionParams';
 import type {ParameterRunType} from '../nodes/member/param';
 import type {PromiseRunType} from '../nodes/native/promise';
 import type {ObjectRunType} from '../nodes/atomic/object';
@@ -83,6 +84,10 @@ export function isEnumMemberRunType(rt: RunType): rt is EnumMemberRunType {
 
 export function isFunctionRunType(rt: RunType): rt is FunctionRunType<any> {
     return rt.src.kind === ReflectionKind.function;
+}
+
+export function isFunctionParamsRunType(rt: RunType): rt is FunctionParamsRunType {
+    return rt.src.subKind === ReflectionSubKind.params;
 }
 
 export function isAnyFunctionRunType(rt: RunType): rt is FunctionRunType<any> {
