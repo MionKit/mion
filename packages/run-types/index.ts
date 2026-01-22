@@ -68,4 +68,3 @@ export type * from './src/nodes/native/map';
 export type * from './src/nodes/native/nonSerializable';
 export type * from './src/nodes/native/promise';
 export type * from './src/nodes/native/set';
-export type * from './src/nodes/other/unionInterface';
