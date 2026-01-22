@@ -54,7 +54,7 @@ let runTypesLoadPromise: Promise<RunTypesModule> | null = null;
  * The module is cached after first load to avoid multiple imports.
  * @returns Promise resolving to the run-types module
  */
-async function loadRunTypes(): Promise<RunTypesModule> {
+async function loadRunTypesModule(): Promise<RunTypesModule> {
     // Return cached module if already loaded
     if (runTypesModule) return runTypesModule;
 
@@ -158,19 +158,19 @@ export async function getHandlerReflection(
     }
 
     // Non-AOT mode: dynamically load run-types and generate reflection
-    const rt = await loadRunTypes();
+    const rt = await loadRunTypesModule();
     return generateHandlerReflection(handler, routeId, routerOptions, isHeaderHook, rt);
 }
 
 /**
  * Gets reflection data for a raw hook.
  * Raw hooks don't use full reflection - they don't need JIT functions.
- * This function does NOT check the AOT cache because raw hooks don't need
- * to be in the cache - they always use nullJitFns.
+ * Raw hooks don't NEED to be in the AOT cache, but if they are, we can use
+ * the cached data (especially the isAsync flag).
  *
  * In AOT mode, this function does NOT load run-types because raw hooks
  * only need to know if the handler is async, which can be determined
- * by checking if the handler returns a Promise.
+ * from the cache or by using a conservative assumption.
  *
  * @param handler The handler function
  * @param routeId The route/hook identifier
@@ -182,29 +182,38 @@ export async function getRawMethodReflection(
     routeId: string,
     routerOptions: RouterOptions
 ): Promise<MethodReflect> {
-    // Raw hooks don't need JIT functions, so we don't need to check the AOT cache
-    // or load run-types. We just need to determine if the handler is async.
+    // Check if raw hook is in cache - if so, use cached data (especially isAsync)
+    const cached = persistedMethods[routeId];
+    if (cached) {
+        // Raw hooks always use nullJitFns, but we can use cached isAsync value
+        return {
+            paramNames: cached.paramNames || [],
+            paramsJitFns: nullJitFns,
+            returnJitFns: nullJitFns,
+            paramsJitHash: EMPTY_HASH,
+            returnJitHash: EMPTY_HASH,
+            hasReturnData: cached.hasReturnData,
+            isAsync: cached.isAsync,
+        };
+    }
 
-    // In AOT mode, we can't use run-types to check if the handler is async,
-    // so we check if the handler returns a Promise by calling it with a mock context.
-    // However, this is not reliable, so we'll just assume raw hooks are sync unless
-    // we can determine otherwise. For proper async detection, use non-AOT mode.
+    // Raw hooks don't need JIT functions, so we don't need to load run-types in AOT mode
     if (routerOptions.aot) {
         // In AOT mode, return simple reflection without loading run-types
-        // We assume raw hooks are sync - if async detection is needed, use non-AOT mode
+        // Use conservative assumption for isAsync since we can't detect it without run-types
         return {
             paramNames: [],
             paramsJitFns: nullJitFns,
             returnJitFns: nullJitFns,
-            paramsJitHash: '',
-            returnJitHash: '',
+            paramsJitHash: EMPTY_HASH,
+            returnJitHash: EMPTY_HASH,
             hasReturnData: false,
-            isAsync: false, // Conservative assumption in AOT mode
+            isAsync: true, // Conservative assumption in AOT mode
         };
     }
 
     // Non-AOT mode: dynamically load run-types to properly detect if handler is async
-    const rt = await loadRunTypes();
+    const rt = await loadRunTypesModule();
     return generateRawMethodReflection(handler, routeId, rt);
 }
 
@@ -314,7 +323,7 @@ function generateRawMethodReflection(handler: Handler, routeId: string, rt: RunT
         paramsJitHash: '',
         returnJitHash: '',
         hasReturnData: false,
-        isAsync: handlerRunType.isAsync(),
+        isAsync: handlerRunType?.isAsync() || true,
     };
     return reflectionItems;
 }
