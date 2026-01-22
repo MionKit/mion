@@ -43,7 +43,7 @@
 - Prefer type casting over type assertions
 - Maintain consistent formatting with existing codebase
 - Don't use @param and @returns comments in JSDoc
-
+- prefer one liner comments for functions ie: /** does this and that **/
 
 ## Development Workflow
 - Never run `npm run build` during development (only for publishing)
