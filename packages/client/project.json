@@ -1,0 +1,13 @@
+{
+  "name": "@mionkit/client",
+  "targets": {
+    "test": {
+      "dependsOn": [],
+      "outputs": ["{workspaceRoot}/.coverage"],
+      "executor": "nx:run-script",
+      "options": {
+        "script": "test"
+      }
+    }
+  }
+}
