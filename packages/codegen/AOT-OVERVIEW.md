@@ -8,6 +8,7 @@ This has few benefits:
 
 - Improving application startup performance and memory.
 - Run in secure environments as no `new Function` is used.
+- **Lazy loading**: When `aot: true` is set, the heavy `@mionkit/run-types` package is NOT loaded at all.
 
 The AOT compilation generates a package that can be published and installed independently using npm or similar.
 
@@ -17,6 +18,7 @@ The AOT compilation generates a package that can be published and installed inde
 - **Startup Speed**: Eliminate runtime compilation overhead by loading pre-built caches
 - **Dual Module Support**: Generate both CommonJS (CJS) and ES Module (ESM) formats
 - **Transparent Integration**: Load AOT caches seamlessly into the mion runtime
+- **Lazy Loading**: In AOT mode, `@mionkit/run-types` is never loaded, reducing bundle size and memory usage
 
 ## CLI Commands
 
@@ -76,11 +78,83 @@ npx mion-build-aot \
 // In your application startup code
 import {loadAOTCaches} from 'my-api-aot';
 
-// Load pre-compiled caches
+// Load pre-compiled caches BEFORE initializing the router
 loadAOTCaches();
 
-// Now initialize your router and routes
-import {initRouter, registerRoutes} from '@mionkit/router';
-const router = initRouter();
-registerRoutes(myRoutes);
+// Now initialize your router and routes (async)
+import {initMionRouter} from '@mionkit/router';
+const myApi = await initMionRouter(myRoutes, {aot: true});
+```
+
+## AOT Mode Option
+
+When initializing the router, you can enable AOT mode by setting `aot: true`:
+
+```typescript
+import {initMionRouter} from '@mionkit/router';
+
+// Enable AOT mode - run-types package will NOT be loaded
+const myApi = await initMionRouter(routes, {aot: true});
+```
+
+### Benefits of AOT Mode
+
+1. **No `@mionkit/run-types` loading**: The heavy run-types package is never imported
+2. **Faster cold starts**: No runtime type reflection or JIT compilation
+3. **Smaller bundles**: With proper tree-shaking, run-types is excluded from production bundles
+4. **Secure environments**: No `new Function()` calls at runtime
+
+### AOT Mode Validation
+
+When `aot: true` is set, the router validates that all routes and hooks have their JIT functions in the AOT cache. If any route is missing from the cache, an `AOTCacheError` is thrown:
+
+```
+AOTCacheError: Route/hook "users/getUser" not found in AOT cache.
+Regenerate AOT caches using 'mion-build-aot' command.
+```
+
+This fail-fast behavior ensures you don't accidentally deploy with incomplete AOT caches.
+
+## Migration Guide
+
+### Async Initialization
+
+Router initialization functions are now async. Update your code:
+
+**Before:**
+
+```typescript
+import {initMionRouter} from '@mionkit/router';
+const myApi = initMionRouter(routes);
+```
+
+**After:**
+
+```typescript
+import {initMionRouter} from '@mionkit/router';
+const myApi = await initMionRouter(routes);
+```
+
+### Test Files
+
+Update your test files to use async/await:
+
+**Before:**
+
+```typescript
+beforeAll(() => {
+  resetRouter();
+  initRouter();
+  registerRoutes(routes);
+});
+```
+
+**After:**
+
+```typescript
+beforeAll(async () => {
+  resetRouter();
+  await initRouter();
+  await registerRoutes(routes);
+});
 ```
