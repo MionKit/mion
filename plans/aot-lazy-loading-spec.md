@@ -16,36 +16,61 @@ Currently, the `@mionkit/router` package imports `@mionkit/run-types` directly v
 1. **Lazy load run-types**: Only import `@mionkit/run-types` when actually needed (non-AOT mode)
 2. **AOT validation**: In AOT mode, validate that all routes/hooks have their JIT functions in cache
 3. **Fail fast**: Throw clear errors if AOT cache is incomplete rather than silently falling back
-4. **Async initialization**: Support async router initialization to enable dynamic imports
-5. **Minimal test changes**: Use an `isRouterInitialized()` promise pattern to minimize changes to existing tests
-6. **Platform adapter support**: Update HTTP, AWS, GCloud, and Bun adapters to await initialization
+4. **Async initialization**: Make `initRouter` and `registerRoutes` async to enable dynamic imports
+5. **Centralized reflection**: All run-types loading logic encapsulated in `reflection.ts`
 
 ## Architecture Overview
 
+The key insight is that **all run-types functionality is encapsulated in [`packages/router/src/lib/reflection.ts`](packages/router/src/lib/reflection.ts)**. This module is the single point of contact between the router and run-types, making it the ideal place to implement AOT/dynamic loading logic.
+
 ```mermaid
 flowchart TD
-    subgraph Router Initialization
-        A[initMionRouter] --> B{AOT Mode?}
-        B -->|Yes| C[Validate AOT Cache]
-        B -->|No| D[Dynamic Import run-types]
-        C --> E{Cache Complete?}
-        E -->|Yes| F[Use Cached JIT Functions]
-        E -->|No| G[Throw AOT Cache Error]
-        D --> H[Generate JIT Functions]
-        H --> I[Store in Cache]
-        F --> J[Router Ready]
+    subgraph reflection.ts - Central Loading Logic
+        A[getHandlerReflection] --> B{Check AOT Cache}
+        B -->|Found in Cache| C[Return Cached Data]
+        B -->|Not in Cache| D{AOT Mode?}
+        D -->|Yes| E[Throw AOTCacheError]
+        D -->|No| F[Dynamic Import run-types]
+        F --> G[Generate JIT Functions]
+        G --> H[Store in Cache]
+        H --> I[Return Generated Data]
+        C --> J[Return MethodReflect]
         I --> J
     end
 
-    subgraph Platform Adapters
-        K[startNodeServer] --> L[await isRouterInitialized]
-        M[awsLambdaHandler] --> L
-        N[googleCFHandler] --> L
-        L --> O[Handle Requests]
+    subgraph Router
+        K[registerRoutes] --> L[getExecutableFromRoute]
+        L --> A
+        M[getExecutableFromHook] --> A
+        N[getExecutableFromRawHook] --> O[getRawMethodReflection]
+        O --> B
     end
 
-    J --> L
+    subgraph Data Sources
+        P[AOT Cache - persistedMethods] --> B
+        Q[run-types Package] --> F
+    end
 ```
+
+## Implementation Strategy
+
+### Phase 1: Reflection Module First
+
+The first and most critical step is to refactor [`packages/router/src/lib/reflection.ts`](packages/router/src/lib/reflection.ts) to:
+
+1. Check AOT cache first for any reflection request
+2. If found in cache, return cached data (no run-types needed)
+3. If not in cache and AOT mode, throw `AOTCacheError`
+4. If not in cache and non-AOT mode, dynamically import run-types
+
+**This module must be thoroughly tested before proceeding with other changes.**
+
+Create [`packages/router/src/lib/reflection-aot.spec.ts`](packages/router/src/lib/reflection-aot.spec.ts) to verify:
+
+- AOT cache hit returns cached data without loading run-types
+- AOT cache miss in AOT mode throws `AOTCacheError`
+- AOT cache miss in non-AOT mode dynamically loads run-types
+- Dynamic import only happens once (module is cached)
 
 ## Detailed Design
 
@@ -68,55 +93,43 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
 }
 ```
 
-### 2. Async Initialization Pattern
+### 2. Reflection Module Refactoring
 
-Instead of making `initMionRouter` async (which would require changing all tests), introduce an `isRouterInitialized()` function:
-
-```typescript
-// packages/router/src/router.ts
-
-let initializationPromise: Promise<void> | null = null;
-let initializationResolver: (() => void) | null = null;
-
-/**
- * Returns a promise that resolves when the router is fully initialized.
- * In non-AOT mode, this waits for dynamic imports to complete.
- * In AOT mode, this resolves immediately after cache validation.
- */
-export function isRouterInitialized(): Promise<void> {
-  if (!initializationPromise) {
-    // Create a deferred promise
-    initializationPromise = new Promise((resolve) => {
-      initializationResolver = resolve;
-    });
-  }
-  return initializationPromise;
-}
-
-// Called internally when initialization completes
-function markInitialized(): void {
-  if (initializationResolver) {
-    initializationResolver();
-  }
-}
-```
-
-### 3. Reflection Module Refactoring
-
-Transform [`packages/router/src/lib/reflection.ts`](packages/router/src/lib/reflection.ts) to use dynamic imports:
+Transform [`packages/router/src/lib/reflection.ts`](packages/router/src/lib/reflection.ts) to be the central point for AOT/run-types loading:
 
 ```typescript
 // packages/router/src/lib/reflection.ts
 
-// Type-only imports (these don't cause runtime loading)
-import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions} from '@mionkit/run-types';
+// ############ This file is the ONLY one importing '@mionkit/run-types' within the router ########
+// All run-types loading logic is encapsulated here.
+// In AOT mode, run-types is never loaded - all data comes from cache.
 
-// Lazy-loaded module reference
+// Type-only imports (these don't cause runtime loading)
+import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnCompiler} from '@mionkit/run-types';
+import type {MethodWithJitFns, AnyFn, JitCompiledFunctions} from '@mionkit/core';
+import {Handler} from '../types/handlers';
+import {RouterOptions} from '../types/general';
+import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants';
+import {EMPTY_HASH, HeadersSubset} from '@mionkit/core';
+import {getPersistedMethod, addToPersistedMethods} from './methodsCache';
+
+// Lazy-loaded module reference - only loaded in non-AOT mode
 let runTypesModule: typeof import('@mionkit/run-types') | null = null;
+
+// AOT Cache Error
+export class AOTCacheError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AOTCacheError';
+  }
+}
+
+type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
 
 /**
  * Dynamically loads the run-types module.
- * Only called in non-AOT mode.
+ * Only called in non-AOT mode when cache miss occurs.
+ * Module is cached after first load.
  */
 async function loadRunTypes(): Promise<typeof import('@mionkit/run-types')> {
   if (runTypesModule) return runTypesModule;
@@ -126,212 +139,350 @@ async function loadRunTypes(): Promise<typeof import('@mionkit/run-types')> {
 
 /**
  * Gets handler reflection data.
- * In AOT mode, retrieves from cache.
- * In non-AOT mode, dynamically loads run-types and generates.
+ *
+ * Loading Strategy:
+ * 1. Check if data exists in AOT cache (persistedMethods)
+ * 2. If found, return cached data (no run-types loading)
+ * 3. If not found and AOT mode, throw AOTCacheError
+ * 4. If not found and non-AOT mode, dynamically load run-types and generate
  */
-export async function getHandlerReflectionAsync(
+export async function getHandlerReflection(
   handler: Handler,
   routeId: string,
   routerOptions: RouterOptions,
   isHeaderHook: boolean = false
 ): Promise<MethodReflect> {
-  // Check if already in cache (AOT mode)
+  // Step 1: Check AOT cache first
   const cached = getPersistedMethod(routeId, handler);
   if (cached) {
+    // Cache hit - return cached data without loading run-types
     return extractReflectionFromCached(cached);
   }
 
-  // AOT mode requires all methods to be in cache
+  // Step 2: Cache miss - check if AOT mode
   if (routerOptions.aot) {
     throw new AOTCacheError(
       `Route/hook "${routeId}" not found in AOT cache. ` + `Regenerate AOT caches using 'mion-build-aot' command.`
     );
   }
 
-  // Non-AOT mode: dynamically load run-types
+  // Step 3: Non-AOT mode - dynamically load run-types and generate
   const rt = await loadRunTypes();
-  return generateReflection(handler, routeId, routerOptions, isHeaderHook, rt);
-}
-```
-
-### 4. Router Initialization Flow
-
-Update [`packages/router/src/router.ts`](packages/router/src/router.ts) to handle async initialization:
-
-```typescript
-export function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): PublicApi<R> {
-  initRouter(opts);
-  const publicApi = registerRoutes(routes);
-
-  // Start async initialization in background
-  initializeAsync(opts?.aot ?? false).catch((err) => {
-    console.error('Router initialization failed:', err);
-    throw err;
-  });
-
-  return publicApi;
+  return generateReflectionWithRunTypes(handler, routeId, routerOptions, isHeaderHook, rt);
 }
 
-async function initializeAsync(isAOT: boolean): Promise<void> {
-  if (isAOT) {
-    // Validate all routes have cached JIT functions
-    validateAOTCache();
-  } else {
-    // Generate JIT functions for any routes not in cache
-    await generateMissingReflections();
-  }
-  markInitialized();
-}
-```
-
-### 5. AOT Cache Validation
-
-Add validation to ensure all routes have their JIT functions:
-
-```typescript
-// packages/router/src/lib/aotValidation.ts
-
-export class AOTCacheError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AOTCacheError';
-  }
-}
-
-export function validateAOTCache(): void {
-  const allIds = getAllExecutablesIds();
-  const missingIds: string[] = [];
-
-  for (const id of allIds) {
-    const executable = getAnyExecutable(id);
-    if (!executable) continue;
-
-    // Check if JIT functions are properly loaded
-    if (!hasValidJitFunctions(executable)) {
-      missingIds.push(id);
-    }
+/**
+ * Gets raw method reflection data.
+ * Raw hooks have minimal reflection needs but still need isAsync check.
+ */
+export async function getRawMethodReflection(
+  handler: Handler,
+  routeId: string,
+  routerOptions: RouterOptions
+): Promise<MethodReflect> {
+  // Step 1: Check AOT cache first
+  const cached = getPersistedMethod(routeId, handler);
+  if (cached) {
+    return extractReflectionFromCached(cached);
   }
 
-  if (missingIds.length > 0) {
+  // Step 2: Cache miss - check if AOT mode
+  if (routerOptions.aot) {
     throw new AOTCacheError(
-      `AOT cache is incomplete. Missing JIT functions for: ${missingIds.join(', ')}. ` +
-        `Regenerate AOT caches using 'mion-build-aot' command.`
+      `Raw hook "${routeId}" not found in AOT cache. ` + `Regenerate AOT caches using 'mion-build-aot' command.`
     );
   }
+
+  // Step 3: Non-AOT mode - dynamically load run-types for isAsync check
+  const rt = await loadRunTypes();
+  const handlerRunType = rt.reflectFunction(handler);
+
+  return {
+    paramNames: [],
+    paramsJitFns: nullJitFns,
+    returnJitFns: nullJitFns,
+    paramsJitHash: '',
+    returnJitHash: '',
+    hasReturnData: false,
+    isAsync: handlerRunType.isAsync(),
+  };
 }
 
-function hasValidJitFunctions(executable: RemoteMethod): boolean {
-  // Raw hooks don't need JIT functions
-  if (executable.type === HandlerType.rawHook) return true;
-
-  // Check params JIT functions (unless no params)
-  if (executable.paramNames?.length > 0) {
-    if (!executable.paramsJitFns?.isType?.fn) return false;
-  }
-
-  // Check return JIT functions (unless void return)
-  if (executable.hasReturnData) {
-    if (!executable.returnJitFns?.isType?.fn) return false;
-  }
-
-  return true;
+/**
+ * Extracts reflection data from a cached method.
+ * Used when AOT cache hit occurs.
+ */
+function extractReflectionFromCached(cached: any): MethodReflect {
+  return {
+    paramNames: cached.paramNames,
+    paramsJitFns: cached.paramsJitFns,
+    returnJitFns: cached.returnJitFns,
+    paramsJitHash: cached.paramsJitHash,
+    returnJitHash: cached.returnJitHash,
+    hasReturnData: cached.hasReturnData,
+    isAsync: cached.isAsync,
+    headersParam: cached.headersParam,
+    headersReturn: cached.headersReturn,
+  };
 }
+
+/**
+ * Generates reflection data using run-types.
+ * Only called in non-AOT mode when cache miss occurs.
+ */
+function generateReflectionWithRunTypes(
+  handler: Handler,
+  routeId: string,
+  routerOptions: RouterOptions,
+  isHeaderHook: boolean,
+  rt: typeof import('@mionkit/run-types')
+): MethodReflect {
+  // ... existing implementation using rt module ...
+  // All run-types functions accessed via rt parameter
+}
+
+// ... rest of helper functions that use run-types module parameter ...
 ```
 
-### 6. Platform Adapter Updates
+### 3. Reflection AOT Test File
 
-The `isRouterInitialized()` function is idempotent - it always returns the same promise instance. This means platform adapters can simply call `await isRouterInitialized()` directly without needing to cache the promise themselves.
-
-#### Node HTTP Server ([`packages/http/src/mionHttp.ts`](packages/http/src/mionHttp.ts))
+Create [`packages/router/src/lib/reflection-aot.spec.ts`](packages/router/src/lib/reflection-aot.spec.ts):
 
 ```typescript
-export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promise<HttpServer | HttpsServer> {
-  // Wait for router initialization before starting server
-  await isRouterInitialized();
+/* ########
+ * 2024 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
 
-  // ... existing implementation ...
-}
-```
+import {getHandlerReflection, getRawMethodReflection, AOTCacheError, nullJitFns} from './reflection';
+import {setPersistedMethods, resetPersistedMethods} from './methodsCache';
+import {RouterOptions} from '../types/general';
+import {DEFAULT_ROUTE_OPTIONS} from '../constants';
+import type {CallContext} from '../types/context';
 
-#### AWS Lambda ([`packages/aws/src/awsLambda.ts`](packages/aws/src/awsLambda.ts))
+// Test handlers
+const simpleHandler = (ctx: CallContext, name: string): string => `Hello ${name}`;
+const asyncHandler = async (ctx: CallContext, id: number): Promise<{id: number}> => ({id});
+const noParamsHandler = (ctx: CallContext): void => {};
+const rawHandler = (ctx: CallContext, req: any, res: any): void => {};
 
-```typescript
-export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
-  // Wait for router initialization (isRouterInitialized() returns same promise, so this is efficient)
-  await isRouterInitialized();
-
-  // ... existing implementation ...
-}
-```
-
-#### Google Cloud Functions ([`packages/gcloud/src/googleCF.ts`](packages/gcloud/src/googleCF.ts))
-
-```typescript
-export async function googleCFHandler(rawRequest: Request, rawResponse: Response): Promise<void> {
-  // Wait for router initialization
-  await isRouterInitialized();
-
-  // ... existing implementation ...
-}
-```
-
-### 7. Vite/Bundler Configuration
-
-For Vite to properly tree-shake run-types when not needed, the dynamic import pattern should work automatically. However, document the recommended configuration:
-
-```typescript
-// vite.config.ts for AOT builds
-export default defineConfig({
-  build: {
-    rollupOptions: {
-      external: ['@mionkit/run-types'], // Exclude from bundle in AOT mode
-    },
+// Mock AOT cache data
+const mockCachedMethod = {
+  paramNames: ['name'],
+  paramsJitFns: {
+    /* mock JIT functions */
   },
+  returnJitFns: {
+    /* mock JIT functions */
+  },
+  paramsJitHash: 'mock-params-hash',
+  returnJitHash: 'mock-return-hash',
+  hasReturnData: true,
+  isAsync: false,
+};
+
+describe('reflection.ts AOT Loading', () => {
+  const defaultOpts: RouterOptions = {...DEFAULT_ROUTE_OPTIONS, aot: false};
+  const aotOpts: RouterOptions = {...DEFAULT_ROUTE_OPTIONS, aot: true};
+
+  beforeEach(() => {
+    resetPersistedMethods();
+  });
+
+  describe('getHandlerReflection', () => {
+    describe('AOT Cache Hit', () => {
+      it('should return cached data without loading run-types', async () => {
+        // Setup: populate cache with mock data
+        setPersistedMethods({
+          'test/route': mockCachedMethod,
+        });
+
+        const result = await getHandlerReflection(simpleHandler, 'test/route', aotOpts, false);
+
+        expect(result.paramNames).toEqual(['name']);
+        expect(result.paramsJitHash).toBe('mock-params-hash');
+        expect(result.hasReturnData).toBe(true);
+      });
+
+      it('should work in both AOT and non-AOT mode when cache hit', async () => {
+        setPersistedMethods({
+          'test/route': mockCachedMethod,
+        });
+
+        // AOT mode
+        const aotResult = await getHandlerReflection(simpleHandler, 'test/route', aotOpts, false);
+        expect(aotResult.paramNames).toEqual(['name']);
+
+        // Non-AOT mode
+        const nonAotResult = await getHandlerReflection(simpleHandler, 'test/route', defaultOpts, false);
+        expect(nonAotResult.paramNames).toEqual(['name']);
+      });
+    });
+
+    describe('AOT Cache Miss - AOT Mode', () => {
+      it('should throw AOTCacheError when route not in cache', async () => {
+        await expect(getHandlerReflection(simpleHandler, 'missing/route', aotOpts, false)).rejects.toThrow(AOTCacheError);
+      });
+
+      it('should include route ID in error message', async () => {
+        await expect(getHandlerReflection(simpleHandler, 'users/getUser', aotOpts, false)).rejects.toThrow('users/getUser');
+      });
+
+      it('should suggest regenerating AOT caches', async () => {
+        await expect(getHandlerReflection(simpleHandler, 'test/route', aotOpts, false)).rejects.toThrow('mion-build-aot');
+      });
+    });
+
+    describe('AOT Cache Miss - Non-AOT Mode', () => {
+      it('should dynamically load run-types and generate reflection', async () => {
+        const result = await getHandlerReflection(simpleHandler, 'test/route', defaultOpts, false);
+
+        expect(result.paramNames).toContain('name');
+        expect(result.paramsJitFns).toBeDefined();
+        expect(result.returnJitFns).toBeDefined();
+      });
+
+      it('should handle async handlers correctly', async () => {
+        const result = await getHandlerReflection(asyncHandler, 'test/asyncRoute', defaultOpts, false);
+
+        expect(result.isAsync).toBe(true);
+        expect(result.paramNames).toContain('id');
+      });
+
+      it('should handle handlers with no params', async () => {
+        const result = await getHandlerReflection(noParamsHandler, 'test/noParams', defaultOpts, false);
+
+        expect(result.paramNames).toEqual([]);
+        expect(result.paramsJitFns).toBe(nullJitFns);
+      });
+    });
+  });
+
+  describe('getRawMethodReflection', () => {
+    describe('AOT Cache Hit', () => {
+      it('should return cached data for raw hooks', async () => {
+        const rawCached = {
+          ...mockCachedMethod,
+          paramNames: [],
+          hasReturnData: false,
+        };
+        setPersistedMethods({
+          'test/rawHook': rawCached,
+        });
+
+        const result = await getRawMethodReflection(rawHandler, 'test/rawHook', aotOpts);
+
+        expect(result.paramNames).toEqual([]);
+        expect(result.hasReturnData).toBe(false);
+      });
+    });
+
+    describe('AOT Cache Miss - AOT Mode', () => {
+      it('should throw AOTCacheError for raw hooks not in cache', async () => {
+        await expect(getRawMethodReflection(rawHandler, 'missing/rawHook', aotOpts)).rejects.toThrow(AOTCacheError);
+      });
+    });
+
+    describe('AOT Cache Miss - Non-AOT Mode', () => {
+      it('should dynamically load run-types for isAsync check', async () => {
+        const result = await getRawMethodReflection(rawHandler, 'test/rawHook', defaultOpts);
+
+        expect(result.paramNames).toEqual([]);
+        expect(result.paramsJitFns).toBe(nullJitFns);
+        expect(result.returnJitFns).toBe(nullJitFns);
+        expect(result.hasReturnData).toBe(false);
+      });
+    });
+  });
+
+  describe('Dynamic Import Caching', () => {
+    it('should only load run-types module once', async () => {
+      // First call - should trigger dynamic import
+      await getHandlerReflection(simpleHandler, 'route1', defaultOpts, false);
+
+      // Second call - should use cached module
+      await getHandlerReflection(asyncHandler, 'route2', defaultOpts, false);
+
+      // Both should succeed without errors
+      // (In a real test, we'd mock the import to verify it's only called once)
+    });
+  });
 });
+```
+
+### 4. Async Router Functions
+
+After reflection.ts is working and tested, make router functions async:
+
+```typescript
+// packages/router/src/router.ts
+
+export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonly<RouterOptions>> {
+  if (isRouterInitialized) throw new Error('Router has already been initialized');
+  routerOptions = {...routerOptions, ...opts};
+  validateSharedDataFactory(routerOptions);
+  Object.freeze(routerOptions);
+  setErrorOptions(routerOptions);
+  isRouterInitialized = true;
+  await registerRoutes({...mionErrorsRoutes});
+  if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});
+  return routerOptions;
+}
+
+export async function registerRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
+  if (!isRouterInitialized) throw new Error('initRouter should be called first');
+
+  startHooks = await getExecutablesFromHooksCollectionAsync(startHooksDef);
+  endHooks = await getExecutablesFromHooksCollectionAsync(endHooksDef);
+  await recursiveFlatRoutesAsync(routes);
+
+  if (shouldFullGenerateSpec()) return getPublicApi(routes);
+  return {} as PublicApi<R>;
+}
+
+export async function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): Promise<PublicApi<R>> {
+  await initRouter(opts);
+  return registerRoutes(routes);
+}
 ```
 
 ## Implementation Tasks
 
-### Phase 1: Core Infrastructure
+### Phase 1: Reflection Module (FIRST PRIORITY)
 
 - [ ] Add `aot` option to `RouterOptions` interface
-- [ ] Create `AOTCacheError` class in new file `packages/router/src/lib/aotValidation.ts`
-- [ ] Implement `isRouterInitialized()` promise pattern in router.ts
-- [ ] Add `markInitialized()` internal function
-
-### Phase 2: Reflection Module Refactoring
-
+- [ ] Create `AOTCacheError` class in reflection.ts
 - [ ] Convert static imports to type-only imports in reflection.ts
 - [ ] Create `loadRunTypes()` async function for dynamic import
-- [ ] Create async versions of reflection functions:
-  - [ ] `getHandlerReflectionAsync()`
-  - [ ] `getRawMethodReflectionAsync()`
-- [ ] Update helper functions to accept run-types module as parameter
+- [ ] Create `extractReflectionFromCached()` helper function
+- [ ] Make `getHandlerReflection()` async with AOT cache check
+- [ ] Make `getRawMethodReflection()` async with AOT cache check
+- [ ] Update all helper functions to accept run-types module as parameter
+- [ ] **Create `reflection-aot.spec.ts` test file**
+- [ ] **Run and verify all reflection tests pass**
 
-### Phase 3: Router Initialization Updates
+Note on AOT Validation Testing: For testing AOT cache validation, we can mock the AOT cache data before starting the router. This allows us to test scenarios like:
 
-- [ ] Modify `initMionRouter()` to trigger async initialization
-- [ ] Create `initializeAsync()` internal function
-- [ ] Implement `validateAOTCache()` function
-- [ ] Implement `generateMissingReflections()` for non-AOT mode
-- [ ] Update `getExecutableFromHook()` to work with async reflection
-- [ ] Update `getExecutableFromRawHook()` to work with async reflection
-- [ ] Update `getExecutableFromRoute()` to work with async reflection
+### Phase 2: Router Initialization (After Phase 1 is complete and tested)
 
-### Phase 4: Platform Adapter Updates
+- [ ] Make `initRouter()` async
+- [ ] Make `registerRoutes()` async
+- [ ] Make `initMionRouter()` async
+- [ ] Create async versions of route processing functions:
+  - [ ] `recursiveFlatRoutesAsync()`
+  - [ ] `recursiveCreateExecutionPathAsync()`
+  - [ ] `getExecutableFromHookAsync()`
+  - [ ] `getExecutableFromRawHookAsync()`
+  - [ ] `getExecutableFromRouteAsync()`
+  - [ ] `getExecutablesFromHooksCollectionAsync()`
 
-- [ ] Update `startNodeServer()` in packages/http to await `isRouterInitialized()`
-- [ ] Update `awsLambdaHandler()` in packages/aws to await `isRouterInitialized()`
-- [ ] Update `googleCFHandler()` in packages/gcloud to await `isRouterInitialized()`
-- [ ] Review and update any Bun-specific code if needed
+### Phase 3: Testing Updates
 
-### Phase 5: Testing Updates
-
-- [ ] Add tests for AOT mode validation (mock AOT cache data before starting router)
-- [ ] Add tests for `isRouterInitialized()` promise behavior
-- [ ] Update existing router tests to await `isRouterInitialized()` where needed
-- [ ] Add integration tests for dynamic import behavior
-- [ ] Test error messages for incomplete AOT cache
+- [ ] Update all router tests to use `await` with `initRouter()` and `registerRoutes()`
+- [ ] Update all platform adapter tests (http, aws, gcloud) to use async initialization
+- [ ] Add integration tests for complete AOT workflow
 
 **Note on AOT Validation Testing:** For testing AOT cache validation, we can mock the AOT cache data before starting the router. This allows us to test scenarios like:
 
@@ -339,12 +490,11 @@ export default defineConfig({
 - Incomplete cache (missing routes) - should throw AOTCacheError
 - Cache with missing JIT functions - should throw AOTCacheError
 
-### Phase 6: Documentation
+### Phase 4: Update Examples and Documentation
 
+- [ ] Update all examples to use `await initMionRouter()`
 - [ ] Update AOT-OVERVIEW.md with new `aot` option
-- [ ] Document `isRouterInitialized()` usage pattern
 - [ ] Add migration guide for existing users
-- [ ] Update platform adapter documentation
 
 ## Error Messages
 
@@ -355,74 +505,63 @@ AOTCacheError: Route/hook "users/getUser" not found in AOT cache.
 Regenerate AOT caches using 'mion-build-aot' command.
 ```
 
-### AOT Cache Incomplete JIT Functions
+### AOT Cache Missing Raw Hook
 
 ```
-AOTCacheError: AOT cache is incomplete. Missing JIT functions for: users/getUser, pets/getPet.
+AOTCacheError: Raw hook "mionDeserializeRequest" not found in AOT cache.
 Regenerate AOT caches using 'mion-build-aot' command.
 ```
 
-### Router Not Initialized
+## Migration Guide
 
-```
-Error: Router is not initialized. Call initMionRouter() first and await isRouterInitialized() before handling requests.
-```
-
-## Backwards Compatibility
-
-1. **Default behavior unchanged**: `aot: false` by default, so existing code works without changes
-2. **Sync API preserved**: `initMionRouter()` remains synchronous, async work happens in background
-3. **Platform adapters**: Already async, just need to await `isRouterInitialized()`
-4. **Tests**: Tests that access JIT functions or executables after init will need to add `await isRouterInitialized()` - this is a simple one-line addition rather than restructuring test logic
-5. **Examples**: Can simply add `await` to `startServer()` calls instead of modifying router initialization code
-
-### Test Migration Pattern
-
-Before:
+### Before (Sync)
 
 ```typescript
+// Router initialization
+initRouter({contextDataFactory: getSharedData});
+registerRoutes({myRoute});
+
+// Tests
 beforeAll(() => {
   resetRouter();
   initRouter({contextDataFactory: getSharedData});
   registerRoutes({myRoute});
 });
 
-it('should have correct executable', () => {
-  const exec = getRouteExecutable('myRoute');
-  expect(exec.paramsJitFns).toBeDefined();
-});
-```
-
-After:
-
-```typescript
-beforeAll(async () => {
-  resetRouter();
-  initRouter({contextDataFactory: getSharedData});
-  registerRoutes({myRoute});
-  await isRouterInitialized(); // Simple one-line addition
-});
-
-it('should have correct executable', () => {
-  const exec = getRouteExecutable('myRoute');
-  expect(exec.paramsJitFns).toBeDefined();
-});
-```
-
-### Example Migration Pattern
-
-Before:
-
-```typescript
+// Examples
 initMionRouter(routes, options);
 startNodeServer({port: 3000});
 ```
 
-After:
+### After (Async)
 
 ```typescript
-initMionRouter(routes, options);
-await startNodeServer({port: 3000}); // startServer already awaits isRouterInitialized() internally
+// Router initialization
+await initRouter({contextDataFactory: getSharedData});
+await registerRoutes({myRoute});
+
+// Tests
+beforeAll(async () => {
+  resetRouter();
+  await initRouter({contextDataFactory: getSharedData});
+  await registerRoutes({myRoute});
+});
+
+// Examples
+await initMionRouter(routes, options);
+startNodeServer({port: 3000});
+```
+
+### AOT Mode Usage
+
+```typescript
+// Load AOT caches first
+import {loadAOTCaches} from 'my-api-aot';
+loadAOTCaches();
+
+// Initialize router in AOT mode
+await initMionRouter(routes, {aot: true});
+startNodeServer({port: 3000});
 ```
 
 ## Performance Considerations
@@ -430,7 +569,7 @@ await startNodeServer({port: 3000}); // startServer already awaits isRouterIniti
 1. **Cold start improvement**: In AOT mode, no run-types loading = faster cold starts
 2. **Memory reduction**: run-types module not loaded = less memory usage
 3. **Bundle size**: With proper tree-shaking, run-types excluded from AOT bundles
-4. **First request latency**: Platform adapters wait for init, but this is typically < 1ms in AOT mode
+4. **Initialization**: Async initialization adds minimal overhead (< 1ms in AOT mode)
 
 ## Security Considerations
 
