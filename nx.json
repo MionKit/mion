@@ -12,7 +12,7 @@
       "dependsOn": []
     },
     "test": {
-      "dependsOn": [],
+      "dependsOn": ["@mionkit/client:test"],
       "outputs": ["{workspaceRoot}/.coverage"]
     },
     "build": {
