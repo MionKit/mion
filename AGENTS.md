@@ -42,6 +42,8 @@
 - Use 'RunType' with capital 'T' for class names (not 'Runtype')
 - Prefer type casting over type assertions
 - Maintain consistent formatting with existing codebase
+- Don't use @param and @returns comments in JSDoc
+
 
 ## Development Workflow
 - Never run `npm run build` during development (only for publishing)
