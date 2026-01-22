@@ -32,7 +32,7 @@
     "dev": "vite build --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build": "vite build",
+    "build": "echo noop: examples packages does not need to be built",
     "clean": "rimraf .dist",
     "fresh-start": "npm run clean && rimraf node_modules"
   },

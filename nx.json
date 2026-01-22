@@ -16,11 +16,11 @@
       "outputs": ["{workspaceRoot}/.coverage"]
     },
     "build": {
-      "dependsOn": ["lint", "build"],
+      "dependsOn": ["lint", "^build"],
       "outputs": ["{projectRoot}/.dist"]
     },
     "build-ts-dts": {
-      "dependsOn": ["build-ts-dts"],
+      "dependsOn": ["^build-ts-dts"],
       "outputs": ["{projectRoot}/.dist/esm"]
     },
     "auto-readme": {
@@ -29,9 +29,6 @@
     },
     "clean": {
       "dependsOn": []
-    },
-    "quick-build": {
-      "dependsOn": ["build"]
     }
   },
   "defaultBase": "master"
