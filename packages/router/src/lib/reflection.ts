@@ -49,11 +49,7 @@ interface RunTypesModule {
 let runTypesModule: RunTypesModule | null = null;
 let runTypesLoadPromise: Promise<RunTypesModule> | null = null;
 
-/**
- * Dynamically loads the @mionkit/run-types module.
- * The module is cached after first load to avoid multiple imports.
- * @returns Promise resolving to the run-types module
- */
+/** Dynamically loads the @mionkit/run-types module. The module is cached after first load. */
 async function loadRunTypesModule(): Promise<RunTypesModule> {
     // Return cached module if already loaded
     if (runTypesModule) return runTypesModule;
@@ -77,10 +73,7 @@ async function loadRunTypesModule(): Promise<RunTypesModule> {
     return runTypesLoadPromise;
 }
 
-/**
- * Resets the run-types module cache.
- * This is useful for testing purposes only.
- */
+/** Resets the run-types module cache. Useful for testing purposes only. */
 export function resetRunTypesCache(): void {
     runTypesModule = null;
     runTypesLoadPromise = null;
@@ -91,12 +84,6 @@ export function resetRunTypesCache(): void {
 /**
  * Creates a MethodReflect for raw hooks.
  * Raw hooks don't need JIT functions - they always use nullJitFns.
- * This helper consolidates the creation of raw hook reflections.
- *
- * @param isAsync Whether the handler is async
- * @param hasReturnData Whether the handler has return data
- * @param paramNames Optional parameter names (defaults to empty array)
- * @returns MethodReflect data for a raw hook
  */
 function createRawHookReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
     return {
@@ -115,8 +102,6 @@ function createRawHookReflection(isAsync: boolean, hasReturnData: boolean = fals
 /**
  * Extracts reflection data from a cached method.
  * Used in AOT mode to restore method reflection without loading run-types.
- * @param cached The cached method metadata
- * @returns MethodReflect data extracted from cache
  */
 function extractReflectionFromCached(cached: MethodMetadata): MethodReflect {
     const reflectionItems: MethodReflect = {
@@ -156,13 +141,7 @@ function extractReflectionFromCached(cached: MethodMetadata): MethodReflect {
  * Gets reflection data for a handler (route or hook).
  * In AOT mode, returns cached data without loading run-types.
  * In non-AOT mode, dynamically loads run-types and generates reflection.
- *
- * @param handler The handler function
- * @param routeId The route/hook identifier
- * @param routerOptions Router configuration options
- * @param isHeaderHook Whether this is a header hook
- * @returns Promise resolving to MethodReflect data
- * @throws AOTCacheError if AOT mode is enabled and route is not in cache
+ * Throws AOTCacheError if AOT mode is enabled and route is not in cache.
  */
 export async function getHandlerReflection(
     handler: Handler,
@@ -191,15 +170,7 @@ export async function getHandlerReflection(
  * Raw hooks don't use full reflection - they don't need JIT functions.
  * Raw hooks don't NEED to be in the AOT cache, but if they are, we can use
  * the cached data (especially the isAsync flag).
- *
- * In AOT mode, this function does NOT load run-types because raw hooks
- * only need to know if the handler is async, which can be determined
- * from the cache or by using a conservative assumption.
- *
- * @param handler The handler function
- * @param routeId The route/hook identifier
- * @param routerOptions Router configuration options
- * @returns Promise resolving to MethodReflect data
+ * In AOT mode, this function does NOT load run-types.
  */
 export async function getRawMethodReflection(
     handler: Handler,
