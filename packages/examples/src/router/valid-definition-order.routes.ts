@@ -15,4 +15,4 @@ const routes = {
     loggingHook: hook((): void => undefined), // hook
 } satisfies Routes;
 
-export const myValidApi = initMionRouter(routes);
+export const myValidApi = await initMionRouter(routes);

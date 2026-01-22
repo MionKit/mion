@@ -3,7 +3,9 @@
   "compilerOptions": {
     "outDir": ".dist/esm",
     "skipLibCheck": true,
-    "composite": true
+    "composite": true,
+    "module": "ESNext",
+    "target": "ES2022"
   },
   "references": [
     {"path": "../core"},

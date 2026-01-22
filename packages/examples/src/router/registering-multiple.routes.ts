@@ -15,8 +15,8 @@ const routes = {
     sayHello2: route((c, name: string): string => 'hello' + name),
 } satisfies Routes;
 
-export const mayApi = initMionRouter(routes);
-export const authApi = registerRoutes(authRoutes);
+export const mayApi = await initMionRouter(routes);
+export const authApi = await registerRoutes(authRoutes);
 
 // export api types to be consumed by the clients
 export type MyApi = typeof mayApi;

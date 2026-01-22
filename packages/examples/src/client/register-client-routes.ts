@@ -5,7 +5,7 @@ const routes = {
 } satisfies Routes;
 
 // init & register routes (this automatically registers client routes)
-const myApi = initMionRouter(routes);
+const myApi = await initMionRouter(routes);
 
 // Export Routes type  (to be used by the client)
 export type MyApi = typeof myApi;
