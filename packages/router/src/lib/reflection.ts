@@ -86,6 +86,30 @@ export function resetRunTypesCache(): void {
     runTypesLoadPromise = null;
 }
 
+// ############ Raw Hook Reflection Helper ############
+
+/**
+ * Creates a MethodReflect for raw hooks.
+ * Raw hooks don't need JIT functions - they always use nullJitFns.
+ * This helper consolidates the creation of raw hook reflections.
+ *
+ * @param isAsync Whether the handler is async
+ * @param hasReturnData Whether the handler has return data
+ * @param paramNames Optional parameter names (defaults to empty array)
+ * @returns MethodReflect data for a raw hook
+ */
+function createRawHookReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
+    return {
+        paramNames,
+        paramsJitFns: nullJitFns,
+        returnJitFns: nullJitFns,
+        paramsJitHash: EMPTY_HASH,
+        returnJitHash: EMPTY_HASH,
+        hasReturnData,
+        isAsync,
+    };
+}
+
 // ############ AOT Cache Extraction ############
 
 /**
@@ -185,31 +209,14 @@ export async function getRawMethodReflection(
     // Check if raw hook is in cache - if so, use cached data (especially isAsync)
     const cached = persistedMethods[routeId];
     if (cached) {
-        // Raw hooks always use nullJitFns, but we can use cached isAsync value
-        return {
-            paramNames: cached.paramNames || [],
-            paramsJitFns: nullJitFns,
-            returnJitFns: nullJitFns,
-            paramsJitHash: EMPTY_HASH,
-            returnJitHash: EMPTY_HASH,
-            hasReturnData: cached.hasReturnData,
-            isAsync: cached.isAsync,
-        };
+        return createRawHookReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
     }
 
     // Raw hooks don't need JIT functions, so we don't need to load run-types in AOT mode
     if (routerOptions.aot) {
         // In AOT mode, return simple reflection without loading run-types
         // Use conservative assumption for isAsync since we can't detect it without run-types
-        return {
-            paramNames: [],
-            paramsJitFns: nullJitFns,
-            returnJitFns: nullJitFns,
-            paramsJitHash: EMPTY_HASH,
-            returnJitHash: EMPTY_HASH,
-            hasReturnData: false,
-            isAsync: true, // Conservative assumption in AOT mode
-        };
+        return createRawHookReflection(true); // isAsync=true is conservative assumption
     }
 
     // Non-AOT mode: dynamically load run-types to properly detect if handler is async
@@ -316,16 +323,8 @@ function generateRawMethodReflection(handler: Handler, routeId: string, rt: RunT
     } catch (error: any) {
         throw new Error(`Can not get RunType of handler for route/hook "${routeId}." Error: ${error?.message}`);
     }
-    const reflectionItems: MethodReflect = {
-        paramNames: [],
-        paramsJitFns: nullJitFns,
-        returnJitFns: nullJitFns,
-        paramsJitHash: '',
-        returnJitHash: '',
-        hasReturnData: false,
-        isAsync: handlerRunType?.isAsync() || true,
-    };
-    return reflectionItems;
+    const isAsync = handlerRunType?.isAsync() || true;
+    return createRawHookReflection(isAsync);
 }
 
 // ############ Helper Functions (require run-types module) ############
