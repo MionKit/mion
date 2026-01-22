@@ -76,8 +76,8 @@ describe('serverless router', () => {
         beforeAll(async () => {
             resetAwsLambdaOpts();
             resetRouter();
-            initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-            registerRoutes({changeUserName, getDate, updateHeaders});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await registerRoutes({changeUserName, getDate, updateHeaders});
         });
 
         it('should get an ok response from a route', async () => {
@@ -144,8 +144,8 @@ describe('serverless router', () => {
             resetAwsLambdaOpts();
             resetRouter();
             setAwsLambdaOpts(awsOpts);
-            initRouter(routerOpts);
-            registerRoutes({changeUserName, getDate, updateHeaders});
+            await initRouter(routerOpts);
+            await registerRoutes({changeUserName, getDate, updateHeaders});
             const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
             const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
@@ -163,8 +163,8 @@ describe('serverless router', () => {
             // Restore router state for subsequent tests
             resetAwsLambdaOpts();
             resetRouter();
-            initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-            registerRoutes({changeUserName, getDate, updateHeaders});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await registerRoutes({changeUserName, getDate, updateHeaders});
         });
     });
 
@@ -172,8 +172,8 @@ describe('serverless router', () => {
         beforeAll(async () => {
             resetAwsLambdaOpts();
             resetRouter();
-            initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
-            registerRoutes({changeUserName, getDate});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
+            await registerRoutes({changeUserName, getDate});
         });
 
         it('should get an ok response from a route with Date objects (body type O)', async () => {

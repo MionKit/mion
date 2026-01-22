@@ -14,9 +14,9 @@ import {getSerializableMethod} from './remoteMethods';
 import {getPersistedMethod, setPersistedMethods} from './methodsCache';
 
 describe('JIT Function Generation Optimization', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         resetRouter();
-        initRouter();
+        await initRouter();
     });
 
     afterEach(() => {
@@ -24,24 +24,24 @@ describe('JIT Function Generation Optimization', () => {
     });
 
     describe('No params optimization', () => {
-        it('should skip JIT generation for handler with no params', () => {
-            const handler = (ctx): void => {
+        it('should skip JIT generation for handler with no params', async () => {
+            const handler = (ctx: any): void => {
                 // Hook with no params
             };
 
-            const reflection = getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.paramNames).toEqual([]);
             expect(reflection.paramsJitFns).toBe(nullJitFns);
             expect(reflection.paramsJitHash).toBe(EMPTY_HASH);
         });
 
-        it('should generate JIT functions for handler with params', () => {
-            const handler = (ctx, name: string): void => {
+        it('should generate JIT functions for handler with params', async () => {
+            const handler = (ctx: any, name: string): void => {
                 // Hook with params
             };
 
-            const reflection = getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.paramNames).toEqual(['name']);
             expect(reflection.paramsJitFns).not.toBe(nullJitFns);
@@ -49,14 +49,14 @@ describe('JIT Function Generation Optimization', () => {
             expect(reflection.paramsJitHash).toBeTruthy();
         });
 
-        it('should work end-to-end with registered hook with no params', () => {
+        it('should work end-to-end with registered hook with no params', async () => {
             const routes = {
-                noParamsHook: hook((ctx): void => {
+                noParamsHook: hook((ctx: any): void => {
                     // No params
                 }),
             };
 
-            registerRoutes(routes);
+            await registerRoutes(routes);
             const executable = getHookExecutable('noParamsHook');
 
             expect(executable).toBeDefined();
@@ -67,24 +67,24 @@ describe('JIT Function Generation Optimization', () => {
     });
 
     describe('Void return optimization', () => {
-        it('should skip JIT generation for handler with void return', () => {
-            const handler = (ctx, name: string): void => {
+        it('should skip JIT generation for handler with void return', async () => {
+            const handler = (ctx: any, name: string): void => {
                 // Void return
             };
 
-            const reflection = getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.hasReturnData).toBe(false);
             expect(reflection.returnJitFns).toBe(nullJitFns);
             expect(reflection.returnJitHash).toBe(EMPTY_HASH);
         });
 
-        it('should generate JIT functions for handler with return data', () => {
-            const handler = (ctx, name: string): string => {
+        it('should generate JIT functions for handler with return data', async () => {
+            const handler = (ctx: any, name: string): string => {
                 return `Hello ${name}`;
             };
 
-            const reflection = getHandlerReflection(handler, 'testRoute', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testRoute', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.hasReturnData).toBe(true);
             expect(reflection.returnJitFns).not.toBe(nullJitFns);
@@ -92,14 +92,14 @@ describe('JIT Function Generation Optimization', () => {
             expect(reflection.returnJitHash).toBeTruthy();
         });
 
-        it('should work end-to-end with registered route with void return', () => {
+        it('should work end-to-end with registered route with void return', async () => {
             const routes = {
-                voidReturn: route((ctx, name: string): void => {
+                voidReturn: route((ctx: any, name: string): void => {
                     // Void return
                 }),
             };
 
-            registerRoutes(routes);
+            await registerRoutes(routes);
             const executable = getRouteExecutable('voidReturn');
 
             expect(executable).toBeDefined();
@@ -110,12 +110,12 @@ describe('JIT Function Generation Optimization', () => {
     });
 
     describe('Combined optimization', () => {
-        it('should skip both params and return JIT for hook with no params and void return', () => {
-            const handler = (ctx): void => {
+        it('should skip both params and return JIT for hook with no params and void return', async () => {
+            const handler = (ctx: any): void => {
                 // No params, void return
             };
 
-            const reflection = getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
 
             // No params
             expect(reflection.paramNames).toEqual([]);
@@ -128,15 +128,15 @@ describe('JIT Function Generation Optimization', () => {
             expect(reflection.returnJitHash).toBe(EMPTY_HASH);
         });
 
-        it('should work end-to-end with common hook pattern (no params, void return)', () => {
+        it('should work end-to-end with common hook pattern (no params, void return)', async () => {
             const routes = {
-                authHook: hook((ctx): void => {
+                authHook: hook((ctx: any): void => {
                     // Common pattern: modify context, no params, no return
                     (ctx as any).user = {id: '123'};
                 }),
             };
 
-            registerRoutes(routes);
+            await registerRoutes(routes);
             const executable = getHookExecutable('authHook');
 
             expect(executable).toBeDefined();
@@ -150,14 +150,14 @@ describe('JIT Function Generation Optimization', () => {
     });
 
     describe('AOT cache serialization and restoration', () => {
-        it('should serialize handler with no params and void return to AOT cache', () => {
+        it('should serialize handler with no params and void return to AOT cache', async () => {
             const routes = {
-                simpleHook: hook((ctx): void => {
+                simpleHook: hook((ctx: any): void => {
                     // No params, void return
                 }),
             };
 
-            registerRoutes(routes);
+            await registerRoutes(routes);
             const executable = getHookExecutable('simpleHook');
             const serialized = getSerializableMethod(executable!);
 
@@ -168,7 +168,7 @@ describe('JIT Function Generation Optimization', () => {
         });
 
         it('should restore handler with no params and void return from AOT cache', () => {
-            const handler = (ctx): void => {
+            const handler = (ctx: any): void => {
                 // No params, void return
             };
 
@@ -197,15 +197,15 @@ describe('JIT Function Generation Optimization', () => {
             expect(restored!.returnJitHash).toBe(EMPTY_HASH);
         });
 
-        it('should handle mixed scenarios in AOT cache', () => {
+        it('should handle mixed scenarios in AOT cache', async () => {
             const routes = {
-                noParamsVoidReturn: hook((ctx): void => {}),
-                withParamsVoidReturn: hook((ctx, name: string): void => {}),
-                noParamsWithReturn: route((ctx): string => 'hello'),
-                withParamsWithReturn: route((ctx, name: string): string => `hello ${name}`),
+                noParamsVoidReturn: hook((ctx: any): void => {}),
+                withParamsVoidReturn: hook((ctx: any, name: string): void => {}),
+                noParamsWithReturn: route((ctx: any): string => 'hello'),
+                withParamsWithReturn: route((ctx: any, name: string): string => `hello ${name}`),
             };
 
-            registerRoutes(routes);
+            await registerRoutes(routes);
 
             // Check no params, void return
             const hook1 = getHookExecutable('noParamsVoidReturn');

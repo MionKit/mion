@@ -72,8 +72,8 @@ describe('serverless router', () => {
         beforeAll(async () => {
             resetGoogleCFOpts();
             resetRouter();
-            initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-            registerRoutes({changeUserName, getDate, updateHeaders});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await registerRoutes({changeUserName, getDate, updateHeaders});
             server = await initServer(port);
         });
 
@@ -169,8 +169,8 @@ describe('serverless router', () => {
             resetGoogleCFOpts();
             resetRouter();
             setGoogleCFOpts(httpOpts);
-            initRouter(routerOpts);
-            registerRoutes({changeUserName, getDate, updateHeaders});
+            await initRouter(routerOpts);
+            await registerRoutes({changeUserName, getDate, updateHeaders});
             const smallServer = await initServer(smallPort);
             const closeSmallServer = () => {
                 return new Promise<void>((resolve, reject) => {
@@ -204,8 +204,8 @@ describe('serverless router', () => {
             // Restore router state for the main server
             resetGoogleCFOpts();
             resetRouter();
-            initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-            registerRoutes({changeUserName, getDate, updateHeaders});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await registerRoutes({changeUserName, getDate, updateHeaders});
 
             if (err) throw err;
         });
@@ -225,8 +225,8 @@ describe('serverless router', () => {
         beforeAll(async () => {
             resetGoogleCFOpts();
             resetRouter();
-            initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
-            registerRoutes({changeUserName, getDate});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
+            await registerRoutes({changeUserName, getDate});
             server2 = await initServer2(port2);
         });
 

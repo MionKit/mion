@@ -106,9 +106,9 @@ describe('Create routes should', () => {
 
     beforeEach(() => resetRouter());
 
-    it('create a flat routes Map', () => {
-        initRouter();
-        registerRoutes(routes);
+    it('create a flat routes Map', async () => {
+        await initRouter();
+        await registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
         expect(geHooksSize()).toEqual(5);
@@ -143,13 +143,13 @@ describe('Create routes should', () => {
         expect(getRouteExecutionPath('/pets/setPet')).toBeTruthy();
     });
 
-    it('add default values to hooks', () => {
-        initRouter();
+    it('add default values to hooks', async () => {
+        await initRouter();
         const defaultHookValues = {
             first: hook((): void => undefined),
             second: hook((): null => null),
         };
-        registerRoutes(defaultHookValues);
+        await registerRoutes(defaultHookValues);
 
         expect(getHookExecutable('first')).toEqual(
             expect.objectContaining({
@@ -176,10 +176,10 @@ describe('Create routes should', () => {
         );
     });
 
-    it('add default values to routes', () => {
-        initRouter();
+    it('add default values to routes', async () => {
+        await initRouter();
         const defaultRouteValues = {sayHello: route((): null => null)};
-        registerRoutes(defaultRouteValues);
+        await registerRoutes(defaultRouteValues);
 
         expect(getRouteExecutable('sayHello')).toEqual(
             expect.objectContaining({
@@ -194,9 +194,9 @@ describe('Create routes should', () => {
         );
     });
 
-    it('add prefix & suffix to routes', () => {
-        initRouter({prefix: 'api/v1', suffix: '.json'});
-        registerRoutes(routes);
+    it('add prefix & suffix to routes', async () => {
+        await initRouter({prefix: 'api/v1', suffix: '.json'});
+        await registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
         expect(geHooksSize()).toEqual(5);
@@ -208,40 +208,47 @@ describe('Create routes should', () => {
         expect(getRouteExecutionPath('/api/v1/pets/setPet.json')).toBeTruthy();
     });
 
-    it('throw an error when a routes are invalid', () => {
-        initRouter();
+    it('throw an error when a routes are invalid', async () => {
+        await initRouter();
         const empty = {};
         const emptySub = {sayHello: {}};
         const invalidValues = {sayHello: {total: 2}};
         const numericNames = {directory: {2: route1}};
 
-        expect(() => registerRoutes(empty)).toThrow('Invalid route: *. Can Not define empty routes');
-        expect(() => registerRoutes(emptySub)).toThrow('Invalid route: sayHello. Can Not define empty routes');
-        expect(() => registerRoutes(invalidValues as any)).toThrow(
+        await expect(registerRoutes(empty)).rejects.toThrow('Invalid route: *. Can Not define empty routes');
+        await expect(registerRoutes(emptySub)).rejects.toThrow('Invalid route: sayHello. Can Not define empty routes');
+        await expect(registerRoutes(invalidValues as any)).rejects.toThrow(
             'Invalid route: sayHello/total. Type <number> is not a valid route.'
         );
-        expect(() => registerRoutes(numericNames)).toThrow('Invalid route: directory/2. Numeric route names are not allowed');
+        await expect(registerRoutes(numericNames)).rejects.toThrow(
+            'Invalid route: directory/2. Numeric route names are not allowed'
+        );
     });
 
-    it('throw an error when contextDataFactory returns invalid values', () => {
+    it('throw an error when contextDataFactory returns invalid values', async () => {
         const errorMessage = 'contextDataFactory must return a plain object with at least one property';
 
-        expect(() => initRouter({contextDataFactory: () => undefined as any})).toThrow(errorMessage);
-        expect(() => initRouter({contextDataFactory: () => null as any})).toThrow(errorMessage);
-        expect(() => initRouter({contextDataFactory: () => 'string' as any})).toThrow(errorMessage);
-        expect(() => initRouter({contextDataFactory: () => 42 as any})).toThrow(errorMessage);
-        expect(() => initRouter({contextDataFactory: () => [] as any})).toThrow(errorMessage);
-        expect(() => initRouter({contextDataFactory: () => ({})})).toThrow(errorMessage);
-    });
-
-    it('accept valid contextDataFactory that returns an object with properties', () => {
-        expect(() => initRouter({contextDataFactory: () => ({user: null})})).not.toThrow();
+        await expect(initRouter({contextDataFactory: () => undefined as any})).rejects.toThrow(errorMessage);
         resetRouter();
-        expect(() => initRouter({contextDataFactory: () => ({user: null, data: 'test'})})).not.toThrow();
+        await expect(initRouter({contextDataFactory: () => null as any})).rejects.toThrow(errorMessage);
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => 'string' as any})).rejects.toThrow(errorMessage);
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => 42 as any})).rejects.toThrow(errorMessage);
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => [] as any})).rejects.toThrow(errorMessage);
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => ({})})).rejects.toThrow(errorMessage);
     });
 
-    it('optimize parsing routes (complexity) when there are multiple routes in a row', () => {
-        initRouter();
+    it('accept valid contextDataFactory that returns an object with properties', async () => {
+        await expect(initRouter({contextDataFactory: () => ({user: null})})).resolves.not.toThrow();
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => ({user: null, data: 'test'})})).resolves.not.toThrow();
+    });
+
+    it('optimize parsing routes (complexity) when there are multiple routes in a row', async () => {
+        await initRouter();
         const bestCase = {
             first: hook1,
             route1: route1,
@@ -286,18 +293,18 @@ describe('Create routes should', () => {
         const worstCaseTotalRoutes = 4;
         const ratio = bestCaseTotalRoutes / worstCaseTotalRoutes;
 
-        registerRoutes(bestCase);
+        await registerRoutes(bestCase);
         const bestCaseComplexity = getComplexity();
         resetRouter();
-        initRouter();
-        registerRoutes(worstCase);
+        await initRouter();
+        await registerRoutes(worstCase);
         const worstCaseComplexity = getComplexity();
 
         expect(worstCaseComplexity * ratio > bestCaseComplexity).toBeTruthy();
     });
 
-    it('differentiate async vs non async routes', () => {
-        initRouter();
+    it('differentiate async vs non async routes', async () => {
+        await initRouter();
         // !! Important return types must always be declared as deepkit doe not infers the type
         const defaultRouteValues = {
             sayHello: route((): null => null),
@@ -309,7 +316,7 @@ describe('Create routes should', () => {
             }),
             noReturnType: route(() => null),
         };
-        registerRoutes(defaultRouteValues);
+        await registerRoutes(defaultRouteValues);
 
         expect(getRouteExecutable('sayHello')?.isAsync).toEqual(false);
         expect(getRouteExecutable('asyncSayHello')?.isAsync).toEqual(true);
@@ -319,7 +326,7 @@ describe('Create routes should', () => {
         expect(getRouteExecutable('noReturnType')?.isAsync).toEqual(true);
     });
 
-    it('add start and end global hooks', () => {
+    it('add start and end global hooks', async () => {
         const prependHooks = {
             p1: rawHook((ctx, cb: () => void): void => cb()),
             p2: rawHook((ctx, cb: () => void): void => cb()),
@@ -332,8 +339,8 @@ describe('Create routes should', () => {
         addStartHooks(prependHooks, false);
         addEndHooks(appendHooks, false);
 
-        initRouter();
-        registerRoutes(routes);
+        await initRouter();
+        await registerRoutes(routes);
 
         const expectedExecutionPath = addDefaultExecutables([
             expect.objectContaining({id: 'p1', type: HandlerType.rawHook}),
@@ -350,15 +357,15 @@ describe('Create routes should', () => {
         expect(() => addEndHooks(appendHooks)).toThrow('Can not add end hooks after the router has been initialized');
     });
 
-    it('header hooks should be considered public (non-private)', () => {
-        initRouter();
+    it('header hooks should be considered public (non-private)', async () => {
+        await initRouter();
         const routesWithHeaderHook = {
             auth: headersHook((ctx, h: HeadersSubset<'Authorization'>): void => {
                 // Header hook with no return data and no body params
             }),
             sayHello: route((): string => 'hello'),
         } satisfies Routes;
-        registerRoutes(routesWithHeaderHook);
+        await registerRoutes(routesWithHeaderHook);
 
         const authHook = getHookExecutable('auth');
         expect(authHook).toBeDefined();

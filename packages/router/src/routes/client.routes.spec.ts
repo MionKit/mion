@@ -51,9 +51,9 @@ describe('PublicMethods run type functionality', () => {
         ).toBe(true);
     });
 
-    it('can validate return type ClientReturn + errors', () => {
-        initRouter();
-        registerRoutes(routes);
+    it('can validate return type ClientReturn + errors', async () => {
+        await initRouter();
+        await registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
         const publicMethod = getSerializableMethod(executable!);
 
@@ -85,9 +85,9 @@ describe('PublicMethods run type functionality', () => {
         ).toEqual([]);
     });
 
-    it('can serialize/deserialize return type PublicMethods | RpcError>', () => {
-        initRouter();
-        registerRoutes(routes);
+    it('can serialize/deserialize return type PublicMethods | RpcError>', async () => {
+        await initRouter();
+        await registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
         const publicMethod = getSerializableMethod(executable!);
         const response: SerializableMethodsData = {
@@ -252,9 +252,9 @@ describe('Client Routes should', () => {
     afterEach(() => resetRouter());
 
     it('get Remote Hooks Only info from id', async () => {
-        initRouter({contextDataFactory: getSharedData});
-        registerRoutes(routes);
-        registerRoutes(mionClientRoutes);
+        await initRouter({contextDataFactory: getSharedData});
+        await registerRoutes(routes);
+        await registerRoutes(mionClientRoutes);
 
         const methodIdList = ['auth', 'last']; // all public hooks
         const request: RawRequest = {
@@ -278,9 +278,9 @@ describe('Client Routes should', () => {
     });
 
     it('get Remote Route info from id, it should also return the hooks from the execution path', async () => {
-        initRouter({contextDataFactory: getSharedData});
-        registerRoutes(routes);
-        registerRoutes(mionClientRoutes);
+        await initRouter({contextDataFactory: getSharedData});
+        await registerRoutes(routes);
+        await registerRoutes(mionClientRoutes);
 
         const methodIdList = ['users/getUser']; // all public methods
         const request: RawRequest = {
@@ -306,9 +306,9 @@ describe('Client Routes should', () => {
     });
 
     it('get All Remote Methods info when getAllRemoteMethods is true', async () => {
-        initRouter({contextDataFactory: getSharedData});
-        registerRoutes(routes);
-        registerRoutes(mionClientRoutes);
+        await initRouter({contextDataFactory: getSharedData});
+        await registerRoutes(routes);
+        await registerRoutes(mionClientRoutes);
 
         const methodIdList = ['auth']; // all public methods
         const getAllRemoteMethods = true;
@@ -331,9 +331,9 @@ describe('Client Routes should', () => {
     });
 
     it('get Remote Methods info from route path', async () => {
-        initRouter({contextDataFactory: getSharedData});
-        registerRoutes(routes);
-        registerRoutes(mionClientRoutes);
+        await initRouter({contextDataFactory: getSharedData});
+        await registerRoutes(routes);
+        await registerRoutes(mionClientRoutes);
 
         const request: RawRequest = {
             headers: headersFromRecord({}),
@@ -359,9 +359,9 @@ describe('Client Routes should', () => {
     });
 
     it('fail when remote method is private or not defined', async () => {
-        initRouter({contextDataFactory: getSharedData});
-        registerRoutes(routes);
-        registerRoutes(mionClientRoutes);
+        await initRouter({contextDataFactory: getSharedData});
+        await registerRoutes(routes);
+        await registerRoutes(mionClientRoutes);
 
         const methodIdList = ['parse', 'helloWorld']; // all public methods
         const request: RawRequest = {
@@ -384,9 +384,9 @@ describe('Client Routes should', () => {
     });
 
     it('fail when route path is not defined', async () => {
-        initRouter({contextDataFactory: getSharedData});
-        registerRoutes(routes);
-        registerRoutes(mionClientRoutes);
+        await initRouter({contextDataFactory: getSharedData});
+        await registerRoutes(routes);
+        await registerRoutes(mionClientRoutes);
 
         const request: RawRequest = {
             headers: headersFromRecord({}),
@@ -424,9 +424,9 @@ describe('Restore Client Routes jit functions', () => {
     afterEach(() => resetRouter());
 
     it('should restore jit functions', async () => {
-        initRouter();
-        registerRoutes(routes);
-        registerRoutes(mionClientRoutes);
+        await initRouter();
+        await registerRoutes(routes);
+        await registerRoutes(mionClientRoutes);
 
         const request: RawRequest = {
             headers: headersFromRecord({}),

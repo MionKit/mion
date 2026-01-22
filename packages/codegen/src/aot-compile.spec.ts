@@ -67,7 +67,7 @@ describe('AOT Cache Compilation E2E', () => {
         // Step 1: Create AOT package (already done in beforeEach)
 
         // Step 2: Initialize server with some routes
-        initRouter();
+        await initRouter();
 
         const testRoutes = {
             auth: headersHook(
@@ -88,7 +88,7 @@ describe('AOT Cache Compilation E2E', () => {
             },
         };
 
-        registerRoutes(testRoutes);
+        await registerRoutes(testRoutes);
 
         // Step 3: Read all caches and create a list of their entries
         const originalCaches = getJitFnCaches();
