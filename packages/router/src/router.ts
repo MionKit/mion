@@ -114,11 +114,9 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
     validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
-
     // In AOT mode, load the default AOT caches (router cache + JIT functions)
     // This must happen before registering any routes
     if (routerOptions.aot) await loadDefaultAOTCaches();
-
     isRouterInitialized = true;
     await registerRoutes({...mionErrorsRoutes});
     if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});
