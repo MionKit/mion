@@ -5,44 +5,227 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MethodWithJitFns, AnyFn, JitCompiledFunctions} from '@mionkit/core';
-import {
-    type FunctionRunType,
-    type BaseRunType,
-    type MemberRunType,
-    type RunTypeOptions,
-    JitFunctions,
-    reflectFunction,
-    JitFnCompiler,
-    isUnionRunType,
-    isClassRunType,
-    isLiteralRunType,
-    isNeverRunType,
-} from '@mionkit/run-types';
+import type {MethodWithJitFns, AnyFn, JitCompiledFunctions, MethodMetadata} from '@mionkit/core';
+// Type-only imports from run-types - these don't load the module at runtime
+import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnCompiler} from '@mionkit/run-types';
 import {Handler} from '../types/handlers';
 import {RouterOptions} from '../types/general';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants';
-import {EMPTY_HASH, HeadersSubset} from '@mionkit/core';
+import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash} from '@mionkit/core';
+import {persistedMethods} from './methodsCache';
 
-// ############ This file should be the only one importing '@mionkit/run-types' within the router ########
-// TODO: in the future we can load things from cache and load run types only when needed
+// ############ This file is the only one importing '@mionkit/run-types' within the router ########
+// In AOT mode, run-types is NOT loaded - all reflection data comes from the AOT cache
 
 type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
 
-// TODO: we do not want to use runtypes directly but compiled functions so we can take advantage
-// of precompiled functions without having to generate JIT functions
-// this way we also do not need to use new Function which is not allowed in some environments
-export function getHandlerReflection(
+// ############ AOT Cache Error ############
+
+/**
+ * Error thrown when AOT mode is enabled but required data is missing from the AOT cache.
+ * This indicates that the AOT caches need to be regenerated using 'mion-build-aot' command.
+ */
+export class AOTCacheError extends Error {
+    constructor(routeId: string, type: 'route' | 'hook' | 'rawHook' = 'route') {
+        const typeLabel = type === 'rawHook' ? 'Raw hook' : type === 'hook' ? 'Hook' : 'Route/hook';
+        super(`${typeLabel} "${routeId}" not found in AOT cache.\n` + `Regenerate AOT caches using 'mion-build-aot' command.`);
+        this.name = 'AOTCacheError';
+    }
+}
+
+// ############ Run-Types Module Loading ############
+
+// Type definition for the dynamically imported run-types module
+interface RunTypesModule {
+    JitFunctions: typeof import('@mionkit/run-types').JitFunctions;
+    reflectFunction: typeof import('@mionkit/run-types').reflectFunction;
+    isUnionRunType: typeof import('@mionkit/run-types').isUnionRunType;
+    isClassRunType: typeof import('@mionkit/run-types').isClassRunType;
+    isLiteralRunType: typeof import('@mionkit/run-types').isLiteralRunType;
+    isNeverRunType: typeof import('@mionkit/run-types').isNeverRunType;
+}
+
+// Cached run-types module - loaded once and reused
+let runTypesModule: RunTypesModule | null = null;
+let runTypesLoadPromise: Promise<RunTypesModule> | null = null;
+
+/**
+ * Dynamically loads the @mionkit/run-types module.
+ * The module is cached after first load to avoid multiple imports.
+ * @returns Promise resolving to the run-types module
+ */
+async function loadRunTypes(): Promise<RunTypesModule> {
+    // Return cached module if already loaded
+    if (runTypesModule) return runTypesModule;
+
+    // Return existing promise if load is in progress
+    if (runTypesLoadPromise) return runTypesLoadPromise;
+
+    // Start loading the module
+    runTypesLoadPromise = import('@mionkit/run-types').then((module) => {
+        runTypesModule = {
+            JitFunctions: module.JitFunctions,
+            reflectFunction: module.reflectFunction,
+            isUnionRunType: module.isUnionRunType,
+            isClassRunType: module.isClassRunType,
+            isLiteralRunType: module.isLiteralRunType,
+            isNeverRunType: module.isNeverRunType,
+        };
+        return runTypesModule;
+    });
+
+    return runTypesLoadPromise;
+}
+
+/**
+ * Resets the run-types module cache.
+ * This is useful for testing purposes only.
+ */
+export function resetRunTypesCache(): void {
+    runTypesModule = null;
+    runTypesLoadPromise = null;
+}
+
+// ############ AOT Cache Extraction ############
+
+/**
+ * Extracts reflection data from a cached method.
+ * Used in AOT mode to restore method reflection without loading run-types.
+ * @param cached The cached method metadata
+ * @returns MethodReflect data extracted from cache
+ */
+function extractReflectionFromCached(cached: MethodMetadata): MethodReflect {
+    const reflectionItems: MethodReflect = {
+        paramNames: cached.paramNames || [],
+        paramsJitFns: cached.paramsJitHash === EMPTY_HASH ? nullJitFns : getJitFunctionsFromHash(cached.paramsJitHash),
+        returnJitFns: cached.returnJitHash === EMPTY_HASH ? nullJitFns : getJitFunctionsFromHash(cached.returnJitHash),
+        paramsJitHash: cached.paramsJitHash,
+        returnJitHash: cached.returnJitHash,
+        hasReturnData: cached.hasReturnData,
+        isAsync: cached.isAsync,
+    };
+
+    // Restore headers param if present
+    if (cached.headersParam) {
+        reflectionItems.headersParam = {
+            headerNames: cached.headersParam.headerNames,
+            jitFns: getJitFunctionsFromHash(cached.headersParam.jitHash) as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>,
+            jitHash: cached.headersParam.jitHash,
+        };
+    }
+
+    // Restore headers return if present
+    if (cached.headersReturn) {
+        reflectionItems.headersReturn = {
+            headerNames: cached.headersReturn.headerNames,
+            jitFns: getJitFunctionsFromHash(cached.headersReturn.jitHash) as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>,
+            jitHash: cached.headersReturn.jitHash,
+        };
+    }
+
+    return reflectionItems;
+}
+
+// ############ Main Reflection Functions ############
+
+/**
+ * Gets reflection data for a handler (route or hook).
+ * In AOT mode, returns cached data without loading run-types.
+ * In non-AOT mode, dynamically loads run-types and generates reflection.
+ *
+ * @param handler The handler function
+ * @param routeId The route/hook identifier
+ * @param routerOptions Router configuration options
+ * @param isHeaderHook Whether this is a header hook
+ * @returns Promise resolving to MethodReflect data
+ * @throws AOTCacheError if AOT mode is enabled and route is not in cache
+ */
+export async function getHandlerReflection(
     handler: Handler,
     routeId: string,
     routerOptions: RouterOptions,
     isHeaderHook: boolean = false
+): Promise<MethodReflect> {
+    // Check AOT cache first
+    const cached = persistedMethods[routeId];
+    if (cached) {
+        return extractReflectionFromCached(cached);
+    }
+
+    // In AOT mode, throw error if not in cache
+    if (routerOptions.aot) {
+        throw new AOTCacheError(routeId, isHeaderHook ? 'hook' : 'route');
+    }
+
+    // Non-AOT mode: dynamically load run-types and generate reflection
+    const rt = await loadRunTypes();
+    return generateHandlerReflection(handler, routeId, routerOptions, isHeaderHook, rt);
+}
+
+/**
+ * Gets reflection data for a raw hook.
+ * Raw hooks don't use full reflection - they don't need JIT functions.
+ * This function does NOT check the AOT cache because raw hooks don't need
+ * to be in the cache - they always use nullJitFns.
+ *
+ * In AOT mode, this function does NOT load run-types because raw hooks
+ * only need to know if the handler is async, which can be determined
+ * by checking if the handler returns a Promise.
+ *
+ * @param handler The handler function
+ * @param routeId The route/hook identifier
+ * @param routerOptions Router configuration options
+ * @returns Promise resolving to MethodReflect data
+ */
+export async function getRawMethodReflection(
+    handler: Handler,
+    routeId: string,
+    routerOptions: RouterOptions
+): Promise<MethodReflect> {
+    // Raw hooks don't need JIT functions, so we don't need to check the AOT cache
+    // or load run-types. We just need to determine if the handler is async.
+
+    // In AOT mode, we can't use run-types to check if the handler is async,
+    // so we check if the handler returns a Promise by calling it with a mock context.
+    // However, this is not reliable, so we'll just assume raw hooks are sync unless
+    // we can determine otherwise. For proper async detection, use non-AOT mode.
+    if (routerOptions.aot) {
+        // In AOT mode, return simple reflection without loading run-types
+        // We assume raw hooks are sync - if async detection is needed, use non-AOT mode
+        return {
+            paramNames: [],
+            paramsJitFns: nullJitFns,
+            returnJitFns: nullJitFns,
+            paramsJitHash: '',
+            returnJitHash: '',
+            hasReturnData: false,
+            isAsync: false, // Conservative assumption in AOT mode
+        };
+    }
+
+    // Non-AOT mode: dynamically load run-types to properly detect if handler is async
+    const rt = await loadRunTypes();
+    return generateRawMethodReflection(handler, routeId, rt);
+}
+
+// ############ Reflection Generation (requires run-types) ############
+
+/**
+ * Generates reflection data for a handler using run-types.
+ * This function is only called in non-AOT mode.
+ */
+function generateHandlerReflection(
+    handler: Handler,
+    routeId: string,
+    routerOptions: RouterOptions,
+    isHeaderHook: boolean,
+    rt: RunTypesModule
 ): MethodReflect {
     const reflectionItems: Partial<MethodReflect> = {};
     let handlerRunType: FunctionRunType;
     const runTypeOptions = routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions;
     try {
-        handlerRunType = reflectFunction(handler);
+        handlerRunType = rt.reflectFunction(handler);
     } catch (error: any) {
         throw new Error(`Can not get RunType of handler for route/hook "${routeId}." Error: ${error?.message}`);
     }
@@ -56,7 +239,7 @@ export function getHandlerReflection(
             reflectionItems.paramsJitFns = nullJitFns;
             reflectionItems.paramsJitHash = EMPTY_HASH;
         } else {
-            reflectionItems.paramsJitFns = getParamsJitFns(handler, paramsOpts);
+            reflectionItems.paramsJitFns = getParamsJitFns(handler, paramsOpts, rt);
             reflectionItems.paramsJitHash = handlerRunType.getParameters().getJitHash(paramsOpts);
         }
     } catch (error: any) {
@@ -64,8 +247,8 @@ export function getHandlerReflection(
     }
 
     if (isHeaderHook) {
-        const headersRunType = getParamsHeadersRunType(handlerRunType, routeId, routerOptions);
-        const headerNames: string[] = getHeaderNames(headersRunType, routeId);
+        const headersRunType = getParamsHeadersRunType(handlerRunType, routeId, routerOptions, rt);
+        const headerNames: string[] = getHeaderNames(headersRunType, routeId, rt);
 
         try {
             const opts: RunTypeOptions = {
@@ -73,7 +256,7 @@ export function getHandlerReflection(
                 paramsSlice: undefined,
             };
 
-            const jitFns: JitCompiledFunctions = getJitFunctions(headersRunType, opts);
+            const jitFns: JitCompiledFunctions = getJitFunctions(headersRunType, opts, rt);
             const jitHash = headersRunType.getJitHash(opts);
             reflectionItems.headersParam = {headerNames, jitFns, jitHash};
         } catch (error: any) {
@@ -81,11 +264,11 @@ export function getHandlerReflection(
         }
     }
 
-    const returnHeadersRunType = getReturnHeadersRunType(handlerRunType);
+    const returnHeadersRunType = getReturnHeadersRunType(handlerRunType, rt);
     if (returnHeadersRunType) {
         const opts: RunTypeOptions = {};
-        const headerNames: string[] = getHeaderNames(returnHeadersRunType, routeId);
-        const jitFns: JitCompiledFunctions = getReturnJitFns(handler, opts);
+        const headerNames: string[] = getHeaderNames(returnHeadersRunType, routeId, rt);
+        const jitFns: JitCompiledFunctions = getReturnJitFns(handler, opts, rt);
         const jitHash: string = returnHeadersRunType.getJitHash(opts);
         reflectionItems.headersReturn = {headerNames, jitFns, jitHash};
     }
@@ -101,7 +284,7 @@ export function getHandlerReflection(
             reflectionItems.returnJitHash = EMPTY_HASH;
         } else {
             // returnJitFns contains all run type functionality for the return value, it compiles when the property is first accessed
-            reflectionItems.returnJitFns = getReturnJitFns(handler, returnOpts);
+            reflectionItems.returnJitFns = getReturnJitFns(handler, returnOpts, rt);
             reflectionItems.returnJitHash = handlerRunType.getReturnType().getJitHash(returnOpts);
         }
     } catch (error: any) {
@@ -114,13 +297,13 @@ export function getHandlerReflection(
 }
 
 /**
- * Raw hooks don't use reflection, but must comply with the Method interface
- * @returns
+ * Generates reflection data for a raw hook using run-types.
+ * This function is only called in non-AOT mode.
  */
-export function getRawMethodReflection(handler: Handler, routeId: string): MethodReflect {
+function generateRawMethodReflection(handler: Handler, routeId: string, rt: RunTypesModule): MethodReflect {
     let handlerRunType: FunctionRunType;
     try {
-        handlerRunType = reflectFunction(handler);
+        handlerRunType = rt.reflectFunction(handler);
     } catch (error: any) {
         throw new Error(`Can not get RunType of handler for route/hook "${routeId}." Error: ${error?.message}`);
     }
@@ -136,37 +319,44 @@ export function getRawMethodReflection(handler: Handler, routeId: string): Metho
     return reflectionItems;
 }
 
-function getParamsHeadersRunType(handlerRunType: FunctionRunType, routeId: string, routerOptions: RouterOptions): BaseRunType {
+// ############ Helper Functions (require run-types module) ############
+
+function getParamsHeadersRunType(
+    handlerRunType: FunctionRunType,
+    routeId: string,
+    routerOptions: RouterOptions,
+    rt: RunTypesModule
+): BaseRunType {
     const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getFakeCompiler(routerOptions));
     const headersSubset = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // HeadersSubset is always index 1 after context
 
-    if (!isHeaderSubSetRunType(headersSubset)) {
+    if (!isHeaderSubSetRunType(headersSubset, rt)) {
         throw new Error(`Header Hook '${routeId}' second parameter must be a HeadersSubset.`);
     }
     return headersSubset;
 }
 
-function getReturnHeadersRunType(handlerRunType: FunctionRunType): BaseRunType | undefined {
+function getReturnHeadersRunType(handlerRunType: FunctionRunType, rt: RunTypesModule): BaseRunType | undefined {
     const returnRunType = handlerRunType.getReturnType();
-    if (isUnionRunType(returnRunType)) {
-        const headersSubset = returnRunType.getChildRunTypes().find(isHeaderSubSetRunType);
+    if (rt.isUnionRunType(returnRunType)) {
+        const headersSubset = returnRunType.getChildRunTypes().find((child) => isHeaderSubSetRunType(child, rt));
         if (!headersSubset) return undefined;
         return headersSubset;
     }
-    if (!isHeaderSubSetRunType(returnRunType)) return undefined;
+    if (!isHeaderSubSetRunType(returnRunType, rt)) return undefined;
     return returnRunType;
 }
 
-function isHeaderSubSetRunType(rt: BaseRunType | undefined): rt is BaseRunType {
-    if (!rt) return false;
-    return isClassRunType(rt, HeadersSubset);
+function isHeaderSubSetRunType(runType: BaseRunType | undefined, rt: RunTypesModule): runType is BaseRunType {
+    if (!runType) return false;
+    return rt.isClassRunType(runType, HeadersSubset);
 }
 
-function getHeaderNames(rt: BaseRunType, routeId: string): string[] {
+function getHeaderNames(runType: BaseRunType, routeId: string, rt: RunTypesModule): string[] {
     // HeadersSubset is a generic class: HeadersSubset<Required, Optional>
     // We need to extract the literal string values from the Required and Optional type arguments
     // Use 'typeArguments' (not 'arguments') to get both Required and Optional with their defaults
-    const typeArguments = (rt.src as any).typeArguments;
+    const typeArguments = (runType.src as any).typeArguments;
     if (!typeArguments || typeArguments.length === 0) {
         throw new Error(`HeadersSubset must have type arguments in route/hook ${routeId}`);
     }
@@ -174,14 +364,14 @@ function getHeaderNames(rt: BaseRunType, routeId: string): string[] {
     // Extract header names from Required type argument (first argument)
     const requiredArg = typeArguments[0];
     if (requiredArg) {
-        const requiredNames = extractLiteralStringsFromType(requiredArg._rt);
+        const requiredNames = extractLiteralStringsFromType(requiredArg._rt, rt);
         headerNames.push(...requiredNames);
     }
     // Extract header names from Optional type argument (second argument, if present)
     if (typeArguments.length > 1) {
         const optionalArg = typeArguments[1];
         if (optionalArg) {
-            const optionalNames = extractLiteralStringsFromType(optionalArg._rt);
+            const optionalNames = extractLiteralStringsFromType(optionalArg._rt, rt);
             headerNames.push(...optionalNames);
         }
     }
@@ -195,10 +385,10 @@ function getHeaderNames(rt: BaseRunType, routeId: string): string[] {
  * Internal recursive function to extract literal string values from a type.
  * Handles single literal strings and union types (including nested unions).
  */
-function extractLiteralStringsFromTypeRecursive(rt: BaseRunType): string[] {
+function extractLiteralStringsFromTypeRecursive(runType: BaseRunType, rt: RunTypesModule): string[] {
     // Handle single literal string
-    if (isLiteralRunType(rt)) {
-        const literal = (rt as any).getLiteralValue();
+    if (rt.isLiteralRunType(runType)) {
+        const literal = (runType as any).getLiteralValue();
         if (typeof literal === 'string') {
             return [literal];
         }
@@ -206,12 +396,12 @@ function extractLiteralStringsFromTypeRecursive(rt: BaseRunType): string[] {
     }
 
     // Handle union of literal strings (recursively for nested unions)
-    if (isUnionRunType(rt)) {
-        const children = rt.getChildRunTypes();
+    if (rt.isUnionRunType(runType)) {
+        const children = runType.getChildRunTypes();
         const literals: string[] = [];
         for (const child of children) {
             // Recursively extract from each child (handles nested unions)
-            const childLiterals = extractLiteralStringsFromTypeRecursive(child);
+            const childLiterals = extractLiteralStringsFromTypeRecursive(child, rt);
             literals.push(...childLiterals);
         }
         return literals;
@@ -224,10 +414,10 @@ function extractLiteralStringsFromTypeRecursive(rt: BaseRunType): string[] {
  * Extracts literal string values from a type.
  * Handles 'never' type only at the root level, then delegates to recursive extraction.
  */
-function extractLiteralStringsFromType(rt: BaseRunType): string[] {
+function extractLiteralStringsFromType(runType: BaseRunType, rt: RunTypesModule): string[] {
     // Handle 'never' type at root level only (no headers)
-    if (isNeverRunType(rt)) return [];
-    return extractLiteralStringsFromTypeRecursive(rt);
+    if (rt.isNeverRunType(runType)) return [];
+    return extractLiteralStringsFromTypeRecursive(runType, rt);
 }
 
 // Create a fake compiler object with just the opts property needed by getParamRunTypes.
@@ -237,47 +427,56 @@ function getFakeCompiler(routerOptions: RouterOptions): JitFnCompiler {
     return {opts: routerOptions} as any as JitFnCompiler;
 }
 
-function getJitFunctions(rt: BaseRunType, opts?: RunTypeOptions): JitCompiledFunctions {
+function getJitFunctions(runType: BaseRunType, opts: RunTypeOptions | undefined, rtModule: RunTypesModule): JitCompiledFunctions {
     const jitFns: JitCompiledFunctions = {
-        isType: rt.createJitCompiledFunction(JitFunctions.isType.id, undefined, opts),
-        typeErrors: rt.createJitCompiledFunction(JitFunctions.typeErrors.id, undefined, opts),
-        prepareForJson: rt.createJitCompiledFunction(JitFunctions.prepareForJson.id, undefined, opts),
-        restoreFromJson: rt.createJitCompiledFunction(JitFunctions.restoreFromJson.id, undefined, opts),
-        stringifyJson: rt.createJitCompiledFunction(JitFunctions.stringifyJson.id, undefined, opts),
-        toBinary: rt.createJitCompiledFunction(JitFunctions.toBinary.id, undefined, opts),
-        fromBinary: rt.createJitCompiledFunction(JitFunctions.fromBinary.id, undefined, opts),
+        isType: runType.createJitCompiledFunction(rtModule.JitFunctions.isType.id, undefined, opts),
+        typeErrors: runType.createJitCompiledFunction(rtModule.JitFunctions.typeErrors.id, undefined, opts),
+        prepareForJson: runType.createJitCompiledFunction(rtModule.JitFunctions.prepareForJson.id, undefined, opts),
+        restoreFromJson: runType.createJitCompiledFunction(rtModule.JitFunctions.restoreFromJson.id, undefined, opts),
+        stringifyJson: runType.createJitCompiledFunction(rtModule.JitFunctions.stringifyJson.id, undefined, opts),
+        toBinary: runType.createJitCompiledFunction(rtModule.JitFunctions.toBinary.id, undefined, opts),
+        fromBinary: runType.createJitCompiledFunction(rtModule.JitFunctions.fromBinary.id, undefined, opts),
     };
     return jitFns;
 }
 
-function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCompiledFunctions {
-    const rt = reflectFunction(fn);
+function getParamsJitFns<Fn extends AnyFn>(
+    fn: Fn,
+    opts: RunTypeOptions | undefined,
+    rtModule: RunTypesModule
+): JitCompiledFunctions {
+    const runType = rtModule.reflectFunction(fn);
     const paramFunctions: JitCompiledFunctions = {
-        isType: rt.createJitCompiledParamsFunction(JitFunctions.isType, opts),
-        typeErrors: rt.createJitCompiledParamsFunction(JitFunctions.typeErrors, opts),
-        prepareForJson: rt.createJitCompiledParamsFunction(JitFunctions.prepareForJson, opts),
-        restoreFromJson: rt.createJitCompiledParamsFunction(JitFunctions.restoreFromJson, opts),
-        stringifyJson: rt.createJitCompiledParamsFunction(JitFunctions.stringifyJson, opts),
-        toBinary: rt.createJitCompiledParamsFunction(JitFunctions.toBinary, opts),
-        fromBinary: rt.createJitCompiledParamsFunction(JitFunctions.fromBinary, opts),
+        isType: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.isType, opts),
+        typeErrors: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.typeErrors, opts),
+        prepareForJson: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.prepareForJson, opts),
+        restoreFromJson: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.restoreFromJson, opts),
+        stringifyJson: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.stringifyJson, opts),
+        toBinary: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.toBinary, opts),
+        fromBinary: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.fromBinary, opts),
     };
     return paramFunctions;
 }
 
-function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCompiledFunctions {
-    const rt = reflectFunction(fn);
-
+function getReturnJitFns<Fn extends AnyFn>(
+    fn: Fn,
+    opts: RunTypeOptions | undefined,
+    rtModule: RunTypesModule
+): JitCompiledFunctions {
+    const runType = rtModule.reflectFunction(fn);
     const returnFunctions: JitCompiledFunctions = {
-        isType: rt.createJitCompiledReturnFunction(JitFunctions.isType, opts),
-        typeErrors: rt.createJitCompiledReturnFunction(JitFunctions.typeErrors, opts),
-        prepareForJson: rt.createJitCompiledReturnFunction(JitFunctions.prepareForJson, opts),
-        restoreFromJson: rt.createJitCompiledReturnFunction(JitFunctions.restoreFromJson, opts),
-        stringifyJson: rt.createJitCompiledReturnFunction(JitFunctions.stringifyJson, opts),
-        toBinary: rt.createJitCompiledReturnFunction(JitFunctions.toBinary, opts),
-        fromBinary: rt.createJitCompiledReturnFunction(JitFunctions.fromBinary, opts),
+        isType: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.isType, opts),
+        typeErrors: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.typeErrors, opts),
+        prepareForJson: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.prepareForJson, opts),
+        restoreFromJson: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.restoreFromJson, opts),
+        stringifyJson: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.stringifyJson, opts),
+        toBinary: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.toBinary, opts),
+        fromBinary: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.fromBinary, opts),
     };
     return returnFunctions;
 }
+
+// ############ Null JIT Functions ############
 
 // prettier-ignore
 export const nullJitFns: JitCompiledFunctions = {

@@ -55,8 +55,8 @@ describe('Dispatch routes with format types', () => {
         it('pass validation with valid format data', async () => {
             const createUser = route((_ctx, user: UserWithFormats): UserWithFormats => user);
             const routes: FormatTestRoutes = {createUser};
-            initRouter();
-            registerRoutes(routes);
+            await initRouter();
+            await registerRoutes(routes);
 
             const validUser = {name: 'John', age: 25, email: 'john@test.com'};
             const request = getDefaultRequest('createUser', [validUser]);
@@ -76,8 +76,8 @@ describe('Dispatch routes with format types', () => {
         it('return format validation error for string too short', async () => {
             const createUser = route((_ctx, user: UserWithFormats): UserWithFormats => user);
             const routes: FormatTestRoutes = {createUser};
-            initRouter();
-            registerRoutes(routes);
+            await initRouter();
+            await registerRoutes(routes);
 
             const invalidUser = {name: 'A', age: 25, email: 'test@test.com'}; // name too short
             const request = getDefaultRequest('createUser', [invalidUser]);
@@ -108,8 +108,8 @@ describe('Dispatch routes with format types', () => {
         it('return format validation error for number out of range', async () => {
             const createUser = route((_ctx, user: UserWithFormats): UserWithFormats => user);
             const routes: FormatTestRoutes = {createUser};
-            initRouter();
-            registerRoutes(routes);
+            await initRouter();
+            await registerRoutes(routes);
 
             const invalidUser = {name: 'John', age: 10, email: 'test@test.com'}; // age < 13
             const request = getDefaultRequest('createUser', [invalidUser]);
@@ -136,8 +136,8 @@ describe('Dispatch routes with format types', () => {
         it('return multiple format validation errors', async () => {
             const createUser = route((_ctx, user: UserWithFormats): UserWithFormats => user);
             const routes: FormatTestRoutes = {createUser};
-            initRouter();
-            registerRoutes(routes);
+            await initRouter();
+            await registerRoutes(routes);
 
             const invalidUser = {name: 'A', age: 5, email: 'test@test.com'}; // both invalid
             const request = getDefaultRequest('createUser', [invalidUser]);
@@ -162,8 +162,8 @@ describe('Dispatch routes with format types', () => {
         it('validate simple string format param', async () => {
             const validateName = route((_ctx, name: StrFormat<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`);
             const routes: ValidateNameRoutes = {validateName};
-            initRouter();
-            registerRoutes(routes);
+            await initRouter();
+            await registerRoutes(routes);
 
             // Valid name
             const validRequest = getDefaultRequest('validateName', ['John']);
@@ -194,11 +194,11 @@ describe('Dispatch routes with format types', () => {
     });
 
     describe('format JIT serialization should', () => {
-        it('serialize method deps for format routes without stack overflow', () => {
+        it('serialize method deps for format routes without stack overflow', async () => {
             const createUser = route((_ctx, user: UserWithFormats): UserWithFormats => user);
             const routes: FormatTestRoutes = {createUser};
-            initRouter();
-            registerRoutes(routes);
+            await initRouter();
+            await registerRoutes(routes);
 
             const executable = getRouteExecutable('createUser')!;
             expect(executable).toBeDefined();

@@ -133,7 +133,13 @@ export async function compileAOT(
 
     // Import and run the original start script (only dynamic import needed)
     try {
-        await import(resolvedStartScript);
+        const module = await import(resolvedStartScript);
+        // If the module exports a promise (e.g., testApiPromise from async initMionRouter),
+        // we need to await it to ensure the router is fully initialized
+        const promiseExports = Object.values(module).filter((value): value is Promise<unknown> => value instanceof Promise);
+        if (promiseExports.length > 0) {
+            await Promise.all(promiseExports);
+        }
         console.log('Start script completed, caches populated');
     } catch (error) {
         console.error('Error running start script:', (error as Error).message);

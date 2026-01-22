@@ -45,22 +45,22 @@ describe('Public Methods should', () => {
 
     beforeEach(() => resetRouter());
 
-    it('not generate public data when  generateSpec = false', () => {
-        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: false});
-        const publicExecutables = registerRoutes(routes);
+    it('not generate public data when  generateSpec = false', async () => {
+        await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: false});
+        const publicExecutables = await registerRoutes(routes);
 
         expect(publicExecutables).toEqual({});
     });
 
-    it('generate all the required public fields for hook and route', () => {
-        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
+    it('generate all the required public fields for hook and route', async () => {
+        await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
             auth: paramsHook,
             routes: {
                 route1,
             },
         };
-        const api = registerRoutes(testR);
+        const api = await registerRoutes(testR);
 
         expect(api.auth).toEqual(
             expect.objectContaining({
@@ -83,12 +83,12 @@ describe('Public Methods should', () => {
         );
     });
 
-    it('be able to convert serialized handler types to json, deserialize and use them for validation', () => {
-        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
+    it('be able to convert serialized handler types to json, deserialize and use them for validation', async () => {
+        await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
             addMilliseconds: route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
         };
-        const api = registerRoutes(testR);
+        const api = await registerRoutes(testR);
 
         const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash);
         const compiledIsType = getJitUtils().getJIT(hashes.isType)!;
@@ -120,13 +120,13 @@ describe('Public Methods should', () => {
         expect(serialized).toEqual([123, date]);
     });
 
-    it('generate public data when suing prefix and suffix', () => {
-        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
+    it('generate public data when suing prefix and suffix', async () => {
+        await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
         const testR = {
             auth: paramsHook,
             route1,
         };
-        const api = registerRoutes(testR);
+        const api = await registerRoutes(testR);
 
         expect(api).toEqual({
             auth: expect.objectContaining({
@@ -140,9 +140,9 @@ describe('Public Methods should', () => {
         });
     });
 
-    it('generate public data for public routes only', () => {
-        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
-        const publicExecutables = registerRoutes(routes);
+    it('generate public data for public routes only', async () => {
+        await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
+        const publicExecutables = await registerRoutes(routes);
 
         expect(publicExecutables).toEqual({
             first: expect.objectContaining({
@@ -196,12 +196,12 @@ describe('Public Methods should', () => {
         );
     });
 
-    it('should serialize remote method type skipping the context parameter', () => {
-        initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
+    it('should serialize remote method type skipping the context parameter', async () => {
+        await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
         const routes = {
             sayHello: route((ctx: CallContext, name: string): string => `Hello ${name}`),
         };
-        const api = registerRoutes(routes);
+        const api = await registerRoutes(routes);
         expect(api.sayHello).toEqual(
             expect.objectContaining({
                 type: HandlerType.route,

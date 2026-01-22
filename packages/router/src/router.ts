@@ -18,7 +18,13 @@ import {serializerHooks} from './routes/serializer.routes';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
-import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache';
+import {
+    addToPersistedMethods,
+    getPersistedMethod,
+    resetPersistedMethods,
+    loadDefaultAOTCaches,
+    resetDefaultAOTCachesState,
+} from './lib/methodsCache';
 import {mionClientRoutes} from './routes/client.routes';
 import {mionErrorsRoutes} from './routes/errors.routes';
 
@@ -80,11 +86,18 @@ export const resetRouter = () => {
     allExecutablesIds = undefined;
     resetRemoteMethodsMetadata();
     resetPersistedMethods();
+    resetDefaultAOTCachesState();
+    // Note: We intentionally do NOT call resetJitFnCaches() here because:
+    // 1. JIT function caches are global and should persist across router resets
+    // 2. The serializableClassRegistry (cleared by resetJitFnCaches) is needed for
+    //    serialization/deserialization of classes like RpcError
+    // resetJitFnCaches() should only be called in specific test scenarios that need
+    // to test AOT cache loading behavior
 };
 
 // simpler router initialization
-export function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): PublicApi<R> {
-    initRouter(opts);
+export async function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): Promise<PublicApi<R>> {
+    await initRouter(opts);
     return registerRoutes(routes);
 }
 
@@ -95,24 +108,29 @@ export function initMionRouter<R extends Routes>(routes: R, opts?: Partial<Route
  * @param routerOptions
  * @returns
  */
-export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOptions> {
+export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonly<RouterOptions>> {
     if (isRouterInitialized) throw new Error('Router has already been initialized');
     routerOptions = {...routerOptions, ...opts};
     validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
+
+    // In AOT mode, load the default AOT caches (router cache + JIT functions)
+    // This must happen before registering any routes
+    if (routerOptions.aot) await loadDefaultAOTCaches();
+
     isRouterInitialized = true;
-    registerRoutes({...mionErrorsRoutes});
-    if (!routerOptions.skipClientRoutes) registerRoutes({...mionClientRoutes});
+    await registerRoutes({...mionErrorsRoutes});
+    if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});
     return routerOptions;
 }
 
-export function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
+export async function registerRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
 
-    startHooks = getExecutablesFromHooksCollection(startHooksDef);
-    endHooks = getExecutablesFromHooksCollection(endHooksDef);
-    recursiveFlatRoutes(routes);
+    startHooks = await getExecutablesFromHooksCollectionAsync(startHooksDef);
+    endHooks = await getExecutablesFromHooksCollectionAsync(endHooksDef);
+    await recursiveFlatRoutesAsync(routes);
     // we only want to get information about the routes when creating api spec
     if (shouldFullGenerateSpec()) return getPublicApi(routes);
     return {} as PublicApi<R>;
@@ -194,7 +212,7 @@ export function getRouteExecutableFromPath(path: string): RouteMethod {
  * @param postHooks hooks one level up  following the current pointer
  * @param nestLevel
  */
-function recursiveFlatRoutes(
+async function recursiveFlatRoutesAsync(
     routes: Routes,
     currentPointer: string[] = [],
     preHooks: RemoteMethod[] = [],
@@ -209,7 +227,8 @@ function recursiveFlatRoutes(
         throw new Error(`Invalid route: ${currentPointer.length ? join(...currentPointer) : '*'}. Can Not define empty routes`);
 
     let minus1Props: ReturnType<typeof getRouteEntryProperties> | null = null;
-    entries.forEach(([key, item], index, array) => {
+    for (let index = 0; index < entries.length; index++) {
+        const [key, item] = entries[index];
         // create the executable items
         const newPointer = [...currentPointer, key];
         let routeEntry: RemoteMethod | RoutesWithId;
@@ -218,7 +237,7 @@ function recursiveFlatRoutes(
 
         // generates a hook
         if (isAnyHookDef(item)) {
-            routeEntry = getExecutableFromAnyHook(item, newPointer, nestLevel);
+            routeEntry = await getExecutableFromAnyHookAsync(item, newPointer, nestLevel);
             if (hookNames.has(routeEntry.id))
                 throw new Error(`Invalid hook: ${join(...newPointer)}. Naming collision, Naming collision, duplicated hook.`);
             hookNames.add(routeEntry.id);
@@ -226,7 +245,7 @@ function recursiveFlatRoutes(
 
         // generates a route
         else if (isRoute(item)) {
-            routeEntry = getExecutableFromRoute(item, newPointer, nestLevel);
+            routeEntry = await getExecutableFromRouteAsync(item, newPointer, nestLevel);
             if (routeNames.has(routeEntry.id))
                 throw new Error(`Invalid route: ${join(...newPointer)}. Naming collision, duplicated route`);
             routeNames.add(routeEntry.id);
@@ -247,22 +266,22 @@ function recursiveFlatRoutes(
         }
 
         // recurse into sublevels
-        minus1Props = recursiveCreateExecutionPath(
+        minus1Props = await recursiveCreateExecutionPathAsync(
             routeEntry,
             newPointer,
             preHooks,
             postHooks,
             nestLevel,
             index,
-            array,
+            entries,
             minus1Props
         );
 
         complexity++;
-    });
+    }
 }
 
-function recursiveCreateExecutionPath(
+async function recursiveCreateExecutionPathAsync(
     routeEntry: RemoteMethod | RoutesWithId,
     currentPointer: string[],
     preHooks: RemoteMethod[],
@@ -280,14 +299,15 @@ function recursiveCreateExecutionPath(
         props.preLevelHooks = minus1Props.preLevelHooks;
         props.postLevelHooks = minus1Props.postLevelHooks;
     } else {
-        routeKeyedEntries.forEach(([k, entry], i) => {
+        for (let i = 0; i < routeKeyedEntries.length; i++) {
+            const [k, entry] = routeKeyedEntries[i];
             complexity++;
-            if (!isAnyHookDef(entry)) return null;
+            if (!isAnyHookDef(entry)) continue;
             const newPointer = [...currentPointer.slice(0, -1), k];
-            const executable = getExecutableFromAnyHook(entry, newPointer, nestLevel);
+            const executable = await getExecutableFromAnyHookAsync(entry, newPointer, nestLevel);
             if (i < index) props.preLevelHooks.push(executable);
             if (i > index) props.postLevelHooks.push(executable);
-        });
+        }
     }
     const isExec = isExecutable(routeEntry);
 
@@ -301,7 +321,7 @@ function recursiveCreateExecutionPath(
         };
         flatRouter.set(path, executionPath);
     } else if (!isExec) {
-        recursiveFlatRoutes(
+        await recursiveFlatRoutesAsync(
             routeEntry.routes,
             routeEntry.pathPointer,
             [...preHooks, ...props.preLevelHooks],
@@ -313,16 +333,20 @@ function recursiveCreateExecutionPath(
     return props;
 }
 
-function getExecutableFromAnyHook(hook: HookDef | HeaderHookDef | RawHookDef, hookPointer: string[], nestLevel: number) {
-    if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, hookPointer, nestLevel);
-    return getExecutableFromHook(hook, hookPointer, nestLevel);
+async function getExecutableFromAnyHookAsync(
+    hook: HookDef | HeaderHookDef | RawHookDef,
+    hookPointer: string[],
+    nestLevel: number
+) {
+    if (isRawHookDef(hook)) return getExecutableFromRawHookAsync(hook, hookPointer, nestLevel);
+    return getExecutableFromHookAsync(hook, hookPointer, nestLevel);
 }
 
-export function getExecutableFromHook(
+export async function getExecutableFromHookAsync(
     hook: HookDef | HeaderHookDef,
     hookPointer: string[],
     nestLevel: number
-): HookMethod | HeaderMethod {
+): Promise<HookMethod | HeaderMethod> {
     const isHeader = isHeaderHookDef(hook);
     // todo fix header id should be same as any other one and then maybe map from id to header name
     const hookId = getRouterItemId(hookPointer);
@@ -338,7 +362,7 @@ export function getExecutableFromHook(
     if (compiledMethod) {
         executable = compiledMethod as MixedHook;
     } else {
-        const reflectionData = getHandlerReflection(hook.handler, hookId, routerOptions, isHeader);
+        const reflectionData = await getHandlerReflection(hook.handler, hookId, routerOptions, isHeader);
         executable = {
             id: hookId,
             type: isHeader ? HandlerType.headerHook : HandlerType.hook,
@@ -360,11 +384,15 @@ export function getExecutableFromHook(
     return executable as any;
 }
 
-export function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestLevel: number): RawMethod {
+export async function getExecutableFromRawHookAsync(
+    hook: RawHookDef,
+    hookPointer: string[],
+    nestLevel: number
+): Promise<RawMethod> {
     const hookId = getRouterItemId(hookPointer);
     const existing = rawHooksById.get(hookId);
     if (existing) return existing as RawMethod;
-    const reflectionData = getRawMethodReflection(hook.handler, hookId);
+    const reflectionData = await getRawMethodReflection(hook.handler, hookId, routerOptions);
     const executable: RawMethod = {
         id: hookId,
         type: HandlerType.rawHook,
@@ -383,7 +411,7 @@ export function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[]
     return executable;
 }
 
-export function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteMethod {
+export async function getExecutableFromRouteAsync(route: Route, routePointer: string[], nestLevel: number): Promise<RouteMethod> {
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
     if (existing) return existing as RouteMethod;
@@ -393,7 +421,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
     if (compiledMethod) {
         executable = compiledMethod as RouteMethod;
     } else {
-        const reflectionData = getHandlerReflection(route.handler, routeId, routerOptions);
+        const reflectionData = await getHandlerReflection(route.handler, routeId, routerOptions);
         executable = {
             id: routeId,
             type: HandlerType.route,
@@ -438,12 +466,20 @@ function getRouteEntryProperties(
     };
 }
 
-function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawMethod | HookMethod | HeaderMethod)[] {
-    return Object.entries(hooksDef).map(([key, hook]) => {
-        if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, [key], 0);
-        if (isHeaderHookDef(hook) || isHookDef(hook)) return getExecutableFromHook(hook, [key], 0);
-        throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
-    });
+async function getExecutablesFromHooksCollectionAsync(
+    hooksDef: HooksCollection
+): Promise<(RawMethod | HookMethod | HeaderMethod)[]> {
+    const results: (RawMethod | HookMethod | HeaderMethod)[] = [];
+    for (const [key, hook] of Object.entries(hooksDef)) {
+        if (isRawHookDef(hook)) {
+            results.push(await getExecutableFromRawHookAsync(hook, [key], 0));
+        } else if (isHeaderHookDef(hook) || isHookDef(hook)) {
+            results.push(await getExecutableFromHookAsync(hook, [key], 0));
+        } else {
+            throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
+        }
+    }
+    return results;
 }
 
 /**

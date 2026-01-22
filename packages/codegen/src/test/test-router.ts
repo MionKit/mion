@@ -7,7 +7,7 @@
  * ######## */
 
 import {HeadersSubset} from '@mionkit/core';
-import {initMionRouter, route, hook, headersHook, Routes} from '@mionkit/router';
+import {initMionRouter, route, hook, headersHook, Routes, PublicApi} from '@mionkit/router';
 
 // Simple type for testing
 interface User {
@@ -34,8 +34,8 @@ const routes = {
     }),
 } satisfies Routes;
 
-// Initialize the router
-export const testApi = initMionRouter(routes, {prefix: 'api/v1'});
+// Initialize the router (async) - export as a promise
+export const testApiPromise: Promise<PublicApi<typeof routes>> = initMionRouter(routes, {prefix: 'api/v1'});
 
 // Export routes for testing
 export {routes};

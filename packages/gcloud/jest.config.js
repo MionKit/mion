@@ -8,4 +8,16 @@ module.exports = {
   collectCoverageFrom: ['src/**'],
   testMatch: ['**/?(*.)+(spec).ts?(x)'],
   moduleNameMapper: {'^@mionkit/(.*)$': '<rootDir>/../$1'},
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        useESM: false,
+        tsconfig: {
+          module: 'commonjs',
+          moduleResolution: 'node',
+        },
+      },
+    ],
+  },
 };

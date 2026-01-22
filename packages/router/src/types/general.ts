@@ -48,4 +48,12 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
     autoGenerateErrorId: boolean;
     /** client routes are initialized by default */
     skipClientRoutes: boolean;
+    /**
+     * Enable AOT (Ahead-of-Time) mode.
+     * When true, router will use pre-compiled JIT functions from cache
+     * and will NOT load @mionkit/run-types package.
+     * Throws error if any route/hook is missing from AOT cache.
+     * @default false
+     */
+    aot: boolean;
 }

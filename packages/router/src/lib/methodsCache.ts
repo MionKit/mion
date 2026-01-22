@@ -67,3 +67,61 @@ export function loadCompiledMethods(compiledMethods: MethodsCache) {
 }
 
 // ############# AOT CACHE LOADING #############
+
+// Cached state to avoid loading default AOT caches multiple times
+let defaultAOTCachesLoaded = false;
+let defaultAOTCachesLoadPromise: Promise<void> | null = null;
+
+/**
+ * Dynamically loads the default AOT caches from @mionkit/aot-caches.
+ * This includes the router cache (default routes metadata) and JIT function caches.
+ * The caches are loaded only once and cached for subsequent calls.
+ *
+ * Note: Raw hooks (like mionDeserializeRequest and mionSerializeResponse) don't need
+ * to be in the AOT cache because they don't use JIT functions - they always use nullJitFns.
+ *
+ * @returns Promise that resolves when caches are loaded
+ */
+export async function loadDefaultAOTCaches(): Promise<void> {
+    // Return immediately if already loaded
+    if (defaultAOTCachesLoaded) return;
+
+    // Return existing promise if load is in progress
+    if (defaultAOTCachesLoadPromise) return defaultAOTCachesLoadPromise;
+
+    // Start loading the caches
+    defaultAOTCachesLoadPromise = (async () => {
+        try {
+            // Dynamically import the aot-caches package
+            const aotCaches = await import('@mionkit/aot-caches');
+
+            // Load JIT function caches first (needed for restoring methods)
+            const {addAOTCaches} = await import('@mionkit/core');
+            addAOTCaches(aotCaches.jitFnsCache, aotCaches.pureFnsCache);
+
+            // Load router cache (default routes metadata)
+            loadCompiledMethods(aotCaches.routerCache);
+
+            defaultAOTCachesLoaded = true;
+        } catch (error) {
+            // Reset promise so it can be retried
+            defaultAOTCachesLoadPromise = null;
+            throw new Error(
+                `Failed to load default AOT caches from @mionkit/aot-caches. ` +
+                    `Make sure the package is installed and built. ` +
+                    `Original error: ${error instanceof Error ? error.message : String(error)}`
+            );
+        }
+    })();
+
+    return defaultAOTCachesLoadPromise;
+}
+
+/**
+ * Resets the default AOT caches loaded state.
+ * This is useful for testing purposes only.
+ */
+export function resetDefaultAOTCachesState(): void {
+    defaultAOTCachesLoaded = false;
+    defaultAOTCachesLoadPromise = null;
+}
