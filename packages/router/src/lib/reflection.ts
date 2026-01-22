@@ -151,15 +151,8 @@ export async function getHandlerReflection(
 ): Promise<MethodReflect> {
     // Check AOT cache first
     const cached = persistedMethods[routeId];
-    if (cached) {
-        return extractReflectionFromCached(cached);
-    }
-
-    // In AOT mode, throw error if not in cache
-    if (routerOptions.aot) {
-        throw new AOTCacheError(routeId, isHeaderHook ? 'hook' : 'route');
-    }
-
+    if (cached) return extractReflectionFromCached(cached);
+    if (routerOptions.aot) throw new AOTCacheError(routeId, isHeaderHook ? 'hook' : 'route');
     // Non-AOT mode: dynamically load run-types and generate reflection
     const rt = await loadRunTypesModule();
     return generateHandlerReflection(handler, routeId, routerOptions, isHeaderHook, rt);
@@ -179,17 +172,9 @@ export async function getRawMethodReflection(
 ): Promise<MethodReflect> {
     // Check if raw hook is in cache - if so, use cached data (especially isAsync)
     const cached = persistedMethods[routeId];
-    if (cached) {
-        return createRawHookReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
-    }
-
+    if (cached) return createRawHookReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
     // Raw hooks don't need JIT functions, so we don't need to load run-types in AOT mode
-    if (routerOptions.aot) {
-        // In AOT mode, return simple reflection without loading run-types
-        // Use conservative assumption for isAsync since we can't detect it without run-types
-        return createRawHookReflection(true); // isAsync=true is conservative assumption
-    }
-
+    if (routerOptions.aot) return createRawHookReflection(true);
     // Non-AOT mode: dynamically load run-types to properly detect if handler is async
     const rt = await loadRunTypesModule();
     return generateRawMethodReflection(handler, routeId, rt);
@@ -354,9 +339,7 @@ function getHeaderNames(runType: BaseRunType, routeId: string, rt: RunTypesModul
             headerNames.push(...optionalNames);
         }
     }
-    if (headerNames.length === 0) {
-        throw new Error(`Header names array cannot be empty in route/hook ${routeId}`);
-    }
+    if (headerNames.length === 0) throw new Error(`Header names array cannot be empty in route/hook ${routeId}`);
     return headerNames;
 }
 
