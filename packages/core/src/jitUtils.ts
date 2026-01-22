@@ -32,6 +32,7 @@ const jitFnsCache: JitFunctionsCache = {};
 const pureFnsCache: PureFunctionsCache = {};
 
 let coreAOTCachesLoaded = false;
+let aotCachesLoaded = false;
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
@@ -242,6 +243,7 @@ export function getJitUtils(): JITUtils {
  * @param aotPureCache
  */
 export function addAOTCaches(aotFnsCache: PersistedJitFunctionsCache, aotPureCache: PersistedPureFunctionsCache) {
+    aotCachesLoaded = true;
     restoreCaches(aotFnsCache, aotPureCache);
 }
 
@@ -314,4 +316,47 @@ export function resetJitFnCaches() {
     deserializeFnsRegistry.clear();
     serializableClassRegistry.clear();
     coreAOTCachesLoaded = false;
+    aotCachesLoaded = false;
+}
+
+// ############# AOT Cache State Functions #############
+
+/**
+ * Returns true if AOT caches have been loaded via addAOTCaches().
+ * This is used by the router to validate strict mode requirements.
+ */
+export function isAOTCacheLoaded(): boolean {
+    return aotCachesLoaded;
+}
+
+/**
+ * Returns the number of JIT functions currently in the cache.
+ * Useful for debugging and validation.
+ */
+export function getJitCacheSize(): number {
+    return Object.keys(jitFnsCache).length;
+}
+
+/**
+ * Returns the number of pure functions currently in the cache.
+ * Useful for debugging and validation.
+ */
+export function getPureCacheSize(): number {
+    return Object.keys(pureFnsCache).length;
+}
+
+/**
+ * Checks if a specific JIT function exists in the cache.
+ * @param hash The hash of the JIT function to check
+ */
+export function hasJitFunctionInCache(hash: string): boolean {
+    return hash in jitFnsCache;
+}
+
+/**
+ * Checks if a specific pure function exists in the cache.
+ * @param hash The hash of the pure function to check
+ */
+export function hasPureFunctionInCache(hash: string): boolean {
+    return hash in pureFnsCache;
 }

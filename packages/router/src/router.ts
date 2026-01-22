@@ -12,13 +12,13 @@ import type {PublicApi, PrivateDef, HooksCollection} from './types/publicMethods
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
-import {HandlerType} from '@mionkit/core';
+import {HandlerType, AOTCachesNotLoadedError, isAOTCacheLoaded} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection';
 import {serializerHooks} from './routes/serializer.routes';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
-import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache';
+import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods, setAOTMode} from './lib/methodsCache';
 import {mionClientRoutes} from './routes/client.routes';
 import {mionErrorsRoutes} from './routes/errors.routes';
 
@@ -99,12 +99,26 @@ export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOption
     if (isRouterInitialized) throw new Error('Router has already been initialized');
     routerOptions = {...routerOptions, ...opts};
     validateSharedDataFactory(routerOptions);
+    validateAOTMode(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
+    setAOTMode(routerOptions.aotMode);
     isRouterInitialized = true;
     registerRoutes({...mionErrorsRoutes});
     if (!routerOptions.skipClientRoutes) registerRoutes({...mionClientRoutes});
     return routerOptions;
+}
+
+/**
+ * Validates AOT mode configuration.
+ * In strict mode, throws an error if AOT caches have not been loaded.
+ * @param opts Router options to validate
+ * @throws AOTCachesNotLoadedError if strict mode is enabled but caches are not loaded
+ */
+function validateAOTMode(opts: RouterOptions): void {
+    if (opts.aotMode === 'strict' && !isAOTCacheLoaded()) {
+        throw new AOTCachesNotLoadedError();
+    }
 }
 
 export function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {

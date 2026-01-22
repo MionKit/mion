@@ -10,6 +10,70 @@ import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from './utils';
 import {getJitUtils} from './jitUtils';
 
+// ############# AOT Error Types #############
+
+/**
+ * Error thrown when AOT caches are not loaded but strict mode is enabled.
+ * This error indicates that the router was initialized with aotMode: 'strict'
+ * but no AOT caches were loaded via addAOTCaches().
+ */
+export class AOTCachesNotLoadedError extends Error {
+    public readonly 'mion@isΣrrθr': true = true;
+    public readonly type = 'aot-caches-not-loaded' as const;
+
+    constructor() {
+        super(
+            'AOT caches not loaded. In strict mode, AOT caches must be loaded before initializing the router. ' +
+                "Call addAOTCaches() before initRouter() or use aotMode: 'auto'."
+        );
+        this.name = 'AOTCachesNotLoadedError';
+        Object.setPrototypeOf(this, AOTCachesNotLoadedError.prototype);
+    }
+}
+
+/**
+ * Error thrown when a required JIT function is not found in the AOT cache.
+ * This error indicates that the AOT caches are incomplete or were generated
+ * with a different version of the routes.
+ */
+export class AOTFunctionMissingError extends Error {
+    public readonly 'mion@isΣrrθr': true = true;
+    public readonly type = 'aot-function-missing' as const;
+    public readonly functionHash: string;
+    public readonly routeId: string;
+
+    constructor(routeId: string, functionHash: string) {
+        super(
+            `AOT function missing for route '${routeId}'. JIT function with hash '${functionHash}' not found in cache. ` +
+                'Ensure AOT caches are properly generated and loaded.'
+        );
+        this.name = 'AOTFunctionMissingError';
+        this.functionHash = functionHash;
+        this.routeId = routeId;
+        Object.setPrototypeOf(this, AOTFunctionMissingError.prototype);
+    }
+}
+
+/**
+ * Error thrown when a route is not found in the AOT router cache.
+ * This error indicates that the route was not included when generating AOT caches.
+ */
+export class AOTRouterCacheMissingError extends Error {
+    public readonly 'mion@isΣrrθr': true = true;
+    public readonly type = 'aot-router-cache-missing' as const;
+    public readonly routeId: string;
+
+    constructor(routeId: string) {
+        super(
+            `Route '${routeId}' not found in AOT router cache. ` +
+                'Ensure AOT caches are properly generated and include this route.'
+        );
+        this.name = 'AOTRouterCacheMissingError';
+        this.routeId = routeId;
+        Object.setPrototypeOf(this, AOTRouterCacheMissingError.prototype);
+    }
+}
+
 // ############# Validation Error Types #############
 
 /**

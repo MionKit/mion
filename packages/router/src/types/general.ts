@@ -9,6 +9,17 @@ import {CoreOptions} from '@mionkit/core';
 import {ContextDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import type {RunTypeOptions} from '@mionkit/run-types';
+
+// ####### AOT Mode #######
+
+/**
+ * AOT (Ahead-of-Time) compilation mode for the router.
+ * - 'auto': Use AOT caches if available, fall back to JIT compilation if not (default)
+ * - 'strict': Require AOT caches, fail immediately if not loaded or incomplete
+ * - 'disabled': Always use JIT compilation, ignore AOT caches
+ */
+export type AOTMode = 'auto' | 'strict' | 'disabled';
+
 // #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */
@@ -48,4 +59,11 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
     autoGenerateErrorId: boolean;
     /** client routes are initialized by default */
     skipClientRoutes: boolean;
+    /**
+     * AOT (Ahead-of-Time) compilation mode.
+     * - 'auto': Use AOT caches if available, fall back to JIT compilation if not (default)
+     * - 'strict': Require AOT caches, fail immediately if not loaded or incomplete
+     * - 'disabled': Always use JIT compilation, ignore AOT caches
+     */
+    aotMode: AOTMode;
 }
