@@ -21,8 +21,11 @@
     "prepare": "husky install"
   },
   "lint-staged": {
-    "packages/**/*.ts": [
+    "packages/**/!(*.spec|*.test).ts": [
       "npm run lint-pre-committ --",
+      "npm run check-format-pre-commit --"
+    ],
+    "packages/**/*.{spec,test}.ts": [
       "npm run check-format-pre-commit --"
     ]
   },

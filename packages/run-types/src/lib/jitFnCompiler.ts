@@ -16,7 +16,7 @@ import {maxStackErrorMessage, JIT_STACK_TRACE_MESSAGE} from '../constants';
 import {type CodeType, CodeTypes, jitErrorArgs, type JitFnSettings} from '../constants.functions';
 import {getJITFnName, getJitFnSettings} from './jitFnsRegistry';
 import {JitFunctions} from '../constants.functions';
-import {isChildAccessorType, isJitErrorsCompiler} from './guards';
+import {isChildAccessorType, isFunctionParamsRunType, isJitErrorsCompiler} from './guards';
 import {addFullStop, getJitFnArgCallVarName, toLiteral, toLiteralInContext} from './utils';
 import {registerPureFnClosure} from './pureFn';
 import {getPureFunctionKey} from './pureFn';
@@ -398,6 +398,12 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         return {code: callCode, type: 'E'};
     }
 
+    /** Check if root type is a FunctionParamsRunType with no children (empty params) */
+    private isEmptyFunctionParams(): boolean {
+        if (!isFunctionParamsRunType(this.rootType)) return false;
+        return this.rootType.getChildRunTypes().length === 0;
+    }
+
     /**
      * Set the isNoop flag based on the code of the operation.
      * must be called before function gets compiled.
@@ -408,9 +414,11 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
         let isNoop = false;
         // trims code and transforms multiple whitespaces into a single one, does not affect new lines as those can be significant
         let code = this.code.replace(/[ \t]+/g, ' ').replace(/;+/g, ';');
+        // For functions with no params, all validation/serialization functions are noop
+        const isEmptyParams = this.isEmptyFunctionParams();
         switch (this.fnID) {
             case JitFunctions.isType.id:
-                isNoop = !this.code || this.code === 'true' || this.code === 'return true';
+                isNoop = isEmptyParams || !this.code || this.code === 'true' || this.code === 'return true';
                 if (isNoop) code = `return true`; // if code is a noop, we still need to return true
                 break;
             case JitFunctions.hasUnknownKeys.id:
@@ -421,12 +429,12 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
             case JitFunctions.restoreFromJson.id:
             case JitFunctions.stripUnknownKeys.id:
             case JitFunctions.unknownKeysToUndefined.id:
-                isNoop = !this.code || this.code === this.args.vλl || this.code === `return ${this.args.vλl}`;
+                isNoop = isEmptyParams || !this.code || this.code === this.args.vλl || this.code === `return ${this.args.vλl}`;
                 if (isNoop) code = `return ${this.args.vλl}`; // if code is a noop, we need to return the value
                 break;
             case JitFunctions.typeErrors.id:
             case JitFunctions.unknownKeyErrors.id:
-                isNoop = !this.code || this.code === this.args.εrr || this.code === `return ${this.args.εrr}`;
+                isNoop = isEmptyParams || !this.code || this.code === this.args.εrr || this.code === `return ${this.args.εrr}`;
                 if (isNoop) code = `return ${this.args.εrr}`; // if code is a noop, we need to return the error array
                 break;
             case JitFunctions.format.id:
