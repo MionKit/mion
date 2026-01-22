@@ -17,7 +17,7 @@ type UserWithFormats = {
     };
 };
 
-export const myApi = initMionRouter({
+export const myApi = await initMionRouter({
     setUser: route((_ctx, user: UserWithFormats): UserWithFormats | RpcError<'user-exists'> => {
         return user;
     }),

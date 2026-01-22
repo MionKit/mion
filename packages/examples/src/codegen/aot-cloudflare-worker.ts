@@ -8,7 +8,7 @@ addAOTCaches(jitFnsCache, pureFnsCache);
 import {initMionRouter} from '@mionkit/router';
 import {routes} from './routes';
 
-const myApi = initMionRouter(routes);
+const myApi = await initMionRouter(routes);
 
 export default {
     async fetch(request: Request): Promise<Response> {
@@ -16,4 +16,3 @@ export default {
         // ...
     },
 };
-

@@ -8,5 +8,4 @@ import {myRoutes} from './routes';
 
 // Load the pre-compiled caches BEFORE initializing the router
 addAOTCaches(jitFnsCache, pureFnsCache);
-export const myApi = initMionRouter(myRoutes);
-
+export const myApi = await initMionRouter(myRoutes);

@@ -23,4 +23,4 @@ const routes = {
     sayMyName,
 } satisfies Routes;
 
-export const apiSpec = initMionRouter(routes);
+export const apiSpec = await initMionRouter(routes);

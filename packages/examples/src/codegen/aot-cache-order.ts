@@ -5,9 +5,8 @@ import {routes} from './routes';
 
 // ✅ Correct order
 addAOTCaches(jitFnsCache, pureFnsCache);
-const myApi = initMionRouter(routes);
+const myApi = await initMionRouter(routes);
 
 // ❌ Wrong order - caches won't be used
-const myApi2 = initMionRouter(routes);
+const myApi2 = await initMionRouter(routes);
 addAOTCaches(jitFnsCache, pureFnsCache);
-

@@ -16,4 +16,4 @@ const invalidRoutes = {
 } satisfies Routes;
 
 // Throws an error as there are invalid route names
-export const myInvalidApi = initMionRouter(invalidRoutes);
+export const myInvalidApi = await initMionRouter(invalidRoutes);

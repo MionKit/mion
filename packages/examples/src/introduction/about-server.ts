@@ -8,6 +8,6 @@ const routes = {
     }),
 } satisfies Routes;
 
-export const myApi = initMionRouter(routes);
+export const myApi = await initMionRouter(routes);
 startNodeServer({port: 3000});
 export type MyApi = typeof myApi;
