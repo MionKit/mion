@@ -169,7 +169,6 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
             pointer: ['users', 'getUser'],
             serialize: 'stringifyJson',
-            deserialize: 'json',
         },
         'users/setUser': {
             type: HandlerType.route,
@@ -183,7 +182,6 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
             pointer: ['users', 'setUser'],
             serialize: 'stringifyJson',
-            deserialize: 'json',
         },
         'users/pets/getUserPet': {
             type: HandlerType.route,
@@ -197,7 +195,6 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
             pointer: ['users', 'pets', 'getUserPet'],
             serialize: 'stringifyJson',
-            deserialize: 'json',
         },
         'pets/getPet': {
             type: HandlerType.route,
@@ -211,7 +208,6 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
             pointer: ['pets', 'getPet'],
             serialize: 'stringifyJson',
-            deserialize: 'json',
         },
         'pets/setPet': {
             type: HandlerType.route,
@@ -225,7 +221,6 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
             pointer: ['pets', 'setPet'],
             serialize: 'stringifyJson',
-            deserialize: 'json',
         },
         auth: {
             type: HandlerType.hook,
@@ -238,7 +233,6 @@ describe('Client Routes should', () => {
             paramNames: ['token'],
             pointer: ['auth'],
             serialize: 'stringifyJson',
-            deserialize: 'json',
         },
         last: {
             type: HandlerType.hook,
@@ -251,7 +245,6 @@ describe('Client Routes should', () => {
             paramNames: [],
             pointer: ['last'],
             serialize: 'stringifyJson',
-            deserialize: 'json',
         },
     } satisfies MethodsCache;
 

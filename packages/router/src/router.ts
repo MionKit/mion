@@ -368,7 +368,6 @@ export async function getExecutableFromHookAsync(
             pointer: hookPointer,
             ...reflectionData,
             serialize: routerOptions.serialize,
-            deserialize: routerOptions.deserialize,
             options: {
                 runOnError: !!hook.options?.runOnError,
                 validateParams: hook.options?.validateParams ?? true,
@@ -400,7 +399,6 @@ export async function getExecutableFromRawHookAsync(
         pointer: hookPointer,
         ...reflectionData,
         serialize: routerOptions.serialize,
-        deserialize: routerOptions.deserialize,
         options: {
             runOnError: !!hook.options?.runOnError,
             validateParams: false,
@@ -431,12 +429,12 @@ export async function getExecutableFromRouteAsync(route: Route, routePointer: st
             pointer: routePointer,
             ...reflectionData,
             serialize: routerOptions.serialize,
-            deserialize: routerOptions.deserialize,
             options: {
                 runOnError: false,
                 validateParams: route.options?.validateParams ?? true,
                 validateReturn: route.options?.validateReturn ?? false,
                 description: route.options?.description,
+                serializer: route.options?.serializer,
             },
         };
         addToPersistedMethods(routeId, executable);

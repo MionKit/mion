@@ -57,16 +57,9 @@ export interface JITUtils {
  * Serializer mode for response body serialization.
  * - 'json': Use prepareForJson, platform adapter handles JSON.stringify
  * - 'binary': Use toBinary JIT function for binary serialization
- * - 'stringifyJson': Use stringifyJson JIT function for optimized JSON serialization
+ * - 'stringifyJson': Use stringifyJson JIT function that do not mutates objects.
  */
 export type SerializerMode = 'json' | 'binary' | 'stringifyJson';
-
-/**
- * Deserializer mode for request body deserialization.
- * - 'json': Use restoreFromJson JIT function
- * - 'binary': Use fromBinary JIT function for binary deserialization
- */
-export type DeserializerMode = 'json' | 'binary';
 
 // ########################################## Options ##########################################
 
