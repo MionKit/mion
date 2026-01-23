@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions} from '@mionkit/core';
+import {CoreOptions, SerializerMode, DeserializerMode} from '@mionkit/core';
 import {ContextDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import type {RunTypeOptions} from '@mionkit/run-types';
@@ -36,10 +36,23 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
     pathTransform?: (request: Req, path: string) => string;
     /** factory function to initialize shared call context data */
     contextDataFactory?: ContextDataFactory<ContextData>;
-    /** Enables json stringify using runTypes jit stringify function instead JSON.stringify */
-    useJitStringify: boolean;
-    /** Enables binary serialization using runTypes jit binary serialization functions, if enabled takes precedence over useJitStringify */
-    useBinarySerialization: boolean;
+    /**
+     * Default serializer mode for response body serialization.
+     * Can be overridden per-route/hook.
+     * - 'json': Use prepareForJson, platform adapter handles JSON.stringify
+     * - 'binary': Use toBinary JIT function for binary serialization
+     * - 'stringifyJson': Use stringifyJson JIT function for optimized JSON serialization
+     * @default 'stringifyJson'
+     */
+    serialize: SerializerMode;
+    /**
+     * Default deserializer mode for request body deserialization.
+     * Can be overridden per-route/hook.
+     * - 'json': Use restoreFromJson JIT function
+     * - 'binary': Use fromBinary JIT function for binary deserialization
+     * @default 'json'
+     */
+    deserialize: DeserializerMode;
     /** run type compiler options for hooks and routes */
     runTypeOptions: RunTypeOptions;
     /** Used to return public data structure when adding routes */

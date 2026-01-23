@@ -7,7 +7,7 @@
 
 // ########################################## METHODS METADATA ##########################################
 
-import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions} from './general.types';
+import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, SerializerMode, DeserializerMode} from './general.types';
 
 /**
  * Shared interface for PublicMethod that can be used between client and server without handler dependencies
@@ -39,6 +39,10 @@ export interface MethodMetadata {
     pointer: string[];
     /** router nest level */
     nestLevel: number;
+    /** Serializer mode for response body serialization */
+    serialize: SerializerMode;
+    /** Deserializer mode for request body deserialization */
+    deserialize: DeserializerMode;
 }
 
 export type MethodsCache = Record<string, MethodMetadata>;

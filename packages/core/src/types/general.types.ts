@@ -51,6 +51,23 @@ export interface JITUtils {
     safeKey(value: any): any;
 }
 
+// ########################################## Serialization Modes ##########################################
+
+/**
+ * Serializer mode for response body serialization.
+ * - 'json': Use prepareForJson, platform adapter handles JSON.stringify
+ * - 'binary': Use toBinary JIT function for binary serialization
+ * - 'stringifyJson': Use stringifyJson JIT function for optimized JSON serialization
+ */
+export type SerializerMode = 'json' | 'binary' | 'stringifyJson';
+
+/**
+ * Deserializer mode for request body deserialization.
+ * - 'json': Use restoreFromJson JIT function
+ * - 'binary': Use fromBinary JIT function for binary deserialization
+ */
+export type DeserializerMode = 'json' | 'binary';
+
 // ########################################## Options ##########################################
 
 export type CoreOptions = {
@@ -307,8 +324,10 @@ export type PrepareForJsonFn = (value: any) => JSONValue;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
 export type ToCodeFn = (value: any) => string;
-export type ToBinaryFn = (value: any) => Uint8Array;
-export type FromBinaryFn = (buffer: Uint8Array) => any;
+/** Binary serialization function - serializes value to the serializer context */
+export type ToBinaryFn = (value: any, serializer: DataViewSerializer) => void;
+/** Binary deserialization function - deserializes from the deserializer context and returns the value */
+export type FromBinaryFn = (value: undefined, deserializer: DataViewDeserializer) => any;
 
 // ############################# JIT CACHES ###################################
 

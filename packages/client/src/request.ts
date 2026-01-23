@@ -52,7 +52,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
 
         // make the request
         try {
-            const body = serializeRequestBody(this);
+            const serialized = serializeRequestBody(this);
             const headersFromParams = extractRequestHeaders(this);
 
             const url = new URL(this.path, this.options.baseURL);
@@ -62,8 +62,11 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
                     ...this.options.fetchOptions.headers,
                     // Headers extracted from HeadersSubset params in headersHooks
                     ...headersFromParams,
+                    // Content-Type based on serialization mode (json or binary)
+                    'Content-Type': serialized.contentType,
                 },
-                body,
+                // Cast to BodyInit - Uint8Array is valid for fetch but TypeScript types are strict
+                body: serialized.body as BodyInit,
             };
             this.response = await fetch(url, fetchOptions);
         } catch (error: any) {

@@ -17,7 +17,7 @@ import {persistedMethods} from './methodsCache';
 // ############ This file is the only one importing '@mionkit/run-types' within the router ########
 // In AOT mode, run-types is NOT loaded - all reflection data comes from the AOT cache
 
-type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
+type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options' | 'serialize' | 'deserialize'>;
 
 // ############ AOT Cache Error ############
 

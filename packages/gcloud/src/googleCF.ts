@@ -35,21 +35,21 @@ export function setGoogleCFOpts(routerOptions?: Partial<GoogleCFOptions>) {
 export async function googleCFHandler(rawRequest: Request, rawResponse: Response): Promise<void> {
     // Express in Google Cloud Functions might parse the body automatically when Content-Type is application/json
     // We handle both cases: string body and already-parsed object body
+    // For binary requests, we need to handle the raw buffer
 
     // TODO use its own express headers wrapper instead headers from record
     rawResponse.setHeader('server', '@mionkit');
     const reqHeaders = headersFromIncomingMessage(rawRequest);
     const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
 
+    // Check content-type to determine if this is a binary request
+    const contentType = rawRequest.headers['content-type'] || '';
+    const isBinary = contentType.includes('application/octet-stream');
+    // For binary requests, convert Buffer to Uint8Array
+    const rawBody = isBinary && Buffer.isBuffer(rawRequest.body) ? new Uint8Array(rawRequest.body) : rawRequest.body;
+
     try {
-        const routeResponse = await dispatchRoute(
-            rawRequest.path,
-            rawRequest.body,
-            reqHeaders,
-            respHeaders,
-            rawRequest,
-            rawResponse
-        );
+        const routeResponse = await dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, rawResponse);
         reply(routeResponse, rawResponse);
     } catch (err) {
         const error =

@@ -168,6 +168,8 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'getUser'],
+            serialize: 'stringifyJson',
+            deserialize: 'json',
         },
         'users/setUser': {
             type: HandlerType.route,
@@ -180,6 +182,8 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'setUser'],
+            serialize: 'stringifyJson',
+            deserialize: 'json',
         },
         'users/pets/getUserPet': {
             type: HandlerType.route,
@@ -192,6 +196,8 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'pets', 'getUserPet'],
+            serialize: 'stringifyJson',
+            deserialize: 'json',
         },
         'pets/getPet': {
             type: HandlerType.route,
@@ -204,6 +210,8 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['pets', 'getPet'],
+            serialize: 'stringifyJson',
+            deserialize: 'json',
         },
         'pets/setPet': {
             type: HandlerType.route,
@@ -216,6 +224,8 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['pets', 'setPet'],
+            serialize: 'stringifyJson',
+            deserialize: 'json',
         },
         auth: {
             type: HandlerType.hook,
@@ -227,6 +237,8 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: ['token'],
             pointer: ['auth'],
+            serialize: 'stringifyJson',
+            deserialize: 'json',
         },
         last: {
             type: HandlerType.hook,
@@ -238,6 +250,8 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: [],
             pointer: ['last'],
+            serialize: 'stringifyJson',
+            deserialize: 'json',
         },
     } satisfies MethodsCache;
 
@@ -347,7 +361,6 @@ describe('Client Routes should', () => {
             auth: methodsMetadata.auth,
             'users/getUser': methodsMetadata['users/getUser'],
             last: methodsMetadata.last,
-            '@thrownErrors': methodsMetadata['@thrownErrors'],
         };
         const methodsData = response.body[routeMethodsId] as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods

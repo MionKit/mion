@@ -155,11 +155,11 @@ describe('serialize json Response Body using jit stringify Json (body type J)', 
     });
 });
 
-describe('serialize Response Body with useJitStringify=false (body type O)', () => {
+describe('serialize Response Body with serialize=json (body type O)', () => {
     beforeEach(() => resetRouter());
 
     it('should prepare response.body for platform adapter JSON.stringify for "updateUser" route', async () => {
-        await initMionRouter(routes, {useJitStringify: false});
+        await initMionRouter(routes, {serialize: 'json'});
         const opts = getRouterOptions();
         const context = getNewJsonContext('/users/updateUser', {});
         const response = context.response as Mutable<MionResponse>;
@@ -177,7 +177,7 @@ describe('serialize Response Body with useJitStringify=false (body type O)', () 
     });
 
     it('should prepare response.body for platform adapter JSON.stringify for "sayHello" route', async () => {
-        await initMionRouter(routes, {useJitStringify: false});
+        await initMionRouter(routes, {serialize: 'json'});
         const opts = getRouterOptions();
         const context = getNewJsonContext('/sayHello', {});
         const response = context.response as Mutable<MionResponse>;
@@ -191,7 +191,7 @@ describe('serialize Response Body with useJitStringify=false (body type O)', () 
     });
 
     it('should correctly prepare complex objects for platform adapter JSON.stringify', async () => {
-        await initMionRouter(routes, {useJitStringify: false});
+        await initMionRouter(routes, {serialize: 'json'});
         const opts = getRouterOptions();
         const context = getNewJsonContext('/users/updateUser', {});
         const response = context.response as Mutable<MionResponse>;
@@ -227,13 +227,14 @@ describe('serialize Response Body with useJitStringify=false (body type O)', () 
     });
 
     it('should handle routes with void return (no return data)', async () => {
-        await initMionRouter(routes, {useJitStringify: false});
+        await initMionRouter(routes, {serialize: 'json'});
         const opts = getRouterOptions();
         const context = getNewJsonContext('/sayHello', {});
         const response = context.response as Mutable<MionResponse>;
         response.body = {auth: undefined, logs: undefined};
         serializeResponseBody(context, opts);
         expect(response.body).toEqual({auth: undefined, logs: undefined});
+        // For serialize: 'json' (body type 'O'), rawBody remains empty - platform adapter does JSON.stringify
         expect(response.rawBody).toEqual('');
     });
 });

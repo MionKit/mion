@@ -311,7 +311,7 @@ describe('Dispatch routes', () => {
             const expected = new RpcError({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'invalid-request-body',
-                publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
+                publicMessage: 'Wrong request body. Expecting a body containing the route name and parameters.',
             });
             expect(error).toEqual(expected);
 
