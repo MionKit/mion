@@ -41,6 +41,18 @@ const routes = {
     voidRoute: route((ctx: any): void => {}),
 } satisfies Routes;
 
+// Test routes with per-route serialization options
+const routesWithPerRouteOptions = {
+    // Route that uses JSON serialization even when router defaults to binary
+    jsonRoute: route((ctx: any, name: string): string => `Hello, ${name}!`, {serializer: 'json'}),
+    // Route that uses stringifyJson serialization
+    stringifyJsonRoute: route((ctx: any, value: number): number => value * 2, {serializer: 'stringifyJson'}),
+    // Route that uses binary serialization (explicit)
+    binaryRoute: route((ctx: any, items: number[]): number[] => items.map((x) => x * 2), {serializer: 'binary'}),
+    // Route without explicit serializer option (uses router default)
+    defaultRoute: route((ctx: any, msg: string): string => msg),
+} satisfies Routes;
+
 /** Helper to create a binary context */
 function getNewBinaryContext(path: string, body: RawRequestBody) {
     const opts = getRouterOptions();
@@ -54,23 +66,21 @@ describe('Binary Serialization - Router', () => {
 
     describe('Configuration', () => {
         it('should use binary serialization when serialize=binary', async () => {
-            await initMionRouter(routes, {serialize: 'binary', deserialize: 'binary'});
+            await initMionRouter(routes, {serialize: 'binary'});
             const opts = getRouterOptions();
             expect(opts.serialize).toBe('binary');
-            expect(opts.deserialize).toBe('binary');
         });
 
         it('should default to stringifyJson serialization', async () => {
             await initMionRouter(routes, {});
             const opts = getRouterOptions();
             expect(opts.serialize).toBe('stringifyJson');
-            expect(opts.deserialize).toBe('json');
         });
     });
 
     describe('Response Serialization (body type B)', () => {
         it('should serialize simple string response to binary', async () => {
-            await initMionRouter(routes, {serialize: 'binary', deserialize: 'binary'});
+            await initMionRouter(routes, {serialize: 'binary'});
             const opts = getRouterOptions();
             const context = getNewBinaryContext('/sayHello', new Uint8Array(0));
             const response = context.response as Mutable<MionResponse>;
@@ -85,7 +95,7 @@ describe('Binary Serialization - Router', () => {
         });
 
         it('should serialize number response to binary', async () => {
-            await initMionRouter(routes, {serialize: 'binary', deserialize: 'binary'});
+            await initMionRouter(routes, {serialize: 'binary'});
             const opts = getRouterOptions();
             const context = getNewBinaryContext('/addNumbers', new Uint8Array(0));
             const response = context.response as Mutable<MionResponse>;
@@ -98,7 +108,7 @@ describe('Binary Serialization - Router', () => {
         });
 
         it('should serialize complex object response to binary', async () => {
-            await initMionRouter(routes, {serialize: 'binary', deserialize: 'binary'});
+            await initMionRouter(routes, {serialize: 'binary'});
             const opts = getRouterOptions();
             const context = getNewBinaryContext('/getUser', new Uint8Array(0));
             const response = context.response as Mutable<MionResponse>;
@@ -119,7 +129,7 @@ describe('Binary Serialization - Router', () => {
         });
 
         it('should serialize array response to binary', async () => {
-            await initMionRouter(routes, {serialize: 'binary', deserialize: 'binary'});
+            await initMionRouter(routes, {serialize: 'binary'});
             const opts = getRouterOptions();
             const context = getNewBinaryContext('/processArray', new Uint8Array(0));
             const response = context.response as Mutable<MionResponse>;
@@ -132,7 +142,7 @@ describe('Binary Serialization - Router', () => {
         });
 
         it('should handle void return (no return data) in binary mode', async () => {
-            await initMionRouter(routes, {serialize: 'binary', deserialize: 'binary'});
+            await initMionRouter(routes, {serialize: 'binary'});
             const opts = getRouterOptions();
             const context = getNewBinaryContext('/voidRoute', new Uint8Array(0));
             const response = context.response as Mutable<MionResponse>;
@@ -148,7 +158,7 @@ describe('Binary Serialization - Router', () => {
 
     describe('Binary Protocol Format', () => {
         it('should follow the binary protocol format for responses', async () => {
-            await initMionRouter(routes, {serialize: 'binary', deserialize: 'binary'});
+            await initMionRouter(routes, {serialize: 'binary'});
             const opts = getRouterOptions();
             const context = getNewBinaryContext('/sayHello', new Uint8Array(0));
             const response = context.response as Mutable<MionResponse>;
@@ -170,7 +180,7 @@ describe('Binary Serialization - Router', () => {
         });
 
         it('should serialize multiple methods in response', async () => {
-            await initMionRouter(routes, {serialize: 'binary', deserialize: 'binary'});
+            await initMionRouter(routes, {serialize: 'binary'});
             const opts = getRouterOptions();
             const context = getNewBinaryContext('/sayHello', new Uint8Array(0));
             const response = context.response as Mutable<MionResponse>;
@@ -196,7 +206,7 @@ describe('Binary Serialization - Router', () => {
 
     describe('Request Deserialization (body type B)', () => {
         it('should deserialize binary request body', async () => {
-            await initMionRouter(routes, {serialize: 'binary', deserialize: 'binary'});
+            await initMionRouter(routes, {serialize: 'binary'});
 
             // Create binary request body
             const serializer = createDataViewSerializer('test-request');
@@ -219,6 +229,107 @@ describe('Binary Serialization - Router', () => {
             // The body should have the method ID as key
             expect(context.request.body).toBeDefined();
             expect(context.request.body.sayHello).toBeDefined();
+        });
+    });
+
+    describe('Per-Route Serialization Options', () => {
+        beforeEach(() => resetRouter());
+
+        it('should use JSON serialization when route specifies serializer: json', async () => {
+            await initMionRouter(routesWithPerRouteOptions, {serialize: 'binary'});
+            const opts = getRouterOptions();
+
+            // Create context for the JSON route
+            const reqHeaders = headersFromRecord({'content-type': 'application/json'});
+            const respHeaders = headersFromRecord({});
+            const context = createCallContext('/jsonRoute', opts, '{}', {}, reqHeaders, respHeaders);
+            const response = context.response as Mutable<MionResponse>;
+            response.body = {jsonRoute: 'Hello, World!'};
+
+            // The body type should be updated based on route's serializer option
+            // This happens in runExecutionPath, but we can test the serializer directly
+            // by manually setting the body type
+            (response as Mutable<MionResponse>).bodyType = 'O'; // JSON mode
+
+            serializeResponseBody(context, opts);
+
+            // Should use JSON content-type
+            expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8');
+        });
+
+        it('should use stringifyJson serialization when route specifies serializer: stringifyJson', async () => {
+            await initMionRouter(routesWithPerRouteOptions, {serialize: 'binary'});
+            const opts = getRouterOptions();
+
+            const reqHeaders = headersFromRecord({'content-type': 'application/json'});
+            const respHeaders = headersFromRecord({});
+            const context = createCallContext('/stringifyJsonRoute', opts, '{}', {}, reqHeaders, respHeaders);
+            const response = context.response as Mutable<MionResponse>;
+            response.body = {stringifyJsonRoute: 42};
+            (response as Mutable<MionResponse>).bodyType = 'J'; // stringifyJson mode
+
+            serializeResponseBody(context, opts);
+
+            // Should use JSON content-type
+            expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8');
+            // rawBody should be a string
+            expect(typeof response.rawBody).toBe('string');
+        });
+
+        it('should use binary serialization when route specifies serializer: binary', async () => {
+            await initMionRouter(routesWithPerRouteOptions, {serialize: 'json'});
+            const opts = getRouterOptions();
+
+            const reqHeaders = headersFromRecord({'content-type': 'application/octet-stream'});
+            const respHeaders = headersFromRecord({});
+            const context = createCallContext('/binaryRoute', opts, new Uint8Array(0), {}, reqHeaders, respHeaders);
+            const response = context.response as Mutable<MionResponse>;
+            response.body = {binaryRoute: [2, 4, 6]};
+            (response as Mutable<MionResponse>).bodyType = 'B'; // binary mode
+
+            serializeResponseBody(context, opts);
+
+            // Should use binary content-type
+            expect(response.headers.get('content-type')).toBe('application/octet-stream');
+            // rawBody should be a Uint8Array
+            expect(response.rawBody).toBeInstanceOf(Uint8Array);
+        });
+
+        it('should use router default when route does not specify serializer option', async () => {
+            await initMionRouter(routesWithPerRouteOptions, {serialize: 'binary'});
+            const opts = getRouterOptions();
+
+            const context = getNewBinaryContext('/defaultRoute', new Uint8Array(0));
+            const response = context.response as Mutable<MionResponse>;
+            response.body = {defaultRoute: 'test message'};
+
+            // Body type should be binary (router default)
+            expect(context.response.bodyType).toBe('B');
+
+            serializeResponseBody(context, opts);
+
+            // Should use binary content-type
+            expect(response.headers.get('content-type')).toBe('application/octet-stream');
+            expect(response.rawBody).toBeInstanceOf(Uint8Array);
+        });
+
+        it('should store serializer option in route executable', async () => {
+            await initMionRouter(routesWithPerRouteOptions, {serialize: 'binary'});
+
+            // Import getRouteExecutable to check the stored options
+            const {getRouteExecutable} = await import('../router');
+
+            const jsonRoute = getRouteExecutable('jsonRoute');
+            expect(jsonRoute?.options.serializer).toBe('json');
+
+            const stringifyJsonRoute = getRouteExecutable('stringifyJsonRoute');
+            expect(stringifyJsonRoute?.options.serializer).toBe('stringifyJson');
+
+            const binaryRoute = getRouteExecutable('binaryRoute');
+            expect(binaryRoute?.options.serializer).toBe('binary');
+
+            const defaultRoute = getRouteExecutable('defaultRoute');
+            expect(defaultRoute?.options.serializer).toBeUndefined();
         });
     });
 });

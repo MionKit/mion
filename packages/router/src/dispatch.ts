@@ -16,7 +16,7 @@ import type {
 } from './types/context';
 import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
-import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
+import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod, RouteMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
@@ -108,6 +108,13 @@ async function runExecutionPath(
 ): Promise<MionResponse> {
     const {response, request} = context;
     const executables = executionPath.methods;
+
+    // Update response body type based on route's serializer option (if specified)
+    const routeMethod = executables[executionPath.routeIndex] as RouteMethod;
+    if (routeMethod?.options?.serializer) {
+        (response as Mutable<MionResponse>).bodyType = getResponseBodyTypeFromMode(routeMethod.options.serializer);
+    }
+
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];
         if (response.hasErrors && !executable.options.runOnError) continue;
@@ -247,7 +254,12 @@ function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, exe
 
 /** Maps serializer mode to response body type */
 function getResponseBodyType(opts: RouterOptions): RawResponseBodyType {
-    switch (opts.serialize) {
+    return getResponseBodyTypeFromMode(opts.serialize);
+}
+
+/** Maps serializer mode string to response body type */
+function getResponseBodyTypeFromMode(mode: string | undefined): RawResponseBodyType {
+    switch (mode) {
         case 'binary':
             return 'B';
         case 'stringifyJson':

@@ -1,6 +1,6 @@
 // ####### Executables #######
 
-import type {DeserializerMode, HeadersMethodWithJitFns, MethodWithJitFns, SerializerMode} from '@mionkit/core'; // do not import type only
+import type {HeadersMethodWithJitFns, MethodWithJitFns, SerializerMode} from '@mionkit/core'; // do not import type only
 import type {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
 import {HandlerType} from '@mionkit/core'; // do not import type only
 
@@ -21,10 +21,8 @@ export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodW
 
 interface RouteOnlyOptions {
     runOnError: false;
-    /** Disabled for now user router options */
+    /** Per-route serializer mode override. If not set, uses router's default serialize option. */
     serializer?: SerializerMode;
-    /** Disabled for now use router options */
-    deserializer?: DeserializerMode;
 }
 
 export interface RouteMethod<H extends Handler = any> extends RemoteMethod<H> {
@@ -47,7 +45,7 @@ export interface RawMethod<H extends RawHookHandler = any> extends RemoteMethod<
 }
 
 export type RouteOptions = Partial<
-    Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'serializer' | 'deserializer'>
+    Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'serializer'>
 >;
 export type HookOptions = Partial<
     Pick<HookMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>

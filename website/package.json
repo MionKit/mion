@@ -1,7 +1,7 @@
 {
   "name": "docus-starter",
   "scripts": {
-    "clean": "rm -rf .nuxt .data .output",
+    "clean": "rm -rf .nuxt .data .output dist",
     "dev": "npm run build:types && nuxt dev --extends docus",
     "dev:fresh": "npm run clean && npm run dev",
     "build": "npm run build:types && nuxt build --extends docus",
