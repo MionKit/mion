@@ -1,6 +1,6 @@
 // ####### Executables #######
 
-import type {HeadersMethodWithJitFns, MethodWithJitFns, SerializerMode, DeserializerMode} from '@mionkit/core'; // do not import type only
+import type {DeserializerMode, HeadersMethodWithJitFns, MethodWithJitFns, SerializerMode} from '@mionkit/core'; // do not import type only
 import type {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
 import {HandlerType} from '@mionkit/core'; // do not import type only
 
@@ -9,16 +9,6 @@ export interface RemoteMethodOpts {
     validateParams?: boolean;
     validateReturn?: boolean;
     description?: string;
-    /**
-     * Override serializer mode for this specific route/hook.
-     * If not specified, uses router default serialize mode.
-     */
-    serialize?: SerializerMode;
-    /**
-     * Override deserializer mode for this specific route/hook.
-     * If not specified, uses router default deserialize mode.
-     */
-    deserialize?: DeserializerMode;
 }
 
 /** Contains the handlers for hooks and routes */
@@ -29,9 +19,17 @@ export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodW
     methodCaller?: (...args: any[]) => any;
 }
 
+interface RouteOnlyOptions {
+    runOnError: false;
+    /** Disabled for now user router options */
+    serializer?: SerializerMode;
+    /** Disabled for now use router options */
+    deserializer?: DeserializerMode;
+}
+
 export interface RouteMethod<H extends Handler = any> extends RemoteMethod<H> {
     type: typeof HandlerType.route;
-    options: RemoteMethodOpts & {runOnError: false};
+    options: RemoteMethodOpts & RouteOnlyOptions;
 }
 export interface HookMethod<H extends Handler = any> extends RemoteMethod<H> {
     type: typeof HandlerType.hook;
@@ -49,16 +47,13 @@ export interface RawMethod<H extends RawHookHandler = any> extends RemoteMethod<
 }
 
 export type RouteOptions = Partial<
-    Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'serialize' | 'deserialize'>
+    Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'serializer' | 'deserializer'>
 >;
 export type HookOptions = Partial<
-    Pick<HookMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'serialize' | 'deserialize'>
+    Pick<HookMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
 >;
 export type HeaderHookOptions = Partial<
-    Pick<
-        HeaderMethod['options'],
-        'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'serialize' | 'deserialize'
-    >
+    Pick<HeaderMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
 >;
 // RawHookOptions doesn't need encoding - raw hooks handle their own serialization
 export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>;

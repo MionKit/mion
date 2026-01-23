@@ -7,7 +7,7 @@
 
 // this code is based on from seqproto library https://github.com/oramasearch/seqproto
 
-import type {StrictArrayBuffer, DataViewSerializer, DataViewDeserializer} from './types/general.types';
+import type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from './types/general.types';
 
 const STR = 1;
 const NUM = 2;
@@ -46,8 +46,15 @@ export function createDataViewSerializer(routeId: string): DataViewSerializer {
     return new DataViewSerializerImpl(routeId, size);
 }
 
-export function createDataViewDeserializer(routeId: string, buffer: StrictArrayBuffer): DataViewDeserializer {
-    return new DataViewDeserializerImpl(routeId, buffer);
+/** Creates a deserializer from ArrayBuffer or any typed array view (including Node.js Buffer) */
+export function createDataViewDeserializer(routeId: string, input: BinaryInput): DataViewDeserializer {
+    // Extract ArrayBuffer and offset/length from typed array views (Uint8Array, Buffer, etc.)
+    if (ArrayBuffer.isView(input)) {
+        const buffer = input.buffer as StrictArrayBuffer;
+        return new DataViewDeserializerImpl(routeId, buffer, input.byteOffset, input.byteLength);
+    }
+    // Plain ArrayBuffer
+    return new DataViewDeserializerImpl(routeId, input as StrictArrayBuffer);
 }
 
 // TODO: at the moment we do not resize the buffer, if data does not fit it will throw an error,
@@ -145,11 +152,12 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
     index: number = 0;
     view: DataView;
     hasEnded: boolean = false;
-    constructor(routeId: string, buffer: StrictArrayBuffer) {
+    constructor(routeId: string, buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) {
         this.routeId = routeId;
         this.buffer = buffer;
-        this.view = new DataView(buffer);
-        this.uint8View = new Uint8Array(buffer);
+        this.index = byteOffset ?? 0;
+        this.view = new DataView(buffer, byteOffset, byteLength);
+        this.uint8View = new Uint8Array(buffer, byteOffset, byteLength);
     }
     reset(): void {
         this.index = 0;

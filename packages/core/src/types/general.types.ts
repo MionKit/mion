@@ -457,6 +457,8 @@ export type DataOnly<T> = T extends object
 // ##########################################################################################
 
 export type StrictArrayBuffer = ArrayBuffer & {buffer?: undefined};
+/** Input type for binary deserialization - accepts ArrayBuffer or any typed array view (including Node.js Buffer) */
+export type BinaryInput = ArrayBuffer | ArrayBufferView;
 export interface DataViewSerializer {
     index: number; // byte offset
     view: DataView;
