@@ -20,6 +20,7 @@ export const TEST_PORT_MAPPING = {
     client: 8086,
     clientMethodsMetadata: 8087,
     friendlyErrors: 8088,
+    binarySerialization: 8089,
     // Add more test files here as needed
 } as const;
 
@@ -59,6 +60,8 @@ export interface TestServerOptions {
     maxStartupRetries?: number;
     /** Whether to use HTTP health checks instead of stdout parsing (default: true) */
     useHealthCheck?: boolean;
+    /** Server script filename (default: 'test-server.ts') */
+    serverScript?: string;
 }
 
 /**
@@ -76,6 +79,7 @@ export class TestServerManager {
             logOutput: false,
             maxStartupRetries: 3,
             useHealthCheck: true,
+            serverScript: 'test-server.ts',
             ...options,
         };
         this.availablePort = options.port; // Will be updated to actual port during start()
@@ -163,7 +167,7 @@ export class TestServerManager {
         // Get the client package root for the script paths
         const clientPackageRoot = getClientPackageRoot();
         const tsconfigPath = join(clientPackageRoot, 'test', 'tsconfig.json');
-        const serverScriptPath = join(clientPackageRoot, 'test', 'test-server.ts');
+        const serverScriptPath = join(clientPackageRoot, 'test', this.options.serverScript);
 
         // Start the server in a separate process using ts-node
         // Use process.cwd() as working directory so it works from wherever Jest is run
