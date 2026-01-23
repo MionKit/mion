@@ -1,6 +1,6 @@
 // ####### Executables #######
 
-import type {HeadersMethodWithJitFns, MethodWithJitFns} from '@mionkit/core'; // do not import type only
+import type {HeadersMethodWithJitFns, MethodWithJitFns, SerializerMode, DeserializerMode} from '@mionkit/core'; // do not import type only
 import type {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
 import {HandlerType} from '@mionkit/core'; // do not import type only
 
@@ -9,6 +9,16 @@ export interface RemoteMethodOpts {
     validateParams?: boolean;
     validateReturn?: boolean;
     description?: string;
+    /**
+     * Override serializer mode for this specific route/hook.
+     * If not specified, uses router default serialize mode.
+     */
+    serialize?: SerializerMode;
+    /**
+     * Override deserializer mode for this specific route/hook.
+     * If not specified, uses router default deserialize mode.
+     */
+    deserialize?: DeserializerMode;
 }
 
 /** Contains the handlers for hooks and routes */
@@ -38,13 +48,19 @@ export interface RawMethod<H extends RawHookHandler = any> extends RemoteMethod<
     };
 }
 
-export type RouteOptions = Partial<Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn'>>;
+export type RouteOptions = Partial<
+    Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'serialize' | 'deserialize'>
+>;
 export type HookOptions = Partial<
-    Pick<HookMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
+    Pick<HookMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'serialize' | 'deserialize'>
 >;
 export type HeaderHookOptions = Partial<
-    Pick<HeaderMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
+    Pick<
+        HeaderMethod['options'],
+        'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'serialize' | 'deserialize'
+    >
 >;
+// RawHookOptions doesn't need encoding - raw hooks handle their own serialization
 export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>;
 
 export interface MethodsExecutionList {

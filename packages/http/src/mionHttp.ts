@@ -118,7 +118,11 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
 
     httpReq.on('end', () => {
         if (replied) return;
-        const reqRawBody = Buffer.concat(bodyChunks).toString();
+        const buffer = Buffer.concat(bodyChunks);
+        // Check content-type to determine if this is a binary request
+        const contentType = httpReq.headers['content-type'] || '';
+        const isBinary = contentType.includes('application/octet-stream');
+        const reqRawBody = isBinary ? buffer : buffer.toString();
 
         dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse)
             .then((mionResponse: MionResponse) => {

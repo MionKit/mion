@@ -55,7 +55,10 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 
         async fetch(req) {
             const path = new URL(req.url).pathname;
-            const rawBody = req.body ? await req.text() : '';
+            // Check content-type to determine if this is a binary request
+            const contentType = req.headers.get('content-type') || '';
+            const isBinary = contentType.includes('application/octet-stream');
+            const rawBody = req.body ? (isBinary ? new Uint8Array(await req.arrayBuffer()) : await req.text()) : '';
             const responseHeaders = new Headers(defaultHeaders);
 
             return dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined)
