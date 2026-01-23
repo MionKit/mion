@@ -5,11 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MionResponse, MionRequest, CallContext} from '../types/context';
+import type {MionResponse, MionRequest, CallContext, RawRequestBody} from '../types/context';
 import type {RouterOptions} from '../types/general';
 import type {HooksCollection, MayReturnError} from '../types/publicMethods';
 import type {ResponseBody} from '../types/context';
-import {AnyObject, Mutable, MION_ROUTES, StatusCodes, createDataViewSerializer, DataViewSerializer} from '@mionkit/core';
+import {
+    AnyObject,
+    Mutable,
+    MION_ROUTES,
+    StatusCodes,
+    createDataViewSerializer,
+    createDataViewDeserializer,
+    DataViewSerializer,
+} from '@mionkit/core';
 import {rawHook} from '../lib/handlers';
 import {getRouteExecutableFromPath, getRouteExecutionPath, getRouteExecutable} from '../router';
 import {RpcError} from '@mionkit/core';
@@ -77,14 +85,12 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
  *   [M bytes] - Serialized params (using fromBinary JIT)
  */
 function deserializeBinaryRequestBody(context: CallContext): AnyObject {
-    const deserializer = context.request.binDeserializer;
-    if (!deserializer) {
-        throw new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'binary-deserializer-missing',
-            publicMessage: 'Binary deserializer not initialized for binary request.',
-        });
+    // Create the deserializer - accepts ArrayBuffer or typed array views (Uint8Array, Buffer, etc.)
+    const rawBody = context.request.rawBody;
+    if (!(rawBody instanceof ArrayBuffer) && !ArrayBuffer.isView(rawBody)) {
+        throw new Error('Binary request body must be ArrayBuffer or ArrayBufferView');
     }
+    const deserializer = createDataViewDeserializer(context.path, rawBody);
 
     const body: AnyObject = {};
 

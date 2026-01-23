@@ -5,12 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody, RawRequestBodyType} from './types/context';
+import type {
+    CallContext,
+    MionResponse,
+    MionRequest,
+    MionHeaders,
+    RawRequestBody,
+    RawRequestBodyType,
+    RawResponseBodyType,
+} from './types/context';
 import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
 import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
-import {Mutable, AnyObject, createDataViewDeserializer, StatusCodes, HeadersSubset} from '@mionkit/core';
+import {Mutable, AnyObject, StatusCodes, HeadersSubset} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
 
@@ -65,28 +73,14 @@ export function createCallContext(
     reqHeaders: MionHeaders,
     respHeaders: MionHeaders
 ): CallContext {
-    const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
-    const bodyType = getRequestBodyType(reqRawBody);
-    // For binary requests, we need to get the ArrayBuffer from the raw body
-    const getArrayBuffer = (): ArrayBuffer => {
-        if (reqRawBody instanceof ArrayBuffer) return reqRawBody;
-        if (reqRawBody instanceof Uint8Array) {
-            // Create a new ArrayBuffer copy to avoid SharedArrayBuffer issues
-            const copy = new ArrayBuffer(reqRawBody.byteLength);
-            new Uint8Array(copy).set(reqRawBody);
-            return copy;
-        }
-        throw new Error('Binary request body must be ArrayBuffer or Uint8Array');
-    };
-
+    const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
     return {
         path: transformedPath,
         request: {
             headers: reqHeaders,
             rawBody: reqRawBody,
-            bodyType,
+            bodyType: getRequestBodyType(reqRawBody),
             body: {},
-            binDeserializer: bodyType === 'B' ? createDataViewDeserializer(transformedPath, getArrayBuffer()) : undefined,
             thrownErrors: undefined,
         },
         response: {
@@ -100,19 +94,6 @@ export function createCallContext(
         },
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
     } as CallContext;
-}
-
-/** Maps serializer mode to response body type */
-function getResponseBodyType(opts: RouterOptions): 'J' | 'B' | 'O' {
-    switch (opts.serialize) {
-        case 'binary':
-            return 'B';
-        case 'stringifyJson':
-            return 'J';
-        case 'json':
-        default:
-            return 'O';
-    }
 }
 
 // ############# PRIVATE METHODS #############
@@ -261,6 +242,19 @@ function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, exe
             },
         });
         throw validationError;
+    }
+}
+
+/** Maps serializer mode to response body type */
+function getResponseBodyType(opts: RouterOptions): RawResponseBodyType {
+    switch (opts.serialize) {
+        case 'binary':
+            return 'B';
+        case 'stringifyJson':
+            return 'J';
+        case 'json':
+        default:
+            return 'O';
     }
 }
 

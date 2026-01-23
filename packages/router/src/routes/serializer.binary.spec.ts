@@ -25,20 +25,20 @@ interface User {
 
 // Test routes with binary serialization
 const routes = {
+    auth: hook((ctx: any, token: string): void => {}),
     getUser: route(
-        (ctx, id: string): User => ({
+        (ctx: any, id: string): User => ({
             id,
             name: 'John',
             age: 30,
             createdAt: new Date('2025-01-01T00:00:00Z'),
         })
     ),
-    updateUser: route((ctx, user: User): User => user),
-    sayHello: route((ctx, name: string): string => `Hello, ${name}!`),
-    addNumbers: route((ctx, a: number, b: number): number => a + b),
-    processArray: route((ctx, items: number[]): number[] => items.map((x) => x * 2)),
-    voidRoute: route((ctx): void => {}),
-    auth: hook((ctx, token: string): void => {}),
+    updateUser: route((ctx: any, user: User): User => user),
+    sayHello: route((ctx: any, name: string): string => `Hello, ${name}!`),
+    addNumbers: route((ctx: any, a: number, b: number): number => a + b),
+    processArray: route((ctx: any, items: number[]): number[] => items.map((x) => x * 2)),
+    voidRoute: route((ctx: any): void => {}),
 } satisfies Routes;
 
 /** Helper to create a binary context */

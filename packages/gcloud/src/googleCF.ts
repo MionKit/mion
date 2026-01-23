@@ -45,8 +45,9 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     // Check content-type to determine if this is a binary request
     const contentType = rawRequest.headers['content-type'] || '';
     const isBinary = contentType.includes('application/octet-stream');
-    // For binary requests, convert Buffer to Uint8Array
-    const rawBody = isBinary && Buffer.isBuffer(rawRequest.body) ? new Uint8Array(rawRequest.body) : rawRequest.body;
+    // For binary requests, pass the Buffer directly (it's an ArrayBufferView)
+    // Google Cloud Functions provides rawBody as a Buffer on the request object
+    const rawBody = isBinary ? (rawRequest as any).rawBody : rawRequest.body;
 
     try {
         const routeResponse = await dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, rawResponse);
