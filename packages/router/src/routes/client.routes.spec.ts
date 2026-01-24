@@ -15,6 +15,8 @@ import {
     RpcError,
     JitCompiledFnData,
     HandlerType,
+    RouteOnlyOptions,
+    RemoteMethodOpts,
 } from '@mionkit/core';
 import {hook, rawHook, route} from '../lib/handlers';
 import {Routes} from '../types/general';
@@ -61,7 +63,6 @@ describe('PublicMethods run type functionality', () => {
             methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
-            methodsOptions: {},
         };
 
         const rt = runType<ClientReturn>();
@@ -95,7 +96,6 @@ describe('PublicMethods run type functionality', () => {
             methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
-            methodsOptions: {},
         };
         const rt = runType<ClientReturn>();
         const stringifyJson = rt.createJitFunction(JitFunctions.stringifyJson);
@@ -120,7 +120,6 @@ describe('PublicMethods run type functionality', () => {
             methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
-            methodsOptions: {},
         };
         const jsonStr = stringifyJson(responseClone);
         const roundTrip2 = restoreFromJson(JSON.parse(jsonStr));
@@ -159,6 +158,18 @@ describe('Client Routes should', () => {
     const shared = {auth: {me: null as any}};
     const getSharedData = (): typeof shared => shared;
 
+    const defaultRouteOpts: RouteOnlyOptions = {
+        runOnError: false,
+        serializer: 'json',
+        validateParams: true,
+        validateReturn: false,
+    };
+    const defaultHookOpts: RemoteMethodOpts = {
+        runOnError: true,
+        validateParams: true,
+        validateReturn: false,
+    };
+
     const methodsMetadata = {
         'users/getUser': {
             type: HandlerType.route,
@@ -171,6 +182,7 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'getUser'],
+            options: defaultRouteOpts,
         },
         'users/setUser': {
             type: HandlerType.route,
@@ -183,6 +195,7 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'setUser'],
+            options: defaultRouteOpts,
         },
         'users/pets/getUserPet': {
             type: HandlerType.route,
@@ -195,6 +208,7 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'pets', 'getUserPet'],
+            options: defaultRouteOpts,
         },
         'pets/getPet': {
             type: HandlerType.route,
@@ -207,6 +221,7 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['pets', 'getPet'],
+            options: defaultRouteOpts,
         },
         'pets/setPet': {
             type: HandlerType.route,
@@ -219,6 +234,7 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['pets', 'setPet'],
+            options: defaultRouteOpts,
         },
         auth: {
             type: HandlerType.hook,
@@ -230,6 +246,7 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: ['token'],
             pointer: ['auth'],
+            options: defaultHookOpts,
         },
         last: {
             type: HandlerType.hook,
@@ -241,6 +258,7 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: [],
             pointer: ['last'],
+            options: defaultHookOpts,
         },
     } satisfies MethodsCache;
 

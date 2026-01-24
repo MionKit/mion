@@ -46,7 +46,6 @@ function mionGetRemoteMethodsDataById(
         methods: {},
         deps: {},
         purFnDeps: {},
-        methodsOptions: {},
     };
     const errorData = {};
     const maxMethods =
@@ -95,7 +94,7 @@ function mionGetRemoteMethodsDataByPath(
 }
 
 function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
-    const {methods, deps, purFnDeps, methodsOptions} = resp;
+    const {methods, deps, purFnDeps} = resp;
     if (methods[id]) return;
     const executable = getHookExecutable(id) || getRouteExecutable(id);
     if (!executable) {
@@ -103,7 +102,6 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
         return;
     }
     if (isPrivateExecutable(executable)) return;
-    methodsOptions[id] = executable.options;
     const method = getSerializableMethod(executable as RemoteMethod);
     methods[id] = method;
     method.hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
