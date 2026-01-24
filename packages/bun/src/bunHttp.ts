@@ -63,13 +63,16 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 
             return dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined)
                 .then((routeResp: MionResponse) => reply(routeResp, responseHeaders))
-                .catch((e: Error) => {
-                    const error = new RpcError({
-                        publicMessage: 'Unknown Error',
-                        type: 'unknown-error',
-                        originalError: e,
-                    });
-                    return fail(error, responseHeaders);
+                .catch((e) => {
+                    const error =
+                        e instanceof RpcError
+                            ? e
+                            : new RpcError({
+                                  publicMessage: 'Unknown Error',
+                                  type: 'unknown-error',
+                                  originalError: e,
+                              });
+                    return fatalFail(error, responseHeaders);
                 });
         },
         error(errReq) {
@@ -77,12 +80,15 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
                 server: '@mionkit',
                 ...httpOptions.defaultResponseHeaders,
             });
-            const error = new RpcError({
-                publicMessage: 'Connection Error',
-                type: 'response-connection-error',
-                originalError: errReq,
-            });
-            return fail(error, responseHeaders);
+            const error =
+                errReq instanceof RpcError
+                    ? errReq
+                    : new RpcError({
+                          publicMessage: 'Connection Error',
+                          type: 'response-connection-error',
+                          originalError: errReq,
+                      });
+            return fatalFail(error, responseHeaders);
         },
     });
 
@@ -99,10 +105,10 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 }
 
 // only called whe there is an htt error or weird unhandled route errors
-const fail = (err: RpcError<string>, responseHeaders: any): Response => {
+function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
     const routeResponse = getPlatformErrorResponse(err, responseHeaders);
     return reply(routeResponse, responseHeaders);
-};
+}
 
 function reply(
     mionResp: MionResponse,
@@ -148,7 +154,7 @@ function reply(
                 type: 'unknown-error',
                 errorData: {bodyType},
             });
-            return fail(error, responseHeaders);
+            return fatalFail(error, responseHeaders);
         }
     }
 }

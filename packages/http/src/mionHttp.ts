@@ -101,7 +101,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
                 publicMessage: 'Payload Too Large',
                 type: 'request-payload-too-large',
             });
-            unexpectedFail(httpResponse, respHeaders, error);
+            fatalFail(httpResponse, respHeaders, error);
         }
     });
 
@@ -113,7 +113,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
             type: 'request-connection-error',
             originalError: e,
         });
-        unexpectedFail(httpResponse, respHeaders, error);
+        fatalFail(httpResponse, respHeaders, error);
     });
 
     httpReq.on('end', () => {
@@ -140,7 +140,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
                     type: 'unknown-error',
                     originalError: e,
                 });
-                unexpectedFail(httpResponse, respHeaders, error);
+                fatalFail(httpResponse, respHeaders, error);
             });
     });
 
@@ -152,12 +152,12 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
             type: 'response-connection-error',
             originalError: e,
         });
-        unexpectedFail(httpResponse, respHeaders, error);
+        fatalFail(httpResponse, respHeaders, error);
     });
 }
 
 // only called when there is an http error or weird unhandled route errors
-function unexpectedFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error: RpcError<string>) {
+function fatalFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error: RpcError<string>) {
     if (httpResponse.writableEnded) return;
     const routeResponse = getPlatformErrorResponse(error, respHeaders);
     reply(httpResponse, routeResponse);
@@ -201,7 +201,7 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
                 type: 'unknown-error',
                 errorData: {bodyType},
             });
-            unexpectedFail(httpResp, mionResp.headers, error);
+            fatalFail(httpResp, mionResp.headers, error);
         }
     }
 }
