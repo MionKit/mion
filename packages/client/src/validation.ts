@@ -27,7 +27,9 @@ export function validateSubRequests(
         validateSubRequest(id, subRequest, errors);
         const methodMeta = routesCache.getMetadata(id);
         if (validateRouteHooks && methodMeta?.hookIds?.length) {
-            validateSubRequests(methodMeta.hookIds, req, errors, validateRouteHooks);
+            // Filter out undefined/null hook IDs
+            const validHookIds = methodMeta.hookIds.filter((hookId) => hookId != null);
+            validateSubRequests(validHookIds, req, errors, validateRouteHooks);
         }
     });
     return;

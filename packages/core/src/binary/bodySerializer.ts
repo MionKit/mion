@@ -67,7 +67,13 @@ function serializeMethod(
     serializer: DataViewSerializer,
     isResponse: boolean
 ): boolean {
-    const jitFns = isResponse ? method.returnJitFns : method.paramsJitFns;
+    const toBinary = isResponse ? method.returnJitFns.toBinary : method.paramsJitFns.toBinary;
+    if (!toBinary?.fn)
+        throw new RpcError({
+            type: 'missing-toBinary-jit-fn',
+            publicMessage: `Missing toBinary JIT function for method ${method.id}`,
+        });
+    if (toBinary.isNoop) return false;
     // skip @thrownErrors - should be handled separately by the caller if needed
     if (key === MION_ROUTES.thrownErrors) return false;
     // skip methods without return data or undefined values (for responses)
@@ -77,6 +83,6 @@ function serializeMethod(
     // serialize key
     serializer.serString(key);
     // serialize value
-    jitFns.toBinary.fn(value, serializer);
+    toBinary.fn(value, serializer);
     return true;
 }

@@ -234,7 +234,7 @@ async function recursiveFlatRoutesAsync(
 
         // generates a hook
         if (isAnyHookDef(item)) {
-            routeEntry = await getExecutableFromAnyHookAsync(item, newPointer, nestLevel);
+            routeEntry = await getExecutableFromAnyHook(item, newPointer, nestLevel);
             if (hookNames.has(routeEntry.id))
                 throw new Error(`Invalid hook: ${join(...newPointer)}. Naming collision, Naming collision, duplicated hook.`);
             hookNames.add(routeEntry.id);
@@ -242,7 +242,7 @@ async function recursiveFlatRoutesAsync(
 
         // generates a route
         else if (isRoute(item)) {
-            routeEntry = await getExecutableFromRouteAsync(item, newPointer, nestLevel);
+            routeEntry = await getExecutableFromRoute(item, newPointer, nestLevel);
             if (routeNames.has(routeEntry.id))
                 throw new Error(`Invalid route: ${join(...newPointer)}. Naming collision, duplicated route`);
             routeNames.add(routeEntry.id);
@@ -301,7 +301,7 @@ async function recursiveCreateExecutionPathAsync(
             complexity++;
             if (!isAnyHookDef(entry)) continue;
             const newPointer = [...currentPointer.slice(0, -1), k];
-            const executable = await getExecutableFromAnyHookAsync(entry, newPointer, nestLevel);
+            const executable = await getExecutableFromAnyHook(entry, newPointer, nestLevel);
             if (i < index) props.preLevelHooks.push(executable);
             if (i > index) props.postLevelHooks.push(executable);
         }
@@ -330,16 +330,12 @@ async function recursiveCreateExecutionPathAsync(
     return props;
 }
 
-async function getExecutableFromAnyHookAsync(
-    hook: HookDef | HeaderHookDef | RawHookDef,
-    hookPointer: string[],
-    nestLevel: number
-) {
-    if (isRawHookDef(hook)) return getExecutableFromRawHookAsync(hook, hookPointer, nestLevel);
-    return getExecutableFromHookAsync(hook, hookPointer, nestLevel);
+async function getExecutableFromAnyHook(hook: HookDef | HeaderHookDef | RawHookDef, hookPointer: string[], nestLevel: number) {
+    if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, hookPointer, nestLevel);
+    return getExecutableFromHook(hook, hookPointer, nestLevel);
 }
 
-export async function getExecutableFromHookAsync(
+export async function getExecutableFromHook(
     hook: HookDef | HeaderHookDef,
     hookPointer: string[],
     nestLevel: number
@@ -367,7 +363,6 @@ export async function getExecutableFromHookAsync(
             handler: hook.handler,
             pointer: hookPointer,
             ...reflectionData,
-            serialize: routerOptions.serialize,
             options: {
                 runOnError: !!hook.options?.runOnError,
                 validateParams: hook.options?.validateParams ?? true,
@@ -382,11 +377,7 @@ export async function getExecutableFromHookAsync(
     return executable as any;
 }
 
-export async function getExecutableFromRawHookAsync(
-    hook: RawHookDef,
-    hookPointer: string[],
-    nestLevel: number
-): Promise<RawMethod> {
+export async function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestLevel: number): Promise<RawMethod> {
     const hookId = getRouterItemId(hookPointer);
     const existing = rawHooksById.get(hookId);
     if (existing) return existing as RawMethod;
@@ -398,7 +389,6 @@ export async function getExecutableFromRawHookAsync(
         handler: hook.handler,
         pointer: hookPointer,
         ...reflectionData,
-        serialize: routerOptions.serialize,
         options: {
             runOnError: !!hook.options?.runOnError,
             validateParams: false,
@@ -410,7 +400,7 @@ export async function getExecutableFromRawHookAsync(
     return executable;
 }
 
-export async function getExecutableFromRouteAsync(route: Route, routePointer: string[], nestLevel: number): Promise<RouteMethod> {
+export async function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): Promise<RouteMethod> {
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
     if (existing) return existing as RouteMethod;
@@ -428,13 +418,12 @@ export async function getExecutableFromRouteAsync(route: Route, routePointer: st
             handler: route.handler,
             pointer: routePointer,
             ...reflectionData,
-            serialize: routerOptions.serialize,
             options: {
                 runOnError: false,
                 validateParams: route.options?.validateParams ?? true,
                 validateReturn: route.options?.validateReturn ?? false,
                 description: route.options?.description,
-                serializer: route.options?.serializer,
+                serializer: route.options?.serializer ?? routerOptions.serialize,
             },
         };
         addToPersistedMethods(routeId, executable);
@@ -473,9 +462,9 @@ async function getExecutablesFromHooksCollectionAsync(
     const results: (RawMethod | HookMethod | HeaderMethod)[] = [];
     for (const [key, hook] of Object.entries(hooksDef)) {
         if (isRawHookDef(hook)) {
-            results.push(await getExecutableFromRawHookAsync(hook, [key], 0));
+            results.push(await getExecutableFromRawHook(hook, [key], 0));
         } else if (isHeaderHookDef(hook) || isHookDef(hook)) {
-            results.push(await getExecutableFromHookAsync(hook, [key], 0));
+            results.push(await getExecutableFromHook(hook, [key], 0));
         } else {
             throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
         }

@@ -20,6 +20,7 @@ describe('MethodsCache JitCompiler', () => {
     it('validate', () => {
         const rt = runType<MethodsCache>();
         const isType = rt.createJitFunction(JitFunctions.isType);
+        console.log(methodsData.methods);
         expect(isType(methodsData.methods)).toBe(true);
     });
 

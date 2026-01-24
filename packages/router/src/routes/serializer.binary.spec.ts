@@ -77,10 +77,10 @@ describe('Binary Serialization - Router', () => {
         expect(opts.serialize).toBe('binary');
     });
 
-    it('should default to stringifyJson serialization', async () => {
+    it('should default to json serialization', async () => {
         await initMionRouter(routes, {});
         const opts = getRouterOptions();
-        expect(opts.serialize).toBe('stringifyJson');
+        expect(opts.serialize).toBe('json');
     });
 
     it('should serialize simple string response to binary', async () => {
@@ -419,6 +419,6 @@ describe('Binary Serialization - Router', () => {
         expect(binaryRoute?.options.serializer).toBe('binary');
 
         const defaultRoute = getRouteExecutable('defaultRoute');
-        expect(defaultRoute?.options.serializer).toBeUndefined();
+        expect(defaultRoute?.options.serializer).toBe('binary');
     });
 });

@@ -7,9 +7,9 @@
 
 import {initRouter, registerRoutes, resetRouter, getRouteExecutable, getHookExecutable} from '../router';
 import {route, hook} from './handlers';
-import {getHandlerReflection, nullJitFns} from './reflection';
+import {getHandlerReflection} from './reflection';
 import {DEFAULT_ROUTE_OPTIONS} from '../constants';
-import {EMPTY_HASH} from '@mionkit/core';
+import {EMPTY_HASH, getNoopJitFns} from '@mionkit/core';
 import {getSerializableMethod} from './remoteMethods';
 import {getPersistedMethod, setPersistedMethods} from './methodsCache';
 
@@ -25,14 +25,12 @@ describe('JIT Function Generation Optimization', () => {
 
     describe('No params optimization', () => {
         it('should skip JIT generation for handler with no params', async () => {
-            const handler = (ctx: any): void => {
-                // Hook with no params
-            };
+            const handler = (ctx: any): void => undefined;
 
             const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.paramNames).toEqual([]);
-            expect(reflection.paramsJitFns).toBe(nullJitFns);
+            expect(reflection.paramsJitFns).toBe(getNoopJitFns());
             expect(reflection.paramsJitHash).toBe(EMPTY_HASH);
         });
 
@@ -44,7 +42,7 @@ describe('JIT Function Generation Optimization', () => {
             const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.paramNames).toEqual(['name']);
-            expect(reflection.paramsJitFns).not.toBe(nullJitFns);
+            expect(reflection.paramsJitFns).not.toBe(getNoopJitFns());
             expect(reflection.paramsJitHash).not.toBe(EMPTY_HASH);
             expect(reflection.paramsJitHash).toBeTruthy();
         });
@@ -61,7 +59,7 @@ describe('JIT Function Generation Optimization', () => {
 
             expect(executable).toBeDefined();
             expect(executable!.paramNames).toEqual([]);
-            expect(executable!.paramsJitFns).toBe(nullJitFns);
+            expect(executable!.paramsJitFns).toBe(getNoopJitFns());
             expect(executable!.paramsJitHash).toBe(EMPTY_HASH);
         });
     });
@@ -75,7 +73,7 @@ describe('JIT Function Generation Optimization', () => {
             const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.hasReturnData).toBe(false);
-            expect(reflection.returnJitFns).toBe(nullJitFns);
+            expect(reflection.returnJitFns).toBe(getNoopJitFns());
             expect(reflection.returnJitHash).toBe(EMPTY_HASH);
         });
 
@@ -87,7 +85,7 @@ describe('JIT Function Generation Optimization', () => {
             const reflection = await getHandlerReflection(handler, 'testRoute', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.hasReturnData).toBe(true);
-            expect(reflection.returnJitFns).not.toBe(nullJitFns);
+            expect(reflection.returnJitFns).not.toBe(getNoopJitFns());
             expect(reflection.returnJitHash).not.toBe(EMPTY_HASH);
             expect(reflection.returnJitHash).toBeTruthy();
         });
@@ -104,7 +102,7 @@ describe('JIT Function Generation Optimization', () => {
 
             expect(executable).toBeDefined();
             expect(executable!.hasReturnData).toBe(false);
-            expect(executable!.returnJitFns).toBe(nullJitFns);
+            expect(executable!.returnJitFns).toBe(getNoopJitFns());
             expect(executable!.returnJitHash).toBe(EMPTY_HASH);
         });
     });
@@ -119,12 +117,12 @@ describe('JIT Function Generation Optimization', () => {
 
             // No params
             expect(reflection.paramNames).toEqual([]);
-            expect(reflection.paramsJitFns).toBe(nullJitFns);
+            expect(reflection.paramsJitFns).toBe(getNoopJitFns());
             expect(reflection.paramsJitHash).toBe(EMPTY_HASH);
 
             // Void return
             expect(reflection.hasReturnData).toBe(false);
-            expect(reflection.returnJitFns).toBe(nullJitFns);
+            expect(reflection.returnJitFns).toBe(getNoopJitFns());
             expect(reflection.returnJitHash).toBe(EMPTY_HASH);
         });
 
@@ -141,10 +139,10 @@ describe('JIT Function Generation Optimization', () => {
 
             expect(executable).toBeDefined();
             expect(executable!.paramNames).toEqual([]);
-            expect(executable!.paramsJitFns).toBe(nullJitFns);
+            expect(executable!.paramsJitFns).toBe(getNoopJitFns());
             expect(executable!.paramsJitHash).toBe(EMPTY_HASH);
             expect(executable!.hasReturnData).toBe(false);
-            expect(executable!.returnJitFns).toBe(nullJitFns);
+            expect(executable!.returnJitFns).toBe(getNoopJitFns());
             expect(executable!.returnJitHash).toBe(EMPTY_HASH);
         });
     });
@@ -190,10 +188,10 @@ describe('JIT Function Generation Optimization', () => {
 
             expect(restored).toBeDefined();
             expect(restored!.paramNames).toEqual([]);
-            expect(restored!.paramsJitFns).toBe(nullJitFns);
+            expect(restored!.paramsJitFns).toBe(getNoopJitFns());
             expect(restored!.paramsJitHash).toBe(EMPTY_HASH);
             expect(restored!.hasReturnData).toBe(false);
-            expect(restored!.returnJitFns).toBe(nullJitFns);
+            expect(restored!.returnJitFns).toBe(getNoopJitFns());
             expect(restored!.returnJitHash).toBe(EMPTY_HASH);
         });
 

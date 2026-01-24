@@ -20,8 +20,8 @@ export const DEFAULT_ROUTE_OPTIONS = {
     suffix: '',
     /** Function that transforms the path before finding a route */
     pathTransform: undefined,
-    /** Default serializer mode - use stringifyJson for optimized JSON serialization */
-    serialize: 'stringifyJson',
+    /** Default serializer mode - json as default native serializer, and minimum overhead to transform just required fields */
+    serialize: 'json',
     /** Default run type compiling options for routes and hooks, can't be configured by the user as would break functionality  */
     runTypeOptions: {},
     /** set to true to generate router spec for clients.  */

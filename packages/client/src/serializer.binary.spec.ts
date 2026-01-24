@@ -24,10 +24,7 @@ describe('Binary Serialization E2E', () => {
     const port = TEST_PORT_MAPPING.binarySerialization;
 
     // Create server hooks using the utility with binary server script
-    const serverHooks = createTestServerHooks({
-        port,
-        serverScript: 'test-server-binary.ts',
-    });
+    const serverHooks = createTestServerHooks({port, serverScript: 'test-server-binary.ts'});
     const baseURL = serverHooks.getBaseURL();
 
     beforeAll(serverHooks.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
@@ -37,48 +34,42 @@ describe('Binary Serialization E2E', () => {
         it('should serialize and deserialize string echo', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.echo('Hello Binary World!').call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe('Hello Binary World!');
         });
 
         it('should serialize and deserialize number addition', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.addNumbers(10, 25).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe(35);
         });
 
         it('should serialize and deserialize simple object', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.getSimpleUser('Alice', 28).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toEqual({name: 'Alice', age: 28});
         });
 
         it('should serialize object as parameter and deserialize string result', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.processSimpleUser({name: 'Bob', age: 35}).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe('User: Bob, Age: 35');
         });
 
         it('should handle boolean values', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.negate(true).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe(false);
         });
 
         it('should handle void return', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.logMessage('Test message').call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBeUndefined();
         });
     });
@@ -87,40 +78,35 @@ describe('Binary Serialization E2E', () => {
         it('should serialize and deserialize number array sum', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.sumArray([1, 2, 3, 4, 5]).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe(15);
         });
 
         it('should serialize and deserialize number array transformation', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.doubleArray([1, 2, 3, 4, 5]).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toEqual([2, 4, 6, 8, 10]);
         });
 
         it('should serialize and deserialize string array', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.reverseStrings(['a', 'b', 'c']).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toEqual(['c', 'b', 'a']);
         });
 
         it('should serialize and deserialize boolean array', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.allTrue([true, true, true]).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe(true);
         });
 
         it('should handle boolean array with false values', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.allTrue([true, false, true]).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe(false);
         });
     });
@@ -129,8 +115,7 @@ describe('Binary Serialization E2E', () => {
         it('should serialize and deserialize Date return value', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.getCurrentDate().call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBeInstanceOf(Date);
         });
 
@@ -138,8 +123,7 @@ describe('Binary Serialization E2E', () => {
             const {routes} = initClient<MyApi>({baseURL});
             const inputDate = new Date('2025-01-15T00:00:00Z');
             const [result, error] = await routes.addDays(inputDate, 5).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBeInstanceOf(Date);
             expect(result?.getTime()).toBe(new Date('2025-01-20T00:00:00Z').getTime());
         });
@@ -149,8 +133,7 @@ describe('Binary Serialization E2E', () => {
         it('should serialize and deserialize complex object with nested data', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.createComplexUser('user-1', 'John Doe', 'john@example.com').call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toMatchObject({
                 id: 'user-1',
                 name: 'John Doe',
@@ -189,8 +172,7 @@ describe('Binary Serialization E2E', () => {
             };
 
             const [result, error] = await routes.updateComplexUser(inputUser).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result?.isActive).toBe(false); // Should be toggled
             expect(result?.tags).toEqual(['premium', 'updated']); // Should have 'updated' added
             expect(result?.createdAt).toBeInstanceOf(Date);
@@ -201,8 +183,7 @@ describe('Binary Serialization E2E', () => {
         it('should serialize and deserialize deeply nested object', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.createNestedData('deep value', [1, 2, 3]).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toEqual({
                 level1: {
                     level2: {
@@ -229,8 +210,7 @@ describe('Binary Serialization E2E', () => {
             };
 
             const [result, error] = await routes.processNestedData(nestedData).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe('extracted value');
         });
     });
@@ -239,33 +219,29 @@ describe('Binary Serialization E2E', () => {
         it('should handle optional parameters (with value)', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.greet('World', 'Hi').call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe('Hi, World!');
         });
 
         it('should handle optional parameters (without value)', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.greet('World').call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe('Hello, World!');
         });
 
         it('should handle nullable return (with value)', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.findUser('user-123').call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toEqual({name: 'Found User', age: 30});
         });
 
         it('should handle nullable return (null)', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.findUser('not-found').call();
-
-            expect(error).toBeNull();
-            expect(result).toBeNull();
+            expect(error).toBeUndefined();
+            expect(result).toEqual(null);
         });
     });
 
@@ -273,8 +249,7 @@ describe('Binary Serialization E2E', () => {
         it('should handle RpcError return type (success case)', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.mayFail(false).call();
-
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe('Success!');
         });
 
@@ -282,8 +257,8 @@ describe('Binary Serialization E2E', () => {
             const {routes} = initClient<MyApi>({baseURL});
             const [result, error] = await routes.mayFail(true).call();
 
-            expect(result).toBeNull();
-            expect(error).not.toBeNull();
+            expect(result).toBeUndefined();
+            expect(error).not.toBeUndefined();
             expect(isRpcError(error)).toBe(true);
             expect(error?.type).toBe('intentional-error');
         });
@@ -292,27 +267,33 @@ describe('Binary Serialization E2E', () => {
     describe('Hooks with Binary Serialization', () => {
         it('should handle hook with optional parameter (with value)', async () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
-            const [result, error, hooksResults] = await routes.echo('test').callWithHooks(hooks.session('valid-token'));
+            const [result, error, hooksResults] = await routes.echo('test').callWithHooks({
+                session: hooks.session('valid-token'),
+            });
 
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe('test');
             expect(hooksResults?.session).toEqual({valid: true, userId: 'user-123'});
         });
 
         it('should handle hook with optional parameter (without value)', async () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
-            const [result, error, hooksResults] = await routes.echo('test').callWithHooks(hooks.session());
+            const [result, error, hooksResults] = await routes.echo('test').callWithHooks({
+                session: hooks.session(),
+            });
 
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe('test');
             expect(hooksResults?.session).toBeNull();
         });
 
         it('should handle hook returning error-like object', async () => {
             const {routes, hooks} = initClient<MyApi>({baseURL});
-            const [result, error, hooksResults] = await routes.echo('test').callWithHooks(hooks.session('invalid'));
+            const [result, error, hooksResults] = await routes.echo('test').callWithHooks({
+                session: hooks.session('invalid'),
+            });
 
-            expect(error).toBeNull();
+            expect(error).toBeUndefined();
             expect(result).toBe('test');
             expect(hooksResults?.session).toEqual({valid: false});
         });

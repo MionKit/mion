@@ -222,6 +222,7 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
             methods,
             deps: {}, // Dependencies are already loaded globally
             purFnDeps: {}, // Dependencies are already loaded globally
+            methodsOptions: {},
         };
         addToCaches(serializableMethodsData);
     }
