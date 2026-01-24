@@ -38,21 +38,12 @@ export interface SerializedRequest {
  * Reads from method metadata if available, otherwise defaults to JSON.
  */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
-    // Get the first method to determine serializer mode
-    // All methods in a single request should use the same encoding
-    const subRequestIds = Object.keys(req.subRequestList);
-    if (subRequestIds.length === 0) return 'json';
-
-    const firstMethodId = subRequestIds[0];
-    const method = routesCache.getMethodJitFns(firstMethodId);
-
-    // If metadata is loaded, use the serialize mode from metadata
-    // Otherwise default to 'json' (prepareForJson) for maximum compatibility
-    if (method && method.serialize) {
-        return method.serialize;
+    const method = routesCache.getMethodJitFns(req.route?.methodId);
+    if (method && method.options.serialize) {
+        return method.options.serialize;
     }
 
-    return 'json';
+    return 'jo';
 }
 
 /**

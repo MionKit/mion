@@ -11,13 +11,13 @@ import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnC
 import {Handler} from '../types/handlers';
 import {RouterOptions} from '../types/general';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants';
-import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash} from '@mionkit/core';
+import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns} from '@mionkit/core';
 import {persistedMethods} from './methodsCache';
 
 // ############ This file is the only one importing '@mionkit/run-types' within the router ########
 // In AOT mode, run-types is NOT loaded - all reflection data comes from the AOT cache
 
-type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options' | 'serialize' | 'deserialize'>;
+type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
 
 // ############ AOT Cache Error ############
 
@@ -83,13 +83,13 @@ export function resetRunTypesCache(): void {
 
 /**
  * Creates a MethodReflect for raw hooks.
- * Raw hooks don't need JIT functions - they always use nullJitFns.
+ * Raw hooks don't need JIT functions - they always use NoopJitFns.
  */
 function createRawHookReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
     return {
         paramNames,
-        paramsJitFns: nullJitFns,
-        returnJitFns: nullJitFns,
+        paramsJitFns: getNoopJitFns(),
+        returnJitFns: getNoopJitFns(),
         paramsJitHash: EMPTY_HASH,
         returnJitHash: EMPTY_HASH,
         hasReturnData,
@@ -106,8 +106,8 @@ function createRawHookReflection(isAsync: boolean, hasReturnData: boolean = fals
 function extractReflectionFromCached(cached: MethodMetadata): MethodReflect {
     const reflectionItems: MethodReflect = {
         paramNames: cached.paramNames || [],
-        paramsJitFns: cached.paramsJitHash === EMPTY_HASH ? nullJitFns : getJitFunctionsFromHash(cached.paramsJitHash),
-        returnJitFns: cached.returnJitHash === EMPTY_HASH ? nullJitFns : getJitFunctionsFromHash(cached.returnJitHash),
+        paramsJitFns: getJitFunctionsFromHash(cached.paramsJitHash),
+        returnJitFns: getJitFunctionsFromHash(cached.returnJitHash),
         paramsJitHash: cached.paramsJitHash,
         returnJitHash: cached.returnJitHash,
         hasReturnData: cached.hasReturnData,
@@ -208,10 +208,10 @@ function generateHandlerReflection(
         reflectionItems.paramNames = handlerRunType.getParameterNames(paramsOpts);
         // Skip JIT generation if handler has no params (optimization for AOT cache size)
         if (reflectionItems.paramNames.length === 0) {
-            reflectionItems.paramsJitFns = nullJitFns;
             reflectionItems.paramsJitHash = EMPTY_HASH;
+            reflectionItems.paramsJitFns = getNoopJitFns();
         } else {
-            reflectionItems.paramsJitFns = getParamsJitFns(handler, paramsOpts, rt);
+            reflectionItems.paramsJitFns = getFunctionJitFns(handler, paramsOpts, rt, false);
             reflectionItems.paramsJitHash = handlerRunType.getParameters().getJitHash(paramsOpts);
         }
     } catch (error: any) {
@@ -228,7 +228,7 @@ function generateHandlerReflection(
                 paramsSlice: undefined,
             };
 
-            const jitFns: JitCompiledFunctions = getJitFunctions(headersRunType, opts, rt);
+            const jitFns: JitCompiledFunctions = getTypeJitFunctions(headersRunType, opts, rt);
             const jitHash = headersRunType.getJitHash(opts);
             reflectionItems.headersParam = {headerNames, jitFns, jitHash};
         } catch (error: any) {
@@ -240,7 +240,7 @@ function generateHandlerReflection(
     if (returnHeadersRunType) {
         const opts: RunTypeOptions = {};
         const headerNames: string[] = getHeaderNames(returnHeadersRunType, routeId, rt);
-        const jitFns: JitCompiledFunctions = getReturnJitFns(handler, opts, rt);
+        const jitFns: JitCompiledFunctions = getFunctionJitFns(handler, opts, rt, true);
         const jitHash: string = returnHeadersRunType.getJitHash(opts);
         reflectionItems.headersReturn = {headerNames, jitFns, jitHash};
     }
@@ -252,11 +252,11 @@ function generateHandlerReflection(
     try {
         // Skip JIT generation if handler has void return (optimization for AOT cache size)
         if (!reflectionItems.hasReturnData) {
-            reflectionItems.returnJitFns = nullJitFns;
+            reflectionItems.returnJitFns = getNoopJitFns();
             reflectionItems.returnJitHash = EMPTY_HASH;
         } else {
             // returnJitFns contains all run type functionality for the return value, it compiles when the property is first accessed
-            reflectionItems.returnJitFns = getReturnJitFns(handler, returnOpts, rt);
+            reflectionItems.returnJitFns = getFunctionJitFns(handler, returnOpts, rt, true);
             reflectionItems.returnJitHash = handlerRunType.getReturnType().getJitHash(returnOpts);
         }
     } catch (error: any) {
@@ -389,7 +389,11 @@ function getFakeCompiler(routerOptions: RouterOptions): JitFnCompiler {
     return {opts: routerOptions} as any as JitFnCompiler;
 }
 
-function getJitFunctions(runType: BaseRunType, opts: RunTypeOptions | undefined, rtModule: RunTypesModule): JitCompiledFunctions {
+function getTypeJitFunctions(
+    runType: BaseRunType,
+    opts: RunTypeOptions | undefined,
+    rtModule: RunTypesModule
+): JitCompiledFunctions {
     const jitFns: JitCompiledFunctions = {
         isType: runType.createJitCompiledFunction(rtModule.JitFunctions.isType.id, undefined, opts),
         typeErrors: runType.createJitCompiledFunction(rtModule.JitFunctions.typeErrors.id, undefined, opts),
@@ -402,63 +406,26 @@ function getJitFunctions(runType: BaseRunType, opts: RunTypeOptions | undefined,
     return jitFns;
 }
 
-function getParamsJitFns<Fn extends AnyFn>(
+function getFunctionJitFns<Fn extends AnyFn>(
     fn: Fn,
     opts: RunTypeOptions | undefined,
-    rtModule: RunTypesModule
+    rtModule: RunTypesModule,
+    isReturn: boolean
 ): JitCompiledFunctions {
     const runType = rtModule.reflectFunction(fn);
-    const paramFunctions: JitCompiledFunctions = {
-        isType: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.isType, opts),
-        typeErrors: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.typeErrors, opts),
-        prepareForJson: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.prepareForJson, opts),
-        restoreFromJson: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.restoreFromJson, opts),
-        stringifyJson: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.stringifyJson, opts),
-        toBinary: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.toBinary, opts),
-        fromBinary: runType.createJitCompiledParamsFunction(rtModule.JitFunctions.fromBinary, opts),
+    const createFn = isReturn
+        ? runType.createJitCompiledReturnFunction.bind(runType)
+        : runType.createJitCompiledParamsFunction.bind(runType);
+    const jitFunctions: JitCompiledFunctions = {
+        isType: createFn(rtModule.JitFunctions.isType, opts),
+        typeErrors: createFn(rtModule.JitFunctions.typeErrors, opts),
+        prepareForJson: createFn(rtModule.JitFunctions.prepareForJson, opts),
+        restoreFromJson: createFn(rtModule.JitFunctions.restoreFromJson, opts),
+        stringifyJson: createFn(rtModule.JitFunctions.stringifyJson, opts),
+        toBinary: createFn(rtModule.JitFunctions.toBinary, opts),
+        fromBinary: createFn(rtModule.JitFunctions.fromBinary, opts),
     };
-    return paramFunctions;
-}
-
-function getReturnJitFns<Fn extends AnyFn>(
-    fn: Fn,
-    opts: RunTypeOptions | undefined,
-    rtModule: RunTypesModule
-): JitCompiledFunctions {
-    const runType = rtModule.reflectFunction(fn);
-    const returnFunctions: JitCompiledFunctions = {
-        isType: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.isType, opts),
-        typeErrors: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.typeErrors, opts),
-        prepareForJson: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.prepareForJson, opts),
-        restoreFromJson: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.restoreFromJson, opts),
-        stringifyJson: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.stringifyJson, opts),
-        toBinary: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.toBinary, opts),
-        fromBinary: runType.createJitCompiledReturnFunction(rtModule.JitFunctions.fromBinary, opts),
-    };
-    return returnFunctions;
+    return jitFunctions;
 }
 
 // ############ Null JIT Functions ############
-
-// prettier-ignore
-export const nullJitFns: JitCompiledFunctions = {
-    isType: fakeJitFn(),
-    typeErrors: fakeJitFn(),
-    prepareForJson: fakeJitFn(),
-    restoreFromJson: fakeJitFn(),
-    stringifyJson: fakeJitFn(),
-    toBinary: fakeJitFn(),
-    fromBinary: fakeJitFn(),
-} as any;
-
-/** Creates a fake JIT function with isNoop=true for handlers with no params or void return */
-function fakeJitFn(): {fn: (...args: any[]) => any; isNoop: true} {
-    return {
-        fn: () => {
-            throw new Error(
-                'Raw Hooks and Handlers with no params or void return do not have JIT functions and should not be called.'
-            );
-        },
-        isNoop: true,
-    };
-}

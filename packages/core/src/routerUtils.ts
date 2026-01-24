@@ -7,11 +7,12 @@
 
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants';
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
-import type {MethodMetadata, MethodsCache, MethodWithJitFns} from './types/method.types';
-import type {JitCompiledFunctions, JitFunctionsHashes} from './types/general.types';
+import type {AnyRemoteMethodsOps, MethodMetadata, MethodsCache, MethodWithJitFns} from './types/method.types';
+import type {JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types';
 import {getJitUtils} from './jitUtils';
 
 const methodsCache: MethodsCache = {};
+const methodsOptionsCache: Record<string, AnyRemoteMethodsOps> = {};
 let routesCacheLoaded = false;
 
 /**
@@ -142,6 +143,15 @@ export const routesCache = {
     },
 };
 
+export const methodOptsCache = {
+    getMethodOptions(id: string): AnyRemoteMethodsOps | undefined {
+        return methodsOptionsCache[id];
+    },
+    setMethodOptions(id: string, options: AnyRemoteMethodsOps): void {
+        methodsOptionsCache[id] = options;
+    },
+};
+
 /**
  * Loads the router cache from @mionkit/aot-caches.
  * This function should be called by the client package on initialization.
@@ -190,7 +200,7 @@ export function getJitFnHashes(jitHash: string): JitFunctionsHashes {
  */
 export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
     // Empty hash means no JIT functions were generated (optimization for no params or void return)
-    if (jitHash === EMPTY_HASH) return nullJitFns;
+    if (jitHash === EMPTY_HASH) return noopJitFns;
 
     const hashes = getJitFnHashes(jitHash);
     const jUtils = getJitUtils();
@@ -254,22 +264,39 @@ export function resetRoutesCache() {
     routesCacheLoaded = false;
 }
 
-// Null JIT functions used for handlers with no params or void return
+// Noop JIT functions used for handlers with no params or void return
 // prettier-ignore
-const nullJitFns: JitCompiledFunctions = {
-    isType: fakeJitFn(),
-    typeErrors: fakeJitFn(),
-    prepareForJson: fakeJitFn(),
-    restoreFromJson: fakeJitFn(),
-    stringifyJson: fakeJitFn(),
-    toBinary: fakeJitFn(),
-    fromBinary: fakeJitFn(),
+const noopJitFns: JitCompiledFunctions = {
+    isType: fakeJitFn(JIT_FUNCTION_IDS.isType),
+    typeErrors: fakeJitFn(JIT_FUNCTION_IDS.typeErrors),
+    prepareForJson: fakeJitFn(JIT_FUNCTION_IDS.prepareForJson),
+    restoreFromJson: fakeJitFn(JIT_FUNCTION_IDS.restoreFromJson),
+    stringifyJson: fakeJitFn(JIT_FUNCTION_IDS.stringifyJson),
+    toBinary: fakeJitFn(JIT_FUNCTION_IDS.toBinary),
+    fromBinary: fakeJitFn(JIT_FUNCTION_IDS.fromBinary),
 } as any;
 
-function fakeJitFn(): (...args: any[]) => any {
-    return () => {
-        throw new Error(
-            'Raw Hooks and Handlers with no params or void return do not have JIT functions and should not be called.'
-        );
+/** Creates a fake JIT function with isNoop=true for handlers with no params or void return */
+function fakeJitFn(fnID: string): JitCompiledFn<any> {
+    return {
+        typeName: 'mionNoopJit',
+        fnID,
+        jitFnHash: EMPTY_HASH,
+        args: {vλl: 'v'},
+        defaultParamValues: {vλl: 'v'},
+        isNoop: true,
+        code: '',
+        dependenciesSet: new Set<string>(),
+        pureFnDependencies: new Set<string>(),
+        createJitFn: () => {
+            throw new Error('isNoop JIT functions should not be called, this is a function when jit is never used');
+        },
+        fn: () => {
+            throw new Error('isNoop JIT functions should not be called, this is a function when jit is never used');
+        },
     };
+}
+
+export function getNoopJitFns(): JitCompiledFunctions {
+    return noopJitFns;
 }

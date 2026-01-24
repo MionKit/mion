@@ -61,6 +61,7 @@ describe('PublicMethods run type functionality', () => {
             methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
+            methodsOptions: {},
         };
 
         const rt = runType<ClientReturn>();
@@ -94,6 +95,7 @@ describe('PublicMethods run type functionality', () => {
             methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
+            methodsOptions: {},
         };
         const rt = runType<ClientReturn>();
         const stringifyJson = rt.createJitFunction(JitFunctions.stringifyJson);
@@ -118,6 +120,7 @@ describe('PublicMethods run type functionality', () => {
             methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
+            methodsOptions: {},
         };
         const jsonStr = stringifyJson(responseClone);
         const roundTrip2 = restoreFromJson(JSON.parse(jsonStr));
@@ -168,7 +171,6 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'getUser'],
-            serialize: 'stringifyJson',
         },
         'users/setUser': {
             type: HandlerType.route,
@@ -181,7 +183,6 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'setUser'],
-            serialize: 'stringifyJson',
         },
         'users/pets/getUserPet': {
             type: HandlerType.route,
@@ -194,7 +195,6 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['users', 'pets', 'getUserPet'],
-            serialize: 'stringifyJson',
         },
         'pets/getPet': {
             type: HandlerType.route,
@@ -207,7 +207,6 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['pets', 'getPet'],
-            serialize: 'stringifyJson',
         },
         'pets/setPet': {
             type: HandlerType.route,
@@ -220,7 +219,6 @@ describe('Client Routes should', () => {
             paramNames: [],
             hookIds: ['auth', 'last'],
             pointer: ['pets', 'setPet'],
-            serialize: 'stringifyJson',
         },
         auth: {
             type: HandlerType.hook,
@@ -232,7 +230,6 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: ['token'],
             pointer: ['auth'],
-            serialize: 'stringifyJson',
         },
         last: {
             type: HandlerType.hook,
@@ -244,7 +241,6 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: [],
             pointer: ['last'],
-            serialize: 'stringifyJson',
         },
     } satisfies MethodsCache;
 

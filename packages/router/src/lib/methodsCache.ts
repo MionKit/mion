@@ -5,11 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MethodsCache, MethodMetadata, getENV, getJitFunctionsFromHash, EMPTY_HASH} from '@mionkit/core';
+import {MethodsCache, MethodMetadata, getENV, getJitFunctionsFromHash} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
 import {AnyHandler} from '../types/handlers';
 import {IS_TEST_ENV} from '../constants';
-import {nullJitFns} from './reflection';
 
 export let persistedMethods: MethodsCache = {};
 
@@ -43,8 +42,8 @@ function restorePersistedMethod(method: MethodMetadata, handler: AnyHandler): Re
     if (restored.paramsJitFns && restored.returnJitFns && restored.paramNames && !!restored.handler)
         return method as RemoteMethod;
     restored.handler = handler;
-    restored.paramsJitFns = method.paramsJitHash === EMPTY_HASH ? nullJitFns : getJitFunctionsFromHash(method.paramsJitHash);
-    restored.returnJitFns = method.returnJitHash === EMPTY_HASH ? nullJitFns : getJitFunctionsFromHash(method.returnJitHash);
+    restored.paramsJitFns = getJitFunctionsFromHash(method.paramsJitHash);
+    restored.returnJitFns = getJitFunctionsFromHash(method.returnJitHash);
     if (IS_TEST_ENV) (restored as any).isRestored = true;
     return restored;
 }
@@ -78,7 +77,7 @@ let defaultAOTCachesLoadPromise: Promise<void> | null = null;
  * The caches are loaded only once and cached for subsequent calls.
  *
  * Note: Raw hooks (like mionDeserializeRequest and mionSerializeResponse) don't need
- * to be in the AOT cache because they don't use JIT functions - they always use nullJitFns.
+ * to be in the AOT cache because they don't use JIT functions - they always use NoopJitFns.
  *
  * @returns Promise that resolves when caches are loaded
  */

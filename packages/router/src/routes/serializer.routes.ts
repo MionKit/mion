@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MionResponse, MionRequest, CallContext, RawRequestBody} from '../types/context';
+import type {MionResponse, MionRequest, CallContext} from '../types/context';
 import type {RouterOptions} from '../types/general';
 import type {HooksCollection, MayReturnError} from '../types/publicMethods';
 import type {ResponseBody} from '../types/context';

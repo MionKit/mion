@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import type {Prettify, RunTypeError, ValidationError} from '@mionkit/core';
+import type {Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionkit/core';
 import type {PublicHeadersHook, PublicHook, RemoteApi, PublicRoute} from '@mionkit/router';
 import type {TypedEvent} from './typedEvent';
 
@@ -87,6 +87,8 @@ export type ClientOptions = {
     validateParams: boolean;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
+    /** Default serializer mode - strin */
+    serialize: SerializerMode;
 };
 
 type PublicHandler = (...args: any[]) => Promise<any>;

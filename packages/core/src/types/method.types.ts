@@ -39,9 +39,22 @@ export interface MethodMetadata {
     pointer: string[];
     /** router nest level */
     nestLevel: number;
-    /** Serializer mode for response body serialization */
-    serialize: SerializerMode;
 }
+
+export interface RemoteMethodOpts {
+    runOnError?: boolean;
+    validateParams?: boolean;
+    validateReturn?: boolean;
+    description?: string;
+}
+
+export interface RouteOnlyOptions extends RemoteMethodOpts {
+    runOnError: false;
+    /** Per-route serializer mode override. If not set, uses router's default serialize option. */
+    serializer?: SerializerMode;
+}
+
+export type AnyRemoteMethodsOps = RemoteMethodOpts | RouteOnlyOptions;
 
 export type MethodsCache = Record<string, MethodMetadata>;
 
@@ -54,6 +67,7 @@ export interface SerializableMethodsData {
     methods: MethodsCache;
     deps: FnsDataCache;
     purFnDeps: PureFnsDataCache;
+    methodsOptions: Record<string, AnyRemoteMethodsOps>;
 }
 
 export interface HeadersMethodWithJitFns extends HeadersMetaData {

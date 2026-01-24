@@ -1,15 +1,8 @@
 // ####### Executables #######
 
-import type {HeadersMethodWithJitFns, MethodWithJitFns, SerializerMode} from '@mionkit/core'; // do not import type only
+import type {HeadersMethodWithJitFns, MethodWithJitFns, RemoteMethodOpts, RouteOnlyOptions} from '@mionkit/core'; // do not import type only
 import type {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
 import {HandlerType} from '@mionkit/core'; // do not import type only
-
-export interface RemoteMethodOpts {
-    runOnError?: boolean;
-    validateParams?: boolean;
-    validateReturn?: boolean;
-    description?: string;
-}
 
 /** Contains the handlers for hooks and routes */
 export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodWithJitFns {
@@ -19,15 +12,9 @@ export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodW
     methodCaller?: (...args: any[]) => any;
 }
 
-interface RouteOnlyOptions {
-    runOnError: false;
-    /** Per-route serializer mode override. If not set, uses router's default serialize option. */
-    serializer?: SerializerMode;
-}
-
 export interface RouteMethod<H extends Handler = any> extends RemoteMethod<H> {
     type: typeof HandlerType.route;
-    options: RemoteMethodOpts & RouteOnlyOptions;
+    options: RouteOnlyOptions;
 }
 export interface HookMethod<H extends Handler = any> extends RemoteMethod<H> {
     type: typeof HandlerType.hook;
