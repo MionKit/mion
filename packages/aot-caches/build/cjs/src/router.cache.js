@@ -11,6 +11,7 @@ const routerCache = {
 		returnJitHash: "cm6MsK",
 		pointer: ["@thrownErrors"],
 		nestLevel: 0,
+		serialize: "stringifyJson",
 	},
 	"mion@notFound": {
 		paramNames: [],
@@ -22,6 +23,7 @@ const routerCache = {
 		returnJitHash: "a8UQwC",
 		pointer: ["mion@notFound"],
 		nestLevel: 0,
+		serialize: "stringifyJson",
 	},
 	"mion@platformError": {
 		paramNames: [],
@@ -33,6 +35,7 @@ const routerCache = {
 		returnJitHash: "zxRrbt",
 		pointer: ["mion@platformError"],
 		nestLevel: 0,
+		serialize: "stringifyJson",
 	},
 	"mion@methodsMetadataById": {
 		paramNames: ["methodsIds", "getAllRemoteMethods"],
@@ -41,9 +44,10 @@ const routerCache = {
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "JtnVhp",
-		returnJitHash: "bNdbvR",
+		returnJitHash: "Iy4SQQ",
 		pointer: ["mion@methodsMetadataById"],
 		nestLevel: 0,
+		serialize: "stringifyJson",
 	},
 	"mion@methodsMetadataByPath": {
 		paramNames: ["path", "getAllRemoteMethods"],
@@ -52,9 +56,10 @@ const routerCache = {
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "hZzD9z",
-		returnJitHash: "bNdbvR",
+		returnJitHash: "Iy4SQQ",
 		pointer: ["mion@methodsMetadataByPath"],
 		nestLevel: 0,
+		serialize: "stringifyJson",
 	},
 	"@mionkit/mionEmptyHook": {
 		paramNames: [],
@@ -66,6 +71,7 @@ const routerCache = {
 		returnJitHash: "",
 		pointer: ["@mionkit/mionEmptyHook"],
 		nestLevel: 0,
+		serialize: "stringifyJson",
 	},
 };
 exports.routerCache = routerCache;
