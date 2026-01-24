@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getPlatformErrorResponse, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
+import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
 import {getENV} from '@mionkit/core';
@@ -106,7 +106,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 
 // only called whe there is an htt error or weird unhandled route errors
 function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
-    const routeResponse = getPlatformErrorResponse(err, responseHeaders);
+    const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
     return reply(routeResponse, responseHeaders);
 }
 

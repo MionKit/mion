@@ -11,7 +11,7 @@ import type {RemoteMethod} from '../types/remoteMethods';
  * @returns
  */
 
-export function getPlatformErrorResponse(returnErr: RpcError<string>, respHeaders: MionHeaders): MionResponse {
+export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHeaders: MionHeaders): MionResponse {
     // Store platform error in thrownErrors with special platformError key
     const body: ResponseBody = {
         '@thrownErrors': {[MION_ROUTES.platformError]: returnErr},
