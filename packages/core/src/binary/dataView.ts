@@ -155,7 +155,8 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
     constructor(routeId: string, buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) {
         this.routeId = routeId;
         this.buffer = buffer;
-        this.index = byteOffset ?? 0;
+        // index should always start at 0 because DataView/Uint8Array already account for byteOffset
+        this.index = 0;
         this.view = new DataView(buffer, byteOffset, byteLength);
         this.uint8View = new Uint8Array(buffer, byteOffset, byteLength);
     }
@@ -164,7 +165,8 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
         this.hasEnded = false;
     }
     setBuffer(buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number): void {
-        this.index = byteOffset ?? 0;
+        // index should always start at 0 because DataView/Uint8Array already account for byteOffset
+        this.index = 0;
         (this as any).buffer = buffer;
         this.view = new DataView(buffer, byteOffset, byteLength);
         this.uint8View = new Uint8Array(buffer, byteOffset, byteLength); // Update working view

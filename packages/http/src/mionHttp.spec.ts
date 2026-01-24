@@ -4,10 +4,10 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {getPersistedMethods, initRouter, registerRoutes, route, resetRouter} from '@mionkit/router';
+import {getPersistedMethods, initRouter, registerRoutes, route, resetRouter, getRouteExecutionPath} from '@mionkit/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
-import {StatusCodes, type PublicRpcError} from '@mionkit/core';
+import {StatusCodes, type PublicRpcError, serializeBinaryBody, deserializeBinaryBody, MethodWithJitFns} from '@mionkit/core';
 // In theory node 18 supports fetch but not working fine with jest, we should update to jest 29
 // update to jest 29 gonna take some changes as all globals must be imported from @jest/globals
 // also the types for fetch are not available in node 18, fix here: https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6#answer-75676044
@@ -239,6 +239,98 @@ describe('node http router', () => {
             expect(headers['connection']).toEqual('close');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['server']).toEqual('@mionkit');
+        });
+    });
+
+    describe('with serialize=binary', () => {
+        /** Helper to build a methods map from an execution path */
+        function buildMethodsMap(executionPath: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
+            const map = new Map<string, MethodWithJitFns>();
+            for (const method of executionPath) map.set(method.id, method);
+            return map;
+        }
+
+        beforeAll(async () => {
+            resetNodeHttpOpts();
+            setNodeHttpOpts({port});
+            resetRouter();
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serialize: 'binary'});
+            await registerRoutes({changeUserName, getDate});
+        });
+
+        it('should send binary request and receive binary response with Date objects', async () => {
+            const executionPath = getRouteExecutionPath('/api/getDate')!.methods;
+            const methodsMap = buildMethodsMap(executionPath);
+
+            // Serialize request body to binary
+            const requestBody = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+            const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionPath, requestBody, false);
+
+            const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
+                method: 'POST',
+                headers: {'content-type': 'application/octet-stream'},
+                body: Buffer.from(requestBuffer),
+            });
+            const headers = Object.fromEntries(response.headers.entries());
+            const responseBuffer = await response.arrayBuffer();
+
+            // Deserialize binary response
+            const {body: responseBody} = deserializeBinaryBody('/api/getDate', methodsMap, responseBuffer, true);
+
+            expect(responseBody.getDate).toBeDefined();
+            expect(responseBody.getDate.date).toEqual(new Date('2022-04-22T00:17:00.000Z'));
+            expect(headers['content-type']).toEqual('application/octet-stream');
+            expect(headers['server']).toEqual('@mionkit');
+        });
+
+        it('should send binary request and receive binary response with complex objects', async () => {
+            const executionPath = getRouteExecutionPath('/api/changeUserName')!.methods;
+            const methodsMap = buildMethodsMap(executionPath);
+
+            // Serialize request body to binary
+            const requestBody = {changeUserName: [{name: 'John', surname: 'Doe'}]};
+            const {buffer: requestBuffer} = serializeBinaryBody('/api/changeUserName', executionPath, requestBody, false);
+
+            const response = await fetch(`http://127.0.0.1:${port}/api/changeUserName`, {
+                method: 'POST',
+                headers: {'content-type': 'application/octet-stream'},
+                body: Buffer.from(requestBuffer),
+            });
+            const headers = Object.fromEntries(response.headers.entries());
+            const responseBuffer = await response.arrayBuffer();
+
+            // Deserialize binary response
+            const {body: responseBody} = deserializeBinaryBody('/api/changeUserName', methodsMap, responseBuffer, true);
+
+            expect(responseBody.changeUserName).toBeDefined();
+            expect(responseBody.changeUserName.name).toEqual('NewName');
+            expect(responseBody.changeUserName.surname).toEqual('Doe');
+            expect(headers['content-type']).toEqual('application/octet-stream');
+            expect(headers['server']).toEqual('@mionkit');
+        });
+
+        it('should handle optional parameters in binary mode', async () => {
+            const executionPath = getRouteExecutionPath('/api/getDate')!.methods;
+            const methodsMap = buildMethodsMap(executionPath);
+
+            // Serialize request body with no params (optional dataPoint)
+            const requestBody = {getDate: [undefined]};
+            const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionPath, requestBody, false);
+
+            const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
+                method: 'POST',
+                headers: {'content-type': 'application/octet-stream'},
+                body: Buffer.from(requestBuffer),
+            });
+            const headers = Object.fromEntries(response.headers.entries());
+            const responseBuffer = await response.arrayBuffer();
+
+            // Deserialize binary response - should return default date
+            const {body: responseBody} = deserializeBinaryBody('/api/getDate', methodsMap, responseBuffer, true);
+
+            expect(responseBody.getDate).toBeDefined();
+            expect(responseBody.getDate.date).toEqual(new Date('2022-04-22T00:17:00.000Z'));
+            expect(headers['content-type']).toEqual('application/octet-stream');
         });
     });
 });
