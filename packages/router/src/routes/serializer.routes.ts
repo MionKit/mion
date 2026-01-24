@@ -14,9 +14,8 @@ import {
     Mutable,
     MION_ROUTES,
     StatusCodes,
-    createDataViewSerializer,
-    createDataViewDeserializer,
-    DataViewSerializer,
+    serializeBinaryBody as coreSerializeBinaryBody,
+    deserializeBinaryBody as coreDeserializeBinaryBody,
 } from '@mionkit/core';
 import {rawHook} from '../lib/handlers';
 import {getRouteExecutableFromPath, getRouteExecutionPath, getRouteExecutable} from '../router';
@@ -47,12 +46,18 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
                 });
             }
             break;
-        case 'B': // binary
+        case 'B': {
+            // binary
             // Binary deserialization is handled per-method in dispatch.ts
-            // The binDeserializer is already created in createCallContext
-            // We parse the binary protocol header here to extract method IDs
-            parsedBody = deserializeBinaryRequestBody(context);
+            const rawBody = context.request.rawBody as Uint8Array;
+            const executionPath = getRouteExecutionPath(context.path)?.methods || [];
+            // Build methods map for deserialization
+            const methodsMap = new Map<string, RemoteMethod>();
+            for (const method of executionPath) methodsMap.set(method.id, method);
+            const {body} = coreDeserializeBinaryBody(context.path, methodsMap, rawBody, false);
+            parsedBody = body;
             break;
+        }
         case 'O': // Object (pre-parsed body from platforms like Google Cloud Functions where Express auto-parses JSON)
             parsedBody = context.request.rawBody;
             break;
@@ -76,68 +81,6 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
 }
 
 /**
- * Deserializes binary request body according to the binary protocol format.
- * Binary Protocol Request Format:
- * [4 bytes] - Number of methods (uint32 LE)
- * For each method:
- *   [4 bytes] - Method ID string length (uint32 LE)
- *   [N bytes] - Method ID string (UTF-8)
- *   [M bytes] - Serialized params (using fromBinary JIT)
- */
-function deserializeBinaryRequestBody(context: CallContext): AnyObject {
-    // Create the deserializer - accepts ArrayBuffer or typed array views (Uint8Array, Buffer, etc.)
-    const rawBody = context.request.rawBody;
-    if (!(rawBody instanceof ArrayBuffer) && !ArrayBuffer.isView(rawBody)) {
-        throw new Error('Binary request body must be ArrayBuffer or ArrayBufferView');
-    }
-    const deserializer = createDataViewDeserializer(context.path, rawBody);
-
-    const body: AnyObject = {};
-
-    try {
-        // Read number of methods
-        const numMethods = deserializer.view.getUint32(deserializer.index, true);
-        deserializer.index += 4;
-
-        for (let i = 0; i < numMethods; i++) {
-            // Read method ID
-            const methodId = deserializer.desString();
-
-            // Get the method to access its fromBinary JIT function
-            const method =
-                getRouteExecutable(methodId) || getRouteExecutionPath(context.path)?.methods.find((m) => m.id === methodId);
-            if (!method) {
-                throw new RpcError({
-                    statusCode: StatusCodes.UNEXPECTED_ERROR,
-                    type: 'binary-method-not-found',
-                    publicMessage: `Method '${methodId}' not found for binary deserialization.`,
-                });
-            }
-
-            // Deserialize params using fromBinary JIT function
-            // fromBinary(undefined, deserializer) - reads from deserializer and returns the value
-            if (method.paramsJitFns.fromBinary.isNoop) {
-                body[methodId] = [];
-            } else {
-                body[methodId] = method.paramsJitFns.fromBinary.fn(undefined, deserializer);
-            }
-        }
-
-        deserializer.markAsEnded();
-    } catch (err: any) {
-        if (err instanceof RpcError) throw err;
-        throw new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'binary-deserialization-error',
-            publicMessage: `Failed to deserialize binary request body: ${err?.message || 'unknown error'}`,
-            originalError: err,
-        });
-    }
-
-    return body;
-}
-
-/**
  * Serializes the response body and stores it in the response rawBody property.
  * This method is called after any other hook or route handler.
  * @mion:hook
@@ -146,6 +89,9 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
     const response = context.response as Mutable<MionResponse>;
     const respBody: AnyObject = response.body;
     const bodyType = context.response.bodyType;
+    const thrownErrors = context.request.thrownErrors as Record<string, RpcError<string>> | undefined;
+    // Add thrownErrors to response body before the serializer runs
+    if (thrownErrors) (response.body as Mutable<AnyObject>)['@thrownErrors'] = thrownErrors;
     switch (bodyType) {
         case 'J': {
             // json - use stringifyJson JIT function
@@ -176,101 +122,12 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
     }
 }
 
-/**
- * Serializes response body to binary format.
- * Binary Protocol Response Format:
- * [4 bytes] - Number of methods with return data (uint32 LE)
- * For each method:
- *   [4 bytes] - Method ID string length (uint32 LE)
- *   [N bytes] - Method ID string (UTF-8)
- *   [M bytes] - Serialized return value (using toBinary JIT)
- */
+/** Serializes response body to binary format using the core serializeBinaryBody function */
 function serializeBinaryBody(context: CallContext, executionPath: RemoteMethod[], respBody: ResponseBody): void {
     const response = context.response as Mutable<MionResponse>;
-
-    // Create serializer lazily
-    const serializer = createDataViewSerializer(context.path);
+    const {serializer, buffer} = coreSerializeBinaryBody(context.path, executionPath, respBody, true);
     response.binSerializer = serializer;
-
-    try {
-        // First pass: count methods with return data
-        let methodCount = 0;
-        for (let i = 0; i < executionPath.length; i++) {
-            const method = executionPath[i];
-            const returnValue = respBody[method.id];
-            if (method.hasReturnData && typeof returnValue !== 'undefined') {
-                methodCount++;
-            }
-        }
-
-        // Add thrownErrors if they exist
-        const thrownErrors = respBody['@thrownErrors'];
-        if (thrownErrors) methodCount++;
-
-        // Write method count
-        serializer.view.setUint32(serializer.index, methodCount, true);
-        serializer.index += 4;
-
-        // Second pass: serialize each method's return value
-        for (let i = 0; i < executionPath.length; i++) {
-            const method = executionPath[i];
-            const returnValue = respBody[method.id];
-            if (!method.hasReturnData || typeof returnValue === 'undefined') continue;
-
-            try {
-                serializeMethodReturnValue(serializer, method, returnValue);
-            } catch (e: any) {
-                onBinarySerializeError(context, method, e);
-            }
-        }
-
-        // Serialize thrownErrors if they exist
-        if (thrownErrors) {
-            const method = getRouteExecutable(MION_ROUTES.thrownErrors)!;
-            try {
-                serializeMethodReturnValue(serializer, method, thrownErrors);
-            } catch (e: any) {
-                onBinarySerializeError(context, method, e);
-            }
-        }
-
-        serializer.markAsEnded();
-
-        // Set rawBody to the serialized binary data
-        response.rawBody = serializer.getBufferView();
-    } catch (err: any) {
-        if (err instanceof RpcError) throw err;
-        throw new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'binary-serialization-error',
-            publicMessage: `Failed to serialize binary response body: ${err?.message || 'unknown error'}`,
-            originalError: err,
-        });
-    }
-}
-
-/** Serializes a single method's return value to binary */
-function serializeMethodReturnValue(serializer: DataViewSerializer, method: RemoteMethod, returnValue: any): void {
-    // Write method ID
-    serializer.serString(method.id);
-
-    // Serialize return value using toBinary JIT function
-    // toBinary(value, serializer) - writes to serializer, returns void
-    if (!method.returnJitFns.toBinary.isNoop) {
-        method.returnJitFns.toBinary.fn(returnValue, serializer);
-    }
-    // Note: toBinary writes directly to the serializer, no need to handle the return value
-}
-
-function onBinarySerializeError(context: CallContext, method: RemoteMethod, e: any) {
-    const err = new RpcError({
-        statusCode: StatusCodes.UNEXPECTED_ERROR,
-        type: 'binary-serialize-response-error',
-        publicMessage: `Failed to serialize return value to binary for handler ${method.id}, expected response type: ${method.returnJitFns.toBinary.typeName}`,
-        originalError: e,
-        errorData: {methodId: method.id},
-    });
-    onExecutableError(context, method, err);
+    response.rawBody = new Uint8Array(buffer);
 }
 
 function stringifyBody(context: CallContext, executionPath: RemoteMethod[], respBody: ResponseBody): string {

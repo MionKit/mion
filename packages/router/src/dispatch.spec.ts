@@ -362,7 +362,7 @@ describe('Dispatch routes', () => {
             expect(error).toEqual(expected);
         });
 
-        it("return an error if can't deserialize", async () => {
+        it("return an error if can't deserialize method", async () => {
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({getSameDate});
 
@@ -386,7 +386,7 @@ describe('Dispatch routes', () => {
             });
         });
 
-        it('return an error if validation fails, incorrect type', async () => {
+        it('return an error if method validation fails, incorrect type', async () => {
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({changeUserName});
 
@@ -412,7 +412,7 @@ describe('Dispatch routes', () => {
             expect(error).toEqual(expected);
         });
 
-        it('return an error if validation fails, empty type', async () => {
+        it('return an error if method validation fails, empty type', async () => {
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({changeUserName});
 
@@ -457,31 +457,6 @@ describe('Dispatch routes', () => {
                 type: 'unknown-error',
                 publicMessage: 'Unknown error in handler "routeFail" of route execution path.',
             });
-        });
-
-        // TODO: not sure how to make serialization/validation throw an error
-        // eslint-disable-next-line jest/no-disabled-tests
-        it.skip("return an error if can't validate", async () => {
-            await initRouter({contextDataFactory: getSharedData});
-            await registerRoutes({getSameDate});
-
-            const request = getDefaultRequest('getSameDate', [1234]);
-
-            const response = await dispatchRoute(
-                '/getSameDate',
-                request.body,
-                request.headers,
-                headersFromRecord({}),
-                request,
-                {}
-            );
-            const error = response.body[MION_ROUTES.thrownErrors]?.['getSameDate'];
-            const expected = new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
-                publicMessage: `Invalid params 'getSameDate', can not validate parameters.`,
-                type: 'validation-error',
-            });
-            expect(error).toEqual(expected);
         });
     });
 

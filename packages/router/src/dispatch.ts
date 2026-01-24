@@ -119,11 +119,6 @@ async function runExecutionPath(
         const executable = executables[i];
         if (response.hasErrors && !executable.options.runOnError) continue;
 
-        // Add thrownErrors to response body before the serializer runs
-        if (executable.id === 'mionSerializeResponse' && request.thrownErrors && Object.keys(request.thrownErrors).length > 0) {
-            (response.body as Mutable<AnyObject>)['@thrownErrors'] = request.thrownErrors;
-        }
-
         try {
             const methodCaller = executable.methodCaller || getMethodCaller(executable);
             // runRawHook , runHeaderHook & runRouteOrHook must always accept the same parameters in the same order
@@ -139,7 +134,7 @@ async function runExecutionPath(
                         response.headers.set(name, value);
                     }
                 }
-            } else if (executable.hasReturnData) {
+            } else if (executable.hasReturnData && result !== undefined) {
                 (response.body as Mutable<AnyObject>)[executable.id] = result;
             }
         } catch (err: any | RpcError<string> | Error) {

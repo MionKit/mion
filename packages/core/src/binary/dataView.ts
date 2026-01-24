@@ -7,7 +7,7 @@
 
 // this code is based on from seqproto library https://github.com/oramasearch/seqproto
 
-import type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from './types/general.types';
+import type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from '../types/general.types';
 
 const STR = 1;
 const NUM = 2;
