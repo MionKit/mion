@@ -8,5 +8,5 @@
   "references": [{"path": "../core"}, {"path": "../run-types"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", ".dist", "vite.config.ts", "**/*.spec.ts", "**/*.test.ts"]
+  "exclude": ["node_modules", ".dist", "vite.config.ts"]
 }
