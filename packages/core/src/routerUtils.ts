@@ -7,7 +7,7 @@
 
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants';
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
-import type {AnyRemoteMethodsOps, MethodMetadata, MethodsCache, MethodWithJitFns} from './types/method.types';
+import type {AnyRemoteMethodsOps, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types';
 import type {JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types';
 import {getJitUtils} from './jitUtils';
 
@@ -26,14 +26,14 @@ export const routesCache = {
      * @param id - The method id
      * @returns The method metadata or undefined if not found
      */
-    getMetadata(id: string): MethodMetadata | undefined {
+    getMetadata(id: string): MethodWithOptions | undefined {
         // First check local cache
         if (id in methodsCache) {
-            return methodsCache[id] as MethodMetadata | undefined;
+            return methodsCache[id] as MethodWithOptions | undefined;
         }
         // Fall back to AOT cache (for router package on-demand loading)
         if (id in aotRouterCache) {
-            return aotRouterCache[id] as MethodMetadata | undefined;
+            return aotRouterCache[id] as MethodWithOptions | undefined;
         }
         return undefined;
     },
@@ -43,7 +43,7 @@ export const routesCache = {
      * @param id - The method id
      * @param methodData - The method metadata
      */
-    setMetadata(id: string, methodData: MethodMetadata): void {
+    setMetadata(id: string, methodData: MethodWithOptions): void {
         methodsCache[id] = methodData as any;
     },
 
@@ -62,8 +62,8 @@ export const routesCache = {
      * Use with caution - prefer using get/set/has methods.
      * @returns The router cache object
      */
-    getCache(): Record<string, MethodMetadata> {
-        return methodsCache as Record<string, MethodMetadata>;
+    getCache(): MethodsCache {
+        return methodsCache;
     },
 
     /**
@@ -77,18 +77,18 @@ export const routesCache = {
 
     /**
      * Get method metadata with JIT functions restored from the router cache by id.
-     * This augments the MethodMetadata with paramsJitFns and returnJitFns.
+     * This augments the MethodWithOptions with paramsJitFns and returnJitFns.
      * JIT functions are cached in the entry after first access for performance.
      * @param id - The method id
      * @returns The method metadata with JIT functions or undefined if not found
      */
-    getMethodJitFns(id: string): MethodWithJitFns | undefined {
+    getMethodJitFns(id: string): MethodWithOptsAndJitFns | undefined {
         // First check local cache (may already have JIT functions)
         if (id in methodsCache) {
             const cached = methodsCache[id] as any;
             // If JIT functions are already cached, return immediately
             if (cached.paramsJitFns && cached.returnJitFns) {
-                return cached as MethodWithJitFns;
+                return cached as MethodWithOptsAndJitFns;
             }
         }
 
@@ -107,7 +107,7 @@ export const routesCache = {
             : undefined;
 
         // Build the augmented entry
-        const result: MethodWithJitFns = {
+        const result: MethodWithOptsAndJitFns = {
             ...metadata,
             paramsJitFns,
             returnJitFns,
@@ -117,8 +117,7 @@ export const routesCache = {
 
         // Cache the augmented entry for future calls
         methodsCache[id] = result;
-
-        return result as MethodWithJitFns;
+        return result as MethodWithOptsAndJitFns;
     },
 
     /**
@@ -126,20 +125,20 @@ export const routesCache = {
      * @param id
      * @returns
      */
-    useMethodJitFns(id: string): MethodWithJitFns {
-        const methodWithJitFns = this.getMethodJitFns(id);
-        if (!methodWithJitFns) throw new Error(`Metadata for remote method ${id} not found`);
-        return methodWithJitFns;
+    useMethodJitFns(id: string): MethodWithOptsAndJitFns {
+        const MethodWithOptsAndJitFns = this.getMethodJitFns(id);
+        if (!MethodWithOptsAndJitFns) throw new Error(`Metadata for remote method ${id} not found`);
+        return MethodWithOptsAndJitFns;
     },
 
     /**
      * Set method metadata with JIT functions in the router cache.
-     * This stores the complete MethodWithJitFns object directly.
+     * This stores the complete MethodWithOptsAndJitFns object directly.
      * @param id - The method id
-     * @param methodWithJitFns - The method metadata with JIT functions
+     * @param MethodWithOptsAndJitFns - The method metadata with JIT functions
      */
-    setMethodJitFns(id: string, methodWithJitFns: MethodWithJitFns): void {
-        methodsCache[id] = methodWithJitFns as any;
+    setMethodJitFns(id: string, MethodWithOptsAndJitFns: MethodWithOptsAndJitFns): void {
+        methodsCache[id] = MethodWithOptsAndJitFns as any;
     },
 };
 
@@ -164,7 +163,7 @@ export function coreAOTLoadRoutesMetadataCache(): void {
     for (const key in aotRouterCache) {
         if (!(key in methodsCache)) {
             // Clone the cache entry to avoid mutating the original
-            methodsCache[key] = {...aotRouterCache[key]} as MethodMetadata;
+            methodsCache[key] = {...aotRouterCache[key]} as MethodWithOptions;
         }
     }
 }
@@ -177,7 +176,7 @@ export function addRoutesToCache(newCache: MethodsCache) {
     for (const key in newCache) {
         if (!(key in methodsCache)) {
             // Clone the cache entry to avoid mutating the original
-            methodsCache[key] = {...newCache[key]} as MethodMetadata;
+            methodsCache[key] = {...newCache[key]} as MethodWithOptions;
         }
     }
 }

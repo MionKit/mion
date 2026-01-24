@@ -8,7 +8,7 @@
 import {RpcError, isRpcError, addRoutesToCache, resetRoutesCache, resetJitFnCaches} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
 import {ClientOptions, RequestBody} from './types';
-import type {JitCompiledFnData, MethodMetadata, PureFunctionData, SerializableMethodsData} from '@mionkit/core';
+import type {JitCompiledFnData, MethodsCache, MethodWithOptions, PureFunctionData, SerializableMethodsData} from '@mionkit/core';
 import {routesCache, coreAOTLoadJitCaches, coreAOTLoadRoutesMetadataCache, addSerializedJitCaches} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {deserializeResponseBody} from './serializer';
@@ -119,7 +119,7 @@ export function storeDependencies(
 /**
  * Stores method metadata in localStorage using the new storage format
  */
-export function storeMethodsMetadata(methods: Record<string, MethodMetadata>, options: ClientOptions) {
+export function storeMethodsMetadata(methods: MethodsCache, options: ClientOptions) {
     Object.entries(methods).forEach(([methodId, methodData]) => {
         const key = getSerializedMethodDataKey(methodId, options);
         try {
@@ -196,7 +196,7 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
     // This must happen before restoring method metadata so JIT functions are available
     restoreAllDependencies(options);
 
-    const methods: Record<string, MethodMetadata> = {};
+    const methods: MethodsCache = {};
     let anyMethodsRestored = false;
 
     methodIds.forEach((id) => {
@@ -206,7 +206,7 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
         const methodMetaJson = localStorage.getItem(methodKey);
         if (methodMetaJson) {
             try {
-                const methodMeta: MethodMetadata = JSON.parse(methodMetaJson);
+                const methodMeta: MethodWithOptions = JSON.parse(methodMetaJson);
                 methods[id] = methodMeta;
                 anyMethodsRestored = true;
             } catch (error) {
@@ -222,7 +222,6 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
             methods,
             deps: {}, // Dependencies are already loaded globally
             purFnDeps: {}, // Dependencies are already loaded globally
-            methodsOptions: {},
         };
         addToCaches(serializableMethodsData);
     }

@@ -8,7 +8,7 @@
 import {type RouterEntry, type Routes} from '../types/general';
 import {type RemoteMethod} from '../types/remoteMethods';
 import type {PublicApi} from '../types/publicMethods';
-import type {AnyObject, JitCompiledFn, JitCompiledFnData, PureFunctionData, MethodMetadata} from '@mionkit/core';
+import type {AnyObject, JitCompiledFn, JitCompiledFnData, PureFunctionData, MethodWithOptions} from '@mionkit/core';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from '../types/guards';
 import {getHookExecutable, getRouteExecutable, getRouteExecutionPath, getRouterOptions, isPrivateDefinition} from '../router';
 import {
@@ -22,7 +22,7 @@ import {
 } from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
-const publicMethods: Map<string, MethodMetadata> = new Map();
+const publicMethods: Map<string, MethodWithOptions> = new Map();
 
 // ############# PUBLIC METHODS #############
 export function resetRemoteMethodsMetadata() {
@@ -65,11 +65,11 @@ function recursiveGetSerializableRoutes<R extends Routes>(
     return publicData;
 }
 
-export function getSerializableMethod(executable: RemoteMethod): MethodMetadata {
+export function getSerializableMethod(executable: RemoteMethod): MethodWithOptions {
     const existing = publicMethods.get(executable.id);
-    if (existing) return existing as MethodMetadata;
+    if (existing) return existing as MethodWithOptions;
 
-    const newRemoteMethod: MethodMetadata = {
+    const newRemoteMethod: MethodWithOptions = {
         type: executable.type,
         id: executable.id,
         nestLevel: executable.nestLevel,
@@ -79,6 +79,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodMetadata 
         returnJitHash: executable.returnJitHash,
         pointer: executable.pointer,
         ...(executable.paramNames ? {paramNames: executable.paramNames} : {}),
+        options: executable.options,
     };
     if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
     if (executable.type === HandlerType.route) {
@@ -95,7 +96,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodMetadata 
             });
     }
     publicMethods.set(executable.id, newRemoteMethod);
-    return newRemoteMethod as MethodMetadata;
+    return newRemoteMethod as MethodWithOptions;
 }
 
 export function serializePureDeps(depHash: string, purFnDeps: Record<string, PureFunctionData>, depth = 0) {
@@ -131,7 +132,7 @@ export function serializeJitFn(
 }
 
 export function serializeMethodDeps(
-    method: MethodMetadata,
+    method: MethodWithOptions,
     deps: Record<string, JitCompiledFnData>,
     purFnDeps: Record<string, PureFunctionData>
 ) {

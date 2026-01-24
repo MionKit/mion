@@ -56,7 +56,11 @@ export interface RouteOnlyOptions extends RemoteMethodOpts {
 
 export type AnyRemoteMethodsOps = RemoteMethodOpts | RouteOnlyOptions;
 
-export type MethodsCache = Record<string, MethodMetadata>;
+export interface MethodWithOptions extends MethodMetadata {
+    options: AnyRemoteMethodsOps;
+}
+
+export type MethodsCache = Record<string, MethodWithOptions>;
 
 export interface HeadersMetaData {
     headerNames: string[];
@@ -67,7 +71,6 @@ export interface SerializableMethodsData {
     methods: MethodsCache;
     deps: FnsDataCache;
     purFnDeps: PureFnsDataCache;
-    methodsOptions: Record<string, AnyRemoteMethodsOps>;
 }
 
 export interface HeadersMethodWithJitFns extends HeadersMetaData {
@@ -80,3 +83,5 @@ export interface MethodWithJitFns extends MethodMetadata {
     headersParam?: HeadersMethodWithJitFns;
     headersReturn?: HeadersMethodWithJitFns;
 }
+
+export type MethodWithOptsAndJitFns = MethodWithOptions & MethodWithJitFns;
