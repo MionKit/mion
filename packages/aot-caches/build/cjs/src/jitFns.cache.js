@@ -1228,47 +1228,47 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	is_bNdbvR: {
+	is_UsAsWk: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "is",
-		jitFnHash: "is_bNdbvR",
+		jitFnHash: "is_UsAsWk",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const is_OeGakG = utl.getJIT("is_OeGakG");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function is_bNdbvR(v){return ((typeof v === \'object\' && v !== null && (is_OeGakG.fn(v) || is_OQaagS.fn(v))))}',
-		dependenciesSet: new Set(["is_OeGakG", "is_OQaagS"]),
+		code: 'const is_HZRp7Z = utl.getJIT("is_HZRp7Z");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function is_UsAsWk(v){return ((typeof v === \'object\' && v !== null && (is_HZRp7Z.fn(v) || is_OQaagS.fn(v))))}',
+		dependenciesSet: new Set(["is_HZRp7Z", "is_OQaagS"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const is_OeGakG = utl.getJIT("is_OeGakG");
+			const is_HZRp7Z = utl.getJIT("is_HZRp7Z");
 			const is_OQaagS = utl.getJIT("is_OQaagS");
-			return function is_bNdbvR(v) {
+			return function is_UsAsWk(v) {
 				return (
 					typeof v === "object" &&
 					v !== null &&
-					(is_OeGakG.fn(v) || is_OQaagS.fn(v))
+					(is_HZRp7Z.fn(v) || is_OQaagS.fn(v))
 				);
 			};
 		},
 		fn: undefined,
 	},
-	is_OeGakG: {
+	is_HZRp7Z: {
 		isNoop: false,
 		typeName: "SerializableMethodsData",
 		fnID: "is",
-		jitFnHash: "is_OeGakG",
+		jitFnHash: "is_HZRp7Z",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const is_tP7Vvb = utl.getJIT("is_tP7Vvb");\nconst is_EWye4A = utl.getJIT("is_EWye4A");\nconst is_tf5dpV = utl.getJIT("is_tf5dpV"); return function is_OeGakG(v){return (is_tP7Vvb.fn(v.purFnDeps) && is_EWye4A.fn(v.methods) && is_tf5dpV.fn(v.deps))}',
-		dependenciesSet: new Set(["is_tP7Vvb", "is_EWye4A", "is_tf5dpV"]),
+		code: 'const is_tP7Vvb = utl.getJIT("is_tP7Vvb");\nconst is_dLflVT = utl.getJIT("is_dLflVT");\nconst is_tf5dpV = utl.getJIT("is_tf5dpV"); return function is_HZRp7Z(v){return (is_tP7Vvb.fn(v.purFnDeps) && is_dLflVT.fn(v.methods) && is_tf5dpV.fn(v.deps))}',
+		dependenciesSet: new Set(["is_tP7Vvb", "is_dLflVT", "is_tf5dpV"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const is_tP7Vvb = utl.getJIT("is_tP7Vvb");
-			const is_EWye4A = utl.getJIT("is_EWye4A");
+			const is_dLflVT = utl.getJIT("is_dLflVT");
 			const is_tf5dpV = utl.getJIT("is_tf5dpV");
-			return function is_OeGakG(v) {
+			return function is_HZRp7Z(v) {
 				return (
 					is_tP7Vvb.fn(v.purFnDeps) &&
-					is_EWye4A.fn(v.methods) &&
+					is_dLflVT.fn(v.methods) &&
 					is_tf5dpV.fn(v.deps)
 				);
 			};
@@ -1357,19 +1357,19 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	is_EWye4A: {
+	is_dLflVT: {
 		isNoop: false,
 		typeName: "MethodsCache",
 		fnID: "is",
-		jitFnHash: "is_EWye4A",
+		jitFnHash: "is_dLflVT",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const is_H5Jbv1 = utl.getJIT(\"is_H5Jbv1\"); return function is_EWye4A(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){if (!(is_H5Jbv1.fn(v[p0]))) return false;} return true;})())}",
-		dependenciesSet: new Set(["is_H5Jbv1"]),
+		code: "const is_kKoKmi = utl.getJIT(\"is_kKoKmi\"); return function is_dLflVT(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){if (!(is_kKoKmi.fn(v[p0]))) return false;} return true;})())}",
+		dependenciesSet: new Set(["is_kKoKmi"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const is_H5Jbv1 = utl.getJIT("is_H5Jbv1");
-			return function is_EWye4A(v) {
+			const is_kKoKmi = utl.getJIT("is_kKoKmi");
+			return function is_dLflVT(v) {
 				return (
 					typeof v === "object" &&
 					v !== null &&
@@ -1377,7 +1377,7 @@ const jitFnsCache = {
 					Object.prototype.toString.call(v) === "[object Object]" &&
 					(function () {
 						for (const p0 in v) {
-							if (!is_H5Jbv1.fn(v[p0])) return false;
+							if (!is_kKoKmi.fn(v[p0])) return false;
 						}
 						return true;
 					})()
@@ -1386,20 +1386,21 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	is_H5Jbv1: {
+	is_kKoKmi: {
 		isNoop: false,
-		typeName: "MethodMetadata",
+		typeName: "MethodWithOptions",
 		fnID: "is",
-		jitFnHash: "is_H5Jbv1",
+		jitFnHash: "is_kKoKmi",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const is_Ei8qua = utl.getJIT(\"is_Ei8qua\");\nconst is_s8eky2 = utl.getJIT(\"is_s8eky2\"); return function is_H5Jbv1(v){return (typeof v === 'object' && v !== null && Number.isFinite(v.type) && typeof v.id === 'string' && typeof v.isAsync === 'boolean' && typeof v.hasReturnData === 'boolean' && (v.paramNames === undefined || is_Ei8qua.fn(v.paramNames)) && typeof v.paramsJitHash === 'string' && typeof v.returnJitHash === 'string' && (v.headersParam === undefined || is_s8eky2.fn(v.headersParam)) && (v.headersReturn === undefined || is_s8eky2.fn(v.headersReturn)) && (v.hookIds === undefined || is_Ei8qua.fn(v.hookIds)) && is_Ei8qua.fn(v.pointer) && Number.isFinite(v.nestLevel))}",
-		dependenciesSet: new Set(["is_Ei8qua", "is_s8eky2"]),
+		code: "const is_Ei8qua = utl.getJIT(\"is_Ei8qua\");\nconst is_s8eky2 = utl.getJIT(\"is_s8eky2\");\nconst is_VJxRzx = utl.getJIT(\"is_VJxRzx\"); return function is_kKoKmi(v){return (typeof v === 'object' && v !== null && Number.isFinite(v.type) && typeof v.id === 'string' && typeof v.isAsync === 'boolean' && typeof v.hasReturnData === 'boolean' && (v.paramNames === undefined || is_Ei8qua.fn(v.paramNames)) && typeof v.paramsJitHash === 'string' && typeof v.returnJitHash === 'string' && (v.headersParam === undefined || is_s8eky2.fn(v.headersParam)) && (v.headersReturn === undefined || is_s8eky2.fn(v.headersReturn)) && (v.hookIds === undefined || is_Ei8qua.fn(v.hookIds)) && is_Ei8qua.fn(v.pointer) && Number.isFinite(v.nestLevel) && is_VJxRzx.fn(v.options))}",
+		dependenciesSet: new Set(["is_Ei8qua", "is_s8eky2", "is_VJxRzx"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const is_Ei8qua = utl.getJIT("is_Ei8qua");
 			const is_s8eky2 = utl.getJIT("is_s8eky2");
-			return function is_H5Jbv1(v) {
+			const is_VJxRzx = utl.getJIT("is_VJxRzx");
+			return function is_kKoKmi(v) {
 				return (
 					typeof v === "object" &&
 					v !== null &&
@@ -1414,7 +1415,8 @@ const jitFnsCache = {
 					(v.headersReturn === undefined || is_s8eky2.fn(v.headersReturn)) &&
 					(v.hookIds === undefined || is_Ei8qua.fn(v.hookIds)) &&
 					is_Ei8qua.fn(v.pointer) &&
-					Number.isFinite(v.nestLevel)
+					Number.isFinite(v.nestLevel) &&
+					is_VJxRzx.fn(v.options)
 				);
 			};
 		},
@@ -1439,6 +1441,53 @@ const jitFnsCache = {
 					is_Ei8qua.fn(v.headerNames) &&
 					typeof v.jitHash === "string"
 				);
+			};
+		},
+		fn: undefined,
+	},
+	is_VJxRzx: {
+		isNoop: false,
+		typeName: "RemoteMethodOpts",
+		fnID: "is",
+		jitFnHash: "is_VJxRzx",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: "const is_hxdrPr = utl.getJIT(\"is_hxdrPr\"); return function is_VJxRzx(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (v.runOnError === undefined || typeof v.runOnError === 'boolean') && (v.validateParams === undefined || typeof v.validateParams === 'boolean') && (v.validateReturn === undefined || typeof v.validateReturn === 'boolean') && (v.description === undefined || typeof v.description === 'string') && (v.serializer === undefined || is_hxdrPr.fn(v.serializer)))}",
+		dependenciesSet: new Set(["is_hxdrPr"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const is_hxdrPr = utl.getJIT("is_hxdrPr");
+			return function is_VJxRzx(v) {
+				return (
+					typeof v === "object" &&
+					v !== null &&
+					!Array.isArray(v) &&
+					Object.prototype.toString.call(v) === "[object Object]" &&
+					(v.runOnError === undefined || typeof v.runOnError === "boolean") &&
+					(v.validateParams === undefined ||
+						typeof v.validateParams === "boolean") &&
+					(v.validateReturn === undefined ||
+						typeof v.validateReturn === "boolean") &&
+					(v.description === undefined || typeof v.description === "string") &&
+					(v.serializer === undefined || is_hxdrPr.fn(v.serializer))
+				);
+			};
+		},
+		fn: undefined,
+	},
+	is_hxdrPr: {
+		isNoop: false,
+		typeName: "SerializerMode",
+		fnID: "is",
+		jitFnHash: "is_hxdrPr",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: ' return function is_hxdrPr(v){return (v === "json" || v === "binary" || v === "stringifyJson")}',
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			return function is_hxdrPr(v) {
+				return v === "json" || v === "binary" || v === "stringifyJson";
 			};
 		},
 		fn: undefined,
@@ -1570,25 +1619,25 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	te_bNdbvR: {
+	te_UsAsWk: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "te",
-		jitFnHash: "te_bNdbvR",
+		jitFnHash: "te_UsAsWk",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: 'const is_OeGakG = utl.getJIT("is_OeGakG");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function te_bNdbvR(v,pth=[],er=[]){if (!((typeof v === \'object\' && v !== null && (is_OeGakG.fn(v) || is_OQaagS.fn(v))))) utl.err(pth,er,"union"); return er}',
-		dependenciesSet: new Set(["is_OeGakG", "is_OQaagS"]),
+		code: 'const is_HZRp7Z = utl.getJIT("is_HZRp7Z");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function te_UsAsWk(v,pth=[],er=[]){if (!((typeof v === \'object\' && v !== null && (is_HZRp7Z.fn(v) || is_OQaagS.fn(v))))) utl.err(pth,er,"union"); return er}',
+		dependenciesSet: new Set(["is_HZRp7Z", "is_OQaagS"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const is_OeGakG = utl.getJIT("is_OeGakG");
+			const is_HZRp7Z = utl.getJIT("is_HZRp7Z");
 			const is_OQaagS = utl.getJIT("is_OQaagS");
-			return function te_bNdbvR(v, pth = [], er = []) {
+			return function te_UsAsWk(v, pth = [], er = []) {
 				if (
 					!(
 						typeof v === "object" &&
 						v !== null &&
-						(is_OeGakG.fn(v) || is_OQaagS.fn(v))
+						(is_HZRp7Z.fn(v) || is_OQaagS.fn(v))
 					)
 				)
 					utl.err(pth, er, "union");
@@ -1597,18 +1646,18 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tj_bNdbvR: {
+	tj_UsAsWk: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "tj",
-		jitFnHash: "tj_bNdbvR",
+		jitFnHash: "tj_UsAsWk",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not json encode union: item does not belong to the union";\nconst tj_OeGakG = utl.getJIT("tj_OeGakG");\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst tj_OQaagS = utl.getJIT("tj_OQaagS");\nconst fj_OQaagS = utl.getJIT("fj_OQaagS");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function tj_bNdbvR(v){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {v = tj_OeGakG.fn(v); v = [0, v]}else if (is_OQaagS.fn(v)) {v = tj_OQaagS.fn(v); v = [1, v]}else {throw new Error(uErr0);} return v}',
+		code: 'const uErr0 = "Can not json encode union: item does not belong to the union";\nconst tj_HZRp7Z = utl.getJIT("tj_HZRp7Z");\nconst fj_HZRp7Z = utl.getJIT("fj_HZRp7Z");\nconst is_HZRp7Z = utl.getJIT("is_HZRp7Z");\nconst tj_OQaagS = utl.getJIT("tj_OQaagS");\nconst fj_OQaagS = utl.getJIT("fj_OQaagS");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function tj_UsAsWk(v){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_HZRp7Z.fn(v)) {v = tj_HZRp7Z.fn(v); v = [0, v]}else if (is_OQaagS.fn(v)) {v = tj_OQaagS.fn(v); v = [1, v]}else {throw new Error(uErr0);} return v}',
 		dependenciesSet: new Set([
-			"tj_OeGakG",
-			"fj_OeGakG",
-			"is_OeGakG",
+			"tj_HZRp7Z",
+			"fj_HZRp7Z",
+			"is_HZRp7Z",
 			"tj_OQaagS",
 			"fj_OQaagS",
 			"is_OQaagS",
@@ -1617,17 +1666,17 @@ const jitFnsCache = {
 		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not json encode union: item does not belong to the union";
-			const tj_OeGakG = utl.getJIT("tj_OeGakG");
-			const fj_OeGakG = utl.getJIT("fj_OeGakG");
-			const is_OeGakG = utl.getJIT("is_OeGakG");
+			const tj_HZRp7Z = utl.getJIT("tj_HZRp7Z");
+			const fj_HZRp7Z = utl.getJIT("fj_HZRp7Z");
+			const is_HZRp7Z = utl.getJIT("is_HZRp7Z");
 			const tj_OQaagS = utl.getJIT("tj_OQaagS");
 			const fj_OQaagS = utl.getJIT("fj_OQaagS");
 			const is_OQaagS = utl.getJIT("is_OQaagS");
-			return function tj_bNdbvR(v) {
+			return function tj_UsAsWk(v) {
 				if (!(typeof v === "object" && v !== null)) {
 					throw new Error(uErr0);
-				} else if (is_OeGakG.fn(v)) {
-					v = tj_OeGakG.fn(v);
+				} else if (is_HZRp7Z.fn(v)) {
+					v = tj_HZRp7Z.fn(v);
 					v = [0, v];
 				} else if (is_OQaagS.fn(v)) {
 					v = tj_OQaagS.fn(v);
@@ -1640,21 +1689,23 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tj_OeGakG: {
+	tj_HZRp7Z: {
 		isNoop: false,
 		typeName: "SerializableMethodsData",
 		fnID: "tj",
-		jitFnHash: "tj_OeGakG",
+		jitFnHash: "tj_HZRp7Z",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const tj_tP7Vvb = utl.getJIT("tj_tP7Vvb");\nconst tj_tf5dpV = utl.getJIT("tj_tf5dpV"); return function tj_OeGakG(v){v.purFnDeps = tj_tP7Vvb.fn(v.purFnDeps);v.deps = tj_tf5dpV.fn(v.deps); return v}',
-		dependenciesSet: new Set(["tj_tP7Vvb", "tj_tf5dpV"]),
+		code: 'const tj_tP7Vvb = utl.getJIT("tj_tP7Vvb");\nconst tj_dLflVT = utl.getJIT("tj_dLflVT");\nconst tj_tf5dpV = utl.getJIT("tj_tf5dpV"); return function tj_HZRp7Z(v){v.purFnDeps = tj_tP7Vvb.fn(v.purFnDeps);v.methods = tj_dLflVT.fn(v.methods);v.deps = tj_tf5dpV.fn(v.deps); return v}',
+		dependenciesSet: new Set(["tj_tP7Vvb", "tj_dLflVT", "tj_tf5dpV"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const tj_tP7Vvb = utl.getJIT("tj_tP7Vvb");
+			const tj_dLflVT = utl.getJIT("tj_dLflVT");
 			const tj_tf5dpV = utl.getJIT("tj_tf5dpV");
-			return function tj_OeGakG(v) {
+			return function tj_HZRp7Z(v) {
 				v.purFnDeps = tj_tP7Vvb.fn(v.purFnDeps);
+				v.methods = tj_dLflVT.fn(v.methods);
 				v.deps = tj_tf5dpV.fn(v.deps);
 				return v;
 			};
@@ -1717,35 +1768,41 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tj_EWye4A: {
-		isNoop: true,
+	tj_dLflVT: {
+		isNoop: false,
 		typeName: "MethodsCache",
 		fnID: "tj",
-		jitFnHash: "tj_EWye4A",
+		jitFnHash: "tj_dLflVT",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function tj_EWye4A(v){return v}",
-		dependenciesSet: new Set(),
+		code: 'const tj_kKoKmi = utl.getJIT("tj_kKoKmi"); return function tj_dLflVT(v){for (const p0 in v){ v[p0] = tj_kKoKmi.fn(v[p0]);} return v}',
+		dependenciesSet: new Set(["tj_kKoKmi"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			return function tj_EWye4A(v) {
+			const tj_kKoKmi = utl.getJIT("tj_kKoKmi");
+			return function tj_dLflVT(v) {
+				for (const p0 in v) {
+					v[p0] = tj_kKoKmi.fn(v[p0]);
+				}
 				return v;
 			};
 		},
 		fn: undefined,
 	},
-	tj_H5Jbv1: {
-		isNoop: true,
-		typeName: "MethodMetadata",
+	tj_kKoKmi: {
+		isNoop: false,
+		typeName: "MethodWithOptions",
 		fnID: "tj",
-		jitFnHash: "tj_H5Jbv1",
+		jitFnHash: "tj_kKoKmi",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function tj_H5Jbv1(v){return v}",
-		dependenciesSet: new Set(),
+		code: 'const tj_VJxRzx = utl.getJIT("tj_VJxRzx"); return function tj_kKoKmi(v){v.options = tj_VJxRzx.fn(v.options); return v}',
+		dependenciesSet: new Set(["tj_VJxRzx"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			return function tj_H5Jbv1(v) {
+			const tj_VJxRzx = utl.getJIT("tj_VJxRzx");
+			return function tj_kKoKmi(v) {
+				v.options = tj_VJxRzx.fn(v.options);
 				return v;
 			};
 		},
@@ -1763,6 +1820,55 @@ const jitFnsCache = {
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			return function tj_s8eky2(v) {
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	tj_VJxRzx: {
+		isNoop: false,
+		typeName: "RemoteMethodOpts",
+		fnID: "tj",
+		jitFnHash: "tj_VJxRzx",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: 'const tj_hxdrPr = utl.getJIT("tj_hxdrPr"); return function tj_VJxRzx(v){if (v.serializer !== undefined) {v.serializer = tj_hxdrPr.fn(v.serializer);} return v}',
+		dependenciesSet: new Set(["tj_hxdrPr"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const tj_hxdrPr = utl.getJIT("tj_hxdrPr");
+			return function tj_VJxRzx(v) {
+				if (v.serializer !== undefined) {
+					v.serializer = tj_hxdrPr.fn(v.serializer);
+				}
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	tj_hxdrPr: {
+		isNoop: false,
+		typeName: "SerializerMode",
+		fnID: "tj",
+		jitFnHash: "tj_hxdrPr",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: 'const uErr0 = "Can not json encode union: item does not belong to the union"; return function tj_hxdrPr(v){if (v === "json") { /*noop*/}else if (v === "binary") { /*noop*/}else if (v === "stringifyJson") { /*noop*/} else {throw new Error(uErr0);} return v}',
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 =
+				"Can not json encode union: item does not belong to the union";
+			return function tj_hxdrPr(v) {
+				if (v === "json") {
+					/*noop*/
+				} else if (v === "binary") {
+					/*noop*/
+				} else if (v === "stringifyJson") {
+					/*noop*/
+				} else {
+					throw new Error(uErr0);
+				}
 				return v;
 			};
 		},
@@ -1825,21 +1931,23 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	fj_OeGakG: {
+	fj_HZRp7Z: {
 		isNoop: false,
 		typeName: "SerializableMethodsData",
 		fnID: "fj",
-		jitFnHash: "fj_OeGakG",
+		jitFnHash: "fj_HZRp7Z",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const fj_tP7Vvb = utl.getJIT("fj_tP7Vvb");\nconst fj_tf5dpV = utl.getJIT("fj_tf5dpV"); return function fj_OeGakG(v){v.purFnDeps = fj_tP7Vvb.fn(v.purFnDeps);v.deps = fj_tf5dpV.fn(v.deps); return v}',
-		dependenciesSet: new Set(["fj_tP7Vvb", "fj_tf5dpV"]),
+		code: 'const fj_tP7Vvb = utl.getJIT("fj_tP7Vvb");\nconst fj_dLflVT = utl.getJIT("fj_dLflVT");\nconst fj_tf5dpV = utl.getJIT("fj_tf5dpV"); return function fj_HZRp7Z(v){v.purFnDeps = fj_tP7Vvb.fn(v.purFnDeps);v.methods = fj_dLflVT.fn(v.methods);v.deps = fj_tf5dpV.fn(v.deps); return v}',
+		dependenciesSet: new Set(["fj_tP7Vvb", "fj_dLflVT", "fj_tf5dpV"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const fj_tP7Vvb = utl.getJIT("fj_tP7Vvb");
+			const fj_dLflVT = utl.getJIT("fj_dLflVT");
 			const fj_tf5dpV = utl.getJIT("fj_tf5dpV");
-			return function fj_OeGakG(v) {
+			return function fj_HZRp7Z(v) {
 				v.purFnDeps = fj_tP7Vvb.fn(v.purFnDeps);
+				v.methods = fj_dLflVT.fn(v.methods);
 				v.deps = fj_tf5dpV.fn(v.deps);
 				return v;
 			};
@@ -1902,35 +2010,41 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	fj_EWye4A: {
-		isNoop: true,
+	fj_dLflVT: {
+		isNoop: false,
 		typeName: "MethodsCache",
 		fnID: "fj",
-		jitFnHash: "fj_EWye4A",
+		jitFnHash: "fj_dLflVT",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function fj_EWye4A(v){return v}",
-		dependenciesSet: new Set(),
+		code: 'const fj_kKoKmi = utl.getJIT("fj_kKoKmi"); return function fj_dLflVT(v){for (const p0 in v){ v[p0] = fj_kKoKmi.fn(v[p0]);} return v}',
+		dependenciesSet: new Set(["fj_kKoKmi"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			return function fj_EWye4A(v) {
+			const fj_kKoKmi = utl.getJIT("fj_kKoKmi");
+			return function fj_dLflVT(v) {
+				for (const p0 in v) {
+					v[p0] = fj_kKoKmi.fn(v[p0]);
+				}
 				return v;
 			};
 		},
 		fn: undefined,
 	},
-	fj_H5Jbv1: {
-		isNoop: true,
-		typeName: "MethodMetadata",
+	fj_kKoKmi: {
+		isNoop: false,
+		typeName: "MethodWithOptions",
 		fnID: "fj",
-		jitFnHash: "fj_H5Jbv1",
+		jitFnHash: "fj_kKoKmi",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function fj_H5Jbv1(v){return v}",
-		dependenciesSet: new Set(),
+		code: 'const fj_VJxRzx = utl.getJIT("fj_VJxRzx"); return function fj_kKoKmi(v){v.options = fj_VJxRzx.fn(v.options); return v}',
+		dependenciesSet: new Set(["fj_VJxRzx"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			return function fj_H5Jbv1(v) {
+			const fj_VJxRzx = utl.getJIT("fj_VJxRzx");
+			return function fj_kKoKmi(v) {
+				v.options = fj_VJxRzx.fn(v.options);
 				return v;
 			};
 		},
@@ -1948,6 +2062,58 @@ const jitFnsCache = {
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			return function fj_s8eky2(v) {
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	fj_VJxRzx: {
+		isNoop: false,
+		typeName: "RemoteMethodOpts",
+		fnID: "fj",
+		jitFnHash: "fj_VJxRzx",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: 'const fj_hxdrPr = utl.getJIT("fj_hxdrPr"); return function fj_VJxRzx(v){if (v.serializer !== undefined) {v.serializer = fj_hxdrPr.fn(v.serializer);} return v}',
+		dependenciesSet: new Set(["fj_hxdrPr"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const fj_hxdrPr = utl.getJIT("fj_hxdrPr");
+			return function fj_VJxRzx(v) {
+				if (v.serializer !== undefined) {
+					v.serializer = fj_hxdrPr.fn(v.serializer);
+				}
+				return v;
+			};
+		},
+		fn: undefined,
+	},
+	fj_hxdrPr: {
+		isNoop: false,
+		typeName: "SerializerMode",
+		fnID: "fj",
+		jitFnHash: "fj_hxdrPr",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: "const uErr0 = \"Can not json decode union: invalid union index\"; return function fj_hxdrPr(v){\n if (v?.length === 2 && Array.isArray(v) && typeof v[0] === 'number') {\n const dec0 = v[0]; v = v[1];\n if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}else if (dec0 === 2) {/*noop*/}\n else {throw new Error(uErr0)}\n }\n ; return v}",
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 = "Can not json decode union: invalid union index";
+			return function fj_hxdrPr(v) {
+				if (v?.length === 2 && Array.isArray(v) && typeof v[0] === "number") {
+					const dec0 = v[0];
+					v = v[1];
+					if (dec0 === 0) {
+						/*noop*/
+					} else if (dec0 === 1) {
+						/*noop*/
+					} else if (dec0 === 2) {
+						/*noop*/
+					} else {
+						throw new Error(uErr0);
+					}
+				}
 				return v;
 			};
 		},
@@ -2079,26 +2245,26 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	fj_bNdbvR: {
+	fj_UsAsWk: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "fj",
-		jitFnHash: "fj_bNdbvR",
+		jitFnHash: "fj_UsAsWk",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not json decode union: invalid union index";\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst fj_OQaagS = utl.getJIT("fj_OQaagS"); return function fj_bNdbvR(v){\n if (v?.length === 2 && Array.isArray(v) && typeof v[0] === \'number\') {\n const dec0 = v[0]; v = v[1];\n if (dec0 === 0) {v = fj_OeGakG.fn(v)}else if (dec0 === 1) {v = fj_OQaagS.fn(v)}\n else {throw new Error(uErr0)}\n }\n ; return v}',
-		dependenciesSet: new Set(["fj_OeGakG", "fj_OQaagS"]),
+		code: 'const uErr0 = "Can not json decode union: invalid union index";\nconst fj_HZRp7Z = utl.getJIT("fj_HZRp7Z");\nconst fj_OQaagS = utl.getJIT("fj_OQaagS"); return function fj_UsAsWk(v){\n if (v?.length === 2 && Array.isArray(v) && typeof v[0] === \'number\') {\n const dec0 = v[0]; v = v[1];\n if (dec0 === 0) {v = fj_HZRp7Z.fn(v)}else if (dec0 === 1) {v = fj_OQaagS.fn(v)}\n else {throw new Error(uErr0)}\n }\n ; return v}',
+		dependenciesSet: new Set(["fj_HZRp7Z", "fj_OQaagS"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 = "Can not json decode union: invalid union index";
-			const fj_OeGakG = utl.getJIT("fj_OeGakG");
+			const fj_HZRp7Z = utl.getJIT("fj_HZRp7Z");
 			const fj_OQaagS = utl.getJIT("fj_OQaagS");
-			return function fj_bNdbvR(v) {
+			return function fj_UsAsWk(v) {
 				if (v?.length === 2 && Array.isArray(v) && typeof v[0] === "number") {
 					const dec0 = v[0];
 					v = v[1];
 					if (dec0 === 0) {
-						v = fj_OeGakG.fn(v);
+						v = fj_HZRp7Z.fn(v);
 					} else if (dec0 === 1) {
 						v = fj_OQaagS.fn(v);
 					} else {
@@ -2110,19 +2276,19 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	sj_bNdbvR: {
+	sj_UsAsWk: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "sj",
-		jitFnHash: "sj_bNdbvR",
+		jitFnHash: "sj_UsAsWk",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_OeGakG = utl.getJIT("sj_OeGakG");\nconst tj_OeGakG = utl.getJIT("tj_OeGakG");\nconst fj_OeGakG = utl.getJIT("fj_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst sj_OQaagS = utl.getJIT("sj_OQaagS");\nconst tj_OQaagS = utl.getJIT("tj_OQaagS");\nconst fj_OQaagS = utl.getJIT("fj_OQaagS");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function sj_bNdbvR(v){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {return \'[0,\' + sj_OeGakG.fn(v) + \']\'}else if (is_OQaagS.fn(v)) {return \'[1,\' + sj_OQaagS.fn(v) + \']\'}else {throw new Error(uErr0);}}',
+		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_HZRp7Z = utl.getJIT("sj_HZRp7Z");\nconst tj_HZRp7Z = utl.getJIT("tj_HZRp7Z");\nconst fj_HZRp7Z = utl.getJIT("fj_HZRp7Z");\nconst is_HZRp7Z = utl.getJIT("is_HZRp7Z");\nconst sj_OQaagS = utl.getJIT("sj_OQaagS");\nconst tj_OQaagS = utl.getJIT("tj_OQaagS");\nconst fj_OQaagS = utl.getJIT("fj_OQaagS");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function sj_UsAsWk(v){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_HZRp7Z.fn(v)) {return \'[0,\' + sj_HZRp7Z.fn(v) + \']\'}else if (is_OQaagS.fn(v)) {return \'[1,\' + sj_OQaagS.fn(v) + \']\'}else {throw new Error(uErr0);}}',
 		dependenciesSet: new Set([
-			"sj_OeGakG",
-			"tj_OeGakG",
-			"fj_OeGakG",
-			"is_OeGakG",
+			"sj_HZRp7Z",
+			"tj_HZRp7Z",
+			"fj_HZRp7Z",
+			"is_HZRp7Z",
 			"sj_OQaagS",
 			"tj_OQaagS",
 			"fj_OQaagS",
@@ -2132,19 +2298,19 @@ const jitFnsCache = {
 		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not StringifyJson union: item does not belong to the union";
-			const sj_OeGakG = utl.getJIT("sj_OeGakG");
-			const tj_OeGakG = utl.getJIT("tj_OeGakG");
-			const fj_OeGakG = utl.getJIT("fj_OeGakG");
-			const is_OeGakG = utl.getJIT("is_OeGakG");
+			const sj_HZRp7Z = utl.getJIT("sj_HZRp7Z");
+			const tj_HZRp7Z = utl.getJIT("tj_HZRp7Z");
+			const fj_HZRp7Z = utl.getJIT("fj_HZRp7Z");
+			const is_HZRp7Z = utl.getJIT("is_HZRp7Z");
 			const sj_OQaagS = utl.getJIT("sj_OQaagS");
 			const tj_OQaagS = utl.getJIT("tj_OQaagS");
 			const fj_OQaagS = utl.getJIT("fj_OQaagS");
 			const is_OQaagS = utl.getJIT("is_OQaagS");
-			return function sj_bNdbvR(v) {
+			return function sj_UsAsWk(v) {
 				if (!(typeof v === "object" && v !== null)) {
 					throw new Error(uErr0);
-				} else if (is_OeGakG.fn(v)) {
-					return "[0," + sj_OeGakG.fn(v) + "]";
+				} else if (is_HZRp7Z.fn(v)) {
+					return "[0," + sj_HZRp7Z.fn(v) + "]";
 				} else if (is_OQaagS.fn(v)) {
 					return "[1," + sj_OQaagS.fn(v) + "]";
 				} else {
@@ -2154,28 +2320,28 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	sj_OeGakG: {
+	sj_HZRp7Z: {
 		isNoop: false,
 		typeName: "SerializableMethodsData",
 		fnID: "sj",
-		jitFnHash: "sj_OeGakG",
+		jitFnHash: "sj_HZRp7Z",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const sj_tP7Vvb = utl.getJIT("sj_tP7Vvb");\nconst sj_EWye4A = utl.getJIT("sj_EWye4A");\nconst sj_tf5dpV = utl.getJIT("sj_tf5dpV"); return function sj_OeGakG(v){return \'{\'+\'"purFnDeps":\'+sj_tP7Vvb.fn(v.purFnDeps)+","+\'"methods":\'+sj_EWye4A.fn(v.methods)+","+\'"deps":\'+sj_tf5dpV.fn(v.deps)+\'}\'}',
-		dependenciesSet: new Set(["sj_tP7Vvb", "sj_EWye4A", "sj_tf5dpV"]),
+		code: 'const sj_tP7Vvb = utl.getJIT("sj_tP7Vvb");\nconst sj_dLflVT = utl.getJIT("sj_dLflVT");\nconst sj_tf5dpV = utl.getJIT("sj_tf5dpV"); return function sj_HZRp7Z(v){return \'{\'+\'"purFnDeps":\'+sj_tP7Vvb.fn(v.purFnDeps)+","+\'"methods":\'+sj_dLflVT.fn(v.methods)+","+\'"deps":\'+sj_tf5dpV.fn(v.deps)+\'}\'}',
+		dependenciesSet: new Set(["sj_tP7Vvb", "sj_dLflVT", "sj_tf5dpV"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const sj_tP7Vvb = utl.getJIT("sj_tP7Vvb");
-			const sj_EWye4A = utl.getJIT("sj_EWye4A");
+			const sj_dLflVT = utl.getJIT("sj_dLflVT");
 			const sj_tf5dpV = utl.getJIT("sj_tf5dpV");
-			return function sj_OeGakG(v) {
+			return function sj_HZRp7Z(v) {
 				return (
 					"{" +
 					'"purFnDeps":' +
 					sj_tP7Vvb.fn(v.purFnDeps) +
 					"," +
 					'"methods":' +
-					sj_EWye4A.fn(v.methods) +
+					sj_dLflVT.fn(v.methods) +
 					"," +
 					'"deps":' +
 					sj_tf5dpV.fn(v.deps) +
@@ -2278,19 +2444,19 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	sj_EWye4A: {
+	sj_dLflVT: {
 		isNoop: false,
 		typeName: "MethodsCache",
 		fnID: "sj",
-		jitFnHash: "sj_EWye4A",
+		jitFnHash: "sj_dLflVT",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const sj_H5Jbv1 = utl.getJIT(\"sj_H5Jbv1\"); return function sj_EWye4A(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_H5Jbv1.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
-		dependenciesSet: new Set(["sj_H5Jbv1"]),
+		code: "const sj_kKoKmi = utl.getJIT(\"sj_kKoKmi\"); return function sj_dLflVT(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_kKoKmi.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		dependenciesSet: new Set(["sj_kKoKmi"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const sj_H5Jbv1 = utl.getJIT("sj_H5Jbv1");
-			return function sj_EWye4A(v) {
+			const sj_kKoKmi = utl.getJIT("sj_kKoKmi");
+			return function sj_dLflVT(v) {
 				return (function () {
 					const ns0 = [];
 					ns0.push(
@@ -2298,7 +2464,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + sj_H5Jbv1.fn(v[p1]));
+									ls1.push(utl.asJSONString(p1) + ":" + sj_kKoKmi.fn(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -2310,20 +2476,21 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	sj_H5Jbv1: {
+	sj_kKoKmi: {
 		isNoop: false,
-		typeName: "MethodMetadata",
+		typeName: "MethodWithOptions",
 		fnID: "sj",
-		jitFnHash: "sj_H5Jbv1",
+		jitFnHash: "sj_kKoKmi",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const sj_Ei8qua = utl.getJIT("sj_Ei8qua");\nconst sj_s8eky2 = utl.getJIT("sj_s8eky2"); return function sj_H5Jbv1(v){return \'{\'+(v.paramNames === undefined ? \'\' : \'"paramNames":\'+sj_Ei8qua.fn(v.paramNames)+",")+(v.headersParam === undefined ? \'\' : \'"headersParam":\'+sj_s8eky2.fn(v.headersParam)+",")+(v.headersReturn === undefined ? \'\' : \'"headersReturn":\'+sj_s8eky2.fn(v.headersReturn)+",")+(v.hookIds === undefined ? \'\' : \'"hookIds":\'+sj_Ei8qua.fn(v.hookIds)+",")+\'"type":\'+v.type+","+\'"id":\'+utl.asJSONString(v.id)+","+\'"isAsync":\'+(v.isAsync ? \'true\' : \'false\')+","+\'"hasReturnData":\'+(v.hasReturnData ? \'true\' : \'false\')+","+\'"paramsJitHash":\'+utl.asJSONString(v.paramsJitHash)+","+\'"returnJitHash":\'+utl.asJSONString(v.returnJitHash)+","+\'"pointer":\'+sj_Ei8qua.fn(v.pointer)+","+\'"nestLevel":\'+v.nestLevel+\'}\'}',
-		dependenciesSet: new Set(["sj_Ei8qua", "sj_s8eky2"]),
+		code: 'const sj_Ei8qua = utl.getJIT("sj_Ei8qua");\nconst sj_s8eky2 = utl.getJIT("sj_s8eky2");\nconst sj_VJxRzx = utl.getJIT("sj_VJxRzx"); return function sj_kKoKmi(v){return \'{\'+(v.paramNames === undefined ? \'\' : \'"paramNames":\'+sj_Ei8qua.fn(v.paramNames)+",")+(v.headersParam === undefined ? \'\' : \'"headersParam":\'+sj_s8eky2.fn(v.headersParam)+",")+(v.headersReturn === undefined ? \'\' : \'"headersReturn":\'+sj_s8eky2.fn(v.headersReturn)+",")+(v.hookIds === undefined ? \'\' : \'"hookIds":\'+sj_Ei8qua.fn(v.hookIds)+",")+\'"type":\'+v.type+","+\'"id":\'+utl.asJSONString(v.id)+","+\'"isAsync":\'+(v.isAsync ? \'true\' : \'false\')+","+\'"hasReturnData":\'+(v.hasReturnData ? \'true\' : \'false\')+","+\'"paramsJitHash":\'+utl.asJSONString(v.paramsJitHash)+","+\'"returnJitHash":\'+utl.asJSONString(v.returnJitHash)+","+\'"pointer":\'+sj_Ei8qua.fn(v.pointer)+","+\'"nestLevel":\'+v.nestLevel+","+\'"options":\'+sj_VJxRzx.fn(v.options)+\'}\'}',
+		dependenciesSet: new Set(["sj_Ei8qua", "sj_s8eky2", "sj_VJxRzx"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
 			const sj_s8eky2 = utl.getJIT("sj_s8eky2");
-			return function sj_H5Jbv1(v) {
+			const sj_VJxRzx = utl.getJIT("sj_VJxRzx");
+			return function sj_kKoKmi(v) {
 				return (
 					"{" +
 					(v.paramNames === undefined
@@ -2361,6 +2528,9 @@ const jitFnsCache = {
 					"," +
 					'"nestLevel":' +
 					v.nestLevel +
+					"," +
+					'"options":' +
+					sj_VJxRzx.fn(v.options) +
 					"}"
 				);
 			};
@@ -2389,6 +2559,89 @@ const jitFnsCache = {
 					utl.asJSONString(v.jitHash) +
 					"}"
 				);
+			};
+		},
+		fn: undefined,
+	},
+	sj_VJxRzx: {
+		isNoop: false,
+		typeName: "RemoteMethodOpts",
+		fnID: "sj",
+		jitFnHash: "sj_VJxRzx",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: "const sj_hxdrPr = utl.getJIT(\"sj_hxdrPr\"); return function sj_VJxRzx(v){return (function(){const ns0 = [];if (v.runOnError !== undefined){ns0.push((v.runOnError === undefined ? '' : '\"runOnError\":'+(v.runOnError ? 'true' : 'false')))}if (v.validateParams !== undefined){ns0.push((v.validateParams === undefined ? '' : '\"validateParams\":'+(v.validateParams ? 'true' : 'false')))}if (v.validateReturn !== undefined){ns0.push((v.validateReturn === undefined ? '' : '\"validateReturn\":'+(v.validateReturn ? 'true' : 'false')))}if (v.description !== undefined){ns0.push((v.description === undefined ? '' : '\"description\":'+utl.asJSONString(v.description)))}if (v.serializer !== undefined){ns0.push((v.serializer === undefined ? '' : '\"serializer\":'+sj_hxdrPr.fn(v.serializer)))};return '{'+ns0.join(',')+'}'})()}",
+		dependenciesSet: new Set(["sj_hxdrPr"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const sj_hxdrPr = utl.getJIT("sj_hxdrPr");
+			return function sj_VJxRzx(v) {
+				return (function () {
+					const ns0 = [];
+					if (v.runOnError !== undefined) {
+						ns0.push(
+							v.runOnError === undefined
+								? ""
+								: '"runOnError":' + (v.runOnError ? "true" : "false"),
+						);
+					}
+					if (v.validateParams !== undefined) {
+						ns0.push(
+							v.validateParams === undefined
+								? ""
+								: '"validateParams":' + (v.validateParams ? "true" : "false"),
+						);
+					}
+					if (v.validateReturn !== undefined) {
+						ns0.push(
+							v.validateReturn === undefined
+								? ""
+								: '"validateReturn":' + (v.validateReturn ? "true" : "false"),
+						);
+					}
+					if (v.description !== undefined) {
+						ns0.push(
+							v.description === undefined
+								? ""
+								: '"description":' + utl.asJSONString(v.description),
+						);
+					}
+					if (v.serializer !== undefined) {
+						ns0.push(
+							v.serializer === undefined
+								? ""
+								: '"serializer":' + sj_hxdrPr.fn(v.serializer),
+						);
+					}
+					return "{" + ns0.join(",") + "}";
+				})();
+			};
+		},
+		fn: undefined,
+	},
+	sj_hxdrPr: {
+		isNoop: false,
+		typeName: "SerializerMode",
+		fnID: "sj",
+		jitFnHash: "sj_hxdrPr",
+		args: { vλl: "v" },
+		defaultParamValues: { vλl: "" },
+		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union"; return function sj_hxdrPr(v){if (v === "json") {return utl.asJSONString(v)}else if (v === "binary") {return utl.asJSONString(v)}else if (v === "stringifyJson") {return utl.asJSONString(v)} else {throw new Error(uErr0);}}',
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 =
+				"Can not StringifyJson union: item does not belong to the union";
+			return function sj_hxdrPr(v) {
+				if (v === "json") {
+					return utl.asJSONString(v);
+				} else if (v === "binary") {
+					return utl.asJSONString(v);
+				} else if (v === "stringifyJson") {
+					return utl.asJSONString(v);
+				} else {
+					throw new Error(uErr0);
+				}
 			};
 		},
 		fn: undefined,
@@ -2574,17 +2827,17 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tBi_bNdbvR: {
+	tBi_UsAsWk: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "tBi",
-		jitFnHash: "tBi_bNdbvR",
+		jitFnHash: "tBi_UsAsWk",
 		args: { sεr: "Ser", vλl: "v" },
 		defaultParamValues: { sεr: "", vλl: "" },
-		code: 'const uErr0 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_OeGakG = utl.getJIT("tBi_OeGakG");\nconst is_OeGakG = utl.getJIT("is_OeGakG");\nconst tBi_OQaagS = utl.getJIT("tBi_OQaagS");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function tBi_bNdbvR(v,Ser){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_OeGakG.fn(v)) {Ser.view.setUint8(Ser.index++, 0);tBi_OeGakG.fn(v,Ser)}else if (is_OQaagS.fn(v)) {Ser.view.setUint8(Ser.index++, 1);tBi_OQaagS.fn(v,Ser)}else {throw new Error(uErr0);} return Ser}',
+		code: 'const uErr0 = "Can not encode union to binary: item does not belong to the union";\nconst tBi_HZRp7Z = utl.getJIT("tBi_HZRp7Z");\nconst is_HZRp7Z = utl.getJIT("is_HZRp7Z");\nconst tBi_OQaagS = utl.getJIT("tBi_OQaagS");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function tBi_UsAsWk(v,Ser){if (!(typeof v === \'object\' && v !== null)) {throw new Error(uErr0);}else if (is_HZRp7Z.fn(v)) {Ser.view.setUint8(Ser.index++, 0);tBi_HZRp7Z.fn(v,Ser)}else if (is_OQaagS.fn(v)) {Ser.view.setUint8(Ser.index++, 1);tBi_OQaagS.fn(v,Ser)}else {throw new Error(uErr0);} return Ser}',
 		dependenciesSet: new Set([
-			"tBi_OeGakG",
-			"is_OeGakG",
+			"tBi_HZRp7Z",
+			"is_HZRp7Z",
 			"tBi_OQaagS",
 			"is_OQaagS",
 		]),
@@ -2592,16 +2845,16 @@ const jitFnsCache = {
 		createJitFn: function (utl) {
 			const uErr0 =
 				"Can not encode union to binary: item does not belong to the union";
-			const tBi_OeGakG = utl.getJIT("tBi_OeGakG");
-			const is_OeGakG = utl.getJIT("is_OeGakG");
+			const tBi_HZRp7Z = utl.getJIT("tBi_HZRp7Z");
+			const is_HZRp7Z = utl.getJIT("is_HZRp7Z");
 			const tBi_OQaagS = utl.getJIT("tBi_OQaagS");
 			const is_OQaagS = utl.getJIT("is_OQaagS");
-			return function tBi_bNdbvR(v, Ser) {
+			return function tBi_UsAsWk(v, Ser) {
 				if (!(typeof v === "object" && v !== null)) {
 					throw new Error(uErr0);
-				} else if (is_OeGakG.fn(v)) {
+				} else if (is_HZRp7Z.fn(v)) {
 					Ser.view.setUint8(Ser.index++, 0);
-					tBi_OeGakG.fn(v, Ser);
+					tBi_HZRp7Z.fn(v, Ser);
 				} else if (is_OQaagS.fn(v)) {
 					Ser.view.setUint8(Ser.index++, 1);
 					tBi_OQaagS.fn(v, Ser);
@@ -2613,22 +2866,22 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tBi_OeGakG: {
+	tBi_HZRp7Z: {
 		isNoop: false,
 		typeName: "SerializableMethodsData",
 		fnID: "tBi",
-		jitFnHash: "tBi_OeGakG",
+		jitFnHash: "tBi_HZRp7Z",
 		args: { sεr: "Ser", vλl: "v" },
 		defaultParamValues: { sεr: "", vλl: "" },
-		code: 'const tBi_EWye4A = utl.getJIT("tBi_EWye4A");\nconst tBi_tf5dpV = utl.getJIT("tBi_tf5dpV");\nconst tBi_tP7Vvb = utl.getJIT("tBi_tP7Vvb"); return function tBi_OeGakG(v,Ser){tBi_EWye4A.fn(v.methods,Ser);tBi_tf5dpV.fn(v.deps,Ser);tBi_tP7Vvb.fn(v.purFnDeps,Ser);\n; return Ser}',
-		dependenciesSet: new Set(["tBi_EWye4A", "tBi_tf5dpV", "tBi_tP7Vvb"]),
+		code: 'const tBi_dLflVT = utl.getJIT("tBi_dLflVT");\nconst tBi_tf5dpV = utl.getJIT("tBi_tf5dpV");\nconst tBi_tP7Vvb = utl.getJIT("tBi_tP7Vvb"); return function tBi_HZRp7Z(v,Ser){tBi_dLflVT.fn(v.methods,Ser);tBi_tf5dpV.fn(v.deps,Ser);tBi_tP7Vvb.fn(v.purFnDeps,Ser);\n; return Ser}',
+		dependenciesSet: new Set(["tBi_dLflVT", "tBi_tf5dpV", "tBi_tP7Vvb"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const tBi_EWye4A = utl.getJIT("tBi_EWye4A");
+			const tBi_dLflVT = utl.getJIT("tBi_dLflVT");
 			const tBi_tf5dpV = utl.getJIT("tBi_tf5dpV");
 			const tBi_tP7Vvb = utl.getJIT("tBi_tP7Vvb");
-			return function tBi_OeGakG(v, Ser) {
-				tBi_EWye4A.fn(v.methods, Ser);
+			return function tBi_HZRp7Z(v, Ser) {
+				tBi_dLflVT.fn(v.methods, Ser);
 				tBi_tf5dpV.fn(v.deps, Ser);
 				tBi_tP7Vvb.fn(v.purFnDeps, Ser);
 				return Ser;
@@ -2636,25 +2889,25 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tBi_EWye4A: {
+	tBi_dLflVT: {
 		isNoop: false,
 		typeName: "MethodsCache",
 		fnID: "tBi",
-		jitFnHash: "tBi_EWye4A",
+		jitFnHash: "tBi_dLflVT",
 		args: { sεr: "Ser", vλl: "v" },
 		defaultParamValues: { sεr: "", vλl: "" },
-		code: 'const tBi_H5Jbv1 = utl.getJIT("tBi_H5Jbv1"); return function tBi_EWye4A(v,Ser){\n let cnt0 = 0; const piI0 = Ser.index; Ser.index += 4;\n for (const p0 in v) {Ser.serString(p0); tBi_H5Jbv1.fn(v[p0],Ser); cnt0++;}\n Ser.view.setUint32(piI0, cnt0, 1);\n ; return Ser}',
-		dependenciesSet: new Set(["tBi_H5Jbv1"]),
+		code: 'const tBi_kKoKmi = utl.getJIT("tBi_kKoKmi"); return function tBi_dLflVT(v,Ser){\n let cnt0 = 0; const piI0 = Ser.index; Ser.index += 4;\n for (const p0 in v) {Ser.serString(p0); tBi_kKoKmi.fn(v[p0],Ser); cnt0++;}\n Ser.view.setUint32(piI0, cnt0, 1);\n ; return Ser}',
+		dependenciesSet: new Set(["tBi_kKoKmi"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const tBi_H5Jbv1 = utl.getJIT("tBi_H5Jbv1");
-			return function tBi_EWye4A(v, Ser) {
+			const tBi_kKoKmi = utl.getJIT("tBi_kKoKmi");
+			return function tBi_dLflVT(v, Ser) {
 				let cnt0 = 0;
 				const piI0 = Ser.index;
 				Ser.index += 4;
 				for (const p0 in v) {
 					Ser.serString(p0);
-					tBi_H5Jbv1.fn(v[p0], Ser);
+					tBi_kKoKmi.fn(v[p0], Ser);
 					cnt0++;
 				}
 				Ser.view.setUint32(piI0, cnt0, 1);
@@ -2663,20 +2916,21 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	tBi_H5Jbv1: {
+	tBi_kKoKmi: {
 		isNoop: false,
-		typeName: "MethodMetadata",
+		typeName: "MethodWithOptions",
 		fnID: "tBi",
-		jitFnHash: "tBi_H5Jbv1",
+		jitFnHash: "tBi_kKoKmi",
 		args: { sεr: "Ser", vλl: "v" },
 		defaultParamValues: { sεr: "", vλl: "" },
-		code: 'const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua");\nconst tBi_s8eky2 = utl.getJIT("tBi_s8eky2"); return function tBi_H5Jbv1(v,Ser){Ser.view.setFloat64(Ser.index,v.type, 1, (Ser.index += 8));Ser.serString(v.id);Ser.view.setUint8(Ser.index++, !!v.isAsync);Ser.view.setUint8(Ser.index++, !!v.hasReturnData);Ser.serString(v.paramsJitHash);Ser.serString(v.returnJitHash);tBi_Ei8qua.fn(v.pointer,Ser);Ser.view.setFloat64(Ser.index,v.nestLevel, 1, (Ser.index += 8));\nconst bmI0 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.paramNames !== undefined) {tBi_Ei8qua.fn(v.paramNames,Ser);Ser.setBitMask(bmI0, 0 & 7)}if (v.headersParam !== undefined) {tBi_s8eky2.fn(v.headersParam,Ser);Ser.setBitMask(bmI0, 1 & 7)}if (v.headersReturn !== undefined) {tBi_s8eky2.fn(v.headersReturn,Ser);Ser.setBitMask(bmI0, 2 & 7)}if (v.hookIds !== undefined) {tBi_Ei8qua.fn(v.hookIds,Ser);Ser.setBitMask(bmI0, 3 & 7)} return Ser}',
-		dependenciesSet: new Set(["tBi_Ei8qua", "tBi_s8eky2"]),
+		code: 'const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua");\nconst tBi_VJxRzx = utl.getJIT("tBi_VJxRzx");\nconst tBi_s8eky2 = utl.getJIT("tBi_s8eky2"); return function tBi_kKoKmi(v,Ser){Ser.view.setFloat64(Ser.index,v.type, 1, (Ser.index += 8));Ser.serString(v.id);Ser.view.setUint8(Ser.index++, !!v.isAsync);Ser.view.setUint8(Ser.index++, !!v.hasReturnData);Ser.serString(v.paramsJitHash);Ser.serString(v.returnJitHash);tBi_Ei8qua.fn(v.pointer,Ser);Ser.view.setFloat64(Ser.index,v.nestLevel, 1, (Ser.index += 8));tBi_VJxRzx.fn(v.options,Ser);\nconst bmI0 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.paramNames !== undefined) {tBi_Ei8qua.fn(v.paramNames,Ser);Ser.setBitMask(bmI0, 0 & 7)}if (v.headersParam !== undefined) {tBi_s8eky2.fn(v.headersParam,Ser);Ser.setBitMask(bmI0, 1 & 7)}if (v.headersReturn !== undefined) {tBi_s8eky2.fn(v.headersReturn,Ser);Ser.setBitMask(bmI0, 2 & 7)}if (v.hookIds !== undefined) {tBi_Ei8qua.fn(v.hookIds,Ser);Ser.setBitMask(bmI0, 3 & 7)} return Ser}',
+		dependenciesSet: new Set(["tBi_Ei8qua", "tBi_VJxRzx", "tBi_s8eky2"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const tBi_Ei8qua = utl.getJIT("tBi_Ei8qua");
+			const tBi_VJxRzx = utl.getJIT("tBi_VJxRzx");
 			const tBi_s8eky2 = utl.getJIT("tBi_s8eky2");
-			return function tBi_H5Jbv1(v, Ser) {
+			return function tBi_kKoKmi(v, Ser) {
 				Ser.view.setFloat64(Ser.index, v.type, 1, (Ser.index += 8));
 				Ser.serString(v.id);
 				Ser.view.setUint8(Ser.index++, !!v.isAsync);
@@ -2685,6 +2939,7 @@ const jitFnsCache = {
 				Ser.serString(v.returnJitHash);
 				tBi_Ei8qua.fn(v.pointer, Ser);
 				Ser.view.setFloat64(Ser.index, v.nestLevel, 1, (Ser.index += 8));
+				tBi_VJxRzx.fn(v.options, Ser);
 				const bmI0 = Ser.index;
 				Ser.view.setUint8(Ser.index++, 0);
 				if (v.paramNames !== undefined) {
@@ -2724,6 +2979,74 @@ const jitFnsCache = {
 				Ser.index += 4;
 				for (let i0 = 0; i0 < v.length; i0++) {
 					Ser.serString(v[i0]);
+				}
+				return Ser;
+			};
+		},
+		fn: undefined,
+	},
+	tBi_VJxRzx: {
+		isNoop: false,
+		typeName: "RemoteMethodOpts",
+		fnID: "tBi",
+		jitFnHash: "tBi_VJxRzx",
+		args: { sεr: "Ser", vλl: "v" },
+		defaultParamValues: { sεr: "", vλl: "" },
+		code: 'const tBi_hxdrPr = utl.getJIT("tBi_hxdrPr"); return function tBi_VJxRzx(v,Ser){\nconst bmI0 = Ser.index; Ser.view.setUint8(Ser.index++, 0)\nif (v.runOnError !== undefined) {Ser.view.setUint8(Ser.index++, !!v.runOnError);Ser.setBitMask(bmI0, 0 & 7)}if (v.validateParams !== undefined) {Ser.view.setUint8(Ser.index++, !!v.validateParams);Ser.setBitMask(bmI0, 1 & 7)}if (v.validateReturn !== undefined) {Ser.view.setUint8(Ser.index++, !!v.validateReturn);Ser.setBitMask(bmI0, 2 & 7)}if (v.description !== undefined) {Ser.serString(v.description);Ser.setBitMask(bmI0, 3 & 7)}if (v.serializer !== undefined) {tBi_hxdrPr.fn(v.serializer,Ser);Ser.setBitMask(bmI0, 4 & 7)} return Ser}',
+		dependenciesSet: new Set(["tBi_hxdrPr"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const tBi_hxdrPr = utl.getJIT("tBi_hxdrPr");
+			return function tBi_VJxRzx(v, Ser) {
+				const bmI0 = Ser.index;
+				Ser.view.setUint8(Ser.index++, 0);
+				if (v.runOnError !== undefined) {
+					Ser.view.setUint8(Ser.index++, !!v.runOnError);
+					Ser.setBitMask(bmI0, 0 & 7);
+				}
+				if (v.validateParams !== undefined) {
+					Ser.view.setUint8(Ser.index++, !!v.validateParams);
+					Ser.setBitMask(bmI0, 1 & 7);
+				}
+				if (v.validateReturn !== undefined) {
+					Ser.view.setUint8(Ser.index++, !!v.validateReturn);
+					Ser.setBitMask(bmI0, 2 & 7);
+				}
+				if (v.description !== undefined) {
+					Ser.serString(v.description);
+					Ser.setBitMask(bmI0, 3 & 7);
+				}
+				if (v.serializer !== undefined) {
+					tBi_hxdrPr.fn(v.serializer, Ser);
+					Ser.setBitMask(bmI0, 4 & 7);
+				}
+				return Ser;
+			};
+		},
+		fn: undefined,
+	},
+	tBi_hxdrPr: {
+		isNoop: false,
+		typeName: "SerializerMode",
+		fnID: "tBi",
+		jitFnHash: "tBi_hxdrPr",
+		args: { sεr: "Ser", vλl: "v" },
+		defaultParamValues: { sεr: "", vλl: "" },
+		code: 'const uErr0 = "Can not encode union to binary: item does not belong to the union"; return function tBi_hxdrPr(v,Ser){if (v === "json") {Ser.view.setUint8(Ser.index++, 0);}else if (v === "binary") {Ser.view.setUint8(Ser.index++, 1);}else if (v === "stringifyJson") {Ser.view.setUint8(Ser.index++, 2);} else {throw new Error(uErr0);} return Ser}',
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 =
+				"Can not encode union to binary: item does not belong to the union";
+			return function tBi_hxdrPr(v, Ser) {
+				if (v === "json") {
+					Ser.view.setUint8(Ser.index++, 0);
+				} else if (v === "binary") {
+					Ser.view.setUint8(Ser.index++, 1);
+				} else if (v === "stringifyJson") {
+					Ser.view.setUint8(Ser.index++, 2);
+				} else {
+					throw new Error(uErr0);
 				}
 				return Ser;
 			};
@@ -2944,24 +3267,24 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	fBi_bNdbvR: {
+	fBi_UsAsWk: {
 		isNoop: false,
 		typeName: "union",
 		fnID: "fBi",
-		jitFnHash: "fBi_bNdbvR",
+		jitFnHash: "fBi_UsAsWk",
 		args: { dεs: "Des", vλl: "ret" },
 		defaultParamValues: { dεs: "", vλl: "" },
-		code: 'const uErr0 = "Can not binary decode union: invalid union index";\nconst fBi_OeGakG = utl.getJIT("fBi_OeGakG");\nconst fBi_OQaagS = utl.getJIT("fBi_OQaagS"); return function fBi_bNdbvR(ret,Des){\n const dec0 = Des.view.getUint8(Des.index++);\n if (dec0 === 0) {ret = fBi_OeGakG.fn(undefined,Des)}else if (dec0 === 1) {ret = fBi_OQaagS.fn(undefined,Des)}\n else {throw new Error(uErr0)}\n ; return ret}',
-		dependenciesSet: new Set(["fBi_OeGakG", "fBi_OQaagS"]),
+		code: 'const uErr0 = "Can not binary decode union: invalid union index";\nconst fBi_HZRp7Z = utl.getJIT("fBi_HZRp7Z");\nconst fBi_OQaagS = utl.getJIT("fBi_OQaagS"); return function fBi_UsAsWk(ret,Des){\n const dec0 = Des.view.getUint8(Des.index++);\n if (dec0 === 0) {ret = fBi_HZRp7Z.fn(undefined,Des)}else if (dec0 === 1) {ret = fBi_OQaagS.fn(undefined,Des)}\n else {throw new Error(uErr0)}\n ; return ret}',
+		dependenciesSet: new Set(["fBi_HZRp7Z", "fBi_OQaagS"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const uErr0 = "Can not binary decode union: invalid union index";
-			const fBi_OeGakG = utl.getJIT("fBi_OeGakG");
+			const fBi_HZRp7Z = utl.getJIT("fBi_HZRp7Z");
 			const fBi_OQaagS = utl.getJIT("fBi_OQaagS");
-			return function fBi_bNdbvR(ret, Des) {
+			return function fBi_UsAsWk(ret, Des) {
 				const dec0 = Des.view.getUint8(Des.index++);
 				if (dec0 === 0) {
-					ret = fBi_OeGakG.fn(undefined, Des);
+					ret = fBi_HZRp7Z.fn(undefined, Des);
 				} else if (dec0 === 1) {
 					ret = fBi_OQaagS.fn(undefined, Des);
 				} else {
@@ -2972,23 +3295,23 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	fBi_OeGakG: {
+	fBi_HZRp7Z: {
 		isNoop: false,
 		typeName: "SerializableMethodsData",
 		fnID: "fBi",
-		jitFnHash: "fBi_OeGakG",
+		jitFnHash: "fBi_HZRp7Z",
 		args: { dεs: "Des", vλl: "ret" },
 		defaultParamValues: { dεs: "", vλl: "" },
-		code: 'const fBi_EWye4A = utl.getJIT("fBi_EWye4A");\nconst fBi_tf5dpV = utl.getJIT("fBi_tf5dpV");\nconst fBi_tP7Vvb = utl.getJIT("fBi_tP7Vvb"); return function fBi_OeGakG(ret,Des){return {methods:fBi_EWye4A.fn(undefined,Des),deps:fBi_tf5dpV.fn(undefined,Des),purFnDeps:fBi_tP7Vvb.fn(undefined,Des)}}',
-		dependenciesSet: new Set(["fBi_EWye4A", "fBi_tf5dpV", "fBi_tP7Vvb"]),
+		code: 'const fBi_dLflVT = utl.getJIT("fBi_dLflVT");\nconst fBi_tf5dpV = utl.getJIT("fBi_tf5dpV");\nconst fBi_tP7Vvb = utl.getJIT("fBi_tP7Vvb"); return function fBi_HZRp7Z(ret,Des){return {methods:fBi_dLflVT.fn(undefined,Des),deps:fBi_tf5dpV.fn(undefined,Des),purFnDeps:fBi_tP7Vvb.fn(undefined,Des)}}',
+		dependenciesSet: new Set(["fBi_dLflVT", "fBi_tf5dpV", "fBi_tP7Vvb"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const fBi_EWye4A = utl.getJIT("fBi_EWye4A");
+			const fBi_dLflVT = utl.getJIT("fBi_dLflVT");
 			const fBi_tf5dpV = utl.getJIT("fBi_tf5dpV");
 			const fBi_tP7Vvb = utl.getJIT("fBi_tP7Vvb");
-			return function fBi_OeGakG(ret, Des) {
+			return function fBi_HZRp7Z(ret, Des) {
 				return {
-					methods: fBi_EWye4A.fn(undefined, Des),
+					methods: fBi_dLflVT.fn(undefined, Des),
 					deps: fBi_tf5dpV.fn(undefined, Des),
 					purFnDeps: fBi_tP7Vvb.fn(undefined, Des),
 				};
@@ -2996,45 +3319,46 @@ const jitFnsCache = {
 		},
 		fn: undefined,
 	},
-	fBi_EWye4A: {
+	fBi_dLflVT: {
 		isNoop: false,
 		typeName: "MethodsCache",
 		fnID: "fBi",
-		jitFnHash: "fBi_EWye4A",
+		jitFnHash: "fBi_dLflVT",
 		args: { dεs: "Des", vλl: "ret" },
 		defaultParamValues: { dεs: "", vλl: "" },
-		code: 'const fBi_H5Jbv1 = utl.getJIT("fBi_H5Jbv1"); return function fBi_EWye4A(ret,Des){const cnt0 = Des.view.getUint32(Des.index, 1); Des.index += 4; ret = {}; for (let propI0 = 0; propI0 < cnt0; propI0++) {const p0 = Des.desSafePropName();ret[p0] = fBi_H5Jbv1.fn(undefined,Des);} return ret}',
-		dependenciesSet: new Set(["fBi_H5Jbv1"]),
+		code: 'const fBi_kKoKmi = utl.getJIT("fBi_kKoKmi"); return function fBi_dLflVT(ret,Des){const cnt0 = Des.view.getUint32(Des.index, 1); Des.index += 4; ret = {}; for (let propI0 = 0; propI0 < cnt0; propI0++) {const p0 = Des.desSafePropName();ret[p0] = fBi_kKoKmi.fn(undefined,Des);} return ret}',
+		dependenciesSet: new Set(["fBi_kKoKmi"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
-			const fBi_H5Jbv1 = utl.getJIT("fBi_H5Jbv1");
-			return function fBi_EWye4A(ret, Des) {
+			const fBi_kKoKmi = utl.getJIT("fBi_kKoKmi");
+			return function fBi_dLflVT(ret, Des) {
 				const cnt0 = Des.view.getUint32(Des.index, 1);
 				Des.index += 4;
 				ret = {};
 				for (let propI0 = 0; propI0 < cnt0; propI0++) {
 					const p0 = Des.desSafePropName();
-					ret[p0] = fBi_H5Jbv1.fn(undefined, Des);
+					ret[p0] = fBi_kKoKmi.fn(undefined, Des);
 				}
 				return ret;
 			};
 		},
 		fn: undefined,
 	},
-	fBi_H5Jbv1: {
+	fBi_kKoKmi: {
 		isNoop: false,
-		typeName: "MethodMetadata",
+		typeName: "MethodWithOptions",
 		fnID: "fBi",
-		jitFnHash: "fBi_H5Jbv1",
+		jitFnHash: "fBi_kKoKmi",
 		args: { dεs: "Des", vλl: "ret" },
 		defaultParamValues: { dεs: "", vλl: "" },
-		code: 'const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua");\nconst fBi_s8eky2 = utl.getJIT("fBi_s8eky2"); return function fBi_H5Jbv1(ret,Des){ret = {type:Des.view.getFloat64(Des.index, 1, (Des.index += 8)),id:Des.desString(),isAsync:Des.view.getUint8(Des.index++) === 1,hasReturnData:Des.view.getUint8(Des.index++) === 1,paramsJitHash:Des.desString(),returnJitHash:Des.desString(),pointer:fBi_Ei8qua.fn(undefined,Des),nestLevel:Des.view.getFloat64(Des.index, 1, (Des.index += 8))}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {ret.paramNames = fBi_Ei8qua.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.headersParam = fBi_s8eky2.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.headersReturn = fBi_s8eky2.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (3 & 7))) {ret.hookIds = fBi_Ei8qua.fn(undefined,Des);} return ret}',
-		dependenciesSet: new Set(["fBi_Ei8qua", "fBi_s8eky2"]),
+		code: 'const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua");\nconst fBi_VJxRzx = utl.getJIT("fBi_VJxRzx");\nconst fBi_s8eky2 = utl.getJIT("fBi_s8eky2"); return function fBi_kKoKmi(ret,Des){ret = {type:Des.view.getFloat64(Des.index, 1, (Des.index += 8)),id:Des.desString(),isAsync:Des.view.getUint8(Des.index++) === 1,hasReturnData:Des.view.getUint8(Des.index++) === 1,paramsJitHash:Des.desString(),returnJitHash:Des.desString(),pointer:fBi_Ei8qua.fn(undefined,Des),nestLevel:Des.view.getFloat64(Des.index, 1, (Des.index += 8)),options:fBi_VJxRzx.fn(undefined,Des)}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {ret.paramNames = fBi_Ei8qua.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.headersParam = fBi_s8eky2.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.headersReturn = fBi_s8eky2.fn(undefined,Des);}if (Des.view.getUint8(bimI0, 1) & (1 << (3 & 7))) {ret.hookIds = fBi_Ei8qua.fn(undefined,Des);} return ret}',
+		dependenciesSet: new Set(["fBi_Ei8qua", "fBi_VJxRzx", "fBi_s8eky2"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			const fBi_Ei8qua = utl.getJIT("fBi_Ei8qua");
+			const fBi_VJxRzx = utl.getJIT("fBi_VJxRzx");
 			const fBi_s8eky2 = utl.getJIT("fBi_s8eky2");
-			return function fBi_H5Jbv1(ret, Des) {
+			return function fBi_kKoKmi(ret, Des) {
 				ret = {
 					type: Des.view.getFloat64(Des.index, 1, (Des.index += 8)),
 					id: Des.desString(),
@@ -3044,6 +3368,7 @@ const jitFnsCache = {
 					returnJitHash: Des.desString(),
 					pointer: fBi_Ei8qua.fn(undefined, Des),
 					nestLevel: Des.view.getFloat64(Des.index, 1, (Des.index += 8)),
+					options: fBi_VJxRzx.fn(undefined, Des),
 				};
 
 				const bimI0 = Des.index;
@@ -3082,6 +3407,71 @@ const jitFnsCache = {
 				ret = new Array(arrL0);
 				for (let i0 = 0; i0 < arrL0; i0++) {
 					ret[i0] = Des.desString();
+				}
+				return ret;
+			};
+		},
+		fn: undefined,
+	},
+	fBi_VJxRzx: {
+		isNoop: false,
+		typeName: "RemoteMethodOpts",
+		fnID: "fBi",
+		jitFnHash: "fBi_VJxRzx",
+		args: { dεs: "Des", vλl: "ret" },
+		defaultParamValues: { dεs: "", vλl: "" },
+		code: 'const fBi_hxdrPr = utl.getJIT("fBi_hxdrPr"); return function fBi_VJxRzx(ret,Des){ret = {}\n\nconst bimI0 = Des.index; Des.index += 1;\nif (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {ret.runOnError = Des.view.getUint8(Des.index++) === 1;}if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {ret.validateParams = Des.view.getUint8(Des.index++) === 1;}if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {ret.validateReturn = Des.view.getUint8(Des.index++) === 1;}if (Des.view.getUint8(bimI0, 1) & (1 << (3 & 7))) {ret.description = Des.desString();}if (Des.view.getUint8(bimI0, 1) & (1 << (4 & 7))) {ret.serializer = fBi_hxdrPr.fn(undefined,Des);} return ret}',
+		dependenciesSet: new Set(["fBi_hxdrPr"]),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const fBi_hxdrPr = utl.getJIT("fBi_hxdrPr");
+			return function fBi_VJxRzx(ret, Des) {
+				ret = {};
+
+				const bimI0 = Des.index;
+				Des.index += 1;
+				if (Des.view.getUint8(bimI0, 1) & (1 << (0 & 7))) {
+					ret.runOnError = Des.view.getUint8(Des.index++) === 1;
+				}
+				if (Des.view.getUint8(bimI0, 1) & (1 << (1 & 7))) {
+					ret.validateParams = Des.view.getUint8(Des.index++) === 1;
+				}
+				if (Des.view.getUint8(bimI0, 1) & (1 << (2 & 7))) {
+					ret.validateReturn = Des.view.getUint8(Des.index++) === 1;
+				}
+				if (Des.view.getUint8(bimI0, 1) & (1 << (3 & 7))) {
+					ret.description = Des.desString();
+				}
+				if (Des.view.getUint8(bimI0, 1) & (1 << (4 & 7))) {
+					ret.serializer = fBi_hxdrPr.fn(undefined, Des);
+				}
+				return ret;
+			};
+		},
+		fn: undefined,
+	},
+	fBi_hxdrPr: {
+		isNoop: false,
+		typeName: "SerializerMode",
+		fnID: "fBi",
+		jitFnHash: "fBi_hxdrPr",
+		args: { dεs: "Des", vλl: "ret" },
+		defaultParamValues: { dεs: "", vλl: "" },
+		code: 'const uErr0 = "Can not binary decode union: invalid union index"; return function fBi_hxdrPr(ret,Des){\n const dec0 = Des.view.getUint8(Des.index++);\n if (dec0 === 0) {ret = "json"}else if (dec0 === 1) {ret = "binary"}else if (dec0 === 2) {ret = "stringifyJson"}\n else {throw new Error(uErr0)}\n ; return ret}',
+		dependenciesSet: new Set(),
+		pureFnDependencies: new Set(),
+		createJitFn: function (utl) {
+			const uErr0 = "Can not binary decode union: invalid union index";
+			return function fBi_hxdrPr(ret, Des) {
+				const dec0 = Des.view.getUint8(Des.index++);
+				if (dec0 === 0) {
+					ret = "json";
+				} else if (dec0 === 1) {
+					ret = "binary";
+				} else if (dec0 === 2) {
+					ret = "stringifyJson";
+				} else {
+					throw new Error(uErr0);
 				}
 				return ret;
 			};
