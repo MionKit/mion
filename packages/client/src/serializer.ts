@@ -292,9 +292,9 @@ function getParamsWithoutHeadersSubset(params: any[]): any[] {
 function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string {
     if (!method.paramNames || method.paramNames.length === 0) return '';
     const paramsJit = method.paramsJitFns;
-    // Note: client doesn't have useJitStringify option, always use prepareForJson + JSON.stringify
+    // always use noon mutating json stringify in the client
     if (paramsJit.prepareForJson.isNoop) return JSON.stringify(params);
-    return JSON.stringify(paramsJit.prepareForJson.fn(params));
+    return paramsJit.stringifyJson.fn(params);
 }
 
 function parseHandlerReturnValue(method: MethodWithJitFns, returnValue: any): any {
