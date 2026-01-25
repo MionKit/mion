@@ -118,19 +118,13 @@ export async function compileAOT(
         console.log('Resetting cache files to original template state...');
     }
     resetCacheFiles(templateDir, aotDir);
-
     // Register ts-node for TypeScript files
     if (isTypeScript) {
         registerTsNode(resolvedStartScript);
     }
-
     // Set compilation mode
     process.env.MION_COMPILE = 'true';
-
-    if (!isTest) {
-        console.log('Running start script to populate caches...');
-    }
-
+    if (!isTest) console.log('Running start script to populate caches...');
     // Import and run the original start script (only dynamic import needed)
     try {
         const module = await import(resolvedStartScript);
@@ -140,24 +134,17 @@ export async function compileAOT(
         if (promiseExports.length > 0) {
             await Promise.all(promiseExports);
         }
-        console.log('Start script completed, caches populated');
+        if (!isTest) console.log('Start script completed, caches populated');
     } catch (error) {
         console.error('Error running start script:', (error as Error).message);
         throw error;
     }
-
-    // Now compile and write the caches
-    if (!isTest) {
-        console.log('Compiling and writing AOT caches...');
-    }
-
+    if (!isTest) console.log('Compiling and writing AOT caches...');
     // Get the populated caches
     const {jitFnsCache, pureFnsCache} = getJitFnCaches();
     const routerCache = getPersistedMethods();
-
     // Write the caches to files
     writeAOTCachesToFiles({jitFnsCache, pureFnsCache, routerCache}, aotDir, excludedFns, excludedPureFns);
-
     if (!isTest) {
         console.log('✅ AOT compilation completed successfully!');
         console.log(`
