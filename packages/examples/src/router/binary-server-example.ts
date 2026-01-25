@@ -49,6 +49,6 @@ const routes = {
 } satisfies Routes;
 
 // Initialize router with binary serialization globally
-initMionRouter(routes, {serialize: 'binary'});
+initMionRouter(routes, {serializer: 'binary'});
 // Export API type for client usage
 export type BinaryApi = PublicApi<typeof routes>;

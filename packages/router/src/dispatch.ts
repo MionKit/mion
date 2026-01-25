@@ -249,7 +249,7 @@ function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, exe
 
 /** Maps serializer mode to response body type */
 function getResponseBodyType(opts: RouterOptions): RawResponseBodyType {
-    return getResponseBodyTypeFromMode(opts.serialize);
+    return getResponseBodyTypeFromMode(opts.serializer);
 }
 
 /** Maps serializer mode string to response body type */

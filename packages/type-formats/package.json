@@ -21,20 +21,20 @@
   "license": "MIT",
   "browser": {},
   "exports": {
-    "./NumberFormats": {
-      "types": "./.dist/esm/NumberFormats.d.ts",
-      "require": "./.dist/cjs/NumberFormats.js",
-      "default": "./.dist/esm/NumberFormats.js"
+    "./FormatsNumber": {
+      "types": "./.dist/esm/FormatsNumber.d.ts",
+      "require": "./.dist/cjs/FormatsNumber.js",
+      "default": "./.dist/esm/FormatsNumber.js"
     },
-    "./StringFormats": {
-      "types": "./.dist/esm/StringFormats.d.ts",
-      "require": "./.dist/cjs/StringFormats.js",
-      "default": "./.dist/esm/StringFormats.js"
+    "./FormatsString": {
+      "types": "./.dist/esm/FormatsString.d.ts",
+      "require": "./.dist/cjs/FormatsString.js",
+      "default": "./.dist/esm/FormatsString.js"
     },
-    "./BigNumberFormats": {
-      "types": "./.dist/esm/BigNumberFormats.d.ts",
-      "require": "./.dist/cjs/BigNumberFormats.js",
-      "default": "./.dist/esm/BigNumberFormats.js"
+    "./FormatsBigint": {
+      "types": "./.dist/esm/FormatsBigint.d.ts",
+      "require": "./.dist/cjs/FormatsBigint.js",
+      "default": "./.dist/esm/FormatsBigint.js"
     }
   },
   "directories": {

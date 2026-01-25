@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
@@ -158,7 +159,7 @@ async function startServer() {
         initRouter({
             contextDataFactory: () => ({user: null}),
             skipClientRoutes: false,
-            serialize: 'binary',
+            serializer: 'binary',
         });
 
         // Register routes

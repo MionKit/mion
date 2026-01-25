@@ -254,7 +254,7 @@ describe('node http router', () => {
             resetNodeHttpOpts();
             setNodeHttpOpts({port});
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serialize: 'binary'});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'binary'});
             await registerRoutes({changeUserName, getDate});
         });
 

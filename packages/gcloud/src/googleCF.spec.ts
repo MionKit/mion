@@ -294,7 +294,7 @@ describe('serverless router', () => {
         beforeAll(async () => {
             resetGoogleCFOpts();
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, serialize: 'binary'});
+            await initRouter({contextDataFactory: getSharedData, serializer: 'binary'});
             await registerRoutes({changeUserName, getDate});
             server3 = await initServer3(port3);
         });

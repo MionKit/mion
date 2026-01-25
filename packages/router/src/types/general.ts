@@ -44,7 +44,7 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
      * - 'stringifyJson': Use stringifyJson JIT function for optimized JSON serialization
      * @default 'stringifyJson'
      */
-    serialize: SerializerMode;
+    serializer: SerializerMode;
     /** run type compiler options for hooks and routes */
     runTypeOptions: RunTypeOptions;
     /** Used to return public data structure when adding routes */
