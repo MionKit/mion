@@ -75,7 +75,7 @@ describe('serverless router', () => {
         });
     };
 
-    describe('with useJitStringify=true (default)', () => {
+    describe('with serializer=stringifyJson (default)', () => {
         beforeAll(async () => {
             resetGoogleCFOpts();
             resetRouter();
@@ -217,13 +217,13 @@ describe('serverless router', () => {
         });
     });
 
-    describe('with useJitStringify=false', () => {
+    describe('with serializer=json', () => {
         const port2 = 8088;
         let server2: Server;
         async function initServer2(portToUse: number) {
             return new Promise<Server>((resolve, reject) => {
-                functions.http('HelloTestsNoJit', googleCFHandler);
-                const expressServer = getTestServer('HelloTestsNoJit');
+                functions.http('HelloTestsJson', googleCFHandler);
+                const expressServer = getTestServer('HelloTestsJson');
                 expressServer.listen(portToUse, () => resolve(expressServer));
             });
         }
@@ -231,7 +231,7 @@ describe('serverless router', () => {
         beforeAll(async () => {
             resetGoogleCFOpts();
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
             await registerRoutes({changeUserName, getDate});
             server2 = await initServer2(port2);
         });

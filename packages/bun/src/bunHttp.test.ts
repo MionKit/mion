@@ -179,14 +179,14 @@ describe('bun router should', () => {
         setBunHttpOpts({port});
     });
 
-    test('get an ok response from a route with Date objects using useJitStringify=false', async () => {
+    test('get an ok response from a route with Date objects using serializer=json', async () => {
         // Stop the main server
         server.stop(true);
 
-        // Start a new server with useJitStringify=false
+        // Start a new server with serializer=json
         const testPort = 8081;
         resetBunHttpOpts();
-        initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
         registerRoutes({changeUserName, getDate});
         setBunHttpOpts({port: testPort});
         const testServer = await startBunServer();
@@ -215,14 +215,14 @@ describe('bun router should', () => {
         server = await startBunServer();
     });
 
-    test('get an ok response from a route with complex objects using useJitStringify=false', async () => {
+    test('get an ok response from a route with complex objects using serializer=json', async () => {
         // Stop the main server
         server.stop(true);
 
-        // Start a new server with useJitStringify=false
+        // Start a new server with serializer=json
         const testPort = 8081;
         resetBunHttpOpts();
-        initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
+        initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
         registerRoutes({changeUserName, getDate});
         setBunHttpOpts({port: testPort});
         const testServer = await startBunServer();

@@ -72,7 +72,7 @@ describe('serverless router', () => {
         return {context, event};
     };
 
-    describe('with useJitStringify=true (default)', () => {
+    describe('with serializer=stringifyJson (default)', () => {
         beforeAll(async () => {
             resetAwsLambdaOpts();
             resetRouter();
@@ -168,11 +168,11 @@ describe('serverless router', () => {
         });
     });
 
-    describe('with useJitStringify=false', () => {
+    describe('with serializer=json', () => {
         beforeAll(async () => {
             resetAwsLambdaOpts();
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
             await registerRoutes({changeUserName, getDate});
         });
 
