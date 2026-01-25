@@ -88,6 +88,14 @@ blur: 140px
     ### RPC Like
     [RPC architecture](/introduction/about-mion#rpc-like) for simpler and easier to consume APIs.
     Just use remote methods as any other local async method.
+
+    :::::hover-list
+    ---
+    items:
+      - { title: "simple calls", class: "mion-simple-calls" }
+      - { title: "no REST", class: "mion-no-rest" }
+    ---
+    :::::
     ::::
 
     ::::twoslash-code
@@ -104,6 +112,14 @@ blur: 140px
     ---
     ### Fully Typed Client
     [Fully typed client](/client/client-overview) with static type checking, autocompletion, automatic validation and serialization.
+
+    :::::hover-list
+    ---
+    items:
+      - { title: "routes autocomplete", class: "mion-route-autocomplete" }
+      - { title: "params type checking", class: "mion-params-type-check" }
+    ---
+    :::::
     ::::
 
     ::::twoslash-code
@@ -126,6 +142,15 @@ blur: 140px
     <br>
 
     [No schemas libraries needed — Typescript is the single source of truth.]{.text-highlighted}
+
+    :::::hover-list
+    ---
+    items:
+      - { title: "validation", class: "mion-validation" }
+      - { title: "serialization", class: "mion-serialization" }
+      - { title: "JIT compiled", class: "mion-jit" }
+    ---
+    :::::
     ::::
 
     ::::twoslash-code
