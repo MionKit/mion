@@ -8,7 +8,8 @@
 import {hook, initMionRouter, Routes} from '@mionkit/router';
 
 const routes = {
-    '@mionkit/mionEmptyHook': hook((): void => undefined), // only required as initMionRouter needs at least one route/hook
+    // only required as initMionRouter needs at least one route/hook
+    '@mionkit/mionEmptyHook': hook((): void => undefined),
 } satisfies Routes;
 
 // Initialize the router
