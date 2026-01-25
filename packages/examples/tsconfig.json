@@ -19,6 +19,6 @@
     {"path": "../gcloud"}
   ],
   "reflection": true,
-  "include": [".", "vite.config.ts"],
-  "exclude": ["node_modules", "examples", ".dist"]
+  "include": ["src", "vite.config.ts"],
+  "exclude": ["node_modules", ".dist"]
 }
