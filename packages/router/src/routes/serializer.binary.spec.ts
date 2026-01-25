@@ -12,7 +12,7 @@ import {serializeResponseBody, deserializeRequestBody} from './serializer.routes
 import {createCallContext} from '../dispatch';
 import {headersFromRecord} from '../lib/headers';
 import type {MionResponse, RawRequestBody} from '../types/context';
-import type {Mutable, MethodWithJitFns} from '@mionkit/core';
+import type {Mutable, MethodWithJitFns, BinaryInput} from '@mionkit/core';
 import {createDataViewDeserializer, serializeBinaryBody, deserializeBinaryBody} from '@mionkit/core';
 
 /** Helper to build a methods map from an execution path */
@@ -168,8 +168,8 @@ describe('Binary Serialization - Router', () => {
 
         serializeResponseBody(context, opts);
 
-        const rawBody = response.rawBody as Uint8Array;
-        const deserializer = createDataViewDeserializer('test-response', rawBody.buffer);
+        const rawBody = response.rawBody as BinaryInput;
+        const deserializer = createDataViewDeserializer('test-response', rawBody);
 
         // Read number of methods
         const numMethods = deserializer.view.getUint32(deserializer.index, true);
@@ -195,8 +195,8 @@ describe('Binary Serialization - Router', () => {
 
         serializeResponseBody(context, opts);
 
-        const rawBody = response.rawBody as Uint8Array;
-        const deserializer = createDataViewDeserializer('test-response', rawBody.buffer);
+        const rawBody = response.rawBody as BinaryInput;
+        const deserializer = createDataViewDeserializer('test-response', rawBody);
 
         // Read number of methods (should be 1 - only sayHello has return data)
         // auth hook has void return type so hasReturnData is false

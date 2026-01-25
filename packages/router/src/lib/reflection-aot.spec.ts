@@ -46,6 +46,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
                     pointer: ['sayHello'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
             };
             setPersistedMethods(customRouteCache);
@@ -99,6 +100,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
                     pointer: ['sayHello'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
             };
             setPersistedMethods(mockCache);
@@ -147,6 +149,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
                     pointer: ['myHook'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
                 myRoute: {
                     type: HandlerType.route,
@@ -158,6 +161,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
                     pointer: ['myRoute'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
             };
             setPersistedMethods(mockCache);
@@ -227,6 +231,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
                     pointer: ['cachedRoute'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
             };
             setPersistedMethods(mockCache);
@@ -375,6 +380,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: MOCK_PARAMS_JIT_HASH, // Non-empty hash
                     returnJitHash: MOCK_RETURN_JIT_HASH, // Non-empty hash
                     pointer: ['routeWithJitFns'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
             };
             setPersistedMethods(mockCache);
@@ -417,6 +423,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: MISSING_JIT_HASH, // Hash not in JIT cache
                     returnJitHash: EMPTY_HASH,
                     pointer: ['routeWithMissingJit'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
             };
             setPersistedMethods(mockCache);
@@ -450,6 +457,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: MOCK_PARAMS_JIT_HASH,
                     returnJitHash: MOCK_RETURN_JIT_HASH,
                     pointer: ['hookWithJitFns'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
                 testRoute: {
                     type: HandlerType.route,
@@ -461,6 +469,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
                     pointer: ['testRoute'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
             };
             setPersistedMethods(mockCache);
@@ -500,6 +509,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
                     pointer: ['customRoute'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
             });
 
@@ -531,6 +541,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
                     pointer: ['myRoute'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
                 ...defaultRoutesCache,
             });
@@ -547,6 +558,7 @@ describe('AOT Lazy Loading', () => {
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
                     pointer: ['myRoute'],
+                    options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
             });
 
