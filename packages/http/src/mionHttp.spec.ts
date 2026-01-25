@@ -67,7 +67,7 @@ describe('node http router', () => {
         if (server) await closeServer(server);
     });
 
-    describe('with useJitStringify=true (default)', () => {
+    describe('with serializer=stringifyJson (default)', () => {
         beforeAll(async () => {
             resetRouter();
             await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
@@ -200,13 +200,13 @@ describe('node http router', () => {
         });
     });
 
-    describe('with useJitStringify=false', () => {
+    describe('with serializer=json', () => {
         beforeAll(async () => {
             // Reset HTTP options to clear maxBodySize from previous test
             resetNodeHttpOpts();
             setNodeHttpOpts({port});
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', useJitStringify: false});
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
             await registerRoutes({changeUserName, getDate});
         });
 
