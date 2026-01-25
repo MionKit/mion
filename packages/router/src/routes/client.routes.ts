@@ -109,7 +109,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
 }
 
 export const mionClientRoutes = {
-    // Client routes always use stringifyJson serialization for compatibility
+    // Client routes always use stringifyJson serialization to avoid mutating data as is cached
     // These routes are used by the client to fetch metadata and must work regardless of router's default serialization
     [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, {serializer: 'stringifyJson'}),
     [MION_ROUTES.methodsMetadataByPath]: route(mionGetRemoteMethodsDataByPath, {serializer: 'stringifyJson'}),
