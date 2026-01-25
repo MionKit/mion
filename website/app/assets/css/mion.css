@@ -73,10 +73,15 @@ pre.px-4 {
 /* Home Page Features */
 .home-features h2 {
   text-align: center;
+  color: var(--color-green-500);
 }
 
 .home-features h3 {
   color: var(--color-green-400);
+}
+
+.home-features a {
+  color: var(--ui-text-highlighted)
 }
 
 
@@ -97,11 +102,11 @@ pre.px-4 {
     font-size: 2rem;
     background: linear-gradient(
       90deg,
-      var(--gradient-color, #22c55e) 0%,
-      color-mix(in srgb, var(--gradient-color, #22c55e) 55%, #60a5fa) 25%,
-      var(--gradient-color, #22c55e) 50%,
-      color-mix(in srgb, var(--gradient-color, #22c55e) 55%, #60a5fa) 75%,
-      var(--gradient-color, #22c55e) 100%
+      #8aa85e 0%,
+      color-mix(in srgb, #8aa85e 55%, #60a5fa) 25%,
+      #bdd09d 50%,
+      color-mix(in srgb, #8aa85e 55%, #60a5fa) 75%,
+      #8aa85e 100%
     );
     background-clip: text;
     -webkit-background-clip: text;
@@ -119,3 +124,4 @@ pre.px-4 {
     background-position: -200% center;
   }
 }
+
