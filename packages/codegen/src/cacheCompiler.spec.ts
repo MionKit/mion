@@ -15,9 +15,9 @@ import {
     getJitFnCaches,
     getJitUtils,
     resetJitFnCaches,
-    MethodMetadata,
     MethodsCache,
     HeadersSubset,
+    MethodWithOptions,
 } from '@mionkit/core';
 import {BaseRunType, JitFunctions, registerPureFnClosure, runType} from '@mionkit/run-types';
 import {getPersistedMethods, headersHook, initRouter, registerRoutes, route, Routes} from '@mionkit/router';
@@ -240,7 +240,7 @@ it('should compile router methods cache to code', async () => {
     const authMethodMetadata = persistedMethods.auth;
     const getUserMethodMetadata = persistedMethods.getUser;
     const mockCache = {auth: authMethodMetadata, getUser: getUserMethodMetadata};
-    const expectedAuthMethodData: MethodMetadata = {
+    const expectedAuthMethodData: MethodWithOptions = {
         type: 3,
         id: 'auth',
         nestLevel: 0,
@@ -258,8 +258,13 @@ it('should compile router methods cache to code', async () => {
             headerNames: ['x-user-id'],
             jitHash: expect.any(String),
         },
+        options: {
+            runOnError: false,
+            validateParams: true,
+            validateReturn: false,
+        },
     };
-    const expectedGetUserMethodData: MethodMetadata = {
+    const expectedGetUserMethodData: MethodWithOptions = {
         type: 1,
         id: 'getUser',
         nestLevel: 0,
@@ -269,6 +274,12 @@ it('should compile router methods cache to code', async () => {
         paramNames: ['name'],
         paramsJitHash: expect.any(String),
         returnJitHash: expect.any(String),
+        options: {
+            runOnError: false,
+            validateParams: true,
+            validateReturn: false,
+            serializer: 'json',
+        },
     };
 
     // Create AOT config for router methods

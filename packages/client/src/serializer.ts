@@ -18,6 +18,7 @@ import {
     type SerializerMode,
 } from '@mionkit/core';
 import type {MionClientRequest} from './request';
+import {DEFAULT_PREFILL_OPTIONS} from './constants';
 
 // ############# SERIALIZATION #############
 
@@ -39,11 +40,10 @@ export interface SerializedRequest {
  */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
     const method = routesCache.getMethodJitFns(req.route?.methodId);
-    if (method && method.options.serialize) {
-        return method.options.serialize;
-    }
-
-    return 'jo';
+    const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serialize;
+    // we do not want to mutate data, so we do not use 'json' mode in the client
+    if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serialize;
+    return serializerMode;
 }
 
 /**

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HandlerType, MethodMetadata, MethodsCache, RpcError, SerializableMethodsData} from '@mionkit/core';
+import {HandlerType, MethodWithOptions, MethodsCache, RpcError, SerializableMethodsData} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
 import {runType} from '../createRunType';
 import {JitCompiledFnData, PureFunctionData} from '@mionkit/core';
@@ -20,7 +20,6 @@ describe('MethodsCache JitCompiler', () => {
     it('validate', () => {
         const rt = runType<MethodsCache>();
         const isType = rt.createJitFunction(JitFunctions.isType);
-        console.log(methodsData.methods);
         expect(isType(methodsData.methods)).toBe(true);
     });
 
@@ -141,7 +140,7 @@ describe('MethodsResponse JitCompiler on union', () => {
 });
 
 function mockData(): SerializableMethodsData {
-    const publicMethod1: MethodMetadata = {
+    const publicMethod1: MethodWithOptions = {
         id: 'method1',
         type: HandlerType.route,
         isAsync: false,
@@ -150,6 +149,7 @@ function mockData(): SerializableMethodsData {
         pointer: ['method1'],
         paramsJitHash: 'paramsJitHash',
         returnJitHash: 'returnJitHash',
+        options: {runOnError: false, validateParams: true, validateReturn: true, serializer: 'json'},
     };
     const compiledFnData1: JitCompiledFnData = {
         typeName: 'string',
