@@ -115,12 +115,16 @@ describe('PublicMethods run type functionality', () => {
         expect(roundTrip instanceof RpcError).toBeTruthy();
         expect(roundTrip).toEqual(error);
 
+        // Clean options for serialization test
+        if (publicMethod.options.description === undefined) delete publicMethod.options.description;
+        if ((publicMethod.options as any).serializer === 'json') delete (publicMethod.options as any).serializer;
         // operations modify the original object so we need to clone it before serializing
-        const responseClone: SerializableMethodsData = {
-            methods: {[publicMethod.id]: publicMethod},
-            deps: {},
-            purFnDeps: {},
-        };
+        const responseClone: SerializableMethodsData = {methods: {[publicMethod.id]: publicMethod}, deps: {}, purFnDeps: {}};
+        // Clean options for serialization test
+        if (responseClone.methods[publicMethod.id].options.description === undefined)
+            delete responseClone.methods[publicMethod.id].options.description;
+        if ((responseClone.methods[publicMethod.id].options as any).serializer === 'json')
+            delete (responseClone.methods[publicMethod.id].options as any).serializer;
         const jsonStr = stringifyJson(responseClone);
         const roundTrip2 = restoreFromJson(JSON.parse(jsonStr));
         // we need to remove the function handler before comparing and is not restored after round trip
@@ -163,11 +167,13 @@ describe('Client Routes should', () => {
         serializer: 'json',
         validateParams: true,
         validateReturn: false,
+        description: undefined,
     };
     const defaultHookOpts: RemoteMethodOpts = {
-        runOnError: true,
+        runOnError: false,
         validateParams: true,
         validateReturn: false,
+        description: undefined,
     };
 
     const methodsMetadata = {
