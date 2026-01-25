@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyObject, DataViewSerializer} from '@mionkit/core';
+import type {AnyObject, DataViewSerializer, SerializerCode} from '@mionkit/core';
 import type {RpcError} from '@mionkit/core';
 
 // ####### Call Context #######
@@ -26,30 +26,7 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
 
 // ####### REQUEST & RESPONSE #######
 
-// TODO: Study Using a Common Interface getting setting headers and body
-// this way router can use that interface for reading and writing headers and body instead to the context therefore saving memory and cpu
-
-/** The request raw body can be a string, arrayBuffer or an object in the case of a pre-parsed body */
-export type RawRequestBodyTypes = {
-    /** Json string */
-    json: 'J';
-    /** Binary data */
-    binary: 'B';
-    /** Pre-parsed body */
-    object: 'O';
-};
-export type RawResponseBodyTypes = {
-    /** Use run-types jit stringify Json */
-    json: 'J';
-    /** Use run-types jit binary serialization */
-    binary: 'B';
-    /** Using only PrepareForJson JSON serialization is done at PLatform Adapter level */
-    preSerialized: 'O';
-};
 export type RawRequestBody = string | ArrayBuffer | Uint8Array | AnyObject;
-export type RawRequestBodyType = RawRequestBodyTypes[keyof RawRequestBodyTypes];
-export type RawResponseBodyType = RawResponseBodyTypes[keyof RawResponseBodyTypes];
-
 /** Response body can be a string, an arrayBuffer, a Uint8Array, or an object (for pre-serialized responses) */
 export type RawResponseBody = string | ArrayBuffer | Uint8Array | AnyObject;
 
@@ -60,7 +37,7 @@ export interface MionRequest {
     readonly headers: Readonly<Omit<MionHeaders, 'append' | 'set' | 'delete'>>;
     /** Raw request body, can be string for json, arrayBuffer for binary or a javascript object in the case of pre-parsed body */
     readonly rawBody: RawRequestBody;
-    readonly bodyType: RawRequestBodyType;
+    readonly bodyType: SerializerCode;
     /** parsed request body */
     readonly body: Readonly<AnyObject>;
     /**
@@ -89,7 +66,7 @@ export interface MionResponse {
     readonly headers: Readonly<MionHeaders>;
     /** Raw response body, can be string for json or an arrayBuffer for binary. */
     readonly rawBody: RawResponseBody;
-    readonly bodyType: RawResponseBodyType;
+    readonly bodyType: SerializerCode;
     /** the router response data, body should not be modified manually so marked as Read Only */
     readonly body: Readonly<ResponseBody>;
     /** response errors: empty if there were no errors during execution */

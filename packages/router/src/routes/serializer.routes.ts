@@ -16,6 +16,7 @@ import {
     StatusCodes,
     serializeBinaryBody as coreSerializeBinaryBody,
     deserializeBinaryBody as coreDeserializeBinaryBody,
+    SerializerModes,
 } from '@mionkit/core';
 import {rawHook} from '../lib/handlers';
 import {getRouteExecutableFromPath, getRouteExecutionPath, getRouteExecutable} from '../router';
@@ -35,7 +36,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
     if (!context.request.rawBody) return; // empty body
     let parsedBody: any;
     switch (context.request.bodyType) {
-        case 'J': // json
+        case SerializerModes.stringifyJson: // jit stringify json
             try {
                 parsedBody = JSON.parse(context.request.rawBody as string);
             } catch (err: any) {
@@ -46,7 +47,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
                 });
             }
             break;
-        case 'B': {
+        case SerializerModes.binary: {
             // binary
             // Binary deserialization is handled per-method in dispatch.ts
             const rawBody = context.request.rawBody as Uint8Array;
@@ -58,7 +59,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
             parsedBody = body;
             break;
         }
-        case 'O': // Object (pre-parsed body from platforms like Google Cloud Functions where Express auto-parses JSON)
+        case SerializerModes.json: // Object (pre-parsed body from platforms like Google Cloud Functions where Express auto-parses JSON)
             parsedBody = context.request.rawBody;
             break;
         default:
@@ -93,7 +94,7 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
     // Add thrownErrors to response body before the serializer runs
     if (thrownErrors) (response.body as Mutable<AnyObject>)['@thrownErrors'] = thrownErrors;
     switch (bodyType) {
-        case 'J': {
+        case SerializerModes.stringifyJson: {
             // json - use stringifyJson JIT function
             response.headers.set('content-type', 'application/json; charset=utf-8');
             const executionPath = getRouteExecutionPath(context.path)!;
@@ -101,7 +102,7 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
             response.rawBody = body;
             break;
         }
-        case 'O': {
+        case SerializerModes.json: {
             // pre-serialized object - only prepare for JSON, don't stringify
             // Platform adapters will handle the actual JSON stringification
             // prepareForJson mutates response.body in place, so we don't set rawBody
@@ -110,7 +111,7 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
             prepareBodyForJson(context, executionPath.methods, respBody);
             break;
         }
-        case 'B': {
+        case SerializerModes.binary: {
             // binary - use toBinary JIT function
             response.headers.set('content-type', 'application/octet-stream');
             const executionPath = getRouteExecutionPath(context.path)!;

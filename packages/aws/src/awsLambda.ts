@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
+import {RpcError, SerializerModes} from '@mionkit/core';
 import {dispatchRoute, getRouterFatalErrorResponse, headersFromRecord, resetRouter} from '@mionkit/router';
 import type {MionResponse, MionHeaders} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
@@ -75,15 +75,15 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
     let responseBody: string;
 
     switch (bodyType) {
-        case 'J':
+        case SerializerModes.stringifyJson:
             responseBody = routeResponse.rawBody as string;
             break;
-        case 'O':
+        case SerializerModes.json:
             // Platform adapter stringifies the prepared body object
             responseBody = JSON.stringify(routeResponse.body);
             singleHeaders['content-type'] = 'application/json; charset=utf-8';
             break;
-        case 'B':
+        case SerializerModes.binary:
             throw new Error('Binary responses are not yet supported on AWS Lambda');
         default:
             throw new Error(`Unknown body type: ${bodyType}`);

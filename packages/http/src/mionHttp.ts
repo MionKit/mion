@@ -13,7 +13,7 @@ import type {NodeHttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionkit/router';
-import {getENV} from '@mionkit/core';
+import {getENV, SerializerModes} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 
@@ -167,28 +167,26 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
     httpResp.statusCode = mionResp.statusCode;
     const bodyType = mionResp.bodyType;
     switch (bodyType) {
-        case 'J': {
+        case SerializerModes.stringifyJson: {
             const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');
             httpResp.setHeader('content-length', buffer.byteLength);
             // content-type already set by serializer
             httpResp.end(buffer);
             break;
         }
-        case 'O': {
+        case SerializerModes.json: {
             // Platform adapter stringifies the prepared body object
             const jsonString = JSON.stringify(mionResp.body);
             const buffer = Buffer.from(jsonString, 'utf8');
-            httpResp.setHeader('content-type', 'application/json; charset=utf-8');
             httpResp.setHeader('content-length', buffer.byteLength);
             httpResp.end(buffer);
             break;
         }
-        case 'B': {
+        case SerializerModes.binary: {
             const serializer = mionResp.binSerializer!;
             httpResp.setHeader('content-length', serializer.getLength());
             // content-type already set by serializer
             httpResp.end(serializer.getBufferView());
-
             // Release buffer when response is finished
             const onFinish = () => serializer.markAsEnded();
             httpResp.on('finish', onFinish);

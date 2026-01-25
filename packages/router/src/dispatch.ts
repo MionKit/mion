@@ -5,20 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {
-    CallContext,
-    MionResponse,
-    MionRequest,
-    MionHeaders,
-    RawRequestBody,
-    RawRequestBodyType,
-    RawResponseBodyType,
-} from './types/context';
+import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context';
 import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
 import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod, RouteMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
-import {Mutable, AnyObject, StatusCodes, HeadersSubset} from '@mionkit/core';
+import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode, SerializerMode} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
 
@@ -89,7 +81,7 @@ export function createCallContext(
             headers: respHeaders,
             body: {},
             rawBody: '',
-            bodyType: getResponseBodyType(opts),
+            bodyType: getResponseBodyTypeFromMode(opts.serializer),
             binSerializer: undefined, // we can create serializer lazily
         },
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
@@ -198,7 +190,7 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
 
     // For binary requests, params are already deserialized in the serializer hook
     // (deserializeBinaryRequestBody in serializer.routes.ts)
-    if (request.bodyType === 'B') return params;
+    if (request.bodyType === SerializerModes.binary) return params;
 
     // For JSON requests, use restoreFromJson to deserialize
     if (executable.paramsJitFns.restoreFromJson.isNoop) return params;
@@ -247,26 +239,21 @@ function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, exe
     }
 }
 
-/** Maps serializer mode to response body type */
-function getResponseBodyType(opts: RouterOptions): RawResponseBodyType {
-    return getResponseBodyTypeFromMode(opts.serializer);
-}
-
 /** Maps serializer mode string to response body type */
-function getResponseBodyTypeFromMode(mode: string | undefined): RawResponseBodyType {
+function getResponseBodyTypeFromMode(mode: SerializerMode | undefined): SerializerCode {
     switch (mode) {
         case 'binary':
-            return 'B';
+            return SerializerModes.binary;
         case 'stringifyJson':
-            return 'J';
+            return SerializerModes.stringifyJson;
         case 'json':
         default:
-            return 'O';
+            return SerializerModes.json;
     }
 }
 
-function getRequestBodyType(rawBody: RawRequestBody): RawRequestBodyType {
-    if (typeof rawBody === 'string') return 'J';
-    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array) return 'B';
-    return 'O';
+function getRequestBodyType(rawBody: RawRequestBody): SerializerCode {
+    if (typeof rawBody === 'string') return SerializerModes.stringifyJson;
+    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array) return SerializerModes.binary;
+    return SerializerModes.json;
 }

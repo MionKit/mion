@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
+import {RpcError, SerializerModes} from '@mionkit/core';
 import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionkit/router';
 import type {MionHeaders, MionResponse} from '@mionkit/router';
 import {Request, Response} from 'express';
@@ -72,14 +72,14 @@ function reply(mionResp: MionResponse, resp: Response): void {
     resp.status(mionResp.statusCode);
     const bodyType = mionResp.bodyType;
     switch (bodyType) {
-        case 'J': {
+        case SerializerModes.stringifyJson: {
             const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');
             resp.set('content-length', `${buffer.byteLength}`);
             // content-type already set by serializer
             resp.end(buffer);
             break;
         }
-        case 'O': {
+        case SerializerModes.json: {
             // Platform adapter stringifies the prepared body object
             const jsonString = JSON.stringify(mionResp.body);
             const buffer = Buffer.from(jsonString, 'utf8');
@@ -88,7 +88,7 @@ function reply(mionResp: MionResponse, resp: Response): void {
             resp.end(buffer);
             break;
         }
-        case 'B': {
+        case SerializerModes.binary: {
             const serializer = mionResp.binSerializer!;
             resp.set('content-length', `${serializer.getLength()}`);
             // content-type already set by serializer

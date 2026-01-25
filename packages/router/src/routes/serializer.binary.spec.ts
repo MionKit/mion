@@ -13,7 +13,7 @@ import {createCallContext} from '../dispatch';
 import {headersFromRecord} from '../lib/headers';
 import type {MionResponse, RawRequestBody} from '../types/context';
 import type {Mutable, MethodWithJitFns, BinaryInput} from '@mionkit/core';
-import {createDataViewDeserializer, serializeBinaryBody, deserializeBinaryBody} from '@mionkit/core';
+import {createDataViewDeserializer, serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mionkit/core';
 
 /** Helper to build a methods map from an execution path */
 function buildMethodsMap(executionPath: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
@@ -89,7 +89,7 @@ describe('Binary Serialization - Router', () => {
         const context = getNewBinaryContext('/sayHello', new Uint8Array(0));
         const response = context.response as Mutable<MionResponse>;
         response.body = {sayHello: 'Hello, World!'};
-        expect(context.response.bodyType).toBe('B');
+        expect(context.response.bodyType).toBe(SerializerModes.binary);
 
         serializeResponseBody(context, opts);
 
@@ -104,7 +104,7 @@ describe('Binary Serialization - Router', () => {
         const context = getNewBinaryContext('/addNumbers', new Uint8Array(0));
         const response = context.response as Mutable<MionResponse>;
         response.body = {addNumbers: 42};
-        expect(context.response.bodyType).toBe('B');
+        expect(context.response.bodyType).toBe(SerializerModes.binary);
 
         serializeResponseBody(context, opts);
 
@@ -124,7 +124,7 @@ describe('Binary Serialization - Router', () => {
                 createdAt: new Date('2025-01-01T00:00:00Z'),
             },
         };
-        expect(context.response.bodyType).toBe('B');
+        expect(context.response.bodyType).toBe(SerializerModes.binary);
 
         serializeResponseBody(context, opts);
 
@@ -138,7 +138,7 @@ describe('Binary Serialization - Router', () => {
         const context = getNewBinaryContext('/processArray', new Uint8Array(0));
         const response = context.response as Mutable<MionResponse>;
         response.body = {processArray: [2, 4, 6, 8, 10]};
-        expect(context.response.bodyType).toBe('B');
+        expect(context.response.bodyType).toBe(SerializerModes.binary);
 
         serializeResponseBody(context, opts);
 
@@ -151,7 +151,7 @@ describe('Binary Serialization - Router', () => {
         const context = getNewBinaryContext('/voidRoute', new Uint8Array(0));
         const response = context.response as Mutable<MionResponse>;
         response.body = {voidRoute: undefined};
-        expect(context.response.bodyType).toBe('B');
+        expect(context.response.bodyType).toBe(SerializerModes.binary);
 
         serializeResponseBody(context, opts);
 
@@ -339,7 +339,7 @@ describe('Binary Serialization - Router', () => {
         // The body type should be updated based on route's serializer option
         // This happens in runExecutionPath, but we can test the serializer directly
         // by manually setting the body type
-        (response as Mutable<MionResponse>).bodyType = 'O'; // JSON mode
+        (response as Mutable<MionResponse>).bodyType = SerializerModes.json; // JSON mode
 
         serializeResponseBody(context, opts);
 
@@ -356,7 +356,7 @@ describe('Binary Serialization - Router', () => {
         const context = createCallContext('/stringifyJsonRoute', opts, '{}', {}, reqHeaders, respHeaders);
         const response = context.response as Mutable<MionResponse>;
         response.body = {stringifyJsonRoute: 42};
-        (response as Mutable<MionResponse>).bodyType = 'J'; // stringifyJson mode
+        (response as Mutable<MionResponse>).bodyType = SerializerModes.stringifyJson; // stringifyJson mode
 
         serializeResponseBody(context, opts);
 
@@ -375,7 +375,7 @@ describe('Binary Serialization - Router', () => {
         const context = createCallContext('/binaryRoute', opts, new Uint8Array(0), {}, reqHeaders, respHeaders);
         const response = context.response as Mutable<MionResponse>;
         response.body = {binaryRoute: [2, 4, 6]};
-        (response as Mutable<MionResponse>).bodyType = 'B'; // binary mode
+        (response as Mutable<MionResponse>).bodyType = SerializerModes.binary; // binary mode
 
         serializeResponseBody(context, opts);
 
@@ -394,7 +394,7 @@ describe('Binary Serialization - Router', () => {
         response.body = {defaultRoute: 'test message'};
 
         // Body type should be binary (router default)
-        expect(context.response.bodyType).toBe('B');
+        expect(context.response.bodyType).toBe(SerializerModes.binary);
 
         serializeResponseBody(context, opts);
 
