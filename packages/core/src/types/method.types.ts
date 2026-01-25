@@ -46,18 +46,16 @@ export interface RemoteMethodOpts {
     validateParams?: boolean;
     validateReturn?: boolean;
     description?: string;
-}
-
-export interface RouteOnlyOptions extends RemoteMethodOpts {
-    runOnError: false;
     /** Per-route serializer mode override. If not set, uses router's default serialize option. */
     serializer?: SerializerMode;
 }
 
-export type AnyRemoteMethodsOps = RemoteMethodOpts | RouteOnlyOptions;
-
+export interface RouteOnlyOptions extends RemoteMethodOpts {
+    runOnError: false;
+    serializer: SerializerMode;
+}
 export interface MethodWithOptions extends MethodMetadata {
-    options: AnyRemoteMethodsOps;
+    options: RemoteMethodOpts;
 }
 
 export type MethodsCache = Record<string, MethodWithOptions>;

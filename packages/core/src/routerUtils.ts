@@ -7,12 +7,12 @@
 
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants';
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
-import type {AnyRemoteMethodsOps, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types';
+import type {RemoteMethodOpts, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types';
 import type {JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types';
 import {getJitUtils} from './jitUtils';
 
 const methodsCache: MethodsCache = {};
-const methodsOptionsCache: Record<string, AnyRemoteMethodsOps> = {};
+const methodsOptionsCache: Record<string, RemoteMethodOpts> = {};
 let routesCacheLoaded = false;
 
 /**
@@ -143,10 +143,10 @@ export const routesCache = {
 };
 
 export const methodOptsCache = {
-    getMethodOptions(id: string): AnyRemoteMethodsOps | undefined {
+    getMethodOptions(id: string): RemoteMethodOpts | undefined {
         return methodsOptionsCache[id];
     },
-    setMethodOptions(id: string, options: AnyRemoteMethodsOps): void {
+    setMethodOptions(id: string, options: RemoteMethodOpts): void {
         methodsOptionsCache[id] = options;
     },
 };
