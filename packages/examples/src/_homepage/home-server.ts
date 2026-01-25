@@ -1,8 +1,8 @@
 import {initMionRouter, route, Routes} from '@mionkit/router';
 import {startNodeServer} from '@mionkit/http';
-import {RpcError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core'; 
+// @annotate: Automatic Validation and Serialization from Typescript types
 
-// @annotate: All Serialization and Validation is based on Typescript types 
 interface User {
     id: number;
     name: string;
@@ -10,8 +10,8 @@ interface User {
     createdAt: Date;
     tags: Set<string>;
 }
+// @annotate: Object based router with rpc methods that receive Fully Validated params
 
-// @log: Routes are just simple functions that receive Fully Validated params
 const routes = {
     getUser: route((ctx, id: number): User | RpcError<'user-not-found'> => {
         return {
@@ -24,11 +24,6 @@ const routes = {
     }),
     sayHello: route((ctx, name: string): string => `Hello ${name}`),
 } satisfies Routes;
-
 export const myApi = await initMionRouter(routes);
-
-// @annotate: Export the type to use in the client
 export type MyApi = typeof myApi;
-
-// @log: Router supports multiple platforms, here we start a Node.js server
 startNodeServer({port: 3000});

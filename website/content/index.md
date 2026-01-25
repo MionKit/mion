@@ -87,21 +87,18 @@ blur: 140px
     ---
     ### RPC Like
     [RPC architecture](/introduction/about-mion#rpc-like) for simpler and easier to consume APIs.
-    Just use remote methods as any other local async method.
+    Just use remote methods as any other local async method.   
+    mion is focused on offering the best developer experience.
 
-    :::::hover-list
-    ---
-    items:
-      - { title: "simple calls", class: "mion-simple-calls" }
-      - { title: "no REST", class: "mion-no-rest" }
-    ---
-    :::::
+    <br>
+  
+    [Fully validation adn serialization of params and results out of the box.](/server/validation)
     ::::
 
     ::::twoslash-code
     ---
     path: packages/examples/src/_homepage/home-server.ts
-    title: router.ts
+    title: mion-router.ts
     class: sm:col-span-2 lg:col-span-2
     ---
     ::::
@@ -111,21 +108,17 @@ blur: 140px
     class: sm:col-span-2 lg:col-span-1 home-card
     ---
     ### Fully Typed Client
-    [Fully typed client](/client/client-overview) with static type checking, autocompletion, automatic validation and serialization.
+    [Fully typed client](/client/client-overview) that seamlessly bridges frontend and backend with static type checking, autocompletion, automatic validation and serialization.
 
-    :::::hover-list
-    ---
-    items:
-      - { title: "routes autocomplete", class: "mion-route-autocomplete" }
-      - { title: "params type checking", class: "mion-params-type-check" }
-    ---
-    :::::
+    <br>
+  
+    Lightweight and framework-agnostic — use it with React, Vue, Svelte, or any frontend framework.
     ::::
 
     ::::twoslash-code
     ---
     path: packages/examples/src/_homepage/home-client.ts
-    title: client.ts
+    title: mion-client.ts
     class: sm:col-span-2 lg:col-span-2
     ---
     ::::
@@ -136,35 +129,36 @@ blur: 140px
     ---
     ### RunTypes <sup>©</sup>
     mion use [RunTypes](/run-types/overview) behinds the scene to generate JIT-compiled validation and serialization functions directly from TypeScript types.
-
     RunTypes supports advanced [type formats](/run-types/type-formats) and can be used as a standalone library.
-
+    
     <br>
-
+    
     [No schemas libraries needed — Typescript is the single source of truth.]{.text-highlighted}
-
-    :::::hover-list
-    ---
-    items:
-      - { title: "validation", class: "mion-validation" }
-      - { title: "serialization", class: "mion-serialization" }
-      - { title: "JIT compiled", class: "mion-jit" }
-    ---
-    :::::
     ::::
 
     ::::twoslash-code
     ---
     path: packages/examples/src/_homepage/home-run-types.ts
-    title: run-types.ts
+    title: mion-run-types.ts
     class: sm:col-span-2 lg:col-span-2
     ---
     ::::
 
     ::::card
     ---
+    to: /server/serialization#binary-serialization-in-detail
+    class: sm:col-span-2 lg:col-span-1 text-center lg:text-left
+    ---
+    ### Binary Serialization 🚀
+    [Serialize any TypeScript type to binary just from it's type definition.]{.text-highlighted}
+    
+    Achieve smaller payloads and faster data transfer with automatic binary serialization for Dates, BigInts, Maps, Sets, and complex nested types.
+    ::::
+
+    ::::card
+    ---
     to: /platforms/overview
-    class: sm:col-span-2 lg:col-span-3 text-center
+    class: sm:col-span-2 lg:col-span-2 text-center
     ---
     ### Write Once Run Everywhere
     :platform-tiles
@@ -201,4 +195,4 @@ blur: 140px
 
 [&nbsp;]{style="padding-bottom: 6rem;"}
 
-<!-- code-import-timestamp 1768967601993 -->
+<!-- code-import-timestamp 1769375175872 -->

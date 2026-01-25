@@ -71,6 +71,10 @@ pre.px-4 {
 }
 
 /* Home Page Features */
+.home-page h2 {
+  color: var(--color-green-500);
+}
+
 .home-features h2 {
   text-align: center;
   color: var(--color-green-500);
