@@ -65,7 +65,13 @@ function getNewBinaryContext(path: string, body: RawRequestBody) {
     const opts = getRouterOptions();
     const reqHeaders = headersFromRecord({'content-type': 'application/octet-stream'});
     const respHeaders = headersFromRecord({});
-    return createCallContext(path, opts, body, {}, reqHeaders, respHeaders);
+    const context = createCallContext(path, opts, body, {}, reqHeaders, respHeaders);
+    // Set bodyType from execution path (as done in runExecutionPath)
+    const executionPath = getRouteExecutionPath(path);
+    if (executionPath) {
+        (context.response as Mutable<MionResponse>).bodyType = executionPath.serializer;
+    }
+    return context;
 }
 
 describe('Binary Serialization - Router', () => {

@@ -8,9 +8,9 @@
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context';
 import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
-import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod, RouteMethod} from './types/remoteMethods';
+import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionPath, getRouterOptions} from './router';
-import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode, SerializerMode} from '@mionkit/core';
+import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
 
@@ -81,7 +81,7 @@ export function createCallContext(
             headers: respHeaders,
             body: {},
             rawBody: '',
-            bodyType: getResponseBodyTypeFromMode(opts.serializer),
+            bodyType: SerializerModes.json, // default value, will be set from executionPath.serializer
             binSerializer: undefined, // we can create serializer lazily
         },
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
@@ -101,11 +101,8 @@ async function runExecutionPath(
     const {response, request} = context;
     const executables = executionPath.methods;
 
-    // Update response body type based on route's serializer option (if specified)
-    const routeMethod = executables[executionPath.routeIndex] as RouteMethod;
-    if (routeMethod?.options?.serializer) {
-        (response as Mutable<MionResponse>).bodyType = getResponseBodyTypeFromMode(routeMethod.options.serializer);
-    }
+    // Set response body type from precalculated serializer
+    (response as Mutable<MionResponse>).bodyType = executionPath.serializer;
 
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];
@@ -236,19 +233,6 @@ function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, exe
             },
         });
         throw validationError;
-    }
-}
-
-/** Maps serializer mode string to response body type */
-function getResponseBodyTypeFromMode(mode: SerializerMode | undefined): SerializerCode {
-    switch (mode) {
-        case 'binary':
-            return SerializerModes.binary;
-        case 'stringifyJson':
-            return SerializerModes.stringifyJson;
-        case 'json':
-        default:
-            return SerializerModes.json;
     }
 }
 

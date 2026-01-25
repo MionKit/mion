@@ -1,6 +1,6 @@
 // ####### Executables #######
 
-import type {HeadersMethodWithJitFns, MethodWithJitFns, RemoteMethodOpts, RouteOnlyOptions} from '@mionkit/core'; // do not import type only
+import type {HeadersMethodWithJitFns, MethodWithJitFns, RemoteMethodOpts, RouteOnlyOptions, SerializerCode} from '@mionkit/core'; // do not import type only
 import type {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
 import {HandlerType} from '@mionkit/core'; // do not import type only
 
@@ -46,4 +46,6 @@ export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 
 export interface MethodsExecutionList {
     routeIndex: number;
     methods: RemoteMethod[];
+    /** Precalculated serializer code for the route's response body type */
+    serializer: SerializerCode;
 }

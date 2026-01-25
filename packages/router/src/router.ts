@@ -12,7 +12,7 @@ import type {PublicApi, PrivateDef, HooksCollection} from './types/publicMethods
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
-import {HandlerType} from '@mionkit/core';
+import {HandlerType, SerializerModes, SerializerCode, SerializerMode} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection';
 import {serializerHooks} from './routes/serializer.routes';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES} from '@mionkit/core';
@@ -312,9 +312,11 @@ async function recursiveCreateExecutionPathAsync(
         const path = getRoutePath(routeEntry.pointer, routerOptions);
         const levelMethods = [...preHooks, ...props.preLevelHooks, routeEntry, ...props.postLevelHooks, ...postHooks];
         const methods = [...startHooks, ...levelMethods, ...endHooks];
+        const routeMethod = routeEntry as RouteMethod;
         const executionPath: MethodsExecutionList = {
             routeIndex: startHooks.length + preHooks.length + props.preLevelHooks.length,
             methods,
+            serializer: getSerializerCodeFromMode(routeMethod.options.serializer),
         };
         flatRouter.set(path, executionPath);
     } else if (!isExec) {
@@ -487,5 +489,18 @@ function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
         Object.keys(testSharedData).length === 0
     ) {
         throw new Error('contextDataFactory must return a plain object with at least one property');
+    }
+}
+
+/** Maps serializer mode string to response body type code */
+function getSerializerCodeFromMode(mode: SerializerMode | undefined): SerializerCode {
+    switch (mode) {
+        case 'binary':
+            return SerializerModes.binary;
+        case 'stringifyJson':
+            return SerializerModes.stringifyJson;
+        case 'json':
+        default:
+            return SerializerModes.json;
     }
 }

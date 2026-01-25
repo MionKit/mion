@@ -173,6 +173,8 @@ function onStringifyExecutableError(context: CallContext, method: RemoteMethod, 
 
 function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any): string {
     if (!method.hasReturnData) return '';
+    // id data does not require custom encoding then we use native json
+    if (method.returnJitFns.prepareForJson.isNoop) JSON.stringify(returnValue);
     return method.returnJitFns.stringifyJson.fn(returnValue);
 }
 
