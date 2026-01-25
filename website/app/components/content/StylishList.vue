@@ -40,6 +40,7 @@ const colorClass = computed(() => {
   gap: 0.75rem;
   padding: 0.5rem 0;
   line-height: 1.5;
+  margin: 0;
 }
 
 /* Add icon before each list item using CSS */

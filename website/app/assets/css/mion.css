@@ -64,3 +64,58 @@ pre.px-4 {
   padding-left: 0.8rem;
   padding-right: 0.4rem;
 }
+
+/* Home Page Hero */
+.home-hero > div{
+  padding-bottom: calc(var(--spacing) * 12);
+}
+
+/* Home Page Features */
+.home-features h2 {
+  text-align: center;
+}
+
+.home-features h3 {
+  color: var(--color-green-400);
+}
+
+
+.home-features .stylish-list {
+  display: flex;
+  width: fit-content;
+  margin: 0 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+@media screen and (min-width: 780px){
+  .home-features h2 {
+    font-size: 3rem;
+  }
+  .home-features h3 {
+    font-size: 2rem;
+    background: linear-gradient(
+      90deg,
+      var(--gradient-color, #22c55e) 0%,
+      color-mix(in srgb, var(--gradient-color, #22c55e) 55%, #60a5fa) 25%,
+      var(--gradient-color, #22c55e) 50%,
+      color-mix(in srgb, var(--gradient-color, #22c55e) 55%, #60a5fa) 75%,
+      var(--gradient-color, #22c55e) 100%
+    );
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% 100%;
+    animation: gradient-flow 12s linear infinite;
+  }
+}
+
+@keyframes gradient-flow {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}

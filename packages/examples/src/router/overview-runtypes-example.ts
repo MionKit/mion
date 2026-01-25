@@ -13,9 +13,8 @@ interface User {
 type NewUser = Omit<User, 'id'>;
 
 // mion automatically:
-// 1. Validates email is string, age is number, etc.
-// 2. Serializes Date and Set for JSON transport
-// 3. Restores Date and Set
+// 1. Restores Date and Set from JSON
+// 2. Validates user parameter
 const routes = {
     createUser: route((ctx, user: NewUser): User => {
         // user is already validated and types are restored

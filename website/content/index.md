@@ -85,7 +85,7 @@ blur: 140px
     ---
     class: sm:col-span-2 lg:col-span-1 home-card
     ---
-    ### RPC *<sup>Like</sup>*
+    ### RPC Like
     [RPC architecture](/introduction/about-mion#rpc-like) for simpler and easier to consume APIs.
     Just use remote methods as any other local async method.
     ::::
@@ -147,7 +147,7 @@ blur: 140px
     ::::
   :::
 
-  ## Performance
+  ## Solid Performance
 
   ::::card
   ---
