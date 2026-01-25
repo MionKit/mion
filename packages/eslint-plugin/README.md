@@ -32,11 +32,12 @@ Optionally, you can configure specific rules provided by the plugin under the `r
 
 ## Rules
 
-| Rule Name                | Description                                                          | Example                                         |
-| ------------------------ | -------------------------------------------------------------------- | ----------------------------------------------- |
-| no-typeof-runtype        | Prevent calling `typeof` when generating a `RunType`                 | `const myObjRunType = runType<typeof myObj>();` |
-| strong-typed-routes      | params and return types of routes and hooks should be strongly typed | `(name: string): string => name`                |
-| require-class-prop-types | all properties of classes should be strongly typed                   | `class A { prop: string = 'hello'}`             |
+| Rule Name                  | Description                                                          | Example                                         |
+| -------------------------- | -------------------------------------------------------------------- | ----------------------------------------------- |
+| no-typeof-runtype          | Prevent calling `typeof` when generating a `RunType`                 | `const myObjRunType = runType<typeof myObj>();` |
+| strong-typed-routes        | params and return types of routes and hooks should be strongly typed | `(name: string): string => name`                |
+| no-type-imports            | Prevent type-only imports for types used in routes/hooks             | `import type { User } from './types'`           |
+| no-unreachable-union-types | Detect union types where some members can never be matched           | `{a: string} \| {a: string; b: number}`         |
 
 ## &nbsp;
 
