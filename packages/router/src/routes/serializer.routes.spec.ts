@@ -10,7 +10,7 @@ import type {Routes} from '../types/general';
 import type {MionResponse, RawRequestBody} from '../types/context';
 import {HeadersSubset, SerializerModes} from '@mionkit/core';
 import {headersHook, hook, route} from '../lib/handlers';
-import {getRouterOptions, initMionRouter, resetRouter} from '../router';
+import {getRouterOptions, getRouteExecutionPath, initMionRouter, resetRouter} from '../router';
 import {createCallContext} from '../dispatch';
 import {headersFromRecord} from '../lib/headers';
 import {deserializeRequestBody, serializeResponseBody} from './serializer.routes';
@@ -49,7 +49,13 @@ function getNewJsonContext(path: string, body: any) {
     const rawBody: RawRequestBody = JSON.stringify(body);
     const reqHeaders = headersFromRecord({auth: 'token'});
     const respHeaders = headersFromRecord({});
-    return createCallContext(path, opts, rawBody, {}, reqHeaders, respHeaders);
+    const context = createCallContext(path, opts, rawBody, {}, reqHeaders, respHeaders);
+    // Set bodyType from execution path (as done in runExecutionPath)
+    const executionPath = getRouteExecutionPath(path);
+    if (executionPath) {
+        (context.response as Mutable<MionResponse>).bodyType = executionPath.serializer;
+    }
+    return context;
 }
 
 describe('deserialize json Request Body', () => {
