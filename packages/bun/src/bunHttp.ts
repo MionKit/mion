@@ -8,7 +8,7 @@
 import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
-import {getENV} from '@mionkit/core';
+import {getENV, SerializerModes} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {Server} from 'bun';
 
@@ -118,7 +118,7 @@ function reply(
 ): Response {
     const bodyType = mionResp.bodyType;
     switch (bodyType) {
-        case 'J': {
+        case SerializerModes.stringifyJson: {
             // Encode once and reuse for both content-length and response body
             const buffer = textEncoder.encode(mionResp.rawBody as string);
             responseHeaders.set('content-length', String(buffer.byteLength));
@@ -128,7 +128,7 @@ function reply(
                 headers: responseHeaders,
             });
         }
-        case 'O': {
+        case SerializerModes.json: {
             // Platform adapter uses Response.json() which handles JSON.stringify internally
             responseHeaders.set('content-type', 'application/json; charset=utf-8');
             return Response.json(mionResp.body, {
@@ -136,7 +136,7 @@ function reply(
                 headers: responseHeaders,
             });
         }
-        case 'B': {
+        case SerializerModes.binary: {
             const serializer = mionResp.binSerializer!;
             responseHeaders.set('content-length', String(serializer.getLength()));
             // content-type already set by serializer

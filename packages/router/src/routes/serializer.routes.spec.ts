@@ -8,7 +8,7 @@
 import type {Mutable} from '@mionkit/core';
 import type {Routes} from '../types/general';
 import type {MionResponse, RawRequestBody} from '../types/context';
-import {HeadersSubset} from '@mionkit/core';
+import {HeadersSubset, SerializerModes} from '@mionkit/core';
 import {headersHook, hook, route} from '../lib/handlers';
 import {getRouterOptions, initMionRouter, resetRouter} from '../router';
 import {createCallContext} from '../dispatch';
@@ -164,7 +164,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
         const context = getNewJsonContext('/users/updateUser', {});
         const response = context.response as Mutable<MionResponse>;
         response.body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
-        expect(context.response.bodyType).toEqual('O');
+        expect(context.response.bodyType).toEqual(SerializerModes.json);
         serializeResponseBody(context, opts);
         expect(response.body).toEqual({
             'users/updateUser': {name: 'John', age: 30, lastActivity},
@@ -182,7 +182,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
         const context = getNewJsonContext('/sayHello', {});
         const response = context.response as Mutable<MionResponse>;
         response.body = {sayHello: 'Hello, Jack!'};
-        expect(context.response.bodyType).toEqual('O');
+        expect(context.response.bodyType).toEqual(SerializerModes.json);
         serializeResponseBody(context, opts);
         expect(response.body).toEqual({sayHello: 'Hello, Jack!'});
         const jsonString = JSON.stringify(response.body);
@@ -203,7 +203,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
                 extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
             },
         };
-        expect(context.response.bodyType).toEqual('O');
+        expect(context.response.bodyType).toEqual(SerializerModes.json);
         serializeResponseBody(context, opts);
         expect(response.body).toEqual({
             'users/updateUser': {
@@ -234,7 +234,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
         response.body = {auth: undefined, logs: undefined};
         serializeResponseBody(context, opts);
         expect(response.body).toEqual({auth: undefined, logs: undefined});
-        // For serialize: 'json' (body type 'O'), rawBody remains empty - platform adapter does JSON.stringify
+        // For serialize: 'json' (body type SerializerMode.json), rawBody remains empty - platform adapter does JSON.stringify
         expect(response.rawBody).toEqual('');
     });
 });

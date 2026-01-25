@@ -53,13 +53,23 @@ export interface JITUtils {
 
 // ########################################## Serialization Modes ##########################################
 
+export const SerializerModes = {
+    /** Use prepareForJson (mutates original objects), and leaves JSON.stringify to the platform adapter */
+    json: 'O',
+    /** Use toBinary JIT function for binary serialization */
+    binary: 'B',
+    /** Use stringifyJson JIT function that do not mutates objects. */
+    stringifyJson: 'J',
+} as const;
+
 /**
  * Serializer mode for response body serialization.
  * - 'json': Use prepareForJson, platform adapter handles JSON.stringify
  * - 'binary': Use toBinary JIT function for binary serialization
  * - 'stringifyJson': Use stringifyJson JIT function that do not mutates objects.
  */
-export type SerializerMode = 'json' | 'binary' | 'stringifyJson';
+export type SerializerMode = keyof typeof SerializerModes;
+export type SerializerCode = (typeof SerializerModes)[SerializerMode];
 
 // ########################################## Options ##########################################
 

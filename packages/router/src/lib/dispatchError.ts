@@ -1,4 +1,4 @@
-import {RpcError, MION_ROUTES, Mutable, StatusCodes} from '@mionkit/core';
+import {RpcError, MION_ROUTES, Mutable, StatusCodes, SerializerModes} from '@mionkit/core';
 import type {CallContext, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context';
 import type {RemoteMethod} from '../types/remoteMethods';
 
@@ -23,7 +23,7 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
         headers: respHeaders,
         body,
         rawBody: JSON.stringify(body),
-        bodyType: 'J', // global errors are always json
+        bodyType: SerializerModes.json, // global errors are always json
     };
     return response;
 }
