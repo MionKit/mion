@@ -18,6 +18,7 @@
   --ui-saturated: #79af43;
   width: 100%;
   overflow-x: hidden;
+  --ui-radius: 0;
 }
 
 :root.dark {
@@ -59,6 +60,17 @@ pre code {
   line-height: 1.1rem;
 }
 
+/* Selected text background color */
+:root.dark ::selection {
+  background-color: var(--color-green-500);
+  color: var(--color-green-50);
+}
+
+:root.light ::selection {
+  background-color: var(--color-green-500);
+  color: var(--color-green-50);
+}
+
 
 pre.px-4 {
   padding-left: 0.8rem;
@@ -98,12 +110,7 @@ pre.px-4 {
   justify-content: center;
 }
 
-@media screen and (min-width: 780px){
-  .home-features h2 {
-    font-size: 3rem;
-  }
-  .home-features h3 {
-    font-size: 2rem;
+.home-features h3 {
     background: linear-gradient(
       90deg,
       #8aa85e 0%,
@@ -117,6 +124,14 @@ pre.px-4 {
     -webkit-text-fill-color: transparent;
     background-size: 200% 100%;
     animation: gradient-flow 12s linear infinite;
+  }
+
+@media screen and (min-width: 780px){
+  .home-features h2 {
+    font-size: 3rem;
+  }
+  .home-features h3 {
+    font-size: 2rem;
   }
 }
 
