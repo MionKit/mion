@@ -19,8 +19,8 @@ export interface RouteMethod<H extends Handler = any> extends RemoteMethod<H> {
 export interface LinkedFnMethod<H extends Handler = any> extends RemoteMethod<H> {
     type: typeof HandlerType.linkedFn;
 }
-export interface HeaderMethod<H extends HeaderHandler = any> extends RemoteMethod<H> {
-    type: typeof HandlerType.headerLinkedFn;
+export interface HeadersMethod<H extends HeaderHandler = any> extends RemoteMethod<H> {
+    type: typeof HandlerType.headersLinkedFn;
     headersParam: HeadersMethodWithJitFns;
 }
 export interface RawMethod<H extends RawLinkedFnHandler = any> extends RemoteMethod<H> {
@@ -37,8 +37,8 @@ export type RouteOptions = Partial<
 export type LinkedFnOptions = Partial<
     Pick<LinkedFnMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
 >;
-export type HeaderLinkedFnOptions = Partial<
-    Pick<HeaderMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
+export type HeadersLinkedFnOptions = Partial<
+    Pick<HeadersMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
 >;
 // RawLinkedFnOptions doesn't need encoding - raw linkedFns handle their own serialization
 export type RawLinkedFnOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>;

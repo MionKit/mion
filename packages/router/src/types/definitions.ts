@@ -7,8 +7,8 @@
 
 import {Handler, HeaderHandler, RawLinkedFnHandler} from './handlers';
 import {
-    HeaderLinkedFnOptions,
-    HeaderMethod,
+    HeadersLinkedFnOptions,
+    HeadersMethod,
     LinkedFnOptions,
     LinkedFnMethod,
     RawLinkedFnOptions,
@@ -34,9 +34,9 @@ export type LinkedFnDef<H extends Handler = any> = Pick<LinkedFnMethod<H>, 'type
 // type-linkedFn-def-end
 
 // type-header-linkedFn-def-start
-/** Header LinkedFn definition, used to handle header params */
-export type HeaderLinkedFnDef<H extends HeaderHandler = any> = Pick<HeaderMethod<H>, 'type' | 'handler'> & {
-    options?: HeaderLinkedFnOptions;
+/** Headers LinkedFn definition, used to handle header params */
+export type HeadersLinkedFnDef<H extends HeaderHandler = any> = Pick<HeadersMethod<H>, 'type' | 'handler'> & {
+    options?: HeadersLinkedFnOptions;
 };
 // type-header-linkedFn-def-end
 
@@ -50,4 +50,4 @@ export type RawLinkedFnDef<H extends RawLinkedFnHandler = any> = Pick<RawMethod<
 };
 // type-raw-linkedFn-def-end
 
-export type AnyHandlerDef = RouteDef | LinkedFnDef | HeaderLinkedFnDef | RawLinkedFnDef;
+export type AnyHandlerDef = RouteDef | LinkedFnDef | HeadersLinkedFnDef | RawLinkedFnDef;

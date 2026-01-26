@@ -28,9 +28,9 @@ describe('route & linkedFns init functions', () => {
         print: route((ctx, name: string): string => `name: ${name}`),
     } satisfies Routes;
 
-    it('should initialize a header linkedFn object', () => {
+    it('should initialize a Headers LinkedFn object', () => {
         expect(routes.auth).toEqual({
-            type: HandlerType.headerLinkedFn,
+            type: HandlerType.headersLinkedFn,
             handler: expect.any(Function),
         });
     });

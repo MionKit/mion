@@ -7,7 +7,7 @@
 
 import {CoreOptions, SerializerMode} from '@mionkit/core';
 import {ContextDataFactory} from './context';
-import {HeaderLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions';
+import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions';
 import type {RunTypeOptions} from '@mionkit/run-types';
 // #######  Router Object #######
 
@@ -15,7 +15,7 @@ import type {RunTypeOptions} from '@mionkit/run-types';
 export type Route = RouteDef;
 
 /** A route entry can be a route, a linkedFn or sub-routes */
-export type RouterEntry = Routes | LinkedFnDef | RouteDef | RawLinkedFnDef | HeaderLinkedFnDef;
+export type RouterEntry = Routes | LinkedFnDef | RouteDef | RawLinkedFnDef | HeadersLinkedFnDef;
 
 /** Data structure to define all the routes, each entry is a route a linkedFn or sub-routes */
 export interface Routes {

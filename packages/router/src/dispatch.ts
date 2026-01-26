@@ -8,7 +8,7 @@
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context';
 import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
-import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
+import {HeadersMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionChain, getRouterOptions} from './router';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
@@ -110,7 +110,7 @@ async function runExecutionChain(
 
         try {
             const methodCaller = executable.methodCaller || getMethodCaller(executable);
-            // runRawLinkedFn , runHeaderLinkedFn & runRouteOrLinkedFn must always accept the same parameters in the same order
+            // runRawLinkedFn , runHeadersLinkedFn & runRouteOrLinkedFn must always accept the same parameters in the same order
             const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
             if (result === undefined) continue;
 
@@ -148,7 +148,7 @@ async function runRawLinkedFn(
     return result;
 }
 
-async function runHeaderLinkedFn(context: CallContext, executable: HeaderMethod, request: MionRequest) {
+async function runHeadersLinkedFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
     const headerNames = executable.headersParam.headerNames;
     const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
     const headersMap: Record<string, string> = {};
@@ -157,14 +157,14 @@ async function runHeaderLinkedFn(context: CallContext, executable: HeaderMethod,
         if (value) headersMap[name] = value;
     });
     const headersSubset = new HeadersSubset(headersMap);
-    validateHeaderParamsOrThrow(headersSubset, executable as HeaderMethod);
-    if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderMethod);
+    validateHeaderParamsOrThrow(headersSubset, executable as HeadersMethod);
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeadersMethod);
 
     const result = await executable.handler(context, headersSubset, ...params);
     return result;
 }
 
-async function runRouteOrLinkedFn(context: CallContext, executable: HeaderMethod, request: MionRequest) {
+async function runRouteOrLinkedFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
     const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as RemoteMethod);
     const result = await executable.handler(context, ...params);
@@ -174,8 +174,8 @@ async function runRouteOrLinkedFn(context: CallContext, executable: HeaderMethod
 function getMethodCaller(executable: RemoteMethod) {
     if (executable.type === HandlerType.rawLinkedFn) {
         executable.methodCaller = runRawLinkedFn;
-    } else if (executable.type === HandlerType.headerLinkedFn) {
-        executable.methodCaller = runHeaderLinkedFn;
+    } else if (executable.type === HandlerType.headersLinkedFn) {
+        executable.methodCaller = runHeadersLinkedFn;
     } else {
         executable.methodCaller = runRouteOrLinkedFn;
     }
@@ -222,7 +222,7 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
     }
 }
 
-function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, executable: HeaderMethod): void {
+function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, executable: HeadersMethod): void {
     if (!executable.headersParam.jitFns.isType.fn(headers)) {
         const validationError: ValidationError = new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,

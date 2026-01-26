@@ -9,7 +9,7 @@ import type {Prettify, RpcError, MethodMetadata} from '@mionkit/core';
 import type {CallContext} from './context';
 import type {Routes} from './general';
 import type {Handler} from './handlers';
-import type {HeaderLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions';
+import type {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions';
 import {HandlerType} from '@mionkit/core'; // do not import type only
 
 // ####### Raw LinkedFns #######
@@ -17,7 +17,7 @@ import {HandlerType} from '@mionkit/core'; // do not import type only
 export type MayReturnError = void | RpcError<string> | Promise<RpcError<string> | void>;
 
 export type LinkedFnsCollection = {
-    [key: string]: LinkedFnDef | HeaderLinkedFnDef | RawLinkedFnDef;
+    [key: string]: LinkedFnDef | HeadersLinkedFnDef | RawLinkedFnDef;
 };
 
 // ####### Private LinkedFns #######
@@ -38,7 +38,7 @@ export type PublicApi<Type extends Routes> = Prettify<{
     [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
     : Type[Property] extends LinkedFnDef
     ? PublicLinkedFn<PublicHandler<Type[Property]['handler']>>
-    : Type[Property] extends HeaderLinkedFnDef
+    : Type[Property] extends HeadersLinkedFnDef
     ? PublicHeadersFn<PublicHandler<Type[Property]['handler']>>
     : Type[Property] extends RouteDef // Routes
     ? PublicRoute<PublicHandler<Type[Property]['handler']>>
@@ -70,7 +70,7 @@ export interface PublicLinkedFn<H extends Handler = any> extends MethodMetadata 
 
 /** Public HeadersFns, handler type is the same as HeadersFns but does not include the context */
 export interface PublicHeadersFn<H extends Handler = any> extends MethodMetadata {
-    type: typeof HandlerType.headerLinkedFn;
+    type: typeof HandlerType.headersLinkedFn;
     headerNames: string[];
     handler: H;
 }

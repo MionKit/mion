@@ -22,7 +22,7 @@ export type Handler<Context extends CallContext = any, Params extends any[] = an
 ) => Ret | Promise<Ret>;
 // type-handler-end
 
-/** Header LinkedFn Handler, linkedFn handler for when params are sent in the header  */
+/** Headers LinkedFn Handler, linkedFn handler for when params are sent in the header  */
 export type HeaderHandler<
     Context extends CallContext = any,
     ExpectedHeaders extends HeadersSubset<any> = any,

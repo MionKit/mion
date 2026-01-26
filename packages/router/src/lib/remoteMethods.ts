@@ -9,7 +9,7 @@ import {type RouterEntry, type Routes} from '../types/general';
 import {type RemoteMethod} from '../types/remoteMethods';
 import type {PublicApi} from '../types/publicMethods';
 import type {AnyObject, JitCompiledFn, JitCompiledFnData, PureFunctionData, MethodWithOptions} from '@mionkit/core';
-import {isRoute, isHeaderLinkedFnDef, isLinkedFnDef, isPublicExecutable} from '../types/guards';
+import {isRoute, isHeadersLinkedFnDef, isLinkedFnDef, isPublicExecutable} from '../types/guards';
 import {
     getLinkedFnExecutable,
     getRouteExecutable,
@@ -57,7 +57,7 @@ function recursiveGetSerializableRoutes<R extends Routes>(
 
         if (isPrivateDefinition(item, id)) {
             publicData[key] = null; // linkedFns that don't receive or return data are not public
-        } else if (isLinkedFnDef(item) || isHeaderLinkedFnDef(item) || isRoute(item)) {
+        } else if (isLinkedFnDef(item) || isHeadersLinkedFnDef(item) || isRoute(item)) {
             const executable = getLinkedFnExecutable(id) || getRouteExecutable(id);
             if (!executable)
                 throw new Error(`Route or LinkedFn ${id} not found. Please check you have called router.registerRoutes first.`);

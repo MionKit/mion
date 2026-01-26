@@ -190,7 +190,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                setHeaderLinkedFn: linkedFn((ctx): HeadersSubset<'x-custom'> => {
+                setHeadersLinkedFn: linkedFn((ctx): HeadersSubset<'x-custom'> => {
                     return new HeadersSubset({'x-custom': 'custom-value'});
                 }),
                 testRoute: route((): string => 'ok'),
@@ -236,7 +236,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                setHeaderLinkedFn: linkedFn((ctx): HeadersSubset<'X-Custom'> => {
+                setHeadersLinkedFn: linkedFn((ctx): HeadersSubset<'X-Custom'> => {
                     return new HeadersSubset({'X-Custom': 'custom-value'});
                 }),
                 testRoute: route((): string => 'ok'),

@@ -71,7 +71,7 @@ export const StatusCodes = {
 export const HandlerType = {
     route: 1,
     linkedFn: 2,
-    headerLinkedFn: 3,
+    headersLinkedFn: 3,
     rawLinkedFn: 4,
 } as const;
 
