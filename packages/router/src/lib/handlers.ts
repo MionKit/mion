@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeaderLinkedFnOptions, LinkedFnOptions, RawLinkedFnOptions, RouteOptions} from '../types/remoteMethods';
+import {HeadersLinkedFnOptions, LinkedFnOptions, RawLinkedFnOptions, RouteOptions} from '../types/remoteMethods';
 import {HandlerType} from '@mionkit/core';
 import {Handler, HeaderHandler, RawLinkedFnHandler} from '../types/handlers';
-import {HeaderLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from '../types/definitions';
+import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from '../types/definitions';
 
 // ############# Route & LinkedFns initialization #############
 // these functions are just helpers to initialize the route & linkedFns objects and keep route definitions clean
@@ -40,9 +40,9 @@ export function linkedFn<H extends Handler>(handler: H, opts?: LinkedFnOptions):
  * })
  * ```
  */
-export function headersFn<H extends HeaderHandler>(handler: H, opts?: HeaderLinkedFnOptions): HeaderLinkedFnDef<H> {
+export function headersFn<H extends HeaderHandler>(handler: H, opts?: HeadersLinkedFnOptions): HeadersLinkedFnDef<H> {
     return {
-        type: HandlerType.headerLinkedFn,
+        type: HandlerType.headersLinkedFn,
         handler,
         options: opts,
     };

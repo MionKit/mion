@@ -281,7 +281,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
 
 /**
  * Extracts headers from HeadersSubset params in headersFn methods.
- * This mirrors how the router extracts headers in runHeaderLinkedFn (dispatch.ts).
+ * This mirrors how the router extracts headers in runHeadersLinkedFn (dispatch.ts).
  *
  * For headersFn methods, the first param (after context) is the HeadersSubset.
  * This function extracts those header values to be sent as HTTP headers.
@@ -298,7 +298,7 @@ function extractRequestHeaders(req: MionClientRequest<any, any>): Record<string,
         if (!subRequest) continue;
 
         const method = routesCache.getMetadata(id);
-        if (!method || method.type !== HandlerType.headerLinkedFn || !method.headersParam) continue;
+        if (!method || method.type !== HandlerType.headersLinkedFn || !method.headersParam) continue;
 
         const params = subRequest.params;
         const extracted = extractHeadersFromParams(params);
@@ -311,7 +311,7 @@ function extractRequestHeaders(req: MionClientRequest<any, any>): Record<string,
 /**
  * Extracts headers from a HeadersSubset parameter.
  * The first param must be a HeadersSubset instance or an object with 'headers' property.
- * This mirrors how the router extracts headers in runHeaderLinkedFn (dispatch.ts).
+ * This mirrors how the router extracts headers in runHeadersLinkedFn (dispatch.ts).
  *
  * @param params The params array from the subRequest
  * @returns The headers record from the HeadersSubset

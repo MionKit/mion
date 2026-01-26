@@ -147,15 +147,15 @@ export async function getHandlerReflection(
     handler: Handler,
     routeId: string,
     routerOptions: RouterOptions,
-    isHeaderLinkedFn: boolean = false
+    isHeadersLinkedFn: boolean = false
 ): Promise<MethodReflect> {
     // Check AOT cache first
     const cached = persistedMethods[routeId];
     if (cached) return extractReflectionFromCached(cached);
-    if (routerOptions.aot) throw new AOTCacheError(routeId, isHeaderLinkedFn ? 'linkedFn' : 'route');
+    if (routerOptions.aot) throw new AOTCacheError(routeId, isHeadersLinkedFn ? 'linkedFn' : 'route');
     // Non-AOT mode: dynamically load run-types and generate reflection
     const rt = await loadRunTypesModule();
-    return generateHandlerReflection(handler, routeId, routerOptions, isHeaderLinkedFn, rt);
+    return generateHandlerReflection(handler, routeId, routerOptions, isHeadersLinkedFn, rt);
 }
 
 /**
@@ -190,7 +190,7 @@ function generateHandlerReflection(
     handler: Handler,
     routeId: string,
     routerOptions: RouterOptions,
-    isHeaderLinkedFn: boolean,
+    isHeadersLinkedFn: boolean,
     rt: RunTypesModule
 ): MethodReflect {
     const reflectionItems: Partial<MethodReflect> = {};
@@ -201,7 +201,7 @@ function generateHandlerReflection(
     } catch (error: any) {
         throw new Error(`Can not get RunType of handler for route/linkedFn "${routeId}." Error: ${error?.message}`);
     }
-    const paramsSlice = isHeaderLinkedFn ? {start: HEADER_HOOK_DEFAULT_PARAMS.length} : {start: ROUTE_DEFAULT_PARAMS.length};
+    const paramsSlice = isHeadersLinkedFn ? {start: HEADER_HOOK_DEFAULT_PARAMS.length} : {start: ROUTE_DEFAULT_PARAMS.length};
     const paramsOpts: RunTypeOptions = {...runTypeOptions, paramsSlice};
 
     try {
@@ -218,7 +218,7 @@ function generateHandlerReflection(
         throw new Error(`Can not compile Jit Functions for Parameters of route/linkedFn "${routeId}." Error: ${error?.message}`);
     }
 
-    if (isHeaderLinkedFn) {
+    if (isHeadersLinkedFn) {
         const headersRunType = getParamsHeadersRunType(handlerRunType, routeId, routerOptions, rt);
         const headerNames: string[] = getHeaderNames(headersRunType, routeId, rt);
 
@@ -233,7 +233,7 @@ function generateHandlerReflection(
             reflectionItems.headersParam = {headerNames, jitFns, jitHash};
         } catch (error: any) {
             throw new Error(
-                `Can not compile Jit Functions for Headers of header linkedFn "${routeId}." Error: ${error?.message}`
+                `Can not compile Jit Functions for Headers of Headers LinkedFn "${routeId}." Error: ${error?.message}`
             );
         }
     }
@@ -297,7 +297,7 @@ function getParamsHeadersRunType(
     const headersSubset = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // HeadersSubset is always index 1 after context
 
     if (!isHeaderSubSetRunType(headersSubset, rt)) {
-        throw new Error(`Header LinkedFn '${routeId}' second parameter must be a HeadersSubset.`);
+        throw new Error(`Headers LinkedFn '${routeId}' second parameter must be a HeadersSubset.`);
     }
     return headersSubset;
 }

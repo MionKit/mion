@@ -359,20 +359,20 @@ describe('Create routes should', () => {
         expect(() => addEndLinkedFns(appendLinkedFns)).toThrow('Can not add end linkedFns after the router has been initialized');
     });
 
-    it('header linkedFns should be considered public (non-private)', async () => {
+    it('Headers Functions should be considered public (non-private)', async () => {
         await initRouter();
-        const routesWithHeaderLinkedFn = {
+        const routesWithHeadersLinkedFn = {
             auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
-                // Header linkedFn with no return data and no body params
+                // Headers LinkedFn with no return data and no body params
             }),
             sayHello: route((): string => 'hello'),
         } satisfies Routes;
-        await registerRoutes(routesWithHeaderLinkedFn);
+        await registerRoutes(routesWithHeadersLinkedFn);
 
         const authLinkedFn = getLinkedFnExecutable('auth');
         expect(authLinkedFn).toBeDefined();
-        expect(authLinkedFn!.type).toEqual(HandlerType.headerLinkedFn);
-        // Header linkedFns should be public because they have headerNames, even if they have no return data or body params
+        expect(authLinkedFn!.type).toEqual(HandlerType.headersLinkedFn);
+        // Headers Functions should be public because they have headerNames, even if they have no return data or body params
         expect(isPublicExecutable(authLinkedFn!)).toBe(true);
     });
 });

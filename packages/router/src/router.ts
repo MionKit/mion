@@ -11,16 +11,16 @@ import type {
     RemoteMethod,
     MethodsExecutionList,
     RawMethod,
-    HeaderMethod,
+    HeadersMethod,
     LinkedFnMethod,
     RouteMethod,
 } from './types/remoteMethods';
 import type {PublicApi, PrivateDef, LinkedFnsCollection} from './types/publicMethods';
-import type {HeaderLinkedFnDef, LinkedFnDef, RawLinkedFnDef} from './types/definitions';
+import type {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef} from './types/definitions';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {
     isRawLinkedFnDef,
-    isHeaderLinkedFnDef,
+    isHeadersLinkedFnDef,
     isExecutable,
     isLinkedFnDef,
     isRoute,
@@ -52,7 +52,7 @@ type RoutesWithId = {
 // ############# PRIVATE STATE #############
 
 const flatRouter: Map<string, MethodsExecutionList> = new Map(); // Main Router
-const linkedFnsById: Map<string, LinkedFnMethod | HeaderMethod | RawMethod> = new Map();
+const linkedFnsById: Map<string, LinkedFnMethod | HeadersMethod | RawMethod> = new Map();
 const routesById: Map<string, RouteMethod> = new Map();
 const rawLinkedFnsById: Map<string, RawMethod> = new Map();
 const linkedFnNames: Set<string> = new Set();
@@ -186,7 +186,7 @@ export function isPrivateExecutable(executable: RemoteMethod): boolean {
     if (executable.type === HandlerType.rawLinkedFn) return true;
     if (executable.type === HandlerType.route) return false;
     const hasPublicParams = !!executable.paramNames?.length;
-    const hasHeaderParams = !!(executable as HeaderMethod).headersParam?.headerNames?.length;
+    const hasHeaderParams = !!(executable as HeadersMethod).headersParam?.headerNames?.length;
     return !hasPublicParams && !hasHeaderParams && !executable.hasReturnData;
 }
 
@@ -356,7 +356,7 @@ async function recursiveCreateExecutionChainAsync(
 }
 
 async function getExecutableFromAnyLinkedFn(
-    linkedFn: LinkedFnDef | HeaderLinkedFnDef | RawLinkedFnDef,
+    linkedFn: LinkedFnDef | HeadersLinkedFnDef | RawLinkedFnDef,
     linkedFnPointer: string[],
     nestLevel: number
 ) {
@@ -365,18 +365,18 @@ async function getExecutableFromAnyLinkedFn(
 }
 
 export async function getExecutableFromLinkedFn(
-    linkedFn: LinkedFnDef | HeaderLinkedFnDef,
+    linkedFn: LinkedFnDef | HeadersLinkedFnDef,
     linkedFnPointer: string[],
     nestLevel: number
-): Promise<LinkedFnMethod | HeaderMethod> {
-    const isHeader = isHeaderLinkedFnDef(linkedFn);
+): Promise<LinkedFnMethod | HeadersMethod> {
+    const isHeader = isHeadersLinkedFnDef(linkedFn);
     // todo fix header id should be same as any other one and then maybe map from id to header name
     const linkedFnId = getRouterItemId(linkedFnPointer);
     const existing = linkedFnsById.get(linkedFnId);
     if (existing) return existing as LinkedFnMethod;
 
-    type MixedLinkedFn = (Omit<LinkedFnMethod, 'type'> | Omit<HeaderMethod, 'type'>) & {
-        type: typeof HandlerType.linkedFn | typeof HandlerType.headerLinkedFn;
+    type MixedLinkedFn = (Omit<LinkedFnMethod, 'type'> | Omit<HeadersMethod, 'type'>) & {
+        type: typeof HandlerType.linkedFn | typeof HandlerType.headersLinkedFn;
     };
 
     const compiledMethod = getPersistedMethod(linkedFnId, linkedFn.handler);
@@ -387,7 +387,7 @@ export async function getExecutableFromLinkedFn(
         const reflectionData = await getHandlerReflection(linkedFn.handler, linkedFnId, routerOptions, isHeader);
         executable = {
             id: linkedFnId,
-            type: isHeader ? HandlerType.headerLinkedFn : HandlerType.linkedFn,
+            type: isHeader ? HandlerType.headersLinkedFn : HandlerType.linkedFn,
             nestLevel,
             handler: linkedFn.handler,
             pointer: linkedFnPointer,
@@ -491,12 +491,12 @@ function getRouteEntryProperties(
 
 async function getExecutablesFromLinkedFnsCollectionAsync(
     linkedFnsDef: LinkedFnsCollection
-): Promise<(RawMethod | LinkedFnMethod | HeaderMethod)[]> {
-    const results: (RawMethod | LinkedFnMethod | HeaderMethod)[] = [];
+): Promise<(RawMethod | LinkedFnMethod | HeadersMethod)[]> {
+    const results: (RawMethod | LinkedFnMethod | HeadersMethod)[] = [];
     for (const [key, linkedFn] of Object.entries(linkedFnsDef)) {
         if (isRawLinkedFnDef(linkedFn)) {
             results.push(await getExecutableFromRawLinkedFn(linkedFn, [key], 0));
-        } else if (isHeaderLinkedFnDef(linkedFn) || isLinkedFnDef(linkedFn)) {
+        } else if (isHeadersLinkedFnDef(linkedFn) || isLinkedFnDef(linkedFn)) {
             results.push(await getExecutableFromLinkedFn(linkedFn, [key], 0));
         } else {
             throw new Error(`Invalid linkedFn: ${key}. Invalid linkedFn definition`);

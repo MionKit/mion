@@ -101,7 +101,7 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
             const method = routesCache.useMethodJitFns(id);
 
             // For headersFn methods, skip the HeadersSubset param (first param after context)
-            if (method.type === HandlerType.headerLinkedFn && method.headersParam) {
+            if (method.type === HandlerType.headersLinkedFn && method.headersParam) {
                 params = getParamsWithoutHeadersSubset(params);
             }
 
@@ -259,7 +259,7 @@ function stringifyBody(req: MionClientRequest<any, any>): string {
 
         // For headersFn methods, skip the HeadersSubset param (first param after context)
         // Headers are extracted separately by extractRequestHeaders()
-        if (method.type === HandlerType.headerLinkedFn && method.headersParam) {
+        if (method.type === HandlerType.headersLinkedFn && method.headersParam) {
             params = getParamsWithoutHeadersSubset(params);
         }
 

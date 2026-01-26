@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeaderLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions';
+import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions';
 import {Route, RouterEntry, Routes} from './general';
 import {RawMethod} from './remoteMethods';
-import {HeaderMethod} from './remoteMethods';
+import {HeadersMethod} from './remoteMethods';
 import {RouteMethod} from './remoteMethods';
 import {RemoteMethod} from './remoteMethods';
 import {HandlerType} from '@mionkit/core';
@@ -27,12 +27,12 @@ export function isRawLinkedFnDef(entry: RouterEntry): entry is RawLinkedFnDef {
     return entry.type === HandlerType.rawLinkedFn;
 }
 
-export function isHeaderLinkedFnDef(entry: RouterEntry): entry is HeaderLinkedFnDef {
-    return entry.type === HandlerType.headerLinkedFn;
+export function isHeadersLinkedFnDef(entry: RouterEntry): entry is HeadersLinkedFnDef {
+    return entry.type === HandlerType.headersLinkedFn;
 }
 
-export function isAnyLinkedFnDef(entry: RouterEntry): entry is HeaderLinkedFnDef | LinkedFnDef | RawLinkedFnDef {
-    return isLinkedFnDef(entry) || isRawLinkedFnDef(entry) || isHeaderLinkedFnDef(entry);
+export function isAnyLinkedFnDef(entry: RouterEntry): entry is HeadersLinkedFnDef | LinkedFnDef | RawLinkedFnDef {
+    return isLinkedFnDef(entry) || isRawLinkedFnDef(entry) || isHeadersLinkedFnDef(entry);
 }
 
 export function isRoute(entry: RouterEntry): entry is Route {
@@ -58,12 +58,12 @@ export function isPublicExecutable(entry: RemoteMethod): entry is RemoteMethod {
         entry.hasReturnData ||
         entry.type === HandlerType.route ||
         !!entry.paramNames?.length ||
-        !!(entry as HeaderMethod).headersParam?.headerNames?.length
+        !!(entry as HeadersMethod).headersParam?.headerNames?.length
     );
 }
 
-export function isHeaderExecutable(entry: RemoteMethod): entry is HeaderMethod {
-    return entry.type === HandlerType.headerLinkedFn;
+export function isHeaderExecutable(entry: RemoteMethod): entry is HeadersMethod {
+    return entry.type === HandlerType.headersLinkedFn;
 }
 
 export function isRouteExecutable(entry: RemoteMethod): entry is RouteMethod {
