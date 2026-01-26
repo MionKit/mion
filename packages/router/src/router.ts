@@ -7,14 +7,29 @@
 
 import {join} from 'path';
 import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
-import type {RemoteMethod, MethodsExecutionList, RawMethod, HeaderMethod, HookMethod, RouteMethod} from './types/remoteMethods';
-import type {PublicApi, PrivateDef, HooksCollection} from './types/publicMethods';
-import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
+import type {
+    RemoteMethod,
+    MethodsExecutionList,
+    RawMethod,
+    HeaderMethod,
+    LinkedFnMethod,
+    RouteMethod,
+} from './types/remoteMethods';
+import type {PublicApi, PrivateDef, LinkedFnsCollection} from './types/publicMethods';
+import type {HeaderLinkedFnDef, LinkedFnDef, RawLinkedFnDef} from './types/definitions';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
-import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
+import {
+    isRawLinkedFnDef,
+    isHeaderLinkedFnDef,
+    isExecutable,
+    isLinkedFnDef,
+    isRoute,
+    isRoutes,
+    isAnyLinkedFnDef,
+} from './types/guards';
 import {HandlerType, SerializerModes, SerializerCode, SerializerMode} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection';
-import {serializerHooks} from './routes/serializer.routes';
+import {serializerLinkedFns} from './routes/serializer.routes';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
@@ -37,25 +52,25 @@ type RoutesWithId = {
 // ############# PRIVATE STATE #############
 
 const flatRouter: Map<string, MethodsExecutionList> = new Map(); // Main Router
-const hooksById: Map<string, HookMethod | HeaderMethod | RawMethod> = new Map();
+const linkedFnsById: Map<string, LinkedFnMethod | HeaderMethod | RawMethod> = new Map();
 const routesById: Map<string, RouteMethod> = new Map();
-const rawHooksById: Map<string, RawMethod> = new Map();
-const hookNames: Set<string> = new Set();
+const rawLinkedFnsById: Map<string, RawMethod> = new Map();
+const linkedFnNames: Set<string> = new Set();
 const routeNames: Set<string> = new Set();
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
 let allExecutablesIds: string[] | undefined;
 
-/** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
-const defaultStartHooks = {mionDeserializeRequest: serializerHooks.mionDeserializeRequest};
-const defaultEndHooks = {
-    mionSerializeResponse: serializerHooks.mionSerializeResponse,
+/** Global linkedFns to be run before and after any other linkedFns or routes set using `registerRoutes` */
+const defaultStartLinkedFns = {mionDeserializeRequest: serializerLinkedFns.mionDeserializeRequest};
+const defaultEndLinkedFns = {
+    mionSerializeResponse: serializerLinkedFns.mionSerializeResponse,
 };
-let startHooksDef: HooksCollection = {...defaultStartHooks};
-let endHooksDef: HooksCollection = {...defaultEndHooks};
-export let startHooks: RemoteMethod[] = [];
-export let endHooks: RemoteMethod[] = [];
+let startLinkedFnsDef: LinkedFnsCollection = {...defaultStartLinkedFns};
+let endLinkedFnsDef: LinkedFnsCollection = {...defaultEndLinkedFns};
+export let startLinkedFns: RemoteMethod[] = [];
+export let endLinkedFns: RemoteMethod[] = [];
 
 // ############# PUBLIC METHODS #############
 
@@ -63,25 +78,25 @@ export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();
 export const geRoutesSize = () => flatRouter.size;
 export const getRouteExecutable = (id: string) => routesById.get(id);
-export const getHookExecutable = (id: string) => hooksById.get(id);
-export const geHooksSize = () => hooksById.size;
+export const getLinkedFnExecutable = (id: string) => linkedFnsById.get(id);
+export const geLinkedFnsSize = () => linkedFnsById.size;
 export const getComplexity = () => complexity;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
-export const getAnyExecutable = (id: string) => routesById.get(id) || hooksById.get(id) || rawHooksById.get(id);
+export const getAnyExecutable = (id: string) => routesById.get(id) || linkedFnsById.get(id) || rawLinkedFnsById.get(id);
 
 export const resetRouter = () => {
     flatRouter.clear();
-    hooksById.clear();
+    linkedFnsById.clear();
     routesById.clear();
-    rawHooksById.clear();
-    hookNames.clear();
+    rawLinkedFnsById.clear();
+    linkedFnNames.clear();
     routeNames.clear();
     complexity = 0;
     routerOptions = {...DEFAULT_ROUTE_OPTIONS};
-    startHooksDef = {...defaultStartHooks};
-    endHooksDef = {...defaultEndHooks};
-    startHooks = [];
-    endHooks = [];
+    startLinkedFnsDef = {...defaultStartLinkedFns};
+    endLinkedFnsDef = {...defaultEndLinkedFns};
+    startLinkedFns = [];
+    endLinkedFns = [];
     isRouterInitialized = false;
     allExecutablesIds = undefined;
     resetRemoteMethodsMetadata();
@@ -125,41 +140,41 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
 
 export async function registerRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
-    startHooks = await getExecutablesFromHooksCollectionAsync(startHooksDef);
-    endHooks = await getExecutablesFromHooksCollectionAsync(endHooksDef);
+    startLinkedFns = await getExecutablesFromLinkedFnsCollectionAsync(startLinkedFnsDef);
+    endLinkedFns = await getExecutablesFromLinkedFnsCollectionAsync(endLinkedFnsDef);
     await recursiveFlatRoutesAsync(routes);
     // we only want to get information about the routes when creating api spec
     if (shouldFullGenerateSpec()) return getPublicApi(routes);
     return {} as PublicApi<R>;
 }
 
-/** Add hooks at the start af the execution path, adds them before any other existing start hooks by default */
-export function addStartHooks(hooksDef: HooksCollection, appendBeforeExisting = true) {
-    if (isRouterInitialized) throw new Error('Can not add start hooks after the router has been initialized');
+/** Add linkedFns at the start af the execution path, adds them before any other existing start linkedFns by default */
+export function addStartLinkedFns(linkedFnsDef: LinkedFnsCollection, appendBeforeExisting = true) {
+    if (isRouterInitialized) throw new Error('Can not add start linkedFns after the router has been initialized');
     if (appendBeforeExisting) {
-        startHooksDef = {...hooksDef, ...startHooksDef};
+        startLinkedFnsDef = {...linkedFnsDef, ...startLinkedFnsDef};
         return;
     }
-    startHooksDef = {...startHooksDef, ...hooksDef};
+    startLinkedFnsDef = {...startLinkedFnsDef, ...linkedFnsDef};
 }
 
-/** Add hooks at the end af the execution path, adds them after any other existing end hooks by default */
-export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = true) {
-    if (isRouterInitialized) throw new Error('Can not add end hooks after the router has been initialized');
+/** Add linkedFns at the end af the execution path, adds them after any other existing end linkedFns by default */
+export function addEndLinkedFns(linkedFnsDef: LinkedFnsCollection, prependAfterExisting = true) {
+    if (isRouterInitialized) throw new Error('Can not add end linkedFns after the router has been initialized');
     if (prependAfterExisting) {
-        endHooksDef = {...endHooksDef, ...hooksDef};
+        endLinkedFnsDef = {...endLinkedFnsDef, ...linkedFnsDef};
         return;
     }
-    endHooksDef = {...hooksDef, ...endHooksDef};
+    endLinkedFnsDef = {...linkedFnsDef, ...endLinkedFnsDef};
 }
 
 export function isPrivateDefinition(entry: RouterEntry, id: string): entry is PrivateDef {
     if (isRoute(entry)) return false;
-    if (isRawHookDef(entry)) return true;
+    if (isRawLinkedFnDef(entry)) return true;
     try {
-        const executable = getHookExecutable(id) || getRouteExecutable(id);
+        const executable = getLinkedFnExecutable(id) || getRouteExecutable(id);
         if (!executable)
-            throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);
+            throw new Error(`Route or LinkedFn ${id} not found. Please check you have called router.registerRoutes first.`);
         return isPrivateExecutable(executable);
     } catch {
         // error thrown because entry is a Routes object and does not have any handler
@@ -168,7 +183,7 @@ export function isPrivateDefinition(entry: RouterEntry, id: string): entry is Pr
 }
 
 export function isPrivateExecutable(executable: RemoteMethod): boolean {
-    if (executable.type === HandlerType.rawHook) return true;
+    if (executable.type === HandlerType.rawLinkedFn) return true;
     if (executable.type === HandlerType.route) return false;
     const hasPublicParams = !!executable.paramNames?.length;
     const hasHeaderParams = !!(executable as HeaderMethod).headersParam?.headerNames?.length;
@@ -176,12 +191,12 @@ export function isPrivateExecutable(executable: RemoteMethod): boolean {
 }
 
 export function getTotalExecutables(): number {
-    return routesById.size + hooksById.size + rawHooksById.size;
+    return routesById.size + linkedFnsById.size + rawLinkedFnsById.size;
 }
 
 export function getAllExecutablesIds(): string[] {
     if (allExecutablesIds) return allExecutablesIds;
-    allExecutablesIds = [...routesById.keys(), ...hooksById.keys(), ...rawHooksById.keys()];
+    allExecutablesIds = [...routesById.keys(), ...linkedFnsById.keys(), ...rawLinkedFnsById.keys()];
     return allExecutablesIds;
 }
 
@@ -205,15 +220,15 @@ export function getRouteExecutableFromPath(path: string): RouteMethod {
  * Optimized algorithm to flatten the routes object into a list of Executable objects.
  * @param routes
  * @param currentPointer current pointer in the routes object i.e. ['users', 'get']
- * @param preHooks hooks one level up preceding current pointer
- * @param postHooks hooks one level up  following the current pointer
+ * @param preLinkedFns linkedFns one level up preceding current pointer
+ * @param postLinkedFns linkedFns one level up  following the current pointer
  * @param nestLevel
  */
 async function recursiveFlatRoutesAsync(
     routes: Routes,
     currentPointer: string[] = [],
-    preHooks: RemoteMethod[] = [],
-    postHooks: RemoteMethod[] = [],
+    preLinkedFns: RemoteMethod[] = [],
+    postLinkedFns: RemoteMethod[] = [],
     nestLevel = 0
 ) {
     if (nestLevel > MAX_ROUTE_NESTING)
@@ -232,12 +247,14 @@ async function recursiveFlatRoutesAsync(
         if (typeof key !== 'string' || !isNaN(key as any))
             throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
 
-        // generates a hook
-        if (isAnyHookDef(item)) {
-            routeEntry = await getExecutableFromAnyHook(item, newPointer, nestLevel);
-            if (hookNames.has(routeEntry.id))
-                throw new Error(`Invalid hook: ${join(...newPointer)}. Naming collision, Naming collision, duplicated hook.`);
-            hookNames.add(routeEntry.id);
+        // generates a linkedFn
+        if (isAnyLinkedFnDef(item)) {
+            routeEntry = await getExecutableFromAnyLinkedFn(item, newPointer, nestLevel);
+            if (linkedFnNames.has(routeEntry.id))
+                throw new Error(
+                    `Invalid linkedFn: ${join(...newPointer)}. Naming collision, Naming collision, duplicated linkedFn.`
+                );
+            linkedFnNames.add(routeEntry.id);
         }
 
         // generates a route
@@ -266,8 +283,8 @@ async function recursiveFlatRoutesAsync(
         minus1Props = await recursiveCreateExecutionPathAsync(
             routeEntry,
             newPointer,
-            preHooks,
-            postHooks,
+            preLinkedFns,
+            postLinkedFns,
             nestLevel,
             index,
             entries,
@@ -281,8 +298,8 @@ async function recursiveFlatRoutesAsync(
 async function recursiveCreateExecutionPathAsync(
     routeEntry: RemoteMethod | RoutesWithId,
     currentPointer: string[],
-    preHooks: RemoteMethod[],
-    postHooks: RemoteMethod[],
+    preLinkedFns: RemoteMethod[],
+    postLinkedFns: RemoteMethod[],
     nestLevel: number,
     index: number,
     routeKeyedEntries: RouterKeyEntryList,
@@ -293,28 +310,34 @@ async function recursiveCreateExecutionPathAsync(
     const props = getRouteEntryProperties(minus1, routeEntry, plus1);
 
     if (props.isBetweenRoutes && minus1Props) {
-        props.preLevelHooks = minus1Props.preLevelHooks;
-        props.postLevelHooks = minus1Props.postLevelHooks;
+        props.preLevelLinkedFns = minus1Props.preLevelLinkedFns;
+        props.postLevelLinkedFns = minus1Props.postLevelLinkedFns;
     } else {
         for (let i = 0; i < routeKeyedEntries.length; i++) {
             const [k, entry] = routeKeyedEntries[i];
             complexity++;
-            if (!isAnyHookDef(entry)) continue;
+            if (!isAnyLinkedFnDef(entry)) continue;
             const newPointer = [...currentPointer.slice(0, -1), k];
-            const executable = await getExecutableFromAnyHook(entry, newPointer, nestLevel);
-            if (i < index) props.preLevelHooks.push(executable);
-            if (i > index) props.postLevelHooks.push(executable);
+            const executable = await getExecutableFromAnyLinkedFn(entry, newPointer, nestLevel);
+            if (i < index) props.preLevelLinkedFns.push(executable);
+            if (i > index) props.postLevelLinkedFns.push(executable);
         }
     }
     const isExec = isExecutable(routeEntry);
 
     if (isExec && props.isRoute) {
         const path = getRoutePath(routeEntry.pointer, routerOptions);
-        const levelMethods = [...preHooks, ...props.preLevelHooks, routeEntry, ...props.postLevelHooks, ...postHooks];
-        const methods = [...startHooks, ...levelMethods, ...endHooks];
+        const levelMethods = [
+            ...preLinkedFns,
+            ...props.preLevelLinkedFns,
+            routeEntry,
+            ...props.postLevelLinkedFns,
+            ...postLinkedFns,
+        ];
+        const methods = [...startLinkedFns, ...levelMethods, ...endLinkedFns];
         const routeMethod = routeEntry as RouteMethod;
         const executionPath: MethodsExecutionList = {
-            routeIndex: startHooks.length + preHooks.length + props.preLevelHooks.length,
+            routeIndex: startLinkedFns.length + preLinkedFns.length + props.preLevelLinkedFns.length,
             methods,
             serializer: getSerializerCodeFromMode(routeMethod.options.serializer),
         };
@@ -323,8 +346,8 @@ async function recursiveCreateExecutionPathAsync(
         await recursiveFlatRoutesAsync(
             routeEntry.routes,
             routeEntry.pathPointer,
-            [...preHooks, ...props.preLevelHooks],
-            [...props.postLevelHooks, ...postHooks],
+            [...preLinkedFns, ...props.preLevelLinkedFns],
+            [...props.postLevelLinkedFns, ...postLinkedFns],
             nestLevel + 1
         );
     }
@@ -332,73 +355,81 @@ async function recursiveCreateExecutionPathAsync(
     return props;
 }
 
-async function getExecutableFromAnyHook(hook: HookDef | HeaderHookDef | RawHookDef, hookPointer: string[], nestLevel: number) {
-    if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, hookPointer, nestLevel);
-    return getExecutableFromHook(hook, hookPointer, nestLevel);
+async function getExecutableFromAnyLinkedFn(
+    linkedFn: LinkedFnDef | HeaderLinkedFnDef | RawLinkedFnDef,
+    linkedFnPointer: string[],
+    nestLevel: number
+) {
+    if (isRawLinkedFnDef(linkedFn)) return getExecutableFromRawLinkedFn(linkedFn, linkedFnPointer, nestLevel);
+    return getExecutableFromLinkedFn(linkedFn, linkedFnPointer, nestLevel);
 }
 
-export async function getExecutableFromHook(
-    hook: HookDef | HeaderHookDef,
-    hookPointer: string[],
+export async function getExecutableFromLinkedFn(
+    linkedFn: LinkedFnDef | HeaderLinkedFnDef,
+    linkedFnPointer: string[],
     nestLevel: number
-): Promise<HookMethod | HeaderMethod> {
-    const isHeader = isHeaderHookDef(hook);
+): Promise<LinkedFnMethod | HeaderMethod> {
+    const isHeader = isHeaderLinkedFnDef(linkedFn);
     // todo fix header id should be same as any other one and then maybe map from id to header name
-    const hookId = getRouterItemId(hookPointer);
-    const existing = hooksById.get(hookId);
-    if (existing) return existing as HookMethod;
+    const linkedFnId = getRouterItemId(linkedFnPointer);
+    const existing = linkedFnsById.get(linkedFnId);
+    if (existing) return existing as LinkedFnMethod;
 
-    type MixedHook = (Omit<HookMethod, 'type'> | Omit<HeaderMethod, 'type'>) & {
-        type: typeof HandlerType.hook | typeof HandlerType.headerHook;
+    type MixedLinkedFn = (Omit<LinkedFnMethod, 'type'> | Omit<HeaderMethod, 'type'>) & {
+        type: typeof HandlerType.linkedFn | typeof HandlerType.headerLinkedFn;
     };
 
-    const compiledMethod = getPersistedMethod(hookId, hook.handler);
-    let executable: MixedHook;
+    const compiledMethod = getPersistedMethod(linkedFnId, linkedFn.handler);
+    let executable: MixedLinkedFn;
     if (compiledMethod) {
-        executable = compiledMethod as MixedHook;
+        executable = compiledMethod as MixedLinkedFn;
     } else {
-        const reflectionData = await getHandlerReflection(hook.handler, hookId, routerOptions, isHeader);
+        const reflectionData = await getHandlerReflection(linkedFn.handler, linkedFnId, routerOptions, isHeader);
         executable = {
-            id: hookId,
-            type: isHeader ? HandlerType.headerHook : HandlerType.hook,
+            id: linkedFnId,
+            type: isHeader ? HandlerType.headerLinkedFn : HandlerType.linkedFn,
             nestLevel,
-            handler: hook.handler,
-            pointer: hookPointer,
+            handler: linkedFn.handler,
+            pointer: linkedFnPointer,
             ...reflectionData,
             options: {
-                runOnError: !!hook.options?.runOnError,
-                validateParams: hook.options?.validateParams ?? true,
-                validateReturn: hook.options?.validateReturn ?? false,
-                description: hook.options?.description,
+                runOnError: !!linkedFn.options?.runOnError,
+                validateParams: linkedFn.options?.validateParams ?? true,
+                validateReturn: linkedFn.options?.validateReturn ?? false,
+                description: linkedFn.options?.description,
             },
         };
-        addToPersistedMethods(hookId, executable);
+        addToPersistedMethods(linkedFnId, executable);
     }
 
-    hooksById.set(hookId, executable as any);
+    linkedFnsById.set(linkedFnId, executable as any);
     return executable as any;
 }
 
-export async function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestLevel: number): Promise<RawMethod> {
-    const hookId = getRouterItemId(hookPointer);
-    const existing = rawHooksById.get(hookId);
+export async function getExecutableFromRawLinkedFn(
+    linkedFn: RawLinkedFnDef,
+    linkedFnPointer: string[],
+    nestLevel: number
+): Promise<RawMethod> {
+    const linkedFnId = getRouterItemId(linkedFnPointer);
+    const existing = rawLinkedFnsById.get(linkedFnId);
     if (existing) return existing as RawMethod;
-    const reflectionData = await getRawMethodReflection(hook.handler, hookId, routerOptions);
+    const reflectionData = await getRawMethodReflection(linkedFn.handler, linkedFnId, routerOptions);
     const executable: RawMethod = {
-        id: hookId,
-        type: HandlerType.rawHook,
+        id: linkedFnId,
+        type: HandlerType.rawLinkedFn,
         nestLevel,
-        handler: hook.handler,
-        pointer: hookPointer,
+        handler: linkedFn.handler,
+        pointer: linkedFnPointer,
         ...reflectionData,
         options: {
-            runOnError: !!hook.options?.runOnError,
+            runOnError: !!linkedFn.options?.runOnError,
             validateParams: false,
             validateReturn: false,
-            description: hook.options?.description,
+            description: linkedFn.options?.description,
         },
     };
-    rawHooksById.set(hookId, executable);
+    rawLinkedFnsById.set(linkedFnId, executable);
     return executable;
 }
 
@@ -453,22 +484,22 @@ function getRouteEntryProperties(
         isBetweenRoutes: minus1IsRoute && zeroIsRoute && plus1IsRoute,
         isExecutable: isExec,
         isRoute: zeroIsRoute,
-        preLevelHooks: [] as RemoteMethod[],
-        postLevelHooks: [] as RemoteMethod[],
+        preLevelLinkedFns: [] as RemoteMethod[],
+        postLevelLinkedFns: [] as RemoteMethod[],
     };
 }
 
-async function getExecutablesFromHooksCollectionAsync(
-    hooksDef: HooksCollection
-): Promise<(RawMethod | HookMethod | HeaderMethod)[]> {
-    const results: (RawMethod | HookMethod | HeaderMethod)[] = [];
-    for (const [key, hook] of Object.entries(hooksDef)) {
-        if (isRawHookDef(hook)) {
-            results.push(await getExecutableFromRawHook(hook, [key], 0));
-        } else if (isHeaderHookDef(hook) || isHookDef(hook)) {
-            results.push(await getExecutableFromHook(hook, [key], 0));
+async function getExecutablesFromLinkedFnsCollectionAsync(
+    linkedFnsDef: LinkedFnsCollection
+): Promise<(RawMethod | LinkedFnMethod | HeaderMethod)[]> {
+    const results: (RawMethod | LinkedFnMethod | HeaderMethod)[] = [];
+    for (const [key, linkedFn] of Object.entries(linkedFnsDef)) {
+        if (isRawLinkedFnDef(linkedFn)) {
+            results.push(await getExecutableFromRawLinkedFn(linkedFn, [key], 0));
+        } else if (isHeaderLinkedFnDef(linkedFn) || isLinkedFnDef(linkedFn)) {
+            results.push(await getExecutableFromLinkedFn(linkedFn, [key], 0));
         } else {
-            throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
+            throw new Error(`Invalid linkedFn: ${key}. Invalid linkedFn definition`);
         }
     }
     return results;

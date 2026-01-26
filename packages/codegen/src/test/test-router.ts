@@ -7,7 +7,7 @@
  * ######## */
 
 import {HeadersSubset} from '@mionkit/core';
-import {initMionRouter, route, hook, headersHook, Routes, PublicApi} from '@mionkit/router';
+import {initMionRouter, route, linkedFn, headersLinkedFn, Routes, PublicApi} from '@mionkit/router';
 
 // Simple type for testing
 interface User {
@@ -18,7 +18,7 @@ interface User {
 
 // Define routes for AOT compilation testing
 const routes = {
-    auth: headersHook(
+    auth: headersLinkedFn(
         (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-123'})
     ),
     users: {
@@ -29,8 +29,8 @@ const routes = {
         sum: route((ctx, a: number, b: number): number => a + b),
         echo: route((ctx, message: string): string => message),
     },
-    log: hook((ctx): void => {
-        // Log hook - runs after routes
+    log: linkedFn((ctx): void => {
+        // Log linkedFn - runs after routes
     }),
 } satisfies Routes;
 

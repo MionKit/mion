@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Handler, HeaderHandler, RawHookHandler} from './handlers';
+import {Handler, HeaderHandler, RawLinkedFnHandler} from './handlers';
 import {
-    HeaderHookOptions,
+    HeaderLinkedFnOptions,
     HeaderMethod,
-    HookOptions,
-    HookMethod,
-    RawHookOptions,
+    LinkedFnOptions,
+    LinkedFnMethod,
+    RawLinkedFnOptions,
     RawMethod,
     RouteOptions,
     RouteMethod,
@@ -26,28 +26,28 @@ export type RouteDef<H extends Handler = any> = Pick<RouteMethod<H>, 'type' | 'h
 };
 // type-route-def-end
 
-// type-hook-def-start
-/** Hook definition, a function that hooks into the execution path */
-export type HookDef<H extends Handler = any> = Pick<HookMethod<H>, 'type' | 'handler'> & {
-    options?: HookOptions;
+// type-linkedFn-def-start
+/** LinkedFn definition, a function that linkedFns into the execution path */
+export type LinkedFnDef<H extends Handler = any> = Pick<LinkedFnMethod<H>, 'type' | 'handler'> & {
+    options?: LinkedFnOptions;
 };
-// type-hook-def-end
+// type-linkedFn-def-end
 
-// type-header-hook-def-start
-/** Header Hook definition, used to handle header params */
-export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderMethod<H>, 'type' | 'handler'> & {
-    options?: HeaderHookOptions;
+// type-header-linkedFn-def-start
+/** Header LinkedFn definition, used to handle header params */
+export type HeaderLinkedFnDef<H extends HeaderHandler = any> = Pick<HeaderMethod<H>, 'type' | 'handler'> & {
+    options?: HeaderLinkedFnOptions;
 };
-// type-header-hook-def-end
+// type-header-linkedFn-def-end
 
-// type-raw-hook-def-start
+// type-raw-linkedFn-def-start
 /**
- * Raw hook, used only to access raw request/response and modify the call context.
+ * Raw linkedFn, used only to access raw request/response and modify the call context.
  * Can not declare extra parameters.
  */
-export type RawHookDef<H extends RawHookHandler = any> = Pick<RawMethod<H>, 'type' | 'handler'> & {
-    options?: RawHookOptions;
+export type RawLinkedFnDef<H extends RawLinkedFnHandler = any> = Pick<RawMethod<H>, 'type' | 'handler'> & {
+    options?: RawLinkedFnOptions;
 };
-// type-raw-hook-def-end
+// type-raw-linkedFn-def-end
 
-export type AnyHandlerDef = RouteDef | HookDef | HeaderHookDef | RawHookDef;
+export type AnyHandlerDef = RouteDef | LinkedFnDef | HeaderLinkedFnDef | RawLinkedFnDef;

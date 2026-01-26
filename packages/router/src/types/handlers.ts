@@ -13,7 +13,7 @@ import {MayReturnError} from './publicMethods';
 // #######  Route Handlers #######
 
 // type-handler-start
-/** Route or Hook Handler  */
+/** Route or LinkedFn Handler  */
 export type Handler<Context extends CallContext = any, Params extends any[] = any[], Ret = any> = (
     /** Call Context */
     context: Context,
@@ -22,7 +22,7 @@ export type Handler<Context extends CallContext = any, Params extends any[] = an
 ) => Ret | Promise<Ret>;
 // type-handler-end
 
-/** Header Hook Handler, hook handler for when params are sent in the header  */
+/** Header LinkedFn Handler, linkedFn handler for when params are sent in the header  */
 export type HeaderHandler<
     Context extends CallContext = any,
     ExpectedHeaders extends HeadersSubset<any> = any,
@@ -37,8 +37,8 @@ export type HeaderHandler<
     ...parameters: Params
 ) => Ret | Promise<Ret>;
 
-/** Handler to use with raw hooks to get access to raw request and response */
-export type RawHookHandler<
+/** Handler to use with raw linkedFns to get access to raw request and response */
+export type RawLinkedFnHandler<
     Context extends CallContext = any,
     RawReq = any,
     RawResp = any,

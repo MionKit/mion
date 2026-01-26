@@ -81,19 +81,19 @@ ruleTester.run('no-mixed-union-properties', rule, {
             `,
             errors: [{messageId: 'mixedUnionProperties'}],
         },
-        // Hook with mixed properties
+        // LinkedFn with mixed properties
         {
             code: `
-                import { hook } from '@mionkit/router';
-                hook((ctx): {name: string} | {age: number} => ({name: 'John', age: 25}));
+                import { linkedFn } from '@mionkit/router';
+                linkedFn((ctx): {name: string} | {age: number} => ({name: 'John', age: 25}));
             `,
             errors: [{messageId: 'mixedUnionProperties'}],
         },
-        // headersHook with mixed properties
+        // headersLinkedFn with mixed properties
         {
             code: `
-                import { headersHook } from '@mionkit/router';
-                headersHook((ctx, [t]: [string]): {valid: boolean} | {userId: string} => ({valid: true, userId: '123'}));
+                import { headersLinkedFn } from '@mionkit/router';
+                headersLinkedFn((ctx, [t]: [string]): {valid: boolean} | {userId: string} => ({valid: true, userId: '123'}));
             `,
             errors: [{messageId: 'mixedUnionProperties'}],
         },
@@ -152,12 +152,12 @@ ruleTester.run('no-mixed-union-properties', rule, {
             `,
             errors: [{messageId: 'mixedUnionProperties'}, {messageId: 'mixedUnionProperties'}],
         },
-        // Type alias with hook and mixed properties
+        // Type alias with linkedFn and mixed properties
         {
             code: `
-                import { hook } from '@mionkit/router';
-                type HookData = {name: string} | {age: number};
-                hook((ctx): HookData => ({name: 'John', age: 25}));
+                import { linkedFn } from '@mionkit/router';
+                type LinkedFnData = {name: string} | {age: number};
+                linkedFn((ctx): LinkedFnData => ({name: 'John', age: 25}));
             `,
             errors: [{messageId: 'mixedUnionProperties'}],
         },

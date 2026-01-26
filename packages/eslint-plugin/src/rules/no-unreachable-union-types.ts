@@ -116,7 +116,7 @@ function getTypeDescription(node: TSESTree.TypeNode): string {
 }
 
 /**
- * Gets the router function name if the function is a handler for route/hook/headersHook
+ * Gets the router function name if the function is a handler for route/linkedFn/headersLinkedFn
  */
 function getRouterFunctionName(
     func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
@@ -126,7 +126,10 @@ function getRouterFunctionName(
     if (parent?.type === AST_NODE_TYPES.CallExpression) {
         if (parent.callee.type === AST_NODE_TYPES.Identifier) {
             const functionName = parent.callee.name;
-            if (['route', 'hook', 'headersHook'].includes(functionName) && isImportedFromMionRouter(functionName, context)) {
+            if (
+                ['route', 'linkedFn', 'headersLinkedFn'].includes(functionName) &&
+                isImportedFromMionRouter(functionName, context)
+            ) {
                 return functionName;
             }
         }
@@ -153,12 +156,12 @@ function isInCheckableParameter(
         ) {
             const paramIndex = func.params.indexOf(current as TSESTree.Parameter);
             if (paramIndex !== -1) {
-                // For route and hook: skip first parameter (context)
-                if ((routerFunctionName === 'route' || routerFunctionName === 'hook') && paramIndex >= 1) {
+                // For route and linkedFn: skip first parameter (context)
+                if ((routerFunctionName === 'route' || routerFunctionName === 'linkedFn') && paramIndex >= 1) {
                     return true;
                 }
-                // For headersHook: skip first two parameters (context and headers)
-                if (routerFunctionName === 'headersHook' && paramIndex >= 2) {
+                // For headersLinkedFn: skip first two parameters (context and headers)
+                if (routerFunctionName === 'headersLinkedFn' && paramIndex >= 2) {
                     return true;
                 }
                 return false;
@@ -170,7 +173,7 @@ function isInCheckableParameter(
 }
 
 /**
- * Checks if the union type or type reference is a return type or parameter type of route/hook/headersHook
+ * Checks if the union type or type reference is a return type or parameter type of route/linkedFn/headersLinkedFn
  */
 function isRouterUnionType(
     node: TSESTree.TSUnionType | TSESTree.TSTypeReference,
@@ -179,7 +182,7 @@ function isRouterUnionType(
     // Check if we're in a return type annotation or parameter type annotation
     let current: TSESTree.Node | undefined = node.parent;
     while (current) {
-        // Check if we're in a function that's used in route/hook/headersHook
+        // Check if we're in a function that's used in route/linkedFn/headersLinkedFn
         if (
             current.type === AST_NODE_TYPES.ArrowFunctionExpression ||
             current.type === AST_NODE_TYPES.FunctionExpression ||

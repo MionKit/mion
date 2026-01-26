@@ -147,7 +147,7 @@ function isRouterFunction(node, context) {
   return false;
 }
 function isRouterFunctionCall(node, context) {
-  const routerFunctions = ["route", "hook", "headersHook"];
+  const routerFunctions = ["route", "linkedFn", "headersLinkedFn"];
   if (node.callee.type !== AST_NODE_TYPES.Identifier || !routerFunctions.includes(node.callee.name)) {
     return false;
   }

@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, registerRoutes, resetRouter, getRouteExecutable, getHookExecutable} from '../router';
-import {route, hook} from './handlers';
+import {initRouter, registerRoutes, resetRouter, getRouteExecutable, getLinkedFnExecutable} from '../router';
+import {route, linkedFn} from './handlers';
 import {getHandlerReflection} from './reflection';
 import {DEFAULT_ROUTE_OPTIONS} from '../constants';
 import {EMPTY_HASH, getNoopJitFns} from '@mionkit/core';
@@ -27,7 +27,7 @@ describe('JIT Function Generation Optimization', () => {
         it('should skip JIT generation for handler with no params', async () => {
             const handler = (ctx: any): void => undefined;
 
-            const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testLinkedFn', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.paramNames).toEqual([]);
             expect(reflection.paramsJitFns).toBe(getNoopJitFns());
@@ -36,10 +36,10 @@ describe('JIT Function Generation Optimization', () => {
 
         it('should generate JIT functions for handler with params', async () => {
             const handler = (ctx: any, name: string): void => {
-                // Hook with params
+                // LinkedFn with params
             };
 
-            const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testLinkedFn', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.paramNames).toEqual(['name']);
             expect(reflection.paramsJitFns).not.toBe(getNoopJitFns());
@@ -47,15 +47,15 @@ describe('JIT Function Generation Optimization', () => {
             expect(reflection.paramsJitHash).toBeTruthy();
         });
 
-        it('should work end-to-end with registered hook with no params', async () => {
+        it('should work end-to-end with registered linkedFn with no params', async () => {
             const routes = {
-                noParamsHook: hook((ctx: any): void => {
+                noParamsLinkedFn: linkedFn((ctx: any): void => {
                     // No params
                 }),
             };
 
             await registerRoutes(routes);
-            const executable = getHookExecutable('noParamsHook');
+            const executable = getLinkedFnExecutable('noParamsLinkedFn');
 
             expect(executable).toBeDefined();
             expect(executable!.paramNames).toEqual([]);
@@ -70,7 +70,7 @@ describe('JIT Function Generation Optimization', () => {
                 // Void return
             };
 
-            const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testLinkedFn', DEFAULT_ROUTE_OPTIONS);
 
             expect(reflection.hasReturnData).toBe(false);
             expect(reflection.returnJitFns).toBe(getNoopJitFns());
@@ -108,12 +108,12 @@ describe('JIT Function Generation Optimization', () => {
     });
 
     describe('Combined optimization', () => {
-        it('should skip both params and return JIT for hook with no params and void return', async () => {
+        it('should skip both params and return JIT for linkedFn with no params and void return', async () => {
             const handler = (ctx: any): void => {
                 // No params, void return
             };
 
-            const reflection = await getHandlerReflection(handler, 'testHook', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testLinkedFn', DEFAULT_ROUTE_OPTIONS);
 
             // No params
             expect(reflection.paramNames).toEqual([]);
@@ -126,16 +126,16 @@ describe('JIT Function Generation Optimization', () => {
             expect(reflection.returnJitHash).toBe(EMPTY_HASH);
         });
 
-        it('should work end-to-end with common hook pattern (no params, void return)', async () => {
+        it('should work end-to-end with common linkedFn pattern (no params, void return)', async () => {
             const routes = {
-                authHook: hook((ctx: any): void => {
+                authLinkedFn: linkedFn((ctx: any): void => {
                     // Common pattern: modify context, no params, no return
                     (ctx as any).user = {id: '123'};
                 }),
             };
 
             await registerRoutes(routes);
-            const executable = getHookExecutable('authHook');
+            const executable = getLinkedFnExecutable('authLinkedFn');
 
             expect(executable).toBeDefined();
             expect(executable!.paramNames).toEqual([]);
@@ -150,13 +150,13 @@ describe('JIT Function Generation Optimization', () => {
     describe('AOT cache serialization and restoration', () => {
         it('should serialize handler with no params and void return to AOT cache', async () => {
             const routes = {
-                simpleHook: hook((ctx: any): void => {
+                simpleLinkedFn: linkedFn((ctx: any): void => {
                     // No params, void return
                 }),
             };
 
             await registerRoutes(routes);
-            const executable = getHookExecutable('simpleHook');
+            const executable = getLinkedFnExecutable('simpleLinkedFn');
             const serialized = getSerializableMethod(executable!);
 
             expect(serialized.paramsJitHash).toBe(EMPTY_HASH);
@@ -172,8 +172,8 @@ describe('JIT Function Generation Optimization', () => {
 
             // Simulate AOT cache data
             const aotCacheData = {
-                id: 'testHook',
-                type: 'hook' as const,
+                id: 'testLinkedFn',
+                type: 'linkedFn' as const,
                 paramsJitHash: EMPTY_HASH,
                 returnJitHash: EMPTY_HASH,
                 paramNames: [],
@@ -181,10 +181,10 @@ describe('JIT Function Generation Optimization', () => {
             };
 
             // Simulate loading from AOT cache
-            setPersistedMethods({testHook: aotCacheData as any});
+            setPersistedMethods({testLinkedFn: aotCacheData as any});
 
             // Restore the method
-            const restored = getPersistedMethod('testHook', handler);
+            const restored = getPersistedMethod('testLinkedFn', handler);
 
             expect(restored).toBeDefined();
             expect(restored!.paramNames).toEqual([]);
@@ -197,8 +197,8 @@ describe('JIT Function Generation Optimization', () => {
 
         it('should handle mixed scenarios in AOT cache', async () => {
             const routes = {
-                noParamsVoidReturn: hook((ctx: any): void => {}),
-                withParamsVoidReturn: hook((ctx: any, name: string): void => {}),
+                noParamsVoidReturn: linkedFn((ctx: any): void => {}),
+                withParamsVoidReturn: linkedFn((ctx: any, name: string): void => {}),
                 noParamsWithReturn: route((ctx: any): string => 'hello'),
                 withParamsWithReturn: route((ctx: any, name: string): string => `hello ${name}`),
             };
@@ -206,14 +206,14 @@ describe('JIT Function Generation Optimization', () => {
             await registerRoutes(routes);
 
             // Check no params, void return
-            const hook1 = getHookExecutable('noParamsVoidReturn');
-            expect(hook1!.paramsJitHash).toBe(EMPTY_HASH);
-            expect(hook1!.returnJitHash).toBe(EMPTY_HASH);
+            const linkedFn1 = getLinkedFnExecutable('noParamsVoidReturn');
+            expect(linkedFn1!.paramsJitHash).toBe(EMPTY_HASH);
+            expect(linkedFn1!.returnJitHash).toBe(EMPTY_HASH);
 
             // Check with params, void return
-            const hook2 = getHookExecutable('withParamsVoidReturn');
-            expect(hook2!.paramsJitHash).not.toBe(EMPTY_HASH);
-            expect(hook2!.returnJitHash).toBe(EMPTY_HASH);
+            const linkedFn2 = getLinkedFnExecutable('withParamsVoidReturn');
+            expect(linkedFn2!.paramsJitHash).not.toBe(EMPTY_HASH);
+            expect(linkedFn2!.returnJitHash).toBe(EMPTY_HASH);
 
             // Check no params, with return
             const route1 = getRouteExecutable('noParamsWithReturn');

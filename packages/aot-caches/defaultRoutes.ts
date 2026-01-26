@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {hook, initMionRouter, Routes} from '@mionkit/router';
+import {linkedFn, initMionRouter, Routes} from '@mionkit/router';
 
 const routes = {
-    // only required as initMionRouter needs at least one route/hook
-    '@mionkit/mionEmptyHook': hook((): void => undefined),
+    // only required as initMionRouter needs at least one route/linkedFn
+    '@mionkit/mionEmptyLinkedFn': linkedFn((): void => undefined),
 } satisfies Routes;
 
 // Initialize the router

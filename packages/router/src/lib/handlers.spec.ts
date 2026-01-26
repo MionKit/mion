@@ -8,43 +8,43 @@
 import {Routes} from '../types/general';
 import {registerRoutes, initRouter} from '../router';
 import {dispatchRoute} from '../dispatch';
-import {route, headersHook, hook, rawHook} from './handlers';
+import {route, headersLinkedFn, linkedFn, rawLinkedFn} from './handlers';
 import {MionHeaders} from '../types/context';
 import {headersFromRecord} from './headers';
 import {HandlerType, HeadersSubset} from '@mionkit/core';
 
-describe('route & hooks init functions', () => {
+describe('route & linkedFns init functions', () => {
     type RawRequest = {
         headers: MionHeaders;
         body: string;
     };
 
     const routes = {
-        auth: headersHook(
+        auth: headersLinkedFn(
             (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1234'})
         ),
-        timestamp: hook((ctx, time: number): string => `time: ${time}`),
-        nothing: rawHook((ctx, req: unknown, resp: unknown): void => undefined),
+        timestamp: linkedFn((ctx, time: number): string => `time: ${time}`),
+        nothing: rawLinkedFn((ctx, req: unknown, resp: unknown): void => undefined),
         print: route((ctx, name: string): string => `name: ${name}`),
     } satisfies Routes;
 
-    it('should initialize a header hook object', () => {
+    it('should initialize a header linkedFn object', () => {
         expect(routes.auth).toEqual({
-            type: HandlerType.headerHook,
+            type: HandlerType.headerLinkedFn,
             handler: expect.any(Function),
         });
     });
 
-    it('should initialize a hook object', () => {
+    it('should initialize a linkedFn object', () => {
         expect(routes.timestamp).toEqual({
-            type: HandlerType.hook,
+            type: HandlerType.linkedFn,
             handler: expect.any(Function),
         });
     });
 
-    it('should initialize a rawHook object', () => {
+    it('should initialize a rawLinkedFn object', () => {
         expect(routes.nothing).toEqual({
-            type: HandlerType.rawHook,
+            type: HandlerType.rawLinkedFn,
             handler: expect.any(Function),
         });
     });

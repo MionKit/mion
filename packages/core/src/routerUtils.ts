@@ -231,7 +231,7 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
 }
 
 /**
- * Get the router id for Routes or Hooks
+ * Get the router id for Routes or LinkedFns
  * @param itemPointer - The pointer to the item within the Routes object
  * i.e:
  * const routes = {

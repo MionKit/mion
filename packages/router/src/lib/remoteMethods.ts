@@ -9,8 +9,8 @@ import {type RouterEntry, type Routes} from '../types/general';
 import {type RemoteMethod} from '../types/remoteMethods';
 import type {PublicApi} from '../types/publicMethods';
 import type {AnyObject, JitCompiledFn, JitCompiledFnData, PureFunctionData, MethodWithOptions} from '@mionkit/core';
-import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from '../types/guards';
-import {getHookExecutable, getRouteExecutable, getRouteExecutionPath, getRouterOptions, isPrivateDefinition} from '../router';
+import {isRoute, isHeaderLinkedFnDef, isLinkedFnDef, isPublicExecutable} from '../types/guards';
+import {getLinkedFnExecutable, getRouteExecutable, getRouteExecutionPath, getRouterOptions, isPrivateDefinition} from '../router';
 import {
     getRoutePath,
     getRouterItemId,
@@ -50,11 +50,11 @@ function recursiveGetSerializableRoutes<R extends Routes>(
         const id = getRouterItemId(itemPointer);
 
         if (isPrivateDefinition(item, id)) {
-            publicData[key] = null; // hooks that don't receive or return data are not public
-        } else if (isHookDef(item) || isHeaderHookDef(item) || isRoute(item)) {
-            const executable = getHookExecutable(id) || getRouteExecutable(id);
+            publicData[key] = null; // linkedFns that don't receive or return data are not public
+        } else if (isLinkedFnDef(item) || isHeaderLinkedFnDef(item) || isRoute(item)) {
+            const executable = getLinkedFnExecutable(id) || getRouteExecutable(id);
             if (!executable)
-                throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);
+                throw new Error(`Route or LinkedFn ${id} not found. Please check you have called router.registerRoutes first.`);
             publicData[key] = getSerializableMethod(executable as RemoteMethod);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
@@ -88,10 +88,10 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
             getRouteExecutionPath(path)
                 ?.methods.filter((exec) => isPublicExecutable(exec))
                 .map((exec) => exec.pointer) || [];
-        newRemoteMethod.hookIds = pathPointers
+        newRemoteMethod.linkedFnIds = pathPointers
             .map((pointer) => getRouterItemId(pointer))
             .filter((id) => {
-                const exec = getHookExecutable(id);
+                const exec = getLinkedFnExecutable(id);
                 return exec && isPublicExecutable(exec);
             });
     }

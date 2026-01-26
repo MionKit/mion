@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicApi, Routes, initRouter, registerRoutes, route, headersHook, hook} from '@mionkit/router';
+import {PublicApi, Routes, initRouter, registerRoutes, route, headersLinkedFn, linkedFn} from '@mionkit/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
 import {RpcError, HeadersSubset} from '@mionkit/core';
 // Import format types (regular import to ensure JIT functions are created)
@@ -35,16 +35,16 @@ export type UserWithFormats = {
     email: StrEmail;
 };
 
-// Session info returned by session hook
+// Session info returned by session linkedFn
 type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 
 const routes = {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    auth: headersHook((ctx, h: HeadersSubset<'Authorization'>): void => {
+    auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
-    // Hook that returns session info on every request (optional param for flexibility in tests)
-    session: hook(
+    // LinkedFn that returns session info on every request (optional param for flexibility in tests)
+    session: linkedFn(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         (ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
             if (!sessionToken) return null;
@@ -96,7 +96,7 @@ const routes = {
     validateAge: route((_ctx, age: NumFormat<{min: 0; max: 150; integer: true}>): string => `Age: ${age}`),
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    log: hook((ctx): void => undefined, {runOnError: true}),
+    log: linkedFn((ctx): void => undefined, {runOnError: true}),
 } satisfies Routes;
 
 // Get port from command line args or use default

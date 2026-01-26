@@ -1,5 +1,5 @@
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
-const ROUTER_FUNCTIONS = ["route", "hook", "headersHook"];
+const ROUTER_FUNCTIONS = ["route", "linkedFn", "headersLinkedFn"];
 const HANDLER_TYPES = ["Handler", "HeaderHandler"];
 function buildImportCache(program) {
   const routerFunctions = /* @__PURE__ */ new Set();
@@ -183,10 +183,10 @@ function getHandlerTypeFromJSDoc(node, context) {
       if (commentText.includes("@mion:route")) {
         return "Handler";
       }
-      if (commentText.includes("@mion:hook")) {
-        return "HookHandler";
+      if (commentText.includes("@mion:linkedFn")) {
+        return "LinkedFnHandler";
       }
-      if (commentText.includes("@mion:headersHook")) {
+      if (commentText.includes("@mion:headersLinkedFn")) {
         return "HeaderHandler";
       }
     }
@@ -298,8 +298,8 @@ const rule = {
   }
 };
 function handlerTypeToFunctionName(handlerType) {
-  if (handlerType === "HeaderHandler") return "headersHook";
-  if (handlerType === "HookHandler") return "hook";
+  if (handlerType === "HeaderHandler") return "headersLinkedFn";
+  if (handlerType === "LinkedFnHandler") return "linkedFn";
   return "route";
 }
 function checkHandlerFunction(func, handlerType, context) {

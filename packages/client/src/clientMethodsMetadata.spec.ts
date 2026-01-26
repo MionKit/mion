@@ -8,7 +8,7 @@
 import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata';
 import {ClientOptions} from './types';
 import {routesCache} from '@mionkit/core';
-import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
+import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
 import Storage from 'dom-storage';
 
 // Setup real localStorage for testing
@@ -18,14 +18,14 @@ global.sessionStorage = new Storage(null, {strict: true});
 describe('fetchRemoteMethodsMetadata', () => {
     const port = TEST_PORT_MAPPING.clientMethodsMetadata; // Different port from client.spec.ts
 
-    // Create server hooks using the utility
-    const serverHooks = createTestServerHooks({port});
-    const baseURL = serverHooks.getBaseURL();
+    // Create server linkedFns using the utility
+    const serverLinkedFns = createTestServerLinkedFns({port});
+    const baseURL = serverLinkedFns.getBaseURL();
 
     let options: ClientOptions;
 
-    beforeAll(serverHooks.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverHooks.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
+    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
+    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
     beforeEach(() => {
         options = {

@@ -33,7 +33,7 @@ export default defineNuxtConfig({
   vite: {
     plugins: isDev ? [exampleWatcherPlugin()] : []
   },
-  hooks: {
+  linkedFns: {
     'content:file:beforeParse'(ctx) {
       const { file } = ctx
       if (!file.id.endsWith('.md')) return

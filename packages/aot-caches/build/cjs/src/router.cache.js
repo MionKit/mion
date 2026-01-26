@@ -86,15 +86,15 @@ const routerCache = {
 			serializer: "stringifyJson",
 		},
 	},
-	"@mionkit/mionEmptyHook": {
+	"@mionkit/mionEmptyLinkedFn": {
 		paramNames: [],
 		type: 2,
-		id: "@mionkit/mionEmptyHook",
+		id: "@mionkit/mionEmptyLinkedFn",
 		isAsync: false,
 		hasReturnData: false,
 		paramsJitHash: "",
 		returnJitHash: "",
-		pointer: ["@mionkit/mionEmptyHook"],
+		pointer: ["@mionkit/mionEmptyLinkedFn"],
 		nestLevel: 0,
 		options: { runOnError: false, validateParams: true, validateReturn: false },
 	},

@@ -5,14 +5,14 @@ import {HeadersSubset} from '@mionkit/core';
 import type {MyApi} from './server.routes';
 
 const john = {id: '123', name: 'John', surname: 'Doe'};
-const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-// ========== Hook with Typed Success Return and Error Handling ==========
+// ========== LinkedFn with Typed Success Return and Error Handling ==========
 // prefills auth token for any future requests, value is stored in localStorage by default
 // Returns TypedEvent for registering persistent success and error handlers
-// The auth hook returns SessionInfo on success (when returnSession=true) or RpcError<'not-authorized', NotAuthorizedData>
+// The auth linkedFn returns SessionInfo on success (when returnSession=true) or RpcError<'not-authorized', NotAuthorizedData>
 const authHeaders = new HeadersSubset({Authorization: 'Bearer myToken-XYZ'});
-hooks
+linkedFns
     .auth(authHeaders, true) // returnSession=true to get SessionInfo back
     .prefill()
     // onSuccess receives the strongly typed SessionInfo (or void when returnSession=false)
@@ -47,7 +47,7 @@ hooks
 
 // ========== Example 1: Route with strongly-typed errorData ==========
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
-// call() returns 4-tuple: [routeResult, routeError, hooksResults, hooksErrors]
+// call() returns 4-tuple: [routeResult, routeError, linkedFnsResults, linkedFnsErrors]
 async function exampleWithTypedError() {
     const [user, error] = await routes.users.getById('USER-123').call();
     if (error && error.type === 'user-not-found') {
@@ -58,7 +58,7 @@ async function exampleWithTypedError() {
         }
         return;
     } else if (error) {
-        // Catches any other errors (network errors, hook errors, etc.)
+        // Catches any other errors (network errors, linkedFn errors, etc.)
         console.log('Unexpected error:', error.publicMessage);
         return;
     }
@@ -88,25 +88,25 @@ async function exampleAlwaysSucceeds() {
     console.log(result); // Hello John Doe
 }
 
-// ========== Example 5: Using callWithHooks() for per-request hooks ==========
-// Use callWithHooks() when you need to pass hooks for a SINGLE request
-// Returns 4-tuple: [routeResult, routeError, hooksResults, hooksErrors]
+// ========== Example 5: Using callWithLinkedFns() for per-request linkedFns ==========
+// Use callWithLinkedFns() when you need to pass linkedFns for a SINGLE request
+// Returns 4-tuple: [routeResult, routeError, linkedFnsResults, linkedFnsErrors]
 
-// Create a hook with temporary credentials for this specific request
+// Create a linkedFn with temporary credentials for this specific request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
 
-// callWithHooks() takes a record of hooks and returns a typed 4-tuple
-async function exampleWithCallWithHooks() {
-    const [user, routeError, hookResults, hookErrors] = await routes.users.getById('USER-123').callWithHooks({
-        auth: hooks.auth(tempAuthHeaders, true),
+// callWithLinkedFns() takes a record of linkedFns and returns a typed 4-tuple
+async function exampleWithCallWithLinkedFns() {
+    const [user, routeError, linkedFnResults, linkedFnErrors] = await routes.users.getById('USER-123').callWithLinkedFns({
+        auth: linkedFns.auth(tempAuthHeaders, true),
     });
     // Check for route errors
     if (routeError?.type === 'user-not-found') {
         console.log('User not found:', routeError.errorData?.requestedId);
     }
-    // Check hook errors
-    if (hookErrors?.auth?.type === 'not-authorized') {
-        const authError = hookErrors.auth;
+    // Check linkedFn errors
+    if (linkedFnErrors?.auth?.type === 'not-authorized') {
+        const authError = linkedFnErrors.auth;
         const reason = authError.errorData?.reason;
         if (reason === 'expired-token') {
             console.log('Temp token expired, requesting new one...');
@@ -114,26 +114,26 @@ async function exampleWithCallWithHooks() {
     }
     // Access success data
     if (user) console.log('Found user:', user.name);
-    if (hookResults?.auth) console.log('Authenticated as:', hookResults.auth.userId);
+    if (linkedFnResults?.auth) console.log('Authenticated as:', linkedFnResults.auth.userId);
 }
 
-// ========== Example 6: Multiple Hooks with callWithHooks() ==========
-// Pass multiple hooks in the record - each gets its own typed result
-async function exampleWithMultipleHooks() {
-    const [user, routeError, hookResults, hookErrors] = await routes.users.getById('USER-123').callWithHooks({
-        auth: hooks.auth(tempAuthHeaders),
-        // session: hooks.session('session-token'), // If you have a session hook
+// ========== Example 6: Multiple LinkedFns with callWithLinkedFns() ==========
+// Pass multiple linkedFns in the record - each gets its own typed result
+async function exampleWithMultipleLinkedFns() {
+    const [user, routeError, linkedFnResults, linkedFnErrors] = await routes.users.getById('USER-123').callWithLinkedFns({
+        auth: linkedFns.auth(tempAuthHeaders),
+        // session: linkedFns.session('session-token'), // If you have a session linkedFn
     });
-    // Handle each hook's errors independently
-    if (hookErrors?.auth) {
-        console.log('Auth failed:', hookErrors.auth.publicMessage);
+    // Handle each linkedFn's errors independently
+    if (linkedFnErrors?.auth) {
+        console.log('Auth failed:', linkedFnErrors.auth.publicMessage);
     }
     // Access success data
     if (user) console.log('User:', user.name);
 }
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
-// call() returns 4-tuple: [routeResult, routeError, hooksResults, hooksErrors]
+// call() returns 4-tuple: [routeResult, routeError, linkedFnsResults, linkedFnsErrors]
 // This is the standard pattern for all route calls
 async function exampleWithCall() {
     // call() never throws - returns a 4-tuple

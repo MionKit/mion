@@ -1,8 +1,8 @@
 import {RpcError, HeadersSubset} from '@mionkit/core';
-import {Routes, initMionRouter, headersHook, route} from '@mionkit/router';
+import {Routes, initMionRouter, headersLinkedFn, route} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
-const authorizationHook = headersHook(
+const authorizationLinkedFn = headersLinkedFn(
     async (context, {headers}: HeadersSubset<'Authorization', 'User-id'>): Promise<void | RpcError<'not-authorized'>> => {
         const token = headers.Authorization;
         const userId = headers['User-id'];
@@ -10,7 +10,7 @@ const authorizationHook = headersHook(
         if (!isAuthorized(me)) {
             return new RpcError({publicMessage: 'user is not authorized', type: 'not-authorized'});
         }
-        context.shared.myUser = me; // user is added to ctx to shared with other routes/hooks
+        context.shared.myUser = me; // user is added to ctx to shared with other routes/linkedFns
     }
 );
 
@@ -19,7 +19,7 @@ const sayMyName = route((context): string => {
 });
 
 const routes = {
-    authorizationHook,
+    authorizationLinkedFn,
     sayMyName,
 } satisfies Routes;
 

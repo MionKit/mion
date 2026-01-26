@@ -6,7 +6,7 @@
  * ######## */
 
 import type {ResponseBody} from '@mionkit/router';
-import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledHooksCache} from './types';
+import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledLinkedFnsCache} from './types';
 import type {RunTypeError} from '@mionkit/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
@@ -14,33 +14,33 @@ import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {validateSubRequests} from './validation';
 import {serializeRequestBody, deserializeResponseBody} from './serializer';
 
-export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList extends HSubRequest<any>[]> {
+export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList extends HSubRequest<any>[]> {
     readonly path: string;
     readonly requestId: string;
     readonly subRequestList: {[key: string]: SubRequest<any>} = {};
     response: Response | undefined;
     constructor(
         public readonly options: ClientOptions,
-        private readonly prefilledHooksCache: PrefilledHooksCache,
+        private readonly prefilledLinkedFnsCache: PrefilledLinkedFnsCache,
         public readonly route?: RR,
-        public readonly hooks?: HookRequestsList
+        public readonly linkedFns?: LinkedFnRequestsList
     ) {
         this.path = route ? getRoutePath(route.pointer, this.options) : 'no-route';
         this.requestId = route ? route.id : 'no-route';
         if (route) this.addSubRequest(route);
-        if (hooks) hooks.forEach((hook) => this.addSubRequest(hook));
+        if (linkedFns) linkedFns.forEach((linkedFn) => this.addSubRequest(linkedFn));
     }
 
     /**  Calls a remote route. If anythings fails or remote route returns an error then throws a RequestErrors Map */
     async call(): Promise<ResponseBody> {
         const errors: RequestErrors = new Map();
 
-        // prepare and validate full request with the route and all hooks
+        // prepare and validate full request with the route and all linkedFns
         try {
             const subRequestIds = Object.keys(this.subRequestList);
             await fetchRemoteMethodsMetadata(subRequestIds, this.options);
 
-            this.restorePrefilledHooks(errors);
+            this.restorePrefilledLinkedFns(errors);
             if (errors.size) return Promise.reject(errors);
 
             validateSubRequests(subRequestIds, this, errors);
@@ -60,7 +60,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
                 ...this.options.fetchOptions,
                 headers: {
                     ...this.options.fetchOptions.headers,
-                    // Headers extracted from HeadersSubset params in headersHooks
+                    // Headers extracted from HeadersSubset params in headersLinkedFns
                     ...headersFromParams,
                     // Content-Type based on serialization mode (json or binary)
                     'Content-Type': serialized.contentType,
@@ -106,8 +106,8 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
                 }
             });
 
-            // Check for errors on methods NOT in subRequestList (e.g., required hooks that weren't sent)
-            // These errors occur when server-side hooks fail but weren't explicitly requested by client
+            // Check for errors on methods NOT in subRequestList (e.g., required linkedFns that weren't sent)
+            // These errors occur when server-side linkedFns fail but weren't explicitly requested by client
             Object.entries(deserialized).forEach(([id, value]) => {
                 if (!(id in this.subRequestList) && isRpcError(value)) {
                     errors.set(id, value);
@@ -157,7 +157,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
 
             serializeRequestBody(this);
 
-            this.storePrefilledHooks(errors);
+            this.storePrefilledLinkedFns(errors);
             if (errors.size) return Promise.reject(errors);
 
             return;
@@ -172,7 +172,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
     async removePrefill(subRequests?: SubRequest<any>[]): Promise<void> {
         if (subRequests) subRequests.forEach((subRequest) => this.addSubRequest(subRequest));
 
-        this.removePrefilledHooks();
+        this.removePrefilledLinkedFns();
     }
 
     addSubRequest(subRequest: SubRequest<any>) {
@@ -210,8 +210,8 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
         return respBody[id];
     }
 
-    // Restore prefilled hooks from in-memory cache
-    private restorePrefilledHooks(errors: RequestErrors): void {
+    // Restore prefilled linkedFns from in-memory cache
+    private restorePrefilledLinkedFns(errors: RequestErrors): void {
         const methodMeta = routesCache.getMetadata(this.requestId);
         if (!methodMeta) {
             errors.set(
@@ -223,12 +223,12 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
             );
             return;
         }
-        const missingIds = methodMeta.hookIds?.filter((id) => !!id && this.requestId !== id) || [];
+        const missingIds = methodMeta.linkedFnIds?.filter((id) => !!id && this.requestId !== id) || [];
         missingIds.forEach((id) => {
             const subRequest = this.subRequestList[id];
             if (subRequest) return;
-            const cacheKey = this.getPrefilledHookCacheKey(id);
-            const cachedSubRequest = this.prefilledHooksCache.get(cacheKey);
+            const cacheKey = this.getPrefilledLinkedFnCacheKey(id);
+            const cachedSubRequest = this.prefilledLinkedFnsCache.get(cacheKey);
             if (cachedSubRequest) {
                 // Clone the subRequest to avoid mutating the cached version
                 // (each request needs its own isResolved state)
@@ -243,8 +243,8 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
         });
     }
 
-    // Store prefilled hooks in in-memory cache
-    private storePrefilledHooks(errors: RequestErrors): void {
+    // Store prefilled linkedFns in in-memory cache
+    private storePrefilledLinkedFns(errors: RequestErrors): void {
         Object.keys(this.subRequestList).forEach((id) => {
             const subRequest = this.subRequestList[id];
             const methodMeta = routesCache.getMetadata(id);
@@ -259,20 +259,20 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
                 );
                 return;
             }
-            const cacheKey = this.getPrefilledHookCacheKey(id);
-            this.prefilledHooksCache.set(cacheKey, subRequest);
+            const cacheKey = this.getPrefilledLinkedFnCacheKey(id);
+            this.prefilledLinkedFnsCache.set(cacheKey, subRequest);
         });
     }
 
-    // Remove prefilled hooks from in-memory cache
-    private removePrefilledHooks(): void {
+    // Remove prefilled linkedFns from in-memory cache
+    private removePrefilledLinkedFns(): void {
         Object.keys(this.subRequestList).forEach((id) => {
-            const cacheKey = this.getPrefilledHookCacheKey(id);
-            this.prefilledHooksCache.delete(cacheKey);
+            const cacheKey = this.getPrefilledLinkedFnCacheKey(id);
+            this.prefilledLinkedFnsCache.delete(cacheKey);
         });
     }
 
-    private getPrefilledHookCacheKey(id: string): string {
+    private getPrefilledLinkedFnCacheKey(id: string): string {
         return `${this.options.baseURL}:${id}`;
     }
 }
@@ -280,10 +280,10 @@ export class MionClientRequest<RR extends RSubRequest<any>, HookRequestsList ext
 // ############# HELPER FUNCTIONS #############
 
 /**
- * Extracts headers from HeadersSubset params in headersHook methods.
- * This mirrors how the router extracts headers in runHeaderHook (dispatch.ts).
+ * Extracts headers from HeadersSubset params in headersLinkedFn methods.
+ * This mirrors how the router extracts headers in runHeaderLinkedFn (dispatch.ts).
  *
- * For headersHook methods, the first param (after context) is the HeadersSubset.
+ * For headersLinkedFn methods, the first param (after context) is the HeadersSubset.
  * This function extracts those header values to be sent as HTTP headers.
  *
  * @returns Record of header names to values
@@ -298,7 +298,7 @@ function extractRequestHeaders(req: MionClientRequest<any, any>): Record<string,
         if (!subRequest) continue;
 
         const method = routesCache.getMetadata(id);
-        if (!method || method.type !== HandlerType.headerHook || !method.headersParam) continue;
+        if (!method || method.type !== HandlerType.headerLinkedFn || !method.headersParam) continue;
 
         const params = subRequest.params;
         const extracted = extractHeadersFromParams(params);
@@ -311,7 +311,7 @@ function extractRequestHeaders(req: MionClientRequest<any, any>): Record<string,
 /**
  * Extracts headers from a HeadersSubset parameter.
  * The first param must be a HeadersSubset instance or an object with 'headers' property.
- * This mirrors how the router extracts headers in runHeaderHook (dispatch.ts).
+ * This mirrors how the router extracts headers in runHeaderLinkedFn (dispatch.ts).
  *
  * @param params The params array from the subRequest
  * @returns The headers record from the HeadersSubset
@@ -320,7 +320,7 @@ function extractHeadersFromParams(params: any[]): Record<string, string> {
     if (!params || params.length === 0) {
         throw new RpcError({
             type: 'missing-headers-param',
-            publicMessage: 'HeadersHook requires a HeadersSubset parameter.',
+            publicMessage: 'HeadersLinkedFn requires a HeadersSubset parameter.',
         });
     }
 
@@ -338,13 +338,13 @@ function extractHeadersFromParams(params: any[]): Record<string, string> {
 
     throw new RpcError({
         type: 'invalid-headers-param',
-        publicMessage: 'HeadersHook first parameter must be a HeadersSubset instance or object with headers property.',
+        publicMessage: 'HeadersLinkedFn first parameter must be a HeadersSubset instance or object with headers property.',
     });
 }
 
 /**
  * Reconstructs a HeadersSubset from HTTP response headers for methods that return HeadersSubset.
- * When a hook or route returns HeadersSubset, the router sets those values as HTTP response headers
+ * When a linkedFn or route returns HeadersSubset, the router sets those values as HTTP response headers
  * instead of including them in the body. This function reads those headers and creates a HeadersSubset.
  *
  * @param methodId The method ID to check for headersReturn

@@ -24,7 +24,7 @@ export const MAX_STACK_DEPTH = 50;
 export const MION_ROUTES = {
     /** get remote methods metadata by method id */
     methodsMetadataById: 'mion@methodsMetadataById',
-    /** get remote methods metadata by route path, this include all hooks in the execution path of the route. */
+    /** get remote methods metadata by route path, this include all linkedFns in the execution path of the route. */
     methodsMetadataByPath: 'mion@methodsMetadataByPath',
     /** Platform or adapters errors that occur before reaching the router or outside the router and are platform/adapter related */
     platformError: 'mion@platformError',
@@ -34,7 +34,7 @@ export const MION_ROUTES = {
      * !IMPORTANT!!
      * This is technically not a route, but a special key used to store unexpected errors in the response body.
      * is declared as a route to reuse existing router serialization/deserialization logic.
-     * Errors thrown by routes/hooks, these are not strongly typed
+     * Errors thrown by routes/linkedFns, these are not strongly typed
      * */
     thrownErrors: '@thrownErrors',
 } as const;
@@ -56,7 +56,7 @@ export const MIME_TYPES = {
 export const StatusCodes = {
     /** Any error in the server that is not related to the application, ie: server not ready, etc... */
     SERVER_ERROR: 500,
-    /** Any expected and strongly typed error returned by a route/hook. ie: entity not found, etc. */
+    /** Any expected and strongly typed error returned by a route/linkedFn. ie: entity not found, etc. */
     APPLICATION_ERROR: 400,
     /**  Any thrown or unexpected error in the application, ie: validation error, not found, etc, database error, serialization error, etc...
      * These are are typically irrecoverable and can be handled globally, ie redirect to login page if auth fails
@@ -70,9 +70,9 @@ export const StatusCodes = {
 
 export const HandlerType = {
     route: 1,
-    hook: 2,
-    headerHook: 3,
-    rawHook: 4,
+    linkedFn: 2,
+    headerLinkedFn: 3,
+    rawLinkedFn: 4,
 } as const;
 
 export const JIT_FUNCTION_IDS = {

@@ -5,19 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {resetRouter, initRouter, registerRoutes, getRouteExecutable, getHookExecutable} from '../router';
-import {route, hook, rawHook} from './handlers';
+import {resetRouter, initRouter, registerRoutes, getRouteExecutable, getLinkedFnExecutable} from '../router';
+import {route, linkedFn, rawLinkedFn} from './handlers';
 import {setPersistedMethods, resetPersistedMethods, loadCompiledMethods} from './methodsCache';
 import {AOTCacheError, resetRunTypesCache} from './reflection';
 import {HandlerType, EMPTY_HASH, resetJitFnCaches, addAOTCaches, getJitFunctionsFromHash} from '@mionkit/core';
 import type {Routes} from '../types/general';
 import type {MethodsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache} from '@mionkit/core';
 // Import the default router cache from aot-caches package for testing
-// IMPORTANT!!! if any of the mion routes/hooks are changed we might need to recompile caches or this tests might fails
+// IMPORTANT!!! if any of the mion routes/linkedFns are changed we might need to recompile caches or this tests might fails
 import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
 
 // Default routes cache from the AOT caches package (contains error routes and client routes)
-// Note: Raw hooks (mionDeserializeRequest, mionSerializeResponse) don't need to be in the AOT cache
+// Note: Raw linkedFns (mionDeserializeRequest, mionSerializeResponse) don't need to be in the AOT cache
 // because they don't use JIT functions - they always use nullJitFns and are handled specially
 const defaultRoutesCache: MethodsCache = {
     ...aotRouterCache,
@@ -86,8 +86,8 @@ describe('AOT Lazy Loading', () => {
             await expect(registerRoutes(routes)).rejects.toThrow('Regenerate AOT caches');
         });
 
-        it('should throw AOTCacheError when hook is missing from cache', async () => {
-            // Setup: Cache with default routes and route but missing the custom hook
+        it('should throw AOTCacheError when linkedFn is missing from cache', async () => {
+            // Setup: Cache with default routes and route but missing the custom linkedFn
             const mockCache: MethodsCache = {
                 ...defaultRoutesCache,
                 sayHello: {
@@ -108,47 +108,47 @@ describe('AOT Lazy Loading', () => {
             // Initialize router in AOT mode
             await initRouter({aot: true});
 
-            // Register routes with a hook that's not in cache
+            // Register routes with a linkedFn that's not in cache
             const routes = {
-                missingHook: hook((ctx: any): void => undefined),
+                missingLinkedFn: linkedFn((ctx: any): void => undefined),
                 sayHello: route((ctx: any): string => 'hello'),
             } satisfies Routes;
 
             await expect(registerRoutes(routes)).rejects.toThrow(AOTCacheError);
-            await expect(registerRoutes(routes)).rejects.toThrow('missingHook');
+            await expect(registerRoutes(routes)).rejects.toThrow('missingLinkedFn');
         });
 
-        it('should NOT throw AOTCacheError for raw hooks (they do not need AOT cache)', async () => {
-            // Raw hooks don't need JIT functions, so they don't need to be in the AOT cache
+        it('should NOT throw AOTCacheError for raw linkedFns (they do not need AOT cache)', async () => {
+            // Raw linkedFns don't need JIT functions, so they don't need to be in the AOT cache
             // They should work in AOT mode without being in the cache
             setPersistedMethods({...defaultRoutesCache});
 
             // Initialize router in AOT mode
             await initRouter({aot: true});
 
-            // Register routes with a raw hook that's not in cache - should NOT throw
+            // Register routes with a raw linkedFn that's not in cache - should NOT throw
             const routes = {
-                myRawHook: rawHook((ctx: any, cb: () => void): void => cb()),
+                myRawLinkedFn: rawLinkedFn((ctx: any, cb: () => void): void => cb()),
             } satisfies Routes;
 
-            // This should succeed because raw hooks don't need to be in the AOT cache
+            // This should succeed because raw linkedFns don't need to be in the AOT cache
             await expect(registerRoutes(routes)).resolves.not.toThrow();
         });
 
         it('should work with complete AOT cache', async () => {
-            // Setup: Complete cache with all routes and hooks
+            // Setup: Complete cache with all routes and linkedFns
             const mockCache: MethodsCache = {
                 ...defaultRoutesCache,
-                myHook: {
-                    type: HandlerType.hook,
-                    id: 'myHook',
+                myLinkedFn: {
+                    type: HandlerType.linkedFn,
+                    id: 'myLinkedFn',
                     nestLevel: 0,
                     isAsync: false,
                     hasReturnData: false,
                     paramNames: [],
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
-                    pointer: ['myHook'],
+                    pointer: ['myLinkedFn'],
                     options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
                 myRoute: {
@@ -171,13 +171,13 @@ describe('AOT Lazy Loading', () => {
 
             // Register routes - should succeed with complete cache
             const routes = {
-                myHook: hook((ctx: any): void => undefined),
+                myLinkedFn: linkedFn((ctx: any): void => undefined),
                 myRoute: route((ctx: any, data: string): string => data),
             } satisfies Routes;
             await registerRoutes(routes);
 
             // Verify routes were created
-            expect(getHookExecutable('myHook')).toBeDefined();
+            expect(getLinkedFnExecutable('myLinkedFn')).toBeDefined();
             expect(getRouteExecutable('myRoute')).toBeDefined();
             expect(getRouteExecutable('myRoute')?.paramNames).toEqual(['data']);
         });
@@ -253,26 +253,26 @@ describe('AOT Lazy Loading', () => {
             expect(executable?.paramNames).toEqual(['cachedParam']); // From cache
         });
 
-        it('should generate reflection for hooks not in cache', async () => {
+        it('should generate reflection for linkedFns not in cache', async () => {
             // Setup: Empty cache
             setPersistedMethods({});
 
             // Initialize router in non-AOT mode
             await initRouter({aot: false});
 
-            // Register routes with hooks
+            // Register routes with linkedFns
             const routes = {
-                myHook: hook((ctx: any, data: number): number => data * 2),
+                myLinkedFn: linkedFn((ctx: any, data: number): number => data * 2),
                 myRoute: route((ctx: any): string => 'hello'),
             } satisfies Routes;
             await registerRoutes(routes);
 
-            // Verify hook was created with reflection data
-            const hookExecutable = getHookExecutable('myHook');
-            expect(hookExecutable).toBeDefined();
-            expect(hookExecutable?.id).toBe('myHook');
-            expect(hookExecutable?.paramNames).toEqual(['data']);
-            expect(hookExecutable?.hasReturnData).toBe(true);
+            // Verify linkedFn was created with reflection data
+            const linkedFnExecutable = getLinkedFnExecutable('myLinkedFn');
+            expect(linkedFnExecutable).toBeDefined();
+            expect(linkedFnExecutable?.id).toBe('myLinkedFn');
+            expect(linkedFnExecutable?.paramNames).toEqual(['data']);
+            expect(linkedFnExecutable?.hasReturnData).toBe(true);
         });
     });
 
@@ -285,17 +285,17 @@ describe('AOT Lazy Loading', () => {
             expect(error.message).toContain('mion-build-aot');
         });
 
-        it('should have correct error message for hooks', () => {
-            const error = new AOTCacheError('auth', 'hook');
+        it('should have correct error message for linkedFns', () => {
+            const error = new AOTCacheError('auth', 'linkedFn');
             expect(error.name).toBe('AOTCacheError');
-            expect(error.message).toContain('Hook');
+            expect(error.message).toContain('LinkedFn');
             expect(error.message).toContain('auth');
         });
 
-        it('should have correct error message for raw hooks', () => {
-            const error = new AOTCacheError('mionDeserializeRequest', 'rawHook');
+        it('should have correct error message for raw linkedFns', () => {
+            const error = new AOTCacheError('mionDeserializeRequest', 'rawLinkedFn');
             expect(error.name).toBe('AOTCacheError');
-            expect(error.message).toContain('Raw hook');
+            expect(error.message).toContain('Raw linkedFn');
             expect(error.message).toContain('mionDeserializeRequest');
         });
     });
@@ -440,23 +440,23 @@ describe('AOT Lazy Loading', () => {
             await expect(registerRoutes(routes)).rejects.toThrow();
         });
 
-        it('should work with hooks that have non-empty JIT hashes', async () => {
+        it('should work with linkedFns that have non-empty JIT hashes', async () => {
             // Setup: Pre-populate JIT function caches
             addAOTCaches(mockJitFnsCache, mockPureFnsCache);
 
-            // Setup: Pre-populate router cache with hook having non-empty JIT hashes
+            // Setup: Pre-populate router cache with linkedFn having non-empty JIT hashes
             const mockCache: MethodsCache = {
                 ...defaultRoutesCache,
-                hookWithJitFns: {
-                    type: HandlerType.hook,
-                    id: 'hookWithJitFns',
+                linkedFnWithJitFns: {
+                    type: HandlerType.linkedFn,
+                    id: 'linkedFnWithJitFns',
                     nestLevel: 0,
                     isAsync: false,
                     hasReturnData: true,
                     paramNames: ['value'],
                     paramsJitHash: MOCK_PARAMS_JIT_HASH,
                     returnJitHash: MOCK_RETURN_JIT_HASH,
-                    pointer: ['hookWithJitFns'],
+                    pointer: ['linkedFnWithJitFns'],
                     options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
                 testRoute: {
@@ -477,18 +477,18 @@ describe('AOT Lazy Loading', () => {
             // Initialize router in AOT mode
             await initRouter({aot: true});
 
-            // Register routes with hook
+            // Register routes with linkedFn
             const routes = {
-                hookWithJitFns: hook((ctx: any, value: number): number => value * 2),
+                linkedFnWithJitFns: linkedFn((ctx: any, value: number): number => value * 2),
                 testRoute: route((ctx: any): string => 'hello'),
             } satisfies Routes;
             await registerRoutes(routes);
 
-            // Verify the hook was created with JIT functions
-            const hookExecutable = getHookExecutable('hookWithJitFns');
-            expect(hookExecutable).toBeDefined();
-            expect(hookExecutable?.paramsJitFns).toBeDefined();
-            expect(hookExecutable?.returnJitFns).toBeDefined();
+            // Verify the linkedFn was created with JIT functions
+            const linkedFnExecutable = getLinkedFnExecutable('linkedFnWithJitFns');
+            expect(linkedFnExecutable).toBeDefined();
+            expect(linkedFnExecutable?.paramsJitFns).toBeDefined();
+            expect(linkedFnExecutable?.returnJitFns).toBeDefined();
         });
     });
 

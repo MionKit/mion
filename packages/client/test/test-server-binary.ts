@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicApi, Routes, initRouter, registerRoutes, route, hook} from '@mionkit/router';
+import {PublicApi, Routes, initRouter, registerRoutes, route, linkedFn} from '@mionkit/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
 import {RpcError} from '@mionkit/core';
 
@@ -142,8 +142,8 @@ const routes = {
         return {name: 'Found User', age: 30};
     }),
 
-    // Hook for testing
-    session: hook((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
+    // LinkedFn for testing
+    session: linkedFn((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
         if (!token) return null;
         if (token === 'invalid') return {valid: false};
         return {valid: true, userId: 'user-123'};

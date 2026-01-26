@@ -25,13 +25,13 @@ export const TEST_PORT_MAPPING = {
 } as const;
 
 /**
- * Jest timeout constants for test hooks
+ * Jest timeout constants for test linkedFns
  * These should be longer than the server startup/shutdown timeouts to account for Jest overhead
  */
 export const JEST_TIMEOUT_CONSTANTS = {
-    /** Timeout for beforeAll hooks that start servers (should be > server startup timeout + buffer) */
+    /** Timeout for beforeAll linkedFns that start servers (should be > server startup timeout + buffer) */
     BEFORE_ALL_TIMEOUT: 30000, // 30 seconds
-    /** Timeout for afterAll hooks that stop servers (should be > server shutdown timeout + buffer) */
+    /** Timeout for afterAll linkedFns that stop servers (should be > server shutdown timeout + buffer) */
     AFTER_ALL_TIMEOUT: 10000, // 10 seconds
 } as const;
 
@@ -422,9 +422,9 @@ export async function startTestServer(options: TestServerOptions): Promise<TestS
 }
 
 /**
- * Convenience function for Jest beforeAll/afterAll hooks
+ * Convenience function for Jest beforeAll/afterAll linkedFns
  */
-export function createTestServerHooks(options: TestServerOptions) {
+export function createTestServerLinkedFns(options: TestServerOptions) {
     let serverManager: TestServerManager;
 
     const beforeAll = async () => {

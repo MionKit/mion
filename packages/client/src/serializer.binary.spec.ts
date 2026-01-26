@@ -8,7 +8,7 @@
 import {initClient} from './client';
 import {isRpcError} from '@mionkit/core';
 import {BinaryTestServerApi} from '../test/test-server-binary';
-import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
+import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
 
 // THIS TESTS ARE INTENDED TO E2E TESTING OF THE BINARY SERIALIZER
 
@@ -23,12 +23,12 @@ describe('Binary Serialization E2E', () => {
 
     const port = TEST_PORT_MAPPING.binarySerialization;
 
-    // Create server hooks using the utility with binary server script
-    const serverHooks = createTestServerHooks({port, serverScript: 'test-server-binary.ts'});
-    const baseURL = serverHooks.getBaseURL();
+    // Create server linkedFns using the utility with binary server script
+    const serverLinkedFns = createTestServerLinkedFns({port, serverScript: 'test-server-binary.ts'});
+    const baseURL = serverLinkedFns.getBaseURL();
 
-    beforeAll(serverHooks.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverHooks.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
+    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
+    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
     describe('Simple Types', () => {
         it('should serialize and deserialize string echo', async () => {
@@ -264,38 +264,38 @@ describe('Binary Serialization E2E', () => {
         });
     });
 
-    describe('Hooks with Binary Serialization', () => {
-        it('should handle hook with optional parameter (with value)', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const [result, error, hooksResults] = await routes.echo('test').callWithHooks({
-                session: hooks.session('valid-token'),
+    describe('LinkedFns with Binary Serialization', () => {
+        it('should handle linkedFn with optional parameter (with value)', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const [result, error, linkedFnsResults] = await routes.echo('test').callWithLinkedFns({
+                session: linkedFns.session('valid-token'),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(hooksResults?.session).toEqual({valid: true, userId: 'user-123'});
+            expect(linkedFnsResults?.session).toEqual({valid: true, userId: 'user-123'});
         });
 
-        it('should handle hook with optional parameter (without value)', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const [result, error, hooksResults] = await routes.echo('test').callWithHooks({
-                session: hooks.session(),
+        it('should handle linkedFn with optional parameter (without value)', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const [result, error, linkedFnsResults] = await routes.echo('test').callWithLinkedFns({
+                session: linkedFns.session(),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(hooksResults?.session).toBeNull();
+            expect(linkedFnsResults?.session).toBeNull();
         });
 
-        it('should handle hook returning error-like object', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
-            const [result, error, hooksResults] = await routes.echo('test').callWithHooks({
-                session: hooks.session('invalid'),
+        it('should handle linkedFn returning error-like object', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const [result, error, linkedFnsResults] = await routes.echo('test').callWithLinkedFns({
+                session: linkedFns.session('invalid'),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(hooksResults?.session).toEqual({valid: false});
+            expect(linkedFnsResults?.session).toEqual({valid: false});
         });
     });
 
