@@ -10,7 +10,7 @@ import type {Routes} from '../types/general';
 import type {MionResponse, RawRequestBody} from '../types/context';
 import {HeadersSubset, SerializerModes} from '@mionkit/core';
 import {headersLinkedFn, linkedFn, route} from '../lib/handlers';
-import {getRouterOptions, getRouteExecutionPath, initMionRouter, resetRouter} from '../router';
+import {getRouterOptions, getRouteExecutionChain, initMionRouter, resetRouter} from '../router';
 import {createCallContext} from '../dispatch';
 import {headersFromRecord} from '../lib/headers';
 import {deserializeRequestBody, serializeResponseBody} from './serializer.routes';
@@ -50,10 +50,10 @@ function getNewJsonContext(path: string, body: any) {
     const reqHeaders = headersFromRecord({auth: 'token'});
     const respHeaders = headersFromRecord({});
     const context = createCallContext(path, opts, rawBody, {}, reqHeaders, respHeaders);
-    // Set bodyType from execution path (as done in runExecutionPath)
-    const executionPath = getRouteExecutionPath(path);
-    if (executionPath) {
-        (context.response as Mutable<MionResponse>).bodyType = executionPath.serializer;
+    // Set bodyType from ExecutionChain (as done in runExecutionChain)
+    const executionChain = getRouteExecutionChain(path);
+    if (executionChain) {
+        (context.response as Mutable<MionResponse>).bodyType = executionChain.serializer;
     }
     return context;
 }
@@ -61,7 +61,7 @@ function getNewJsonContext(path: string, body: any) {
 describe('deserialize json Request Body', () => {
     beforeEach(() => resetRouter());
 
-    it('should return the parsed body for the execution path of "updateUser" route', async () => {
+    it('should return the parsed body for the ExecutionChain of "updateUser" route', async () => {
         await initMionRouter(routes);
         const body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
         const context = getNewJsonContext('/users/updateUser', body);
@@ -72,7 +72,7 @@ describe('deserialize json Request Body', () => {
         expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
     });
 
-    it('should return the parsed body for the execution path of "sayHello" route', async () => {
+    it('should return the parsed body for the ExecutionChain of "sayHello" route', async () => {
         await initMionRouter(routes);
         const body = {sayHello: 'John'};
         const context = getNewJsonContext('/sayHello', body);
@@ -83,7 +83,7 @@ describe('deserialize json Request Body', () => {
         expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
     });
 
-    it('should return the parsed body for the execution path of "logs" linkedFn', async () => {
+    it('should return the parsed body for the ExecutionChain of "logs" linkedFn', async () => {
         await initMionRouter(routes);
         const body = {logs: 'John'};
         const context = getNewJsonContext('/logs', body);
@@ -116,7 +116,7 @@ describe('deserialize json Request Body', () => {
 describe('serialize json Response Body using jit stringify Json (body type J)', () => {
     beforeEach(() => resetRouter());
 
-    it('should return the stringify function for the execution path of "updateUser" route', async () => {
+    it('should return the stringify function for the ExecutionChain of "updateUser" route', async () => {
         await initMionRouter(routes, {serializer: 'stringifyJson'});
         const opts = getRouterOptions();
         const context = getNewJsonContext('/users/updateUser', {});
@@ -128,7 +128,7 @@ describe('serialize json Response Body using jit stringify Json (body type J)', 
         expect(response.rawBody).toEqual(expectedString);
     });
 
-    it('should return the stringify function for the execution path of "sayHello" route', async () => {
+    it('should return the stringify function for the ExecutionChain of "sayHello" route', async () => {
         await initMionRouter(routes, {serializer: 'stringifyJson'});
         const opts = getRouterOptions();
         const context = getNewJsonContext('/sayHello', {});

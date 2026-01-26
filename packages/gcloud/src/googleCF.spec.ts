@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, registerRoutes, resetRouter, route, getRouteExecutionPath} from '@mionkit/router';
+import {initRouter, registerRoutes, resetRouter, route, getRouteExecutionChain} from '@mionkit/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF';
 import type {CallContext, Route} from '@mionkit/router';
 import {
@@ -276,10 +276,10 @@ describe('serverless router', () => {
         const port3 = 8090;
         let server3: Server;
 
-        /** Helper to build a methods map from an execution path */
-        function buildMethodsMap(executionPath: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
+        /** Helper to build a methods map from an ExecutionChain */
+        function buildMethodsMap(executionChain: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
             const map = new Map<string, MethodWithJitFns>();
-            for (const method of executionPath) map.set(method.id, method);
+            for (const method of executionChain) map.set(method.id, method);
             return map;
         }
 
@@ -302,12 +302,12 @@ describe('serverless router', () => {
         afterAll(async () => closeServer(server3));
 
         it('should send binary request and receive binary response with Date objects', async () => {
-            const executionPath = getRouteExecutionPath('/getDate')!.methods;
-            const methodsMap = buildMethodsMap(executionPath);
+            const executionChain = getRouteExecutionChain('/getDate')!.methods;
+            const methodsMap = buildMethodsMap(executionChain);
 
             // Serialize request body to binary
             const requestBody = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/getDate', executionPath, requestBody, false);
+            const {buffer: requestBuffer} = serializeBinaryBody('/getDate', executionChain, requestBody, false);
 
             const response = await fetch(`http://127.0.0.1:${port3}/getDate`, {
                 method: 'POST',
@@ -327,12 +327,12 @@ describe('serverless router', () => {
         });
 
         it('should send binary request and receive binary response with complex objects', async () => {
-            const executionPath = getRouteExecutionPath('/changeUserName')!.methods;
-            const methodsMap = buildMethodsMap(executionPath);
+            const executionChain = getRouteExecutionChain('/changeUserName')!.methods;
+            const methodsMap = buildMethodsMap(executionChain);
 
             // Serialize request body to binary
             const requestBody = {changeUserName: [{name: 'John', surname: 'Doe'}]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/changeUserName', executionPath, requestBody, false);
+            const {buffer: requestBuffer} = serializeBinaryBody('/changeUserName', executionChain, requestBody, false);
 
             const response = await fetch(`http://127.0.0.1:${port3}/changeUserName`, {
                 method: 'POST',
@@ -353,12 +353,12 @@ describe('serverless router', () => {
         });
 
         it('should handle optional parameters in binary mode', async () => {
-            const executionPath = getRouteExecutionPath('/getDate')!.methods;
-            const methodsMap = buildMethodsMap(executionPath);
+            const executionChain = getRouteExecutionChain('/getDate')!.methods;
+            const methodsMap = buildMethodsMap(executionChain);
 
             // Serialize request body with no params (optional dataPoint)
             const requestBody = {getDate: [undefined]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/getDate', executionPath, requestBody, false);
+            const {buffer: requestBuffer} = serializeBinaryBody('/getDate', executionChain, requestBody, false);
 
             const response = await fetch(`http://127.0.0.1:${port3}/getDate`, {
                 method: 'POST',

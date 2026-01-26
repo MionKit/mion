@@ -19,7 +19,7 @@ import {
     SerializerModes,
 } from '@mionkit/core';
 import {rawLinkedFn} from '../lib/handlers';
-import {getRouteExecutableFromPath, getRouteExecutionPath, getRouteExecutable} from '../router';
+import {getRouteExecutableFromPath, getRouteExecutionChain, getRouteExecutable} from '../router';
 import {RpcError} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
 import {onExecutableError} from '../lib/dispatchError';
@@ -51,10 +51,10 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
             // binary
             // Binary deserialization is handled per-method in dispatch.ts
             const rawBody = context.request.rawBody as Uint8Array;
-            const executionPath = getRouteExecutionPath(context.path)?.methods || [];
+            const executionChain = getRouteExecutionChain(context.path)?.methods || [];
             // Build methods map for deserialization
             const methodsMap = new Map<string, RemoteMethod>();
-            for (const method of executionPath) methodsMap.set(method.id, method);
+            for (const method of executionChain) methodsMap.set(method.id, method);
             const {body} = coreDeserializeBinaryBody(context.path, methodsMap, rawBody, false);
             parsedBody = body;
             break;
@@ -97,8 +97,8 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
         case SerializerModes.stringifyJson: {
             // json - use stringifyJson JIT function
             response.headers.set('content-type', 'application/json; charset=utf-8');
-            const executionPath = getRouteExecutionPath(context.path)!;
-            const body = stringifyBody(context, executionPath.methods, respBody);
+            const executionChain = getRouteExecutionChain(context.path)!;
+            const body = stringifyBody(context, executionChain.methods, respBody);
             response.rawBody = body;
             break;
         }
@@ -107,15 +107,15 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
             // Platform adapters will handle the actual JSON stringification
             // prepareForJson mutates response.body in place, so we don't set rawBody
             response.headers.set('content-type', 'application/json; charset=utf-8');
-            const executionPath = getRouteExecutionPath(context.path)!;
-            prepareBodyForJson(context, executionPath.methods, respBody);
+            const executionChain = getRouteExecutionChain(context.path)!;
+            prepareBodyForJson(context, executionChain.methods, respBody);
             break;
         }
         case SerializerModes.binary: {
             // binary - use toBinary JIT function
             response.headers.set('content-type', 'application/octet-stream');
-            const executionPath = getRouteExecutionPath(context.path)!;
-            serializeBinaryBody(context, executionPath.methods, respBody);
+            const executionChain = getRouteExecutionChain(context.path)!;
+            serializeBinaryBody(context, executionChain.methods, respBody);
             break;
         }
         default:
@@ -124,17 +124,17 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
 }
 
 /** Serializes response body to binary format using the core serializeBinaryBody function */
-function serializeBinaryBody(context: CallContext, executionPath: RemoteMethod[], respBody: ResponseBody): void {
+function serializeBinaryBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
     const response = context.response as Mutable<MionResponse>;
-    const {serializer, buffer} = coreSerializeBinaryBody(context.path, executionPath, respBody, true);
+    const {serializer, buffer} = coreSerializeBinaryBody(context.path, executionChain, respBody, true);
     response.binSerializer = serializer;
     response.rawBody = new Uint8Array(buffer);
 }
 
-function stringifyBody(context: CallContext, executionPath: RemoteMethod[], respBody: ResponseBody): string {
+function stringifyBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): string {
     const props: string[] = [];
-    for (let i = 0; i < executionPath.length; i++) {
-        const method = executionPath[i];
+    for (let i = 0; i < executionChain.length; i++) {
+        const method = executionChain[i];
         const returnValue = respBody[method.id];
         if (!method.hasReturnData || typeof returnValue === 'undefined') continue;
         try {
@@ -178,10 +178,10 @@ function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any): st
     return method.returnJitFns.stringifyJson.fn(returnValue);
 }
 
-function prepareBodyForJson(context: CallContext, executionPath: RemoteMethod[], respBody: ResponseBody): void {
+function prepareBodyForJson(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
     // prepareForJson mutates the response body in place
-    for (let i = 0; i < executionPath.length; i++) {
-        const method = executionPath[i];
+    for (let i = 0; i < executionChain.length; i++) {
+        const method = executionChain[i];
         const returnValue = respBody[method.id];
         if (!method.hasReturnData || typeof returnValue === 'undefined') continue;
         try {

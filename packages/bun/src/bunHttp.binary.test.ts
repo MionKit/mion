@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe} from 'bun:test';
-import {initRouter, registerRoutes, route, getRouteExecutionPath, resetRouter} from '@mionkit/router';
+import {initRouter, registerRoutes, route, getRouteExecutionChain, resetRouter} from '@mionkit/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp';
 import {CallContext} from '@mionkit/router';
 import {serializeBinaryBody, deserializeBinaryBody, MethodWithJitFns} from '@mionkit/core';
@@ -28,10 +28,10 @@ describe('bun router binary serialization should', () => {
         return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
     });
 
-    /** Helper to build a methods map from an execution path */
-    function buildMethodsMap(executionPath: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
+    /** Helper to build a methods map from an ExecutionChain */
+    function buildMethodsMap(executionChain: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
         const map = new Map<string, MethodWithJitFns>();
-        for (const method of executionPath) map.set(method.id, method);
+        for (const method of executionChain) map.set(method.id, method);
         return map;
     }
 
@@ -55,12 +55,12 @@ describe('bun router binary serialization should', () => {
     });
 
     test('send binary request and receive binary response with Date objects', async () => {
-        const executionPath = getRouteExecutionPath('/api/getDate')!.methods;
-        const methodsMap = buildMethodsMap(executionPath);
+        const executionChain = getRouteExecutionChain('/api/getDate')!.methods;
+        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize request body to binary
         const requestBody = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-        const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionPath, requestBody, false);
+        const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionChain, requestBody, false);
 
         const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
             method: 'POST',
@@ -80,12 +80,12 @@ describe('bun router binary serialization should', () => {
     });
 
     test('send binary request and receive binary response with complex objects', async () => {
-        const executionPath = getRouteExecutionPath('/api/changeUserName')!.methods;
-        const methodsMap = buildMethodsMap(executionPath);
+        const executionChain = getRouteExecutionChain('/api/changeUserName')!.methods;
+        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize request body to binary
         const requestBody = {changeUserName: [{name: 'John', surname: 'Doe'}]};
-        const {buffer: requestBuffer} = serializeBinaryBody('/api/changeUserName', executionPath, requestBody, false);
+        const {buffer: requestBuffer} = serializeBinaryBody('/api/changeUserName', executionChain, requestBody, false);
 
         const response = await fetch(`http://127.0.0.1:${port}/api/changeUserName`, {
             method: 'POST',
@@ -106,12 +106,12 @@ describe('bun router binary serialization should', () => {
     });
 
     test('handle optional parameters in binary mode', async () => {
-        const executionPath = getRouteExecutionPath('/api/getDate')!.methods;
-        const methodsMap = buildMethodsMap(executionPath);
+        const executionChain = getRouteExecutionChain('/api/getDate')!.methods;
+        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize request body with no parameters (optional)
         const requestBody = {getDate: []};
-        const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionPath, requestBody, false);
+        const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionChain, requestBody, false);
 
         const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
             method: 'POST',

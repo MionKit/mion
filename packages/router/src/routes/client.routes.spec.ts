@@ -298,7 +298,7 @@ describe('Client Routes should', () => {
         });
     });
 
-    it('get Remote Route info from id, it should also return the linkedFns from the execution path', async () => {
+    it('get Remote Route info from id, it should also return the linkedFns from the ExecutionChain', async () => {
         await initRouter({contextDataFactory: getSharedData});
         await registerRoutes(routes);
         await registerRoutes(mionClientRoutes);

@@ -10,7 +10,7 @@ import {
     getLinkedFnExecutable,
     getRouteExecutable,
     isPrivateExecutable,
-    getRouteExecutionPath,
+    getRouteExecutionChain,
     getRouterOptions,
     getTotalExecutables,
     getAllExecutablesIds,
@@ -70,7 +70,7 @@ function mionGetRemoteMethodsDataById(
 
 /**
  * Returns the metadata for the given route path.
- * This include all linkedFns in the execution path of the route.
+ * This include all linkedFns in the ExecutionChain of the route.
  * If getAllRemoteMethods is true, all public methods and linkedFns are returned.
  * @mion:route
  */
@@ -79,7 +79,7 @@ function mionGetRemoteMethodsDataByPath(
     path: string,
     getAllRemoteMethods?: boolean
 ): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> {
-    const executables = getRouteExecutionPath(path);
+    const executables = getRouteExecutionChain(path);
     if (!executables)
         return new RpcError({
             type: 'rpc-metadata-not-found',

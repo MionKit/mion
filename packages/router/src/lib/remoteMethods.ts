@@ -10,7 +10,13 @@ import {type RemoteMethod} from '../types/remoteMethods';
 import type {PublicApi} from '../types/publicMethods';
 import type {AnyObject, JitCompiledFn, JitCompiledFnData, PureFunctionData, MethodWithOptions} from '@mionkit/core';
 import {isRoute, isHeaderLinkedFnDef, isLinkedFnDef, isPublicExecutable} from '../types/guards';
-import {getLinkedFnExecutable, getRouteExecutable, getRouteExecutionPath, getRouterOptions, isPrivateDefinition} from '../router';
+import {
+    getLinkedFnExecutable,
+    getRouteExecutable,
+    getRouteExecutionChain,
+    getRouterOptions,
+    isPrivateDefinition,
+} from '../router';
 import {
     getRoutePath,
     getRouterItemId,
@@ -85,7 +91,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
     if (executable.type === HandlerType.route) {
         const path = getRoutePath(executable.pointer, getRouterOptions());
         const pathPointers =
-            getRouteExecutionPath(path)
+            getRouteExecutionChain(path)
                 ?.methods.filter((exec) => isPublicExecutable(exec))
                 .map((exec) => exec.pointer) || [];
         newRemoteMethod.linkedFnIds = pathPointers

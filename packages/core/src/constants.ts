@@ -24,7 +24,7 @@ export const MAX_STACK_DEPTH = 50;
 export const MION_ROUTES = {
     /** get remote methods metadata by method id */
     methodsMetadataById: 'mion@methodsMetadataById',
-    /** get remote methods metadata by route path, this include all linkedFns in the execution path of the route. */
+    /** get remote methods metadata by route path, this include all linkedFns in the ExecutionChain of the route. */
     methodsMetadataByPath: 'mion@methodsMetadataByPath',
     /** Platform or adapters errors that occur before reaching the router or outside the router and are platform/adapter related */
     platformError: 'mion@platformError',

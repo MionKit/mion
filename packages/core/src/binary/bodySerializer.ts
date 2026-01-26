@@ -8,13 +8,13 @@ import {MethodWithJitFns} from '../types/method.types';
  * Serializes API body to binary format using JIT-compiled serialization functions.
  * Combines the results of all body methods into a single binary buffer.
  *
- * Note: This function assumes all methods in executionPath have valid JIT functions.
+ * Note: This function assumes all methods in executionChain have valid JIT functions.
  * Methods with noop JIT functions or undefined values should be filtered out before calling this function,
  * or handled by the caller. Any serialization errors will be thrown as RpcError.
  */
 export function serializeBinaryBody(
     path: string,
-    executionPath: MethodWithJitFns[],
+    executionChain: MethodWithJitFns[],
     body: Record<string, any>,
     /** If true, the body is a response body, otherwise it's a request body */
     isResponse: boolean
@@ -32,8 +32,8 @@ export function serializeBinaryBody(
 
         let itemsLength = 0;
         // serialize each method's value (return value for responses, params for requests)
-        for (let i = 0; i < executionPath.length; i++) {
-            const method = executionPath[i];
+        for (let i = 0; i < executionChain.length; i++) {
+            const method = executionChain[i];
             const key = method.id;
             const value = body[key];
             if (serializeMethod(key, method, value, serializer, isResponse)) {

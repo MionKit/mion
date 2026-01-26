@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {getPersistedMethods, initRouter, registerRoutes, route, resetRouter, getRouteExecutionPath} from '@mionkit/router';
+import {getPersistedMethods, initRouter, registerRoutes, route, resetRouter, getRouteExecutionChain} from '@mionkit/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
 import {StatusCodes, type PublicRpcError, serializeBinaryBody, deserializeBinaryBody, MethodWithJitFns} from '@mionkit/core';
@@ -243,10 +243,10 @@ describe('node http router', () => {
     });
 
     describe('with serialize=binary', () => {
-        /** Helper to build a methods map from an execution path */
-        function buildMethodsMap(executionPath: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
+        /** Helper to build a methods map from an ExecutionChain */
+        function buildMethodsMap(executionChain: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
             const map = new Map<string, MethodWithJitFns>();
-            for (const method of executionPath) map.set(method.id, method);
+            for (const method of executionChain) map.set(method.id, method);
             return map;
         }
 
@@ -259,12 +259,12 @@ describe('node http router', () => {
         });
 
         it('should send binary request and receive binary response with Date objects', async () => {
-            const executionPath = getRouteExecutionPath('/api/getDate')!.methods;
-            const methodsMap = buildMethodsMap(executionPath);
+            const executionChain = getRouteExecutionChain('/api/getDate')!.methods;
+            const methodsMap = buildMethodsMap(executionChain);
 
             // Serialize request body to binary
             const requestBody = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionPath, requestBody, false);
+            const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionChain, requestBody, false);
 
             const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
                 method: 'POST',
@@ -284,12 +284,12 @@ describe('node http router', () => {
         });
 
         it('should send binary request and receive binary response with complex objects', async () => {
-            const executionPath = getRouteExecutionPath('/api/changeUserName')!.methods;
-            const methodsMap = buildMethodsMap(executionPath);
+            const executionChain = getRouteExecutionChain('/api/changeUserName')!.methods;
+            const methodsMap = buildMethodsMap(executionChain);
 
             // Serialize request body to binary
             const requestBody = {changeUserName: [{name: 'John', surname: 'Doe'}]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/api/changeUserName', executionPath, requestBody, false);
+            const {buffer: requestBuffer} = serializeBinaryBody('/api/changeUserName', executionChain, requestBody, false);
 
             const response = await fetch(`http://127.0.0.1:${port}/api/changeUserName`, {
                 method: 'POST',
@@ -310,12 +310,12 @@ describe('node http router', () => {
         });
 
         it('should handle optional parameters in binary mode', async () => {
-            const executionPath = getRouteExecutionPath('/api/getDate')!.methods;
-            const methodsMap = buildMethodsMap(executionPath);
+            const executionChain = getRouteExecutionChain('/api/getDate')!.methods;
+            const methodsMap = buildMethodsMap(executionChain);
 
             // Serialize request body with no params (optional dataPoint)
             const requestBody = {getDate: [undefined]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionPath, requestBody, false);
+            const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionChain, requestBody, false);
 
             const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
                 method: 'POST',

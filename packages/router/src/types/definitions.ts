@@ -27,7 +27,7 @@ export type RouteDef<H extends Handler = any> = Pick<RouteMethod<H>, 'type' | 'h
 // type-route-def-end
 
 // type-linkedFn-def-start
-/** LinkedFn definition, a function that linkedFns into the execution path */
+/** LinkedFn definition, a function that linkedFns into the ExecutionChain */
 export type LinkedFnDef<H extends Handler = any> = Pick<LinkedFnMethod<H>, 'type' | 'handler'> & {
     options?: LinkedFnOptions;
 };

@@ -11,7 +11,7 @@ import {
     geRoutesSize,
     getComplexity,
     getLinkedFnExecutable,
-    getRouteExecutionPath,
+    getRouteExecutionChain,
     getRouteExecutable,
     resetRouter,
     initRouter,
@@ -113,7 +113,7 @@ describe('Create routes should', () => {
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
         expect(geLinkedFnsSize()).toEqual(5);
 
-        expect(getRouteExecutionPath('/users/getUser')?.methods).toEqual(
+        expect(getRouteExecutionChain('/users/getUser')?.methods).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...linkedFnExecutables.first}),
                 expect.objectContaining({...linkedFnExecutables.userBefore}),
@@ -122,8 +122,8 @@ describe('Create routes should', () => {
                 expect.objectContaining({...linkedFnExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/users/setUser')).toBeTruthy();
-        expect(getRouteExecutionPath('/users/pets/getUserPet')?.methods).toEqual(
+        expect(getRouteExecutionChain('/users/setUser')).toBeTruthy();
+        expect(getRouteExecutionChain('/users/pets/getUserPet')?.methods).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...linkedFnExecutables.first}),
                 expect.objectContaining({...linkedFnExecutables.userBefore}),
@@ -133,14 +133,14 @@ describe('Create routes should', () => {
                 expect.objectContaining({...linkedFnExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/pets/getPet')?.methods).toEqual(
+        expect(getRouteExecutionChain('/pets/getPet')?.methods).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...linkedFnExecutables.first}),
                 expect.objectContaining({...routeExecutables.petsGetPet}),
                 expect.objectContaining({...linkedFnExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/pets/setPet')).toBeTruthy();
+        expect(getRouteExecutionChain('/pets/setPet')).toBeTruthy();
     });
 
     it('add default values to linkedFns', async () => {
@@ -201,11 +201,11 @@ describe('Create routes should', () => {
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
         expect(geLinkedFnsSize()).toEqual(5);
 
-        expect(getRouteExecutionPath('/api/v1/users/getUser.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/users/setUser.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/users/pets/getUserPet.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/pets/getPet.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/pets/setPet.json')).toBeTruthy();
+        expect(getRouteExecutionChain('/api/v1/users/getUser.json')).toBeTruthy();
+        expect(getRouteExecutionChain('/api/v1/users/setUser.json')).toBeTruthy();
+        expect(getRouteExecutionChain('/api/v1/users/pets/getUserPet.json')).toBeTruthy();
+        expect(getRouteExecutionChain('/api/v1/pets/getPet.json')).toBeTruthy();
+        expect(getRouteExecutionChain('/api/v1/pets/setPet.json')).toBeTruthy();
     });
 
     it('throw an error when a routes are invalid', async () => {
@@ -342,7 +342,7 @@ describe('Create routes should', () => {
         await initRouter();
         await registerRoutes(routes);
 
-        const expectedExecutionPath = addDefaultExecutables([
+        const expectedExecutionChain = addDefaultExecutables([
             expect.objectContaining({id: 'p1', type: HandlerType.rawLinkedFn}),
             expect.objectContaining({id: 'p2', type: HandlerType.rawLinkedFn}),
             expect.objectContaining({id: 'first', type: HandlerType.linkedFn}),
@@ -352,7 +352,7 @@ describe('Create routes should', () => {
             expect.objectContaining({id: 'a2', type: HandlerType.rawLinkedFn}),
         ]);
 
-        expect(getRouteExecutionPath('/pets/getPet')?.methods).toEqual(expectedExecutionPath);
+        expect(getRouteExecutionChain('/pets/getPet')?.methods).toEqual(expectedExecutionChain);
         expect(() => addStartLinkedFns(prependLinkedFns)).toThrow(
             'Can not add start linkedFns after the router has been initialized'
         );
