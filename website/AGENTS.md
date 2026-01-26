@@ -24,8 +24,8 @@
 ### Inline Components
 - Use bracket syntax: `:spacer`, `:bench-chart{id='hello-requests'}`
 
-### Block Components (prefer YAML headers for props)
-- Use `::component` with YAML headers between `---` for props
+### Block Components (prefer FRONT MATTER headers style)
+- Use `::component` with FRONT MATTER headers between `---` for props using YAML syntax
 - Avoid bracket syntax for block components
 - Nesting: `:` inline, `::` block, `:::` nested, `::::` deeply nested
 - Named slots: use `#slotName` syntax
