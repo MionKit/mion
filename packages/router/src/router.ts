@@ -74,7 +74,7 @@ export let endLinkedFns: RemoteMethod[] = [];
 
 // ############# PUBLIC METHODS #############
 
-export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
+export const getRouteExecutionChain = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();
 export const geRoutesSize = () => flatRouter.size;
 export const getRouteExecutable = (id: string) => routesById.get(id);
@@ -148,7 +148,7 @@ export async function registerRoutes<R extends Routes>(routes: R): Promise<Publi
     return {} as PublicApi<R>;
 }
 
-/** Add linkedFns at the start af the execution path, adds them before any other existing start linkedFns by default */
+/** Add linkedFns at the start af the ExecutionChain, adds them before any other existing start linkedFns by default */
 export function addStartLinkedFns(linkedFnsDef: LinkedFnsCollection, appendBeforeExisting = true) {
     if (isRouterInitialized) throw new Error('Can not add start linkedFns after the router has been initialized');
     if (appendBeforeExisting) {
@@ -158,7 +158,7 @@ export function addStartLinkedFns(linkedFnsDef: LinkedFnsCollection, appendBefor
     startLinkedFnsDef = {...startLinkedFnsDef, ...linkedFnsDef};
 }
 
-/** Add linkedFns at the end af the execution path, adds them after any other existing end linkedFns by default */
+/** Add linkedFns at the end af the ExecutionChain, adds them after any other existing end linkedFns by default */
 export function addEndLinkedFns(linkedFnsDef: LinkedFnsCollection, prependAfterExisting = true) {
     if (isRouterInitialized) throw new Error('Can not add end linkedFns after the router has been initialized');
     if (prependAfterExisting) {
@@ -206,12 +206,12 @@ export function shouldFullGenerateSpec(): boolean {
 }
 
 export function getRouteExecutableFromPath(path: string): RouteMethod {
-    const executionPath = flatRouter.get(path);
-    if (!executionPath) {
+    const executionChain = flatRouter.get(path);
+    if (!executionChain) {
         // Return the not-found route executable
         return getAnyExecutable(MION_ROUTES.notFound) as RouteMethod;
     }
-    return executionPath.methods[executionPath.routeIndex] as RouteMethod;
+    return executionChain.methods[executionChain.routeIndex] as RouteMethod;
 }
 
 // ############# PRIVATE METHODS #############
@@ -280,7 +280,7 @@ async function recursiveFlatRoutesAsync(
         }
 
         // recurse into sublevels
-        minus1Props = await recursiveCreateExecutionPathAsync(
+        minus1Props = await recursiveCreateExecutionChainAsync(
             routeEntry,
             newPointer,
             preLinkedFns,
@@ -295,7 +295,7 @@ async function recursiveFlatRoutesAsync(
     }
 }
 
-async function recursiveCreateExecutionPathAsync(
+async function recursiveCreateExecutionChainAsync(
     routeEntry: RemoteMethod | RoutesWithId,
     currentPointer: string[],
     preLinkedFns: RemoteMethod[],
@@ -336,12 +336,12 @@ async function recursiveCreateExecutionPathAsync(
         ];
         const methods = [...startLinkedFns, ...levelMethods, ...endLinkedFns];
         const routeMethod = routeEntry as RouteMethod;
-        const executionPath: MethodsExecutionList = {
+        const executionChain: MethodsExecutionList = {
             routeIndex: startLinkedFns.length + preLinkedFns.length + props.preLevelLinkedFns.length,
             methods,
             serializer: getSerializerCodeFromMode(routeMethod.options.serializer),
         };
-        flatRouter.set(path, executionPath);
+        flatRouter.set(path, executionChain);
     } else if (!isExec) {
         await recursiveFlatRoutesAsync(
             routeEntry.routes,

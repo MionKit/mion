@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initMionRouter, resetRouter, getRouterOptions, getRouteExecutionPath} from '../router';
+import {initMionRouter, resetRouter, getRouterOptions, getRouteExecutionChain} from '../router';
 import {route, linkedFn} from '../lib/handlers';
 import {Routes} from '../types/general';
 import {serializeResponseBody, deserializeRequestBody} from './serializer.routes';
@@ -15,10 +15,10 @@ import type {MionResponse, RawRequestBody} from '../types/context';
 import type {Mutable, MethodWithJitFns, BinaryInput} from '@mionkit/core';
 import {createDataViewDeserializer, serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mionkit/core';
 
-/** Helper to build a methods map from an execution path */
-function buildMethodsMap(executionPath: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
+/** Helper to build a methods map from an ExecutionChain */
+function buildMethodsMap(executionChain: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
     const map = new Map<string, MethodWithJitFns>();
-    for (const method of executionPath) map.set(method.id, method);
+    for (const method of executionChain) map.set(method.id, method);
     return map;
 }
 
@@ -66,10 +66,10 @@ function getNewBinaryContext(path: string, body: RawRequestBody) {
     const reqHeaders = headersFromRecord({'content-type': 'application/octet-stream'});
     const respHeaders = headersFromRecord({});
     const context = createCallContext(path, opts, body, {}, reqHeaders, respHeaders);
-    // Set bodyType from execution path (as done in runExecutionPath)
-    const executionPath = getRouteExecutionPath(path);
-    if (executionPath) {
-        (context.response as Mutable<MionResponse>).bodyType = executionPath.serializer;
+    // Set bodyType from ExecutionChain (as done in runExecutionChain)
+    const executionChain = getRouteExecutionChain(path);
+    if (executionChain) {
+        (context.response as Mutable<MionResponse>).bodyType = executionChain.serializer;
     }
     return context;
 }
@@ -213,12 +213,12 @@ describe('Binary Serialization - Router', () => {
 
     it('should correctly roundtrip string response', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
-        const executionPath = getRouteExecutionPath('/sayHello')!.methods;
-        const methodsMap = buildMethodsMap(executionPath);
+        const executionChain = getRouteExecutionChain('/sayHello')!.methods;
+        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize
         const originalBody = {sayHello: 'Hello, World!'};
-        const {buffer} = serializeBinaryBody('/sayHello', executionPath, originalBody, true);
+        const {buffer} = serializeBinaryBody('/sayHello', executionChain, originalBody, true);
 
         // Deserialize
         const {body: deserializedBody} = deserializeBinaryBody('/sayHello', methodsMap, buffer, true);
@@ -228,12 +228,12 @@ describe('Binary Serialization - Router', () => {
 
     it('should correctly roundtrip number response', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
-        const executionPath = getRouteExecutionPath('/addNumbers')!.methods;
-        const methodsMap = buildMethodsMap(executionPath);
+        const executionChain = getRouteExecutionChain('/addNumbers')!.methods;
+        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize
         const originalBody = {addNumbers: 42};
-        const {buffer} = serializeBinaryBody('/addNumbers', executionPath, originalBody, true);
+        const {buffer} = serializeBinaryBody('/addNumbers', executionChain, originalBody, true);
 
         // Deserialize
         const {body: deserializedBody} = deserializeBinaryBody('/addNumbers', methodsMap, buffer, true);
@@ -243,12 +243,12 @@ describe('Binary Serialization - Router', () => {
 
     it('should correctly roundtrip array response', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
-        const executionPath = getRouteExecutionPath('/processArray')!.methods;
-        const methodsMap = buildMethodsMap(executionPath);
+        const executionChain = getRouteExecutionChain('/processArray')!.methods;
+        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize
         const originalBody = {processArray: [1, 2, 3, 4, 5]};
-        const {buffer} = serializeBinaryBody('/processArray', executionPath, originalBody, true);
+        const {buffer} = serializeBinaryBody('/processArray', executionChain, originalBody, true);
 
         // Deserialize
         const {body: deserializedBody} = deserializeBinaryBody('/processArray', methodsMap, buffer, true);
@@ -258,8 +258,8 @@ describe('Binary Serialization - Router', () => {
 
     it('should correctly roundtrip complex object response with Date', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
-        const executionPath = getRouteExecutionPath('/getUser')!.methods;
-        const methodsMap = buildMethodsMap(executionPath);
+        const executionChain = getRouteExecutionChain('/getUser')!.methods;
+        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize
         const originalDate = new Date('2025-01-01T00:00:00Z');
@@ -271,7 +271,7 @@ describe('Binary Serialization - Router', () => {
                 createdAt: originalDate,
             },
         };
-        const {buffer} = serializeBinaryBody('/getUser', executionPath, originalBody, true);
+        const {buffer} = serializeBinaryBody('/getUser', executionChain, originalBody, true);
 
         // Deserialize
         const {body: deserializedBody} = deserializeBinaryBody('/getUser', methodsMap, buffer, true);
@@ -284,12 +284,12 @@ describe('Binary Serialization - Router', () => {
 
     it('should correctly roundtrip request params', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
-        const executionPath = getRouteExecutionPath('/sayHello')!.methods;
-        const methodsMap = buildMethodsMap(executionPath);
+        const executionChain = getRouteExecutionChain('/sayHello')!.methods;
+        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize request params (isResponse = false)
         const originalBody = {sayHello: ['World']};
-        const {buffer} = serializeBinaryBody('/sayHello', executionPath, originalBody, false);
+        const {buffer} = serializeBinaryBody('/sayHello', executionChain, originalBody, false);
 
         // Deserialize
         const {body: deserializedBody} = deserializeBinaryBody('/sayHello', methodsMap, buffer, false);
@@ -299,12 +299,12 @@ describe('Binary Serialization - Router', () => {
 
     it('should correctly roundtrip multiple number params', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
-        const executionPath = getRouteExecutionPath('/addNumbers')!.methods;
-        const methodsMap = buildMethodsMap(executionPath);
+        const executionChain = getRouteExecutionChain('/addNumbers')!.methods;
+        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize request params (isResponse = false)
         const originalBody = {addNumbers: [10, 25]};
-        const {buffer} = serializeBinaryBody('/addNumbers', executionPath, originalBody, false);
+        const {buffer} = serializeBinaryBody('/addNumbers', executionChain, originalBody, false);
 
         // Deserialize
         const {body: deserializedBody} = deserializeBinaryBody('/addNumbers', methodsMap, buffer, false);
@@ -314,11 +314,11 @@ describe('Binary Serialization - Router', () => {
 
     it('should deserialize binary request body', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
-        const executionPath = getRouteExecutionPath('/sayHello')!.methods;
+        const executionChain = getRouteExecutionChain('/sayHello')!.methods;
 
         // Create binary request body using core serializeBinaryBody
         const originalBody = {sayHello: ['World']};
-        const {buffer} = serializeBinaryBody('/sayHello', executionPath, originalBody, false);
+        const {buffer} = serializeBinaryBody('/sayHello', executionChain, originalBody, false);
 
         const context = getNewBinaryContext('/sayHello', buffer);
 
@@ -343,7 +343,7 @@ describe('Binary Serialization - Router', () => {
         response.body = {jsonRoute: 'Hello, World!'};
 
         // The body type should be updated based on route's serializer option
-        // This happens in runExecutionPath, but we can test the serializer directly
+        // This happens in runExecutionChain, but we can test the serializer directly
         // by manually setting the body type
         (response as Mutable<MionResponse>).bodyType = SerializerModes.json; // JSON mode
 

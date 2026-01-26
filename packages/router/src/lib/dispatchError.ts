@@ -45,7 +45,7 @@ export function onExecutableError(context: CallContext, executable: RemoteMethod
             ? err
             : new RpcError({
                   statusCode: StatusCodes.UNEXPECTED_ERROR,
-                  publicMessage: `Unknown error in handler "${path}" of route execution path.`,
+                  publicMessage: `Unknown error in handler "${path}" of route ExecutionChain.`,
                   originalError: err,
                   type: 'unknown-error',
               });

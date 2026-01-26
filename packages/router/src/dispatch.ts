@@ -9,7 +9,7 @@ import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody
 import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
 import {HeaderMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
-import {getRouteExecutionPath, getRouterOptions} from './router';
+import {getRouteExecutionChain, getRouterOptions} from './router';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
@@ -38,10 +38,10 @@ export async function dispatchRoute<Req, Resp>(
         // we should keep it as small as possible
         const context = createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
 
-        let executionPath = getRouteExecutionPath(context.path);
-        if (!executionPath) {
-            executionPath = getRouteExecutionPath(NOT_FOUND_PATH);
-            if (!executionPath) {
+        let executionChain = getRouteExecutionChain(context.path);
+        if (!executionChain) {
+            executionChain = getRouteExecutionChain(NOT_FOUND_PATH);
+            if (!executionChain) {
                 throw new RpcError({
                     statusCode: StatusCodes.UNEXPECTED_ERROR,
                     type: 'not-found',
@@ -49,10 +49,10 @@ export async function dispatchRoute<Req, Resp>(
                 });
             }
         }
-        await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
+        await runExecutionChain(context, rawRequest, rawResponse, executionChain, opts);
         return context.response;
     } catch (err: any | RpcError<string> | Error) {
-        // this should never happen, exceptions should be handled inside runExecutionPath
+        // this should never happen, exceptions should be handled inside runExecutionChain
         return Promise.reject(err);
     }
 }
@@ -81,7 +81,7 @@ export function createCallContext(
             headers: respHeaders,
             body: {},
             rawBody: '',
-            bodyType: SerializerModes.json, // default value, will be set from executionPath.serializer
+            bodyType: SerializerModes.json, // default value, will be set from executionChain.serializer
             binSerializer: undefined, // we can create serializer lazily
         },
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
@@ -90,19 +90,19 @@ export function createCallContext(
 
 // ############# PRIVATE METHODS #############
 
-// runs the execution path of a route
-async function runExecutionPath(
+// runs the ExecutionChain of a route
+async function runExecutionChain(
     context: CallContext,
     rawRequest: unknown,
     rawResponse: unknown,
-    executionPath: MethodsExecutionList,
+    executionChain: MethodsExecutionList,
     opts: RouterOptions
 ): Promise<MionResponse> {
     const {response, request} = context;
-    const executables = executionPath.methods;
+    const executables = executionChain.methods;
 
     // Set response body type from precalculated serializer
-    (response as Mutable<MionResponse>).bodyType = executionPath.serializer;
+    (response as Mutable<MionResponse>).bodyType = executionChain.serializer;
 
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];

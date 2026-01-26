@@ -455,7 +455,7 @@ describe('Dispatch routes', () => {
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
                 'mion@isΣrrθr': true,
                 type: 'unknown-error',
-                publicMessage: 'Unknown error in handler "routeFail" of route execution path.',
+                publicMessage: 'Unknown error in handler "routeFail" of route ExecutionChain.',
             });
         });
     });
