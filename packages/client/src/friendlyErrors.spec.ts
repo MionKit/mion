@@ -8,7 +8,7 @@
 import {initClient} from './client';
 import {getFriendlyErrors} from '@mionkit/core';
 import type {FriendlyErrors} from '@mionkit/core';
-import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
+import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
 import type {TestServerApi} from '../test/test-server';
 import type {RouteParams} from './types';
 
@@ -22,15 +22,15 @@ describe('friendlyErrors with client validation', () => {
     type MyApi = TestServerApi;
 
     const port = TEST_PORT_MAPPING.friendlyErrors;
-    const serverHooks = createTestServerHooks({port});
-    const baseURL = serverHooks.getBaseURL();
+    const serverLinkedFns = createTestServerLinkedFns({port});
+    const baseURL = serverLinkedFns.getBaseURL();
 
     // Derive UserWithFormats type from the route without importing it from server
     // This demonstrates how a client can get the type from the API definition
     type UserWithFormats = RouteParams<MyApi['createUserWithFormats']>;
 
-    beforeAll(serverHooks.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverHooks.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
+    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
+    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
     beforeEach(() => {
         localStorage.clear();
@@ -140,16 +140,16 @@ describe('friendlyErrors with client validation', () => {
         });
     });
 
-    describe('hook validation errors', () => {
-        it('should return hook errors when required auth header is missing', async () => {
+    describe('linkedFn validation errors', () => {
+        it('should return linkedFn errors when required auth header is missing', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            // Call without required auth hook - should return error in the tuple
-            const [, , , hookErrors] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
+            // Call without required auth linkedFn - should return error in the tuple
+            const [, , , linkedFnErrors] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
 
-            // Hook error should be present for the auth hook
-            expect(hookErrors?.auth).toBeDefined();
-            expect(hookErrors?.auth?.type).toBe('validation-error');
+            // LinkedFn error should be present for the auth linkedFn
+            expect(linkedFnErrors?.auth).toBeDefined();
+            expect(linkedFnErrors?.auth?.type).toBe('validation-error');
         });
     });
 

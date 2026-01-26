@@ -7,12 +7,12 @@
 
 import {RpcError} from '@mionkit/core';
 import type {RunTypeError} from '@mionkit/core';
-import type {CallWithHooksResult, HSubRequest, RequestErrors, Result, RSubRequest, SubRequest} from './types';
+import type {CallWithLinkedFnsResult, HSubRequest, RequestErrors, Result, RSubRequest, SubRequest} from './types';
 import type {MionClient} from './client';
 import {TypedEvent} from './typedEvent';
 
 /**
- * Implementation of both RouteSubRequest and HookSubRequest interfaces.
+ * Implementation of both RouteSubRequest and LinkedFnSubRequest interfaces.
  * This is returned by the MethodProxy when a remote method is invoked.
  */
 export class MionSubRequest<S = any, E extends RpcError<string, any> = any> implements RSubRequest<any>, HSubRequest<any> {
@@ -43,13 +43,13 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     }
 
     /**
-     * Prefills Hook's parameters and returns TypedEvent for event handler registration.
+     * Prefills LinkedFn's parameters and returns TypedEvent for event handler registration.
      * The TypedEvent allows registering:
-     * - onSuccess handlers called for ALL future successful requests from this hook
+     * - onSuccess handlers called for ALL future successful requests from this linkedFn
      * - onError handlers called for ALL future requests that fail with specific error types
      */
     prefill(): TypedEvent<S, E> {
-        // Create TypedEvent linked to this hook's ID and the shared HandlersRegistry
+        // Create TypedEvent linked to this linkedFn's ID and the shared HandlersRegistry
         const typedEvent = new TypedEvent<S, E>(this.id, this.client.handlersRegistry);
 
         // Execute validation and storage asynchronously
@@ -64,10 +64,10 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     }
 
     /**
-     * Removes prefilled value and clears any registered error handlers for this hook.
+     * Removes prefilled value and clears any registered error handlers for this linkedFn.
      */
     removePrefill(): Promise<void> {
-        // Clear error handlers for this hook from the registry
+        // Clear error handlers for this linkedFn from the registry
         this.client.handlersRegistry.clearHandlers(this.id);
         return this.client.removePrefill(this as HSubRequest<any>);
     }
@@ -76,27 +76,29 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
      * Calls a remote route and returns a Result 4-tuple with full typing preserved.
      * Never throws - errors are always in the result tuple.
      *
-     * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] 4-tuple
+     * @returns Promise that resolves to [routeResult, routeError, linkedFnsResults, linkedFnsErrors] 4-tuple
      */
     call(): Promise<Result<S, E>> {
         return this.client.executeCall(this as unknown as RSubRequest<any>);
     }
 
     /**
-     * Calls a remote route with hooks and returns a fully-typed 4-tuple result.
-     * Always returns (never throws) - can have partial success where some hooks/route succeed and others fail.
+     * Calls a remote route with linkedFns and returns a fully-typed 4-tuple result.
+     * Always returns (never throws) - can have partial success where some linkedFns/route succeed and others fail.
      *
-     * @param hooks Record of hook names to HookSubRequest instances
-     * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] 4-tuple
+     * @param linkedFns Record of linkedFn names to LinkedFnSubRequest instances
+     * @returns Promise that resolves to [routeResult, routeError, linkedFnsResults, linkedFnsErrors] 4-tuple
      */
-    callWithHooks<H extends Record<string, HSubRequest<any>>>(hooks: H): Promise<CallWithHooksResult<S, E, H>> {
-        const hookEntries = Object.entries(hooks);
-        if (hookEntries.length === 0) {
-            throw new Error('callWithHooks requires at least one hook. Use call() instead for requests without hooks.');
+    callWithLinkedFns<H extends Record<string, HSubRequest<any>>>(linkedFns: H): Promise<CallWithLinkedFnsResult<S, E, H>> {
+        const linkedFnEntries = Object.entries(linkedFns);
+        if (linkedFnEntries.length === 0) {
+            throw new Error(
+                'callWithLinkedFns requires at least one linkedFn. Use call() instead for requests without linkedFns.'
+            );
         }
-        const hookSubRequests = hookEntries.map(([, hook]) => hook);
-        return this.client.executeCallWithHooks(this as RSubRequest<any>, hooks, hookSubRequests) as Promise<
-            CallWithHooksResult<S, E, H>
+        const linkedFnSubRequests = linkedFnEntries.map(([, linkedFn]) => linkedFn);
+        return this.client.executeCallWithLinkedFns(this as RSubRequest<any>, linkedFns, linkedFnSubRequests) as Promise<
+            CallWithLinkedFnsResult<S, E, H>
         >;
     }
 

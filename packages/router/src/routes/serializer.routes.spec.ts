@@ -9,7 +9,7 @@ import type {Mutable} from '@mionkit/core';
 import type {Routes} from '../types/general';
 import type {MionResponse, RawRequestBody} from '../types/context';
 import {HeadersSubset, SerializerModes} from '@mionkit/core';
-import {headersHook, hook, route} from '../lib/handlers';
+import {headersLinkedFn, linkedFn, route} from '../lib/handlers';
 import {getRouterOptions, getRouteExecutionPath, initMionRouter, resetRouter} from '../router';
 import {createCallContext} from '../dispatch';
 import {headersFromRecord} from '../lib/headers';
@@ -36,12 +36,12 @@ interface User {
 }
 
 const routes = {
-    auth: headersHook((ctx, h: HeadersSubset<'auth'>): void => {}),
+    auth: headersLinkedFn((ctx, h: HeadersSubset<'auth'>): void => {}),
     users: {
         updateUser: route((ctx, user: User): User => ({...user, lastActivity})),
     },
     sayHello: route((ctx, name: string): string => `Hello, ${name}!`),
-    logs: hook((ctx): void => {}),
+    logs: linkedFn((ctx): void => {}),
 } satisfies Routes;
 
 function getNewJsonContext(path: string, body: any) {
@@ -83,7 +83,7 @@ describe('deserialize json Request Body', () => {
         expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
     });
 
-    it('should return the parsed body for the execution path of "logs" hook', async () => {
+    it('should return the parsed body for the execution path of "logs" linkedFn', async () => {
         await initMionRouter(routes);
         const body = {logs: 'John'};
         const context = getNewJsonContext('/logs', body);

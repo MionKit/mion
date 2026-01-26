@@ -76,7 +76,7 @@ let defaultAOTCachesLoadPromise: Promise<void> | null = null;
  * This includes the router cache (default routes metadata) and JIT function caches.
  * The caches are loaded only once and cached for subsequent calls.
  *
- * Note: Raw hooks (like mionDeserializeRequest and mionSerializeResponse) don't need
+ * Note: Raw linkedFns (like mionDeserializeRequest and mionSerializeResponse) don't need
  * to be in the AOT cache because they don't use JIT functions - they always use NoopJitFns.
  *
  * @returns Promise that resolves when caches are loaded

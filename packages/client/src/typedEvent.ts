@@ -11,19 +11,19 @@ import type {ErrorHandler, SuccessHandler} from './types';
 
 // type-typed-event-start
 /**
- * Persistent event emitter for hook success and error handling.
+ * Persistent event emitter for linkedFn success and error handling.
  * This is a passive container - the Client triggers handler execution via HandlersRegistry.
  *
  * TypedEvent stores handlers in the HandlersRegistry, where they persist across requests.
- * When a hook succeeds or fails, the Client checks the HandlersRegistry and executes the appropriate handler.
+ * When a linkedFn succeeds or fails, the Client checks the HandlersRegistry and executes the appropriate handler.
  *
- * @typeParam S - The success type returned by the hook
+ * @typeParam S - The success type returned by the linkedFn
  * @typeParam E - Union of RpcError types (e.g., RpcError<'not-authorized', void> | RpcError<'rate-limited', {retryAfter: number}>)
  */
 export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
     /**
-     * Create a TypedEvent linked to a specific hook.
-     * @param handlerId - The unique identifier for the hook (e.g., 'auth', 'rateLimit')
+     * Create a TypedEvent linked to a specific linkedFn.
+     * @param handlerId - The unique identifier for the linkedFn (e.g., 'auth', 'rateLimit')
      * @param registry - The shared HandlersRegistry instance
      */
     constructor(
@@ -34,11 +34,11 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
     // ############# Public Methods (User-facing, chainable) #############
 
     /**
-     * Register a persistent success handler for this hook.
+     * Register a persistent success handler for this linkedFn.
      * Handler is stored in HandlersRegistry and called by Client for ALL future requests
-     * that succeed with this hook.
+     * that succeed with this linkedFn.
      *
-     * @param handler - The callback to execute when the hook succeeds
+     * @param handler - The callback to execute when the linkedFn succeeds
      * @returns this TypedEvent for chaining
      */
     onSuccess(handler: SuccessHandler<S>): TypedEvent<S, E> {
@@ -58,9 +58,9 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
     }
 
     /**
-     * Register a persistent error handler for this hook.
+     * Register a persistent error handler for this linkedFn.
      * Handler is stored in HandlersRegistry and called by Client for ALL future requests
-     * that fail with this error type from this hook.
+     * that fail with this error type from this linkedFn.
      * The error parameter is fully typed including errorData.
      *
      * @param errorType - The error type to handle (e.g., 'invalid-token')
@@ -74,7 +74,7 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
 
     /**
      * Remove a previously registered error handler from HandlersRegistry.
-     * After calling this, the error will no longer be handled by this hook's handler.
+     * After calling this, the error will no longer be handled by this linkedFn's handler.
      *
      * @param errorType - The error type to stop handling
      * @returns this TypedEvent for chaining

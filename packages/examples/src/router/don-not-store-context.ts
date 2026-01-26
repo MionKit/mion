@@ -1,14 +1,14 @@
 import {HeadersSubset} from '@mionkit/core';
-import {Routes, initMionRouter, headersHook, route} from '@mionkit/router';
+import {Routes, initMionRouter, headersLinkedFn, route} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 let currentSharedData: any = null;
 
-const authorizationHook = headersHook(async (ctx, {headers}: HeadersSubset<'Authorization'>): Promise<void> => {
+const authorizationLinkedFn = headersLinkedFn(async (ctx, {headers}: HeadersSubset<'Authorization'>): Promise<void> => {
     const token = headers.Authorization;
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
-    ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
+    ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/linkedFns
 
     // THIS IS WRONG! DO NOT STORE THE CONTEXT!
     currentSharedData = ctx.shared;
@@ -24,7 +24,7 @@ const sayHello = route((ctx): string => {
 });
 
 const routes = {
-    authorizationHook, // header: Authorization
+    authorizationLinkedFn, // header: Authorization
     wrongSayHello,
     sayHello,
 } satisfies Routes;

@@ -7,7 +7,7 @@
 
 import {AnyObject, RpcError, MION_ROUTES, SerializableMethodsData} from '@mionkit/core';
 import {
-    getHookExecutable,
+    getLinkedFnExecutable,
     getRouteExecutable,
     isPrivateExecutable,
     getRouteExecutionPath,
@@ -34,7 +34,7 @@ const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
 
 /**
  * Returns the metadata for the given method ids.
- * If getAllRemoteMethods is true, all public methods and hooks are returned.
+ * If getAllRemoteMethods is true, all public methods and linkedFns are returned.
  * @mion:route
  */
 function mionGetRemoteMethodsDataById(
@@ -70,8 +70,8 @@ function mionGetRemoteMethodsDataById(
 
 /**
  * Returns the metadata for the given route path.
- * This include all hooks in the execution path of the route.
- * If getAllRemoteMethods is true, all public methods and hooks are returned.
+ * This include all linkedFns in the execution path of the route.
+ * If getAllRemoteMethods is true, all public methods and linkedFns are returned.
  * @mion:route
  */
 function mionGetRemoteMethodsDataByPath(
@@ -96,7 +96,7 @@ function mionGetRemoteMethodsDataByPath(
 function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
     const {methods, deps, purFnDeps} = resp;
     if (methods[id]) return;
-    const executable = getHookExecutable(id) || getRouteExecutable(id);
+    const executable = getLinkedFnExecutable(id) || getRouteExecutable(id);
     if (!executable) {
         errorData[id] = `Remote Method ${id} not found`;
         return;
@@ -104,7 +104,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
     if (isPrivateExecutable(executable)) return;
     const method = getSerializableMethod(executable as RemoteMethod);
     methods[id] = method;
-    method.hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
+    method.linkedFnIds?.forEach((linkedFnId) => addRequiredRemoteMethodsToResponse(linkedFnId, resp, errorData));
     serializeMethodDeps(method, deps, purFnDeps);
 }
 

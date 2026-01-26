@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeaderHookOptions, HookOptions, RawHookOptions, RouteOptions} from '../types/remoteMethods';
+import {HeaderLinkedFnOptions, LinkedFnOptions, RawLinkedFnOptions, RouteOptions} from '../types/remoteMethods';
 import {HandlerType} from '@mionkit/core';
-import {Handler, HeaderHandler, RawHookHandler} from '../types/handlers';
-import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from '../types/definitions';
+import {Handler, HeaderHandler, RawLinkedFnHandler} from '../types/handlers';
+import {HeaderLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from '../types/definitions';
 
-// ############# Route & Hooks initialization #############
-// these functions are just helpers to initialize the route & hooks objects and keep route definitions clean
+// ############# Route & LinkedFns initialization #############
+// these functions are just helpers to initialize the route & linkedFns objects and keep route definitions clean
 
 export function route<H extends Handler>(handler: H, opts?: RouteOptions): RouteDef<H> {
     return {
@@ -21,36 +21,36 @@ export function route<H extends Handler>(handler: H, opts?: RouteOptions): Route
     };
 }
 
-export function hook<H extends Handler>(handler: H, opts?: HookOptions): HookDef<H> {
+export function linkedFn<H extends Handler>(handler: H, opts?: LinkedFnOptions): LinkedFnDef<H> {
     return {
-        type: HandlerType.hook,
+        type: HandlerType.linkedFn,
         handler,
         options: opts,
     };
 }
 
 /**
- * Hook for handling HTTP header parameters
- * Used to define hooks that receive values from HTTP headers
+ * LinkedFn for handling HTTP header parameters
+ * Used to define linkedFns that receive values from HTTP headers
  *
  * @example
  * ```ts
- * headersHook(['authorization'], (ctx, token: string): void => {
+ * headersLinkedFn(['authorization'], (ctx, token: string): void => {
  *   // token contains the value of the 'authorization' header
  * })
  * ```
  */
-export function headersHook<H extends HeaderHandler>(handler: H, opts?: HeaderHookOptions): HeaderHookDef<H> {
+export function headersLinkedFn<H extends HeaderHandler>(handler: H, opts?: HeaderLinkedFnOptions): HeaderLinkedFnDef<H> {
     return {
-        type: HandlerType.headerHook,
+        type: HandlerType.headerLinkedFn,
         handler,
         options: opts,
     };
 }
 
-export function rawHook<H extends RawHookHandler>(handler: H, opts?: RawHookOptions): RawHookDef<H> {
+export function rawLinkedFn<H extends RawLinkedFnHandler>(handler: H, opts?: RawLinkedFnOptions): RawLinkedFnDef<H> {
     return {
-        type: HandlerType.rawHook,
+        type: HandlerType.rawLinkedFn,
         handler,
         options: opts,
     };

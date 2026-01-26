@@ -7,66 +7,66 @@
 
 import {
     registerRoutes,
-    geHooksSize,
+    geLinkedFnsSize,
     geRoutesSize,
     getComplexity,
-    getHookExecutable,
+    getLinkedFnExecutable,
     getRouteExecutionPath,
     getRouteExecutable,
     resetRouter,
     initRouter,
-    addStartHooks,
-    addEndHooks,
+    addStartLinkedFns,
+    addEndLinkedFns,
 } from './router';
 import {type Routes} from './types/general';
-import {hook, route, rawHook, headersHook} from './lib/handlers';
+import {linkedFn, route, rawLinkedFn, headersLinkedFn} from './lib/handlers';
 import {HandlerType, HeadersSubset} from '@mionkit/core';
 import {isPublicExecutable} from './types/guards';
 
 describe('Create routes should', () => {
-    const hook1 = hook((): void => undefined);
+    const linkedFn1 = linkedFn((): void => undefined);
     const route1 = route((): string => 'route1');
     const route2 = route((): string => 'route2');
 
     const routes = {
-        first: hook1,
+        first: linkedFn1,
         users: {
-            userBefore: hook1,
+            userBefore: linkedFn1,
             getUser: route1,
             setUser: route2,
             pets: {
                 getUserPet: route2,
-                userPetsAfter: hook1,
+                userPetsAfter: linkedFn1,
             },
-            userAfter: hook1,
+            userAfter: linkedFn1,
         },
         pets: {
             getPet: route1,
             setPet: route2,
         },
-        last: hook1,
+        last: linkedFn1,
     } satisfies Routes;
 
-    const hookExecutables = {
+    const linkedFnExecutables = {
         first: {
             id: 'first',
-            type: HandlerType.hook,
+            type: HandlerType.linkedFn,
         },
         userBefore: {
             id: 'users/userBefore',
-            type: HandlerType.hook,
+            type: HandlerType.linkedFn,
         },
         userAfter: {
             id: 'users/userAfter',
-            type: HandlerType.hook,
+            type: HandlerType.linkedFn,
         },
         userPetsAfter: {
             id: 'users/pets/userPetsAfter',
-            type: HandlerType.hook,
+            type: HandlerType.linkedFn,
         },
         last: {
             id: 'last',
-            type: HandlerType.hook,
+            type: HandlerType.linkedFn,
         },
     };
 
@@ -88,11 +88,11 @@ describe('Create routes should', () => {
     const defaultExecutables = {
         mionDeserializeRequest: {
             id: 'mionDeserializeRequest',
-            type: HandlerType.rawHook,
+            type: HandlerType.rawLinkedFn,
         },
         mionSerializeResponse: {
             id: 'mionSerializeResponse',
-            type: HandlerType.rawHook,
+            type: HandlerType.rawLinkedFn,
         },
     };
 
@@ -111,51 +111,51 @@ describe('Create routes should', () => {
         await registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
-        expect(geHooksSize()).toEqual(5);
+        expect(geLinkedFnsSize()).toEqual(5);
 
         expect(getRouteExecutionPath('/users/getUser')?.methods).toEqual(
             addDefaultExecutables([
-                expect.objectContaining({...hookExecutables.first}),
-                expect.objectContaining({...hookExecutables.userBefore}),
+                expect.objectContaining({...linkedFnExecutables.first}),
+                expect.objectContaining({...linkedFnExecutables.userBefore}),
                 expect.objectContaining({...routeExecutables.usersGetUser}),
-                expect.objectContaining({...hookExecutables.userAfter}),
-                expect.objectContaining({...hookExecutables.last}),
+                expect.objectContaining({...linkedFnExecutables.userAfter}),
+                expect.objectContaining({...linkedFnExecutables.last}),
             ])
         );
         expect(getRouteExecutionPath('/users/setUser')).toBeTruthy();
         expect(getRouteExecutionPath('/users/pets/getUserPet')?.methods).toEqual(
             addDefaultExecutables([
-                expect.objectContaining({...hookExecutables.first}),
-                expect.objectContaining({...hookExecutables.userBefore}),
+                expect.objectContaining({...linkedFnExecutables.first}),
+                expect.objectContaining({...linkedFnExecutables.userBefore}),
                 expect.objectContaining({...routeExecutables.usersPetsGetUserPet}),
-                expect.objectContaining({...hookExecutables.userPetsAfter}),
-                expect.objectContaining({...hookExecutables.userAfter}),
-                expect.objectContaining({...hookExecutables.last}),
+                expect.objectContaining({...linkedFnExecutables.userPetsAfter}),
+                expect.objectContaining({...linkedFnExecutables.userAfter}),
+                expect.objectContaining({...linkedFnExecutables.last}),
             ])
         );
         expect(getRouteExecutionPath('/pets/getPet')?.methods).toEqual(
             addDefaultExecutables([
-                expect.objectContaining({...hookExecutables.first}),
+                expect.objectContaining({...linkedFnExecutables.first}),
                 expect.objectContaining({...routeExecutables.petsGetPet}),
-                expect.objectContaining({...hookExecutables.last}),
+                expect.objectContaining({...linkedFnExecutables.last}),
             ])
         );
         expect(getRouteExecutionPath('/pets/setPet')).toBeTruthy();
     });
 
-    it('add default values to hooks', async () => {
+    it('add default values to linkedFns', async () => {
         await initRouter();
-        const defaultHookValues = {
-            first: hook((): void => undefined),
-            second: hook((): null => null),
+        const defaultLinkedFnValues = {
+            first: linkedFn((): void => undefined),
+            second: linkedFn((): null => null),
         };
-        await registerRoutes(defaultHookValues);
+        await registerRoutes(defaultLinkedFnValues);
 
-        expect(getHookExecutable('first')).toEqual(
+        expect(getLinkedFnExecutable('first')).toEqual(
             expect.objectContaining({
                 id: 'first',
                 nestLevel: 0,
-                type: HandlerType.hook,
+                type: HandlerType.linkedFn,
                 hasReturnData: false,
                 options: expect.objectContaining({
                     runOnError: false,
@@ -163,11 +163,11 @@ describe('Create routes should', () => {
             })
         );
 
-        expect(getHookExecutable('second')).toEqual(
+        expect(getLinkedFnExecutable('second')).toEqual(
             expect.objectContaining({
                 id: 'second',
                 nestLevel: 0,
-                type: HandlerType.hook,
+                type: HandlerType.linkedFn,
                 hasReturnData: true,
                 options: expect.objectContaining({
                     runOnError: false,
@@ -199,7 +199,7 @@ describe('Create routes should', () => {
         await registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
-        expect(geHooksSize()).toEqual(5);
+        expect(geLinkedFnsSize()).toEqual(5);
 
         expect(getRouteExecutionPath('/api/v1/users/getUser.json')).toBeTruthy();
         expect(getRouteExecutionPath('/api/v1/users/setUser.json')).toBeTruthy();
@@ -250,7 +250,7 @@ describe('Create routes should', () => {
     it('optimize parsing routes (complexity) when there are multiple routes in a row', async () => {
         await initRouter();
         const bestCase = {
-            first: hook1,
+            first: linkedFn1,
             route1: route1,
             route2: route2,
             route3: route1,
@@ -262,7 +262,7 @@ describe('Create routes should', () => {
             route9: route1,
             route10: route2,
             pets: {
-                petsFirst: hook1,
+                petsFirst: linkedFn1,
                 route1: route1,
                 route2: route2,
                 route3: route1,
@@ -273,21 +273,21 @@ describe('Create routes should', () => {
                 route8: route2,
                 route9: route1,
                 route10: route2,
-                petsLast: hook1,
+                petsLast: linkedFn1,
             },
-            last: hook1,
+            last: linkedFn1,
         };
         const worstCase = {
-            first: hook1,
+            first: linkedFn1,
             route1: route1,
             route12: route2,
             pets: {
-                petsFirst: hook1,
+                petsFirst: linkedFn1,
                 route1: route1,
                 route12: route2,
-                petsLast: hook1,
+                petsLast: linkedFn1,
             },
-            last: hook1,
+            last: linkedFn1,
         };
         const bestCaseTotalRoutes = 20;
         const worstCaseTotalRoutes = 4;
@@ -326,51 +326,53 @@ describe('Create routes should', () => {
         expect(getRouteExecutable('noReturnType')?.isAsync).toEqual(true);
     });
 
-    it('add start and end global hooks', async () => {
-        const prependHooks = {
-            p1: rawHook((ctx, cb: () => void): void => cb()),
-            p2: rawHook((ctx, cb: () => void): void => cb()),
+    it('add start and end global linkedFns', async () => {
+        const prependLinkedFns = {
+            p1: rawLinkedFn((ctx, cb: () => void): void => cb()),
+            p2: rawLinkedFn((ctx, cb: () => void): void => cb()),
         };
 
-        const appendHooks = {
-            a1: rawHook((ctx, cb: () => void): void => cb()),
-            a2: rawHook((ctx, cb: () => void): void => cb()),
+        const appendLinkedFns = {
+            a1: rawLinkedFn((ctx, cb: () => void): void => cb()),
+            a2: rawLinkedFn((ctx, cb: () => void): void => cb()),
         };
-        addStartHooks(prependHooks, false);
-        addEndHooks(appendHooks, false);
+        addStartLinkedFns(prependLinkedFns, false);
+        addEndLinkedFns(appendLinkedFns, false);
 
         await initRouter();
         await registerRoutes(routes);
 
         const expectedExecutionPath = addDefaultExecutables([
-            expect.objectContaining({id: 'p1', type: HandlerType.rawHook}),
-            expect.objectContaining({id: 'p2', type: HandlerType.rawHook}),
-            expect.objectContaining({id: 'first', type: HandlerType.hook}),
+            expect.objectContaining({id: 'p1', type: HandlerType.rawLinkedFn}),
+            expect.objectContaining({id: 'p2', type: HandlerType.rawLinkedFn}),
+            expect.objectContaining({id: 'first', type: HandlerType.linkedFn}),
             expect.objectContaining({id: 'pets/getPet', type: HandlerType.route}),
-            expect.objectContaining({id: 'last', type: HandlerType.hook}),
-            expect.objectContaining({id: 'a1', type: HandlerType.rawHook}),
-            expect.objectContaining({id: 'a2', type: HandlerType.rawHook}),
+            expect.objectContaining({id: 'last', type: HandlerType.linkedFn}),
+            expect.objectContaining({id: 'a1', type: HandlerType.rawLinkedFn}),
+            expect.objectContaining({id: 'a2', type: HandlerType.rawLinkedFn}),
         ]);
 
         expect(getRouteExecutionPath('/pets/getPet')?.methods).toEqual(expectedExecutionPath);
-        expect(() => addStartHooks(prependHooks)).toThrow('Can not add start hooks after the router has been initialized');
-        expect(() => addEndHooks(appendHooks)).toThrow('Can not add end hooks after the router has been initialized');
+        expect(() => addStartLinkedFns(prependLinkedFns)).toThrow(
+            'Can not add start linkedFns after the router has been initialized'
+        );
+        expect(() => addEndLinkedFns(appendLinkedFns)).toThrow('Can not add end linkedFns after the router has been initialized');
     });
 
-    it('header hooks should be considered public (non-private)', async () => {
+    it('header linkedFns should be considered public (non-private)', async () => {
         await initRouter();
-        const routesWithHeaderHook = {
-            auth: headersHook((ctx, h: HeadersSubset<'Authorization'>): void => {
-                // Header hook with no return data and no body params
+        const routesWithHeaderLinkedFn = {
+            auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+                // Header linkedFn with no return data and no body params
             }),
             sayHello: route((): string => 'hello'),
         } satisfies Routes;
-        await registerRoutes(routesWithHeaderHook);
+        await registerRoutes(routesWithHeaderLinkedFn);
 
-        const authHook = getHookExecutable('auth');
-        expect(authHook).toBeDefined();
-        expect(authHook!.type).toEqual(HandlerType.headerHook);
-        // Header hooks should be public because they have headerNames, even if they have no return data or body params
-        expect(isPublicExecutable(authHook!)).toBe(true);
+        const authLinkedFn = getLinkedFnExecutable('auth');
+        expect(authLinkedFn).toBeDefined();
+        expect(authLinkedFn!.type).toEqual(HandlerType.headerLinkedFn);
+        // Header linkedFns should be public because they have headerNames, even if they have no return data or body params
+        expect(isPublicExecutable(authLinkedFn!)).toBe(true);
     });
 });

@@ -7,69 +7,69 @@
 
 import {RpcError} from '@mionkit/core';
 import type {Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionkit/core';
-import type {PublicHeadersHook, PublicHook, RemoteApi, PublicRoute} from '@mionkit/router';
+import type {PublicHeadersLinkedFn, PublicLinkedFn, RemoteApi, PublicRoute} from '@mionkit/router';
 import type {TypedEvent} from './typedEvent';
 
 // ############# Result Type #############
 
 // type-result-start
 /**
- * Result type for call() and callWithHooks() methods - 4-tuple pattern.
+ * Result type for call() and callWithLinkedFns() methods - 4-tuple pattern.
  * Provides type-safe async/await pattern without losing error typing.
- * Tuple allows natural naming: `const [user, error, hookResults, hookErrors] = await routes.users.getById('123').call();`
+ * Tuple allows natural naming: `const [user, error, linkedFnResults, linkedFnErrors] = await routes.users.getById('123').call();`
  *
  * The 4-tuple pattern provides:
  * - Direct access to route result/error
- * - Access to hook results/errors for both prefilled and explicit hooks
+ * - Access to linkedFn results/errors for both prefilled and explicit linkedFns
  * - Backward compatible - `const [user, error] = ...` still works (partial destructuring)
  *
  * @typeParam RouteSuccess - The success type of the route
  * @typeParam RouteError - The error type of the route
- * @typeParam HooksResults - Record of hook names to their success types
- * @typeParam HooksErrors - Record of hook names to their error types
+ * @typeParam LinkedFnsResults - Record of linkedFn names to their success types
+ * @typeParam LinkedFnsErrors - Record of linkedFn names to their error types
  */
 export type Result<
     RouteSuccess,
     RouteError,
-    HooksResults extends Record<string, unknown> = Record<string, unknown>,
-    HooksErrors extends Record<string, RpcError<string, unknown>> = Record<string, RpcError<string, unknown>>,
-> = [RouteSuccess | undefined, RouteError | undefined, HooksResults | undefined, HooksErrors | undefined];
+    LinkedFnsResults extends Record<string, unknown> = Record<string, unknown>,
+    LinkedFnsErrors extends Record<string, RpcError<string, unknown>> = Record<string, RpcError<string, unknown>>,
+> = [RouteSuccess | undefined, RouteError | undefined, LinkedFnsResults | undefined, LinkedFnsErrors | undefined];
 // type-result-end
 
-// ############# callWithHooks Result Types #############
+// ############# callWithLinkedFns Result Types #############
 
 /**
- * Extract success type from a HookSubRequest.
+ * Extract success type from a LinkedFnSubRequest.
  */
-export type HookSuccess<H> = H extends HSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
+export type LinkedFnSuccess<H> = H extends HSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
 
 /**
- * Extract error type from a HookSubRequest.
+ * Extract error type from a LinkedFnSubRequest.
  */
-export type HookError<H> = H extends HSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
+export type LinkedFnError<H> = H extends HSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
 
 /**
- * Result type for callWithHooks method - 4-tuple pattern.
- * Returns [routeResult, routeError, hooksResults, hooksErrors] where:
+ * Result type for callWithLinkedFns method - 4-tuple pattern.
+ * Returns [routeResult, routeError, linkedFnsResults, linkedFnsErrors] where:
  * - routeResult: success value if route succeeded (undefined if failed)
  * - routeError: error if route failed (undefined if succeeded)
- * - hooksResults: record of hook names to their success values
- * - hooksErrors: record of hook names to their error values
+ * - linkedFnsResults: record of linkedFn names to their success values
+ * - linkedFnsErrors: record of linkedFn names to their error values
  *
  * This provides the same structure as Result for consistency and direct access.
  *
  * @typeParam RouteSuccess - The success type of the route
  * @typeParam RouteError - The error type of the route
- * @typeParam Hooks - Record of hook names to HookSubRequest types
+ * @typeParam LinkedFns - Record of linkedFn names to LinkedFnSubRequest types
  */
-// type-call-with-hooks-result-start
-export type CallWithHooksResult<RouteSuccess, RouteError, Hooks extends Record<string, HSubRequest<any>>> = [
+// type-call-with-linkedFns-result-start
+export type CallWithLinkedFnsResult<RouteSuccess, RouteError, LinkedFns extends Record<string, HSubRequest<any>>> = [
     RouteSuccess | undefined,
     RouteError | ValidationError | undefined,
-    {[K in keyof Hooks]?: HookSuccess<Hooks[K]>} | undefined,
-    {[K in keyof Hooks]?: HookError<Hooks[K]>} | undefined,
+    {[K in keyof LinkedFns]?: LinkedFnSuccess<LinkedFns[K]>} | undefined,
+    {[K in keyof LinkedFns]?: LinkedFnError<LinkedFns[K]>} | undefined,
 ];
-// type-call-with-hooks-result-end
+// type-call-with-linkedFns-result-end
 
 export type ClientOptions = {
     baseURL: string;
@@ -92,7 +92,7 @@ export type ClientOptions = {
 };
 
 type PublicHandler = (...args: any[]) => Promise<any>;
-type PublicMethod = PublicRoute | PublicHook | PublicHeadersHook;
+type PublicMethod = PublicRoute | PublicLinkedFn | PublicHeadersLinkedFn;
 type ExtractHandler<PM extends PublicMethod> = PM extends {handler: infer H} ? H : never;
 
 export type InitOptions = Partial<ClientOptions> & {baseURL: string};
@@ -101,12 +101,12 @@ export type RequestBody = {[key: string]: any[]};
 
 // ############# Routes Parameter Utility Types #############
 
-/** Extracts all parameters from a PublicRoute, PublicHook, or PublicHeadersHook. */
+/** Extracts all parameters from a PublicRoute, PublicLinkedFn, or PublicHeadersLinkedFn. */
 export type RouteParamsType<PM extends PublicMethod> = Parameters<ExtractHandler<PM>>;
-/** Extracts a single parameter at a given index from a PublicRoute, PublicHook, or PublicHeadersHook. */
+/** Extracts a single parameter at a given index from a PublicRoute, PublicLinkedFn, or PublicHeadersLinkedFn. */
 export type RouteParamType<PM extends PublicMethod, Index extends number> = Parameters<ExtractHandler<PM>>[Index];
-/** Extracts the headers parameter (first param) from a PublicHeadersHook handler. */
-export type HeadersParamsType<PM extends PublicHeadersHook> = Parameters<ExtractHandler<PM>>[0];
+/** Extracts the headers parameter (first param) from a PublicHeadersLinkedFn handler. */
+export type HeadersParamsType<PM extends PublicHeadersLinkedFn> = Parameters<ExtractHandler<PM>>[0];
 
 // others
 export type HandlerResponse<PH extends PublicHandler> = Awaited<ReturnType<PH>>;
@@ -150,7 +150,7 @@ type Simplify<T> = T extends any ? T : never;
 /**
  * Extracts all RpcError types from a handler's return type as a union.
  * Returns the full RpcError types (with ErrData), not just the type strings.
- * Also includes ValidationError since validation errors can be thrown for any route/hook.
+ * Also includes ValidationError since validation errors can be thrown for any route/linkedFn.
  * @typeParam PH - The public handler type
  */
 export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplify<
@@ -161,7 +161,7 @@ export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplif
 
 // type-sub-request-start
 /** Represents a remote method (sub request).
- * A route request can contains multiple subRequest to the route itself and any required hook*/
+ * A route request can contains multiple subRequest to the route itself and any required linkedFn*/
 export interface SubRequest<PH extends PublicHandler> {
     pointer: string[];
     id: string;
@@ -176,7 +176,7 @@ export interface SubRequest<PH extends PublicHandler> {
 
 // type-route-sub-request-start
 /** structure returned from the proxy, containing info of the remote route to execute
- * Note routePointer is using as differentiating key from hookPointer in HookInfo, so types can't overlap.
+ * Note routePointer is using as differentiating key from linkedFnPointer in LinkedFnInfo, so types can't overlap.
  */
 export interface RSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /**
@@ -188,44 +188,44 @@ export interface RSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
      * Calls a remote route and returns a Result 4-tuple with full typing preserved.
      * Never throws - errors are always in the result tuple.
      *
-     * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] tuple
+     * @returns Promise that resolves to [routeResult, routeError, linkedFnsResults, linkedFnsErrors] tuple
      */
     call: () => Promise<
         Result<
             HandlerSuccessResponse<PH>,
             Simplify<HandlerErrors<PH>>,
-            Record<string, unknown>, // hooks results
-            Record<string, RpcError<string, unknown> | ValidationError> // hooks errors
+            Record<string, unknown>, // linkedFns results
+            Record<string, RpcError<string, unknown> | ValidationError> // linkedFns errors
         >
     >;
 
     /**
-     * Calls a remote route with hooks and returns a fully-typed 4-tuple result.
-     * Always returns (never throws) - can have partial success where some hooks/route succeed and others fail.
+     * Calls a remote route with linkedFns and returns a fully-typed 4-tuple result.
+     * Always returns (never throws) - can have partial success where some linkedFns/route succeed and others fail.
      *
-     * @param hooks Record of hook names to HookSubRequest instances
-     * @returns Promise that resolves to [routeResult, routeError, hooksResults, hooksErrors] tuple
+     * @param linkedFns Record of linkedFn names to LinkedFnSubRequest instances
+     * @returns Promise that resolves to [routeResult, routeError, linkedFnsResults, linkedFnsErrors] tuple
      */
-    callWithHooks: <H extends Record<string, HSubRequest<any>>>(
-        hooks: H
-    ) => Promise<CallWithHooksResult<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, H>>;
+    callWithLinkedFns: <H extends Record<string, HSubRequest<any>>>(
+        linkedFns: H
+    ) => Promise<CallWithLinkedFnsResult<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, H>>;
 }
 // type-route-sub-request-end
 
-// type-hook-sub-request-start
-/** structure returned from the proxy, containing info of the remote hook to execute
- * Note hookPointer is using as differentiating key from routePointer in RouteInfo, so types can't overlap.
+// type-linkedFn-sub-request-start
+/** structure returned from the proxy, containing info of the remote linkedFn to execute
+ * Note linkedFnPointer is using as differentiating key from routePointer in RouteInfo, so types can't overlap.
  */
 export interface HSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /**
-     * Validates Hook's parameters and returns type errors. Throws RpcError if validation fails.
+     * Validates LinkedFn's parameters and returns type errors. Throws RpcError if validation fails.
      */
     typeErrors: () => Promise<RunTypeError[]>;
     /**
-     * Prefills Hook's parameters for any future request and returns TypedEvent for persistent event handling.
+     * Prefills LinkedFn's parameters for any future request and returns TypedEvent for persistent event handling.
      * Parameters are validated and serialized for future requests.
      * The TypedEvent allows registering:
-     * - onSuccess handlers called for ALL future successful requests from this hook
+     * - onSuccess handlers called for ALL future successful requests from this linkedFn
      * - onError handlers called for ALL future requests that fail with specific error types
      * @returns TypedEvent for chaining onSuccess/onError handlers
      */
@@ -238,9 +238,9 @@ export interface HSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
      */
     removePrefill: () => Promise<void>;
 }
-// type-hook-sub-request-end
+// type-linkedFn-sub-request-end
 
-export type NonClientRoute = never | PublicHook | PublicHeadersHook;
+export type NonClientRoute = never | PublicLinkedFn | PublicHeadersLinkedFn;
 
 export type ClientRoutes<RA extends RemoteApi> = Prettify<{
     [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
@@ -250,15 +250,15 @@ export type ClientRoutes<RA extends RemoteApi> = Prettify<{
           : never;
 }>;
 
-export type NonClientHook = never | PublicRoute | {[key: string]: PublicRoute};
+export type NonClientLinkedFn = never | PublicRoute | {[key: string]: PublicRoute};
 
-export type ClientHooks<RA extends RemoteApi> = Prettify<{
-    [Property in keyof RA as RA[Property] extends NonClientHook ? never : Property]: RA[Property] extends
-        | PublicHook
-        | PublicHeadersHook
+export type ClientLinkedFns<RA extends RemoteApi> = Prettify<{
+    [Property in keyof RA as RA[Property] extends NonClientLinkedFn ? never : Property]: RA[Property] extends
+        | PublicLinkedFn
+        | PublicHeadersLinkedFn
         ? (...params: Parameters<RA[Property]['handler']>) => HSubRequest<RA[Property]['handler']>
         : RA[Property] extends RemoteApi
-          ? ClientHooks<RA[Property]>
+          ? ClientLinkedFns<RA[Property]>
           : never;
 }>;
 
@@ -271,4 +271,4 @@ export type SuccessClientResponse<RS extends RSubRequest<any>, RHList extends HS
     ...SuccessResponses<RHList>,
 ];
 
-export type PrefilledHooksCache = Map<string, SubRequest<any>>;
+export type PrefilledLinkedFnsCache = Map<string, SubRequest<any>>;

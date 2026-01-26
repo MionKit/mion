@@ -9,7 +9,7 @@ import {initClient} from './client';
 import {HSubRequest, RSubRequest} from './types';
 import {isRpcError, HeadersSubset} from '@mionkit/core';
 import {TestServerApi} from '../test/test-server';
-import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
+import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
 
 // Mock localStorage for method metadata storage (still needed for clientMethodsMetadata)
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -17,7 +17,7 @@ const Storage = require('dom-storage');
 global.localStorage = new Storage(null, {strict: true});
 global.sessionStorage = new Storage(null, {strict: true});
 
-// Helper to create auth headers for the test server's headersHook
+// Helper to create auth headers for the test server's headersLinkedFn
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
     return new HeadersSubset({Authorization: token});
 }
@@ -29,17 +29,17 @@ describe('client', () => {
 
     const port = TEST_PORT_MAPPING.client;
 
-    // Create server hooks using the utility
-    const serverHooks = createTestServerHooks({port});
-    const baseURL = serverHooks.getBaseURL();
+    // Create server linkedFns using the utility
+    const serverLinkedFns = createTestServerLinkedFns({port});
+    const baseURL = serverLinkedFns.getBaseURL();
 
-    beforeAll(serverHooks.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverHooks.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
+    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
+    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
-    // Note: prefilledHooksCache is now per-client instance, so each test with a fresh client starts with empty cache
+    // Note: prefilledLinkedFnsCache is now per-client instance, so each test with a fresh client starts with empty cache
 
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
-        const {routes, hooks} = initClient<MyApi>({baseURL});
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         const expectedAuthSubRequest: RSubRequest<any> & HSubRequest<any> = {
@@ -48,7 +48,7 @@ describe('client', () => {
             isResolved: false,
             params: [authHeaders],
             call: expect.any(Function),
-            callWithHooks: expect.any(Function),
+            callWithLinkedFns: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
@@ -60,7 +60,7 @@ describe('client', () => {
             isResolved: false,
             params: [someUser],
             call: expect.any(Function),
-            callWithHooks: expect.any(Function),
+            callWithLinkedFns: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
@@ -72,13 +72,13 @@ describe('client', () => {
             isResolved: false,
             params: [2],
             call: expect.any(Function),
-            callWithHooks: expect.any(Function),
+            callWithLinkedFns: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
         };
 
-        expect(hooks.auth(authHeaders)).toEqual(expect.objectContaining(expectedAuthSubRequest));
+        expect(linkedFns.auth(authHeaders)).toEqual(expect.objectContaining(expectedAuthSubRequest));
         expect(routes.sayHello(someUser)).toEqual(expect.objectContaining(expectedSayHelloSubRequest));
         expect(routes.utils.sumTwo(2)).toEqual(expect.objectContaining(expectedSumTwoSubRequest));
 
@@ -90,48 +90,48 @@ describe('client', () => {
             isResolved: false,
             params: [1, 'a'],
             call: expect.any(Function),
-            callWithHooks: expect.any(Function),
+            callWithLinkedFns: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
         };
         expect((routes as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
-        expect((hooks as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
+        expect((linkedFns as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
     });
 
     it('make a route call and get a valid response', async () => {
-        const {routes, hooks} = initClient<MyApi>({baseURL});
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, error, hookResults, hookErrors] = await routes.sayHello(someUser).callWithHooks({
-            auth: hooks.auth(authHeaders),
+        const [greeting, error, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
+            auth: linkedFns.auth(authHeaders),
         });
 
         expect(greeting).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
         expect(error).toBeUndefined();
-        expect(hookResults).toBeDefined();
-        expect(hookErrors).toBeDefined();
+        expect(linkedFnResults).toBeDefined();
+        expect(linkedFnErrors).toBeDefined();
     });
 
-    it('make a route call using callWithHooks method', async () => {
-        const {routes, hooks} = initClient<MyApi>({baseURL});
+    it('make a route call using callWithLinkedFns method', async () => {
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, , hookErrors] = await routes.sayHello(someUser).callWithHooks({
-            auth: hooks.auth(authHeaders),
+        const [greeting, routeError, , linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
+            auth: linkedFns.auth(authHeaders),
         });
 
         expect(greeting).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
         expect(routeError).toBeUndefined();
-        expect(hookErrors?.auth).toBeUndefined();
+        expect(linkedFnErrors?.auth).toBeUndefined();
     });
 
     it('return error in result if a route call fails', async () => {
-        const {routes, hooks} = initClient<MyApi>({baseURL});
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError] = await routes.alwaysFails(someUser).callWithHooks({
-            auth: hooks.auth(authHeaders),
+        const [greeting, routeError] = await routes.alwaysFails(someUser).callWithLinkedFns({
+            auth: linkedFns.auth(authHeaders),
         });
 
         expect(greeting).toBeUndefined();
@@ -152,10 +152,10 @@ describe('client', () => {
     });
 
     it('prefill and remove prefill from a request', async () => {
-        const {routes, hooks} = initClient<MyApi>({baseURL});
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('ABYWZ-TOKEN');
 
-        const request = hooks.auth(authHeaders);
+        const request = linkedFns.auth(authHeaders);
         request.prefill();
         // note auth has been prefilled and is not required to be sent in the call
         // Small delay to ensure prefill completes
@@ -171,7 +171,7 @@ describe('client', () => {
 
         const [, error] = await routes.sayHello(someUser).call();
 
-        // After removing prefill, the auth hook is not sent, so server returns headers validation error
+        // After removing prefill, the auth linkedFn is not sent, so server returns headers validation error
         expect(error).toBeDefined();
         expect(isRpcError(error)).toBe(true);
         expect(error?.['mion@isΣrrθr']).toBe(true);
@@ -182,11 +182,11 @@ describe('client', () => {
 
     describe('Result pattern', () => {
         it('call() should return data on success', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn so call() works without callWithLinkedFns
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             const [greeting, error] = await routes.sayHello(someUser).call();
@@ -195,15 +195,15 @@ describe('client', () => {
             expect(error).toBeUndefined();
 
             // Clean up
-            hooks.auth(authHeaders).removePrefill();
+            linkedFns.auth(authHeaders).removePrefill();
         });
 
         it('call() should return error on failure', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn so call() works without callWithLinkedFns
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             const [response, error] = await routes.alwaysFails(someUser).call();
@@ -214,15 +214,15 @@ describe('client', () => {
             expect(error?.publicMessage).toBe('Something fails');
 
             // Clean up
-            hooks.auth(authHeaders).removePrefill();
+            linkedFns.auth(authHeaders).removePrefill();
         });
 
         it('call() should not throw even on error', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn so call() works without callWithLinkedFns
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // This should NOT throw
@@ -237,15 +237,15 @@ describe('client', () => {
             expect(didThrow).toBe(false);
 
             // Clean up
-            hooks.auth(authHeaders).removePrefill();
+            linkedFns.auth(authHeaders).removePrefill();
         });
 
         it('call() should return typed error that can be checked', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn so call() works without callWithLinkedFns
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             const [response, error] = await routes.alwaysFails(someUser).call();
@@ -256,22 +256,22 @@ describe('client', () => {
             expect(response).toBeUndefined();
 
             // Clean up
-            hooks.auth(authHeaders).removePrefill();
+            linkedFns.auth(authHeaders).removePrefill();
         });
     });
 
-    // ========== TypedEvent Hook Success Handler Tests ==========
+    // ========== TypedEvent LinkedFn Success Handler Tests ==========
 
     describe('TypedEvent onSuccess handlers', () => {
         it('onSuccess should be called on every successful request', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCallCount = 0;
             let receivedSessionInfo: any = null;
 
-            // Prefill the session hook and register onSuccess handler
-            hooks
+            // Prefill the session linkedFn and register onSuccess handler
+            linkedFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess((sessionInfo) => {
@@ -279,8 +279,8 @@ describe('client', () => {
                     receivedSessionInfo = sessionInfo;
                 });
 
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn so call() works without callWithLinkedFns
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Make first request
@@ -295,19 +295,19 @@ describe('client', () => {
             expect(successCallCount).toBe(2);
 
             // Clean up
-            await hooks.session('valid-token').removePrefill();
-            await hooks.auth(authHeaders).removePrefill();
+            await linkedFns.session('valid-token').removePrefill();
+            await linkedFns.auth(authHeaders).removePrefill();
         });
 
-        it('onSuccess should NOT be called when hook fails', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('onSuccess should NOT be called when linkedFn fails', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCalled = false;
             let errorCalled = false;
 
             // Prefill with expired token and register handlers
-            hooks
+            linkedFns
                 .session('expired')
                 .prefill()
                 .onSuccess(() => {
@@ -317,8 +317,8 @@ describe('client', () => {
                     errorCalled = true;
                 });
 
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn so call() works without callWithLinkedFns
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Make request - should fail with session-expired
@@ -328,26 +328,26 @@ describe('client', () => {
             expect(errorCalled).toBe(true);
 
             // Clean up
-            await hooks.session('expired').removePrefill();
-            await hooks.auth(authHeaders).removePrefill();
+            await linkedFns.session('expired').removePrefill();
+            await linkedFns.auth(authHeaders).removePrefill();
         });
 
         it('offSuccess should remove success handler', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCallCount = 0;
 
             // Prefill and register onSuccess handler
-            const typedEvent = hooks
+            const typedEvent = linkedFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess(() => {
                     successCallCount++;
                 });
 
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn so call() works without callWithLinkedFns
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // First request - handler should be called
@@ -362,19 +362,19 @@ describe('client', () => {
             expect(successCallCount).toBe(1); // Still 1
 
             // Clean up
-            await hooks.session('valid-token').removePrefill();
-            await hooks.auth(authHeaders).removePrefill();
+            await linkedFns.session('valid-token').removePrefill();
+            await linkedFns.auth(authHeaders).removePrefill();
         });
 
         it('both onSuccess and onError can be registered on same TypedEvent', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCalled = false;
             let errorCalled = false;
 
             // Register both handlers
-            hooks
+            linkedFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess(() => {
@@ -384,8 +384,8 @@ describe('client', () => {
                     errorCalled = true;
                 });
 
-            // Prefill auth hook so call() works without callWithHooks
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn so call() works without callWithLinkedFns
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Make successful request
@@ -395,15 +395,15 @@ describe('client', () => {
             expect(errorCalled).toBe(false);
 
             // Clean up
-            await hooks.session('valid-token').removePrefill();
-            await hooks.auth(authHeaders).removePrefill();
+            await linkedFns.session('valid-token').removePrefill();
+            await linkedFns.auth(authHeaders).removePrefill();
         });
 
         it('removePrefill should clear both success and error handlers', async () => {
-            const {hooks} = initClient<MyApi>({baseURL});
+            const {linkedFns} = initClient<MyApi>({baseURL});
 
             // Register handlers
-            const typedEvent = hooks
+            const typedEvent = linkedFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess(() => {
@@ -418,22 +418,22 @@ describe('client', () => {
             expect(typedEvent.hasErrorHandler('session-expired')).toBe(true);
 
             // Remove prefill (should clear handlers)
-            await hooks.session('valid-token').removePrefill();
+            await linkedFns.session('valid-token').removePrefill();
 
             // Verify handlers are cleared
             expect(typedEvent.hasSuccessHandler()).toBe(false);
             expect(typedEvent.hasErrorHandler('session-expired')).toBe(false);
         });
 
-        it('call() with prefilled hooks should return hookResults/hookErrors AND trigger TypedEvent handlers', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('call() with prefilled linkedFns should return linkedFnResults/linkedFnErrors AND trigger TypedEvent handlers', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let typedEventSuccessCalled = false;
             let typedEventReceivedSession: any = null;
 
-            // Prefill session hook with TypedEvent handlers
-            hooks
+            // Prefill session linkedFn with TypedEvent handlers
+            linkedFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess((sessionInfo) => {
@@ -441,20 +441,20 @@ describe('client', () => {
                     typedEventReceivedSession = sessionInfo;
                 });
 
-            // Prefill auth hook
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            // call() should return both route result AND hook results/errors in the 4-tuple
-            const [greeting, routeError, hookResults, hookErrors] = await routes.sayHello(someUser).call();
+            // call() should return both route result AND linkedFn results/errors in the 4-tuple
+            const [greeting, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).call();
 
             // Route should succeed
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
 
-            // Hook results should be available in the 4-tuple (from prefilled hooks)
-            expect(hookResults).toBeDefined();
-            expect(hookErrors).toBeDefined();
+            // LinkedFn results should be available in the 4-tuple (from prefilled linkedFns)
+            expect(linkedFnResults).toBeDefined();
+            expect(linkedFnErrors).toBeDefined();
 
             // TypedEvent handler should ALSO have been called
             expect(typedEventSuccessCalled).toBe(true);
@@ -462,19 +462,19 @@ describe('client', () => {
             expect(typedEventReceivedSession.userId).toBe('user-123');
 
             // Clean up
-            await hooks.session('valid-token').removePrefill();
-            await hooks.auth(authHeaders).removePrefill();
+            await linkedFns.session('valid-token').removePrefill();
+            await linkedFns.auth(authHeaders).removePrefill();
         });
 
-        it('call() with prefilled hooks should return hookErrors AND trigger TypedEvent error handlers', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('call() with prefilled linkedFns should return linkedFnErrors AND trigger TypedEvent error handlers', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let typedEventErrorCalled = false;
             let typedEventReceivedError: any = null;
 
-            // Prefill session hook with expired token and TypedEvent error handler
-            hooks
+            // Prefill session linkedFn with expired token and TypedEvent error handler
+            linkedFns
                 .session('expired')
                 .prefill()
                 .onError('session-expired', (error) => {
@@ -482,16 +482,16 @@ describe('client', () => {
                     typedEventReceivedError = error;
                 });
 
-            // Prefill auth hook
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            // call() should return hook errors in the 4-tuple
-            const [, , hookResults, hookErrors] = await routes.sayHello(someUser).call();
+            // call() should return linkedFn errors in the 4-tuple
+            const [, , linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).call();
 
-            // Hook errors should be available in the 4-tuple
-            expect(hookResults).toBeDefined();
-            expect(hookErrors).toBeDefined();
+            // LinkedFn errors should be available in the 4-tuple
+            expect(linkedFnResults).toBeDefined();
+            expect(linkedFnErrors).toBeDefined();
 
             // TypedEvent error handler should ALSO have been called
             expect(typedEventErrorCalled).toBe(true);
@@ -499,19 +499,19 @@ describe('client', () => {
             expect(typedEventReceivedError.type).toBe('session-expired');
 
             // Clean up
-            await hooks.session('expired').removePrefill();
-            await hooks.auth(authHeaders).removePrefill();
+            await linkedFns.session('expired').removePrefill();
+            await linkedFns.auth(authHeaders).removePrefill();
         });
 
-        it('call() with prefilled hooks should handle mixed results (hook succeeds, route fails)', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('call() with prefilled linkedFns should handle mixed results (linkedFn succeeds, route fails)', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let typedEventSuccessCalled = false;
             let typedEventReceivedSession: any = null;
 
-            // Prefill session hook with TypedEvent success handler
-            hooks
+            // Prefill session linkedFn with TypedEvent success handler
+            linkedFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess((sessionInfo) => {
@@ -519,12 +519,12 @@ describe('client', () => {
                     typedEventReceivedSession = sessionInfo;
                 });
 
-            // Prefill auth hook
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            // Call a route that always fails - hooks still execute and succeed, but route returns error
-            const [result, routeError, hookResults, hookErrors] = await routes.alwaysFails(someUser).call();
+            // Call a route that always fails - linkedFns still execute and succeed, but route returns error
+            const [result, routeError, linkedFnResults, linkedFnErrors] = await routes.alwaysFails(someUser).call();
 
             // Route should fail
             expect(result).toBeUndefined();
@@ -532,61 +532,61 @@ describe('client', () => {
             expect(routeError?.type).toBe('unknown-error');
             expect(routeError?.publicMessage).toBe('Something fails');
 
-            // Hook results should be available (hooks succeeded even though route failed)
-            expect(hookResults).toBeDefined();
-            expect(hookErrors).toBeDefined();
+            // LinkedFn results should be available (linkedFns succeeded even though route failed)
+            expect(linkedFnResults).toBeDefined();
+            expect(linkedFnErrors).toBeDefined();
 
-            // TypedEvent success handler SHOULD be called for the hook (hook succeeded independently)
-            // This is the correct behavior - each hook is processed individually, not based on route success
+            // TypedEvent success handler SHOULD be called for the linkedFn (linkedFn succeeded independently)
+            // This is the correct behavior - each linkedFn is processed individually, not based on route success
             expect(typedEventSuccessCalled).toBe(true);
             expect(typedEventReceivedSession).toBeDefined();
             expect(typedEventReceivedSession.userId).toBe('user-123');
 
             // Clean up
-            await hooks.session('valid-token').removePrefill();
-            await hooks.auth(authHeaders).removePrefill();
+            await linkedFns.session('valid-token').removePrefill();
+            await linkedFns.auth(authHeaders).removePrefill();
         });
     });
 
-    // ========== callWithHooks() Tests ==========
+    // ========== callWithLinkedFns() Tests ==========
 
-    describe('callWithHooks() API', () => {
-        it('callWithHooks should return route data on success', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+    describe('callWithLinkedFns() API', () => {
+        it('callWithLinkedFns should return route data on success', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError, hookResults, hookErrors] = await routes.sayHello(someUser).callWithHooks({
-                auth: hooks.auth(authHeaders),
+            const [greeting, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
+                auth: linkedFns.auth(authHeaders),
             });
 
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
-            expect(hookResults).toBeDefined();
-            expect(hookErrors).toBeDefined();
+            expect(linkedFnResults).toBeDefined();
+            expect(linkedFnErrors).toBeDefined();
         });
 
-        it('callWithHooks should return hook data on success', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('callWithLinkedFns should return linkedFn data on success', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError, hookResults, hookErrors] = await routes.sayHello(someUser).callWithHooks({
-                auth: hooks.auth(authHeaders),
-                session: hooks.session('valid-token'),
+            const [greeting, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
+                auth: linkedFns.auth(authHeaders),
+                session: linkedFns.session('valid-token'),
             });
 
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
-            expect(hookErrors?.auth).toBeUndefined();
-            expect(hookResults?.session).toBeDefined();
-            expect(hookResults?.session?.userId).toBe('user-123');
+            expect(linkedFnErrors?.auth).toBeUndefined();
+            expect(linkedFnResults?.session).toBeDefined();
+            expect(linkedFnResults?.session?.userId).toBe('user-123');
         });
 
-        it('callWithHooks should return route error on failure', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('callWithLinkedFns should return route error on failure', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError] = await routes.alwaysFails(someUser).callWithHooks({
-                auth: hooks.auth(authHeaders),
+            const [greeting, routeError] = await routes.alwaysFails(someUser).callWithLinkedFns({
+                auth: linkedFns.auth(authHeaders),
             });
 
             expect(greeting).toBeUndefined();
@@ -594,28 +594,28 @@ describe('client', () => {
             expect(routeError?.type).toBe('unknown-error');
         });
 
-        it('callWithHooks should return hook error on hook failure', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('callWithLinkedFns should return linkedFn error on linkedFn failure', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [, , , hookErrors] = await routes.sayHello(someUser).callWithHooks({
-                auth: hooks.auth(authHeaders),
-                session: hooks.session('expired'), // This will fail
+            const [, , , linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
+                auth: linkedFns.auth(authHeaders),
+                session: linkedFns.session('expired'), // This will fail
             });
 
-            // Route may or may not have data depending on hook execution order
-            expect(hookErrors?.session).toBeDefined();
-            expect(hookErrors?.session?.type).toBe('session-expired');
+            // Route may or may not have data depending on linkedFn execution order
+            expect(linkedFnErrors?.session).toBeDefined();
+            expect(linkedFnErrors?.session?.type).toBe('session-expired');
         });
 
-        it('callWithHooks should never throw', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('callWithLinkedFns should never throw', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let didThrow = false;
             try {
-                const [, routeError] = await routes.alwaysFails(someUser).callWithHooks({
-                    auth: hooks.auth(authHeaders),
+                const [, routeError] = await routes.alwaysFails(someUser).callWithLinkedFns({
+                    auth: linkedFns.auth(authHeaders),
                 });
                 // Should have error in result, not throw
                 expect(routeError).toBeDefined();
@@ -626,66 +626,66 @@ describe('client', () => {
             expect(didThrow).toBe(false);
         });
 
-        it('callWithHooks should NOT work with empty hooks object', async () => {
+        it('callWithLinkedFns should NOT work with empty linkedFns object', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            // callWithHooks with empty hooks object should throw an error
-            expect(() => routes.sayHello(someUser).callWithHooks({})).toThrow(
-                'callWithHooks requires at least one hook. Use call() instead for requests without hooks.'
+            // callWithLinkedFns with empty linkedFns object should throw an error
+            expect(() => routes.sayHello(someUser).callWithLinkedFns({})).toThrow(
+                'callWithLinkedFns requires at least one linkedFn. Use call() instead for requests without linkedFns.'
             );
         });
 
-        it('callWithHooks should support partial success (route succeeds, hook fails)', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('callWithLinkedFns should support partial success (route succeeds, linkedFn fails)', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Session hook with expired token will fail
-            const [, , , hookErrors] = await routes.sayHello(someUser).callWithHooks({
-                auth: hooks.auth(authHeaders),
-                session: hooks.session('expired'),
+            // Session linkedFn with expired token will fail
+            const [, , , linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
+                auth: linkedFns.auth(authHeaders),
+                session: linkedFns.session('expired'),
             });
 
-            // Route may or may not succeed depending on hook execution order
-            // But session hook should definitely have an error
-            expect(hookErrors?.session).toBeDefined();
-            expect(hookErrors?.session?.type).toBe('session-expired');
+            // Route may or may not succeed depending on linkedFn execution order
+            // But session linkedFn should definitely have an error
+            expect(linkedFnErrors?.session).toBeDefined();
+            expect(linkedFnErrors?.session?.type).toBe('session-expired');
         });
 
-        it('callWithHooks should return all hook results', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('callWithLinkedFns should return all linkedFn results', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [, , hookResults] = await routes.sayHello(someUser).callWithHooks({
-                auth: hooks.auth(authHeaders),
-                session: hooks.session('valid-token'),
+            const [, , linkedFnResults] = await routes.sayHello(someUser).callWithLinkedFns({
+                auth: linkedFns.auth(authHeaders),
+                session: linkedFns.session('valid-token'),
             });
 
-            // Session hook should have data
-            expect(hookResults?.session).toBeDefined();
-            expect(hookResults?.session?.userId).toBe('user-123');
+            // Session linkedFn should have data
+            expect(linkedFnResults?.session).toBeDefined();
+            expect(linkedFnResults?.session?.userId).toBe('user-123');
         });
 
-        it('callWithHooks should work with multiple hooks', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('callWithLinkedFns should work with multiple linkedFns', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError, hookResults, hookErrors] = await routes.sayHello(someUser).callWithHooks({
-                auth: hooks.auth(authHeaders),
-                session: hooks.session('valid-token'),
+            const [greeting, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
+                auth: linkedFns.auth(authHeaders),
+                session: linkedFns.session('valid-token'),
             });
 
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
-            expect(hookErrors?.auth).toBeUndefined();
-            expect(hookResults?.session).toBeDefined();
+            expect(linkedFnErrors?.auth).toBeUndefined();
+            expect(linkedFnResults?.session).toBeDefined();
         });
 
-        it('callWithHooks result should have correct types', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('callWithLinkedFns result should have correct types', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError] = await routes.sayHello(someUser).callWithHooks({
-                auth: hooks.auth(authHeaders),
+            const [greeting, routeError] = await routes.sayHello(someUser).callWithLinkedFns({
+                auth: linkedFns.auth(authHeaders),
             });
 
             // Type checks - these should compile
@@ -701,12 +701,12 @@ describe('client', () => {
             expect(greetingValue === undefined || typeof greetingValue === 'string').toBe(true);
         });
 
-        it('callWithHooks should handle route that always fails', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('callWithLinkedFns should handle route that always fails', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError] = await routes.alwaysFails(someUser).callWithHooks({
-                auth: hooks.auth(authHeaders),
+            const [greeting, routeError] = await routes.alwaysFails(someUser).callWithLinkedFns({
+                auth: linkedFns.auth(authHeaders),
             });
 
             expect(greeting).toBeUndefined();
@@ -716,11 +716,11 @@ describe('client', () => {
         });
     });
 
-    // ========== Server-side Hook Errors Tests (@thrownErrors) ==========
+    // ========== Server-side LinkedFn Errors Tests (@thrownErrors) ==========
 
-    describe('Server-side hook errors (@thrownErrors)', () => {
-        it('validation error should be included in hookErrors when sending wrong param type', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+    describe('Server-side linkedFn errors (@thrownErrors)', () => {
+        it('validation error should be included in linkedFnErrors when sending wrong param type', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Send a string instead of a number to calculateAge route
@@ -728,72 +728,74 @@ describe('client', () => {
             // We need to bypass TypeScript type checking to send wrong type
             const wrongParams = 'not-a-number' as unknown as number;
 
-            const [result, routeError, hookResults, hookErrors] = await routes.calculateAge(wrongParams).callWithHooks({
-                auth: hooks.auth(authHeaders),
-            });
+            const [result, routeError, linkedFnResults, linkedFnErrors] = await routes
+                .calculateAge(wrongParams)
+                .callWithLinkedFns({
+                    auth: linkedFns.auth(authHeaders),
+                });
 
             // The request should fail due to validation error
             expect(result).toBeUndefined();
 
-            // Either routeError or hookErrors should contain the validation error
-            const hasError = routeError !== undefined || (hookErrors && Object.keys(hookErrors).length > 0);
+            // Either routeError or linkedFnErrors should contain the validation error
+            const hasError = routeError !== undefined || (linkedFnErrors && Object.keys(linkedFnErrors).length > 0);
             expect(hasError).toBe(true);
 
-            // hookResults should be defined (even if empty)
-            expect(hookResults).toBeDefined();
-            expect(hookErrors).toBeDefined();
+            // linkedFnResults should be defined (even if empty)
+            expect(linkedFnResults).toBeDefined();
+            expect(linkedFnErrors).toBeDefined();
         });
 
-        it('validation error should be included in hookErrors when sending wrong object structure', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('validation error should be included in linkedFnErrors when sending wrong object structure', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Send an object with wrong structure (missing surname)
             // We need to bypass TypeScript type checking to send wrong type
             const wrongUser = {name: 'John'} as unknown as {name: string; surname: string};
 
-            const [result, routeError, hookResults, hookErrors] = await routes.sayHello(wrongUser).callWithHooks({
-                auth: hooks.auth(authHeaders),
+            const [result, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(wrongUser).callWithLinkedFns({
+                auth: linkedFns.auth(authHeaders),
             });
 
             // The request should fail due to validation error
             expect(result).toBeUndefined();
 
-            // Either routeError or hookErrors should contain the validation error
-            const hasError = routeError !== undefined || (hookErrors && Object.keys(hookErrors).length > 0);
+            // Either routeError or linkedFnErrors should contain the validation error
+            const hasError = routeError !== undefined || (linkedFnErrors && Object.keys(linkedFnErrors).length > 0);
             expect(hasError).toBe(true);
 
-            // hookResults should be defined (even if empty)
-            expect(hookResults).toBeDefined();
-            expect(hookErrors).toBeDefined();
+            // linkedFnResults should be defined (even if empty)
+            expect(linkedFnResults).toBeDefined();
+            expect(linkedFnErrors).toBeDefined();
         });
 
-        it('validation error should be included in hookErrors for call() with prefilled hooks', async () => {
-            const {routes, hooks} = initClient<MyApi>({baseURL});
+        it('validation error should be included in linkedFnErrors for call() with prefilled linkedFns', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Prefill auth hook
-            hooks.auth(authHeaders).prefill();
+            // Prefill auth linkedFn
+            linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Send wrong param type
             const wrongParams = 'not-a-number' as unknown as number;
 
-            const [result, routeError, hookResults, hookErrors] = await routes.calculateAge(wrongParams).call();
+            const [result, routeError, linkedFnResults, linkedFnErrors] = await routes.calculateAge(wrongParams).call();
 
             // The request should fail due to validation error
             expect(result).toBeUndefined();
 
-            // Either routeError or hookErrors should contain the validation error
-            const hasError = routeError !== undefined || (hookErrors && Object.keys(hookErrors).length > 0);
+            // Either routeError or linkedFnErrors should contain the validation error
+            const hasError = routeError !== undefined || (linkedFnErrors && Object.keys(linkedFnErrors).length > 0);
             expect(hasError).toBe(true);
 
-            // hookResults and hookErrors should always be defined in 4-tuple
-            expect(hookResults).toBeDefined();
-            expect(hookErrors).toBeDefined();
+            // linkedFnResults and linkedFnErrors should always be defined in 4-tuple
+            expect(linkedFnResults).toBeDefined();
+            expect(linkedFnErrors).toBeDefined();
 
             // Clean up
-            await hooks.auth(authHeaders).removePrefill();
+            await linkedFns.auth(authHeaders).removePrefill();
         });
     });
 });

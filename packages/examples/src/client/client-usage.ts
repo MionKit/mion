@@ -4,24 +4,24 @@ import {HeadersSubset} from '@mionkit/core';
 // importing only the RemoteApi type from server
 import type {MyApi} from './server.routes';
 
-const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 async function examples() {
-    // calls sumTwo route in the server using callWithHooks API
-    // Returns 4-tuple: [routeResult, routeError, hooksResults, hooksErrors]
-    const [sumResult, sumError, hookResults, hookErrors] = await routes.utils.sum(5, 2).callWithHooks({
-        auth: hooks.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+    // calls sumTwo route in the server using callWithLinkedFns API
+    // Returns 4-tuple: [routeResult, routeError, linkedFnsResults, linkedFnsErrors]
+    const [sumResult, sumError, linkedFnResults, linkedFnErrors] = await routes.utils.sum(5, 2).callWithLinkedFns({
+        auth: linkedFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
     });
     console.log(sumResult); // 7
     console.log(sumError); // undefined
-    console.log(hookResults); // { auth: ... }
-    console.log(hookErrors); // {}
+    console.log(linkedFnResults); // { auth: ... }
+    console.log(linkedFnErrors); // {}
 
     // prefills the token for any future requests, value is stored in localStorage
-    hooks.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();
+    linkedFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();
 
     // calls sumTwo route in the server (auth is prefilled, so call() works)
-    // Returns 4-tuple: [routeResult, routeError, hooksResults, hooksErrors]
+    // Returns 4-tuple: [routeResult, routeError, linkedFnsResults, linkedFnsErrors]
     const [sumTwoResponse, sumTwoError] = await routes.utils.sum(5, 2).call();
     if (!sumTwoError) {
         console.log(sumTwoResponse); // 7

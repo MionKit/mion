@@ -29,12 +29,12 @@ export interface MethodMetadata {
     paramsJitHash: string;
     /**  JIT  hash of the method return value */
     returnJitHash: string;
-    /** Information about headers used by the method, used by HeadersHook */
+    /** Information about headers used by the method, used by HeadersLinkedFn */
     headersParam?: HeadersMetaData;
-    /** Information about headers returned by the method, used by HeadersHook and when any other hook returns headers */
+    /** Information about headers returned by the method, used by HeadersLinkedFn and when any other linkedFn returns headers */
     headersReturn?: HeadersMetaData;
-    /** Array of hook IDs associated with this method, only available for route methods */
-    hookIds?: string[];
+    /** Array of linkedFn IDs associated with this method, only available for route methods */
+    linkedFnIds?: string[];
     /** router pointer ie ['users', 'getUser' ]  */
     pointer: string[];
     /** router nest level */

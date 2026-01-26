@@ -1,9 +1,9 @@
-import {Routes, initMionRouter, hook, route} from '@mionkit/router';
+import {Routes, initMionRouter, linkedFn, route} from '@mionkit/router';
 
 const routes = {
-    authorizationHook: hook((): void => undefined), // hook
+    authorizationLinkedFn: linkedFn((): void => undefined), // linkedFn
     users: {
-        userOnlyHook: hook((): void => undefined), // scoped hook
+        userOnlyLinkedFn: linkedFn((): void => undefined), // scoped linkedFn
         getUser: route((): null => null), // route
         setUser: route((): null => null), // route
     },
@@ -11,8 +11,8 @@ const routes = {
         getPet: route((): null => null), // route
         setPet: route((): null => null), // route
     },
-    errorHandlerHook: hook((): void => undefined), // hook
-    loggingHook: hook((): void => undefined), // hook
+    errorHandlerLinkedFn: linkedFn((): void => undefined), // linkedFn
+    loggingLinkedFn: linkedFn((): void => undefined), // linkedFn
 } satisfies Routes;
 
 export const myValidApi = await initMionRouter(routes);

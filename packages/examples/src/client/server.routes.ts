@@ -1,11 +1,11 @@
 import {RpcError, HeadersSubset} from '@mionkit/core';
-import {Routes, headersHook, hook, initMionRouter, route} from '@mionkit/router';
+import {Routes, headersLinkedFn, linkedFn, initMionRouter, route} from '@mionkit/router';
 import {Logger} from 'Logger';
 
 export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 
-// Session info returned by auth hook - strongly typed in client onSuccess!
+// Session info returned by auth linkedFn - strongly typed in client onSuccess!
 export type SessionInfo = {
     userId: string;
     role: 'admin' | 'user' | 'guest';
@@ -24,9 +24,9 @@ const usersDb: Record<string, User> = {
 };
 
 const routes = {
-    // Hook with typed errorData and typed success return
+    // LinkedFn with typed errorData and typed success return
     // When returnSession is true, returns SessionInfo - strongly typed in client onSuccess!
-    auth: headersHook(
+    auth: headersLinkedFn(
         (
             ctx,
             h: HeadersSubset<'Authorization'>,
@@ -86,7 +86,7 @@ const routes = {
     utils: {
         sum: route((ctx, a: number, b: number): number => a + b),
     },
-    log: hook((ctx): void => Logger.log(ctx.path, ctx.request.headers, ctx.request.body), {runOnError: true}),
+    log: linkedFn((ctx): void => Logger.log(ctx.path, ctx.request.headers, ctx.request.body), {runOnError: true}),
 } satisfies Routes;
 
 // init & register routes (this automatically registers client routes)

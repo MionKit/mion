@@ -7,7 +7,7 @@
 
 import type {MionResponse, MionRequest, CallContext} from '../types/context';
 import type {RouterOptions} from '../types/general';
-import type {HooksCollection, MayReturnError} from '../types/publicMethods';
+import type {LinkedFnsCollection, MayReturnError} from '../types/publicMethods';
 import type {ResponseBody} from '../types/context';
 import {
     AnyObject,
@@ -18,7 +18,7 @@ import {
     deserializeBinaryBody as coreDeserializeBinaryBody,
     SerializerModes,
 } from '@mionkit/core';
-import {rawHook} from '../lib/handlers';
+import {rawLinkedFn} from '../lib/handlers';
 import {getRouteExecutableFromPath, getRouteExecutionPath, getRouteExecutable} from '../router';
 import {RpcError} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
@@ -28,9 +28,9 @@ import {onExecutableError} from '../lib/dispatchError';
 
 /**
  * Deserializes the request body and stores it in the request body property.
- * This method is called before any other hook or route handler.
+ * This method is called before any other linkedFn or route handler.
  * For binary requests, the body is parsed lazily per-method in dispatch.ts.
- * @mion:hook
+ * @mion:linkedFn
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
     if (!context.request.rawBody) return; // empty body
@@ -83,8 +83,8 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
 
 /**
  * Serializes the response body and stores it in the response rawBody property.
- * This method is called after any other hook or route handler.
- * @mion:hook
+ * This method is called after any other linkedFn or route handler.
+ * @mion:linkedFn
  */
 export function serializeResponseBody(context: CallContext, opts: RouterOptions): MayReturnError {
     const response = context.response as Mutable<MionResponse>;
@@ -221,7 +221,7 @@ function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any 
     return method.returnJitFns.prepareForJson.fn(returnValue);
 }
 
-export const serializerHooks = {
-    mionDeserializeRequest: rawHook(deserializeRequestBody, {runOnError: true}),
-    mionSerializeResponse: rawHook(serializeResponseBody, {runOnError: true}),
-} satisfies HooksCollection;
+export const serializerLinkedFns = {
+    mionDeserializeRequest: rawLinkedFn(deserializeRequestBody, {runOnError: true}),
+    mionSerializeResponse: rawLinkedFn(serializeResponseBody, {runOnError: true}),
+} satisfies LinkedFnsCollection;

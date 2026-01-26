@@ -1,7 +1,7 @@
 {
   "name": "@mionkit/type-formats",
   "version": "0.7.2",
-  "description": "mion standard hooks and routes",
+  "description": "mion standard linkedFns and routes",
   "keywords": [
     "typescript",
     "API",

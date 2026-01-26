@@ -50,7 +50,7 @@ function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
  * Serializes the request body and returns it with the appropriate content type.
  * This is the inverse of the router's deserializeRequestBody.
  *
- * Note: For headersHook methods, the HeadersSubset parameter is NOT included in the body.
+ * Note: For headersLinkedFn methods, the HeadersSubset parameter is NOT included in the body.
  * Use extractRequestHeaders() to get headers to send as HTTP headers.
  */
 export function serializeRequestBody(req: MionClientRequest<any, any>): SerializedRequest {
@@ -100,8 +100,8 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
             let params = subRequest.params;
             const method = routesCache.useMethodJitFns(id);
 
-            // For headersHook methods, skip the HeadersSubset param (first param after context)
-            if (method.type === HandlerType.headerHook && method.headersParam) {
+            // For headersLinkedFn methods, skip the HeadersSubset param (first param after context)
+            if (method.type === HandlerType.headerLinkedFn && method.headersParam) {
                 params = getParamsWithoutHeadersSubset(params);
             }
 
@@ -257,9 +257,9 @@ function stringifyBody(req: MionClientRequest<any, any>): string {
         let params = subRequest.params;
         const method = routesCache.useMethodJitFns(id);
 
-        // For headersHook methods, skip the HeadersSubset param (first param after context)
+        // For headersLinkedFn methods, skip the HeadersSubset param (first param after context)
         // Headers are extracted separately by extractRequestHeaders()
-        if (method.type === HandlerType.headerHook && method.headersParam) {
+        if (method.type === HandlerType.headerLinkedFn && method.headersParam) {
             params = getParamsWithoutHeadersSubset(params);
         }
 
@@ -309,7 +309,7 @@ function parseHandlerReturnValue(method: MethodWithJitFns, returnValue: any): an
     } catch (e: any) {
         return new RpcError({
             type: 'deserialization-error',
-            publicMessage: `Invalid response from Route or Hook '${method.id}', can not deserialize return value: ${e.message}`,
+            publicMessage: `Invalid response from Route or LinkedFn '${method.id}', can not deserialize return value: ${e.message}`,
             errorData: e?.errors,
         });
     }

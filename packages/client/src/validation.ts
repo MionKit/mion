@@ -19,17 +19,17 @@ export function validateSubRequests(
     subRequestIds: string[],
     req: MionClientRequest<any, any>,
     errors: RequestErrors,
-    validateRouteHooks = true
+    validateRouteLinkedFns = true
 ): void {
     if (!req.options.validateParams) return;
     subRequestIds.forEach((id) => {
         const subRequest = req.subRequestList[id];
         validateSubRequest(id, subRequest, errors);
         const methodMeta = routesCache.getMetadata(id);
-        if (validateRouteHooks && methodMeta?.hookIds?.length) {
-            // Filter out undefined/null hook IDs
-            const validHookIds = methodMeta.hookIds.filter((hookId) => hookId != null);
-            validateSubRequests(validHookIds, req, errors, validateRouteHooks);
+        if (validateRouteLinkedFns && methodMeta?.linkedFnIds?.length) {
+            // Filter out undefined/null linkedFn IDs
+            const validLinkedFnIds = methodMeta.linkedFnIds.filter((linkedFnId) => linkedFnId != null);
+            validateSubRequests(validLinkedFnIds, req, errors, validateRouteLinkedFns);
         }
     });
     return;
@@ -69,14 +69,14 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
         if ((validationsResponse as [])?.length) {
             return new RpcError({
                 type: 'validation-error',
-                publicMessage: `Invalid params for Route or Hook '${method.id}', validation failed.`,
+                publicMessage: `Invalid params for Route or LinkedFn '${method.id}', validation failed.`,
                 errorData: validationsResponse,
             });
         }
     } catch (e: any | Error) {
         return new RpcError({
             type: 'unexpected-validation-error',
-            publicMessage: `Could not validate params for Route or Hook '${method.id}': ${e.message} `,
+            publicMessage: `Could not validate params for Route or LinkedFn '${method.id}': ${e.message} `,
         });
     }
 }

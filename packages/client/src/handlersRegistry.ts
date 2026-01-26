@@ -9,9 +9,9 @@ import type {RpcError} from '@mionkit/core';
 import type {ErrorHandler, SuccessHandler} from './types';
 
 /**
- * Central registry for persistent hook handlers (both success and error).
+ * Central registry for persistent linkedFn handlers (both success and error).
  * Used by TypedEvent to register handlers that persist across requests.
- * The Client uses this registry to execute handlers when hooks succeed or fail.
+ * The Client uses this registry to execute handlers when linkedFns succeed or fail.
  *
  * Structure:
  * - errorHandlers: handlerId -> errorType -> handler
@@ -27,8 +27,8 @@ export class HandlersRegistry {
     // ############# Error Handler Methods #############
 
     /**
-     * Register an error handler for a specific handler (hook) and error type.
-     * @param handlerId - The unique identifier for the handler (e.g., hook ID like 'auth', 'rateLimit')
+     * Register an error handler for a specific handler (linkedFn) and error type.
+     * @param handlerId - The unique identifier for the handler (e.g., linkedFn ID like 'auth', 'rateLimit')
      * @param errorType - The error type string (e.g., 'invalid-token', 'rate-exceeded')
      * @param handler - The callback to execute when this error occurs
      */
@@ -88,17 +88,17 @@ export class HandlersRegistry {
     // ############# Success Handler Methods #############
 
     /**
-     * Register a success handler for a specific hook.
-     * Only one success handler can be registered per hook.
+     * Register a success handler for a specific linkedFn.
+     * Only one success handler can be registered per linkedFn.
      * @param handlerId - The unique identifier for the handler
-     * @param handler - The callback to execute when the hook succeeds
+     * @param handler - The callback to execute when the linkedFn succeeds
      */
     registerSuccess(handlerId: string, handler: SuccessHandler<any>): void {
         this.successHandlers.set(handlerId, handler);
     }
 
     /**
-     * Unregister a success handler for a specific hook.
+     * Unregister a success handler for a specific linkedFn.
      * @param handlerId - The unique identifier for the handler
      */
     unregisterSuccess(handlerId: string): void {
@@ -115,7 +115,7 @@ export class HandlersRegistry {
     }
 
     /**
-     * Get and execute the success handler for a hook result, if it exists.
+     * Get and execute the success handler for a linkedFn result, if it exists.
      * @param handlerId - The unique identifier for the handler
      * @param result - The success result to pass to the handler
      * @returns true if a handler was executed, false otherwise
@@ -132,7 +132,7 @@ export class HandlersRegistry {
 
     /**
      * Clear all handlers (both error and success) for a specific handler ID.
-     * Called when removePrefill() is invoked for a hook.
+     * Called when removePrefill() is invoked for a linkedFn.
      * @param handlerId - The unique identifier for the handler
      */
     clearHandlers(handlerId: string): void {

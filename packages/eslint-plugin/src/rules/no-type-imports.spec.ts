@@ -34,15 +34,15 @@ ruleTester.run('no-type-imports', rule, {
                 route((ctx, user: UserInput): string => user.name);
             `,
         },
-        // Valid: regular import used in hook
+        // Valid: regular import used in linkedFn
         {
             code: `
                 import { LogData } from './types';
-                import { hook } from '@mionkit/router';
-                hook((ctx, data: LogData): void => { console.log(data); });
+                import { linkedFn } from '@mionkit/router';
+                linkedFn((ctx, data: LogData): void => { console.log(data); });
             `,
         },
-        // Valid: type-only import NOT used in route/hook (should be ignored)
+        // Valid: type-only import NOT used in route/linkedFn (should be ignored)
         {
             code: `
                 import type { InternalType } from './types';
@@ -109,21 +109,21 @@ ruleTester.run('no-type-imports', rule, {
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'UserInput'}}],
         },
-        // Invalid: type-only import used in hook
+        // Invalid: type-only import used in linkedFn
         {
             code: `
                 import type { LogData } from './types';
-                import { hook } from '@mionkit/router';
-                hook((ctx, data: LogData): void => { console.log(data); });
+                import { linkedFn } from '@mionkit/router';
+                linkedFn((ctx, data: LogData): void => { console.log(data); });
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'LogData'}}],
         },
-        // Invalid: type-only import used in headersHook
+        // Invalid: type-only import used in headersLinkedFn
         {
             code: `
                 import type { AuthData } from './types';
-                import { headersHook } from '@mionkit/router';
-                headersHook((ctx, headers: { auth: string }, data: AuthData): void => { console.log(data); });
+                import { headersLinkedFn } from '@mionkit/router';
+                headersLinkedFn((ctx, headers: { auth: string }, data: AuthData): void => { console.log(data); });
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'AuthData'}}],
         },

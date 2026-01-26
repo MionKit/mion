@@ -9,10 +9,10 @@ import {existsSync, rmSync, mkdirSync, readFileSync} from 'fs';
 import {join, resolve} from 'path';
 import {writeAOTCachesToFiles, compileAOT, type CacheData} from './aot-compile';
 import {initAOT} from './cli-init-aot';
-import {headersHook, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
+import {headersLinkedFn, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
 import {getJitFnCaches, resetJitFnCaches, addAOTCaches, HeadersSubset} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
-import {hook, route} from '@mionkit/router';
+import {linkedFn, route} from '@mionkit/router';
 
 const CODEGEN_ROOT = resolve(__dirname, '..');
 // ensure artifact dirs is unique and not used by other tests
@@ -70,7 +70,7 @@ describe('AOT Cache Compilation E2E', () => {
         await initRouter();
 
         const testRoutes = {
-            auth: headersHook(
+            auth: headersLinkedFn(
                 (
                     ctx,
                     h: HeadersSubset<'Authorization'>, // testing headers serialization
@@ -80,11 +80,11 @@ describe('AOT Cache Compilation E2E', () => {
             users: {
                 getUser: route((id: string): string => `User ${id}`),
                 setUser: route((id: string, name: string): string => `Set user ${id} to ${name}`),
-                beforeUser: hook((): null => null),
+                beforeUser: linkedFn((): null => null),
             },
             pets: {
                 getPet: route((id: string): string => `Pet ${id}`),
-                afterPet: hook((): null => null),
+                afterPet: linkedFn((): null => null),
             },
         };
 

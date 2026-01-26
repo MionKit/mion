@@ -1,5 +1,5 @@
 import {RpcError, HeadersSubset} from '@mionkit/core';
-import {headersHook, rawHook, hook, Routes, initMionRouter, route} from '@mionkit/router';
+import {headersLinkedFn, rawLinkedFn, linkedFn, Routes, initMionRouter, route} from '@mionkit/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app';
 import {User} from './myApi.types';
 
@@ -23,7 +23,7 @@ const deleteUser = route((ctx: Context, id: number): User | RpcError<'user-not-f
     return deleted;
 });
 
-const auth = headersHook((ctx: Context, {headers}: HeadersSubset<'Authorization'>): void => {
+const auth = headersLinkedFn((ctx: Context, {headers}: HeadersSubset<'Authorization'>): void => {
     const token = headers.Authorization;
     if (!myApp.auth.isAuthorized(token))
         throw new RpcError({
@@ -33,10 +33,10 @@ const auth = headersHook((ctx: Context, {headers}: HeadersSubset<'Authorization'
     ctx.shared.me = myApp.auth.getIdentity(token) as User;
 });
 
-const log = rawHook((context: Context): void => console.log('rawHook', context.path));
+const log = rawLinkedFn((context: Context): void => console.log('rawLinkedFn', context.path));
 
 const routes = {
-    private: hook((): null => null),
+    private: linkedFn((): null => null),
     auth,
     users: {
         get: getUser, // api/v1/users/get

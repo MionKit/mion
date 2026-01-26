@@ -1,6 +1,6 @@
 import type {AnyObject} from '@mionkit/core';
 import {RpcError, HeadersSubset} from '@mionkit/core';
-import {initMionRouter, Routes, CallContext, route, headersHook, rawHook, hook} from '@mionkit/router';
+import {initMionRouter, Routes, CallContext, route, headersLinkedFn, rawLinkedFn, linkedFn} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 
 export type HttpRequest = IncomingMessage & {body: string};
@@ -16,16 +16,16 @@ const routes = {
     maybeError: route((): string | RpcError<'typed-error'> => 'hello'),
 } satisfies Routes;
 
-const hooks = {
-    auth: headersHook((c: Context, {headers}: HeadersSubset<'Authorization'>): void => {
+const linkedFns = {
+    auth: headersLinkedFn((c: Context, {headers}: HeadersSubset<'Authorization'>): void => {
         // do something
     }),
-    parser: rawHook((c: Context, req: HttpRequest, resp, opts): void => undefined),
-    parser2: rawHook((): void => undefined),
-    hookNoCtx: hook((): void => undefined),
-    hookParams: hook((c: Context, name: string): void => undefined),
-    hookCanReturn: hook((c: Context): string => 'hello'),
-    log: hook((c: Context): void => undefined),
+    parser: rawLinkedFn((c: Context, req: HttpRequest, resp, opts): void => undefined),
+    parser2: rawLinkedFn((): void => undefined),
+    linkedFnNoCtx: linkedFn((): void => undefined),
+    linkedFnParams: linkedFn((c: Context, name: string): void => undefined),
+    linkedFnCanReturn: linkedFn((c: Context): string => 'hello'),
+    log: linkedFn((c: Context): void => undefined),
 } satisfies Routes;
 
 export const routesSpec = await initMionRouter(routes);

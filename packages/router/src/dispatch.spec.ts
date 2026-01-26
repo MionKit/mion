@@ -10,7 +10,7 @@ import {dispatchRoute} from './dispatch';
 import {CallContext, MionHeaders} from './types/context';
 import {Routes} from './types/general';
 import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes} from '@mionkit/core';
-import {headersHook, hook, route} from './lib/handlers';
+import {headersLinkedFn, linkedFn, route} from './lib/handlers';
 import {headersFromRecord} from './lib/headers';
 
 type RawRequest = {
@@ -48,7 +48,7 @@ describe('Dispatch routes', () => {
         return data;
     });
 
-    const auth = headersHook((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+    const auth = headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
         const token = h.headers.Authorization;
         if (token !== '1234')
             return new RpcError({
@@ -83,7 +83,7 @@ describe('Dispatch routes', () => {
             expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
-        it('read data from header & hook', async () => {
+        it('read data from header & linkedFn', async () => {
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({auth, changeUserName});
 
@@ -129,7 +129,7 @@ describe('Dispatch routes', () => {
 
         it('request and response headers are case insensitive', async () => {
             await initRouter({contextDataFactory: getSharedData});
-            const auth = headersHook((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+            const auth = headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
                 const token = h.headers.Authorization;
                 return new HeadersSubset({'User-Id': token === '1234' ? 'MyUser-Id' : 'Unknown'});
             });
@@ -154,7 +154,7 @@ describe('Dispatch routes', () => {
 
         it('should be able to accept request headers and regular rpc params', async () => {
             await initRouter({contextDataFactory: getSharedData});
-            const auth = headersHook((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
+            const auth = headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
             await registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
@@ -221,7 +221,7 @@ describe('Dispatch routes', () => {
             expect(response.body[routeId]).toEqual('hello');
         });
 
-        // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another hook it wil work
+        // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another linkedFn it wil work
         it('support async handlers and ensure execution in order', async () => {
             await initRouter({contextDataFactory: getSharedData});
             const id = 'sumTwo';
@@ -233,7 +233,7 @@ describe('Dispatch routes', () => {
                         }, 500);
                     });
                 }),
-                totals: hook((ctx: CallContext): string => {
+                totals: linkedFn((ctx: CallContext): string => {
                     // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
                     return `the total is ${ctx.response.body[id]}`;
                 }),

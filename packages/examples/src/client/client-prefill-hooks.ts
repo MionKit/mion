@@ -1,15 +1,15 @@
 import {initClient} from '@mionkit/client';
 import type {MyApi} from './server.routes';
 
-const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 declare function redirectToLogin(): void;
 declare function refreshToken(): Promise<string>;
 
-async function prefillHooks() {
+async function prefillLinkedFns() {
     // prefill() returns a TypedEvent for registering persistent handlers
     // TypedEvent handlers are STRONGLY TYPED by the error.type string
-    hooks
+    linkedFns
         .auth('myToken-XYZ')
         .prefill()
         .onSuccess((session) => {
@@ -24,24 +24,23 @@ async function prefillHooks() {
         .onError('token-expired', async (error) => {
             // TypeScript knows error.type is 'token-expired'
             const newToken = await refreshToken();
-            hooks.auth(newToken).prefill();
+            linkedFns.auth(newToken).prefill();
         });
 
-    // call() returns a 4-tuple with hookResults and hookErrors
+    // call() returns a 4-tuple with linkedFnResults and linkedFnErrors
     // These are NOT strongly typed - they contain generic RpcError types
-    const [sum, error, hookResults, hookErrors] = await routes.utils.sum(5, 2).call();
+    const [sum, error, linkedFnResults, linkedFnErrors] = await routes.utils.sum(5, 2).call();
 
-    // Both TypedEvent handlers AND 4-tuple receive the same hook data:
+    // Both TypedEvent handlers AND 4-tuple receive the same linkedFn data:
     // - TypedEvent handlers were already called above (if auth succeeded/failed)
-    // - hookResults/hookErrors also contain the auth result/error
-    if (hookErrors?.auth) {
-        console.log('Auth error (generic type):', hookErrors.auth.publicMessage);
+    // - linkedFnResults/linkedFnErrors also contain the auth result/error
+    if (linkedFnErrors?.auth) {
+        console.log('Auth error (generic type):', linkedFnErrors.auth.publicMessage);
     }
-    if (hookResults?.auth) {
-        console.log('Session from tuple:', hookResults.auth);
+    if (linkedFnResults?.auth) {
+        console.log('Session from tuple:', linkedFnResults.auth);
     }
     if (!error) {
         console.log(sum); // 7
     }
 }
-

@@ -20,7 +20,7 @@ import {
     MethodWithOptions,
 } from '@mionkit/core';
 import {BaseRunType, JitFunctions, registerPureFnClosure, runType} from '@mionkit/run-types';
-import {getPersistedMethods, headersHook, initRouter, registerRoutes, route, Routes} from '@mionkit/router';
+import {getPersistedMethods, headersLinkedFn, initRouter, registerRoutes, route, Routes} from '@mionkit/router';
 
 afterEach(() => resetJitFnCaches());
 
@@ -217,7 +217,7 @@ it('should compile router methods cache to code', async () => {
 
     type User = {name: string; age: number};
     const testRoutes = {
-        auth: headersHook(
+        auth: headersLinkedFn(
             (
                 ctx,
                 h: HeadersSubset<'Authorization'>, // testing headers serialization

@@ -18,7 +18,7 @@ import {
     RouteOnlyOptions,
     RemoteMethodOpts,
 } from '@mionkit/core';
-import {hook, rawHook, route} from '../lib/handlers';
+import {linkedFn, rawLinkedFn, route} from '../lib/handlers';
 import {Routes} from '../types/general';
 import {mionClientRoutes} from './client.routes';
 import {headersFromRecord} from '../lib/headers';
@@ -128,29 +128,29 @@ describe('PublicMethods run type functionality', () => {
 });
 
 describe('Client Routes should', () => {
-    const privateHook = hook((ctx): void => undefined);
-    const publicHook = hook((ctx): null => null);
-    const auth = hook((ctx, token: string): void => undefined);
+    const privateLinkedFn = linkedFn((ctx): void => undefined);
+    const publicLinkedFn = linkedFn((ctx): null => null);
+    const auth = linkedFn((ctx, token: string): void => undefined);
     const route1 = route((ctx): string => 'route1');
     const route2 = route((ctx): string => 'route2');
 
     const routes = {
         auth: auth, // is public as has params
-        parse: rawHook((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
+        parse: rawLinkedFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
         users: {
-            userBefore: privateHook, // private
+            userBefore: privateLinkedFn, // private
             getUser: route1, // public
             setUser: route2, // public
             pets: {
                 getUserPet: route2, // public
             },
-            userAfter: privateHook, // private
+            userAfter: privateLinkedFn, // private
         },
         pets: {
             getPet: route1, // public
             setPet: route2, // public
         },
-        last: publicHook, // public Hook
+        last: publicLinkedFn, // public LinkedFn
     } satisfies Routes;
 
     const shared = {auth: {me: null as any}};
@@ -163,7 +163,7 @@ describe('Client Routes should', () => {
         validateReturn: false,
         description: undefined,
     };
-    const defaultHookOpts: RemoteMethodOpts = {
+    const defaultLinkedFnOpts: RemoteMethodOpts = {
         runOnError: false,
         validateParams: true,
         validateReturn: false,
@@ -180,7 +180,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            hookIds: ['auth', 'last'],
+            linkedFnIds: ['auth', 'last'],
             pointer: ['users', 'getUser'],
             options: defaultRouteOpts,
         },
@@ -193,7 +193,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            hookIds: ['auth', 'last'],
+            linkedFnIds: ['auth', 'last'],
             pointer: ['users', 'setUser'],
             options: defaultRouteOpts,
         },
@@ -206,7 +206,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            hookIds: ['auth', 'last'],
+            linkedFnIds: ['auth', 'last'],
             pointer: ['users', 'pets', 'getUserPet'],
             options: defaultRouteOpts,
         },
@@ -219,7 +219,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            hookIds: ['auth', 'last'],
+            linkedFnIds: ['auth', 'last'],
             pointer: ['pets', 'getPet'],
             options: defaultRouteOpts,
         },
@@ -232,12 +232,12 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            hookIds: ['auth', 'last'],
+            linkedFnIds: ['auth', 'last'],
             pointer: ['pets', 'setPet'],
             options: defaultRouteOpts,
         },
         auth: {
-            type: HandlerType.hook,
+            type: HandlerType.linkedFn,
             id: 'auth',
             isAsync: false,
             hasReturnData: false,
@@ -246,10 +246,10 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: ['token'],
             pointer: ['auth'],
-            options: defaultHookOpts,
+            options: defaultLinkedFnOpts,
         },
         last: {
-            type: HandlerType.hook,
+            type: HandlerType.linkedFn,
             id: 'last',
             isAsync: false,
             hasReturnData: true,
@@ -258,7 +258,7 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: [],
             pointer: ['last'],
-            options: defaultHookOpts,
+            options: defaultLinkedFnOpts,
         },
     } satisfies MethodsCache;
 
@@ -272,16 +272,16 @@ describe('Client Routes should', () => {
 
     afterEach(() => resetRouter());
 
-    it('get Remote Hooks Only info from id', async () => {
+    it('get Remote LinkedFns Only info from id', async () => {
         await initRouter({contextDataFactory: getSharedData});
         await registerRoutes(routes);
         await registerRoutes(mionClientRoutes);
 
-        const methodIdList = ['auth', 'last']; // all public hooks
+        const methodIdList = ['auth', 'last']; // all public linkedFns
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // hook is required
+                auth: ['token'], // linkedFn is required
                 [methodsId]: [methodIdList],
             }),
         };
@@ -298,7 +298,7 @@ describe('Client Routes should', () => {
         });
     });
 
-    it('get Remote Route info from id, it should also return the hooks from the execution path', async () => {
+    it('get Remote Route info from id, it should also return the linkedFns from the execution path', async () => {
         await initRouter({contextDataFactory: getSharedData});
         await registerRoutes(routes);
         await registerRoutes(mionClientRoutes);
@@ -307,7 +307,7 @@ describe('Client Routes should', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // hook is required (request should be authenticated)
+                auth: ['token'], // linkedFn is required (request should be authenticated)
                 [methodsId]: [methodIdList],
             }),
         };
@@ -336,7 +336,7 @@ describe('Client Routes should', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // hook is required
+                auth: ['token'], // linkedFn is required
                 [methodsId]: [methodIdList, getAllRemoteMethods],
             }),
         };
@@ -359,7 +359,7 @@ describe('Client Routes should', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // hook is required
+                auth: ['token'], // linkedFn is required
                 [routeMethodsId]: ['/users/getUser'],
             }),
         };
@@ -387,7 +387,7 @@ describe('Client Routes should', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // hook is required
+                auth: ['token'], // linkedFn is required
                 [methodsId]: [methodIdList],
             }),
         };
@@ -411,7 +411,7 @@ describe('Client Routes should', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // hook is required
+                auth: ['token'], // linkedFn is required
                 [routeMethodsId]: ['/abcd'],
             }),
         };

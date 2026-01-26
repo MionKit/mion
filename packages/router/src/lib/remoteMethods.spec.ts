@@ -9,35 +9,35 @@ import {getPublicApi} from './remoteMethods';
 import {registerRoutes, initRouter, resetRouter} from '../router';
 import {CallContext} from '../types/context';
 import {Routes} from '../types/general';
-import {HookMethod, RouteMethod} from '../types/remoteMethods';
+import {LinkedFnMethod, RouteMethod} from '../types/remoteMethods';
 import {getJitFnHashes, HandlerType} from '@mionkit/core';
-import {hook, rawHook, route} from './handlers';
+import {linkedFn, rawLinkedFn, route} from './handlers';
 import {getJitUtils} from '@mionkit/core';
 
 describe('Public Methods should', () => {
-    const privateHook = hook((ctx): void => undefined);
-    const publicHook = hook((ctx): null => null);
-    const paramsHook = hook((ctx, s: string): void => undefined);
+    const privateLinkedFn = linkedFn((ctx): void => undefined);
+    const publicLinkedFn = linkedFn((ctx): null => null);
+    const paramsLinkedFn = linkedFn((ctx, s: string): void => undefined);
     const route1 = route((ctx): string => 'route1');
     const route2 = route((ctx): string => 'route2');
 
     const routes = {
-        first: paramsHook, // is public as has params
-        parse: rawHook((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
+        first: paramsLinkedFn, // is public as has params
+        parse: rawLinkedFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
         users: {
-            userBefore: privateHook, // private
+            userBefore: privateLinkedFn, // private
             getUser: route1, // public
             setUser: route2, // public
             pets: {
                 getUserPet: route2, // public
             },
-            userAfter: privateHook, // private
+            userAfter: privateLinkedFn, // private
         },
         pets: {
             getPet: route1, // public
             setPet: route2, // public
         },
-        last: publicHook, // public Hook
+        last: publicLinkedFn, // public LinkedFn
     } satisfies Routes;
 
     const shared = {auth: {me: null as any}};
@@ -52,10 +52,10 @@ describe('Public Methods should', () => {
         expect(publicExecutables).toEqual({});
     });
 
-    it('generate all the required public fields for hook and route', async () => {
+    it('generate all the required public fields for linkedFn and route', async () => {
         await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
-            auth: paramsHook,
+            auth: paramsLinkedFn,
             routes: {
                 route1,
             },
@@ -64,12 +64,12 @@ describe('Public Methods should', () => {
 
         expect(api.auth).toEqual(
             expect.objectContaining({
-                type: HandlerType.hook,
+                type: HandlerType.linkedFn,
                 id: 'auth',
                 paramsJitHash: expect.any(String),
                 returnJitHash: expect.any(String),
                 paramNames: ['s'],
-            } as Partial<HookMethod>)
+            } as Partial<LinkedFnMethod>)
         );
 
         expect(api.routes.route1).toEqual(
@@ -123,14 +123,14 @@ describe('Public Methods should', () => {
     it('generate public data when suing prefix and suffix', async () => {
         await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
         const testR = {
-            auth: paramsHook,
+            auth: paramsLinkedFn,
             route1,
         };
         const api = await registerRoutes(testR);
 
         expect(api).toEqual({
             auth: expect.objectContaining({
-                type: HandlerType.hook,
+                type: HandlerType.linkedFn,
                 id: 'auth',
             }),
             route1: expect.objectContaining({
@@ -146,7 +146,7 @@ describe('Public Methods should', () => {
 
         expect(publicExecutables).toEqual({
             first: expect.objectContaining({
-                type: HandlerType.hook,
+                type: HandlerType.linkedFn,
                 id: 'first',
             }),
             parse: null,
@@ -179,20 +179,20 @@ describe('Public Methods should', () => {
                 }),
             },
             last: expect.objectContaining({
-                type: HandlerType.hook,
+                type: HandlerType.linkedFn,
                 id: 'last',
             }),
         });
     });
 
-    it('should throw an error when route or hook is not already created in the router', () => {
+    it('should throw an error when route or linkedFn is not already created in the router', () => {
         const testR1 = {route1};
-        const testR2 = {hook1: paramsHook};
+        const testR2 = {linkedFn1: paramsLinkedFn};
         expect(() => getPublicApi(testR1)).toThrow(
-            `Route or Hook route1 not found. Please check you have called router.registerRoutes first.`
+            `Route or LinkedFn route1 not found. Please check you have called router.registerRoutes first.`
         );
         expect(() => getPublicApi(testR2)).toThrow(
-            `Route or Hook hook1 not found. Please check you have called router.registerRoutes first.`
+            `Route or LinkedFn linkedFn1 not found. Please check you have called router.registerRoutes first.`
         );
     });
 

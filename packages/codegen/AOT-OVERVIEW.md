@@ -106,10 +106,10 @@ const myApi = await initMionRouter(routes, {aot: true});
 
 ### AOT Mode Validation
 
-When `aot: true` is set, the router validates that all routes and hooks have their JIT functions in the AOT cache. If any route is missing from the cache, an `AOTCacheError` is thrown:
+When `aot: true` is set, the router validates that all routes and linkedFns have their JIT functions in the AOT cache. If any route is missing from the cache, an `AOTCacheError` is thrown:
 
 ```
-AOTCacheError: Route/hook "users/getUser" not found in AOT cache.
+AOTCacheError: Route/linkedFn "users/getUser" not found in AOT cache.
 Regenerate AOT caches using 'mion-build-aot' command.
 ```
 

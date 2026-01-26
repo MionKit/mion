@@ -1,6 +1,6 @@
 "use strict";
 const utils = require("@typescript-eslint/utils");
-const ROUTER_FUNCTIONS = ["route", "hook", "headersHook"];
+const ROUTER_FUNCTIONS = ["route", "linkedFn", "headersLinkedFn"];
 const HANDLER_TYPES = ["Handler", "HeaderHandler"];
 function buildRouterImportCache(program) {
   const routerFunctions = /* @__PURE__ */ new Set();
@@ -166,10 +166,10 @@ const rule = {
   meta: {
     type: "problem",
     docs: {
-      description: "Disallow type-only imports for types used in route/hook parameters or return types. Type-only imports are erased at runtime, preventing mion from generating validation and serialization functions."
+      description: "Disallow type-only imports for types used in route/linkedFn parameters or return types. Type-only imports are erased at runtime, preventing mion from generating validation and serialization functions."
     },
     messages: {
-      noTypeImports: 'Type "{{typeName}}" is imported as type-only but is used in a route/hook. Remove the "type" keyword from the import to allow runtime type reflection.'
+      noTypeImports: 'Type "{{typeName}}" is imported as type-only but is used in a route/linkedFn. Remove the "type" keyword from the import to allow runtime type reflection.'
     },
     schema: []
   },
@@ -238,7 +238,7 @@ const rule = {
         const sourceCode = context.sourceCode;
         const comments = sourceCode.getCommentsBefore(node);
         for (const comment of comments) {
-          if (comment.type === "Block" && (comment.value.includes("@mion:route") || comment.value.includes("@mion:hook") || comment.value.includes("@mion:headersHook"))) {
+          if (comment.type === "Block" && (comment.value.includes("@mion:route") || comment.value.includes("@mion:linkedFn") || comment.value.includes("@mion:headersLinkedFn"))) {
             checkFunctionNode(node);
             break;
           }

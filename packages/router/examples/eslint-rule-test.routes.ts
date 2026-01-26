@@ -1,7 +1,7 @@
 // This file demonstrates the ESLint rules for @mionkit/router
 // The rules are disabled for this file so you can see both valid and invalid examples
 import {HeadersSubset} from '@mionkit/core';
-import {route, hook, headersHook, Handler, HeaderHandler, CallContext} from '@mionkit/router';
+import {route, linkedFn, headersLinkedFn, Handler, HeaderHandler, CallContext} from '@mionkit/router';
 
 // ========================================
 // ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
@@ -9,10 +9,10 @@ import {route, hook, headersHook, Handler, HeaderHandler, CallContext} from '@mi
 
 // 1. Direct inline handlers with proper types
 route((ctx, name: string): string => `hello ${name}`);
-hook((ctx, data: number): void => {
+linkedFn((ctx, data: number): void => {
     console.log(data);
 });
-headersHook((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
+headersLinkedFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
     // do something
 });
 
@@ -47,16 +47,16 @@ function routeWithJSDoc(ctx, name: string): string {
 }
 
 /**
- * @mion:hook
+ * @mion:linkedFn
  */
-const hookWithJSDoc = (ctx, data: number): void => {
+const linkedFnWithJSDoc = (ctx, data: number): void => {
     console.log(data);
 };
 
 /**
- * @mion:headersHook
+ * @mion:headersLinkedFn
  */
-function headersHookWithJSDoc(c: CallContext, {headers}: HeadersSubset<'auth'>): void {
+function headersLinkedFnWithJSDoc(c: CallContext, {headers}: HeadersSubset<'auth'>): void {
     const token = headers.auth;
     console.log(token);
 }
@@ -88,10 +88,10 @@ route((ctx): Result => ({success: false, error: 'failed'}));
 
 // 1. Direct inline handlers missing types
 route((ctx, name) => `hello ${name}`); // Missing both param type and return type
-hook((ctx, data: number) => {
+linkedFn((ctx, data: number) => {
     console.log(data);
 }); // Missing return type
-headersHook((c: CallContext, [token]): void => {
+headersLinkedFn((c: CallContext, [token]): void => {
     // do something
 }); // Missing param type
 
@@ -126,16 +126,16 @@ function invalidRouteJSDoc(ctx, name) {
 } // Missing both types
 
 /**
- * @mion:hook
+ * @mion:linkedFn
  */
-const invalidHookJSDoc = (ctx, data: number) => {
+const invalidLinkedFnJSDoc = (ctx, data: number) => {
     console.log(data);
 }; // Missing return type
 
 /**
- * @mion:headersHook
+ * @mion:headersLinkedFn
  */
-function invalidHeadersHookJSDoc(c: CallContext, {headers}): void {
+function invalidHeadersLinkedFnJSDoc(c: CallContext, {headers}): void {
     const token = headers.auth;
     console.log(token);
 } // Missing param type
@@ -165,15 +165,15 @@ type MultipleUnreachable = {a: string} | {a: string; b: number} | {a: string; b:
 // Both second and third types are unreachable
 route((ctx): MultipleUnreachable => ({a: 'hello'}));
 
-// 6. Unreachable in headersHook parameter (third parameter)
+// 6. Unreachable in headersLinkedFn parameter (third parameter)
 type UnreachableHeaderParam = {x: number} | {x: number; y: number}; // Second type is unreachable
-headersHook((ctx, {headers}: HeadersSubset<'auth'>, data: UnreachableHeaderParam): void => {
+headersLinkedFn((ctx, {headers}: HeadersSubset<'auth'>, data: UnreachableHeaderParam): void => {
     console.log(data.x);
 });
 
-// 7. Unreachable in hook parameter
-type UnreachableHookParam = {status: string} | {status: string; code: number}; // Second type is unreachable
-hook((ctx, data: UnreachableHookParam): void => {
+// 7. Unreachable in linkedFn parameter
+type UnreachableLinkedFnParam = {status: string} | {status: string; code: number}; // Second type is unreachable
+linkedFn((ctx, data: UnreachableLinkedFnParam): void => {
     console.log(data.status);
 });
 
@@ -215,9 +215,9 @@ route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
 //     return {active: false, lastSeen: new Date(), reason: 'also mixed'}; // Mixed properties
 // });
 
-// 4. Hook with mixed properties
-type HookData = {name: string} | {age: number};
-hook((ctx): HookData => ({name: 'John', age: 25})); // Mixed properties
+// 4. LinkedFn with mixed properties
+type LinkedFnData = {name: string} | {age: number};
+linkedFn((ctx): LinkedFnData => ({name: 'John', age: 25})); // Mixed properties
 
 export {}; // Make this a module
 
@@ -239,9 +239,8 @@ const createProduct = route((ctx, product: Product): Product => {
     return product;
 });
 
-const logUser = hook((ctx, user: User): void => {
+const logUser = linkedFn((ctx, user: User): void => {
     console.log(user.name);
 });
-
 
 export const routes = {getUser, createProduct, logUser};

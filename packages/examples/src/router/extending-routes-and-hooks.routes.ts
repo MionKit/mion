@@ -1,10 +1,10 @@
-import {Route, HookDef} from '@mionkit/router';
+import {Route, LinkedFnDef} from '@mionkit/router';
 import {myApp} from './myApp';
 
 interface MyRoute extends Route {
     doNotFail: boolean;
 }
-interface MyHook extends HookDef {
+interface MyLinkedFn extends LinkedFnDef {
     shouldLog: boolean;
 }
 
@@ -19,10 +19,10 @@ const someRoute: MyRoute = {
     },
 };
 
-const someHook: MyHook = {
+const someLinkedFn: MyLinkedFn = {
     shouldLog: false,
-    hook: (): void => {
-        if (someHook.shouldLog) {
+    linkedFn: (): void => {
+        if (someLinkedFn.shouldLog) {
             myApp.cloudLogs.log('hello');
         } else {
             // do something else

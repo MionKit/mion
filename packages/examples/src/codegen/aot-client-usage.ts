@@ -8,5 +8,4 @@ addAOTCaches(jitFnsCache, pureFnsCache);
 import {initClient} from '@mionkit/client';
 import type {MyApi} from './server.routes';
 
-const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
-
+const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
