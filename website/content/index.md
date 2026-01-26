@@ -2,7 +2,7 @@
 seo:
   title: mion - the definitive TypeScript framework for Full Stack APIs
   description: mion is the definitive TypeScript framework for Full Stack APIs, built for exceptional developer experience.
-  image: https://mion.io/banners/mion-website-banner-1-2.png
+  image: https://mion.io/banners/mion-v2-website-banner.png
 pageClass: home-page
 ---
 
