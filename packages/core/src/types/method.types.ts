@@ -29,9 +29,9 @@ export interface MethodMetadata {
     paramsJitHash: string;
     /**  JIT  hash of the method return value */
     returnJitHash: string;
-    /** Information about headers used by the method, used by HeadersLinkedFn */
+    /** Information about headers used by the method, used by HeadersFn */
     headersParam?: HeadersMetaData;
-    /** Information about headers returned by the method, used by HeadersLinkedFn and when any other linkedFn returns headers */
+    /** Information about headers returned by the method, used by HeadersFn and when any other linkedFn returns headers */
     headersReturn?: HeadersMetaData;
     /** Array of linkedFn IDs associated with this method, only available for route methods */
     linkedFnIds?: string[];

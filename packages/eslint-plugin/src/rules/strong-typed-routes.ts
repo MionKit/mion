@@ -8,7 +8,7 @@
 import {TSESTree, TSESLint, AST_NODE_TYPES} from '@typescript-eslint/utils';
 
 // List of router functions that should have strongly typed handlers
-const ROUTER_FUNCTIONS = ['route', 'linkedFn', 'headersLinkedFn'] as const;
+const ROUTER_FUNCTIONS = ['route', 'linkedFn', 'headersFn'] as const;
 // List of handler types that can be used with type annotations
 const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
 
@@ -16,7 +16,7 @@ const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
  * Cache for imports from @mionkit/router - computed once per file
  */
 interface MionRouterImports {
-    /** Set of function names imported from @mionkit/router (route, linkedFn, headersLinkedFn) */
+    /** Set of function names imported from @mionkit/router (route, linkedFn, headersFn) */
     routerFunctions: Set<string>;
     /** Set of type names imported from @mionkit/router (Handler, HeaderHandler) */
     handlerTypes: Set<string>;
@@ -121,7 +121,7 @@ function getHandlerFunction(
     node: TSESTree.CallExpression,
     functionCache: FunctionCache
 ): TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration | null {
-    // Handler is always the first parameter for route, linkedFn, and headersLinkedFn
+    // Handler is always the first parameter for route, linkedFn, and headersFn
     const handlerIndex = 0;
 
     if (node.arguments.length <= handlerIndex) {
@@ -349,7 +349,7 @@ function getHandlerTypeFromJSDoc(
             if (commentText.includes('@mion:linkedFn')) {
                 return 'LinkedFnHandler';
             }
-            if (commentText.includes('@mion:headersLinkedFn')) {
+            if (commentText.includes('@mion:headersFn')) {
                 return 'HeaderHandler';
             }
         }
@@ -491,7 +491,7 @@ const rule: TSESLint.RuleModule<
  * Maps Handler/HeaderHandler/LinkedFnHandler type names to their corresponding router function names
  */
 function handlerTypeToFunctionName(handlerType: 'Handler' | 'HeaderHandler' | 'LinkedFnHandler'): string {
-    if (handlerType === 'HeaderHandler') return 'headersLinkedFn';
+    if (handlerType === 'HeaderHandler') return 'headersFn';
     if (handlerType === 'LinkedFnHandler') return 'linkedFn';
     return 'route';
 }

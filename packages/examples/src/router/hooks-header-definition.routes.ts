@@ -1,10 +1,10 @@
 import {HeadersSubset, RpcError} from '@mionkit/core';
-import {headersLinkedFn, linkedFn, Routes} from '@mionkit/router';
+import {headersFn, linkedFn, Routes} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const routes = {
-    // using the headersLinkedFn to declare request headers, headers param must be next after context
-    auth: headersLinkedFn(async (ctx, {headers}: HeadersSubset<'Authorization'>): Promise<void | RpcError<'not-authorized'>> => {
+    // using the headersFn to declare request headers, headers param must be next after context
+    auth: headersFn(async (ctx, {headers}: HeadersSubset<'Authorization'>): Promise<void | RpcError<'not-authorized'>> => {
         const token = headers.Authorization;
         const me = await getAuthUser(token);
         if (!isAuthorized(me)) {

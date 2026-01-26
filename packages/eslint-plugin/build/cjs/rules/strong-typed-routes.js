@@ -1,6 +1,6 @@
 "use strict";
 const utils = require("@typescript-eslint/utils");
-const ROUTER_FUNCTIONS = ["route", "linkedFn", "headersLinkedFn"];
+const ROUTER_FUNCTIONS = ["route", "linkedFn", "headersFn"];
 const HANDLER_TYPES = ["Handler", "HeaderHandler"];
 function buildImportCache(program) {
   const routerFunctions = /* @__PURE__ */ new Set();
@@ -187,7 +187,7 @@ function getHandlerTypeFromJSDoc(node, context) {
       if (commentText.includes("@mion:linkedFn")) {
         return "LinkedFnHandler";
       }
-      if (commentText.includes("@mion:headersLinkedFn")) {
+      if (commentText.includes("@mion:headersFn")) {
         return "HeaderHandler";
       }
     }
@@ -299,7 +299,7 @@ const rule = {
   }
 };
 function handlerTypeToFunctionName(handlerType) {
-  if (handlerType === "HeaderHandler") return "headersLinkedFn";
+  if (handlerType === "HeaderHandler") return "headersFn";
   if (handlerType === "LinkedFnHandler") return "linkedFn";
   return "route";
 }

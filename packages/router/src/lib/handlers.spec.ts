@@ -8,7 +8,7 @@
 import {Routes} from '../types/general';
 import {registerRoutes, initRouter} from '../router';
 import {dispatchRoute} from '../dispatch';
-import {route, headersLinkedFn, linkedFn, rawLinkedFn} from './handlers';
+import {route, headersFn, linkedFn, rawLinkedFn} from './handlers';
 import {MionHeaders} from '../types/context';
 import {headersFromRecord} from './headers';
 import {HandlerType, HeadersSubset} from '@mionkit/core';
@@ -20,7 +20,7 @@ describe('route & linkedFns init functions', () => {
     };
 
     const routes = {
-        auth: headersLinkedFn(
+        auth: headersFn(
             (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1234'})
         ),
         timestamp: linkedFn((ctx, time: number): string => `time: ${time}`),

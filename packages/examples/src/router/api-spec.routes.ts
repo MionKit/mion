@@ -1,6 +1,6 @@
 import type {AnyObject} from '@mionkit/core';
 import {RpcError, HeadersSubset} from '@mionkit/core';
-import {initMionRouter, Routes, CallContext, route, headersLinkedFn, rawLinkedFn, linkedFn} from '@mionkit/router';
+import {initMionRouter, Routes, CallContext, route, headersFn, rawLinkedFn, linkedFn} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 
 export type HttpRequest = IncomingMessage & {body: string};
@@ -17,7 +17,7 @@ const routes = {
 } satisfies Routes;
 
 const linkedFns = {
-    auth: headersLinkedFn((c: Context, {headers}: HeadersSubset<'Authorization'>): void => {
+    auth: headersFn((c: Context, {headers}: HeadersSubset<'Authorization'>): void => {
         // do something
     }),
     parser: rawLinkedFn((c: Context, req: HttpRequest, resp, opts): void => undefined),

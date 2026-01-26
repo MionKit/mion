@@ -1,10 +1,10 @@
 import {HeadersSubset} from '@mionkit/core';
-import {Routes, initMionRouter, headersLinkedFn, route} from '@mionkit/router';
+import {Routes, initMionRouter, headersFn, route} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 let currentSharedData: any = null;
 
-const authorizationLinkedFn = headersLinkedFn(async (ctx, {headers}: HeadersSubset<'Authorization'>): Promise<void> => {
+const authorizationLinkedFn = headersFn(async (ctx, {headers}: HeadersSubset<'Authorization'>): Promise<void> => {
     const token = headers.Authorization;
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};

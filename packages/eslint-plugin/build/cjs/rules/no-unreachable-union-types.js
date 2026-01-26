@@ -58,7 +58,7 @@ function getRouterFunctionName(func, context) {
   if ((parent == null ? void 0 : parent.type) === utils.AST_NODE_TYPES.CallExpression) {
     if (parent.callee.type === utils.AST_NODE_TYPES.Identifier) {
       const functionName = parent.callee.name;
-      if (["route", "linkedFn", "headersLinkedFn"].includes(functionName) && isImportedFromMionRouter(functionName, context)) {
+      if (["route", "linkedFn", "headersFn"].includes(functionName) && isImportedFromMionRouter(functionName, context)) {
         return functionName;
       }
     }
@@ -74,7 +74,7 @@ function isInCheckableParameter(node, func, routerFunctionName) {
         if ((routerFunctionName === "route" || routerFunctionName === "linkedFn") && paramIndex >= 1) {
           return true;
         }
-        if (routerFunctionName === "headersLinkedFn" && paramIndex >= 2) {
+        if (routerFunctionName === "headersFn" && paramIndex >= 2) {
           return true;
         }
         return false;

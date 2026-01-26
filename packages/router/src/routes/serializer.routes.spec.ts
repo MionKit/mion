@@ -9,7 +9,7 @@ import type {Mutable} from '@mionkit/core';
 import type {Routes} from '../types/general';
 import type {MionResponse, RawRequestBody} from '../types/context';
 import {HeadersSubset, SerializerModes} from '@mionkit/core';
-import {headersLinkedFn, linkedFn, route} from '../lib/handlers';
+import {headersFn, linkedFn, route} from '../lib/handlers';
 import {getRouterOptions, getRouteExecutionChain, initMionRouter, resetRouter} from '../router';
 import {createCallContext} from '../dispatch';
 import {headersFromRecord} from '../lib/headers';
@@ -36,7 +36,7 @@ interface User {
 }
 
 const routes = {
-    auth: headersLinkedFn((ctx, h: HeadersSubset<'auth'>): void => {}),
+    auth: headersFn((ctx, h: HeadersSubset<'auth'>): void => {}),
     users: {
         updateUser: route((ctx, user: User): User => ({...user, lastActivity})),
     },

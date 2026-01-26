@@ -10,7 +10,7 @@ import {dispatchRoute} from './dispatch';
 import {CallContext, MionHeaders} from './types/context';
 import {Routes} from './types/general';
 import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes} from '@mionkit/core';
-import {headersLinkedFn, linkedFn, route} from './lib/handlers';
+import {headersFn, linkedFn, route} from './lib/handlers';
 import {headersFromRecord} from './lib/headers';
 
 type RawRequest = {
@@ -48,7 +48,7 @@ describe('Dispatch routes', () => {
         return data;
     });
 
-    const auth = headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+    const auth = headersFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
         const token = h.headers.Authorization;
         if (token !== '1234')
             return new RpcError({
@@ -129,7 +129,7 @@ describe('Dispatch routes', () => {
 
         it('request and response headers are case insensitive', async () => {
             await initRouter({contextDataFactory: getSharedData});
-            const auth = headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+            const auth = headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
                 const token = h.headers.Authorization;
                 return new HeadersSubset({'User-Id': token === '1234' ? 'MyUser-Id' : 'Unknown'});
             });
@@ -154,7 +154,7 @@ describe('Dispatch routes', () => {
 
         it('should be able to accept request headers and regular rpc params', async () => {
             await initRouter({contextDataFactory: getSharedData});
-            const auth = headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
+            const auth = headersFn((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
             await registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {

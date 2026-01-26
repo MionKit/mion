@@ -118,12 +118,12 @@ ruleTester.run('no-type-imports', rule, {
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'LogData'}}],
         },
-        // Invalid: type-only import used in headersLinkedFn
+        // Invalid: type-only import used in headersFn
         {
             code: `
                 import type { AuthData } from './types';
-                import { headersLinkedFn } from '@mionkit/router';
-                headersLinkedFn((ctx, headers: { auth: string }, data: AuthData): void => { console.log(data); });
+                import { headersFn } from '@mionkit/router';
+                headersFn((ctx, headers: { auth: string }, data: AuthData): void => { console.log(data); });
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'AuthData'}}],
         },

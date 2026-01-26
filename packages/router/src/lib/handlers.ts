@@ -35,12 +35,12 @@ export function linkedFn<H extends Handler>(handler: H, opts?: LinkedFnOptions):
  *
  * @example
  * ```ts
- * headersLinkedFn(['authorization'], (ctx, token: string): void => {
+ * headersFn(['authorization'], (ctx, token: string): void => {
  *   // token contains the value of the 'authorization' header
  * })
  * ```
  */
-export function headersLinkedFn<H extends HeaderHandler>(handler: H, opts?: HeaderLinkedFnOptions): HeaderLinkedFnDef<H> {
+export function headersFn<H extends HeaderHandler>(handler: H, opts?: HeaderLinkedFnOptions): HeaderLinkedFnDef<H> {
     return {
         type: HandlerType.headerLinkedFn,
         handler,

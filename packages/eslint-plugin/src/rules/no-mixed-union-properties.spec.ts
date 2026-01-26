@@ -89,11 +89,11 @@ ruleTester.run('no-mixed-union-properties', rule, {
             `,
             errors: [{messageId: 'mixedUnionProperties'}],
         },
-        // headersLinkedFn with mixed properties
+        // headersFn with mixed properties
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
-                headersLinkedFn((ctx, [t]: [string]): {valid: boolean} | {userId: string} => ({valid: true, userId: '123'}));
+                import { headersFn } from '@mionkit/router';
+                headersFn((ctx, [t]: [string]): {valid: boolean} | {userId: string} => ({valid: true, userId: '123'}));
             `,
             errors: [{messageId: 'mixedUnionProperties'}],
         },

@@ -7,7 +7,7 @@
 
 import {registerRoutes, resetRouter, initRouter} from '../router';
 import {dispatchRoute} from '../dispatch';
-import {route, headersLinkedFn, linkedFn} from './handlers';
+import {route, headersFn, linkedFn} from './handlers';
 import {headersFromRecord} from './headers';
 import {MionHeaders} from '../types/context';
 import {HeadersSubset, RpcError} from '@mionkit/core';
@@ -66,14 +66,14 @@ describe('Request and Response Headers', () => {
         });
     });
 
-    describe('Reading headers in headersLinkedFn', () => {
-        it('should extract and pass single header value to headersLinkedFn', async () => {
+    describe('Reading headers in headersFn', () => {
+        it('should extract and pass single header value to headersFn', async () => {
             const shared = {auth: {token: null as any}};
             const getSharedData = (): typeof shared => shared;
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
                     const token = h.headers.Authorization;
                     ctx.shared.auth.token = token;
                 }),
@@ -94,7 +94,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
                     const token = h.headers.Authorization;
                     ctx.shared.auth.token = token;
                 }),
@@ -116,7 +116,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
                     const token = h.headers.Authorization;
                     ctx.shared.auth.token = token;
                 }),
@@ -144,7 +144,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
                     const token = h.headers.Authorization;
                     ctx.shared.auth.token = token;
                 }),
@@ -166,7 +166,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<never, 'Authorization'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<never, 'Authorization'>): void => {
                     const token = h.headers.Authorization;
                     ctx.shared.auth.token = token;
                 }),
@@ -210,7 +210,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                setHeadersLinkedFn: linkedFn((ctx): HeadersSubset<'x-custom' | 'x-token' | 'x-version'> => {
+                setHeadersFn: linkedFn((ctx): HeadersSubset<'x-custom' | 'x-token' | 'x-version'> => {
                     return new HeadersSubset({
                         'x-custom': 'custom-value',
                         'x-token': 'token-value',
@@ -258,7 +258,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                setHeadersLinkedFn: linkedFn((ctx): HeadersSubset<'x-custom', 'x-token'> => {
+                setHeadersFn: linkedFn((ctx): HeadersSubset<'x-custom', 'x-token'> => {
                     return new HeadersSubset({'x-custom': 'custom-value'});
                 }),
                 testRoute: route((): string => 'ok'),
@@ -346,7 +346,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization' | 'X-User-Id'>): HeadersSubset<'x-auth-status'> => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization' | 'X-User-Id'>): HeadersSubset<'x-auth-status'> => {
                     const token = h.headers.Authorization;
                     const userId = h.headers['X-User-Id'];
                     ctx.shared.auth.token = token;
@@ -374,7 +374,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization' | 'X-User-Id'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization' | 'X-User-Id'>): void => {
                     const token = h.headers.Authorization;
                     const userId = h.headers['X-User-Id'];
                     ctx.shared.auth.token = token;
@@ -401,7 +401,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization' | 'X-User-Id'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization' | 'X-User-Id'>): void => {
                     const token = h.headers.Authorization;
                     const userId = h.headers['X-User-Id'];
                     ctx.shared.auth.token = token;
@@ -435,7 +435,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
                     const token = h.headers.Authorization;
                     ctx.shared.auth.token = token;
                 }),
@@ -459,7 +459,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
                     const token = h.headers.Authorization;
                     ctx.shared.auth.token = token;
                 }),
@@ -482,7 +482,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
                     const token = h.headers.Authorization;
                     ctx.shared.auth.token = token;
                 }),
@@ -506,7 +506,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                setHeadersLinkedFn: linkedFn((ctx): HeadersSubset<'x-first' | 'x-second' | 'x-third'> => {
+                setHeadersFn: linkedFn((ctx): HeadersSubset<'x-first' | 'x-second' | 'x-third'> => {
                     return new HeadersSubset({
                         'x-first': 'first-value',
                         'x-second': 'second-value',
@@ -556,7 +556,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+                auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
                     const token = h.headers.Authorization;
                     ctx.shared.auth.token = token;
                 }),

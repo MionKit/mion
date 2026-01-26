@@ -1,8 +1,8 @@
 import {HeadersSubset, RpcError} from '@mionkit/core';
-import {Routes, headersLinkedFn, linkedFn, initMionRouter, route} from '@mionkit/router';
+import {Routes, headersFn, linkedFn, initMionRouter, route} from '@mionkit/router';
 
 const routes = {
-    auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+    auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
         const token = h.headers.Authorization;
         if (!token) throw new RpcError({publicMessage: 'Not Authorized', type: 'not-authorized'});
     }),

@@ -1,5 +1,5 @@
 import {HeadersSubset, RpcError} from '@mionkit/core';
-import {RouterOptions, initMionRouter, headersLinkedFn, linkedFn, route} from '@mionkit/router';
+import {RouterOptions, initMionRouter, headersFn, linkedFn, route} from '@mionkit/router';
 
 export type User = {id: string; name: string; surname: string};
 
@@ -8,7 +8,7 @@ export const routerOptions: Partial<RouterOptions> = {prefix: 'api/v1'};
 export const myApi = await initMionRouter(
     // all function parameters will be automatically validated before the function is called
     {
-        auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+        auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
             const token = h.headers.Authorization;
             if (!token) return new RpcError<'not-authorized'>({publicMessage: 'Not Authorized', type: 'not-authorized'});
         }),
