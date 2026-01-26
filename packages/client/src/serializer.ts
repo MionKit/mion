@@ -50,7 +50,7 @@ function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
  * Serializes the request body and returns it with the appropriate content type.
  * This is the inverse of the router's deserializeRequestBody.
  *
- * Note: For headersLinkedFn methods, the HeadersSubset parameter is NOT included in the body.
+ * Note: For headersFn methods, the HeadersSubset parameter is NOT included in the body.
  * Use extractRequestHeaders() to get headers to send as HTTP headers.
  */
 export function serializeRequestBody(req: MionClientRequest<any, any>): SerializedRequest {
@@ -100,7 +100,7 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
             let params = subRequest.params;
             const method = routesCache.useMethodJitFns(id);
 
-            // For headersLinkedFn methods, skip the HeadersSubset param (first param after context)
+            // For headersFn methods, skip the HeadersSubset param (first param after context)
             if (method.type === HandlerType.headerLinkedFn && method.headersParam) {
                 params = getParamsWithoutHeadersSubset(params);
             }
@@ -257,7 +257,7 @@ function stringifyBody(req: MionClientRequest<any, any>): string {
         let params = subRequest.params;
         const method = routesCache.useMethodJitFns(id);
 
-        // For headersLinkedFn methods, skip the HeadersSubset param (first param after context)
+        // For headersFn methods, skip the HeadersSubset param (first param after context)
         // Headers are extracted separately by extractRequestHeaders()
         if (method.type === HandlerType.headerLinkedFn && method.headersParam) {
             params = getParamsWithoutHeadersSubset(params);

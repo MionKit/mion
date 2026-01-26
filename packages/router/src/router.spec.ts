@@ -19,7 +19,7 @@ import {
     addEndLinkedFns,
 } from './router';
 import {type Routes} from './types/general';
-import {linkedFn, route, rawLinkedFn, headersLinkedFn} from './lib/handlers';
+import {linkedFn, route, rawLinkedFn, headersFn} from './lib/handlers';
 import {HandlerType, HeadersSubset} from '@mionkit/core';
 import {isPublicExecutable} from './types/guards';
 
@@ -362,7 +362,7 @@ describe('Create routes should', () => {
     it('header linkedFns should be considered public (non-private)', async () => {
         await initRouter();
         const routesWithHeaderLinkedFn = {
-            auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+            auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
                 // Header linkedFn with no return data and no body params
             }),
             sayHello: route((): string => 'hello'),

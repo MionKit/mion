@@ -8,13 +8,13 @@
 import {TSESTree, TSESLint, AST_NODE_TYPES} from '@typescript-eslint/utils';
 
 /** List of router functions that should have strongly typed handlers */
-const ROUTER_FUNCTIONS = ['route', 'linkedFn', 'headersLinkedFn'] as const;
+const ROUTER_FUNCTIONS = ['route', 'linkedFn', 'headersFn'] as const;
 /** List of handler types that can be used with type annotations */
 const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
 
 /** Cache for imports from @mionkit/router - computed once per file */
 interface MionRouterImports {
-    /** Set of function names imported from @mionkit/router (route, linkedFn, headersLinkedFn) */
+    /** Set of function names imported from @mionkit/router (route, linkedFn, headersFn) */
     routerFunctions: Set<string>;
     /** Set of type names imported from @mionkit/router (Handler, HeaderHandler) */
     handlerTypes: Set<string>;
@@ -372,7 +372,7 @@ const rule: TSESLint.RuleModule<'noTypeImports', []> = {
                         comment.type === 'Block' &&
                         (comment.value.includes('@mion:route') ||
                             comment.value.includes('@mion:linkedFn') ||
-                            comment.value.includes('@mion:headersLinkedFn'))
+                            comment.value.includes('@mion:headersFn'))
                     ) {
                         checkFunctionNode(node);
                         break;

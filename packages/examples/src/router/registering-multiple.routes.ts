@@ -1,5 +1,5 @@
 import {HeadersSubset} from '@mionkit/core';
-import {initMionRouter, Routes, CallContext, registerRoutes, route, headersLinkedFn} from '@mionkit/router';
+import {initMionRouter, Routes, CallContext, registerRoutes, route, headersFn} from '@mionkit/router';
 
 export type Shared = () => Record<string, any>;
 export type Context = CallContext<Shared>;
@@ -10,7 +10,7 @@ const authRoutes = {
 } satisfies Routes;
 
 const routes = {
-    auth: headersLinkedFn((c: Context, h: HeadersSubset<'Authorization'>): void => undefined),
+    auth: headersFn((c: Context, h: HeadersSubset<'Authorization'>): void => undefined),
     sayHello: route((c, name: string): string => 'hello' + name),
     sayHello2: route((c, name: string): string => 'hello' + name),
 } satisfies Routes;

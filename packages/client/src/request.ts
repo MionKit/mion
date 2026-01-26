@@ -60,7 +60,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
                 ...this.options.fetchOptions,
                 headers: {
                     ...this.options.fetchOptions.headers,
-                    // Headers extracted from HeadersSubset params in headersLinkedFns
+                    // Headers extracted from HeadersSubset params in headersFns
                     ...headersFromParams,
                     // Content-Type based on serialization mode (json or binary)
                     'Content-Type': serialized.contentType,
@@ -280,10 +280,10 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
 // ############# HELPER FUNCTIONS #############
 
 /**
- * Extracts headers from HeadersSubset params in headersLinkedFn methods.
+ * Extracts headers from HeadersSubset params in headersFn methods.
  * This mirrors how the router extracts headers in runHeaderLinkedFn (dispatch.ts).
  *
- * For headersLinkedFn methods, the first param (after context) is the HeadersSubset.
+ * For headersFn methods, the first param (after context) is the HeadersSubset.
  * This function extracts those header values to be sent as HTTP headers.
  *
  * @returns Record of header names to values
@@ -320,7 +320,7 @@ function extractHeadersFromParams(params: any[]): Record<string, string> {
     if (!params || params.length === 0) {
         throw new RpcError({
             type: 'missing-headers-param',
-            publicMessage: 'HeadersLinkedFn requires a HeadersSubset parameter.',
+            publicMessage: 'HeadersFn requires a HeadersSubset parameter.',
         });
     }
 
@@ -338,7 +338,7 @@ function extractHeadersFromParams(params: any[]): Record<string, string> {
 
     throw new RpcError({
         type: 'invalid-headers-param',
-        publicMessage: 'HeadersLinkedFn first parameter must be a HeadersSubset instance or object with headers property.',
+        publicMessage: 'HeadersFn first parameter must be a HeadersSubset instance or object with headers property.',
     });
 }
 

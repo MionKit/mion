@@ -39,7 +39,7 @@ export type PublicApi<Type extends Routes> = Prettify<{
     : Type[Property] extends LinkedFnDef
     ? PublicLinkedFn<PublicHandler<Type[Property]['handler']>>
     : Type[Property] extends HeaderLinkedFnDef
-    ? PublicHeadersLinkedFn<PublicHandler<Type[Property]['handler']>>
+    ? PublicHeadersFn<PublicHandler<Type[Property]['handler']>>
     : Type[Property] extends RouteDef // Routes
     ? PublicRoute<PublicHandler<Type[Property]['handler']>>
         : Type[Property] extends Routes // Routes & PureRoutes (recursion)
@@ -50,7 +50,7 @@ export type PublicApi<Type extends Routes> = Prettify<{
 // type-remote-api-start
 /** Same as Public Api but no type mapping, should be easier to use than PublicApi when non strong types are required. */
 export type RemoteApi = {
-    [key: string]: PublicRoute | PublicLinkedFn | PublicHeadersLinkedFn | RemoteApi;
+    [key: string]: PublicRoute | PublicLinkedFn | PublicHeadersFn | RemoteApi;
 };
 // type-remote-api-end
 
@@ -68,8 +68,8 @@ export interface PublicLinkedFn<H extends Handler = any> extends MethodMetadata 
     handler: H;
 }
 
-/** Public HeadersLinkedFns, handler type is the same as HeadersLinkedFns but does not include the context */
-export interface PublicHeadersLinkedFn<H extends Handler = any> extends MethodMetadata {
+/** Public HeadersFns, handler type is the same as HeadersFns but does not include the context */
+export interface PublicHeadersFn<H extends Handler = any> extends MethodMetadata {
     type: typeof HandlerType.headerLinkedFn;
     headerNames: string[];
     handler: H;

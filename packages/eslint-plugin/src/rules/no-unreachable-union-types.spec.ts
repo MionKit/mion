@@ -87,11 +87,11 @@ ruleTester.run('no-unreachable-union-types', rule, {
                 linkedFn((ctx, data: {a: string; b: number} | {a: string}) => ({result: 'ok'}));
             `,
         },
-        // Parameters with proper union order (headersLinkedFn)
+        // Parameters with proper union order (headersFn)
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
-                headersLinkedFn((ctx, [token]: [string], data: {a: string; b: number} | {a: string}) => ({result: 'ok'}));
+                import { headersFn } from '@mionkit/router';
+                headersFn((ctx, [token]: [string], data: {a: string; b: number} | {a: string}) => ({result: 'ok'}));
             `,
         },
         // Context parameter should NOT be checked (route)
@@ -101,11 +101,11 @@ ruleTester.run('no-unreachable-union-types', rule, {
                 route((ctx: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
             `,
         },
-        // Headers parameter should NOT be checked (headersLinkedFn)
+        // Headers parameter should NOT be checked (headersFn)
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
-                headersLinkedFn((ctx, headers: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
+                import { headersFn } from '@mionkit/router';
+                headersFn((ctx, headers: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
             `,
         },
     ],
@@ -126,11 +126,11 @@ ruleTester.run('no-unreachable-union-types', rule, {
             `,
             errors: [{messageId: 'unreachableUnionType'}],
         },
-        // Subset type before superset type in headersLinkedFn return
+        // Subset type before superset type in headersFn return
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
-                headersLinkedFn((ctx, [token]: [string]): {valid: boolean} | {valid: boolean; userId: string} => ({valid: true}));
+                import { headersFn } from '@mionkit/router';
+                headersFn((ctx, [token]: [string]): {valid: boolean} | {valid: boolean; userId: string} => ({valid: true}));
             `,
             errors: [{messageId: 'unreachableUnionType'}],
         },
@@ -178,11 +178,11 @@ ruleTester.run('no-unreachable-union-types', rule, {
             `,
             errors: [{messageId: 'unreachableUnionType'}],
         },
-        // Parameter with unreachable union type (headersLinkedFn) - third parameter
+        // Parameter with unreachable union type (headersFn) - third parameter
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
-                headersLinkedFn((ctx, [token]: [string], data: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
+                import { headersFn } from '@mionkit/router';
+                headersFn((ctx, [token]: [string], data: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
             `,
             errors: [{messageId: 'unreachableUnionType'}],
         },
@@ -235,12 +235,12 @@ ruleTester.run('no-unreachable-union-types', rule, {
                 {messageId: 'unreachableUnionType'},
             ],
         },
-        // Type alias in headersLinkedFn parameter (third parameter)
+        // Type alias in headersFn parameter (third parameter)
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
+                import { headersFn } from '@mionkit/router';
                 type UnreachableHeaderParam = {x: number} | {x: number; y: number};
-                headersLinkedFn((ctx, [token]: [string], data: UnreachableHeaderParam): void => {
+                headersFn((ctx, [token]: [string], data: UnreachableHeaderParam): void => {
                     console.log(data.x);
                 });
             `,

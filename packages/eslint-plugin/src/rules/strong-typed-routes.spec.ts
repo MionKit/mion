@@ -32,11 +32,11 @@ ruleTester.run('strong-typed-routes', rule, {
                 linkedFn((ctx, data: number): void => { console.log(data); });
             `,
         },
-        // Valid headersLinkedFn with explicit types
+        // Valid headersFn with explicit types
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
-                headersLinkedFn((ctx, [token]: [string]): boolean => true);
+                import { headersFn } from '@mionkit/router';
+                headersFn((ctx, [token]: [string]): boolean => true);
             `,
         },
         // Valid function expression
@@ -113,12 +113,12 @@ ruleTester.run('strong-typed-routes', rule, {
                 route(sayHello);
             `,
         },
-        // Valid with headersLinkedFn function reference
+        // Valid with headersFn function reference
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
+                import { headersFn } from '@mionkit/router';
                 const authHandler = (ctx, [token]: [string]): void => { console.log(token); };
-                headersLinkedFn(authHandler);
+                headersFn(authHandler);
             `,
         },
         // Valid with linkedFn function reference
@@ -177,11 +177,11 @@ ruleTester.run('strong-typed-routes', rule, {
                 const logHandler = (ctx, data: number): void => { console.log(data); };
             `,
         },
-        // Valid with @mion:headersLinkedFn JSDoc tag
+        // Valid with @mion:headersFn JSDoc tag
         {
             code: `
                 /**
-                 * @mion:headersLinkedFn
+                 * @mion:headersFn
                  */
                 function authHandler(ctx, [token]: [string]): void {
                     console.log(token);
@@ -230,11 +230,11 @@ ruleTester.run('strong-typed-routes', rule, {
                 route((ctx, enabled: boolean = true): string => enabled ? 'yes' : 'no');
             `,
         },
-        // Valid headersLinkedFn with default boolean parameter
+        // Valid headersFn with default boolean parameter
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
-                headersLinkedFn((ctx, h: {headers: {token: string}}, returnSession = false): void => { console.log(returnSession); });
+                import { headersFn } from '@mionkit/router';
+                headersFn((ctx, h: {headers: {token: string}}, returnSession = false): void => { console.log(returnSession); });
             `,
         },
     ],
@@ -285,11 +285,11 @@ ruleTester.run('strong-typed-routes', rule, {
                 {messageId: 'missingParamTypesRouter'}, // param 'data'
             ],
         },
-        // Missing types in headersLinkedFn
+        // Missing types in headersFn
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
-                headersLinkedFn((ctx, [token]) => true);
+                import { headersFn } from '@mionkit/router';
+                headersFn((ctx, [token]) => true);
             `,
             errors: [
                 {messageId: 'missingReturnTypeRouter'}, // return type on function
@@ -393,12 +393,12 @@ ruleTester.run('strong-typed-routes', rule, {
                 },
             ],
         },
-        // headersLinkedFn function reference missing types
+        // headersFn function reference missing types
         {
             code: `
-                import { headersLinkedFn } from '@mionkit/router';
+                import { headersFn } from '@mionkit/router';
                 const authHandler = (ctx, [token]) => { console.log(token); };
-                headersLinkedFn(authHandler);
+                headersFn(authHandler);
             `,
             errors: [
                 {messageId: 'missingReturnTypeRouter'}, // return type on function
@@ -480,11 +480,11 @@ ruleTester.run('strong-typed-routes', rule, {
                 },
             ],
         },
-        // @mion:headersLinkedFn JSDoc tag missing parameter type
+        // @mion:headersFn JSDoc tag missing parameter type
         {
             code: `
                 /**
-                 * @mion:headersLinkedFn
+                 * @mion:headersFn
                  */
                 function authHandler(ctx, [token]): void {
                     console.log(token);

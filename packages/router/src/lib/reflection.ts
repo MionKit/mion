@@ -248,7 +248,7 @@ function generateHandlerReflection(
     }
 
     const returnOpts: RunTypeOptions = runTypeOptions;
-    // If the return type is HeadersSubset or if it's a headersLinkedFn with array return, don't treat it as return data
+    // If the return type is HeadersSubset or if it's a headersFn with array return, don't treat it as return data
     reflectionItems.hasReturnData = handlerRunType.hasReturnData();
 
     try {

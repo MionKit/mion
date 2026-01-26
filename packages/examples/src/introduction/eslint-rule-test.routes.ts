@@ -1,7 +1,7 @@
 // This file demonstrates the ESLint rules for @mionkit/router
 // The rules are disabled for this file so you can see both valid and invalid examples
 import {HeadersSubset} from '@mionkit/core';
-import {route, linkedFn, headersLinkedFn, Handler, HeaderHandler, CallContext} from '@mionkit/router';
+import {route, linkedFn, headersFn, Handler, HeaderHandler, CallContext} from '@mionkit/router';
 
 // ========================================
 // ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
@@ -13,7 +13,7 @@ route((ctx, name: string): string => `hello ${name}`);
 linkedFn((ctx, data: number): void => {
     console.log(data);
 });
-headersLinkedFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
+headersFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
     // do something
 });
 // end:strong-typed-valid-inline
@@ -63,9 +63,9 @@ const linkedFnWithJSDoc = (ctx, data: number): void => {
 };
 
 /**
- * @mion:headersLinkedFn
+ * @mion:headersFn
  */
-function headersLinkedFnWithJSDoc(c: CallContext, {headers}: HeadersSubset<'auth'>): void {
+function headersFnWithJSDoc(c: CallContext, {headers}: HeadersSubset<'auth'>): void {
     const token = headers.auth;
     console.log(token);
 }
@@ -106,7 +106,7 @@ route((ctx, name) => `hello ${name}`); // Missing both param type and return typ
 linkedFn((ctx, data: number) => {
     console.log(data);
 }); // Missing return type
-headersLinkedFn((c: CallContext, [token]): void => {
+headersFn((c: CallContext, [token]): void => {
     // do something
 }); // Missing param type
 // end:strong-typed-invalid-inline
@@ -156,9 +156,9 @@ const invalidLinkedFnJSDoc = (ctx, data: number) => {
 }; // Missing return type
 
 /**
- * @mion:headersLinkedFn
+ * @mion:headersFn
  */
-function invalidHeadersLinkedFnJSDoc(c: CallContext, {headers}): void {
+function invalidHeadersFnJSDoc(c: CallContext, {headers}): void {
     const token = headers.auth;
     console.log(token);
 } // Missing param type
@@ -196,9 +196,9 @@ route((ctx): MultipleUnreachable => ({a: 'hello'}));
 // end:unreachable-union-multiple
 
 // start:unreachable-union-linkedFns
-// 6. Unreachable in headersLinkedFn parameter (third parameter)
+// 6. Unreachable in headersFn parameter (third parameter)
 type UnreachableHeaderParam = {x: number} | {x: number; y: number}; // Second type is unreachable
-headersLinkedFn((ctx, {headers}: HeadersSubset<'auth'>, data: UnreachableHeaderParam): void => {
+headersFn((ctx, {headers}: HeadersSubset<'auth'>, data: UnreachableHeaderParam): void => {
     console.log(data.x);
 });
 

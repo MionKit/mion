@@ -7,7 +7,7 @@
 
 import {RpcError} from '@mionkit/core';
 import type {Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionkit/core';
-import type {PublicHeadersLinkedFn, PublicLinkedFn, RemoteApi, PublicRoute} from '@mionkit/router';
+import type {PublicHeadersFn, PublicLinkedFn, RemoteApi, PublicRoute} from '@mionkit/router';
 import type {TypedEvent} from './typedEvent';
 
 // ############# Result Type #############
@@ -92,7 +92,7 @@ export type ClientOptions = {
 };
 
 type PublicHandler = (...args: any[]) => Promise<any>;
-type PublicMethod = PublicRoute | PublicLinkedFn | PublicHeadersLinkedFn;
+type PublicMethod = PublicRoute | PublicLinkedFn | PublicHeadersFn;
 type ExtractHandler<PM extends PublicMethod> = PM extends {handler: infer H} ? H : never;
 
 export type InitOptions = Partial<ClientOptions> & {baseURL: string};
@@ -101,12 +101,12 @@ export type RequestBody = {[key: string]: any[]};
 
 // ############# Routes Parameter Utility Types #############
 
-/** Extracts all parameters from a PublicRoute, PublicLinkedFn, or PublicHeadersLinkedFn. */
+/** Extracts all parameters from a PublicRoute, PublicLinkedFn, or PublicHeadersFn. */
 export type RouteParamsType<PM extends PublicMethod> = Parameters<ExtractHandler<PM>>;
-/** Extracts a single parameter at a given index from a PublicRoute, PublicLinkedFn, or PublicHeadersLinkedFn. */
+/** Extracts a single parameter at a given index from a PublicRoute, PublicLinkedFn, or PublicHeadersFn. */
 export type RouteParamType<PM extends PublicMethod, Index extends number> = Parameters<ExtractHandler<PM>>[Index];
-/** Extracts the headers parameter (first param) from a PublicHeadersLinkedFn handler. */
-export type HeadersParamsType<PM extends PublicHeadersLinkedFn> = Parameters<ExtractHandler<PM>>[0];
+/** Extracts the headers parameter (first param) from a PublicHeadersFn handler. */
+export type HeadersParamsType<PM extends PublicHeadersFn> = Parameters<ExtractHandler<PM>>[0];
 
 // others
 export type HandlerResponse<PH extends PublicHandler> = Awaited<ReturnType<PH>>;
@@ -240,7 +240,7 @@ export interface HSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
 }
 // type-linkedFn-sub-request-end
 
-export type NonClientRoute = never | PublicLinkedFn | PublicHeadersLinkedFn;
+export type NonClientRoute = never | PublicLinkedFn | PublicHeadersFn;
 
 export type ClientRoutes<RA extends RemoteApi> = Prettify<{
     [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
@@ -255,7 +255,7 @@ export type NonClientLinkedFn = never | PublicRoute | {[key: string]: PublicRout
 export type ClientLinkedFns<RA extends RemoteApi> = Prettify<{
     [Property in keyof RA as RA[Property] extends NonClientLinkedFn ? never : Property]: RA[Property] extends
         | PublicLinkedFn
-        | PublicHeadersLinkedFn
+        | PublicHeadersFn
         ? (...params: Parameters<RA[Property]['handler']>) => HSubRequest<RA[Property]['handler']>
         : RA[Property] extends RemoteApi
           ? ClientLinkedFns<RA[Property]>

@@ -9,7 +9,7 @@ import {existsSync, rmSync, mkdirSync, readFileSync} from 'fs';
 import {join, resolve} from 'path';
 import {writeAOTCachesToFiles, compileAOT, type CacheData} from './aot-compile';
 import {initAOT} from './cli-init-aot';
-import {headersLinkedFn, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
+import {headersFn, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
 import {getJitFnCaches, resetJitFnCaches, addAOTCaches, HeadersSubset} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
 import {linkedFn, route} from '@mionkit/router';
@@ -70,7 +70,7 @@ describe('AOT Cache Compilation E2E', () => {
         await initRouter();
 
         const testRoutes = {
-            auth: headersLinkedFn(
+            auth: headersFn(
                 (
                     ctx,
                     h: HeadersSubset<'Authorization'>, // testing headers serialization

@@ -190,7 +190,7 @@ function isRouterFunction(node: TSESTree.Node, context: TSESLint.RuleContext<any
 }
 
 function isRouterFunctionCall(node: TSESTree.CallExpression, context: TSESLint.RuleContext<any, any>): boolean {
-    const routerFunctions = ['route', 'linkedFn', 'headersLinkedFn'];
+    const routerFunctions = ['route', 'linkedFn', 'headersFn'];
     if (node.callee.type !== AST_NODE_TYPES.Identifier || !routerFunctions.includes(node.callee.name)) {
         return false;
     }

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicApi, Routes, initRouter, registerRoutes, route, headersLinkedFn, linkedFn} from '@mionkit/router';
+import {PublicApi, Routes, initRouter, registerRoutes, route, headersFn, linkedFn} from '@mionkit/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
 import {RpcError, HeadersSubset} from '@mionkit/core';
 // Import format types (regular import to ensure JIT functions are created)
@@ -40,7 +40,7 @@ type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 
 const routes = {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    auth: headersLinkedFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+    auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
     // LinkedFn that returns session info on every request (optional param for flexibility in tests)

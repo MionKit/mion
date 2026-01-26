@@ -1,5 +1,5 @@
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
-const ROUTER_FUNCTIONS = ["route", "linkedFn", "headersLinkedFn"];
+const ROUTER_FUNCTIONS = ["route", "linkedFn", "headersFn"];
 const HANDLER_TYPES = ["Handler", "HeaderHandler"];
 function buildRouterImportCache(program) {
   const routerFunctions = /* @__PURE__ */ new Set();
@@ -237,7 +237,7 @@ const rule = {
         const sourceCode = context.sourceCode;
         const comments = sourceCode.getCommentsBefore(node);
         for (const comment of comments) {
-          if (comment.type === "Block" && (comment.value.includes("@mion:route") || comment.value.includes("@mion:linkedFn") || comment.value.includes("@mion:headersLinkedFn"))) {
+          if (comment.type === "Block" && (comment.value.includes("@mion:route") || comment.value.includes("@mion:linkedFn") || comment.value.includes("@mion:headersFn"))) {
             checkFunctionNode(node);
             break;
           }

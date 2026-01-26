@@ -1,5 +1,5 @@
 import {RpcError, HeadersSubset} from '@mionkit/core';
-import {headersLinkedFn, rawLinkedFn, linkedFn, Routes, initMionRouter, route} from '@mionkit/router';
+import {headersFn, rawLinkedFn, linkedFn, Routes, initMionRouter, route} from '@mionkit/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app';
 import {User} from './myApi.types';
 
@@ -23,7 +23,7 @@ const deleteUser = route((ctx: Context, id: number): User | RpcError<'user-not-f
     return deleted;
 });
 
-const auth = headersLinkedFn((ctx: Context, {headers}: HeadersSubset<'Authorization'>): void => {
+const auth = headersFn((ctx: Context, {headers}: HeadersSubset<'Authorization'>): void => {
     const token = headers.Authorization;
     if (!myApp.auth.isAuthorized(token))
         throw new RpcError({

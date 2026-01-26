@@ -1,5 +1,5 @@
 import {RpcError, HeadersSubset} from '@mionkit/core';
-import {Routes, headersLinkedFn, linkedFn, initMionRouter, route} from '@mionkit/router';
+import {Routes, headersFn, linkedFn, initMionRouter, route} from '@mionkit/router';
 import {Logger} from 'Logger';
 
 export type User = {id: string; name: string; surname: string};
@@ -26,7 +26,7 @@ const usersDb: Record<string, User> = {
 const routes = {
     // LinkedFn with typed errorData and typed success return
     // When returnSession is true, returns SessionInfo - strongly typed in client onSuccess!
-    auth: headersLinkedFn(
+    auth: headersFn(
         (
             ctx,
             h: HeadersSubset<'Authorization'>,
