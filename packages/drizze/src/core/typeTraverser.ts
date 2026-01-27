@@ -8,7 +8,7 @@
 import {runType, getRunTypeFormat, isInterfaceRunType, isPropertyRunType, isPropertySignatureRunType} from '@mionkit/run-types';
 import type {BaseRunType, InterfaceRunType, PropertyRunType} from '@mionkit/run-types';
 import {ReflectionKind, type ReceiveType} from '@deepkit/type';
-import {DrizzleMionError, ErrorMessages} from './errors';
+import {TypedError} from '@mionkit/core';
 import type {PropertyInfo, TypeInfo} from '../types/common.types';
 
 /** Extracts property information from a TypeScript type using mion's RunType system */
@@ -17,7 +17,10 @@ export function extractTypeInfo<T>(type?: ReceiveType<T>): TypeInfo {
 
     // Must be an interface/object type
     if (!isInterfaceRunType(rt)) {
-        throw new DrizzleMionError(ErrorMessages.INVALID_TYPE(rt.getKindName()));
+        throw new TypedError({
+            type: 'drizzle-table-invalid-source-type',
+            message: `Cannot create drizzle table from type "${rt.getKindName()}". Expected an interface or object type with properties to map to table columns.`,
+        });
     }
 
     const interfaceRt = rt as InterfaceRunType;

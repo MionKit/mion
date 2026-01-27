@@ -6,7 +6,7 @@
  * ######## */
 
 import {drizzlePGTable} from './postgres';
-import {uuid, text} from 'drizzle-orm/pg-core';
+import {uuid, text, pgTable, timestamp, numeric, boolean} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for deepkit reflection to work
 import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
 
@@ -43,6 +43,13 @@ interface UserWithOptionals {
     nickname?: string;
     age?: number;
 }
+
+const someTable = pgTable('some', {
+    id: uuid('id').primaryKey(),
+    name: text('name'),
+    email: text('email').unique(),
+    createdAt: timestamp().notNull(),
+});
 
 describe('drizzlePGTable', () => {
     describe('simple types', () => {
@@ -173,6 +180,22 @@ describe('drizzlePGTable', () => {
             expect(() => {
                 drizzlePGTable<string>('users');
             }).toThrow();
+        });
+    });
+
+    describe('strong typed results', () => {
+        it('should return a strongly typed table', () => {
+            const mionGeneratedTable = drizzlePGTable<SimpleUser>('users');
+
+            const usersTable = pgTable('users', {
+                id: uuid('id'),
+                name: text('name'),
+                age: numeric('age'),
+                isActive: boolean('is_active'),
+                createdAt: timestamp('created_at'),
+            });
+
+            // TODO using typescript type checking to test bot results are strongly typed
         });
     });
 });

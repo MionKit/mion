@@ -7,7 +7,6 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import type {PropertyInfo, TypeInfo, ValidationResult} from '../types/common.types';
-import {ErrorMessages} from './errors';
 
 /** Validates that provided table config matches the TypeScript type */
 export function validateConfig(typeInfo: TypeInfo, tableConfig: Record<string, any>): ValidationResult {
@@ -30,7 +29,7 @@ export function validateConfig(typeInfo: TypeInfo, tableConfig: Record<string, a
     // Check for extra columns in config that don't exist in type
     for (const configKey of Object.keys(tableConfig)) {
         const exists = typeInfo.properties.some((p) => p.name === configKey);
-        if (!exists) errors.push(ErrorMessages.EXTRA_COLUMN(configKey, typeInfo.typeName));
+        if (!exists) errors.push(`Column "${configKey}" exists in tableConfig but not in type "${typeInfo.typeName}"`);
     }
     return {valid: errors.length === 0, errors, warnings};
 }
@@ -40,7 +39,7 @@ function validateTypeCompatibility(prop: PropertyInfo, column: any): string | nu
     const columnType = getColumnType(column);
     const expectedTypes = getExpectedColumnTypes(prop);
     if (expectedTypes.length > 0 && !expectedTypes.includes(columnType)) {
-        return ErrorMessages.TYPE_MISMATCH(prop.name, expectedTypes.join(' or '), columnType);
+        return `Type mismatch for property "${prop.name}": TypeScript type expects ${expectedTypes.join(' or ')}, but drizzle column is "${columnType}"`;
     }
     return null;
 }
@@ -48,7 +47,8 @@ function validateTypeCompatibility(prop: PropertyInfo, column: any): string | nu
 /** Validates that nullability constraints match */
 function validateNullability(prop: PropertyInfo, column: any): string | null {
     const isColumnNotNull = hasNotNullConstraint(column);
-    if (prop.isOptional && isColumnNotNull) return ErrorMessages.NULLABILITY_MISMATCH(prop.name);
+    if (prop.isOptional && isColumnNotNull)
+        return `Property "${prop.name}" is optional in type but column has .notNull() constraint`;
     return null;
 }
 

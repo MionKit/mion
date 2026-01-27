@@ -7,10 +7,10 @@
 
 import {sqliteTable} from 'drizzle-orm/sqlite-core';
 import type {ReceiveType} from '@deepkit/type';
+import {TypedError} from '@mionkit/core';
 import {extractTypeInfo} from './core/typeTraverser';
 import {validateConfig} from './core/validator';
 import {SQLiteColumnMapper} from './mappers/sqlite.mapper';
-import {DrizzleMionError} from './core/errors';
 
 /**
  * Creates a SQLite table schema from a TypeScript type.
@@ -39,7 +39,10 @@ export function drizzleSqliteTable<T>(tableName: string, tableConfig?: Record<st
     if (tableConfig) {
         const validation = validateConfig(typeInfo, tableConfig);
         if (!validation.valid) {
-            throw new DrizzleMionError(`Table config validation failed:\n${validation.errors.join('\n')}`);
+            throw new TypedError({
+                type: 'drizzle-table-config-invalid',
+                message: `Cannot create SQLite table "${tableName}". The provided tableConfig does not match type "${typeInfo.typeName}":\n${validation.errors.join('\n')}`,
+            });
         }
         if (validation.warnings.length > 0) {
             console.warn(`drizzleSqliteTable warnings:\n${validation.warnings.join('\n')}`);
