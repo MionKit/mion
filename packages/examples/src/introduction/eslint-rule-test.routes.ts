@@ -1,3 +1,4 @@
+/* eslint-disable */
 // This file demonstrates the ESLint rules for @mionkit/router
 // The rules are disabled for this file so you can see both valid and invalid examples
 import {HeadersSubset} from '@mionkit/core';

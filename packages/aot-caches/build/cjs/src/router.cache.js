@@ -59,7 +59,7 @@ const routerCache = {
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "JtnVhp",
-		returnJitHash: "UsAsWk",
+		returnJitHash: "uC6waY",
 		pointer: ["mion@methodsMetadataById"],
 		nestLevel: 0,
 		options: {
@@ -76,7 +76,7 @@ const routerCache = {
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "hZzD9z",
-		returnJitHash: "UsAsWk",
+		returnJitHash: "uC6waY",
 		pointer: ["mion@methodsMetadataByPath"],
 		nestLevel: 0,
 		options: {
