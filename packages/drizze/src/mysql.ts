@@ -11,6 +11,7 @@ import {TypedError} from '@mionkit/core';
 import {extractTypeInfo} from './core/typeTraverser';
 import {validateConfig} from './core/validator';
 import {MySQLColumnMapper} from './mappers/mysql.mapper';
+import type {MySqlTableConfig} from './types/mysql.types';
 
 /**
  * Creates a MySQL table schema from a TypeScript type.
@@ -32,7 +33,11 @@ import {MySQLColumnMapper} from './mappers/mysql.mapper';
  * });
  * ```
  */
-export function drizzleMysqlTable<T>(tableName: string, tableConfig?: Record<string, any>, type?: ReceiveType<T>) {
+export function drizzleMysqlTable<T, TConfig extends MySqlTableConfig<T> = MySqlTableConfig<T>>(
+    tableName: string,
+    tableConfig?: TConfig,
+    type?: ReceiveType<T>
+) {
     // Extract type information using mion's RunType system
     const typeInfo = extractTypeInfo<T>(type);
     // Validate provided config against type

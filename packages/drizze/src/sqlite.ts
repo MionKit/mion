@@ -11,6 +11,7 @@ import {TypedError} from '@mionkit/core';
 import {extractTypeInfo} from './core/typeTraverser';
 import {validateConfig} from './core/validator';
 import {SQLiteColumnMapper} from './mappers/sqlite.mapper';
+import type {SqliteTableConfig} from './types/sqlite.types';
 
 /**
  * Creates a SQLite table schema from a TypeScript type.
@@ -32,7 +33,11 @@ import {SQLiteColumnMapper} from './mappers/sqlite.mapper';
  * });
  * ```
  */
-export function drizzleSqliteTable<T>(tableName: string, tableConfig?: Record<string, any>, type?: ReceiveType<T>) {
+export function drizzleSqliteTable<T, TConfig extends SqliteTableConfig<T> = SqliteTableConfig<T>>(
+    tableName: string,
+    tableConfig?: TConfig,
+    type?: ReceiveType<T>
+) {
     // Extract type information using mion's RunType system
     const typeInfo = extractTypeInfo<T>(type);
     // Validate provided config against type
