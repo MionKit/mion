@@ -1,0 +1,61 @@
+{
+  "name": "@mionkit/drizzle",
+  "version": "0.7.2",
+  "description": "drizzle extension for mion run-types",
+  "keywords": [
+    "typescript",
+    "API",
+    "RPC",
+    "json",
+    "schema",
+    "generate",
+    "server",
+    "serverless",
+    "framework",
+    "node"
+  ],
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "browser": {},
+  "exports": {
+    ".": {
+      "types": "./.dist/esm/index.d.ts",
+      "require": "./.dist/cjs/index.js",
+      "default": "./.dist/esm/index.js"
+    }
+  },
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "jest",
+    "dev": "vite build --watch",
+    "dev:test": "jest --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.ts",
+    "build": "vite build",
+    "build-ts-dts": "DTS_ONLY=true vite build",
+    "auto-readme": "embedme **/*.md && prettier --write **/*.md",
+    "clean": "rimraf .dist & rimraf .coverage",
+    "fresh-start": "npm run clean && rimraf node_modules"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionkit/core": "^0.7.2",
+    "@mionkit/run-types": "^0.7.2"
+  },
+  "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
+}
