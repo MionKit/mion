@@ -55,7 +55,9 @@
   },
   "dependencies": {
     "@mionkit/core": "^0.7.2",
-    "@mionkit/run-types": "^0.7.2"
+    "@mionkit/run-types": "^0.7.2",
+    "@mionkit/type-formats": "^0.7.2",
+    "drizzle-orm": "^0.38.0"
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }

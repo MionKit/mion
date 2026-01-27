@@ -87,6 +87,7 @@
     "packages/client",
     "packages/codegen",
     "packages/core",
+    "packages/drizze",
     "packages/eslint-plugin",
     "packages/type-formats",
     "packages/gcloud",

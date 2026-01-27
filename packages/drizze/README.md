@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>RPC Like router with automatic Validation and Serialization.
+  <strong>Auto-generate Drizzle ORM table schemas from TypeScript types
   </strong>
 </p>
 <p align=center>
@@ -17,11 +17,194 @@
 
 # `@mionkit/drizzle`
 
-🚀 Lightweight and fast HTTP router with automatic validation and serialization out of the box.
+🚀 Auto-generate Drizzle ORM table schemas from TypeScript types using mion's runtime type system.
 
-Thanks to it's **Remote Method Call** routing style is quite performant as there is no need to parse URLs or match regular expressions when finding a route. Just a direct mapping from url to the route handler.
+Unlike `drizzle-zod` which generates Zod schemas FROM drizzle tables, this package works in the **opposite direction**: it auto-generates drizzle table configurations FROM TypeScript types while allowing optional overrides.
 
-mion's is lightweight and fast. Unlike traditional routers. The Http method is not relevant, there are no parameters in the Url and data is sent and received in JSON format via the request body or headers. mion's router leverages a simple in-memory map for route lookup, making it extremely fast.
+## Features
+
+- **Auto-generate table schemas** from TypeScript types
+- **Support for all three databases**: PostgreSQL, MySQL, and SQLite
+- **Format-aware mappings**: Uses `@mionkit/type-formats` for intelligent column type selection
+- **Override support**: Customize primary keys, foreign keys, and constraints
+- **Validation**: Validates config overrides match TypeScript types
+
+## Installation
+
+```bash
+npm install @mionkit/drizzle drizzle-orm
+```
+
+## Quick Start
+
+### PostgreSQL
+
+```typescript
+import {drizzlePGTable} from '@mionkit/drizzle';
+import {uuid} from 'drizzle-orm/pg-core';
+import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
+
+interface User {
+  id: StrUUIDv7;
+  email: StrEmail;
+  name: string;
+  bio?: string; // Optional = nullable
+  tags: string[]; // Array = jsonb
+  metadata: {theme: string}; // Nested object = jsonb
+  createdAt: Date;
+}
+
+// Only specify primary key - rest is auto-generated
+export const users = drizzlePGTable<User>('users', {
+  id: uuid('id').primaryKey(),
+});
+
+// Auto-generates:
+// - email: text('email').notNull()
+// - name: text('name').notNull()
+// - bio: text('bio')  (nullable because optional)
+// - tags: jsonb('tags').notNull()
+// - metadata: jsonb('metadata').notNull()
+// - createdAt: timestamp('createdAt').notNull()
+```
+
+### MySQL
+
+```typescript
+import {drizzleMysqlTable} from '@mionkit/drizzle';
+import {varchar} from 'drizzle-orm/mysql-core';
+import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
+
+interface User {
+  id: StrUUIDv7;
+  email: StrEmail;
+  name: string;
+}
+
+export const users = drizzleMysqlTable<User>('users', {
+  id: varchar('id', {length: 36}).primaryKey(),
+});
+```
+
+### SQLite
+
+```typescript
+import {drizzleSqliteTable} from '@mionkit/drizzle';
+import {text} from 'drizzle-orm/sqlite-core';
+import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
+
+interface User {
+  id: StrUUIDv7;
+  email: StrEmail;
+  name: string;
+}
+
+export const users = drizzleSqliteTable<User>('users', {
+  id: text('id').primaryKey(),
+});
+```
+
+## Type Mappings
+
+### Primitive Types
+
+| TypeScript Type | PostgreSQL          | MySQL         | SQLite                         |
+| --------------- | ------------------- | ------------- | ------------------------------ |
+| `string`        | `text()`            | `text()`      | `text()`                       |
+| `number`        | `doublePrecision()` | `double()`    | `real()`                       |
+| `boolean`       | `boolean()`         | `boolean()`   | `integer({mode: 'boolean'})`   |
+| `bigint`        | `bigint()`          | `bigint()`    | `blob({mode: 'bigint'})`       |
+| `Date`          | `timestamp()`       | `timestamp()` | `integer({mode: 'timestamp'})` |
+
+### Format Types (from `@mionkit/type-formats`)
+
+| Format Type   | PostgreSQL    | MySQL          | SQLite      |
+| ------------- | ------------- | -------------- | ----------- |
+| `StrUUIDv7`   | `uuid()`      | `varchar(36)`  | `text()`    |
+| `StrEmail`    | `text()`      | `varchar(254)` | `text()`    |
+| `StrIP`       | `inet()`      | `varchar(45)`  | `text()`    |
+| `StrDateTime` | `timestamp()` | `datetime()`   | `text()`    |
+| `NumInteger`  | `integer()`   | `int()`        | `integer()` |
+
+### Complex Types
+
+| TypeScript Type  | PostgreSQL | MySQL    | SQLite                 |
+| ---------------- | ---------- | -------- | ---------------------- |
+| `T[]` (array)    | `jsonb()`  | `json()` | `text({mode: 'json'})` |
+| `{...}` (object) | `jsonb()`  | `json()` | `text({mode: 'json'})` |
+| `T?` (optional)  | nullable   | nullable | nullable               |
+
+## Foreign Keys
+
+Foreign keys are defined in the tableConfig, similar to primary keys:
+
+```typescript
+interface Post {
+  id: string;
+  title: string;
+  authorId: string; // Foreign key - just a string type
+}
+
+export const posts = drizzlePGTable<Post>('posts', {
+  id: uuid('id').primaryKey(),
+  authorId: uuid('author_id').references(() => users.id, {onDelete: 'cascade'}),
+});
+```
+
+## Validation
+
+The package validates that your tableConfig matches the TypeScript type:
+
+```typescript
+interface User {
+  id: string;
+  name: string;
+}
+
+// ❌ Error: Column "email" exists in tableConfig but not in type "User"
+const users = drizzlePGTable<User>('users', {
+  id: uuid('id').primaryKey(),
+  email: text('email'), // This property doesn't exist in User!
+});
+```
+
+## Important Notes
+
+### Import Format Types Correctly
+
+When using format types from `@mionkit/type-formats`, you must use **regular imports** (not `import type`) for the runtime type metadata to be preserved:
+
+```typescript
+// ✅ Correct - regular import preserves metadata
+import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
+
+// ❌ Wrong - type import strips metadata
+import type {StrUUIDv7, StrEmail} from '@mionkit/type-formats';
+```
+
+### Nested Objects vs Foreign Keys
+
+Nested objects are stored as JSON. Use foreign key IDs for entity references:
+
+```typescript
+// ✅ Good: Profile is a value object - stored as JSON
+interface User {
+  id: string;
+  profile: {bio: string; avatar: string};
+}
+
+// ❌ Bad: Don't embed entire entities
+interface Book {
+  id: string;
+  owner: User; // This stores the entire User as JSON!
+}
+
+// ✅ Good: Use foreign key ID instead
+interface Book {
+  id: string;
+  ownerId: string; // Reference by ID
+}
+```
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
