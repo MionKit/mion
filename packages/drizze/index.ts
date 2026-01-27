@@ -13,11 +13,11 @@ export {drizzleSqliteTable} from './src/sqlite';
 // Core utilities
 export {extractTypeInfo} from './src/core/typeTraverser';
 export {validateConfig} from './src/core/validator';
-export {DrizzleMionError, ErrorMessages} from './src/core/errors';
 
 // Types
-export type {PropertyInfo, TypeInfo, ValidationResult, ColumnMapping, DatabaseType, FormatName} from './src/types/common.types';
-export {FormatNames} from './src/types/common.types';
+export type {PropertyInfo, TypeInfo, ValidationResult, ColumnMapping, DatabaseType} from './src/types/common.types';
+export type {FormatName} from '@mionkit/type-formats';
+export {FormatNames} from '@mionkit/type-formats';
 
 // Mappers (for advanced usage)
 export {BaseColumnMapper} from './src/mappers/base.mapper';

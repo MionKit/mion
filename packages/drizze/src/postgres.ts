@@ -7,10 +7,10 @@
 
 import {PgColumnBuilderBase, pgTable} from 'drizzle-orm/pg-core';
 import type {ReceiveType} from '@deepkit/type';
+import {TypedError} from '@mionkit/core';
 import {extractTypeInfo} from './core/typeTraverser';
 import {validateConfig} from './core/validator';
 import {PGColumnMapper} from './mappers/pg.mapper';
-import {DrizzleMionError} from './core/errors';
 
 /**
  * Creates a PostgreSQL table schema from a TypeScript type.
@@ -39,7 +39,10 @@ export function drizzlePGTable<T>(tableName: string, tableConfig?: Record<string
     if (tableConfig) {
         const validation = validateConfig(typeInfo, tableConfig);
         if (!validation.valid) {
-            throw new DrizzleMionError(`Table config validation failed:\n${validation.errors.join('\n')}`);
+            throw new TypedError({
+                type: 'drizzle-table-config-invalid',
+                message: `Cannot create PostgreSQL table "${tableName}". The provided tableConfig does not match type "${typeInfo.typeName}":\n${validation.errors.join('\n')}`,
+            });
         }
         if (validation.warnings.length > 0) {
             console.warn(`drizzlePGTable warnings:\n${validation.warnings.join('\n')}`);
