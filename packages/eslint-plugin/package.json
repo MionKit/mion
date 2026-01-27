@@ -9,7 +9,7 @@
     "run types",
     "run-type"
   ],
-  "author": "ma jerez <jerez.m82@gmail.com>",
+  "author": "ma jerez",
   "homepage": "https://mion.io/",
   "license": "MIT",
   "main": "build/cjs/index.js",
