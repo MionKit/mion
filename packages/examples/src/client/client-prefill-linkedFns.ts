@@ -1,5 +1,6 @@
 import {initClient} from '@mionkit/client';
 import type {MyApi} from './server.routes';
+import {HeadersSubset} from '@mionkit/core';
 
 const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
@@ -10,7 +11,7 @@ async function prefillLinkedFns() {
     // prefill() returns a TypedEvent for registering persistent handlers
     // TypedEvent handlers are STRONGLY TYPED by the error.type string
     linkedFns
-        .auth('myToken-XYZ')
+        .auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
         .prefill()
         .onSuccess((session) => {
             // Called after every successful auth

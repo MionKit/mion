@@ -12,7 +12,7 @@ import {StrDomainStrict, StrDomain} from './domain.runtype';
 it('should validate custom domain values', async () => {
     const isType = await createIsTypeFn<StrDomainStrict>();
     // Valid cases
-    expect(isType('example.com')).toBe(true);
+    expect(isType(noEMail1)).toBe(true);
     expect(isType('sub.example.com')).toBe(true);
     expect(isType('example.co.uk')).toBe(true);
     // Invalid length
@@ -21,7 +21,7 @@ it('should validate custom domain values', async () => {
     expect(isType('a.co')).toBe(false); // min domain length is 5
     // Invalid parts
     expect(isType('example')).toBe(false);
-    expect(isType('example..com')).toBe(false);
+    expect(isType(noEMail3)).toBe(false);
     // Invalid characters
     expect(isType('exa!mple.com')).toBe(false);
     expect(isType('example.c@m')).toBe(false);
@@ -31,7 +31,7 @@ it('should validate custom domain values', async () => {
 it('should validate domain values', async () => {
     const isType = await createIsTypeFn<StrDomain>();
     // Valid cases
-    expect(isType('example.com')).toBe(true);
+    expect(isType(noEMail1)).toBe(true);
     expect(isType('sub.example.com')).toBe(true);
     expect(isType('example.co.uk')).toBe(true);
     // Invalid length
@@ -40,7 +40,7 @@ it('should validate domain values', async () => {
     expect(isType('a.co')).toBe(false); // min domain length is 5
     // Invalid parts
     expect(isType('example')).toBe(false);
-    expect(isType('example..com')).toBe(false);
+    expect(isType(noEMail3)).toBe(false);
     // Invalid characters
     expect(isType('exa!mple.com')).toBe(false);
     expect(isType('example.c@m')).toBe(false);
@@ -64,10 +64,14 @@ const domainErrPattern: RunTypeError = {
     format: {name: 'domain', formatPath: ['pattern'], val: 'invalid domain'},
 };
 
+const noEMail1 = 'example.com' as StrDomainStrict;
+const noEMail2 = 'hello.org' as StrDomainStrict;
+const noEMail3 = 'example..com' as StrDomainStrict;
+
 it('should return custom domain errors', async () => {
     const typeErrors = await createTypeErrorsFn<StrDomainStrict>();
     // Valid cases
-    expect(typeErrors('example.com')).toEqual([]);
+    expect(typeErrors(noEMail1)).toEqual([]);
     // Invalid length - now returns multiple errors
     const longDomain = 'a'.repeat(254) + '.com';
     const nameMaxLengthErr: RunTypeError = {
@@ -92,7 +96,7 @@ it('should return custom domain errors', async () => {
             val: 'domain names can only contain letters, numbers and hyphens',
         },
     };
-    expect(typeErrors('example..com')).toEqual([minNameLengthErr, namePatternErr]);
+    expect(typeErrors(noEMail3)).toEqual([minNameLengthErr, namePatternErr]);
     // Invalid characters
     expect(typeErrors('exa!mple.com')).toEqual([namesErrPattern]);
     expect(typeErrors('example.c@m')).toEqual([tldErrPattern]);
@@ -103,7 +107,7 @@ it('should return domain errors', async () => {
     // wen using pattern the errors are more generic
     const typeErrors = await createTypeErrorsFn<StrDomain>();
     // Valid cases
-    expect(typeErrors('example.com')).toEqual([]);
+    expect(typeErrors(noEMail1)).toEqual([]);
     // Invalid length - now returns multiple errors
     const longDomain = 'a'.repeat(254) + '.com';
     const patternErr: RunTypeError = {...err, format: {name: 'domain', formatPath: ['pattern'], val: 'invalid domain'}};
@@ -111,7 +115,7 @@ it('should return domain errors', async () => {
     expect(typeErrors('a.co')).toEqual([minLengthErr]);
     // Invalid parts
     expect(typeErrors('example')).toEqual([domainErrPattern]);
-    expect(typeErrors('example..com')).toEqual([domainErrPattern]);
+    expect(typeErrors(noEMail3)).toEqual([domainErrPattern]);
     // Invalid characters
     expect(typeErrors('exa!mple.com')).toEqual([domainErrPattern]);
     expect(typeErrors('example.c@m')).toEqual([domainErrPattern]);
@@ -124,11 +128,11 @@ it('should validate custom domain inside an array', async () => {
     // so access path typically will contain var name s like `v[i]` to access the i-th element in jit code
     const isType = await createIsTypeFn<StrDomainStrict[]>();
     // not array
-    expect(isType('example.com')).toBe(false);
+    expect(isType(noEMail1)).toBe(false);
     // Valid cases
-    expect(isType(['example.com'])).toBe(true);
+    expect(isType([noEMail1])).toBe(true);
     // this should generate jit code with `v[i]` to access the element of the array and idx to access name part within the domain
-    expect(isType(['example.com', 'example..com'])).toBe(false);
+    expect(isType([noEMail1, noEMail3])).toBe(false);
 });
 
 it('should validate domain inside an array', async () => {
@@ -137,11 +141,11 @@ it('should validate domain inside an array', async () => {
     // so access path typically will contain var name s like `v[i]` to access the i-th element in jit code
     const isType = await createIsTypeFn<StrDomain[]>();
     // not array
-    expect(isType('example.com')).toBe(false);
+    expect(isType(noEMail1)).toBe(false);
     // Valid cases
-    expect(isType(['example.com'])).toBe(true);
+    expect(isType([noEMail1])).toBe(true);
     // this should generate jit code with `v[i]` to access the element of the array and idx to access name part within the domain
-    expect(isType(['example.com', 'example..com'])).toBe(false);
+    expect(isType([noEMail1, noEMail3])).toBe(false);
 });
 
 it('should return custom domain errors inside an array', async () => {
@@ -150,8 +154,8 @@ it('should return custom domain errors inside an array', async () => {
     // so access path typically will contain var name s like `v[i]` to access the i-th element in jit code
     const typeErrors = await createTypeErrorsFn<StrDomainStrict[]>();
     // Valid cases
-    expect(typeErrors('example.com')).toEqual([{expected: 'array', path: []}]);
-    expect(typeErrors(['example.com'])).toEqual([]);
+    expect(typeErrors(noEMail1)).toEqual([{expected: 'array', path: []}]);
+    expect(typeErrors([noEMail1])).toEqual([]);
     // this should generate jit code with `v[i]` to access the element of the array and idx to access name part within the domain
     const err: RunTypeError = {
         expected: 'string',
@@ -166,7 +170,7 @@ it('should return custom domain errors inside an array', async () => {
             val: 'domain names can only contain letters, numbers and hyphens',
         },
     };
-    expect(typeErrors(['example.com', 'example..com'])).toEqual([err, patternErr2]);
+    expect(typeErrors([noEMail1, noEMail3])).toEqual([err, patternErr2]);
 });
 
 it('should return domain errors inside an array', async () => {
@@ -175,8 +179,8 @@ it('should return domain errors inside an array', async () => {
     // so access path typically will contain var name s like `v[i]` to access the i-th element in jit code
     const typeErrors = await createTypeErrorsFn<StrDomain[]>();
     // Valid cases
-    expect(typeErrors('example.com')).toEqual([{expected: 'array', path: []}]);
-    expect(typeErrors(['example.com'])).toEqual([]);
+    expect(typeErrors(noEMail1)).toEqual([{expected: 'array', path: []}]);
+    expect(typeErrors([noEMail1])).toEqual([]);
 
     // this should generate jit code with `v[i]` to access the element of the array and idx to access name part within the domain
     const err: RunTypeError = {
@@ -184,7 +188,7 @@ it('should return domain errors inside an array', async () => {
         format: {formatPath: ['pattern'], name: 'domain', val: 'invalid domain'},
         path: [1], // this is the index of the array
     };
-    expect(typeErrors(['example.com', 'example..com'])).toEqual([err]);
+    expect(typeErrors([noEMail1, noEMail3])).toEqual([err]);
 });
 
 it('should validate custom domain inside recursive data', async () => {
@@ -196,17 +200,17 @@ it('should validate custom domain inside recursive data', async () => {
     };
     const isType = await createIsTypeFn<StrictDomainRecursive>();
     // Valid cases
-    expect(isType({name: 'item1', domains: ['example.com']})).toBe(true);
-    expect(isType({name: 'item1', domains: ['example.com'], children: []})).toBe(true);
+    expect(isType({name: 'item1', domains: [noEMail1]})).toBe(true);
+    expect(isType({name: 'item1', domains: [noEMail1], children: []})).toBe(true);
     // Invalid cases
-    expect(isType({name: 'item1', domains: ['example..com']})).toBe(false);
+    expect(isType({name: 'item1', domains: [noEMail3]})).toBe(false);
     // Invalid whit children
     const dRec1: StrictDomainRecursive = {
         name: 'item1',
-        domains: ['example.com'],
+        domains: [noEMail1],
         children: [
-            {name: 'item2', domains: ['example.com']},
-            {name: 'item3', domains: ['example.com', 'hello.org', 'example..com']}, // this is the invalid domain
+            {name: 'item2', domains: [noEMail1]},
+            {name: 'item3', domains: [noEMail1, noEMail2, noEMail3]}, // this is the invalid domain
         ],
     };
     expect(isType(dRec1)).toBe(false);
@@ -221,17 +225,17 @@ it('should validate domain inside recursive data', async () => {
     };
     const isType = await createIsTypeFn<DomainRecursive>();
     // Valid cases
-    expect(isType({name: 'item1', domains: ['example.com']})).toBe(true);
-    expect(isType({name: 'item1', domains: ['example.com'], children: []})).toBe(true);
+    expect(isType({name: 'item1', domains: [noEMail1]})).toBe(true);
+    expect(isType({name: 'item1', domains: [noEMail1], children: []})).toBe(true);
     // Invalid cases
-    expect(isType({name: 'item1', domains: ['example..com']})).toBe(false);
+    expect(isType({name: 'item1', domains: [noEMail3]})).toBe(false);
     // Invalid whit children
     const dRec1: DomainRecursive = {
         name: 'item1',
-        domains: ['example.com'],
+        domains: [noEMail1],
         children: [
-            {name: 'item2', domains: ['example.com']},
-            {name: 'item3', domains: ['example.com', 'hello.org', 'example..com']}, // this is the invalid domain
+            {name: 'item2', domains: [noEMail1]},
+            {name: 'item3', domains: [noEMail1, noEMail2, noEMail3]}, // this is the invalid domain
         ],
     };
     expect(isType(dRec1)).toBe(false);
@@ -246,8 +250,8 @@ it('should return custom domain errors inside recursive data', async () => {
     };
     const typeErrors = await createTypeErrorsFn<StrictDomainRecursive>();
     // Valid cases
-    expect(typeErrors({name: 'item1', domains: ['example.com']})).toEqual([]);
-    expect(typeErrors({name: 'item1', domains: ['example.com'], children: []})).toEqual([]);
+    expect(typeErrors({name: 'item1', domains: [noEMail1]})).toEqual([]);
+    expect(typeErrors({name: 'item1', domains: [noEMail1], children: []})).toEqual([]);
 
     // Invalid cases
     const err: RunTypeError = {
@@ -263,15 +267,15 @@ it('should return custom domain errors inside recursive data', async () => {
             val: 'domain names can only contain letters, numbers and hyphens',
         },
     };
-    expect(typeErrors({name: 'item1', domains: ['example..com']})).toEqual([err, patternErr3]);
+    expect(typeErrors({name: 'item1', domains: [noEMail3]})).toEqual([err, patternErr3]);
 
     // Invalid whit children
     const dRec1: StrictDomainRecursive = {
         name: 'item1',
-        domains: ['example.com'],
+        domains: [noEMail1],
         children: [
-            {name: 'item2', domains: ['example.com']},
-            {name: 'item3', domains: ['example.com', 'hello.org', 'example..com']}, // this is the invalid domain
+            {name: 'item2', domains: [noEMail1]},
+            {name: 'item3', domains: [noEMail1, noEMail2, noEMail3]}, // this is the invalid domain
         ],
     };
     const err1: RunTypeError = {
@@ -300,8 +304,8 @@ it('should return domain errors inside recursive data', async () => {
     };
     const typeErrors = await createTypeErrorsFn<DomainRecursive>();
     // Valid cases
-    expect(typeErrors({name: 'item1', domains: ['example.com']})).toEqual([]);
-    expect(typeErrors({name: 'item1', domains: ['example.com'], children: []})).toEqual([]);
+    expect(typeErrors({name: 'item1', domains: [noEMail1]})).toEqual([]);
+    expect(typeErrors({name: 'item1', domains: [noEMail1], children: []})).toEqual([]);
 
     // Invalid cases
 
@@ -310,15 +314,15 @@ it('should return domain errors inside recursive data', async () => {
         format: {formatPath: ['pattern'], name: 'domain', val: 'invalid domain'},
         path: ['domains', 0], // this is the index of the array
     };
-    expect(typeErrors({name: 'item1', domains: ['example..com']})).toEqual([err]);
+    expect(typeErrors({name: 'item1', domains: [noEMail3]})).toEqual([err]);
 
     // Invalid whit children
     const dRec1: DomainRecursive = {
         name: 'item1',
-        domains: ['example.com'],
+        domains: [noEMail1],
         children: [
-            {name: 'item2', domains: ['example.com']},
-            {name: 'item3', domains: ['example.com', 'hello.org', 'example..com']}, // this is the invalid domain
+            {name: 'item2', domains: [noEMail1]},
+            {name: 'item3', domains: [noEMail1, noEMail2, noEMail3]}, // this is the invalid domain
         ],
     };
     const err1: RunTypeError = {
@@ -369,7 +373,7 @@ it('should validate custom domain with custom params', async () => {
     const longDomain = 'a'.repeat(9) + '.co';
     expect(isType(longDomain)).toBe(false);
     // invalid tld length
-    const longTld = 'example.com';
+    const longTld = noEMail1;
     expect(isType(longTld)).toBe(false);
     // INvalid CustomDomain length
     const longFull = 'a'.repeat(21) + '.co';
