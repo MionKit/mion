@@ -106,3 +106,18 @@ it('TypeFormat without brand should work correctly', () => {
     const params = getFormatterParams<{maxLength: number}>(rtMax5, 'max5');
     expect(params.maxLength).toBe(5);
 });
+
+it('TypeFormat with brand should have brand accessible via runtime reflection', () => {
+    const rtMax5WithBrand = runType<Max5WithBrand>() as BaseRunType;
+    const params = getFormatterParams<{maxLength: number; brand: string}>(rtMax5WithBrand, 'max5');
+    // The brand should be accessible via getFormatterParams
+    expect(params.maxLength).toBe(5);
+    expect(params.brand).toBe('MyBrand');
+});
+
+it('TypeFormat without brand should not have brand in params', () => {
+    const rtMax5 = runType<Max5>() as BaseRunType;
+    const params = getFormatterParams<{maxLength: number; brand?: string}>(rtMax5, 'max5');
+    expect(params.maxLength).toBe(5);
+    expect(params.brand).toBeUndefined();
+});
