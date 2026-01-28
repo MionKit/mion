@@ -188,7 +188,7 @@ export type StrFormat<P extends StringParams = {}, BrandName extends string = ne
 >;
 ```
 
-#### `StrEmail` - Branded by default
+#### `StrEmail` - Fixed brand 'email'
 
 ```ts
 // packages/type-formats/src/string/email.runtype.ts
@@ -196,16 +196,11 @@ export type StrFormat<P extends StringParams = {}, BrandName extends string = ne
 import {FormatParams_Email} from '@mionkit/core';
 import {TypeFormat} from '@mionkit/run-types';
 
-/** Email format, branded by default with 'email'. */
-export type StrEmail<P extends FormatParams_Email = {}, BrandName extends string = 'email'> = TypeFormat<
-  string,
-  'email',
-  P,
-  BrandName
->;
+/** Email format, always branded with 'email'. Brand cannot be overridden. */
+export type StrEmail<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP, 'email'>;
 ```
 
-Repeat the same pattern for all other string formats (uuid/url/domain/ip/date/time/dateTime), using their respective default brand string.
+All other string formats (uuid/url/domain/ip/date/time/dateTime) follow the same pattern with fixed brand names that cannot be overridden. This ensures consistent type mapping across the framework for features like friendly errors and drizzle plugin.
 
 #### `NumFormat` and `BigintFormat` - Optional brand
 

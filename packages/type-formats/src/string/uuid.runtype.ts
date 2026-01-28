@@ -70,17 +70,7 @@ export function mionIsUUID() {
 registerPureFnClosure(mionIsUUID);
 export const UUID_RUN_TYPE_FORMATTER = registerFormatter(new UUIDRunTypeFormat());
 
-/** UUID v4 format, branded by default with 'uuid'. */
-export type StrUUIDv4<BrandName extends string = 'uuid'> = TypeFormat<
-    string,
-    typeof UUIDRunTypeFormat.id,
-    {version: '4'},
-    BrandName
->;
-/** UUID v7 format, branded by default with 'uuid'. */
-export type StrUUIDv7<BrandName extends string = 'uuid'> = TypeFormat<
-    string,
-    typeof UUIDRunTypeFormat.id,
-    {version: '7'},
-    BrandName
->;
+/** UUID v4 format, always branded with 'uuid'. */
+export type StrUUIDv4 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '4'}, 'uuid'>;
+/** UUID v7 format, always branded with 'uuid'. */
+export type StrUUIDv7 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '7'}, 'uuid'>;

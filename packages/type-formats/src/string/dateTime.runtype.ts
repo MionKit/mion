@@ -109,10 +109,11 @@ export type DEFAULT_DATE_TIME_PARAMS = {
     splitChar: 'T';
 };
 
+/** DateTime string format, always branded with 'dateTime'. */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type StrDateTime<P extends Partial<FormatParams_DateTime> = {}, BrandName extends string = 'dateTime'> = TypeFormat<
+export type StrDateTime<P extends Partial<FormatParams_DateTime> = {}> = TypeFormat<
     string,
     typeof DateTimeRunTypeFormat.id,
     DEFAULT_DATE_TIME_PARAMS & P,
-    BrandName
+    'dateTime'
 >;
