@@ -298,5 +298,10 @@ function getIntegerType(params: any) {
 
 export const NUMBER_RUN_TYPE_FORMATTER = registerFormatter(new NumberRunTypeFormat());
 
-// Define the type for number format
-export type NumFormat<P extends Partial<FormatParams_Number>> = TypeFormat<number, typeof NumberRunTypeFormat.id, P>;
+// Define the type for number format (optional branding, unbranded by default like StrFormat)
+export type NumFormat<P extends Partial<FormatParams_Number>, BrandName extends string = never> = TypeFormat<
+    number,
+    typeof NumberRunTypeFormat.id,
+    P,
+    BrandName
+>;

@@ -110,8 +110,9 @@ export type DEFAULT_DATE_TIME_PARAMS = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type StrDateTime<P extends Partial<FormatParams_DateTime> = {}> = TypeFormat<
+export type StrDateTime<P extends Partial<FormatParams_DateTime> = {}, BrandName extends string = 'dateTime'> = TypeFormat<
     string,
     typeof DateTimeRunTypeFormat.id,
-    DEFAULT_DATE_TIME_PARAMS & P
+    DEFAULT_DATE_TIME_PARAMS & P,
+    BrandName
 >;

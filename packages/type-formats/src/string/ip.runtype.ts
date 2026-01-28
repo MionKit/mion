@@ -176,9 +176,24 @@ type DEFAULT_IP_PARAMS = {
     allowLocalHost: true;
 };
 
-export type StrIP<P extends FormatParams_IP = DEFAULT_IP_PARAMS> = TypeFormat<string, 'ip', P>;
-export type StrIPv4 = StrIP<{version: 4; allowLocalHost: true}>;
-export type StrIPv6 = StrIP<{version: 6; allowLocalHost: true}>;
-export type StrIPWithPort = StrIP<{version: 'any'; allowLocalHost: true; allowPort: true}>;
-export type StrIPv4WithPort = StrIP<{version: 4; allowLocalHost: true; allowPort: true}>;
-export type StrIPv6WithPort = StrIP<{version: 6; allowLocalHost: true; allowPort: true}>;
+/** IP address format, branded by default with 'ip'. */
+export type StrIP<P extends FormatParams_IP = DEFAULT_IP_PARAMS, BrandName extends string = 'ip'> = TypeFormat<
+    string,
+    'ip',
+    P,
+    BrandName
+>;
+export type StrIPv4<BrandName extends string = 'ip'> = StrIP<{version: 4; allowLocalHost: true}, BrandName>;
+export type StrIPv6<BrandName extends string = 'ip'> = StrIP<{version: 6; allowLocalHost: true}, BrandName>;
+export type StrIPWithPort<BrandName extends string = 'ip'> = StrIP<
+    {version: 'any'; allowLocalHost: true; allowPort: true},
+    BrandName
+>;
+export type StrIPv4WithPort<BrandName extends string = 'ip'> = StrIP<
+    {version: 4; allowLocalHost: true; allowPort: true},
+    BrandName
+>;
+export type StrIPv6WithPort<BrandName extends string = 'ip'> = StrIP<
+    {version: 6; allowLocalHost: true; allowPort: true},
+    BrandName
+>;

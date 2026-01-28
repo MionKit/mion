@@ -4,7 +4,7 @@ import {TypeFormatPrimitives} from './formats.types';
  * Base branded type - combines BaseType with a nominal brand marker.
  * This is a convenience type for creating branded primitives.
  */
-export type Brand<BaseType extends TypeFormatPrimitives, Name extends string> = BaseType & {readonly brand: Name};
+export type Brand<BaseType extends TypeFormatPrimitives, Name extends string> = BaseType & {brand: Name};
 
 // String brands - format names must match the formatter IDs in type-formats package
 export type BrandString = Brand<string, 'stringFormat'>;

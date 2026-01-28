@@ -172,6 +172,11 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigInt> 
 
 export const BIGINT_RUN_TYPE_FORMATTER = registerFormatter(new BigIntRunTypeFormat());
 
-// Define the type for bigint format
+// Define the type for bigint format (optional branding, unbranded by default like StrFormat)
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type BigNumFormat<P extends Partial<FormatParams_BigInt> = {}> = TypeFormat<bigint, typeof BigIntRunTypeFormat.id, P>;
+export type BigNumFormat<P extends Partial<FormatParams_BigInt> = {}, BrandName extends string = never> = TypeFormat<
+    bigint,
+    typeof BigIntRunTypeFormat.id,
+    P,
+    BrandName
+>;

@@ -223,10 +223,26 @@ export type DEFAULT_EMAIL_PARAMS<
     };
 };
 
-export type StrEmail<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP>;
+/** Email format, branded by default with 'email'. */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type StrEmailStrict<E extends Partial<FormatParams_Email> = {}> = StrEmail<DEFAULT_STRICT_EMAIL_PARAMS & E>;
-export type StrEmailPattern<EmailPattern extends RegExp, MockSamples extends Samples> = StrEmail<
-    DEFAULT_EMAIL_PARAMS<EmailPattern, MockSamples>
+export type StrEmail<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS, BrandName extends string = 'email'> = TypeFormat<
+    string,
+    'email',
+    EP,
+    BrandName
 >;
-export type StrEmailPunycode = StrEmailPattern<typeof EMAIL_PATTERN_PUNYCODE, EMAIL_SAMPLES_PUNYCODE>;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type StrEmailStrict<E extends Partial<FormatParams_Email> = {}, BrandName extends string = 'email'> = StrEmail<
+    DEFAULT_STRICT_EMAIL_PARAMS & E,
+    BrandName
+>;
+export type StrEmailPattern<
+    EmailPattern extends RegExp,
+    MockSamples extends Samples,
+    BrandName extends string = 'email',
+> = StrEmail<DEFAULT_EMAIL_PARAMS<EmailPattern, MockSamples>, BrandName>;
+export type StrEmailPunycode<BrandName extends string = 'email'> = StrEmailPattern<
+    typeof EMAIL_PATTERN_PUNYCODE,
+    EMAIL_SAMPLES_PUNYCODE,
+    BrandName
+>;

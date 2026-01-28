@@ -328,8 +328,16 @@ export type DEFAULT_STRICT_DOMAIN_PARAMS = {
 };
 // ############### Run Types ###############
 
-/** Domain based on a pattern */
-export type StrDomain<DP extends FormatParams_Domain = DEFAULT_DOMAIN_PARAMS> = TypeFormat<string, 'domain', DP>;
-/** Domain with customizable names and tld */
+/** Domain based on a pattern, branded by default with 'domain'. */
+export type StrDomain<DP extends FormatParams_Domain = DEFAULT_DOMAIN_PARAMS, BrandName extends string = 'domain'> = TypeFormat<
+    string,
+    'domain',
+    DP,
+    BrandName
+>;
+/** Domain with customizable names and tld, branded by default with 'domain'. */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type StrDomainStrict<D extends Partial<FormatParams_Domain> = {}> = StrDomain<DEFAULT_STRICT_DOMAIN_PARAMS & D>;
+export type StrDomainStrict<D extends Partial<FormatParams_Domain> = {}, BrandName extends string = 'domain'> = StrDomain<
+    DEFAULT_STRICT_DOMAIN_PARAMS & D,
+    BrandName
+>;

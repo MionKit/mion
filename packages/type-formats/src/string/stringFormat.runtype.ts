@@ -302,4 +302,11 @@ function valuesAllCases(stringList: string[]): string[] {
 // register Validator operations so they can be used in the jit compiler
 export const STRING_RUN_TYPE_FORMATTER = registerFormatter(new StringRunTypeFormat());
 
-export type StrFormat<P extends StringParams> = TypeFormat<string, typeof StringRunTypeFormat.id, P>;
+/** String format with optional branding. Unbranded by default. */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type StrFormat<P extends StringParams = {}, BrandName extends string = never> = TypeFormat<
+    string,
+    typeof StringRunTypeFormat.id,
+    P,
+    BrandName
+>;
