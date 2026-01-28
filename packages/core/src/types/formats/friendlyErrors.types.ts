@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunTypeError, TypeFormatError, StrNumber} from './general.types';
-import type {ExtractFormatParams} from './formats.types';
-import type {
+import {RunTypeError, StrNumber} from '../general.types';
+import {
     AnyFormatParams,
     AnyStringFormatParam,
     FormatParams_BigInt,
@@ -22,12 +21,7 @@ import type {
     FormatParams_Date,
     FormatParams_Time,
 } from './formatsParams.types';
-
-/**
- * Represents a single format error parameter.
- * Contains the format error info from RunTypeError.format.
- */
-export type FormatErrorParam = TypeFormatError;
+import {ExtractFormatParams, TypeFormatError} from './formats.types';
 
 /**
  * Special key for basic type errors (when no format is involved).
@@ -86,7 +80,7 @@ export type BigIntErrorParams = FriendlyBigIntErrorParams;
  * - For basic types → TypeErrorParam
  *
  * The handler receives an object where keys are format param names (e.g., 'minLength')
- * and values are FormatErrorParam objects.
+ * and values are TypeFormatError objects.
  */
 export type ExtractErrorParams<T> =
     ExtractFormatParams<T> extends undefined

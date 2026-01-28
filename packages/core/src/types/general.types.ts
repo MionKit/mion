@@ -7,6 +7,7 @@
  * ############### */
 
 import type {MIME_TYPES} from '../constants';
+import {TypeFormatError, TypeFormatValue} from './formats/formats.types';
 
 /**
  * Interface defining the shape of jitUtils
@@ -161,37 +162,7 @@ export interface RunTypeError {
     // typeName?: string; // tyeName can not be included as two types could Have the same typeID and different names
 }
 
-// ########################################### TYPE FORMATS ##########################################
-
-export type TypeFormatError = {
-    /** The name of the format that failed */
-    name: string; // the name of the format that failed
-    /** Expected value, for larger Values, regexp and others the error reason is returned instead */
-    val: StrNumber | boolean | bigint | (StrNumber | boolean | bigint)[];
-    /**
-     * The path to the section of the format that failed.
-     * ie: for an email that failed the TLD part, the path should be ['domain', 'tld']
-     * ie: for an email that has character not allowed in the local part, the path should be ['localPart']
-     * */
-    formatPath: StrNumber[];
-};
-
-export type FormatParamLiteral = string | number | boolean | RegExp | bigint;
-export type TypeFormatValue =
-    | FormatParamLiteral
-    | readonly TypeFormatValue[]
-    | {[key: string]: TypeFormatValue | undefined | never}; // undefined is used to allow optional properties
-export type FormatParamMeta<L extends TypeFormatValue = TypeFormatValue> = {
-    /** Value of the format param, can ONLY be a Literal Value */
-    val: L;
-    /** Error message in case validation fails due to this value, should be a unique reason  */
-    errorMessage: string;
-    /**  Description of the format param, can be used to generate documentation */
-    desc?: string;
-};
-export type FormatParam<L extends TypeFormatValue> = L | FormatParamMeta<L>;
-export type TypeFormatParams = Record<string, TypeFormatValue | undefined | never>;
-export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormatValue};
+// ########################################### PURE FNs ##########################################
 
 /**
  * Functions that can be used by jitCode.

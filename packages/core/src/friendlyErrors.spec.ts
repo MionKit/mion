@@ -7,7 +7,7 @@
 
 import {getFriendlyErrors, defaultErrorPrinter} from './friendlyErrors';
 import type {RunTypeError} from './types/general.types';
-import type {FriendlyErrors} from './types/friendlyErrors.types';
+import type {FriendlyErrors} from './types/formats/friendlyErrors.types';
 
 describe('friendlyErrors', () => {
     describe('defaultErrorPrinter', () => {

@@ -13,7 +13,12 @@ import type {
     MapValuePathSegment,
     SetItemPathSegment,
 } from './types/general.types';
-import type {FriendlyErrors, FriendlyErrorsResult, AnyFriendlyErrorParams, TypeErrorParam} from './types/friendlyErrors.types';
+import type {
+    FriendlyErrors,
+    FriendlyErrorsResult,
+    AnyFriendlyErrorParams,
+    TypeErrorParam,
+} from './types/formats/friendlyErrors.types';
 import {isTestEnv} from './utils';
 
 // ============================================================================
