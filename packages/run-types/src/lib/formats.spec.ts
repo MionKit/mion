@@ -10,7 +10,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {runType} from '../createRunType';
 import {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {BaseRunType} from './baseRunTypes';
-import {registerFormatter} from './formats';
+import {registerFormatter, getFormatterParams} from './formats';
 import {TypeFormat} from './formats.runtype';
 import {JitFunctions} from '../constants.functions';
 import {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
@@ -73,4 +73,36 @@ it('isType Formats list', () => {
     expect(isTypeListMax5(['a'])).toBe(true);
     expect(isTypeListMax5(['aaaaa'])).toBe(true);
     expect(isTypeListMax5(['aaaaaa'])).toBe(false);
+});
+
+// ###################### TypeFormat with Brand Tests #####################
+
+// Test TypeFormat with brand parameter - brand should be ignored by runtime validation
+type Max5WithBrand = TypeFormat<string, 'max5', {maxLength: 5}, 'MyBrand'>;
+
+it('TypeFormat with brand should work the same as without brand', () => {
+    const rtMax5WithBrand = runType<Max5WithBrand>() as BaseRunType;
+    const isTypeMax5WithBrand = rtMax5WithBrand.createJitFunction(JitFunctions.isType);
+    expect(isTypeMax5WithBrand('a')).toBe(true);
+    expect(isTypeMax5WithBrand('aaaaa')).toBe(true);
+    expect(isTypeMax5WithBrand('aaaaaa')).toBe(false);
+});
+
+it('TypeFormat with brand should have correct type id', () => {
+    const rtMax5WithBrand = runType<Max5WithBrand>() as BaseRunType;
+    // The type id should contain the format params
+    expect(rtMax5WithBrand.getTypeID()).toContain('maxLength');
+});
+
+it('TypeFormat with brand should have params accessible via runtime reflection', () => {
+    const rtMax5WithBrand = runType<Max5WithBrand>() as BaseRunType;
+    const params = getFormatterParams<{maxLength: number}>(rtMax5WithBrand, 'max5');
+    // The params should be accessible via getFormatterParams
+    expect(params.maxLength).toBe(5);
+});
+
+it('TypeFormat without brand should work correctly', () => {
+    const rtMax5 = runType<Max5>() as BaseRunType;
+    const params = getFormatterParams<{maxLength: number}>(rtMax5, 'max5');
+    expect(params.maxLength).toBe(5);
 });

@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {FormatParam} from './general.types';
+import {FormatParam} from './formats.types';
+
 // ############### String Format Params ###############
 
 // TypeFormatError

@@ -7,8 +7,9 @@
 
 export * from './src/types/general.types';
 export * from './src/types/method.types';
-export * from './src/types/formatsParams.types';
-export * from './src/types/friendlyErrors.types';
+export * from './src/types/formats/formatsParams.types';
+export * from './src/types/formats/friendlyErrors.types';
+export * from './src/types/formats/formatBrands.types';
 export * from './src/binary/dataView';
 export * from './src/binary/bodySerializer';
 export * from './src/binary/bodyDeserializer';

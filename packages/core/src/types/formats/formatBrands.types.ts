@@ -1,5 +1,8 @@
-/** Base branded type - combines BaseType with format name */
-export type Brand<BaseType extends string | number | bigint, Name extends string> = BaseType & {format: Name};
+/**
+ * Base branded type - combines BaseType with a nominal brand marker.
+ * This is a convenience type for creating branded primitives.
+ */
+export type Brand<BaseType extends string | number | bigint, Name extends string> = BaseType & {readonly brand: Name};
 
 // String brands - format names must match the formatter IDs in type-formats package
 export type BrandString = Brand<string, 'stringFormat'>;
