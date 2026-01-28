@@ -1,9 +1,20 @@
 # TypeFormat Brand Specification (Optional Branding)
 
+## Status
+
+### ✅ Completed
+
+- [x] `@mionkit/core` - Brand types and TypeFormatParams with brand support
+- [x] `@mionkit/run-types` - TypeFormat with 4th BrandName parameter
+
+### 🔄 In Progress
+
+- [ ] `@mionkit/type-formats` - Update all format types to use new TypeFormat signature
+
 ## Goal
 
 1. Keep **runtime format metadata** (Deepkit `TypeAnnotation`) for server-side validation/serialization.
-2. Make **branding optional** via a `brand` parameter on format params.
+2. Make **branding optional** via a `BrandName` type parameter on TypeFormat.
 3. Ensure clients can use **the same branded types by importing only from** `@mionkit/core` (no dependency on `@mionkit/type-formats`).
 
 ## Additional Requirements
@@ -11,13 +22,18 @@
 1. **All string type-formats must be branded by default, except `StrFormat` itself.**
    - Examples: `StrEmail`, `StrUUID`, `StrUrl`, `StrDomain`, `StrIP`, `StrDate`, `StrTime`, `StrDateTime` should all produce branded string types even if the caller does not specify `brand`.
    - `StrFormat` remains the "escape hatch" and is unbranded unless `brand` is explicitly provided.
-2. **All format param types must include `brand?: string`** (even if a given format supplies a default brand).
+2. **`StrFormat`, `NumFormat`, and `BigintFormat` have optional brand parameter** - all other formats pass a default brand.
 
 ### Desired API
 
 ```ts
-const myCustomString = StrFormat<{brand: 'custom'; minLength: 10}>; // branded (nominal)
-const myCustomString2 = StrFormat<{minLength: 10}>; // not branded (plain string)
+// StrFormat - optional brand (4th type parameter)
+type MyCustomString = StrFormat<{minLength: 10}, 'custom'>; // branded (nominal)
+type MyCustomString2 = StrFormat<{minLength: 10}>; // not branded (plain string)
+
+// StrEmail - always branded (default brand = 'email')
+type Email = StrEmail; // branded with 'email'
+type CustomerEmail = StrEmail<{}, 'CustomerEmail'>; // branded with 'CustomerEmail'
 ```
 
 ## Key Design Decision
@@ -27,46 +43,73 @@ const myCustomString2 = StrFormat<{minLength: 10}>; // not branded (plain string
 - `format` should remain stable and known to the runtime validator (e.g. `'string'`, `'email'`, `'uuid'`).
 - `brand` should be a purely type-level addition that can be enabled/disabled per usage.
 
+## ⚠️ CRITICAL: Deepkit Type Compiler Limitations
+
+**Conditional types with `infer` do NOT work with Deepkit's type compiler!**
+
+The original spec proposed:
+
+```ts
+// ❌ DOES NOT WORK - Deepkit cannot handle conditional types with infer
+type BrandIfProvided<BaseType, P> = P extends {brand: infer B extends string} ? Brand<BaseType, B> : BaseType;
+```
+
+**Solution: Use explicit 4th type parameter instead of inferring from params.**
+
+```ts
+// ✅ WORKS - Explicit type parameter, simple conditional
+export type TypeFormat<
+  BaseType extends TypeFormatPrimitives,
+  Name extends string,
+  P extends TypeFormatParams,
+  BrandName extends string = never,
+> = BrandName extends never
+  ? BaseType & TypeAnnotation<Name, P>
+  : Brand<BaseType, BrandName> & TypeAnnotation<Name, P & {brand: BrandName}>;
+```
+
+**Also critical: NEVER use `import type` for types that need Deepkit reflection!**
+
+```ts
+// ❌ WRONG - This breaks Deepkit reflection!
+import type {TypeFormatParams, Brand} from '@mionkit/core';
+
+// ✅ CORRECT - Use regular import for types that need reflection
+import {TypeFormatParams, Brand} from '@mionkit/core';
+```
+
 ## Architecture
 
 ```
 @mionkit/core
-└── Brand<BaseType, Name> (generic) + optional pre-defined brands
+└── Brand<BaseType, Name> (generic) + pre-defined brands (BrandEmail, BrandUUID, etc.)
+└── TypeFormatParams, TypeFormatPrimitives
 
 @mionkit/run-types
-└── TypeFormat<FormatName, BaseType, P>
-    - adds TypeAnnotation<FormatName, P> (including P.brand)
-    - conditionally adds Brand<BaseType, P.brand>
+└── TypeFormat<BaseType, Name, P, BrandName = never>
+    - adds TypeAnnotation<Name, P> (or P & {brand: BrandName} when branded)
+    - conditionally adds Brand<BaseType, BrandName> when BrandName is not never
 
 @mionkit/type-formats
-└── StrFormat<P> = TypeFormat<'string', string, P>
-└── StrEmail<P>  = TypeFormat<'email',  string, P>
+└── StrFormat<P, BrandName = never> = TypeFormat<string, 'stringFormat', P, BrandName>
+└── StrEmail<P, BrandName = 'email'> = TypeFormat<string, 'email', P, BrandName>
     ...
 ```
 
 ## Implementation
 
-### 1) `@mionkit/core` — Brand types (generic + pre-defined)
-
-Create a brand type that is **purely nominal** (does not introduce runtime properties).
+### 1) `@mionkit/core` — Brand types (generic + pre-defined) ✅ DONE
 
 ```ts
-export type TypeFormatParams = Record<string, TypeFormatValue | undefined | never> & {brand?: string};
-```
+// packages/core/src/types/formats/formatBrands.types.ts
 
-```ts
-// packages/core/src/types/formatBrands.types.ts
+import {TypeFormatPrimitives} from './formats.types';
 
-/** unique symbol used to make brands nominal without runtime fields **/
-export declare const brandSymbol: unique symbol;
+/** Base branded type - combines BaseType with a nominal brand marker. */
+export type Brand<BaseType extends TypeFormatPrimitives, Name extends string> = BaseType & {brand: Name};
 
-/** Nominal brand helper: Brand<string, 'UserName'> */
-export type Brand<BaseType, Name extends string> = BaseType & {
-  readonly [brandSymbol]?: Name;
-};
-
-// Optional convenience aliases (kept for ergonomics; not required)
-export type BrandString = Brand<string, 'string'>;
+// String brands - format names must match the formatter IDs in type-formats package
+export type BrandString = Brand<string, 'stringFormat'>;
 export type BrandEmail = Brand<string, 'email'>;
 export type BrandUUID = Brand<string, 'uuid'>;
 export type BrandUrl = Brand<string, 'url'>;
@@ -75,83 +118,126 @@ export type BrandIP = Brand<string, 'ip'>;
 export type BrandDate = Brand<string, 'date'>;
 export type BrandTime = Brand<string, 'time'>;
 export type BrandDateTime = Brand<string, 'dateTime'>;
-export type BrandNumber = Brand<number, 'number'>;
-export type BrandBigInt = Brand<bigint, 'bigint'>;
+
+// Number brands
+export type NumBrand = Brand<number, 'numberFormat'>;
+
+// BigInt brands
+export type BigIntBrand = Brand<bigint, 'bigintFormat'>;
 ```
 
-Also export `Brand` (and convenience aliases) from [`packages/core/index.ts`](packages/core/index.ts).
-
-### 2) `@mionkit/run-types` — TypeFormat with optional `brand`
-
-Add a `brand?: string` parameter to the format params and pass it through to runtime annotation params so brand information is available at runtime.
+### 2) `@mionkit/run-types` — TypeFormat with explicit BrandName parameter ✅ DONE
 
 ```ts
 // packages/run-types/src/lib/formats.runtype.ts
 
 import {TypeAnnotation} from '@deepkit/core';
-import type {Brand} from '@mionkit/core';
-
-/**
- * Helper that conditionally brands based on P.brand.
- * If P has no brand, this resolves to BaseType.
- */
-type BrandIfProvided<BaseType, P> = P extends {brand: infer B extends string} ? Brand<BaseType, B> : BaseType;
+// ⚠️ CRITICAL: Do NOT use `import type` - Deepkit needs the actual import for reflection!
+import {TypeFormatParams, Brand, TypeFormatPrimitives} from '@mionkit/core';
 
 /**
  * TypeFormat attaches runtime annotation for FormatName + params,
  * and optionally adds a compile-time Brand.
+ *
+ * @param BaseType - The base type (string, number, or bigint)
+ * @param Name - The format name used for runtime validation
+ * @param P - Format parameters for validation rules
+ * @param BrandName - Optional brand name for nominal typing (defaults to never = no brand)
+ *
+ * When BrandName is provided, the type becomes nominally branded, preventing
+ * accidental assignment of plain strings/numbers to branded types.
+ * The brand is also passed to TypeAnnotation params for runtime access.
  */
-export type TypeFormat<FormatName extends string, BaseType, P extends TypeFormatParams> = BrandIfProvided<BaseType, P> &
-  TypeAnnotation<FormatName, P>;
+export type TypeFormat<
+  BaseType extends TypeFormatPrimitives,
+  Name extends string,
+  P extends TypeFormatParams,
+  BrandName extends string = never,
+> = [BrandName] extends [never] // Tuple wrapper prevents distribution over never
+  ? BaseType & TypeAnnotation<Name, P>
+  : Brand<BaseType, BrandName> & TypeAnnotation<Name, P & {brand: BrandName}>;
 ```
+
+> **Note:** The `[BrandName] extends [never]` syntax (tuple wrapper) is required to prevent TypeScript's distributive conditional type behavior. Without it, `never extends never` would distribute and result in `never` instead of the expected branch.
 
 #### Why passing `brand` into `TypeAnnotation` matters
 
-`brand` becomes visible via Deepkit reflection metadata, enabling runtime tooling/serialization to distinguish brands when desired.
+When `BrandName` is provided, it's merged into the params (`P & {brand: BrandName}`), making it visible via Deepkit reflection metadata. This enables runtime tooling/serialization to distinguish brands when desired.
 
-### 3) `@mionkit/type-formats` — formats accept `brand?: string`
+### 3) `@mionkit/type-formats` — formats with explicit BrandName parameter ✅ DONE
 
 Each format type should be updated to:
 
-1. accept `brand?: string` in its params type, and
-2. pass the fixed runtime `FormatName` explicitly.
+1. Accept an optional `BrandName` type parameter (4th parameter)
+2. Pass the `BrandName` to `TypeFormat`
 
-#### Default branding for string formats (except `StrFormat`)
-
-To satisfy the "branded-by-default" requirement for string formats other than `StrFormat`, use a helper that injects a default `brand` when it is not provided.
-
-```ts
-// packages/type-formats/src/string/_stringBranding.types.ts (suggested)
-
-/** Adds a default brand if caller didn't provide one */
-export type WithDefaultBrand<P, Default extends string> = P extends {brand: infer B extends string} ? P : P & {brand: Default};
-```
+#### `StrFormat` - Optional brand (escape hatch)
 
 ```ts
 // packages/type-formats/src/string/stringFormat.runtype.ts
 
-import type {StringParams} from '@mionkit/core';
-import type {TypeFormat} from '@mionkit/run-types';
+import {StringParams} from '@mionkit/core';
+import {TypeFormat} from '@mionkit/run-types';
 
-export type StrFormat<P extends StringParams & {brand?: string} = {}> = TypeFormat<'string', string, P>;
+/** String format with optional branding. Unbranded by default. */
+export type StrFormat<P extends StringParams = {}, BrandName extends string = never> = TypeFormat<
+  string,
+  'stringFormat',
+  P,
+  BrandName
+>;
 ```
+
+#### `StrEmail` - Branded by default
 
 ```ts
 // packages/type-formats/src/string/email.runtype.ts
 
-import type {FormatParams_Email} from '@mionkit/core';
-import type {TypeFormat} from '@mionkit/run-types';
-import type {WithDefaultBrand} from './_stringBranding.types';
+import {FormatParams_Email} from '@mionkit/core';
+import {TypeFormat} from '@mionkit/run-types';
 
-// Branded by default (brand = 'email') unless caller overrides `brand`
-export type StrEmail<P extends FormatParams_Email & {brand?: string} = {}> = TypeFormat<
-  'email',
+/** Email format, branded by default with 'email'. */
+export type StrEmail<P extends FormatParams_Email = {}, BrandName extends string = 'email'> = TypeFormat<
   string,
-  WithDefaultBrand<P, 'email'>
+  'email',
+  P,
+  BrandName
 >;
 ```
 
 Repeat the same pattern for all other string formats (uuid/url/domain/ip/date/time/dateTime), using their respective default brand string.
+
+#### `NumFormat` and `BigintFormat` - Optional brand
+
+```ts
+// packages/type-formats/src/number/numberFormat.runtype.ts
+
+import {NumberParams} from '@mionkit/core';
+import {TypeFormat} from '@mionkit/run-types';
+
+/** Number format with optional branding. Unbranded by default. */
+export type NumFormat<P extends NumberParams = {}, BrandName extends string = never> = TypeFormat<
+  number,
+  'numberFormat',
+  P,
+  BrandName
+>;
+```
+
+```ts
+// packages/type-formats/src/bigint/bigintFormat.runtype.ts
+
+import {BigIntParams} from '@mionkit/core';
+import {TypeFormat} from '@mionkit/run-types';
+
+/** BigInt format with optional branding. Unbranded by default. */
+export type BigintFormat<P extends BigIntParams = {}, BrandName extends string = never> = TypeFormat<
+  bigint,
+  'bigintFormat',
+  P,
+  BrandName
+>;
+```
 
 ## Usage Examples
 
@@ -163,14 +249,14 @@ Server code can continue to use type-formats to get runtime metadata.
 import type {StrFormat, StrEmail} from '@mionkit/type-formats';
 
 // Branded string: nominal type distinction
-export type UserName = StrFormat<{brand: 'UserName'; minLength: 2; maxLength: 40}>;
+export type UserName = StrFormat<{minLength: 2; maxLength: 40}, 'UserName'>;
 
 // Unbranded string: plain string, still has runtime annotation for validation
 export type DisplayLabel = StrFormat<{minLength: 1; maxLength: 60}>;
 
 // Branded email (default brand is 'email', or you can override)
-export type Email1 = StrEmail; // branded by default
-export type CustomerEmail = StrEmail<{brand: 'CustomerEmail'}>; // Brand<string, 'CustomerEmail'>
+export type Email1 = StrEmail; // branded with 'email' by default
+export type CustomerEmail = StrEmail<{}, 'CustomerEmail'>; // Brand<string, 'CustomerEmail'>
 ```
 
 ### Client usage (no type-formats dependency)
@@ -182,9 +268,8 @@ Client code must not use `@mionkit/type-formats`. It imports the corresponding b
 | Server type-format (server-only) | Client type (core-only)                                |
 | -------------------------------- | ------------------------------------------------------ |
 | `StrEmail`                       | `BrandEmail`                                           |
-| `StrUUIDv4`                      | `BrandUUIDv4`                                          |
-| `StrUUIDv7`                      | `BrandUUIDv7`                                          |
-| `StrURL`                         | `BrandUrl`                                             |
+| `StrUUID`                        | `BrandUUID`                                            |
+| `StrUrl`                         | `BrandUrl`                                             |
 | `StrDomain`                      | `BrandDomain`                                          |
 | `StrIP`                          | `BrandIP`                                              |
 | `StrDate`                        | `BrandDate`                                            |
@@ -193,10 +278,10 @@ Client code must not use `@mionkit/type-formats`. It imports the corresponding b
 | `StrFormat`                      | ❌ (not branded by default; no dedicated client alias) |
 
 ```ts
-import type {BrandEmail, BrandUUIDv4, BrandUrl} from '@mionkit/core';
+import type {BrandEmail, BrandUUID, BrandUrl} from '@mionkit/core';
 
 const email: BrandEmail = 'test@example.com' as BrandEmail;
-const id: BrandUUIDv4 = '...' as BrandUUIDv4;
+const id: BrandUUID = '...' as BrandUUID;
 const url: BrandUrl = 'https://example.com' as BrandUrl;
 ```
 
@@ -204,7 +289,14 @@ const url: BrandUrl = 'https://example.com' as BrandUrl;
 
 1. `Brand<...>` adds only a nominal marker → **no runtime overhead**.
 2. `TypeAnnotation<...>` is erased at runtime types but is used by Deepkit for reflection.
-3. With `brand` omitted, format types resolve to plain base types (e.g. `string`) while still carrying annotation.
-4. With `brand` provided, server `StrFormat<{brand: 'X'}>` becomes structurally compatible with client `Brand<string, 'X'>`.
+3. With `BrandName = never`, format types resolve to plain base types (e.g. `string`) while still carrying annotation.
+4. With `BrandName` provided, server `StrFormat<{}, 'X'>` becomes structurally compatible with client `Brand<string, 'X'>`.
+5. Brand is passed to TypeAnnotation params, making it accessible via `getFormatterParams` at runtime.
 
-For string formats other than `StrFormat`, a default `brand` is injected so they remain branded even when callers omit `brand`.
+## Tests
+
+Tests in `packages/run-types/src/lib/formats.spec.ts` verify:
+
+- TypeFormat with brand has brand accessible via runtime reflection (`getFormatterParams`)
+- TypeFormat without brand does not have brand in params
+- Branded types work correctly with validation

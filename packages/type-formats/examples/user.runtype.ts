@@ -7,6 +7,8 @@
 
 // Import string formats types
 import {StrFormat, StrUUIDv4, StrEmail, StrUrlHttp, StrDate, StrDateTime} from '@mionkit/type-formats/FormatsString';
+// Import brand types for type assertions
+import {BrandUUID, BrandEmail, BrandUrl, BrandDate, BrandDateTime} from '@mionkit/core';
 // Import number formats types
 import {NumFormat, NumPositiveInt, NumPositive} from '@mionkit/type-formats/FormatsNumber';
 
@@ -25,12 +27,7 @@ export type User = {
     email: StrEmail; // Email validation
 
     // Personal information with string constraints
-    firstName: StrFormat<{
-        minLength: 2;
-        maxLength: 50;
-        pattern: NamePattern;
-        trim: true;
-    }>;
+    firstName: StrFormat<{minLength: 2; maxLength: 50; pattern: NamePattern; trim: true}>;
 
     lastName: StrFormat<{
         minLength: 2;
@@ -140,15 +137,17 @@ export type User = {
 
 /**
  * Example of a valid user object that satisfies all format constraints
+ * Use BrandUUID, BrandEmail, etc from core package so no need to import type-formats package
  */
 export const exampleUser: User = {
-    id: '550e8400-e29b-41d4-a716-446655440000',
-    email: 'john.doe@example.com',
+    // Branded types require type assertions since they are nominally typed
+    id: '550e8400-e29b-41d4-a716-446655440000' as BrandUUID,
+    email: 'john.doe@example.com' as BrandEmail,
     firstName: 'John',
     lastName: 'Doe',
     username: 'john_doe',
     phoneNumber: '+1234567890',
-    website: 'https://johndoe.com',
+    website: 'https://johndoe.com' as BrandUrl,
     bio: 'Software developer passionate about TypeScript and web technologies.',
     age: 30,
     accountBalance: 1250.75,
@@ -156,8 +155,8 @@ export const exampleUser: User = {
     rating: 4.5,
     followersCount: 1500,
     monthlyIncome: 5000.0,
-    birthDate: '1994-01-15',
-    lastLoginAt: '2025-01-15T10:30:00Z',
+    birthDate: '1994-01-15' as BrandDate,
+    lastLoginAt: '2025-01-15T10:30:00Z' as BrandDateTime,
     street: '123 Main Street',
     city: 'New York',
     zipCode: '10001',

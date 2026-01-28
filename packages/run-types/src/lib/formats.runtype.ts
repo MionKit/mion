@@ -30,6 +30,6 @@ export type TypeFormat<
     Name extends string,
     P extends TypeFormatParams,
     BrandName extends string = never,
-> = BrandName extends never
+> = [BrandName] extends [never]
     ? BaseType & TypeAnnotation<Name, P>
     : Brand<BaseType, BrandName> & TypeAnnotation<Name, P & {brand: BrandName}>;
