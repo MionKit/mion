@@ -256,10 +256,10 @@ export const TIME_RUN_TYPE_FORMATTER = registerFormatter(new TimeStringRunTypeFo
 
 export type DEFAULT_TIME_FORMAT_PARAMS = {format: 'ISO'};
 
-/** Time string format, branded by default with 'time'. */
-export type StrTime<P extends FormatParams_Time = DEFAULT_TIME_FORMAT_PARAMS, BrandName extends string = 'time'> = TypeFormat<
+/** Time string format, always branded with 'time'. */
+export type StrTime<P extends FormatParams_Time = DEFAULT_TIME_FORMAT_PARAMS> = TypeFormat<
     string,
     typeof TimeStringRunTypeFormat.id,
     P,
-    BrandName
+    'time'
 >;

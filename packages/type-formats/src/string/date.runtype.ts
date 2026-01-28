@@ -197,10 +197,10 @@ export const DATE_RUN_TYPE_FORMATTER = registerFormatter(new DateStringRunTypeFo
 // ############### Run Types ###############
 
 export type DEFAULT_DATE_PARAMS = {format: 'ISO'};
-/** Date string format, branded by default with 'date'. */
-export type StrDate<P extends Partial<FormatParams_Date> = DEFAULT_DATE_PARAMS, BrandName extends string = 'date'> = TypeFormat<
+/** Date string format, always branded with 'date'. */
+export type StrDate<P extends Partial<FormatParams_Date> = DEFAULT_DATE_PARAMS> = TypeFormat<
     string,
     typeof DateStringRunTypeFormat.id,
     P,
-    BrandName
+    'date'
 >;
