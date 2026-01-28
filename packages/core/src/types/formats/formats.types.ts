@@ -8,6 +8,7 @@
 
 type StrNumber = string | number;
 
+export type TypeFormatPrimitives = string | number | bigint | Date;
 export type FormatParamLiteral = string | number | boolean | RegExp | bigint;
 export type TypeFormatValue =
     | FormatParamLiteral
