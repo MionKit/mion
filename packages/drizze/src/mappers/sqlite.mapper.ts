@@ -9,13 +9,17 @@ import {text, integer, real, blob} from 'drizzle-orm/sqlite-core';
 import {ReflectionKind} from '@deepkit/type';
 import {TypedError} from '@mionkit/core';
 import {BaseColumnMapper} from './base.mapper';
-import type {ColumnMapping} from '../types/common.types';
+import type {ColumnMapping, DrizzleMapperConfig} from '../types/common.types';
 import {DrizzleTypesSQLite} from '../types/common.types';
 import {isIntegerFormat} from '../core/utils';
 import {FormatName, FormatNames} from '@mionkit/type-formats';
 
 /** SQLite-specific column mapper */
 export class SQLiteColumnMapper extends BaseColumnMapper {
+    constructor(config?: DrizzleMapperConfig) {
+        super(config);
+    }
+
     mapPrimitive(kind: ReflectionKind, propName: string): ColumnMapping {
         switch (kind) {
             case ReflectionKind.string:

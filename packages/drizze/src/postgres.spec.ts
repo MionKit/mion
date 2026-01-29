@@ -64,10 +64,10 @@ describe('mapPGTable', () => {
             expect(table.createdAt).toBeDefined();
         });
 
-        it('should generate text columns for string types', () => {
+        it('should generate varchar columns for string types', () => {
             const table = mapPGTable<SimpleUser>().build('users');
 
-            // String should map to text
+            // String should map to varchar
             expect(table.name.dataType).toBe('string');
         });
 
@@ -192,6 +192,32 @@ describe('mapPGTable', () => {
             expect(() => {
                 mapPGTable<string>().build('users');
             }).toThrow();
+        });
+    });
+
+    describe('lengthBuffer config', () => {
+        it('should use default lengthBuffer of 1.5 for email format', () => {
+            const table = mapPGTable<UserWithFormats>().build('users');
+
+            // Email default maxLength is 254, with 1.5 buffer = 381
+            // Check that the column is varchar
+            expect(table.email.columnType).toBe('PgVarchar');
+        });
+
+        it('should apply custom lengthBuffer when provided', () => {
+            const table = mapPGTable<UserWithFormats>({lengthBuffer: 2.0}).build('users');
+
+            // Email default maxLength is 254, with 2.0 buffer = 508
+            // Check that the column is varchar
+            expect(table.email.columnType).toBe('PgVarchar');
+        });
+
+        it('should use varchar for all string primitives regardless of format params', () => {
+            const table = mapPGTable<SimpleUser>().build('users');
+
+            // All string columns should be varchar
+            expect(table.id.columnType).toBe('PgVarchar');
+            expect(table.name.columnType).toBe('PgVarchar');
         });
     });
 });

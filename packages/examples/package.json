@@ -43,12 +43,14 @@
     "@mionkit/aws": "^0.7.0",
     "@mionkit/bun": "^0.7.0",
     "@mionkit/core": "^0.7.0",
+    "@mionkit/drizzle": "^0.7.0",
     "@mionkit/http": "^0.7.0",
     "@mionkit/router": "^0.7.0",
     "@mionkit/gcloud": "^0.7.0",
     "@mionkit/client": "^0.7.0",
     "@mionkit/run-types": "^0.7.0",
-    "@mionkit/type-formats": "^0.7.0"
+    "@mionkit/type-formats": "^0.7.0",
+    "drizzle-orm": "^0.38.0"
   },
   "devDependencies": {
     "@mionkit/eslint-plugin": "^0.7.0",

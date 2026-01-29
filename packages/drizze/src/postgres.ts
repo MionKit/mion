@@ -13,6 +13,7 @@ import {extractTypeInfo} from './core/typeTraverser';
 import {validateConfig} from './core/validator';
 import {PGColumnMapper} from './mappers/pg.mapper';
 import type {PgTableConfig, PgColumnType} from './types/postgres.types';
+import type {DrizzleMapperConfig} from './types/common.types';
 
 /**
  * Merges auto-generated columns with config overrides.
@@ -64,9 +65,23 @@ export interface PgTableBuilder<T> {
  * const users = mapPGTable<User>().build('users', {
  *   id: uuid('id').primaryKey(),
  * });
+ *
+ * // With custom lengthBuffer for varchar columns
+ * const users = mapPGTable<User>({lengthBuffer: 2.0}).build('users');
  * ```
  */
-export function mapPGTable<T>(type?: ReceiveType<T>): PgTableBuilder<T> {
+export function mapPGTable<T>(configOrType?: DrizzleMapperConfig | ReceiveType<T>, type?: ReceiveType<T>): PgTableBuilder<T> {
+    // Handle both signatures: mapPGTable<T>(type?) and mapPGTable<T>(config, type?)
+    let mapperConfig: DrizzleMapperConfig | undefined;
+    let receiveType: ReceiveType<T> | undefined;
+
+    if (configOrType && typeof configOrType === 'object' && 'lengthBuffer' in configOrType) {
+        mapperConfig = configOrType as DrizzleMapperConfig;
+        receiveType = type;
+    } else {
+        receiveType = configOrType as ReceiveType<T> | undefined;
+    }
+
     return {
         build<TN extends string, TConfig extends PgTableConfig<T>>(
             tableName: TN,
@@ -78,7 +93,7 @@ export function mapPGTable<T>(type?: ReceiveType<T>): PgTableBuilder<T> {
             dialect: 'pg';
         }> {
             // Extract type information using mion's RunType system
-            const typeInfo = extractTypeInfo<T>(type);
+            const typeInfo = extractTypeInfo<T>(receiveType);
             // Validate provided config against type
             if (tableConfig) {
                 const validation = validateConfig(typeInfo, tableConfig);
@@ -92,8 +107,8 @@ export function mapPGTable<T>(type?: ReceiveType<T>): PgTableBuilder<T> {
                     console.warn(`mapPGTable warnings:\n${validation.warnings.join('\n')}`);
                 }
             }
-            // Create column mapper
-            const mapper = new PGColumnMapper();
+            // Create column mapper with config
+            const mapper = new PGColumnMapper(mapperConfig);
             // Build columns object - all properties will be filled (either from config or auto-generated)
             type Merged = MergedPgColumns<T, TConfig>;
             const columns: Merged = {} as Merged;

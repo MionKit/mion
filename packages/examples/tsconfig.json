@@ -16,7 +16,8 @@
     {"path": "../type-formats"},
     {"path": "../bun"},
     {"path": "../aws"},
-    {"path": "../gcloud"}
+    {"path": "../gcloud"},
+    {"path": "../drizze"}
   ],
   "reflection": true,
   "include": ["src", "vite.config.ts"],

@@ -56,11 +56,11 @@ describe('mapMySqlTable', () => {
             expect(table.createdAt).toBeDefined();
         });
 
-        it('should generate text columns for string types', () => {
+        it('should generate varchar columns for string types', () => {
             const table = mapMySqlTable<SimpleUser>().build('users');
 
-            // String should map to text
-            expect(table.name.columnType).toBe('MySqlText');
+            // String should map to varchar
+            expect(table.name.columnType).toBe('MySqlVarChar');
         });
 
         it('should generate double columns for number types', () => {

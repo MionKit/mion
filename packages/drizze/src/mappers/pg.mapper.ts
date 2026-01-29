@@ -5,35 +5,26 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    text,
-    integer,
-    boolean,
-    doublePrecision,
-    bigint,
-    timestamp,
-    date,
-    time,
-    uuid,
-    jsonb,
-    inet,
-    varchar,
-    char,
-} from 'drizzle-orm/pg-core';
+import {integer, boolean, doublePrecision, bigint, timestamp, date, time, uuid, jsonb, inet, varchar} from 'drizzle-orm/pg-core';
 import {ReflectionKind} from '@deepkit/type';
 import {TypedError} from '@mionkit/core';
 import {BaseColumnMapper} from './base.mapper';
-import type {ColumnMapping} from '../types/common.types';
-import {DrizzleTypesPostgres} from '../types/common.types';
+import type {ColumnMapping, DrizzleMapperConfig} from '../types/common.types';
+import {DrizzleTypesPostgres, DEFAULT_VARCHAR_LENGTH} from '../types/common.types';
 import {getMaxLengthFromParams, getLengthFromParams, isIntegerFormat} from '../core/utils';
 import {FormatName, FormatNames} from '@mionkit/type-formats';
 
 /** PostgreSQL-specific column mapper */
 export class PGColumnMapper extends BaseColumnMapper {
+    constructor(config?: DrizzleMapperConfig) {
+        super(config);
+    }
+
     mapPrimitive(kind: ReflectionKind, propName: string): ColumnMapping {
         switch (kind) {
             case ReflectionKind.string:
-                return {builder: text(propName), drizzleType: DrizzleTypesPostgres.text};
+                // Use varchar with default length for all string primitives
+                return {builder: varchar(propName, {length: DEFAULT_VARCHAR_LENGTH}), drizzleType: DrizzleTypesPostgres.varchar};
             case ReflectionKind.number:
                 return {builder: doublePrecision(propName), drizzleType: DrizzleTypesPostgres.doublePrecision};
             case ReflectionKind.boolean:
@@ -54,19 +45,23 @@ export class PGColumnMapper extends BaseColumnMapper {
             case FormatNames.uuid:
                 return {builder: uuid(propName), drizzleType: DrizzleTypesPostgres.uuid};
 
-            // Email format
+            // Email format - well-known max length, no buffer needed
             case FormatNames.email: {
                 const maxLength = getMaxLengthFromParams(formatParams) || 254;
                 return {builder: varchar(propName, {length: maxLength}), drizzleType: DrizzleTypesPostgres.varchar};
             }
 
-            // URL format
-            case FormatNames.url:
-                return {builder: text(propName), drizzleType: DrizzleTypesPostgres.text};
+            // URL format - well-known max length, no buffer needed
+            case FormatNames.url: {
+                const maxLength = getMaxLengthFromParams(formatParams) || 2048;
+                return {builder: varchar(propName, {length: maxLength}), drizzleType: DrizzleTypesPostgres.varchar};
+            }
 
-            // Domain format
-            case FormatNames.domain:
-                return {builder: text(propName), drizzleType: DrizzleTypesPostgres.text};
+            // Domain format - well-known max length, no buffer needed
+            case FormatNames.domain: {
+                const maxLength = getMaxLengthFromParams(formatParams) || 253;
+                return {builder: varchar(propName, {length: maxLength}), drizzleType: DrizzleTypesPostgres.varchar};
+            }
 
             // IP format
             case FormatNames.ip:
@@ -102,17 +97,20 @@ export class PGColumnMapper extends BaseColumnMapper {
                 const exactLength = getLengthFromParams(formatParams);
 
                 if (exactLength) {
-                    return {builder: char(propName, {length: exactLength}), drizzleType: DrizzleTypesPostgres.char};
+                    return {builder: varchar(propName, {length: exactLength}), drizzleType: DrizzleTypesPostgres.varchar};
                 }
                 if (maxLength) {
-                    return {builder: varchar(propName, {length: maxLength}), drizzleType: DrizzleTypesPostgres.varchar};
+                    return {
+                        builder: varchar(propName, {length: this.applyLengthBuffer(maxLength)}),
+                        drizzleType: DrizzleTypesPostgres.varchar,
+                    };
                 }
-                return {builder: text(propName), drizzleType: DrizzleTypesPostgres.text};
+                return {builder: varchar(propName, {length: DEFAULT_VARCHAR_LENGTH}), drizzleType: DrizzleTypesPostgres.varchar};
             }
 
             default:
-                // Fall back to text for unknown formats
-                return {builder: text(propName), drizzleType: DrizzleTypesPostgres.text};
+                // Fall back to varchar for unknown formats
+                return {builder: varchar(propName, {length: DEFAULT_VARCHAR_LENGTH}), drizzleType: DrizzleTypesPostgres.varchar};
         }
     }
 
