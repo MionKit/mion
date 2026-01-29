@@ -112,3 +112,15 @@ export interface ValidationResult {
     /** List of validation warnings */
     warnings: string[];
 }
+
+/** Default varchar length when no maxLength is specified in format params */
+export const DEFAULT_VARCHAR_LENGTH = 255;
+
+/** Default length buffer multiplier for varchar columns */
+export const DEFAULT_LENGTH_BUFFER = 1.5;
+
+/** Configuration options for drizzle table mapping */
+export interface DrizzleMapperConfig {
+    /** Multiplier for maxLength in string formats (default: 1.5). Applied to varchar column lengths. */
+    lengthBuffer?: number;
+}

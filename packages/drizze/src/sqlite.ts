@@ -13,6 +13,7 @@ import {extractTypeInfo} from './core/typeTraverser';
 import {validateConfig} from './core/validator';
 import {SQLiteColumnMapper} from './mappers/sqlite.mapper';
 import type {SqliteTableConfig, SqliteColumnType} from './types/sqlite.types';
+import type {DrizzleMapperConfig} from './types/common.types';
 
 /**
  * Merges auto-generated columns with config overrides.
@@ -64,9 +65,26 @@ export interface SqliteTableBuilder<T> {
  * const users = mapSqliteTable<User>().build('users', {
  *   id: text('id').primaryKey(),
  * });
+ *
+ * // With custom lengthBuffer (not used for SQLite text columns, but for consistency)
+ * const users = mapSqliteTable<User>({lengthBuffer: 2.0}).build('users');
  * ```
  */
-export function mapSqliteTable<T>(type?: ReceiveType<T>): SqliteTableBuilder<T> {
+export function mapSqliteTable<T>(
+    configOrType?: DrizzleMapperConfig | ReceiveType<T>,
+    type?: ReceiveType<T>
+): SqliteTableBuilder<T> {
+    // Handle both signatures: mapSqliteTable<T>(type?) and mapSqliteTable<T>(config, type?)
+    let mapperConfig: DrizzleMapperConfig | undefined;
+    let receiveType: ReceiveType<T> | undefined;
+
+    if (configOrType && typeof configOrType === 'object' && 'lengthBuffer' in configOrType) {
+        mapperConfig = configOrType as DrizzleMapperConfig;
+        receiveType = type;
+    } else {
+        receiveType = configOrType as ReceiveType<T> | undefined;
+    }
+
     return {
         build<TN extends string, TConfig extends SqliteTableConfig<T>>(
             tableName: TN,
@@ -78,7 +96,7 @@ export function mapSqliteTable<T>(type?: ReceiveType<T>): SqliteTableBuilder<T> 
             dialect: 'sqlite';
         }> {
             // Extract type information using mion's RunType system
-            const typeInfo = extractTypeInfo<T>(type);
+            const typeInfo = extractTypeInfo<T>(receiveType);
             // Validate provided config against type
             if (tableConfig) {
                 const validation = validateConfig(typeInfo, tableConfig);
@@ -92,8 +110,8 @@ export function mapSqliteTable<T>(type?: ReceiveType<T>): SqliteTableBuilder<T> 
                     console.warn(`mapSqliteTable warnings:\n${validation.warnings.join('\n')}`);
                 }
             }
-            // Create column mapper
-            const mapper = new SQLiteColumnMapper();
+            // Create column mapper with config
+            const mapper = new SQLiteColumnMapper(mapperConfig);
             // Build columns object - all properties will be filled (either from config or auto-generated)
             type Merged = MergedSqliteColumns<T, TConfig>;
             const columns: Merged = {} as Merged;

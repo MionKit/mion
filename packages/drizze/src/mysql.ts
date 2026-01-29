@@ -13,6 +13,7 @@ import {extractTypeInfo} from './core/typeTraverser';
 import {validateConfig} from './core/validator';
 import {MySQLColumnMapper} from './mappers/mysql.mapper';
 import type {MySqlTableConfig, MySqlColumnType} from './types/mysql.types';
+import type {DrizzleMapperConfig} from './types/common.types';
 
 /**
  * Merges auto-generated columns with config overrides.
@@ -64,9 +65,26 @@ export interface MySqlTableBuilder<T> {
  * const users = mapMySqlTable<User>().build('users', {
  *   id: varchar('id', { length: 36 }).primaryKey(),
  * });
+ *
+ * // With custom lengthBuffer for varchar columns
+ * const users = mapMySqlTable<User>({lengthBuffer: 2.0}).build('users');
  * ```
  */
-export function mapMySqlTable<T>(type?: ReceiveType<T>): MySqlTableBuilder<T> {
+export function mapMySqlTable<T>(
+    configOrType?: DrizzleMapperConfig | ReceiveType<T>,
+    type?: ReceiveType<T>
+): MySqlTableBuilder<T> {
+    // Handle both signatures: mapMySqlTable<T>(type?) and mapMySqlTable<T>(config, type?)
+    let mapperConfig: DrizzleMapperConfig | undefined;
+    let receiveType: ReceiveType<T> | undefined;
+
+    if (configOrType && typeof configOrType === 'object' && 'lengthBuffer' in configOrType) {
+        mapperConfig = configOrType as DrizzleMapperConfig;
+        receiveType = type;
+    } else {
+        receiveType = configOrType as ReceiveType<T> | undefined;
+    }
+
     return {
         build<TN extends string, TConfig extends MySqlTableConfig<T>>(
             tableName: TN,
@@ -78,7 +96,7 @@ export function mapMySqlTable<T>(type?: ReceiveType<T>): MySqlTableBuilder<T> {
             dialect: 'mysql';
         }> {
             // Extract type information using mion's RunType system
-            const typeInfo = extractTypeInfo<T>(type);
+            const typeInfo = extractTypeInfo<T>(receiveType);
             // Validate provided config against type
             if (tableConfig) {
                 const validation = validateConfig(typeInfo, tableConfig);
@@ -92,8 +110,8 @@ export function mapMySqlTable<T>(type?: ReceiveType<T>): MySqlTableBuilder<T> {
                     console.warn(`mapMySqlTable warnings:\n${validation.warnings.join('\n')}`);
                 }
             }
-            // Create column mapper
-            const mapper = new MySQLColumnMapper();
+            // Create column mapper with config
+            const mapper = new MySQLColumnMapper(mapperConfig);
             // Build columns object - all properties will be filled (either from config or auto-generated)
             type Merged = MergedMySqlColumns<T, TConfig>;
             const columns: Merged = {} as Merged;

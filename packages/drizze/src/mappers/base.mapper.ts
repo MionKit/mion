@@ -6,12 +6,24 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import type {ColumnMapping, PropertyInfo} from '../types/common.types';
+import type {ColumnMapping, PropertyInfo, DrizzleMapperConfig} from '../types/common.types';
+import {DEFAULT_LENGTH_BUFFER} from '../types/common.types';
 import {shouldBeJson} from '../core/utils';
 import {FormatName} from '@mionkit/type-formats';
 
 /** Base class for database-specific column mappers */
 export abstract class BaseColumnMapper {
+    protected lengthBuffer: number;
+
+    constructor(config?: DrizzleMapperConfig) {
+        this.lengthBuffer = config?.lengthBuffer ?? DEFAULT_LENGTH_BUFFER;
+    }
+
+    /** Applies length buffer to a maxLength value */
+    protected applyLengthBuffer(maxLength: number): number {
+        return Math.ceil(maxLength * this.lengthBuffer);
+    }
+
     /** Maps a primitive TypeScript type to a drizzle column */
     abstract mapPrimitive(kind: ReflectionKind, propName: string): ColumnMapping;
     /** Maps a format type to a drizzle column */

@@ -17,17 +17,21 @@
 
 # `@mionkit/drizzle`
 
-🚀 Auto-generate Drizzle ORM table schemas from TypeScript types using mion's runtime type system.
+🚀 Auto-generate Drizzle ORM table schemas from TypeScript types and **mion Type Formats**.
 
 Unlike `drizzle-zod` which generates Zod schemas FROM drizzle tables, this package works in the **opposite direction**: it auto-generates drizzle table configurations FROM TypeScript types while allowing optional overrides.
 
+The key feature is that column types are derived from `@mionkit/type-formats` - when you use format types like `StrUUIDv7`, `StrEmail`, `NumInteger`, etc., the package automatically selects the most appropriate database column type for each database.
+
 ## Features
 
-- **Auto-generate table schemas** from TypeScript types
-- **Support for all three databases**: PostgreSQL, MySQL, and SQLite
-- **Format-aware mappings**: Uses `@mionkit/type-formats` for intelligent column type selection
+- **Auto-generate table schemas** from TypeScript types and mion Type Formats
+- **Format-aware column mappings**: Column types are derived from `@mionkit/type-formats` (e.g., `StrUUIDv7` → `uuid()` in PostgreSQL)
+- **Support for all three databases**: PostgreSQL, MySQL, and SQLite with database-specific optimizations
 - **Override support**: Customize primary keys, foreign keys, and constraints
 - **Validation**: Validates config overrides match TypeScript types
+
+For complete type mapping tables, see the [documentation](http://mion.io/server/drizzle-orm).
 
 ## Installation
 
@@ -103,36 +107,6 @@ export const users = drizzleSqliteTable<User>('users', {
   id: text('id').primaryKey(),
 });
 ```
-
-## Type Mappings
-
-### Primitive Types
-
-| TypeScript Type | PostgreSQL          | MySQL         | SQLite                         |
-| --------------- | ------------------- | ------------- | ------------------------------ |
-| `string`        | `text()`            | `text()`      | `text()`                       |
-| `number`        | `doublePrecision()` | `double()`    | `real()`                       |
-| `boolean`       | `boolean()`         | `boolean()`   | `integer({mode: 'boolean'})`   |
-| `bigint`        | `bigint()`          | `bigint()`    | `blob({mode: 'bigint'})`       |
-| `Date`          | `timestamp()`       | `timestamp()` | `integer({mode: 'timestamp'})` |
-
-### Format Types (from `@mionkit/type-formats`)
-
-| Format Type   | PostgreSQL    | MySQL          | SQLite      |
-| ------------- | ------------- | -------------- | ----------- |
-| `StrUUIDv7`   | `uuid()`      | `varchar(36)`  | `text()`    |
-| `StrEmail`    | `text()`      | `varchar(254)` | `text()`    |
-| `StrIP`       | `inet()`      | `varchar(45)`  | `text()`    |
-| `StrDateTime` | `timestamp()` | `datetime()`   | `text()`    |
-| `NumInteger`  | `integer()`   | `int()`        | `integer()` |
-
-### Complex Types
-
-| TypeScript Type  | PostgreSQL | MySQL    | SQLite                 |
-| ---------------- | ---------- | -------- | ---------------------- |
-| `T[]` (array)    | `jsonb()`  | `json()` | `text({mode: 'json'})` |
-| `{...}` (object) | `jsonb()`  | `json()` | `text({mode: 'json'})` |
-| `T?` (optional)  | nullable   | nullable | nullable               |
 
 ## Foreign Keys
 

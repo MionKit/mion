@@ -18,7 +18,15 @@ export {extractTypeInfo} from './src/core/typeTraverser';
 export {validateConfig} from './src/core/validator';
 
 // Types
-export type {PropertyInfo, TypeInfo, ValidationResult, ColumnMapping, DatabaseType} from './src/types/common.types';
+export type {
+    PropertyInfo,
+    TypeInfo,
+    ValidationResult,
+    ColumnMapping,
+    DatabaseType,
+    DrizzleMapperConfig,
+} from './src/types/common.types';
+export {DEFAULT_VARCHAR_LENGTH, DEFAULT_LENGTH_BUFFER} from './src/types/common.types';
 export type {FormatName} from '@mionkit/type-formats';
 export {FormatNames} from '@mionkit/type-formats';
 

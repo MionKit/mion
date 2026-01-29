@@ -1,7 +1,5 @@
 import {StrEmailStrict} from '@mionkit/type-formats/FormatsString';
 
-type StrictEmail = StrEmailStrict;
-
 // Valid
 'user@example.com'; // ✓
 'user.name@sub.domain.com'; // ✓

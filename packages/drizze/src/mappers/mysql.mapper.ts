@@ -5,21 +5,26 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {text, int, boolean, double, bigint, timestamp, date, time, varchar, json, datetime} from 'drizzle-orm/mysql-core';
+import {int, boolean, double, bigint, timestamp, date, time, varchar, json, datetime} from 'drizzle-orm/mysql-core';
 import {ReflectionKind} from '@deepkit/type';
 import {TypedError} from '@mionkit/core';
 import {BaseColumnMapper} from './base.mapper';
-import type {ColumnMapping} from '../types/common.types';
-import {DrizzleTypesMySQL} from '../types/common.types';
+import type {ColumnMapping, DrizzleMapperConfig} from '../types/common.types';
+import {DrizzleTypesMySQL, DEFAULT_VARCHAR_LENGTH} from '../types/common.types';
 import {getMaxLengthFromParams, isIntegerFormat} from '../core/utils';
 import {FormatName, FormatNames} from '@mionkit/type-formats';
 
 /** MySQL-specific column mapper */
 export class MySQLColumnMapper extends BaseColumnMapper {
+    constructor(config?: DrizzleMapperConfig) {
+        super(config);
+    }
+
     mapPrimitive(kind: ReflectionKind, propName: string): ColumnMapping {
         switch (kind) {
             case ReflectionKind.string:
-                return {builder: text(propName), drizzleType: DrizzleTypesMySQL.text};
+                // Use varchar with default length for all string primitives
+                return {builder: varchar(propName, {length: DEFAULT_VARCHAR_LENGTH}), drizzleType: DrizzleTypesMySQL.varchar};
             case ReflectionKind.number:
                 return {builder: double(propName), drizzleType: DrizzleTypesMySQL.double};
             case ReflectionKind.boolean:
@@ -40,17 +45,19 @@ export class MySQLColumnMapper extends BaseColumnMapper {
             case FormatNames.uuid:
                 return {builder: varchar(propName, {length: 36}), drizzleType: DrizzleTypesMySQL.varchar};
 
-            // Email format
+            // Email format - well-known max length, no buffer needed
             case FormatNames.email: {
                 const maxLength = getMaxLengthFromParams(formatParams) || 254;
                 return {builder: varchar(propName, {length: maxLength}), drizzleType: DrizzleTypesMySQL.varchar};
             }
 
-            // URL format
-            case FormatNames.url:
-                return {builder: text(propName), drizzleType: DrizzleTypesMySQL.text};
+            // URL format - well-known max length, no buffer needed
+            case FormatNames.url: {
+                const maxLength = getMaxLengthFromParams(formatParams) || 2048;
+                return {builder: varchar(propName, {length: maxLength}), drizzleType: DrizzleTypesMySQL.varchar};
+            }
 
-            // Domain format
+            // Domain format - well-known max length, no buffer needed
             case FormatNames.domain: {
                 const maxLength = getMaxLengthFromParams(formatParams) || 253;
                 return {builder: varchar(propName, {length: maxLength}), drizzleType: DrizzleTypesMySQL.varchar};
@@ -88,14 +95,17 @@ export class MySQLColumnMapper extends BaseColumnMapper {
             case FormatNames.stringFormat: {
                 const maxLength = getMaxLengthFromParams(formatParams);
                 if (maxLength) {
-                    return {builder: varchar(propName, {length: maxLength}), drizzleType: DrizzleTypesMySQL.varchar};
+                    return {
+                        builder: varchar(propName, {length: this.applyLengthBuffer(maxLength)}),
+                        drizzleType: DrizzleTypesMySQL.varchar,
+                    };
                 }
-                return {builder: text(propName), drizzleType: DrizzleTypesMySQL.text};
+                return {builder: varchar(propName, {length: DEFAULT_VARCHAR_LENGTH}), drizzleType: DrizzleTypesMySQL.varchar};
             }
 
             default:
-                // Fall back to text for unknown formats
-                return {builder: text(propName), drizzleType: DrizzleTypesMySQL.text};
+                // Fall back to varchar for unknown formats
+                return {builder: varchar(propName, {length: DEFAULT_VARCHAR_LENGTH}), drizzleType: DrizzleTypesMySQL.varchar};
         }
     }
 
