@@ -21,6 +21,28 @@ import type {
     inet,
     pgTable,
 } from 'drizzle-orm/pg-core';
+import type {
+    BrandEmail,
+    BrandUUID,
+    BrandUrl,
+    BrandDomain,
+    BrandIP,
+    BrandDate,
+    BrandTime,
+    BrandDateTime,
+    BrandInteger,
+    BrandFloat,
+    BrandPositive,
+    BrandNegative,
+    BrandPositiveInt,
+    BrandNegativeInt,
+    BrandInt8,
+    BrandInt16,
+    BrandInt32,
+    BrandUInt8,
+    BrandUInt16,
+    BrandUInt32,
+} from '@mionkit/core';
 
 // ============================================================================
 // Helper type to extract return type of column builder function with name
@@ -59,39 +81,88 @@ type PgJsonbColumn<K extends string> = ReturnType<typeof jsonb<K>>;
 
 /**
  * Maps a TypeScript primitive type to its corresponding PostgreSQL column builder type,
- * with the column name properly typed.
+ * with the column name properly typed. Uses branded types to narrow column types.
  *
  * @template K - The column name (key from the interface)
  * @template T - The TypeScript type of the property value
  *
- * - string → PgTextColumn | PgVarcharColumn | PgUUIDColumn | PgInetColumn
- * - number → PgDoublePrecisionColumn | PgIntegerColumn
+ * String brands:
+ * - BrandEmail → PgVarcharColumn (emails have max length)
+ * - BrandUUID → PgUUIDColumn (native UUID type)
+ * - BrandUrl → PgTextColumn (URLs can be long)
+ * - BrandDomain → PgTextColumn
+ * - BrandIP → PgInetColumn (native inet type)
+ * - BrandDate → PgDateColumn
+ * - BrandTime → PgTimeColumn
+ * - BrandDateTime → PgTimestampColumn
+ * - plain string → PgTextColumn (unlimited length, same performance as varchar in PG)
+ *
+ * Number brands:
+ * - BrandFloat → PgDoublePrecisionColumn
+ * - BrandInteger/BrandPositiveInt/BrandNegativeInt → PgIntegerColumn
+ * - BrandInt8/BrandUInt8/BrandInt16/BrandUInt16 → PgIntegerColumn (runtime uses integer)
+ * - BrandInt32/BrandUInt32 → PgIntegerColumn
+ * - BrandPositive/BrandNegative → PgDoublePrecisionColumn (could be float or int, default to double)
+ * - plain number → PgDoublePrecisionColumn (default to double precision for safety)
+ *
+ * Other types:
  * - boolean → PgBooleanColumn
  * - bigint → PgBigIntColumn
- * - Date → PgTimestampColumn | PgDateColumn | PgTimeColumn
+ * - Date → PgTimestampColumn (runtime uses timestamp)
  * - arrays/objects → PgJsonbColumn
  */
 export type PgColumnType<K extends string, T> =
-    // String types - can be text, varchar, uuid, inet, etc.
-    T extends string
-        ? PgTextColumn<K> | PgVarcharColumn<K> | PgUUIDColumn<K> | PgInetColumn<K>
-        : // Number types - can be double precision or integer
-          T extends number
-          ? PgDoublePrecisionColumn<K> | PgIntegerColumn<K>
-          : // Boolean type
-            T extends boolean
-            ? PgBooleanColumn<K>
-            : // BigInt type
-              T extends bigint
-              ? PgBigIntColumn<K>
-              : // Date type - can be timestamp, date, or time
-                T extends Date
-                ? PgTimestampColumn<K> | PgDateColumn<K> | PgTimeColumn<K>
-                : // Arrays and objects become JSONB
-                  T extends any[] | object
-                  ? PgJsonbColumn<K>
-                  : // Fallback to base column builder
-                    PgColumnBuilderBase;
+    // String branded types - narrow to specific column types
+    T extends BrandUUID
+        ? PgUUIDColumn<K>
+        : T extends BrandEmail
+          ? PgVarcharColumn<K>
+          : T extends BrandIP
+            ? PgInetColumn<K>
+            : T extends BrandDateTime
+              ? PgTimestampColumn<K>
+              : T extends BrandDate
+                ? PgDateColumn<K>
+                : T extends BrandTime
+                  ? PgTimeColumn<K>
+                  : T extends BrandUrl | BrandDomain
+                    ? PgTextColumn<K>
+                    : // Number branded types - narrow to specific column types
+                      T extends BrandFloat
+                      ? PgDoublePrecisionColumn<K>
+                      : T extends
+                              | BrandInt8
+                              | BrandUInt8
+                              | BrandInt16
+                              | BrandUInt16
+                              | BrandInteger
+                              | BrandPositiveInt
+                              | BrandNegativeInt
+                              | BrandInt32
+                              | BrandUInt32
+                        ? PgIntegerColumn<K>
+                        : T extends BrandPositive | BrandNegative
+                          ? PgDoublePrecisionColumn<K>
+                          : // Plain string types - use text (unlimited length, same perf as varchar in PG)
+                            T extends string
+                            ? PgTextColumn<K>
+                            : // Plain number types - default to double precision for safety
+                              T extends number
+                              ? PgDoublePrecisionColumn<K>
+                              : // Boolean type
+                                T extends boolean
+                                ? PgBooleanColumn<K>
+                                : // BigInt type
+                                  T extends bigint
+                                  ? PgBigIntColumn<K>
+                                  : // Date type - use timestamp (runtime uses timestamp)
+                                    T extends Date
+                                    ? PgTimestampColumn<K>
+                                    : // Arrays and objects become JSONB
+                                      T extends any[] | object
+                                      ? PgJsonbColumn<K>
+                                      : // Fallback to base column builder
+                                        PgColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)
@@ -99,11 +170,11 @@ export type PgColumnType<K extends string, T> =
 
 /**
  * Maps a TypeScript type T to a partial record of drizzle column builders.
- * Each property key must exist in T, and the value must be the appropriate column builder
- * for that property's type, with the column name properly typed.
+ * Each property key must exist in T, and the value can be any column builder.
+ * This allows users to override the default column type with any compatible column.
  *
  * This type is used for the `tableConfig` parameter to allow overriding specific columns
- * (e.g., for primary keys, foreign keys, custom constraints).
+ * (e.g., for primary keys, foreign keys, custom constraints, or different column types).
  *
  * @example
  * ```typescript
@@ -114,16 +185,16 @@ export type PgColumnType<K extends string, T> =
  *   active: boolean;
  * }
  *
- * // Valid config - types match and column names are typed
+ * // Valid config - override with any column type
  * const config: PgTableConfig<User> = {
- *   id: uuid('id').primaryKey(),  // string → PgUUIDColumn<'id'> ✓
- *   name: text('name'),           // string → PgTextColumn<'name'> ✓
- *   age: integer('age'),          // number → PgIntegerColumn<'age'> ✓
+ *   id: uuid('id').primaryKey(),  // Override string with uuid ✓
+ *   name: text('name'),           // Use default text ✓
+ *   age: integer('age'),          // Override number with integer ✓
  * };
  * ```
  */
 export type PgTableConfig<T> = {
-    [K in keyof T as K extends string ? K : never]?: PgColumnType<K & string, T[K]>;
+    [K in keyof T as K extends string ? K : never]?: PgColumnBuilderBase;
 };
 
 // ============================================================================

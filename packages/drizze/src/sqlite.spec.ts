@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {drizzleSqliteTable} from './sqlite';
-import {text} from 'drizzle-orm/sqlite-core';
+import {mapSqliteTable} from './sqlite';
+import {text, integer} from 'drizzle-orm/sqlite-core';
 // Note: Must use regular import (not `import type`) for deepkit reflection to work
 import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
 
@@ -44,10 +44,10 @@ interface UserWithOptionals {
     age?: number;
 }
 
-describe('drizzleSqliteTable', () => {
-    describe('simple types', () => {
+describe('mapSqliteTable', () => {
+    describe('simple types with .build()', () => {
         it('should generate correct schema for simple types', () => {
-            const table = drizzleSqliteTable<SimpleUser>('users');
+            const table = mapSqliteTable<SimpleUser>().build('users');
 
             expect(table.id).toBeDefined();
             expect(table.name).toBeDefined();
@@ -57,28 +57,28 @@ describe('drizzleSqliteTable', () => {
         });
 
         it('should generate text columns for string types', () => {
-            const table = drizzleSqliteTable<SimpleUser>('users');
+            const table = mapSqliteTable<SimpleUser>().build('users');
 
             // String should map to text
             expect(table.name.columnType).toBe('SQLiteText');
         });
 
         it('should generate real columns for number types', () => {
-            const table = drizzleSqliteTable<SimpleUser>('users');
+            const table = mapSqliteTable<SimpleUser>().build('users');
 
             // Number should map to real
             expect(table.age.columnType).toBe('SQLiteReal');
         });
 
         it('should generate boolean columns for boolean types', () => {
-            const table = drizzleSqliteTable<SimpleUser>('users');
+            const table = mapSqliteTable<SimpleUser>().build('users');
 
             // Boolean should map to SQLiteBoolean (integer with mode: 'boolean')
             expect(table.isActive.columnType).toBe('SQLiteBoolean');
         });
 
         it('should generate timestamp columns for Date types', () => {
-            const table = drizzleSqliteTable<SimpleUser>('users');
+            const table = mapSqliteTable<SimpleUser>().build('users');
 
             // Date should map to SQLiteTimestamp (integer with mode: 'timestamp')
             expect(table.createdAt.columnType).toBe('SQLiteTimestamp');
@@ -87,7 +87,7 @@ describe('drizzleSqliteTable', () => {
 
     describe('formatted types', () => {
         it('should generate text columns for StrUUIDv7 format', () => {
-            const table = drizzleSqliteTable<UserWithFormats>('users');
+            const table = mapSqliteTable<UserWithFormats>().build('users');
 
             // UUID format should map to text in SQLite
             expect(table.id).toBeDefined();
@@ -95,7 +95,7 @@ describe('drizzleSqliteTable', () => {
         });
 
         it('should generate text columns for StrEmail format', () => {
-            const table = drizzleSqliteTable<UserWithFormats>('users');
+            const table = mapSqliteTable<UserWithFormats>().build('users');
 
             // Email format should map to text in SQLite
             expect(table.email).toBeDefined();
@@ -105,7 +105,7 @@ describe('drizzleSqliteTable', () => {
 
     describe('nested objects and arrays', () => {
         it('should generate text columns with json mode for nested objects', () => {
-            const table = drizzleSqliteTable<UserWithNestedObjects>('users');
+            const table = mapSqliteTable<UserWithNestedObjects>().build('users');
 
             // Nested objects should map to SQLiteTextJson (text with mode: 'json')
             expect(table.profile).toBeDefined();
@@ -113,7 +113,7 @@ describe('drizzleSqliteTable', () => {
         });
 
         it('should generate text columns with json mode for arrays', () => {
-            const table = drizzleSqliteTable<UserWithNestedObjects>('users');
+            const table = mapSqliteTable<UserWithNestedObjects>().build('users');
 
             // Arrays should map to SQLiteTextJson (text with mode: 'json')
             expect(table.tags).toBeDefined();
@@ -123,15 +123,15 @@ describe('drizzleSqliteTable', () => {
 
     describe('optional properties', () => {
         it('should generate nullable columns for optional properties', () => {
-            const table = drizzleSqliteTable<UserWithOptionals>('users');
+            const table = mapSqliteTable<UserWithOptionals>().build('users');
 
             // Optional properties should be nullable
             expect(table.nickname).toBeDefined();
-            expect(table.nickname.notNull).toBe(false);
+            expect(table.nickname!.notNull).toBe(false);
         });
 
         it('should generate notNull columns for required properties', () => {
-            const table = drizzleSqliteTable<UserWithOptionals>('users');
+            const table = mapSqliteTable<UserWithOptionals>().build('users');
 
             // Required properties should have notNull
             expect(table.id).toBeDefined();
@@ -139,9 +139,9 @@ describe('drizzleSqliteTable', () => {
         });
     });
 
-    describe('tableConfig overrides', () => {
-        it('should respect tableConfig overrides for primary keys', () => {
-            const table = drizzleSqliteTable<SimpleUser>('users', {
+    describe('column overrides with .build(name, config)', () => {
+        it('should respect overrides for primary keys', () => {
+            const table = mapSqliteTable<SimpleUser>().build('users', {
                 id: text('id').primaryKey(),
             });
 
@@ -149,8 +149,8 @@ describe('drizzleSqliteTable', () => {
             expect(table.id).toBeDefined();
         });
 
-        it('should auto-generate columns not in tableConfig', () => {
-            const table = drizzleSqliteTable<SimpleUser>('users', {
+        it('should auto-generate columns not in config', () => {
+            const table = mapSqliteTable<SimpleUser>().build('users', {
                 id: text('id').primaryKey(),
             });
 
@@ -159,20 +159,45 @@ describe('drizzleSqliteTable', () => {
             expect(table.age).toBeDefined();
         });
 
-        it('should throw error when tableConfig has extra columns', () => {
+        it('should throw error when config has extra columns', () => {
             expect(() => {
-                drizzleSqliteTable<SimpleUser>('users', {
+                mapSqliteTable<SimpleUser>().build('users', {
                     id: text('id').primaryKey(),
                     extraColumn: text('extra'),
-                });
+                } as any);
             }).toThrow();
+        });
+
+        it('should allow overriding plain string with text column for UUID', () => {
+            // SimpleUser has id: string, SQLite uses text for all strings including UUIDs
+            const table = mapSqliteTable<SimpleUser>().build('users', {
+                id: text('id').primaryKey(),
+            });
+
+            // The id column should use the text override with primary key
+            expect(table.id).toBeDefined();
+            // Verify it's a text column by checking the column type
+            expect(table.id.columnType).toBe('SQLiteText');
+        });
+
+        it('should allow overriding number (real) with integer column', () => {
+            // SimpleUser has age: number, which auto-generates to SQLiteReal
+            // Override it with integer() to get SQLiteInteger
+            const table = mapSqliteTable<SimpleUser>().build('users', {
+                age: integer('age'),
+            });
+
+            // The age column should use the integer override instead of real
+            expect(table.age).toBeDefined();
+            // Verify it's an integer column (not real) by checking the column type
+            expect(table.age.columnType).toBe('SQLiteInteger');
         });
     });
 
     describe('error handling', () => {
         it('should throw error for non-object types', () => {
             expect(() => {
-                drizzleSqliteTable<string>('users');
+                mapSqliteTable<string>().build('users');
             }).toThrow();
         });
     });

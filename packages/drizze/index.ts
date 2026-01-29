@@ -5,10 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Main table functions
-export {drizzlePGTable} from './src/postgres';
-export {drizzleMysqlTable} from './src/mysql';
-export {drizzleSqliteTable} from './src/sqlite';
+// Main table functions (builder pattern API)
+export {mapPGTable} from './src/postgres';
+export type {PgTableBuilder} from './src/postgres';
+export {mapMySqlTable} from './src/mysql';
+export type {MySqlTableBuilder} from './src/mysql';
+export {mapSqliteTable} from './src/sqlite';
+export type {SqliteTableBuilder} from './src/sqlite';
 
 // Core utilities
 export {extractTypeInfo} from './src/core/typeTraverser';

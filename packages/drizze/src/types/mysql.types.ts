@@ -11,8 +11,6 @@ import type {
     MySqlTextBuilderInitial,
     MySqlVarCharBuilderInitial,
     MySqlIntBuilderInitial,
-    MySqlTinyIntBuilderInitial,
-    MySqlSmallIntBuilderInitial,
     MySqlDoubleBuilderInitial,
     MySqlBooleanBuilderInitial,
     MySqlBigInt53BuilderInitial,
@@ -23,6 +21,28 @@ import type {
     MySqlJsonBuilderInitial,
 } from 'drizzle-orm/mysql-core';
 import type {BuildColumns} from 'drizzle-orm/column-builder';
+import type {
+    BrandEmail,
+    BrandUUID,
+    BrandUrl,
+    BrandDomain,
+    BrandIP,
+    BrandDate,
+    BrandTime,
+    BrandDateTime,
+    BrandInteger,
+    BrandFloat,
+    BrandPositive,
+    BrandNegative,
+    BrandPositiveInt,
+    BrandNegativeInt,
+    BrandInt8,
+    BrandInt16,
+    BrandInt32,
+    BrandUInt8,
+    BrandUInt16,
+    BrandUInt32,
+} from '@mionkit/core';
 
 // ============================================================================
 // Helper types for MySQL column builders with column name
@@ -34,10 +54,6 @@ type MySqlTextColumn<K extends string> = MySqlTextBuilderInitial<K, [string, ...
 type MySqlVarcharColumn<K extends string> = MySqlVarCharBuilderInitial<K, [string, ...string[]], number | undefined>;
 /** MySQL int column builder with name */
 type MySqlIntColumn<K extends string> = MySqlIntBuilderInitial<K>;
-/** MySQL tinyint column builder with name */
-type MySqlTinyIntColumn<K extends string> = MySqlTinyIntBuilderInitial<K>;
-/** MySQL smallint column builder with name */
-type MySqlSmallIntColumn<K extends string> = MySqlSmallIntBuilderInitial<K>;
 /** MySQL double column builder with name */
 type MySqlDoubleColumn<K extends string> = MySqlDoubleBuilderInitial<K>;
 /** MySQL boolean column builder with name */
@@ -61,39 +77,90 @@ type MySqlJsonColumn<K extends string> = MySqlJsonBuilderInitial<K>;
 
 /**
  * Maps a TypeScript primitive type to its corresponding MySQL column builder type,
- * with the column name properly typed.
+ * with the column name properly typed. Uses branded types to narrow column types.
  *
  * @template K - The column name (key from the interface)
  * @template T - The TypeScript type of the property value
  *
- * - string → MySqlTextColumn | MySqlVarcharColumn
- * - number → MySqlDoubleColumn | MySqlIntColumn | MySqlTinyIntColumn | MySqlSmallIntColumn
+ * String brands:
+ * - BrandEmail → MySqlVarcharColumn (emails have max length)
+ * - BrandUUID → MySqlVarcharColumn (MySQL has no native UUID, use varchar(36))
+ * - BrandUrl → MySqlTextColumn (URLs can be long)
+ * - BrandDomain → MySqlVarcharColumn
+ * - BrandIP → MySqlVarcharColumn (IPv6 up to 45 chars)
+ * - BrandDate → MySqlDateColumn
+ * - BrandTime → MySqlTimeColumn
+ * - BrandDateTime → MySqlDatetimeColumn
+ * - plain string → MySqlTextColumn | MySqlVarcharColumn
+ *
+ * Number brands:
+ * - BrandFloat → MySqlDoubleColumn
+ * - BrandInt8/BrandUInt8 → MySqlTinyIntColumn
+ * - BrandInt16/BrandUInt16 → MySqlSmallIntColumn
+ * - BrandInteger/BrandPositiveInt/BrandNegativeInt/BrandInt32/BrandUInt32 → MySqlIntColumn
+ * - BrandPositive/BrandNegative → MySqlDoubleColumn | MySqlIntColumn
+ * - plain number → MySqlDoubleColumn (default to double for safety)
+ *
+ * Other types:
  * - boolean → MySqlBooleanColumn
  * - bigint → MySqlBigIntColumn
  * - Date → MySqlTimestampColumn | MySqlDatetimeColumn | MySqlDateColumn | MySqlTimeColumn
  * - arrays/objects → MySqlJsonColumn
  */
 export type MySqlColumnType<K extends string, T> =
-    // String types - can be text or varchar
-    T extends string
-        ? MySqlTextColumn<K> | MySqlVarcharColumn<K>
-        : // Number types - can be double, int, tinyint, or smallint
-          T extends number
-          ? MySqlDoubleColumn<K> | MySqlIntColumn<K> | MySqlTinyIntColumn<K> | MySqlSmallIntColumn<K>
-          : // Boolean type
-            T extends boolean
-            ? MySqlBooleanColumn<K>
-            : // BigInt type
-              T extends bigint
-              ? MySqlBigIntColumn<K>
-              : // Date type - can be timestamp, datetime, date, or time
-                T extends Date
-                ? MySqlTimestampColumn<K> | MySqlDatetimeColumn<K> | MySqlDateColumn<K> | MySqlTimeColumn<K>
-                : // Arrays and objects become JSON
-                  T extends any[] | object
-                  ? MySqlJsonColumn<K>
-                  : // Fallback to base column builder
-                    MySqlColumnBuilderBase;
+    // String branded types - narrow to specific column types
+    T extends BrandUUID
+        ? MySqlVarcharColumn<K>
+        : T extends BrandEmail
+          ? MySqlVarcharColumn<K>
+          : T extends BrandIP
+            ? MySqlVarcharColumn<K>
+            : T extends BrandDateTime
+              ? MySqlDatetimeColumn<K>
+              : T extends BrandDate
+                ? MySqlDateColumn<K>
+                : T extends BrandTime
+                  ? MySqlTimeColumn<K>
+                  : T extends BrandUrl
+                    ? MySqlTextColumn<K>
+                    : T extends BrandDomain
+                      ? MySqlVarcharColumn<K>
+                      : // Number branded types - all integers use int() in runtime mapper
+                        T extends BrandFloat
+                        ? MySqlDoubleColumn<K>
+                        : T extends
+                                | BrandInt8
+                                | BrandUInt8
+                                | BrandInt16
+                                | BrandUInt16
+                                | BrandInteger
+                                | BrandPositiveInt
+                                | BrandNegativeInt
+                                | BrandInt32
+                                | BrandUInt32
+                          ? MySqlIntColumn<K>
+                          : T extends BrandPositive | BrandNegative
+                            ? MySqlDoubleColumn<K>
+                            : // Plain string types - use text (unlimited length)
+                              T extends string
+                              ? MySqlTextColumn<K>
+                              : // Plain number types - default to double for safety
+                                T extends number
+                                ? MySqlDoubleColumn<K>
+                                : // Boolean type
+                                  T extends boolean
+                                  ? MySqlBooleanColumn<K>
+                                  : // BigInt type
+                                    T extends bigint
+                                    ? MySqlBigIntColumn<K>
+                                    : // Date type - use timestamp (runtime uses timestamp)
+                                      T extends Date
+                                      ? MySqlTimestampColumn<K>
+                                      : // Arrays and objects become JSON
+                                        T extends any[] | object
+                                        ? MySqlJsonColumn<K>
+                                        : // Fallback to base column builder
+                                          MySqlColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)
@@ -101,14 +168,14 @@ export type MySqlColumnType<K extends string, T> =
 
 /**
  * Maps a TypeScript type T to a partial record of drizzle column builders.
- * Each property key must exist in T, and the value must be the appropriate column builder
- * for that property's type, with the column name properly typed.
+ * Each property key must exist in T, and the value can be any column builder.
+ * This allows users to override the default column type with any compatible column.
  *
  * This type is used for the `tableConfig` parameter to allow overriding specific columns
- * (e.g., for primary keys, foreign keys, custom constraints).
+ * (e.g., for primary keys, foreign keys, custom constraints, or different column types).
  */
 export type MySqlTableConfig<T> = {
-    [K in keyof T as K extends string ? K : never]?: MySqlColumnType<K & string, T[K]>;
+    [K in keyof T as K extends string ? K : never]?: MySqlColumnBuilderBase;
 };
 
 // ============================================================================
