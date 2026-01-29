@@ -1,11 +1,4 @@
-import type {
-    FriendlyErrors,
-    StringErrorParams,
-    EmailErrorParams,
-    DateTimeErrorParams,
-    NumberErrorParams,
-    BigIntErrorParams,
-} from '@mionkit/core';
+import type {FriendlyErrors} from '@mionkit/core';
 import {RouteParamType} from '@mionkit/client';
 
 import type {MyApi} from './friendly-errors-server';
@@ -13,7 +6,7 @@ export type User = RouteParamType<MyApi['setUser'], 0>;
 
 export const userFriendlyErrors: FriendlyErrors<User> = {
     // Handler is called ONCE per field with ALL aggregated error params
-    name: (failed: StringErrorParams) => {
+    name: (failed) => {
         // All failed constraints are available at once
         const messages: string[] = [];
         if (failed.minLength) messages.push(`at least ${failed.minLength.val} characters`);
@@ -21,14 +14,14 @@ export const userFriendlyErrors: FriendlyErrors<User> = {
         if (messages.length > 0) return `Name must be ${messages.join(' and ')}`;
         return 'Name must be a valid string';
     },
-    age: (failed: NumberErrorParams) => {
+    age: (failed) => {
         const messages: string[] = [];
         if (failed.min) messages.push(`at least ${failed.min.val}`);
         if (failed.max) messages.push(`at most ${failed.max.val}`);
         if (messages.length > 0) return `Age must be ${messages.join(' and ')} years`;
         return 'Age must be a valid number';
     },
-    balance: (failed: BigIntErrorParams) => {
+    balance: (failed) => {
         if (failed.min) return `Balance cannot be negative`;
         return 'Balance must be a valid number';
     },
@@ -36,7 +29,7 @@ export const userFriendlyErrors: FriendlyErrors<User> = {
     tags: (failed) => {
         return `Tag ${failed.index} must be a valid string`;
     },
-    createdAt: (failed: DateTimeErrorParams) => {
+    createdAt: (failed) => {
         const messages: string[] = [];
         if (failed.date) messages.push('date format is invalid');
         if (failed.time) messages.push('time format is invalid');
@@ -45,7 +38,7 @@ export const userFriendlyErrors: FriendlyErrors<User> = {
         return `Created at must be a valid date-time string`;
     },
     nested: {
-        email: (failed: EmailErrorParams) => {
+        email: (failed) => {
             const messages: string[] = [];
             if (failed.pattern) messages.push('invalid format');
             if (failed.localPart) messages.push('invalid username');
@@ -53,7 +46,7 @@ export const userFriendlyErrors: FriendlyErrors<User> = {
             if (messages.length > 0) return `Email: ${messages.join(', ')}`;
             return `Email must be a valid string`;
         },
-        score: (failed: NumberErrorParams) => {
+        score: (failed) => {
             const messages: string[] = [];
             if (failed.min) messages.push(`at least ${failed.min.val}`);
             if (failed.max) messages.push(`at most ${failed.max.val}`);

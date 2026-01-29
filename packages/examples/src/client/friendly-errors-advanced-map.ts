@@ -8,7 +8,7 @@
  * - Objects containing arrays, Maps, and Sets as properties
  */
 
-import type {FriendlyErrors, FriendlyErrorsResult, StringErrorParams, NumberErrorParams} from '@mionkit/core';
+import type {FriendlyErrors, FriendlyErrorsResult, BrandEmail} from '@mionkit/core';
 
 // ============================================================================
 // Type Definitions
@@ -17,7 +17,7 @@ import type {FriendlyErrors, FriendlyErrorsResult, StringErrorParams, NumberErro
 /** Simple user type for nested examples */
 interface User {
     name: string;
-    email: string;
+    email: BrandEmail;
     age: number;
 }
 
@@ -45,15 +45,15 @@ interface UserProfile {
  */
 type TagList = string[];
 
-export const tagListErrors: FriendlyErrors<TagList> = (params: StringErrorParams) => {
-    // params.index contains the array index that failed
+export const tagListErrors: FriendlyErrors<TagList> = (failed) => {
+    // failed.index contains the array index that failed
     const messages: string[] = [];
-    if (params.minLength) messages.push(`at least ${params.minLength.val} characters`);
-    if (params.maxLength) messages.push(`at most ${params.maxLength.val} characters`);
+    if (failed.minLength) messages.push(`at least ${failed.minLength.val} characters`);
+    if (failed.maxLength) messages.push(`at most ${failed.maxLength.val} characters`);
     if (messages.length > 0) {
-        return `Tag at index ${params.index} must be ${messages.join(' and ')}`;
+        return `Tag at index ${failed.index} must be ${messages.join(' and ')}`;
     }
-    return `Tag at index ${params.index} must be a valid string`;
+    return `Tag at index ${failed.index} must be a valid string`;
 };
 // end-top-level-array
 
@@ -70,16 +70,16 @@ type UserList = User[];
 
 export const userListErrors: FriendlyErrors<UserList> = {
     // Each property of User gets its own handler
-    name: (params: StringErrorParams) => {
-        if (params.minLength) return `Name must be at least ${params.minLength.val} characters`;
+    name: (failed) => {
+        if (failed.minLength) return `Name must be at least ${failed.minLength.val} characters`;
         return 'Name is required';
     },
-    email: (params: StringErrorParams) => {
+    email: (failed) => {
         return 'Email must be a valid email address';
     },
-    age: (params: NumberErrorParams) => {
-        if (params.min) return `Age must be at least ${params.min.val}`;
-        if (params.max) return `Age must be at most ${params.max.val}`;
+    age: (failed) => {
+        if (failed.min) return `Age must be at least ${failed.min.val}`;
+        if (failed.max) return `Age must be at most ${failed.max.val}`;
         return 'Age must be a valid number';
     },
 };
@@ -104,25 +104,25 @@ type UserMap = Map<string, User>;
 
 export const userMapErrors: FriendlyErrors<UserMap> = {
     // Handler for key validation errors
-    $key: (params: StringErrorParams) => {
-        // params.index contains the position in the Map
-        if (params.minLength) {
-            return `User ID at position ${params.index} must be at least ${params.minLength.val} characters`;
+    $key: (failed) => {
+        // failed.index contains the position in the Map
+        if (failed.minLength) {
+            return `User ID at position ${failed.index} must be at least ${failed.minLength.val} characters`;
         }
-        return `User ID at position ${params.index} is invalid`;
+        return `User ID at position ${failed.index} is invalid`;
     },
     // Handler for value validation errors (can be nested for complex values)
     $value: {
-        name: (params: StringErrorParams) => {
-            if (params.minLength) return `Name must be at least ${params.minLength.val} characters`;
+        name: (failed) => {
+            if (failed.minLength) return `Name must be at least ${failed.minLength.val} characters`;
             return 'Name is required';
         },
-        email: (params: StringErrorParams) => {
+        email: (failed) => {
             return 'Email must be a valid email address';
         },
-        age: (params: NumberErrorParams) => {
-            if (params.min) return `Age must be at least ${params.min.val}`;
-            if (params.max) return `Age must be at most ${params.max.val}`;
+        age: (failed) => {
+            if (failed.min) return `Age must be at least ${failed.min.val}`;
+            if (failed.max) return `Age must be at most ${failed.max.val}`;
             return 'Age must be a valid number';
         },
     },
@@ -139,9 +139,9 @@ type UserMapResult = FriendlyErrorsResult<UserMap>;
  */
 type SettingsMap = Map<string, boolean>;
 
-export const settingsMapSimpleErrors: FriendlyErrors<SettingsMap> = (params) => {
+export const settingsMapSimpleErrors: FriendlyErrors<SettingsMap> = (failed) => {
     // This handler is called for both key and value errors
-    return `Setting at position ${params.index} is invalid`;
+    return `Setting at position ${failed.index} is invalid`;
 };
 
 // ============================================================================
@@ -156,15 +156,15 @@ export const settingsMapSimpleErrors: FriendlyErrors<SettingsMap> = (params) => 
 type RoleSet = Set<string>;
 
 export const roleSetErrors: FriendlyErrors<RoleSet> = {
-    $item: (params: StringErrorParams) => {
-        // params.index contains the position in the Set
-        if (params.minLength) {
-            return `Role at position ${params.index} must be at least ${params.minLength.val} characters`;
+    $item: (failed) => {
+        // failed.index contains the position in the Set
+        if (failed.minLength) {
+            return `Role at position ${failed.index} must be at least ${failed.minLength.val} characters`;
         }
-        if (params.maxLength) {
-            return `Role at position ${params.index} must be at most ${params.maxLength.val} characters`;
+        if (failed.maxLength) {
+            return `Role at position ${failed.index} must be at most ${failed.maxLength.val} characters`;
         }
-        return `Role at position ${params.index} must be a valid string`;
+        return `Role at position ${failed.index} must be a valid string`;
     },
 };
 // end-set-handlers
@@ -182,15 +182,15 @@ type UserSet = Set<User>;
 export const userSetErrors: FriendlyErrors<UserSet> = {
     $item: {
         // Each property of User gets its own handler
-        name: (params: StringErrorParams) => {
-            if (params.minLength) return `Name must be at least ${params.minLength.val} characters`;
+        name: (failed) => {
+            if (failed.minLength) return `Name must be at least ${failed.minLength.val} characters`;
             return 'Name is required';
         },
-        email: (params: StringErrorParams) => {
+        email: (failed) => {
             return 'Email must be a valid email address';
         },
-        age: (params: NumberErrorParams) => {
-            if (params.min) return `Age must be at least ${params.min.val}`;
+        age: (failed) => {
+            if (failed.min) return `Age must be at least ${failed.min.val}`;
             return 'Age must be a valid number';
         },
     },
@@ -203,8 +203,8 @@ type UserSetResult = FriendlyErrorsResult<UserSet>;
 /**
  * Example 5: Top-level Set with a single handler
  */
-export const roleSetSimpleErrors: FriendlyErrors<RoleSet> = (params: StringErrorParams) => {
-    return `Role at position ${params.index} is invalid`;
+export const roleSetSimpleErrors: FriendlyErrors<RoleSet> = (failed) => {
+    return `Role at position ${failed.index} is invalid`;
 };
 
 // ============================================================================
@@ -217,48 +217,48 @@ export const roleSetSimpleErrors: FriendlyErrors<RoleSet> = (params: StringError
  */
 export const userProfileErrors: FriendlyErrors<UserProfile> = {
     // Simple string property
-    id: (params: StringErrorParams) => {
-        if (params.minLength) return `ID must be at least ${params.minLength.val} characters`;
+    id: (failed) => {
+        if (failed.minLength) return `ID must be at least ${failed.minLength.val} characters`;
         return 'ID is required';
     },
 
     // Array property - handler is called for each failed item
-    tags: (params: StringErrorParams) => {
-        if (params.minLength) {
-            return `Tag at index ${params.index} must be at least ${params.minLength.val} characters`;
+    tags: (failed) => {
+        if (failed.minLength) {
+            return `Tag at index ${failed.index} must be at least ${failed.minLength.val} characters`;
         }
-        return `Tag at index ${params.index} must be a valid string`;
+        return `Tag at index ${failed.index} must be a valid string`;
     },
 
     // Map property with separate key/value handlers
     settings: {
-        $key: (params: StringErrorParams) => {
-            return `Setting name at position ${params.index} is invalid`;
+        $key: (failed) => {
+            return `Setting name at position ${failed.index} is invalid`;
         },
-        $value: (params) => {
-            return `Setting value at position ${params.index} must be a boolean`;
+        $value: (failed) => {
+            return `Setting value at position ${failed.index} must be a boolean`;
         },
     },
 
     // Set property with $item handler
     roles: {
-        $item: (params: StringErrorParams) => {
-            if (params.minLength) {
-                return `Role at position ${params.index} must be at least ${params.minLength.val} characters`;
+        $item: (failed) => {
+            if (failed.minLength) {
+                return `Role at position ${failed.index} must be at least ${failed.minLength.val} characters`;
             }
-            return `Role at position ${params.index} must be a valid string`;
+            return `Role at position ${failed.index} must be a valid string`;
         },
     },
 
     // Nested object
     user: {
-        name: (params: StringErrorParams) => {
-            if (params.minLength) return `Name must be at least ${params.minLength.val} characters`;
+        name: (failed) => {
+            if (failed.minLength) return `Name must be at least ${failed.minLength.val} characters`;
             return 'Name is required';
         },
         email: () => 'Email must be a valid email address',
-        age: (params: NumberErrorParams) => {
-            if (params.min) return `Age must be at least ${params.min.val}`;
+        age: (failed) => {
+            if (failed.min) return `Age must be at least ${failed.min.val}`;
             return 'Age must be a valid number';
         },
     },
@@ -287,13 +287,13 @@ export const userProfileSimpleErrors: FriendlyErrors<UserProfile> = {
     id: () => 'ID is required',
 
     // Single handler for array items
-    tags: (params) => `Tag ${params.index} is invalid`,
+    tags: (failed) => `Tag ${failed.index} is invalid`,
 
     // Single handler for all Map errors (both key and value)
-    settings: (params) => `Setting at position ${params.index} is invalid`,
+    settings: (failed) => `Setting at position ${failed.index} is invalid`,
 
     // Single handler for all Set items
-    roles: (params) => `Role at position ${params.index} is invalid`,
+    roles: (failed) => `Role at position ${failed.index} is invalid`,
 
     user: {
         name: () => 'Name is required',
@@ -312,16 +312,16 @@ export const userProfileSimpleErrors: FriendlyErrors<UserProfile> = {
  * This can be used in multiple places where User validation is needed
  */
 export const simpleUserErrors: FriendlyErrors<User> = {
-    name: (params: StringErrorParams) => {
-        if (params.minLength) return `Name must be at least ${params.minLength.val} characters`;
+    name: (failed) => {
+        if (failed.minLength) return `Name must be at least ${failed.minLength.val} characters`;
         return 'Name is required';
     },
-    email: (params: StringErrorParams) => {
+    email: (failed) => {
         return 'Email must be a valid email address';
     },
-    age: (params: NumberErrorParams) => {
-        if (params.min) return `Age must be at least ${params.min.val}`;
-        if (params.max) return `Age must be at most ${params.max.val}`;
+    age: (failed) => {
+        if (failed.min) return `Age must be at least ${failed.min.val}`;
+        if (failed.max) return `Age must be at most ${failed.max.val}`;
         return 'Age must be a valid number';
     },
 };
@@ -344,14 +344,14 @@ interface Organization {
  * Demonstrates reusing an existing error map (simpleUserErrors) inside another map
  */
 export const organizationErrors: FriendlyErrors<Organization> = {
-    name: (params: StringErrorParams) => {
-        if (params.minLength) return `Organization name must be at least ${params.minLength.val} characters`;
+    name: (failed) => {
+        if (failed.minLength) return `Organization name must be at least ${failed.minLength.val} characters`;
         return 'Organization name is required';
     },
 
     departments: {
-        $key: (params: StringErrorParams) => {
-            return `Department name at position ${params.index} is invalid`;
+        $key: (failed) => {
+            return `Department name at position ${failed.index} is invalid`;
         },
         // $value is an array of Users (User[]), so we reuse the simpleUserErrors map
         // This demonstrates composing error maps - the nested User properties get their own handlers
@@ -359,11 +359,11 @@ export const organizationErrors: FriendlyErrors<Organization> = {
     },
 
     adminIds: {
-        $item: (params: StringErrorParams) => {
-            if (params.minLength) {
-                return `Admin ID at position ${params.index} must be at least ${params.minLength.val} characters`;
+        $item: (failed) => {
+            if (failed.minLength) {
+                return `Admin ID at position ${failed.index} must be at least ${failed.minLength.val} characters`;
             }
-            return `Admin ID at position ${params.index} is invalid`;
+            return `Admin ID at position ${failed.index} is invalid`;
         },
     },
 };

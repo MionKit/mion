@@ -22,6 +22,7 @@ import {
     FormatParams_Time,
 } from './formatsParams.types';
 import {ExtractFormatParams, TypeFormatError} from './formats.types';
+import {BrandEmail, BrandUUID, BrandUrl, BrandDomain, BrandIP, BrandDate, BrandTime, BrandDateTime} from './formatBrands.types';
 
 /**
  * Special key for basic type errors (when no format is involved).
@@ -51,15 +52,6 @@ export type FriendlyErrorParams<T extends AnyFormatParams> = {
     [K in UnionKeys<T>]?: TypeFormatError;
 } & TypeErrorParam;
 
-/** All possible string format error params (union of all string formats) */
-export type FriendlyStringErrorParams = FriendlyErrorParams<AnyStringFormatParam>;
-/** Number format error params */
-export type FriendlyNumberErrorParams = FriendlyErrorParams<FormatParams_Number>;
-/** BigInt format error params */
-export type FriendlyBigIntErrorParams = FriendlyErrorParams<FormatParams_BigInt>;
-/** Union of all friendly error params types, used at runtime */
-export type AnyFriendlyErrorParams = FriendlyStringErrorParams | FriendlyNumberErrorParams | FriendlyBigIntErrorParams;
-
 export type StringErrorParams = FriendlyErrorParams<StringParams>;
 export type EmailErrorParams = FriendlyErrorParams<FormatParams_Email>;
 export type UrlErrorParams = FriendlyErrorParams<FormatParams_Url>;
@@ -69,12 +61,19 @@ export type UUIDErrorParams = FriendlyErrorParams<FormatParams_UUID>;
 export type DateTimeErrorParams = FriendlyErrorParams<FormatParams_DateTime>;
 export type DateErrorParams = FriendlyErrorParams<FormatParams_Date>;
 export type TimeErrorParams = FriendlyErrorParams<FormatParams_Time>;
-export type NumberErrorParams = FriendlyNumberErrorParams;
-export type BigIntErrorParams = FriendlyBigIntErrorParams;
+export type NumberErrorParams = FriendlyErrorParams<FormatParams_Number>;
+export type BigIntErrorParams = FriendlyErrorParams<FormatParams_BigInt>;
+
+/** Union of all friendly error params types, used at runtime */
+export type AnyFriendlyErrorParams =
+    | FriendlyErrorParams<AnyStringFormatParam>
+    | FriendlyErrorParams<FormatParams_Number>
+    | FriendlyErrorParams<FormatParams_BigInt>;
 
 /**
- * Extracts error params from a type T based on the base type.
- * - For string format types → FriendlyStringErrorParams
+ * Extracts error params from a type T based on the branded type.
+ * - For branded string types → specific error params (EmailErrorParams, UUIDErrorParams, etc.)
+ * - For plain string with format → FriendlyStringErrorParams (union of all)
  * - For number format types → FriendlyNumberErrorParams
  * - For bigint format types → FriendlyBigIntErrorParams
  * - For basic types → TypeErrorParam
@@ -85,13 +84,29 @@ export type BigIntErrorParams = FriendlyBigIntErrorParams;
 export type ExtractErrorParams<T> =
     ExtractFormatParams<T> extends undefined
         ? TypeErrorParam // Basic type, no format params
-        : T extends string
-          ? FriendlyStringErrorParams
-          : T extends number
-            ? FriendlyNumberErrorParams
-            : T extends bigint
-              ? FriendlyBigIntErrorParams
-              : TypeErrorParam;
+        : T extends BrandEmail
+          ? EmailErrorParams
+          : T extends BrandUUID
+            ? UUIDErrorParams
+            : T extends BrandUrl
+              ? UrlErrorParams
+              : T extends BrandDomain
+                ? DomainErrorParams
+                : T extends BrandIP
+                  ? IPErrorParams
+                  : T extends BrandDateTime
+                    ? DateTimeErrorParams
+                    : T extends BrandDate
+                      ? DateErrorParams
+                      : T extends BrandTime
+                        ? TimeErrorParams
+                        : T extends string
+                          ? StringErrorParams
+                          : T extends number
+                            ? NumberErrorParams
+                            : T extends bigint
+                              ? BigIntErrorParams
+                              : TypeErrorParam;
 
 /**
  * Handler function that receives error params and returns a friendly error message.

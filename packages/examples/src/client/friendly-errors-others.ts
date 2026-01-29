@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import type {FriendlyErrors, StringErrorParams, EmailErrorParams} from '@mionkit/core';
+import type {FriendlyErrors} from '@mionkit/core';
 import {getFriendlyErrors} from '@mionkit/core';
 import {User, userFriendlyErrors} from './friendly-errors-map';
 import type {StrFormat, StrEmail} from '@mionkit/type-formats/FormatsString';
@@ -12,20 +12,20 @@ type ContactInfo = {
     website: StrFormat<{minLength: 10}>;
 };
 
-// Use specific ErrorParams types to narrow down the failed parameters
+// Error params are automatically inferred from the branded type
 // Handler is called ONCE per field with ALL aggregated error params
 const contactErrors: FriendlyErrors<ContactInfo> = {
-    // StringErrorParams narrows down to: minLength, maxLength, pattern, length, etc.
+    // StrFormat infers StringErrorParams: minLength, maxLength, pattern, length, etc.
     // All failed constraints are available at once in the params object
-    name: (failed: StringErrorParams) => {
+    name: (failed) => {
         const messages: string[] = [];
         if (failed.minLength) messages.push(`at least ${failed.minLength.val} characters`);
         if (failed.maxLength) messages.push(`at most ${failed.maxLength.val} characters`);
         if (messages.length > 0) return `Name must be ${messages.join(' and ')}`;
         return 'Name must be a valid string';
     },
-    // EmailErrorParams narrows down to: pattern, localPart, domain, minLength, maxLength
-    email: (failed: EmailErrorParams) => {
+    // StrEmail infers EmailErrorParams: pattern, localPart, domain, minLength, maxLength
+    email: (failed) => {
         const messages: string[] = [];
         if (failed.pattern) messages.push('invalid format');
         if (failed.localPart) messages.push('invalid username');
@@ -33,8 +33,7 @@ const contactErrors: FriendlyErrors<ContactInfo> = {
         if (messages.length > 0) return `Email: ${messages.join(', ')}`;
         return 'Email must be a valid string';
     },
-    // Without explicit type, `failed` contains ALL possible string format params
-    // (from Email, Url, DateTime, etc.) - less precise but still works
+    // StrFormat infers StringErrorParams automatically
     website: (failed) => {
         if (failed.minLength) return `Website must be at least ${failed.minLength.val} characters`;
         return 'Website must be a valid string';
@@ -42,24 +41,9 @@ const contactErrors: FriendlyErrors<ContactInfo> = {
 };
 // end-narrowing-params
 
-// start-handler-typing
-// Option 1: Explicitly type the parameter for better intellisense
-const nameHandler1 = (failed: StringErrorParams) => {
-    if (failed.minLength) return `Min ${failed.minLength.val} chars`;
-    if (failed.maxLength) return `Max ${failed.maxLength.val} chars`;
-    return 'Invalid name';
-};
-
-// Option 2: Check existence of properties without explicit type
-const nameHandler2 = (failed: {minLength?: {val: number}}) => {
-    if (failed.minLength) return `Min ${failed.minLength.val} chars`;
-    return 'Invalid name';
-};
-// end-handler-typing
-
 // start-error-values
 // Access the constraint value from error parameters
-const accessingErrorValues = (failed: StringErrorParams) => {
+const accessingErrorValues = (failed) => {
     if (failed.minLength) {
         const minValue = failed.minLength.val; // e.g., 5
         return `Must be at least ${minValue} characters`;
