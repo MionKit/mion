@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {drizzleMysqlTable} from './mysql';
-import {varchar, text} from 'drizzle-orm/mysql-core';
+import {mapMySqlTable} from './mysql';
+import {varchar, text, int} from 'drizzle-orm/mysql-core';
 // Note: Must use regular import (not `import type`) for deepkit reflection to work
 import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
 
@@ -44,10 +44,10 @@ interface UserWithOptionals {
     age?: number;
 }
 
-describe('drizzleMysqlTable', () => {
-    describe('simple types', () => {
+describe('mapMySqlTable', () => {
+    describe('simple types with .build()', () => {
         it('should generate correct schema for simple types', () => {
-            const table = drizzleMysqlTable<SimpleUser>('users');
+            const table = mapMySqlTable<SimpleUser>().build('users');
 
             expect(table.id).toBeDefined();
             expect(table.name).toBeDefined();
@@ -57,28 +57,28 @@ describe('drizzleMysqlTable', () => {
         });
 
         it('should generate text columns for string types', () => {
-            const table = drizzleMysqlTable<SimpleUser>('users');
+            const table = mapMySqlTable<SimpleUser>().build('users');
 
             // String should map to text
             expect(table.name.columnType).toBe('MySqlText');
         });
 
         it('should generate double columns for number types', () => {
-            const table = drizzleMysqlTable<SimpleUser>('users');
+            const table = mapMySqlTable<SimpleUser>().build('users');
 
             // Number should map to double
             expect(table.age.columnType).toBe('MySqlDouble');
         });
 
         it('should generate boolean columns for boolean types', () => {
-            const table = drizzleMysqlTable<SimpleUser>('users');
+            const table = mapMySqlTable<SimpleUser>().build('users');
 
             // Boolean should map to boolean
             expect(table.isActive.columnType).toBe('MySqlBoolean');
         });
 
         it('should generate timestamp columns for Date types', () => {
-            const table = drizzleMysqlTable<SimpleUser>('users');
+            const table = mapMySqlTable<SimpleUser>().build('users');
 
             // Date should map to timestamp
             expect(table.createdAt.dataType).toBe('date');
@@ -87,7 +87,7 @@ describe('drizzleMysqlTable', () => {
 
     describe('formatted types', () => {
         it('should generate varchar columns for StrUUIDv7 format', () => {
-            const table = drizzleMysqlTable<UserWithFormats>('users');
+            const table = mapMySqlTable<UserWithFormats>().build('users');
 
             // UUID format should map to varchar(36) in MySQL
             expect(table.id).toBeDefined();
@@ -95,7 +95,7 @@ describe('drizzleMysqlTable', () => {
         });
 
         it('should generate varchar columns for StrEmail format', () => {
-            const table = drizzleMysqlTable<UserWithFormats>('users');
+            const table = mapMySqlTable<UserWithFormats>().build('users');
 
             // Email format should map to varchar
             expect(table.email).toBeDefined();
@@ -105,7 +105,7 @@ describe('drizzleMysqlTable', () => {
 
     describe('nested objects and arrays', () => {
         it('should generate json columns for nested objects', () => {
-            const table = drizzleMysqlTable<UserWithNestedObjects>('users');
+            const table = mapMySqlTable<UserWithNestedObjects>().build('users');
 
             // Nested objects should map to json
             expect(table.profile).toBeDefined();
@@ -113,7 +113,7 @@ describe('drizzleMysqlTable', () => {
         });
 
         it('should generate json columns for arrays', () => {
-            const table = drizzleMysqlTable<UserWithNestedObjects>('users');
+            const table = mapMySqlTable<UserWithNestedObjects>().build('users');
 
             // Arrays should map to json
             expect(table.tags).toBeDefined();
@@ -123,15 +123,15 @@ describe('drizzleMysqlTable', () => {
 
     describe('optional properties', () => {
         it('should generate nullable columns for optional properties', () => {
-            const table = drizzleMysqlTable<UserWithOptionals>('users');
+            const table = mapMySqlTable<UserWithOptionals>().build('users');
 
             // Optional properties should be nullable
             expect(table.nickname).toBeDefined();
-            expect(table.nickname.notNull).toBe(false);
+            expect(table.nickname!.notNull).toBe(false);
         });
 
         it('should generate notNull columns for required properties', () => {
-            const table = drizzleMysqlTable<UserWithOptionals>('users');
+            const table = mapMySqlTable<UserWithOptionals>().build('users');
 
             // Required properties should have notNull
             expect(table.id).toBeDefined();
@@ -139,9 +139,9 @@ describe('drizzleMysqlTable', () => {
         });
     });
 
-    describe('tableConfig overrides', () => {
-        it('should respect tableConfig overrides for primary keys', () => {
-            const table = drizzleMysqlTable<SimpleUser>('users', {
+    describe('column overrides with .build(name, config)', () => {
+        it('should respect overrides for primary keys', () => {
+            const table = mapMySqlTable<SimpleUser>().build('users', {
                 id: varchar('id', {length: 36}).primaryKey(),
             });
 
@@ -149,8 +149,8 @@ describe('drizzleMysqlTable', () => {
             expect(table.id).toBeDefined();
         });
 
-        it('should auto-generate columns not in tableConfig', () => {
-            const table = drizzleMysqlTable<SimpleUser>('users', {
+        it('should auto-generate columns not in config', () => {
+            const table = mapMySqlTable<SimpleUser>().build('users', {
                 id: varchar('id', {length: 36}).primaryKey(),
             });
 
@@ -159,20 +159,45 @@ describe('drizzleMysqlTable', () => {
             expect(table.age).toBeDefined();
         });
 
-        it('should throw error when tableConfig has extra columns', () => {
+        it('should throw error when config has extra columns', () => {
             expect(() => {
-                drizzleMysqlTable<SimpleUser>('users', {
+                mapMySqlTable<SimpleUser>().build('users', {
                     id: varchar('id', {length: 36}).primaryKey(),
                     extraColumn: text('extra'),
-                });
+                } as any);
             }).toThrow();
+        });
+
+        it('should allow overriding plain string with varchar column for UUID', () => {
+            // SimpleUser has id: string, but we can override with varchar(36) for UUID
+            const table = mapMySqlTable<SimpleUser>().build('users', {
+                id: varchar('id', {length: 36}).primaryKey(),
+            });
+
+            // The id column should use the varchar override
+            expect(table.id).toBeDefined();
+            // Verify it's a varchar column by checking the column type
+            expect(table.id.columnType).toBe('MySqlVarChar');
+        });
+
+        it('should allow overriding number (double) with int column', () => {
+            // SimpleUser has age: number, which auto-generates to MySqlDouble
+            // We can override with int() to get MySqlInt instead
+            const table = mapMySqlTable<SimpleUser>().build('users', {
+                age: int('age'),
+            });
+
+            // The age column should use the int override instead of double
+            expect(table.age).toBeDefined();
+            // Verify it's an int column (not double) by checking the column type
+            expect(table.age.columnType).toBe('MySqlInt');
         });
     });
 
     describe('error handling', () => {
         it('should throw error for non-object types', () => {
             expect(() => {
-                drizzleMysqlTable<string>('users');
+                mapMySqlTable<string>().build('users');
             }).toThrow();
         });
     });
