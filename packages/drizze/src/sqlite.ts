@@ -69,6 +69,9 @@ export function mapSqliteTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, 
         });
     }
 
+    // Extract type information using mion's RunType system
+    const typeInfo = extractTypeInfo<T>(type);
+
     return {
         build<TN extends string, TConfig extends SqliteTableConfig<T>>(
             tableName: TN,
@@ -79,8 +82,6 @@ export function mapSqliteTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, 
             columns: BuildColumns<TN, MergedSqliteColumns<T, TConfig>, 'sqlite'>;
             dialect: 'sqlite';
         }> {
-            // Extract type information using mion's RunType system
-            const typeInfo = extractTypeInfo<T>(type);
             // Validate provided config against type
             if (tableConfig) {
                 const validation = validateConfig(typeInfo, tableConfig);
