@@ -146,6 +146,28 @@ blur: 140px
 
     ::::card
     ---
+    class: sm:col-span-2 lg:col-span-1 home-card
+    ---
+    ### Drizzle ORM
+    Auto-generate [Drizzle ORM](./drizzle/drizzle-overview) table schemas directly from types using reflection.
+    
+    <br>
+    
+    [Simply extends your types with SQL/Drizzle specific configuration.]{.text-highlighted}   
+    <br>
+    [This keeps separated your DB layer and the Validation/Serialization layer.]{.text-highlighted}
+    ::::
+
+    ::::twoslash-code
+    ---
+    path: packages/examples/src/_homepage/home-drizzle.ts
+    title: mion-drizzle.ts
+    class: sm:col-span-2 lg:col-span-2
+    ---
+    ::::
+
+    ::::card
+    ---
     to: /server/serialization#binary-serialization-in-detail
     class: sm:col-span-2 lg:col-span-1 text-center lg:text-left
     ---
@@ -195,4 +217,4 @@ blur: 140px
 
 [&nbsp;]{style="padding-bottom: 6rem;"}
 
-<!-- code-import-timestamp 1769375175872 -->
+<!-- code-import-timestamp 1769726052719 -->
