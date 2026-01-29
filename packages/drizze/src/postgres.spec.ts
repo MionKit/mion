@@ -44,13 +44,6 @@ interface UserWithOptionals {
     age?: number;
 }
 
-const someTable = pgTable('some', {
-    id: uuid('id').primaryKey(),
-    name: text('name'),
-    email: text('email').unique(),
-    createdAt: timestamp().notNull(),
-});
-
 describe('mapPGTable', () => {
     describe('simple types with .build()', () => {
         it('should generate correct schema for simple types', () => {
@@ -192,6 +185,12 @@ describe('mapPGTable', () => {
             expect(() => {
                 mapPGTable<string>().build('users');
             }).toThrow();
+        });
+
+        it('should throw error when no type parameter is provided', () => {
+            expect(() => {
+                mapPGTable().build('users');
+            }).toThrow('mapPGTable requires a type parameter');
         });
     });
 

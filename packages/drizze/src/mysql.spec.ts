@@ -200,5 +200,11 @@ describe('mapMySqlTable', () => {
                 mapMySqlTable<string>().build('users');
             }).toThrow();
         });
+
+        it('should throw error when no type parameter is provided', () => {
+            expect(() => {
+                mapMySqlTable().build('users');
+            }).toThrow('mapMySqlTable requires a type parameter');
+        });
     });
 });

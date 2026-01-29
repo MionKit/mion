@@ -200,5 +200,11 @@ describe('mapSqliteTable', () => {
                 mapSqliteTable<string>().build('users');
             }).toThrow();
         });
+
+        it('should throw error when no type parameter is provided', () => {
+            expect(() => {
+                mapSqliteTable().build('users');
+            }).toThrow('mapSqliteTable requires a type parameter');
+        });
     });
 });
