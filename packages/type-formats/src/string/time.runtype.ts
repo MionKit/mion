@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JITUtils, GenericPureFunction} from '@mionkit/core';
+import type {JITUtils, GenericPureFunction, BrandTime} from '@mionkit/core';
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 import {
     BaseRunTypeFormat,
@@ -25,7 +25,7 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
     name = TimeStringRunTypeFormat.id;
     emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
-        const formatFn = this.getFormatPureFn(paramVal(params.format));
+        const formatFn = this.getFormatPureFn(paramVal(params.format as BrandTime));
         return {code: this.compilePureFunctionCall(comp, rt, formatFn).callCode, type: 'E'};
     }
     emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
