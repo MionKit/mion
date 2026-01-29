@@ -11,7 +11,6 @@ import type {
     PureFunction,
     PureFunctionsCache,
     RunTypeError,
-    TypeFormatError,
     DeserializeClassFn,
     AnyClass,
     SerializableClass,
@@ -26,6 +25,7 @@ import {MAX_UNKNOWN_KEYS} from './constants';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
 import {restoreCompiledJitFns} from './restoreJitFns';
 import {jitFnsCache as aotJitFnsCache, pureFnsCache as aotPureFnsCache} from '@mionkit/aot-caches';
+import {TypeFormatError} from './types/formats/formats.types';
 
 // Local caches - can be populated from AOT caches via loadJitCaches()
 const jitFnsCache: JitFunctionsCache = {};
