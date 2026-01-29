@@ -29,19 +29,8 @@ type MergedSqliteColumns<T, TConfig> = {
         : SqliteColumnType<K & string, T[K]>; // Property not in config, use auto-generated
 };
 
-/** Builder interface returned by mapSqliteTable for chaining .build() */
-export interface SqliteTableBuilder<T> {
-    /** Build the table with the given name and optional column overrides */
-    build<TN extends string, TConfig extends SqliteTableConfig<T>>(
-        tableName: TN,
-        tableConfig?: TConfig
-    ): SQLiteTableWithColumns<{
-        name: TN;
-        schema: undefined;
-        columns: BuildColumns<TN, MergedSqliteColumns<T, TConfig>, 'sqlite'>;
-        dialect: 'sqlite';
-    }>;
-}
+/** Default configuration for the mapper */
+const DEFAULT_CONFIG: DrizzleMapperConfig = {};
 
 /**
  * Creates a SQLite table schema from a TypeScript type.
@@ -70,19 +59,14 @@ export interface SqliteTableBuilder<T> {
  * const users = mapSqliteTable<User>({lengthBuffer: 2.0}).build('users');
  * ```
  */
-export function mapSqliteTable<T>(
-    configOrType?: DrizzleMapperConfig | ReceiveType<T>,
-    type?: ReceiveType<T>
-): SqliteTableBuilder<T> {
-    // Handle both signatures: mapSqliteTable<T>(type?) and mapSqliteTable<T>(config, type?)
-    let mapperConfig: DrizzleMapperConfig | undefined;
-    let receiveType: ReceiveType<T> | undefined;
-
-    if (configOrType && typeof configOrType === 'object' && 'lengthBuffer' in configOrType) {
-        mapperConfig = configOrType as DrizzleMapperConfig;
-        receiveType = type;
-    } else {
-        receiveType = configOrType as ReceiveType<T> | undefined;
+export function mapSqliteTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
+    // Validate that a type parameter was provided via Deepkit's type reflection
+    if (!type) {
+        throw new TypedError({
+            type: 'drizzle-table-missing-type',
+            message:
+                'mapSqliteTable requires a type parameter. Usage: mapSqliteTable<YourType>() or mapSqliteTable<YourType>({config})',
+        });
     }
 
     return {
@@ -96,7 +80,7 @@ export function mapSqliteTable<T>(
             dialect: 'sqlite';
         }> {
             // Extract type information using mion's RunType system
-            const typeInfo = extractTypeInfo<T>(receiveType);
+            const typeInfo = extractTypeInfo<T>(type);
             // Validate provided config against type
             if (tableConfig) {
                 const validation = validateConfig(typeInfo, tableConfig);
@@ -111,7 +95,7 @@ export function mapSqliteTable<T>(
                 }
             }
             // Create column mapper with config
-            const mapper = new SQLiteColumnMapper(mapperConfig);
+            const mapper = new SQLiteColumnMapper(config);
             // Build columns object - all properties will be filled (either from config or auto-generated)
             type Merged = MergedSqliteColumns<T, TConfig>;
             const columns: Merged = {} as Merged;

@@ -29,19 +29,8 @@ type MergedMySqlColumns<T, TConfig> = {
         : MySqlColumnType<K & string, T[K]>; // Property not in config, use auto-generated
 };
 
-/** Builder interface returned by mapMySqlTable for chaining .build() */
-export interface MySqlTableBuilder<T> {
-    /** Build the table with the given name and optional column overrides */
-    build<TN extends string, TConfig extends MySqlTableConfig<T>>(
-        tableName: TN,
-        tableConfig?: TConfig
-    ): MySqlTableWithColumns<{
-        name: TN;
-        schema: undefined;
-        columns: BuildColumns<TN, MergedMySqlColumns<T, TConfig>, 'mysql'>;
-        dialect: 'mysql';
-    }>;
-}
+/** Default configuration for the mapper */
+const DEFAULT_CONFIG: DrizzleMapperConfig = {};
 
 /**
  * Creates a MySQL table schema from a TypeScript type.
@@ -70,19 +59,14 @@ export interface MySqlTableBuilder<T> {
  * const users = mapMySqlTable<User>({lengthBuffer: 2.0}).build('users');
  * ```
  */
-export function mapMySqlTable<T>(
-    configOrType?: DrizzleMapperConfig | ReceiveType<T>,
-    type?: ReceiveType<T>
-): MySqlTableBuilder<T> {
-    // Handle both signatures: mapMySqlTable<T>(type?) and mapMySqlTable<T>(config, type?)
-    let mapperConfig: DrizzleMapperConfig | undefined;
-    let receiveType: ReceiveType<T> | undefined;
-
-    if (configOrType && typeof configOrType === 'object' && 'lengthBuffer' in configOrType) {
-        mapperConfig = configOrType as DrizzleMapperConfig;
-        receiveType = type;
-    } else {
-        receiveType = configOrType as ReceiveType<T> | undefined;
+export function mapMySqlTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
+    // Validate that a type parameter was provided via Deepkit's type reflection
+    if (!type) {
+        throw new TypedError({
+            type: 'drizzle-table-missing-type',
+            message:
+                'mapMySqlTable requires a type parameter. Usage: mapMySqlTable<YourType>() or mapMySqlTable<YourType>({config})',
+        });
     }
 
     return {
@@ -96,7 +80,7 @@ export function mapMySqlTable<T>(
             dialect: 'mysql';
         }> {
             // Extract type information using mion's RunType system
-            const typeInfo = extractTypeInfo<T>(receiveType);
+            const typeInfo = extractTypeInfo<T>(type);
             // Validate provided config against type
             if (tableConfig) {
                 const validation = validateConfig(typeInfo, tableConfig);
@@ -111,7 +95,7 @@ export function mapMySqlTable<T>(
                 }
             }
             // Create column mapper with config
-            const mapper = new MySQLColumnMapper(mapperConfig);
+            const mapper = new MySQLColumnMapper(config);
             // Build columns object - all properties will be filled (either from config or auto-generated)
             type Merged = MergedMySqlColumns<T, TConfig>;
             const columns: Merged = {} as Merged;

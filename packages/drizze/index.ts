@@ -7,11 +7,8 @@
 
 // Main table functions (builder pattern API)
 export {mapPGTable} from './src/postgres';
-export type {PgTableBuilder} from './src/postgres';
 export {mapMySqlTable} from './src/mysql';
-export type {MySqlTableBuilder} from './src/mysql';
 export {mapSqliteTable} from './src/sqlite';
-export type {SqliteTableBuilder} from './src/sqlite';
 
 // Core utilities
 export {extractTypeInfo} from './src/core/typeTraverser';

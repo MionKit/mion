@@ -29,19 +29,8 @@ type MergedPgColumns<T, TConfig> = {
         : PgColumnType<K & string, T[K]>; // Property not in config, use auto-generated
 };
 
-/** Builder interface returned by mapPGTable for chaining .build() */
-export interface PgTableBuilder<T> {
-    /** Build the table with the given name and optional column overrides */
-    build<TN extends string, TConfig extends PgTableConfig<T>>(
-        tableName: TN,
-        tableConfig?: TConfig
-    ): PgTableWithColumns<{
-        name: TN;
-        schema: undefined;
-        columns: BuildColumns<TN, MergedPgColumns<T, TConfig>, 'pg'>;
-        dialect: 'pg';
-    }>;
-}
+/** Default configuration for the mapper */
+const DEFAULT_CONFIG: DrizzleMapperConfig = {};
 
 /**
  * Creates a PostgreSQL table schema from a TypeScript type.
@@ -70,16 +59,13 @@ export interface PgTableBuilder<T> {
  * const users = mapPGTable<User>({lengthBuffer: 2.0}).build('users');
  * ```
  */
-export function mapPGTable<T>(configOrType?: DrizzleMapperConfig | ReceiveType<T>, type?: ReceiveType<T>): PgTableBuilder<T> {
-    // Handle both signatures: mapPGTable<T>(type?) and mapPGTable<T>(config, type?)
-    let mapperConfig: DrizzleMapperConfig | undefined;
-    let receiveType: ReceiveType<T> | undefined;
-
-    if (configOrType && typeof configOrType === 'object' && 'lengthBuffer' in configOrType) {
-        mapperConfig = configOrType as DrizzleMapperConfig;
-        receiveType = type;
-    } else {
-        receiveType = configOrType as ReceiveType<T> | undefined;
+export function mapPGTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
+    // Validate that a type parameter was provided via type reflection
+    if (!type) {
+        throw new TypedError({
+            type: 'drizzle-table-missing-type',
+            message: 'mapPGTable requires a type parameter. Usage: mapPGTable<YourType>() or mapPGTable<YourType>({config})',
+        });
     }
 
     return {
@@ -93,7 +79,7 @@ export function mapPGTable<T>(configOrType?: DrizzleMapperConfig | ReceiveType<T
             dialect: 'pg';
         }> {
             // Extract type information using mion's RunType system
-            const typeInfo = extractTypeInfo<T>(receiveType);
+            const typeInfo = extractTypeInfo<T>(type);
             // Validate provided config against type
             if (tableConfig) {
                 const validation = validateConfig(typeInfo, tableConfig);
@@ -108,7 +94,7 @@ export function mapPGTable<T>(configOrType?: DrizzleMapperConfig | ReceiveType<T
                 }
             }
             // Create column mapper with config
-            const mapper = new PGColumnMapper(mapperConfig);
+            const mapper = new PGColumnMapper(config);
             // Build columns object - all properties will be filled (either from config or auto-generated)
             type Merged = MergedPgColumns<T, TConfig>;
             const columns: Merged = {} as Merged;
