@@ -1,24 +1,18 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
+/** @type {import('jest').Config} */
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
   rootDir: '.',
-  testMatch: ['<rootDir>/src/**/*.spec.ts'],
-  moduleFileExtensions: ['ts', 'js', 'json'],
-  transform: {
-    '^.+\\.ts$': [
-      'ts-jest',
-      {
-        tsconfig: 'tsconfig.json',
-      },
-    ],
-  },
+  // Run tests from the built .dist folder (compiled JavaScript)
+  testMatch: ['<rootDir>/.dist/**/*.spec.js'],
+  moduleFileExtensions: ['js', 'json'],
+  // No transform needed - we're running compiled JavaScript
+  transform: {},
   // Longer timeouts for build tests since they test actual server/client interactions
   testTimeout: 30000,
   // Run tests sequentially to avoid port conflicts
   maxWorkers: 1,
   // Coverage configuration
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.spec.ts'],
+  collectCoverageFrom: ['.dist/**/*.js', '!.dist/**/*.spec.js'],
   coverageDirectory: '.coverage',
   coverageReporters: ['text', 'lcov'],
 };
