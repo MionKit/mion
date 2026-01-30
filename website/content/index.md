@@ -150,13 +150,10 @@ blur: 140px
     class: sm:col-span-2 lg:col-span-1 home-card
     ---
     ### Drizzle ORM
-    Auto-generate [Drizzle ORM](./drizzle/drizzle-overview) table schemas directly from types using reflection.
-    
-    <br>
-    
+    Auto-generate [Drizzle ORM](./drizzle/drizzle-overview) table schemas directly from types using reflection.   
     [Simply extends your types with SQL/Drizzle specific configuration.]{.text-highlighted}   
     <br>
-    [This keeps separated your DB layer and the Validation/Serialization layer.]{.text-highlighted}
+    [Keep DB and Validation/Serialization logic separated.]{.text-highlighted}
     ::::
 
     ::::twoslash-code
@@ -170,10 +167,10 @@ blur: 140px
     ::::card
     ---
     to: /server/serialization#binary-serialization-in-detail
-    class: sm:col-span-2 lg:col-span-1 text-center lg:text-left
+    class: sm:col-span-2 lg:col-span-1
     ---
     ### Binary Serialization 🚀
-    [Serialize any TypeScript type to binary just from it's type definition.]{.text-highlighted}
+    [Our binary protocol is designed to support al Typescript features: unions, optional props, rest params, circular types and any type you can think about!]{.text-highlighted}
     
     Achieve smaller payloads and faster data transfer with automatic binary serialization for Dates, BigInts, Maps, Sets, and complex nested types.
     ::::
