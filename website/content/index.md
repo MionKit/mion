@@ -31,7 +31,8 @@ blur: 150px
     - 'Are RPC like'
   ---
   #description
-  mion is the definitive TypeScript framework for Full Stack APIs, built for exceptional developer experience.
+  mion is the definitive TypeScript Framework **for Full Stack APIs**.   
+Offers **The best Developer Experience** for building Single Page Apps.
   :::
 
 #links
