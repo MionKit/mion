@@ -100,6 +100,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             const refId = '$' + this.src.kind + `_${inStackIndex}` + name; // ensures different circular types have different typeID
             return refId;
         }
+        return undefined;
     }
     /**
      * Method that should be called Immediately after the RunType gets created to link the SrcType and RunType.

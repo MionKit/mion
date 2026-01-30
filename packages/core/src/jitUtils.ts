@@ -105,12 +105,13 @@ const jitUtils: JITUtils = {
         if (isSafeMapKeyValue(value)) return value;
         return null;
     },
-    addPureFn(compiledFn: CompiledPureFunction) {
+    addPureFn(compiledFn: CompiledPureFunction): CompiledPureFunction {
         const fnHash = compiledFn.pureFnHash;
         if (!fnHash) throw new Error('Pure function must have a name and must be unique');
         const existing = pureFnsCache[fnHash];
         if (existing) return existing;
         pureFnsCache[fnHash] = compiledFn;
+        return compiledFn;
     },
     usePureFn(fnHash: string): PureFunction {
         const compiled = pureFnsCache[fnHash];
