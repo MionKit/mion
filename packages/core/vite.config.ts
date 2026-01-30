@@ -2,6 +2,7 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
+import {deepkitType} from '@deepkit/vite';
 
 // Get all TypeScript files from src directory (excluding spec/test files)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
@@ -38,6 +39,12 @@ export default defineConfig({
         minifySyntax: true,
     },
     plugins: [
+        deepkitType({
+            tsConfig: resolve(__dirname, 'tsconfig.json'),
+            compilerOptions: {
+                sourceMap: true,
+            },
+        }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
             include: ['index.ts', 'src/**/*.ts'],
