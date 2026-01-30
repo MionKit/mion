@@ -1,0 +1,42 @@
+{
+  "name": "@mionkit/build-tests",
+  "version": "0.7.2",
+  "private": true,
+  "description": "Build verification tests - validates that all mion packages work correctly after being built",
+  "keywords": [
+    "mion",
+    "build",
+    "tests",
+    "verification",
+    "e2e"
+  ],
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "scripts": {
+    "test": "jest",
+    "test:esm": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testMatch='**/*.esm.spec.ts'",
+    "test:cjs": "jest --testMatch='**/*.cjs.spec.ts'",
+    "dev:test": "jest --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.ts",
+    "build": "echo 'build-tests package does not need to be built'",
+    "clean": "rimraf .coverage",
+    "fresh-start": "npm run clean && rimraf node_modules"
+  },
+  "dependencies": {
+    "@mionkit/aws": "^0.7.2",
+    "@mionkit/bun": "^0.7.2",
+    "@mionkit/client": "^0.7.2",
+    "@mionkit/core": "^0.7.2",
+    "@mionkit/gcloud": "^0.7.2",
+    "@mionkit/http": "^0.7.2",
+    "@mionkit/router": "^0.7.2",
+    "@mionkit/run-types": "^0.7.2",
+    "@mionkit/test-server": "^0.7.2",
+    "@mionkit/type-formats": "^0.7.2"
+  },
+  "devDependencies": {
+    "dom-storage": "^2.1.0"
+  }
+}
