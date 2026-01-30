@@ -8,7 +8,7 @@
 import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata';
 import {ClientOptions} from './types';
 import {routesCache} from '@mionkit/core';
-import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
+import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionkit/test-server';
 import Storage from 'dom-storage';
 
 // Setup real localStorage for testing
@@ -35,6 +35,7 @@ describe('fetchRemoteMethodsMetadata', () => {
             suffix: '',
             validateParams: true,
             autoGenerateErrorId: false,
+            serializer: 'stringifyJson',
         };
 
         // Clear localStorage

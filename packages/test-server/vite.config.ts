@@ -24,14 +24,10 @@ function getSourceFiles(dir: string, base = ''): Record<string, string> {
     return entries;
 }
 
-// Build entry points: multiple root entry files + all src files
+// Build entry points: index.ts + all src files
 const srcEntries = getSourceFiles(resolve(__dirname, 'src'));
 const entry: Record<string, string> = {
-    // Multiple entry points for this package
-    // Entry key becomes output filename, so use the names expected by package.json exports
-    FormatsNumber: resolve(__dirname, 'FormatsNumber.ts'),
-    FormatsString: resolve(__dirname, 'FormatsString.ts'),
-    FormatsBigint: resolve(__dirname, 'FormatsBigint.ts'),
+    index: resolve(__dirname, 'index.ts'),
     ...Object.fromEntries(Object.entries(srcEntries).map(([name, path]) => [`src/${name}`, path])),
 };
 
@@ -48,8 +44,8 @@ export default defineConfig({
         }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
-            include: ['*.ts', 'src/**/*.ts'],
-            exclude: ['**/*.spec.ts', '**/*.test.ts', 'examples/**'],
+            include: ['index.ts', 'src/**/*.ts'],
+            exclude: ['**/*.spec.ts', '**/*.test.ts'],
             pathsToAliases: false,
         }),
     ],
@@ -79,7 +75,14 @@ export default defineConfig({
                     preserveModulesRoot: '.',
                 },
             ],
-            external: ['@mionkit/core', '@mionkit/run-types', /^[^./]/],
+            external: [
+                '@mionkit/core',
+                '@mionkit/router',
+                '@mionkit/http',
+                '@mionkit/type-formats',
+                '@mionkit/run-types',
+                /^[^./]/,
+            ],
         },
     },
 });

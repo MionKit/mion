@@ -61,7 +61,7 @@ To learn more about the router, refer to the [Router Documentation](./packages/r
 
 ## Automatic Serialization & Validation
 
-mion utilizes [Deepkit's runtime types](https://deepkit.io/) for automatic validation and serialization. Deepkit's magic enables type information to be available at runtime, allowing for automatic validation and serialization of data.
+mion utilizes [RunTypes](https://deepkit.io/documentation/run-types) for automatic validation and serialization. RunTypes enables type information to be available at runtime, allowing for automatic validation and serialization of data.
 
 By leveraging runtime types, mion offers advanced capabilities such as request validation and response/request serialization that typically involves using multiple framework and loads of code or boilerplate to be manually written by developers.
 

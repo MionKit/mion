@@ -1,0 +1,56 @@
+{
+  "name": "@mionkit/test-server",
+  "version": "0.7.2",
+  "description": "Test server utilities for mion packages",
+  "keywords": [
+    "mion",
+    "test",
+    "server",
+    "testing"
+  ],
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./.dist/esm/index.d.ts",
+      "require": "./.dist/cjs/index.js",
+      "default": "./.dist/esm/index.js"
+    }
+  },
+  "main": "./.dist/cjs/index.js",
+  "module": "./.dist/esm/index.js",
+  "types": "./.dist/esm/index.d.ts",
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "echo 'No tests for test-server package'",
+    "dev": "vite build --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.ts",
+    "build": "vite build",
+    "clean": "rimraf .dist & rimraf .coverage",
+    "fresh-start": "npm run clean && rimraf node_modules"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionkit/core": "^0.7.2",
+    "@mionkit/http": "^0.7.2",
+    "@mionkit/router": "^0.7.2",
+    "@mionkit/type-formats": "^0.7.2"
+  }
+}

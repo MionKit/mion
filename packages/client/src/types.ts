@@ -88,7 +88,7 @@ export type ClientOptions = {
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
     /** Default serializer mode - strin */
-    serialize: SerializerMode;
+    serializer: SerializerMode;
 };
 
 type PublicHandler = (...args: any[]) => Promise<any>;

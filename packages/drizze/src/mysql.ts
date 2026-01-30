@@ -60,7 +60,7 @@ const DEFAULT_CONFIG: DrizzleMapperConfig = {};
  * ```
  */
 export function mapMySqlTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
-    // Validate that a type parameter was provided via Deepkit's type reflection
+    // Validate that a type parameter was provided via type reflection
     if (!type) {
         throw new TypedError({
             type: 'drizzle-table-missing-type',

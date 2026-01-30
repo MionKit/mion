@@ -11,7 +11,8 @@
     {"path": "../run-types"},
     {"path": "../http"},
     {"path": "../type-formats"},
-    {"path": "../router"}
+    {"path": "../router"},
+    {"path": "../test-server"}
   ],
   "reflection": true,
   "include": ["."],

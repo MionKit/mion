@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/build-tests",
+  "name": "@mionkit/test-publish",
   "version": "0.7.2",
   "private": true,
   "description": "Build verification tests - validates that all mion packages work correctly after being built",
@@ -14,13 +14,14 @@
   "homepage": "https://mion.io/",
   "license": "MIT",
   "scripts": {
-    "test": "jest",
+    "test": "echo 'Run test:build-verification to test built artifacts'",
+    "test:build-verification": "jest",
     "test:esm": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testMatch='**/*.esm.spec.ts'",
     "test:cjs": "jest --testMatch='**/*.cjs.spec.ts'",
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build": "echo 'build-tests package does not need to be built'",
+    "build": "echo 'test-publish package does not need to be built'",
     "clean": "rimraf .coverage",
     "fresh-start": "npm run clean && rimraf node_modules"
   },

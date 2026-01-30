@@ -10,8 +10,8 @@
     "strict": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "target": "es2020",
-    "lib": ["es6", "ES2023"],
+    "target": "ES2023",
+    "lib": ["ES2023"],
     "outDir": ".dist/cjs",
     "composite": true,
     "declaration": true,
@@ -36,7 +36,8 @@
     {"path": "./packages/bun"},
     {"path": "./packages/cli"},
     {"path": "./packages/eslint-plugin"},
-    {"path": "./packages/quick-start"}
+    {"path": "./packages/quick-start"},
+    {"path": "./packages/test-server"}
   ],
   "files": [],
   "exclude": ["node_modules", ".dist"],
