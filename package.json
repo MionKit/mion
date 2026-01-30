@@ -83,6 +83,7 @@
   "workspaces": [
     "packages/aot-caches",
     "packages/aws",
+    "packages/test-publish",
     "packages/bun",
     "packages/client",
     "packages/codegen",
@@ -94,7 +95,8 @@
     "packages/http",
     "packages/quick-start",
     "packages/router",
-    "packages/run-types"
+    "packages/run-types",
+    "packages/test-server"
   ],
   "dependencies": {
     "typescript": "5.9.3"

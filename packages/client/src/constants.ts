@@ -24,7 +24,7 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
     /** Set true to automatically generate and id for every error.  */
     autoGenerateErrorId: false,
     /** Default serializer mode - stringifyJson as default native serializer, so we don't mutate data */
-    serialize: 'stringifyJson',
+    serializer: 'stringifyJson',
 };
 
 export const STORAGE_KEY = 'mionkit:client';

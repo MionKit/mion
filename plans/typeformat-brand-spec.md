@@ -45,7 +45,7 @@ type CustomerEmail = StrEmail<{}, 'CustomerEmail'>; // branded with 'CustomerEma
 
 ## ⚠️ CRITICAL: Deepkit Type Compiler Limitations
 
-**Conditional types with `infer` do NOT work with Deepkit's type compiler!**
+**Conditional types with `infer` do NOT work with type compiler!**
 
 The original spec proposed:
 
@@ -68,10 +68,10 @@ export type TypeFormat<
   : Brand<BaseType, BrandName> & TypeAnnotation<Name, P & {brand: BrandName}>;
 ```
 
-**Also critical: NEVER use `import type` for types that need Deepkit reflection!**
+**Also critical: NEVER use `import type` for types that need reflection!**
 
 ```ts
-// ❌ WRONG - This breaks Deepkit reflection!
+// ❌ WRONG - This breaks reflection!
 import type {TypeFormatParams, Brand} from '@mionkit/core';
 
 // ✅ CORRECT - Use regular import for types that need reflection
@@ -162,7 +162,7 @@ export type TypeFormat<
 
 #### Why passing `brand` into `TypeAnnotation` matters
 
-When `BrandName` is provided, it's merged into the params (`P & {brand: BrandName}`), making it visible via Deepkit reflection metadata. This enables runtime tooling/serialization to distinguish brands when desired.
+When `BrandName` is provided, it's merged into the params (`P & {brand: BrandName}`), making it visible via reflection metadata. This enables runtime tooling/serialization to distinguish brands when desired.
 
 ### 3) `@mionkit/type-formats` — formats with explicit BrandName parameter ✅ DONE
 

@@ -49,7 +49,7 @@ export class TypedError<ErrType extends string> extends Error {
     public readonly type: ErrType;
     // Note: message and name are NOT declared as properties here
     // They are inherited from Error class and assigned in constructor
-    // This prevents them from being included in Deepkit's type reflection for JIT validation
+    // This prevents them from being included in type reflection for JIT validation
 
     constructor({message, originalError, type}: TypedErrorParams<ErrType>) {
         const errorMessage = message || originalError?.message || '';
@@ -98,7 +98,7 @@ export class RpcError<ErrType extends string, ErrData = any>
 {
     // Note: name is NOT declared as a property here
     // It is inherited from Error class and assigned in constructor
-    // This prevents it from being included in Deepkit's type reflection for JIT validation
+    // This prevents it from being included in type reflection for JIT validation
     /**
      * id of the error, ideally each error should unique identifiable
      * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated

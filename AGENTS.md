@@ -63,15 +63,15 @@
 - Styling: Tailwind CSS classesy
 - code examples can be imported using code-import component
 
-## ⚠️⚠️⚠️ CRITICAL: DEEPKIT TYPE IMPORTS ⚠️⚠️⚠️
+## ⚠️⚠️⚠️ CRITICAL: TYPE IMPORTS ⚠️⚠️⚠️
 
-**NEVER USE `import type` FOR TYPES THAT NEED DEEPKIT RUNTIME REFLECTION!**
+**NEVER USE `import type` FOR TYPES THAT NEED RUNTIME REFLECTION!**
 
 Deepkit's type compiler needs the actual import statement to preserve type metadata.
 Using `import type` strips the metadata and causes silent failures.
 
 ```ts
-// ❌ WRONG - This breaks Deepkit reflection!
+// ❌ WRONG - This breaks reflection!
 import type {TypeFormatParams, Brand} from '@mionkit/core';
 
 // ✅ CORRECT - Use regular import for types that need reflection
@@ -79,8 +79,8 @@ import {TypeFormatParams, Brand} from '@mionkit/core';
 ```
 
 This applies to:
-- Any type imports used for run-types, type-formats, or any other types that need Deepkit reflection
+- Any type imports used for run-types, type-formats, or any other types that need type reflection
 
-**If tests fail silently with Deepkit (type metadata not found), CHECK YOUR IMPORTS FIRST!**
+**If tests fail silently with (type metadata not found), CHECK YOUR IMPORTS FIRST!**
 
 ---

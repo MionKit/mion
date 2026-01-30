@@ -8,9 +8,10 @@
 import {initClient} from './client';
 import {getFriendlyErrors} from '@mionkit/core';
 import type {FriendlyErrors} from '@mionkit/core';
-import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
-import type {TestServerApi} from '../test/test-server';
-import type {RouteParams} from './types';
+import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionkit/test-server';
+import type {TestServerApi} from '../../test-server/src/test-server-json';
+import type {RouteParamsType} from './types';
+import {StrEmail} from '@mionkit/type-formats/FormatsString';
 
 // Mock localStorage for method metadata storage
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -27,7 +28,7 @@ describe('friendlyErrors with client validation', () => {
 
     // Derive UserWithFormats type from the route without importing it from server
     // This demonstrates how a client can get the type from the API definition
-    type UserWithFormats = RouteParams<MyApi['createUserWithFormats']>;
+    type UserWithFormats = RouteParamsType<MyApi['createUserWithFormats']>;
 
     beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
     afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
@@ -44,7 +45,7 @@ describe('friendlyErrors with client validation', () => {
             const invalidUser = {
                 name: 'A', // too short
                 age: 10, // too young
-                email: 'test@test.com',
+                email: 'test@test.com' as StrEmail,
             };
 
             // Get validation errors using typeErrors (client-side validation)

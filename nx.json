@@ -31,5 +31,8 @@
       "dependsOn": []
     }
   },
-  "defaultBase": "master"
+  "defaultBase": "master",
+  "release": {
+    "projects": ["packages/*", "!packages/test-publish", "!packages/test-server"]
+  }
 }

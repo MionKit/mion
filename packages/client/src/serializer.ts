@@ -40,9 +40,9 @@ export interface SerializedRequest {
  */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
     const method = routesCache.getMethodJitFns(req.route?.methodId);
-    const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serialize;
+    const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serializer;
     // we do not want to mutate data, so we do not use 'json' mode in the client
-    if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serialize;
+    if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serializer;
     return serializerMode;
 }
 

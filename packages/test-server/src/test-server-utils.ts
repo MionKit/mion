@@ -6,6 +6,7 @@
  * ######## */
 
 import {spawn, ChildProcess, exec} from 'child_process';
+import {existsSync, readFileSync} from 'fs';
 import {join, resolve} from 'path';
 import {promisify} from 'util';
 
@@ -36,11 +37,33 @@ export const JEST_TIMEOUT_CONSTANTS = {
 } as const;
 
 /**
- * Get the absolute path to the client package directory
- * This file is in packages/client/test/test-server-utils.ts
- * So we need to go up one level to get to packages/client/
+ * Get the absolute path to the test-server package directory
+ * Works both when running from source (ts-node) and from built files (.dist)
+ * The package root is where package.json is located
  */
-function getClientPackageRoot(): string {
+function getPackageRoot(): string {
+    // __dirname could be:
+    // - packages/test-server/src (when running from source with ts-node)
+    // - packages/test-server/.dist/cjs/src or .dist/esm/src (when running from built files)
+    // We need to find the package root (where package.json is)
+    let dir = __dirname;
+    // Go up until we find package.json or reach the filesystem root
+    while (dir !== resolve(dir, '..')) {
+        try {
+            const packageJsonPath = join(dir, 'package.json');
+            // Check if package.json exists and contains @mionkit/test-server
+            if (existsSync(packageJsonPath)) {
+                const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+                if (pkg.name === '@mionkit/test-server') {
+                    return dir;
+                }
+            }
+        } catch {
+            // Ignore errors and continue searching
+        }
+        dir = resolve(dir, '..');
+    }
+    // Fallback to the old behavior if package.json is not found
     return resolve(__dirname, '..');
 }
 
@@ -61,7 +84,7 @@ export interface TestServerOptions {
     /** Whether to use HTTP health checks instead of stdout parsing (default: true) */
     useHealthCheck?: boolean;
     /** Server script filename (default: 'test-server.ts') */
-    serverScript?: string;
+    serverType?: 'binary' | 'json';
 }
 
 /**
@@ -79,7 +102,7 @@ export class TestServerManager {
             logOutput: false,
             maxStartupRetries: 3,
             useHealthCheck: true,
-            serverScript: 'test-server.ts',
+            serverType: 'json',
             ...options,
         };
         this.availablePort = options.port; // Will be updated to actual port during start()
@@ -165,15 +188,25 @@ export class TestServerManager {
      */
     private async startServerProcess(): Promise<void> {
         // Get the client package root for the script paths
-        const clientPackageRoot = getClientPackageRoot();
-        const tsconfigPath = join(clientPackageRoot, 'test', 'tsconfig.json');
-        const serverScriptPath = join(clientPackageRoot, 'test', this.options.serverScript);
+        const clientPackageRoot = getPackageRoot();
+        const tsconfigPath = join(clientPackageRoot, 'tsconfig.json');
+        const scriptPath = this.options.serverType === 'json' ? 'test-server-json.ts' : 'test-server-binary.ts';
+        const serverScriptPath = join(clientPackageRoot, 'src', scriptPath);
 
-        // Start the server in a separate process using ts-node
+        // Start the server in a separate process using ts-node with tsconfig-paths
         // Use process.cwd() as working directory so it works from wherever Jest is run
+        // The -r tsconfig-paths/register flag enables path mapping resolution at runtime
         this.serverProcess = spawn(
             'npx',
-            ['ts-node', '--project', tsconfigPath, serverScriptPath, this.availablePort.toString()],
+            [
+                'ts-node',
+                '-r',
+                'tsconfig-paths/register',
+                '--project',
+                tsconfigPath,
+                serverScriptPath,
+                this.availablePort.toString(),
+            ],
             {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 cwd: process.cwd(), // Use current working directory where Jest is run from

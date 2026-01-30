@@ -1,6 +1,6 @@
 import {mapSqliteTable} from '@mionkit/drizzle';
 import {text, integer} from 'drizzle-orm/sqlite-core';
-// Note: Must use regular import (not `import type`) for deepkit reflection to work
+// Note: Must use regular import (not `import type`) for reflection to work
 import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
 import {NumInteger} from '@mionkit/type-formats/FormatsNumber';
 

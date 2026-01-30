@@ -1,6 +1,6 @@
 import {mapPGTable} from '@mionkit/drizzle';
 import {uuid, timestamp} from 'drizzle-orm/pg-core';
-// Note: Must use regular import (not `import type`) for deepkit reflection to work
+// Note: Must use regular import (not `import type`) for reflection to work
 import {StrUUIDv7} from '@mionkit/type-formats/FormatsString';
 
 /** User entity */

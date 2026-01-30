@@ -7,7 +7,7 @@
 
 import {mapMySqlTable} from './mysql';
 import {varchar, text, int} from 'drizzle-orm/mysql-core';
-// Note: Must use regular import (not `import type`) for deepkit reflection to work
+// Note: Must use regular import (not `import type`) for reflection to work
 import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
 
 // Test interfaces
