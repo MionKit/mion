@@ -11,11 +11,12 @@
     "target": "ES2023",
     "lib": ["ES2023"],
     "outDir": ".dist",
+    "rootDir": "src",
     "declaration": false,
     "sourceMap": true,
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "include": ["."],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", ".dist"]
 }

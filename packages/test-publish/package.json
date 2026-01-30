@@ -14,15 +14,14 @@
   "homepage": "https://mion.io/",
   "license": "MIT",
   "scripts": {
-    "test": "echo 'Run test:build-verification to test built artifacts'",
-    "test:build-verification": "jest",
-    "test:esm": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testMatch='**/*.esm.spec.ts'",
-    "test:cjs": "jest --testMatch='**/*.cjs.spec.ts'",
+    "test": "echo 'Run verify to test built artifacts'",
+    "verify": "npm run test:build-verification",
+    "test:build-verification": "npm run clean && npm run build && jest && npm run clean",
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build": "echo 'test-publish package does not need to be built'",
-    "clean": "rimraf .coverage",
+    "build": "tsc --project tsconfig.json",
+    "clean": "rimraf .coverage .dist",
     "fresh-start": "npm run clean && rimraf node_modules"
   },
   "dependencies": {

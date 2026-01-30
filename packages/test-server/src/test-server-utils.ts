@@ -22,6 +22,8 @@ export const TEST_PORT_MAPPING = {
     clientMethodsMetadata: 8087,
     friendlyErrors: 8088,
     binarySerialization: 8089,
+    esmTest: 8090,
+    cjsTest: 8091,
     // Add more test files here as needed
 } as const;
 

@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initClient} from './client';
-import {HSubRequest, RSubRequest} from './types';
+import {initClient, HSubRequest, RSubRequest} from '@mionkit/client';
 import {isRpcError, HeadersSubset} from '@mionkit/core';
 import {TestServerApi, createTestServerLinkedFns, JEST_TIMEOUT_CONSTANTS, TEST_PORT_MAPPING} from '@mionkit/test-server';
 

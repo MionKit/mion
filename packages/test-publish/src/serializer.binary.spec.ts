@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initClient} from './client';
+import {initClient} from '@mionkit/client';
 import {isRpcError} from '@mionkit/core';
 import {BinaryTestServerApi} from '@mionkit/test-server';
 import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionkit/test-server';
