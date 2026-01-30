@@ -11,8 +11,4 @@ module.exports = {
   testTimeout: 30000,
   // Run tests sequentially to avoid port conflicts
   maxWorkers: 1,
-  // Coverage configuration
-  collectCoverageFrom: ['.dist/**/*.js', '!.dist/**/*.spec.js'],
-  coverageDirectory: '.coverage',
-  coverageReporters: ['text', 'lcov'],
 };

@@ -21,7 +21,7 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
     "build": "tsc --project tsconfig.json",
-    "clean": "rimraf .coverage .dist",
+    "clean": "rimraf .dist",
     "fresh-start": "npm run clean && rimraf node_modules"
   },
   "dependencies": {
