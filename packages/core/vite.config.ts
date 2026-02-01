@@ -39,7 +39,7 @@ export default defineConfig({
         deepkitType({
             tsConfig: resolve(__dirname, 'tsconfig.json'),
             compilerOptions: {sourceMap: true},
-            // exclude: '**/{utils,jitUtils,routerUtils,restoreJitFns,dataView,bodySerializer,bodyDeserializer,friendlyErrors}.ts',
+            exclude: '**/{utils,jitUtils,routerUtils,restoreJitFns,dataView,bodySerializer,bodyDeserializer,friendlyErrors}.ts',
         }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],

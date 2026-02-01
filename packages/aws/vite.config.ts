@@ -38,9 +38,8 @@ export default defineConfig({
     plugins: [
         deepkitType({
             tsConfig: resolve(__dirname, 'tsconfig.json'),
-            compilerOptions: {
-                sourceMap: true,
-            },
+            compilerOptions: {sourceMap: true},
+            exclude: '**/*.ts', // Exclude ALL files - platform adapters don't need reflection
         }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
