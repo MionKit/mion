@@ -275,7 +275,7 @@ export function createStringifyCompiler(fnID: Operation) {
                 throw new Error('Type parameter not implemented.');
             case ReflectionKind.union: {
                 const urt = runType as UnionRunType;
-                urt.checkNonSkipTypes(comp);
+                urt.checkAllowedChildren(comp);
                 const {simpleItems, objectTypes} = urt.getUnionChildren(comp);
                 const errName = comp.getLocalVarName('uErr', urt);
                 const fail = `throw new Error(${errName});`;

@@ -370,7 +370,7 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
 
         case ReflectionKind.union: {
             const rt = runType as UnionRunType;
-            rt.checkNonSkipTypes(comp);
+            rt.checkAllowedChildren(comp);
             const decVar = comp.getLocalVarName('dec', rt);
             const errVarName = comp.getLocalVarName('uErr', rt);
             comp.setContextItem(errVarName, `const ${errVarName} = "Can not binary decode union: invalid union index"`);

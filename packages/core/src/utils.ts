@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
+import {resolve} from 'path/posix';
 import {MAX_STACK_DEPTH} from './constants';
 import {getJitUtils} from './jitUtils';
 import type {CompiledPureFunction, PureFunction} from './types/general.types';
@@ -75,4 +76,27 @@ export function initPureFunction(compiled: CompiledPureFunction): asserts compil
         }
     }
     compiled.fn = compiled.createJitFn(getJitUtils());
+}
+
+/**
+ * Dynamically imports a module, using require() in CJS and import() in ESM.
+ * This prevents dual module loading issues when the same package is loaded
+ * via both CJS (require) and ESM (import) in Node.js.
+ *
+ * In CJS environments, this uses require() to ensure the module is loaded
+ * through the CommonJS cache, avoiding duplicate module instances.
+ * In ESM environments, this falls back to dynamic import().
+ */
+export async function importModule<T>(moduleName: string, callerDir?: string): Promise<T> {
+    const isCJS = typeof require !== 'undefined' && typeof module !== 'undefined' && typeof require === 'function';
+    if (isCJS) {
+        try {
+            const resolvedPath = moduleName.startsWith('.') && callerDir ? resolve(callerDir, moduleName) : moduleName;
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            return Promise.resolve(require(resolvedPath) as T);
+        } catch (e: any) {
+            if (e?.code !== 'MODULE_NOT_FOUND') throw e;
+        }
+    }
+    return import(moduleName) as Promise<T>;
 }

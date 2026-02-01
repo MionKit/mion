@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {type JitFnArgs, JIT_FUNCTION_IDS} from '@mionkit/core';
+import {type JitFnArgs, JIT_FUNCTION_IDS, importModule} from '@mionkit/core';
 
 /** Javascript code types */
 export const CodeTypes = {
@@ -14,6 +14,8 @@ export const CodeTypes = {
     returnBlock: 'RB', // code block, it can not be concatenated with other code, it has an explicit return statement and needs to be wrapped in a function
 } as const;
 export type CodeType = (typeof CodeTypes)[keyof typeof CodeTypes];
+
+type MockModule = typeof import('./mocking/mockType');
 
 export interface JitFnSettings {
     id: string;
@@ -177,7 +179,7 @@ export const JitFunctions = {
     mock: {
         id: JIT_FUNCTION_IDS.mock,
         name: 'mockType',
-        import: () => import('./mocking/mockType').then((m) => m.mockType),
+        import: () => importModule<MockModule>('./mocking/mockType', __dirname).then((m) => m.mockType),
         jitArgs,
         jitDefaultArgs,
         returnName: jitArgs.vλl,
