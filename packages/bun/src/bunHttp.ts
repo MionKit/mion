@@ -16,7 +16,6 @@ import {Server} from 'bun';
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
 let defaultHeaders: [string, string][] = [['server', '@mionkit']];
-const textEncoder = new TextEncoder();
 
 export function resetBunHttpOpts() {
     httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
@@ -54,11 +53,20 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
         ...httpOptions.options,
 
         async fetch(req) {
-            const path = new URL(req.url).pathname;
+            // Inline path extraction for performance - Bun's url includes protocol (http://host/path)
+            const reqUrl = req.url;
+            const pathStart = reqUrl.indexOf('/', 8);
+            const queryStart = reqUrl.indexOf('?', pathStart);
+            const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
             // Check content-type to determine if this is a binary request
             const contentType = req.headers.get('content-type') || '';
             const isBinary = contentType.includes('application/octet-stream');
-            const rawBody = req.body ? (isBinary ? await req.arrayBuffer() : await req.text()) : '';
+            // Use Bun's native req.json() for JSON bodies - avoids intermediate string allocation
+            const rawBody = req.body
+                ? isBinary
+                    ? await req.arrayBuffer()
+                    : ((await req.json()) as Record<string, unknown>)
+                : {};
             const responseHeaders = new Headers(defaultHeaders);
 
             return dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined)
@@ -101,6 +109,10 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
     process.on('SIGINT', shutdownHandler);
     process.on('SIGTERM', shutdownHandler);
 
+    // Hint to Bun's GC after initialization to clean up any temporary allocations
+    if (typeof Bun !== 'undefined' && Bun.gc) {
+        Bun.gc(false);
+    }
     return server;
 }
 
@@ -119,18 +131,16 @@ function reply(
     const bodyType = mionResp.bodyType;
     switch (bodyType) {
         case SerializerModes.stringifyJson: {
-            // Encode once and reuse for both content-length and response body
-            const buffer = textEncoder.encode(mionResp.rawBody as string);
-            responseHeaders.set('content-length', String(buffer.byteLength));
+            // Pass string directly to Response - Bun handles encoding internally
+            // and calculates content-length automatically. This avoids TextEncoder allocation.
             // content-type already set by serializer
-            return new Response(buffer, {
+            return new Response(mionResp.rawBody as string, {
                 status: mionResp.statusCode,
                 headers: responseHeaders,
             });
         }
         case SerializerModes.json: {
             // Platform adapter uses Response.json() which handles JSON.stringify internally
-            responseHeaders.set('content-type', 'application/json; charset=utf-8');
             return Response.json(mionResp.body, {
                 status: mionResp.statusCode,
                 headers: responseHeaders,
