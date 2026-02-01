@@ -11,7 +11,7 @@ import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnC
 import {Handler} from '../types/handlers';
 import {RouterOptions} from '../types/general';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants';
-import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns} from '@mionkit/core';
+import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns, importModule} from '@mionkit/core';
 import {persistedMethods} from './methodsCache';
 
 // ############ This file is the only one importing '@mionkit/run-types' within the router ########
@@ -34,23 +34,23 @@ export class AOTCacheError extends Error {
 }
 
 // ############ Run-Types Module Loading ############
-
+type RunTypesModule = typeof import('@mionkit/run-types');
 // Type definition for the dynamically imported run-types module
-interface RunTypesModule {
-    JitFunctions: typeof import('@mionkit/run-types').JitFunctions;
-    reflectFunction: typeof import('@mionkit/run-types').reflectFunction;
-    isUnionRunType: typeof import('@mionkit/run-types').isUnionRunType;
-    isClassRunType: typeof import('@mionkit/run-types').isClassRunType;
-    isLiteralRunType: typeof import('@mionkit/run-types').isLiteralRunType;
-    isNeverRunType: typeof import('@mionkit/run-types').isNeverRunType;
+interface RunTypesFunctions {
+    JitFunctions: RunTypesModule['JitFunctions'];
+    reflectFunction: RunTypesModule['reflectFunction'];
+    isUnionRunType: RunTypesModule['isUnionRunType'];
+    isClassRunType: RunTypesModule['isClassRunType'];
+    isLiteralRunType: RunTypesModule['isLiteralRunType'];
+    isNeverRunType: RunTypesModule['isNeverRunType'];
 }
 
 // Cached run-types module - loaded once and reused
-let runTypesModule: RunTypesModule | null = null;
-let runTypesLoadPromise: Promise<RunTypesModule> | null = null;
+let runTypesModule: RunTypesFunctions | null = null;
+let runTypesLoadPromise: Promise<RunTypesFunctions> | null = null;
 
 /** Dynamically loads the @mionkit/run-types module. The module is cached after first load. */
-async function loadRunTypesModule(): Promise<RunTypesModule> {
+async function loadRunTypesModule(): Promise<RunTypesFunctions> {
     // Return cached module if already loaded
     if (runTypesModule) return runTypesModule;
 
@@ -58,7 +58,7 @@ async function loadRunTypesModule(): Promise<RunTypesModule> {
     if (runTypesLoadPromise) return runTypesLoadPromise;
 
     // Start loading the module
-    runTypesLoadPromise = import('@mionkit/run-types').then((module) => {
+    runTypesLoadPromise = importModule<RunTypesModule>('@mionkit/run-types').then((module) => {
         runTypesModule = {
             JitFunctions: module.JitFunctions,
             reflectFunction: module.reflectFunction,
@@ -191,7 +191,7 @@ function generateHandlerReflection(
     routeId: string,
     routerOptions: RouterOptions,
     isHeadersLinkedFn: boolean,
-    rt: RunTypesModule
+    rt: RunTypesFunctions
 ): MethodReflect {
     const reflectionItems: Partial<MethodReflect> = {};
     let handlerRunType: FunctionRunType;
@@ -274,7 +274,7 @@ function generateHandlerReflection(
  * Generates reflection data for a raw linkedFn using run-types.
  * This function is only called in non-AOT mode.
  */
-function generateRawMethodReflection(handler: Handler, routeId: string, rt: RunTypesModule): MethodReflect {
+function generateRawMethodReflection(handler: Handler, routeId: string, rt: RunTypesFunctions): MethodReflect {
     let handlerRunType: FunctionRunType;
     try {
         handlerRunType = rt.reflectFunction(handler);
@@ -291,7 +291,7 @@ function getParamsHeadersRunType(
     handlerRunType: FunctionRunType,
     routeId: string,
     routerOptions: RouterOptions,
-    rt: RunTypesModule
+    rt: RunTypesFunctions
 ): BaseRunType {
     const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getFakeCompiler(routerOptions));
     const headersSubset = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // HeadersSubset is always index 1 after context
@@ -302,7 +302,7 @@ function getParamsHeadersRunType(
     return headersSubset;
 }
 
-function getReturnHeadersRunType(handlerRunType: FunctionRunType, rt: RunTypesModule): BaseRunType | undefined {
+function getReturnHeadersRunType(handlerRunType: FunctionRunType, rt: RunTypesFunctions): BaseRunType | undefined {
     const returnRunType = handlerRunType.getReturnType();
     if (rt.isUnionRunType(returnRunType)) {
         const headersSubset = returnRunType.getChildRunTypes().find((child) => isHeaderSubSetRunType(child, rt));
@@ -313,12 +313,12 @@ function getReturnHeadersRunType(handlerRunType: FunctionRunType, rt: RunTypesMo
     return returnRunType;
 }
 
-function isHeaderSubSetRunType(runType: BaseRunType | undefined, rt: RunTypesModule): runType is BaseRunType {
+function isHeaderSubSetRunType(runType: BaseRunType | undefined, rt: RunTypesFunctions): runType is BaseRunType {
     if (!runType) return false;
     return rt.isClassRunType(runType, HeadersSubset);
 }
 
-function getHeaderNames(runType: BaseRunType, routeId: string, rt: RunTypesModule): string[] {
+function getHeaderNames(runType: BaseRunType, routeId: string, rt: RunTypesFunctions): string[] {
     // HeadersSubset is a generic class: HeadersSubset<Required, Optional>
     // We need to extract the literal string values from the Required and Optional type arguments
     // Use 'typeArguments' (not 'arguments') to get both Required and Optional with their defaults
@@ -349,7 +349,7 @@ function getHeaderNames(runType: BaseRunType, routeId: string, rt: RunTypesModul
  * Internal recursive function to extract literal string values from a type.
  * Handles single literal strings and union types (including nested unions).
  */
-function extractLiteralStringsFromTypeRecursive(runType: BaseRunType, rt: RunTypesModule): string[] {
+function extractLiteralStringsFromTypeRecursive(runType: BaseRunType, rt: RunTypesFunctions): string[] {
     // Handle single literal string
     if (rt.isLiteralRunType(runType)) {
         const literal = (runType as any).getLiteralValue();
@@ -378,7 +378,7 @@ function extractLiteralStringsFromTypeRecursive(runType: BaseRunType, rt: RunTyp
  * Extracts literal string values from a type.
  * Handles 'never' type only at the root level, then delegates to recursive extraction.
  */
-function extractLiteralStringsFromType(runType: BaseRunType, rt: RunTypesModule): string[] {
+function extractLiteralStringsFromType(runType: BaseRunType, rt: RunTypesFunctions): string[] {
     // Handle 'never' type at root level only (no headers)
     if (rt.isNeverRunType(runType)) return [];
     return extractLiteralStringsFromTypeRecursive(runType, rt);
@@ -394,7 +394,7 @@ function getFakeCompiler(routerOptions: RouterOptions): JitFnCompiler {
 function getTypeJitFunctions(
     runType: BaseRunType,
     opts: RunTypeOptions | undefined,
-    rtModule: RunTypesModule
+    rtModule: RunTypesFunctions
 ): JitCompiledFunctions {
     const jitFns: JitCompiledFunctions = {
         isType: runType.createJitCompiledFunction(rtModule.JitFunctions.isType.id, undefined, opts),
@@ -411,7 +411,7 @@ function getTypeJitFunctions(
 function getFunctionJitFns<Fn extends AnyFn>(
     fn: Fn,
     opts: RunTypeOptions | undefined,
-    rtModule: RunTypesModule,
+    rtModule: RunTypesFunctions,
     isReturn: boolean
 ): JitCompiledFunctions {
     const runType = rtModule.reflectFunction(fn);

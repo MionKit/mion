@@ -186,7 +186,8 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
             const fnName = getJITFnName(this.fnID);
             const fnCode = ` Code:\nfunction ${fnName}(){${this.code}}`;
             const name = `(${this.rootType.getTypeName()}:${this.rootType.getTypeID()})`;
-            throw new Error(`Error building ${fnName} JIT function for type ${name}: ${e?.message} \n${fnCode}`);
+            const typeString = `Type: ${this.rootType.stringify()}`;
+            throw new Error(`Error building ${fnName} JIT function for type ${name}: ${e?.message} \n${typeString} \n${fnCode}`);
         }
     }
     /** Returns a copy of the access pat for current stack item */

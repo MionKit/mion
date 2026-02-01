@@ -66,7 +66,7 @@ const jitFnsCache = {
 		jitFnHash: "is_WEWIGI",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function is_WEWIGI(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'))}",
+		code: " return function is_WEWIGI(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){if (!(true)) return false;} return true;})())}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -75,7 +75,13 @@ const jitFnsCache = {
 					typeof v === "object" &&
 					v !== null &&
 					!Array.isArray(v) &&
-					Object.prototype.toString.call(v) === "[object Object]"
+					Object.prototype.toString.call(v) === "[object Object]" &&
+					(function () {
+						for (const p0 in v) {
+							if (!true) return false;
+						}
+						return true;
+					})()
 				);
 			};
 		},

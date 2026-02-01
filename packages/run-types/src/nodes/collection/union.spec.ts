@@ -657,3 +657,23 @@ describe('Union with objects containing methods', () => {
         expect(validate(mocked)).toBe(true);
     });
 });
+
+describe('Union with any or unknown', () => {
+    it('should throw when union contains any type', () => {
+        type UnionWithAny = any | string;
+        const rt = runType<UnionWithAny>();
+        expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow("Union can not have 'any' or 'unknown' types");
+    });
+
+    it('should throw when union contains unknown type', () => {
+        type UnionWithUnknown = unknown | string;
+        const rt = runType<UnionWithUnknown>();
+        expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow("Union can not have 'any' or 'unknown' types");
+    });
+
+    it('should throw when union contains both any and unknown', () => {
+        type UnionWithBoth = any | unknown | string;
+        const rt = runType<UnionWithBoth>();
+        expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow("Union can not have 'any' or 'unknown' types");
+    });
+});

@@ -312,7 +312,7 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
 
         case ReflectionKind.union: {
             const rt = runType as UnionRunType;
-            rt.checkNonSkipTypes(comp);
+            rt.checkAllowedChildren(comp);
             const {simpleItems, objectTypes} = rt.getUnionChildren(comp);
             const totalLength = simpleItems.length + objectTypes.length;
             if (totalLength > MAX_UNION_ITEMS) {

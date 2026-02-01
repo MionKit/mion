@@ -24,7 +24,7 @@ import type {
 import type {mockType} from '../mocking/mockType';
 import {maxStackErrorMessage} from '../constants';
 import {type CodeType, JitFunctions, CodeTypes} from '../constants.functions';
-import {ReflectionKind} from '@deepkit/type';
+import {ReflectionKind, stringifyType} from '@deepkit/type';
 import type {TypeIndexSignature, TypeProperty, Type} from '@deepkit/type';
 import {getPropIndex, memorize} from './utils';
 import {createJitCompiler, MockJitCompiler} from './jitFnCompiler';
@@ -66,6 +66,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     };
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();
+    stringify = memorize((): string => stringifyType(this.src));
     skipJit(comp: JitFnCompiler): boolean {
         return false;
     }

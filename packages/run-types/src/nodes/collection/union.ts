@@ -10,7 +10,14 @@ import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import type {JitCode} from '../../types';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 import {childIsExpression, createIfElseFn, toLiteral} from '../../lib/utils';
-import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
+import {
+    isAnyRunType,
+    isClassRunType,
+    isInterfaceRunType,
+    isIntersectionRunType,
+    isObjectLiteralRunType,
+    isUnknownRunType,
+} from '../../lib/guards';
 import {markDiscriminators, splitUnionItems} from './unionDiscriminator';
 import type {PropertyRunType} from '../member/property';
 
@@ -83,7 +90,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * Use ESLint rules to detect overlapping types at compile time.
      */
     emitIsType(comp: JitFnCompiler): JitCode {
-        this.checkNonSkipTypes(comp);
+        this.checkAllowedChildren(comp);
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
         const items = simpleItems.map((rt) => this.getChildIsTypeWithLooseCheck(rt, comp));
         const checkItems = items.filter(Boolean).join(' || ');
@@ -95,7 +102,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
 
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
-        this.checkNonSkipTypes(comp);
+        this.checkAllowedChildren(comp);
         const isType = comp.compileIsType(this, 'E').code;
         const code = `if (!${isType}) ${comp.callJitErr(this)};`;
         return {code, type: 'S'};
@@ -108,7 +115,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
     emitPrepareForJson(comp: JitFnCompiler): JitCode {
-        this.checkNonSkipTypes(comp);
+        this.checkAllowedChildren(comp);
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
         const errName = comp.getLocalVarName('uErr', this);
         const fail = `throw new Error(${errName});`;
@@ -128,6 +135,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 const index = this.getUnionItemIndex(comp, childRt);
                 const tupleEncode = needsTupleEncoding ? `${comp.vλl} = [${index}, ${comp.vλl}]` : '/*noop*/';
                 const isTypeCode = this.getChildIsTypeWithLooseCheck(childRt, comp);
+
                 return `${ifElse()} (${isTypeCode}) {${encodeCode} ${tupleEncode}}`;
             });
             return result.filter(Boolean);
@@ -149,7 +157,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
     emitRestoreFromJson(comp: JitFnCompiler): JitCode {
-        this.checkNonSkipTypes(comp);
+        this.checkAllowedChildren(comp);
         const decVar = comp.getLocalVarName('dec', this);
         const errVarName = comp.getLocalVarName('uErr', this);
         comp.setContextItem(errVarName, `const ${errVarName} = "Can not json decode union: invalid union index"`);
@@ -186,9 +194,12 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             .join(' | ');
     }
 
-    checkNonSkipTypes(comp: JitFnCompiler) {
+    checkAllowedChildren(comp: JitFnCompiler) {
         const allChildren = this.getChildRunTypes();
         const toSkip = allChildren.filter((rt) => rt.skipJit(comp));
-        if (toSkip.length) throw new Error(`Union can not have non serializable types, ie: Symbol, Function, etc.`);
+        if (toSkip.length)
+            throw new Error(`Union can not have non serializable types, ie: Symbol, Function, etc. \nType: ${this.stringify()}`);
+        const hasAnyOrUnknown = allChildren.some((rt) => isAnyRunType(rt) || isUnknownRunType(rt));
+        if (hasAnyOrUnknown) throw new Error(`Union can not have 'any' or 'unknown' types. \nType: ${this.stringify()}`);
     }
 }

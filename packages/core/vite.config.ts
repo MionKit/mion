@@ -34,16 +34,12 @@ const entry: Record<string, string> = {
 export default defineConfig({
     esbuild: {
         legalComments: 'none',
-        minifyIdentifiers: false,
-        minifyWhitespace: true,
-        minifySyntax: true,
     },
     plugins: [
         deepkitType({
             tsConfig: resolve(__dirname, 'tsconfig.json'),
-            compilerOptions: {
-                sourceMap: true,
-            },
+            compilerOptions: {sourceMap: true},
+            // exclude: '**/{utils,jitUtils,routerUtils,restoreJitFns,dataView,bodySerializer,bodyDeserializer,friendlyErrors}.ts',
         }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
@@ -60,7 +56,7 @@ export default defineConfig({
         outDir: '.dist',
         emptyOutDir: true,
         sourcemap: true,
-        minify: 'esbuild',
+        minify: false,
         rollupOptions: {
             output: [
                 {
@@ -79,6 +75,7 @@ export default defineConfig({
                 },
             ],
             external: [
+                '@mionkit/aot-caches',
                 // Mark all node_modules as external
                 /^[^./]/,
             ],
