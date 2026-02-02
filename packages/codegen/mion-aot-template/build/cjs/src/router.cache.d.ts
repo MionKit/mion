@@ -1,2 +1,1 @@
-import { MethodsCache } from '@mionkit/core';
-export declare const routerCache: MethodsCache;
+export declare const routerCache: Record<string, unknown>;

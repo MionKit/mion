@@ -43,9 +43,5 @@
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
-  },
-  "devDependencies": {
-    "@mionkit/core": "^0.7.2",
-    "@mionkit/router": "^0.7.2"
   }
 }
