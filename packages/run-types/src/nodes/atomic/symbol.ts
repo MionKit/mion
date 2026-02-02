@@ -5,14 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeSymbol} from '@deepkit/type';
+import type {TypeSymbol} from '@deepkit/type';
 import type {JitCode} from '../../types';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {JitFunctions} from '../../constants.functions';
 
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
-    _getTypeID = () => ReflectionKind.symbol;
     skipJit(comp: JitFnCompiler): boolean {
         if (!comp) return true;
         return comp.fnID !== JitFunctions.toJSCode.id;

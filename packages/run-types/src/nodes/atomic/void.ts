@@ -5,13 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeVoid} from '@deepkit/type';
+import type {TypeVoid} from '@deepkit/type';
 import type {JitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 
 export class VoidRunType extends AtomicRunType<TypeVoid> {
-    _getTypeID = () => ReflectionKind.void;
     emitIsType(comp: JitFnCompiler): JitCode {
         return {code: `${comp.vλl} === undefined`, type: 'E'};
     }

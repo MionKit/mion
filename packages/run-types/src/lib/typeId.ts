@@ -11,72 +11,38 @@ import {ReflectionSubKind} from '../constants.kind';
 import {hasType, hasTypes, hasParameters} from './guards';
 import {getFormatterFromCache, defaultIgnoreFormatProps} from './formats';
 import {typeParamsToString} from './utils';
-import type {FormatAnnotation} from '../types';
+import type {FormatAnnotation, SrcType, StrNumber} from '../types';
 
-type StrNumber = string | number;
+/** Type with optional cached _typeId and _formatId properties - compatible with SrcType */
+export type TypeWithCachedIds = Type & Pick<Partial<SrcType>, '_typeId' | '_formatId'>;
 
-/** Type with cached _typeId property */
-export type TypeWithCachedId = Type & {_typeId?: StrNumber};
-
-/**
- * Generates a unique type ID directly from a deepkit Type object.
- * This mirrors the logic in RunType's getTypeID() but works without needing a RunType instance.
- * Used for caching RunType instances before they are created.
- * The ID is cached on the type object itself via _typeId property.
- * Returns number for atomic types (to match original _getTypeID behavior), string for complex types.
- */
-export function getDeepkitTypeId(type: TypeWithCachedId, stack: Type[] = []): StrNumber {
-    // Return cached ID if available
+/** Generates a unique type ID directly from a deepkit Type object. Caches result in type._typeId */
+export function createTypeId(type: TypeWithCachedIds, stack: Type[] = []): StrNumber {
     if (type._typeId !== undefined) return type._typeId;
-
-    // Compute the ID
-    const typeId = computeDeepkitTypeId(type, stack);
-
-    // Cache on the type object for future lookups
+    const typeId = _createTypeId(type, stack);
     (type as any)._typeId = typeId;
-
     return typeId;
 }
 
-/** Computes the type ID without caching - internal function */
-function computeDeepkitTypeId(type: Type, stack: Type[]): StrNumber {
+function _createTypeId(type: Type, stack: Type[]): StrNumber {
     if (stack.length > MAX_STACK_DEPTH) {
         throw new Error(`Max stack depth exceeded while computing type ID. This usually indicates a circular type reference.`);
     }
-
-    // Check for circular reference
     const circularId = checkCircularAndGetRefId(type, stack);
     if (circularId !== undefined) return circularId;
-
     const kind = (type as any).subKind || type.kind;
-
-    // Compute the base type ID first
     const baseTypeId = computeBaseTypeId(type, kind, stack);
-
-    // Check for format annotation and append format ID if present
-    const formatId = computeDeepkitFormatID(type);
-    if (formatId) {
-        return `${baseTypeId}${formatId}`;
-    }
-
+    const formatId = computeDeepkitFormatID(type as TypeWithCachedIds);
+    if (formatId) return `${baseTypeId}${formatId}`;
     return baseTypeId;
 }
 
-/** Computes the base type ID without format information */
 function computeBaseTypeId(type: Type, kind: number, stack: Type[]): StrNumber {
-    // Handle subKind first (e.g., FunctionParamsRunType has subKind: params)
     const subKind = (type as any).subKind;
-    if (subKind === ReflectionSubKind.params) {
-        // FunctionParamsRunType - treat as a tuple of parameters
-        // Use parameters array instead of types array
-        // Note: Use curly braces like CollectionRunType, not array brackets
-        return computeParamsTypeId(type, stack);
-    }
+    if (subKind === ReflectionSubKind.params) return computeParamsTypeId(type, stack);
 
-    // Handle different type kinds based on their structure
     switch (type.kind) {
-        // ###################### ATOMIC TYPES ######################
-        // These types don't contain other types, just return the kind
+        // Atomic types - just return the kind
         case ReflectionKind.any:
         case ReflectionKind.bigint:
         case ReflectionKind.boolean:
@@ -90,31 +56,21 @@ function computeBaseTypeId(type: Type, kind: number, stack: Type[]): StrNumber {
         case ReflectionKind.undefined:
         case ReflectionKind.unknown:
         case ReflectionKind.void:
+        case ReflectionKind.enum:
+        case ReflectionKind.enumMember:
+        case ReflectionKind.promise:
             return kind;
-
         case ReflectionKind.literal: {
-            // Include the literal value in the ID
-            // Use String() to handle RegExp, BigInt, Symbol, etc. (matches LiteralRunType._getTypeID)
             const literal = (type as any).literal;
             return `${kind}:${String(literal)}`;
         }
-
-        case ReflectionKind.enum:
-            return kind;
-
-        case ReflectionKind.enumMember:
-            return kind;
-
-        // ###################### COLLECTION TYPES ######################
-        // These types contain multiple child types
+        // Collection types - contain multiple child types
         case ReflectionKind.union:
         case ReflectionKind.intersection:
         case ReflectionKind.objectLiteral:
         case ReflectionKind.tuple:
             return computeCollectionTypeId(type, stack);
-
-        // ###################### MEMBER TYPES ######################
-        // These types contain a single child type
+        // Member types - contain a single child type
         case ReflectionKind.array:
         case ReflectionKind.property:
         case ReflectionKind.propertySignature:
@@ -123,14 +79,8 @@ function computeBaseTypeId(type: Type, kind: number, stack: Type[]): StrNumber {
         case ReflectionKind.rest:
         case ReflectionKind.indexSignature:
             return computeMemberTypeId(type, stack);
-        case ReflectionKind.promise:
-            return kind;
-
-        // ###################### FUNCTION TYPES ######################
-        // Note: FunctionRunType._getTypeID() returns just the kind (17) unless it's a named method
-        // in an object/class. We match that behavior here.
+        // Function types
         case ReflectionKind.function: {
-            // Only include the name if this function is a property in an object/interface/class
             const parent = type.parent;
             const name = (type as any).name;
             if (name && parent && (parent.kind === ReflectionKind.objectLiteral || parent.kind === ReflectionKind.class)) {
@@ -142,49 +92,32 @@ function computeBaseTypeId(type: Type, kind: number, stack: Type[]): StrNumber {
         case ReflectionKind.methodSignature:
         case ReflectionKind.callSignature:
             return computeFunctionTypeId(type);
-
-        // ###################### CLASS TYPES ######################
+        // Class types
         case ReflectionKind.class:
             return computeClassTypeId(type as TypeClass, stack);
-
-        // ###################### DEFAULT ######################
         default:
-            // For any other types, try to compute based on structure
-            if (hasTypes(type)) {
-                return computeCollectionTypeId(type, stack);
-            }
-            if (hasType(type)) {
-                return computeMemberTypeId(type, stack);
-            }
+            if (hasTypes(type)) return computeCollectionTypeId(type, stack);
+            if (hasType(type)) return computeMemberTypeId(type, stack);
             return kind;
     }
 }
 
-/** Computes type ID for collection types (union, intersection, objectLiteral, tuple) */
 function computeCollectionTypeId(type: Type, stack: Type[]): StrNumber {
     const types = (type as any).types as Type[] | undefined;
     if (!Array.isArray(types)) return (type as any).subKind || type.kind;
-
     stack.push(type);
     const childIds: StrNumber[] = [];
-    for (const childType of types) {
-        childIds.push(computeDeepkitTypeId(childType, stack));
-    }
+    for (const childType of types) childIds.push(_createTypeId(childType, stack));
     stack.pop();
-
-    // Match CollectionRunType._getTypeID() logic: use [] for tuple, {} for others
-    // Note: array kind (25) is handled in computeMemberTypeId, not here
     const isTuple = type.kind === ReflectionKind.tuple;
     const groupID = isTuple ? `[${childIds.join(',')}]` : `{${childIds.join(',')}}`;
     const kind = (type as any).subKind || type.kind;
     return `${kind}${groupID}`;
 }
 
-/** Computes type ID for member types (property, array, tupleMember, parameter, etc.) */
 function computeMemberTypeId(type: Type, stack: Type[]): StrNumber {
     const memberType = (type as any).type as Type | undefined;
     if (!memberType || typeof memberType.kind !== 'number') return (type as any).subKind || type.kind;
-
     const isRest = memberType.kind === ReflectionKind.rest;
     const isTupleParam = type.kind === ReflectionKind.tupleMember || type.kind === ReflectionKind.parameter;
     const hasDefault = isTupleParam && (type as any).default !== undefined;
@@ -192,22 +125,16 @@ function computeMemberTypeId(type: Type, stack: Type[]): StrNumber {
     const propName =
         (type as TypeProperty).name?.toString() || (type as TypeIndexSignature).index?.kind || (type as any).subKind || type.kind;
     const kindID = `${propName}${optional}`;
-
-    // Check for circular reference before recursing
     const circularId = checkCircularAndGetRefId(type, stack);
     if (circularId) return `${kindID}:${circularId}`;
-
     stack.push(type);
-    const memberTypeId = computeDeepkitTypeId(memberType, stack);
+    const memberTypeId = _createTypeId(memberType, stack);
     stack.pop();
-
     return `${kindID}:${memberTypeId}`;
 }
 
-/** Computes type ID for function types */
 function computeFunctionTypeId(type: Type): StrNumber {
     const kind = ReflectionKind.function;
-    // For method signatures, include the method name if it's a property of an object/class
     const parent = type.parent;
     const name = (type as any).name;
     let baseId: string;
@@ -216,88 +143,57 @@ function computeFunctionTypeId(type: Type): StrNumber {
     } else {
         baseId = String(kind);
     }
-
     const isOptional = !!(type as any).optional;
     return isOptional ? `${baseId}:?` : baseId;
 }
 
-/** Computes type ID for class types */
 function computeClassTypeId(type: TypeClass, stack: Type[]): StrNumber {
-    // Handle special built-in classes
-    // Date has no type arguments, just return the subKind
-    if (type.classType === Date) {
-        return ReflectionSubKind.date;
-    }
-
-    // Map and Set need to include their type arguments as children
-    // This mirrors how MapRunType and SetRunType compute their type IDs
-    // They create synthetic child types with specific subKinds (mapKey, mapValue, setItem)
+    if (type.classType === Date) return ReflectionSubKind.date;
     if (type.classType === Map) {
         const args = type.arguments;
         if (!args || args.length !== 2) return ReflectionSubKind.map;
         stack.push(type);
-        // Map children are: mapKey:keyType, mapValue:valueType
-        const keyTypeId = computeDeepkitTypeId(args[0], stack);
-        const valueTypeId = computeDeepkitTypeId(args[1], stack);
+        const keyTypeId = _createTypeId(args[0], stack);
+        const valueTypeId = _createTypeId(args[1], stack);
         stack.pop();
-        // Format: subKind{mapKeySubKind:keyTypeId,mapValueSubKind:valueTypeId}
         return `${ReflectionSubKind.map}{${ReflectionSubKind.mapKey}:${keyTypeId},${ReflectionSubKind.mapValue}:${valueTypeId}}`;
     }
-
     if (type.classType === Set) {
         const args = type.arguments;
         if (!args || args.length !== 1) return ReflectionSubKind.set;
         stack.push(type);
-        // Set children are: setItem:itemType
-        const itemTypeId = computeDeepkitTypeId(args[0], stack);
+        const itemTypeId = _createTypeId(args[0], stack);
         stack.pop();
-        // Format: subKind{setItemSubKind:itemTypeId}
         return `${ReflectionSubKind.set}{${ReflectionSubKind.setItem}:${itemTypeId}}`;
     }
-
     const kind = (type as any).subKind || type.kind;
     const types = (type as any).types as Type[] | undefined;
-
-    // For classes with types (properties), compute like a collection
     if (Array.isArray(types) && types.length > 0) {
         stack.push(type);
-        const childIds = types.map((t) => computeDeepkitTypeId(t, stack));
+        const childIds = types.map((t) => _createTypeId(t, stack));
         stack.pop();
         return `${kind}{${childIds.join(',')}}`;
     }
-
     return kind;
 }
 
-/** Computes type ID for function params (FunctionParamsRunType) - uses parameters array instead of types */
 function computeParamsTypeId(type: Type, stack: Type[]): StrNumber {
     if (!hasParameters(type)) return (type as any).subKind || type.kind;
-
-    // Check for circular reference
     const circularId = checkCircularAndGetRefId(type, stack);
     if (circularId) return circularId;
-
     stack.push(type);
     const childIds: StrNumber[] = [];
-    for (const param of type.parameters) {
-        childIds.push(computeDeepkitTypeId(param, stack));
-    }
+    for (const param of type.parameters) childIds.push(_createTypeId(param, stack));
     stack.pop();
-
-    // Use curly braces format like CollectionRunType._getTypeID() does
-    // This ensures type IDs match what the original RunType implementation would generate
     const kind = (type as any).subKind || type.kind;
     return `${kind}{${childIds.join(',')}}`;
 }
 
-/** Checks if the type is already in the stack (circular reference) and returns a reference ID */
 function checkCircularAndGetRefId(type: Type, stack: Type[]): StrNumber | undefined {
     const inStackIndex = stack.findIndex((t) => {
         if (t === type) return true;
-        // Check by deepkit's internal id as well
         return t.id && type.id && t.id === type.id;
     });
-
     if (inStackIndex >= 0) {
         const name = type.typeName || '';
         return '$' + type.kind + `_${inStackIndex}` + name;
@@ -305,34 +201,25 @@ function checkCircularAndGetRefId(type: Type, stack: Type[]): StrNumber | undefi
     return undefined;
 }
 
-// ################# DEEPKIT TYPE FORMAT ID  #################
-
-/**
- * Computes the format ID directly from a deepkit Type object without needing a RunType instance.
- * This is used by getDeepkitTypeId to include format information in the type ID.
- * Returns undefined if the type has no format annotation.
- */
-export function computeDeepkitFormatID(deepkitType: Type): string | undefined {
-    // Get annotations from the deepkit type
+/** Computes the format ID from a deepkit Type. Caches result in type._formatId */
+export function computeDeepkitFormatID(deepkitType: TypeWithCachedIds): string | undefined {
+    if (deepkitType._formatId !== undefined) return deepkitType._formatId || undefined;
     const annotations = typeAnnotation.getAnnotations(deepkitType);
-    if (annotations.length === 0) return undefined;
-
-    // Find the first annotation that has a registered formatter
+    if (annotations.length === 0) {
+        (deepkitType as any)._formatId = '';
+        return undefined;
+    }
     for (const annotation of annotations) {
         const formatAnnotation = annotation as FormatAnnotation;
         if (!formatAnnotation.name) continue;
-
-        // Check if there's a registered formatter for this annotation
         const formatter = getFormatterFromCache(deepkitType.kind, formatAnnotation.name);
         if (!formatter) continue;
-
-        // Get the params directly from the deepkit type
         const params = typeAnnotation.getOption(deepkitType, formatAnnotation.name) as TypeFormatParams;
         if (!params) continue;
-
-        // Convert params to string format ID
-        return `<${typeParamsToString(params, defaultIgnoreFormatProps)}>`;
+        const formatId = `<${typeParamsToString(params, defaultIgnoreFormatProps)}>`;
+        (deepkitType as any)._formatId = formatId;
+        return formatId;
     }
-
+    (deepkitType as any)._formatId = '';
     return undefined;
 }

@@ -5,13 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeNumber} from '@deepkit/type';
+import type {TypeNumber} from '@deepkit/type';
 import type {JitCode} from '../../types';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class NumberRunType extends AtomicRunType<TypeNumber> {
-    _getTypeID = () => ReflectionKind.number;
     emitIsType(comp: JitFnCompiler): JitCode {
         return {code: `Number.isFinite(${comp.vλl})`, type: 'E'};
     }

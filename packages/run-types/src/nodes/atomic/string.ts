@@ -5,13 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeString} from '@deepkit/type';
+import type {TypeString} from '@deepkit/type';
 import type {JitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 
 export class StringRunType extends AtomicRunType<TypeString> {
-    _getTypeID = () => ReflectionKind.string;
     emitIsType(comp: JitFnCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'string'`, type: 'E'};
     }

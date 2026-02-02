@@ -26,18 +26,12 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     onCreated(deepkitType: SrcType): void {
         // here we are mapping parameters from TypeParameter[] to TypeTuple as TupleRunType() is the same functionality as ParameterRunType[]
         super.onCreated(deepkitType);
-        // todo the deepkit type is a
-        this.parameterRunTypes.onCreated({...deepkitType, subKind: ReflectionSubKind.params});
-    }
-    _getTypeID() {
-        // Only include the name if this function is a property in an object/interface/class
-        // We can check the parent to determine this
-        const parent = this.src.parent;
-        const name = (this.src as TypeFunction)?.name;
-        if (name && parent && (parent.kind === ReflectionKind.objectLiteral || parent.kind === ReflectionKind.class)) {
-            return `${ReflectionKind.function}${String(name)}`;
-        }
-        return ReflectionKind.function;
+        // Create a synthetic type for parameters with its own subKind
+        // Explicitly exclude _typeId and _formatId so the params type gets its own cached IDs
+        const paramsType = {...deepkitType, subKind: ReflectionSubKind.params} as any;
+        delete paramsType._typeId;
+        delete paramsType._formatId;
+        this.parameterRunTypes.onCreated(paramsType);
     }
     getFamily(): 'F' {
         return 'F';

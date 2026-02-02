@@ -5,13 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeBoolean} from '@deepkit/type';
+import type {TypeBoolean} from '@deepkit/type';
 import type {JitCode} from '../../types';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {
-    _getTypeID = () => ReflectionKind.boolean;
     emitIsType(comp: JitFnCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'boolean'`, type: 'E'};
     }
