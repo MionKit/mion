@@ -5,13 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeNever} from '@deepkit/type';
+import type {TypeNever} from '@deepkit/type';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import {JitCode} from '../../types';
 
 export class NeverRunType extends AtomicRunType<TypeNever> {
-    _getTypeID = () => ReflectionKind.never;
     emitIsType(): JitCode {
         return {code: 'false', type: 'E'};
     }

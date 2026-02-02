@@ -5,14 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, TypeEnum} from '@deepkit/type';
+import {TypeEnum} from '@deepkit/type';
 import type {JitCode} from '../../types';
 import {toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
-    _getTypeID = () => ReflectionKind.enum;
     emitIsType(comp: JitFnCompiler): JitCode {
         const items = this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`);
         return {code: `(${items.join(' || ')})`, type: 'E'};

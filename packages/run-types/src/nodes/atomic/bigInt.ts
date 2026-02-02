@@ -5,13 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeBigInt} from '@deepkit/type';
+import type {TypeBigInt} from '@deepkit/type';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import type {JitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
-    _getTypeID = () => ReflectionKind.bigint;
     emitIsType(comp: JitFnCompiler): JitCode {
         return {code: `typeof ${comp.vλl} === 'bigint'`, type: 'E'};
     }

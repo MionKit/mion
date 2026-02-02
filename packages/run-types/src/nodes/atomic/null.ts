@@ -5,13 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeNull} from '@deepkit/type';
+import type {TypeNull} from '@deepkit/type';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import type {JitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class NullRunType extends AtomicRunType<TypeNull> {
-    _getTypeID = () => ReflectionKind.null;
     emitIsType(comp: JitFnCompiler): JitCode {
         return {code: `${comp.vλl} === null`, type: 'E'};
     }

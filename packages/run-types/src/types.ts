@@ -26,6 +26,7 @@ export type JitCode = {
 export type SrcType<T extends Type = Type> = T & {
     readonly _rt: RunType;
     readonly _typeId?: StrNumber; // Cached type ID to avoid recalculation (preserves number for atomic types)
+    readonly _formatId?: string; // Cached format ID (empty string means no format, undefined means not computed yet)
     readonly subKind?: SubKind;
 };
 

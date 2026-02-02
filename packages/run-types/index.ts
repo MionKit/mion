@@ -12,7 +12,7 @@ export * from './src/constants.kind';
 export * from './src/constants';
 export * from './src/createRunType';
 export * from './src/createRunTypeFunctions';
-export * from './src/lib/deepkitTypeId';
+export * from './src/lib/typeId';
 export * from './src/lib/dkProxy';
 export * from './src/lib/baseRunTypeFormat';
 export * from './src/lib/baseRunTypes';

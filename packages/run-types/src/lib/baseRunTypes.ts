@@ -33,8 +33,8 @@ import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {getJitUtils} from '@mionkit/core';
 import {createUniqueHash} from './quickHash';
-import {initFormatAnnotations, getRunTypeFormat, defaultIgnoreFormatProps} from './formats';
-import {typeParamsToString} from './utils';
+import {initFormatAnnotations} from './formats';
+import {createTypeId} from './typeId';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core';
 import {defaultMockOptions} from '../mocking/constants.mock';
@@ -48,7 +48,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isCircular?: boolean;
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): RunTypeFamily; // Atomic, Collection, Member, Function
-    abstract _getTypeID(stack?: RunType[]): StrNumber;
     /**
      * This single functions controls whether or not the code for a type should be inlined into the parent function
      * or should create a separate jit function for it, add as a dependency and call it.
@@ -70,15 +69,19 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     skipJit(comp: JitFnCompiler): boolean {
         return false;
     }
-    getFormatTypeID = memorize((): string | undefined => {
-        const formatter = getRunTypeFormat(this);
-        if (!formatter) return;
-        return `<${typeParamsToString(formatter.getParams(this), defaultIgnoreFormatProps)}>`;
-    });
-    getTypeID(stack: BaseRunType[] = []): StrNumber {
-        const formatID = this.getFormatTypeID();
-        if (!formatID) return this._getTypeID(stack);
-        return this._getTypeID(stack) + formatID;
+    /** Returns the format portion of the type ID (cached in src._formatId), or undefined if no format. */
+    getFormatTypeID(): string | undefined {
+        // _formatId is cached by computeDeepkitFormatID during getDeepkitTypeId call
+        // Empty string means no format, undefined means not computed yet
+        const formatId = (this.src as any)._formatId;
+        return formatId || undefined;
+    }
+    /** Returns the type ID which is cached in src._typeId by getDeepkitTypeId(). Format ID is already included. */
+    getTypeID(): StrNumber {
+        if (this.src._typeId === undefined) {
+            throw new Error(`Missing cached type ID for ${this.getTypeName()}. Ensure getDeepkitTypeId() has been called.`);
+        }
+        return this.src._typeId;
     }
     getJitHash(opts: RunTypeOptions): string {
         const optsCopy = {...opts};
@@ -111,6 +114,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         (this as Mutable<RunType>).src = src;
         (src as Mutable<SrcType>)._rt = this;
         initFormatAnnotations(this);
+        // Cache the type ID on the src object - this includes format information
+        createTypeId(src);
     }
     /**
      * Some elements might need a standalone name variable that ignores the vλl value of the parents.
@@ -286,9 +291,6 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .filter((code) => !!code);
         return {code: codes.join(';'), type: S};
     }
-    _getTypeID(stack: BaseRunType[] = []): StrNumber {
-        return this.getChildrenTypeID(stack);
-    }
     private getChildrenTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
         if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
         const circularJitConf = this.checkIsCircularAndGetRefId(stack);
@@ -297,7 +299,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         const childrenIds: (string | number)[] = [];
         const children = this.getChildRunTypes();
         for (const child of children) {
-            childrenIds.push(child.getTypeID(stack));
+            childrenIds.push(child.getTypeID());
         }
         const isArray = this.src.kind === ReflectionKind.tuple || this.src.kind === ReflectionKind.array;
         const groupID = isArray ? `[${childrenIds.join(',')}]` : `{${childrenIds.join(',')}}`;
@@ -380,9 +382,6 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (!code?.code) return {code: undefined, type: S};
         return code;
     }
-    _getTypeID(stack: BaseRunType[] = []): StrNumber {
-        return this.getMemberTypeID(stack);
-    }
     private getMemberTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
         if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
         const optional = this.isOptional() ? '?' : '';
@@ -398,7 +397,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         // ie: sample and sampleChars from StringFormat are too large but they do not affect jit code generation as those properties are only used during mocking
         stack.push(this);
         const member = this.getMemberType();
-        const memberTypeID = member.getTypeID(stack);
+        const memberTypeID = member.getTypeID();
         const typeID = `${kindID}:${memberTypeID}`;
         stack.pop();
         return typeID;

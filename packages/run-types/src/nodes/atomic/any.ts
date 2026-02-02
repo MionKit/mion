@@ -11,8 +11,6 @@ import type {JitCode} from '../../types';
 import {JitFnCompiler} from '../../lib/jitFnCompiler';
 
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
-    _getTypeID = () => this.src.kind;
-
     emitIsType(comp: JitFnCompiler): JitCode {
         const isRoot = comp.getNestLevel(this) === 0;
         if (isRoot) return {code: undefined, type: 'E'};

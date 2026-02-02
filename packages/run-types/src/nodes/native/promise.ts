@@ -4,14 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {ReflectionKind, type TypePromise} from '@deepkit/type';
+import {type TypePromise} from '@deepkit/type';
 import type {JitCode} from '../../types';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {JitFunctions} from '../../constants.functions';
 import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
-    _getTypeID = () => ReflectionKind.promise;
     skipJit(comp: JitFnCompiler): boolean {
         return comp?.fnID !== JitFunctions.toJSCode.id;
     }
