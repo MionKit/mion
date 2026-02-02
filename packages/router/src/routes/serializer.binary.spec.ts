@@ -9,7 +9,7 @@ import {initMionRouter, resetRouter, getRouterOptions, getRouteExecutionChain} f
 import {route, linkedFn} from '../lib/handlers';
 import {Routes} from '../types/general';
 import {serializeResponseBody, deserializeRequestBody} from './serializer.routes';
-import {createCallContext} from '../dispatch';
+import {createCallContext} from '../callContext';
 import {headersFromRecord} from '../lib/headers';
 import type {MionResponse, RawRequestBody} from '../types/context';
 import type {Mutable, MethodWithJitFns, BinaryInput} from '@mionkit/core';

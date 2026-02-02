@@ -39,8 +39,10 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
         ...lambdaOptions.defaultResponseHeaders,
     };
     const respHeaders = headersFromRecord(rawRespHeaders, true);
+    // AWS Lambda always receives body as string (JSON)
+    const reqBodyType = SerializerModes.stringifyJson;
 
-    return dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, awsContext)
+    return dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, awsContext, reqBodyType)
         .then((routeResponse) => reply(routeResponse, respHeaders))
         .catch((err) => {
             const error =

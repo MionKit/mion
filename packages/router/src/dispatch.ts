@@ -13,6 +13,7 @@ import {getRouteExecutionChain, getRouterOptions} from './router';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
+import {createCallContext, acquireCallContext, releaseCallContext} from './callContext';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -30,14 +31,17 @@ export async function dispatchRoute<Req, Resp>(
     reqHeaders: MionHeaders,
     respHeaders: MionHeaders,
     rawRequest: Req,
-    rawResponse?: Resp
+    rawResponse?: Resp,
+    reqBodyType?: SerializerCode
 ): Promise<MionResponse> {
-    try {
-        const opts = getRouterOptions();
-        // this is the call context that will be passed to all handlers
-        // we should keep it as small as possible
-        const context = createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
+    const opts = getRouterOptions();
+    const usePooling = opts.maxContextPoolSize > 0;
+    // Use pooled context if enabled (maxContextPoolSize > 0), otherwise create new context
+    const context = usePooling
+        ? acquireCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType)
+        : createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
 
+    try {
         let executionChain = getRouteExecutionChain(context.path);
         if (!executionChain) {
             executionChain = getRouteExecutionChain(NOT_FOUND_PATH);
@@ -54,38 +58,12 @@ export async function dispatchRoute<Req, Resp>(
     } catch (err: any | RpcError<string> | Error) {
         // this should never happen, exceptions should be handled inside runExecutionChain
         return Promise.reject(err);
+    } finally {
+        // Release context back to pool if pooling is enabled
+        if (usePooling) {
+            releaseCallContext(context, opts.maxContextPoolSize);
+        }
     }
-}
-
-export function createCallContext(
-    path: string,
-    opts: RouterOptions,
-    reqRawBody: RawRequestBody,
-    rawRequest: unknown,
-    reqHeaders: MionHeaders,
-    respHeaders: MionHeaders
-): CallContext {
-    const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
-    return {
-        path: transformedPath,
-        request: {
-            headers: reqHeaders,
-            rawBody: reqRawBody,
-            bodyType: getRequestBodyType(reqRawBody),
-            body: {},
-            thrownErrors: undefined,
-        },
-        response: {
-            statusCode: StatusCodes.OK,
-            hasErrors: false,
-            headers: respHeaders,
-            body: {},
-            rawBody: '',
-            bodyType: SerializerModes.json, // default value, will be set from executionChain.serializer
-            binSerializer: undefined, // we can create serializer lazily
-        },
-        shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
-    } as CallContext;
 }
 
 // ############# PRIVATE METHODS #############
@@ -100,8 +78,6 @@ async function runExecutionChain(
 ): Promise<MionResponse> {
     const {response, request} = context;
     const executables = executionChain.methods;
-
-    // Set response body type from precalculated serializer
     (response as Mutable<MionResponse>).bodyType = executionChain.serializer;
 
     for (let i = 0; i < executables.length; i++) {
@@ -112,26 +88,23 @@ async function runExecutionChain(
             const methodCaller = executable.methodCaller || getMethodCaller(executable);
             // runRawLinkedFn , runHeadersLinkedFn & runRouteOrLinkedFn must always accept the same parameters in the same order
             const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
-            if (result === undefined) continue;
-
-            // Check if result is a HeadersSubset instance
+            if (result === undefined || !executable.hasReturnData) continue;
             if (executable.headersReturn && result instanceof HeadersSubset) {
-                // Extract headers from the HeadersSubset instance
                 const headersMap = result.headers;
-                for (const [name, value] of Object.entries(headersMap)) {
+                for (const name in headersMap) {
+                    const value = headersMap[name];
                     if (value !== undefined && value !== null) {
                         response.headers.set(name, value);
                     }
                 }
-            } else if (executable.hasReturnData && result !== undefined) {
-                (response.body as Mutable<AnyObject>)[executable.id] = result;
+                continue;
             }
+            (response.body as Mutable<AnyObject>)[executable.id] = result;
         } catch (err: any | RpcError<string> | Error) {
             // All thrown errors are unexpected
             onExecutableError(context, executable, err);
         }
     }
-
     return context.response;
 }
 
@@ -184,7 +157,6 @@ function getMethodCaller(executable: RemoteMethod) {
 
 function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMethod): any[] {
     const params: any[] = (request.body[executable.id] as any[]) || [];
-
     // For binary requests, params are already deserialized in the serializer linkedFn
     // (deserializeBinaryRequestBody in serializer.routes.ts)
     if (request.bodyType === SerializerModes.binary) return params;
@@ -234,10 +206,4 @@ function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, exe
         });
         throw validationError;
     }
-}
-
-function getRequestBodyType(rawBody: RawRequestBody): SerializerCode {
-    if (typeof rawBody === 'string') return SerializerModes.stringifyJson;
-    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array) return SerializerModes.binary;
-    return SerializerModes.json;
 }

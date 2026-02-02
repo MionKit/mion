@@ -11,7 +11,7 @@ import type {MionResponse, RawRequestBody} from '../types/context';
 import {HeadersSubset, SerializerModes} from '@mionkit/core';
 import {headersFn, linkedFn, route} from '../lib/handlers';
 import {getRouterOptions, getRouteExecutionChain, initMionRouter, resetRouter} from '../router';
-import {createCallContext} from '../dispatch';
+import {createCallContext} from '../callContext';
 import {headersFromRecord} from '../lib/headers';
 import {deserializeRequestBody, serializeResponseBody} from './serializer.routes';
 

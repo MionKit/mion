@@ -123,8 +123,9 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const contentType = httpReq.headers['content-type'] || '';
         const isBinary = contentType.includes('application/octet-stream');
         const reqRawBody = isBinary ? buffer : buffer.toString();
+        const reqBodyType = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
 
-        dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse)
+        dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse, reqBodyType)
             .then((mionResponse: MionResponse) => {
                 if (replied || httpResponse.writableEnded) return;
                 replied = true;

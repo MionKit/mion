@@ -61,4 +61,13 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
      * @default false
      */
     aot: boolean;
+    /**
+     * Maximum size of the CallContext pool for reduced memory allocations.
+     * When set to a value > 0, CallContext objects are reused from a pool
+     * instead of creating new ones for each request. This can improve
+     * performance in high-throughput scenarios by reducing GC pressure.
+     * Set to 0 to disable pooling.
+     * @default 0 (disabled)
+     */
+    maxContextPoolSize: number;
 }
