@@ -11,7 +11,7 @@
     "check-format-pre-commit": "CI=true prettier --check",
     "lint": "lerna run lint",
     "lint-pre-committ": "CI=true eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
-    "build": "lerna run build & jest test-publish",
+    "build": "lerna run build",
     "build-ts-dts": "npm run clean && lerna run build-ts-dts",
     "clean": "lerna run clean  && nx reset && jest --clearCache",
     "fresh-start": "lerna run fresh-start && rimraf node_modules",

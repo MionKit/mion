@@ -25,6 +25,11 @@ export function getPersistedMethod(id: string, handler: AnyHandler): RemoteMetho
     return restorePersistedMethod(method, handler);
 }
 
+/** Gets method metadata from the persisted methods cache by id. */
+export function getPersistedMethodMetadata(id: string): MethodMetadata | undefined {
+    return persistedMethods[id];
+}
+
 export function getPersistedMethods(): Readonly<MethodsCache> {
     return persistedMethods;
 }

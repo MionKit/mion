@@ -15,6 +15,10 @@ const methodsCache: MethodsCache = {};
 const methodsOptionsCache: Record<string, RemoteMethodOpts> = {};
 let routesCacheLoaded = false;
 
+// Cache for JitCompiledFunctions objects keyed by jitHash
+const jitFunctionsCache = new Map<string, JitCompiledFunctions>();
+const headerJitFunctionsCache = new Map<string, Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>>();
+
 /**
  * Utilities for accessing and modifying the router cache.
  * The router cache stores method metadata for both AOT-compiled routes and dynamically fetched routes.
@@ -196,10 +200,15 @@ export function getJitFnHashes(jitHash: string): JitFunctionsHashes {
 /**
  * Helper function to get JIT functions from a JIT hash
  * Returns nullJitFns for empty hash (handlers with no params or void return)
+ * Results are cached to avoid creating duplicate objects.
  */
 export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
     // Empty hash means no JIT functions were generated (optimization for no params or void return)
     if (jitHash === EMPTY_HASH) return noopJitFns;
+
+    // Check cache first
+    const cached = jitFunctionsCache.get(jitHash);
+    if (cached) return cached;
 
     const hashes = getJitFnHashes(jitHash);
     const jUtils = getJitUtils();
@@ -215,19 +224,31 @@ export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
     for (const key in jitFns) {
         if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
     }
+
+    // Cache for future calls
+    jitFunctionsCache.set(jitHash, jitFns);
     return jitFns;
 }
 
 /**
  * Helper function to get header JIT functions from a JIT hash
+ * Results are cached to avoid creating duplicate objects.
  */
 export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiledFunctions, 'isType' | 'typeErrors'> {
+    // Check cache first
+    const cached = headerJitFunctionsCache.get(jitHash);
+    if (cached) return cached;
+
     const hashes = getJitFnHashes(jitHash);
     const jUtils = getJitUtils();
-    return {
+    const jitFns = {
         isType: jUtils.getJIT(hashes.isType),
         typeErrors: jUtils.getJIT(hashes.typeErrors),
     } as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
+
+    // Cache for future calls
+    headerJitFunctionsCache.set(jitHash, jitFns);
+    return jitFns;
 }
 
 /**
@@ -261,6 +282,12 @@ export function getRoutePath(pathPointer: string[], routerOptions: {prefix: stri
 export function resetRoutesCache() {
     for (const k in methodsCache) delete methodsCache[k];
     routesCacheLoaded = false;
+}
+
+/** Resets the JIT functions cache. Useful for testing purposes only. */
+export function resetJitFunctionsCache(): void {
+    jitFunctionsCache.clear();
+    headerJitFunctionsCache.clear();
 }
 
 // Noop JIT functions used for handlers with no params or void return
