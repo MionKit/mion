@@ -48,9 +48,23 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     // For binary requests, pass the Buffer directly (it's an ArrayBufferView)
     // Google Cloud Functions provides rawBody as a Buffer on the request object
     const rawBody = isBinary ? (rawRequest as any).rawBody : rawRequest.body;
+    // GCF may auto-parse JSON body, so use json mode for parsed objects, stringifyJson for strings
+    const reqBodyType = isBinary
+        ? SerializerModes.binary
+        : typeof rawBody === 'string'
+          ? SerializerModes.stringifyJson
+          : SerializerModes.json;
 
     try {
-        const routeResponse = await dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, rawResponse);
+        const routeResponse = await dispatchRoute(
+            rawRequest.path,
+            rawBody,
+            reqHeaders,
+            respHeaders,
+            rawRequest,
+            rawResponse,
+            reqBodyType
+        );
         reply(routeResponse, rawResponse);
     } catch (err) {
         const error =

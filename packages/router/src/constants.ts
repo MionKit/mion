@@ -32,6 +32,8 @@ export const DEFAULT_ROUTE_OPTIONS = {
     skipClientRoutes: false || IS_TEST_ENV,
     /** AOT mode is disabled by default */
     aot: false,
+    /** Context pooling size == 100 by default */
+    maxContextPoolSize: 100,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;

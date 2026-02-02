@@ -60,16 +60,17 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
             const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
             // Check content-type to determine if this is a binary request
             const contentType = req.headers.get('content-type') || '';
-            const isBinary = contentType.includes('application/octet-stream');
+            const isBinary = contentType.startsWith('application/octet-stream');
             // Use Bun's native req.json() for JSON bodies - avoids intermediate string allocation
             const rawBody = req.body
                 ? isBinary
                     ? await req.arrayBuffer()
                     : ((await req.json()) as Record<string, unknown>)
                 : {};
+            const reqBodyType = isBinary ? SerializerModes.binary : SerializerModes.json;
             const responseHeaders = new Headers(defaultHeaders);
 
-            return dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined)
+            return dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined, reqBodyType)
                 .then((routeResp: MionResponse) => reply(routeResp, responseHeaders))
                 .catch((e) => {
                     const error =
