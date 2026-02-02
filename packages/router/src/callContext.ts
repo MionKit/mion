@@ -109,19 +109,28 @@ export function acquireCallContext(
 /** Releases a CallContext back to the pool for reuse */
 export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void {
     if (contextPool.length < maxPoolSize) {
-        // Clear references to allow GC of request-specific data
         const mutableCtx = ctx as Mutable<CallContext>;
         const req = mutableCtx.request as Mutable<MionRequest>;
-        const resp = mutableCtx.response as Mutable<MionResponse>;
 
-        // Clear large objects to help GC
+        // Clear request data - safe to mutate since request is not returned to caller
         req.rawBody = '';
-        req.body = {};
+        req.body = null as any; // Will be set when context is acquired
         req.thrownErrors = undefined;
-        resp.rawBody = '';
-        resp.body = {};
-        resp.binSerializer = undefined;
-        mutableCtx.shared = {};
+
+        // Create fresh response object - the old one may still be referenced by the caller
+        // IMPORTANT: We must NOT mutate the existing response object because it's returned
+        // to the platform wrapper (e.g., HTTP handler) which may still be using it
+        mutableCtx.response = {
+            statusCode: StatusCodes.OK,
+            hasErrors: false,
+            headers: null as any, // Will be set when context is acquired
+            body: null as any, // Will be set when context is acquired
+            rawBody: '',
+            bodyType: SerializerModes.json,
+            binSerializer: undefined,
+        };
+
+        mutableCtx.shared = null as any;
 
         contextPool.push(ctx);
     }
