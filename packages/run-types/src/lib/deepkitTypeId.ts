@@ -5,10 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Type, TypeIndexSignature, TypeProperty, ReflectionKind, TypeClass} from '@deepkit/type';
-import {MAX_STACK_DEPTH} from '@mionkit/core';
+import {Type, TypeIndexSignature, TypeProperty, ReflectionKind, TypeClass, typeAnnotation} from '@deepkit/type';
+import {MAX_STACK_DEPTH, TypeFormatParams} from '@mionkit/core';
 import {ReflectionSubKind} from '../constants.kind';
-import {hasType, hasTypes, hasReturn, hasParameters, hasArguments} from './guards';
+import {hasType, hasTypes, hasParameters} from './guards';
+import {getFormatterFromCache, defaultIgnoreFormatProps} from './formats';
+import {typeParamsToString} from './utils';
+import type {FormatAnnotation} from '../types';
 
 type StrNumber = string | number;
 
@@ -96,15 +99,11 @@ function computeBaseTypeId(type: Type, kind: number, stack: Type[]): StrNumber {
             return `${kind}:${String(literal)}`;
         }
 
-        case ReflectionKind.enum: {
-            // Include enum values in the ID
-            const values = (type as any).values || [];
-            return `${kind}:{${values.map((v: any) => JSON.stringify(v)).join(',')}}`;
-        }
+        case ReflectionKind.enum:
+            return kind;
 
         case ReflectionKind.enumMember:
-            // Include enum member value
-            return `${kind}:${JSON.stringify((type as any).default)}`;
+            return kind;
 
         // ###################### COLLECTION TYPES ######################
         // These types contain multiple child types
@@ -123,8 +122,9 @@ function computeBaseTypeId(type: Type, kind: number, stack: Type[]): StrNumber {
         case ReflectionKind.parameter:
         case ReflectionKind.rest:
         case ReflectionKind.indexSignature:
-        case ReflectionKind.promise:
             return computeMemberTypeId(type, stack);
+        case ReflectionKind.promise:
+            return kind;
 
         // ###################### FUNCTION TYPES ######################
         // Note: FunctionRunType._getTypeID() returns just the kind (17) unless it's a named method
@@ -141,7 +141,7 @@ function computeBaseTypeId(type: Type, kind: number, stack: Type[]): StrNumber {
         case ReflectionKind.method:
         case ReflectionKind.methodSignature:
         case ReflectionKind.callSignature:
-            return computeFunctionTypeId(type, stack);
+            return computeFunctionTypeId(type);
 
         // ###################### CLASS TYPES ######################
         case ReflectionKind.class:
@@ -162,11 +162,12 @@ function computeBaseTypeId(type: Type, kind: number, stack: Type[]): StrNumber {
 
 /** Computes type ID for collection types (union, intersection, objectLiteral, tuple) */
 function computeCollectionTypeId(type: Type, stack: Type[]): StrNumber {
-    if (!hasTypes(type)) return (type as any).subKind || type.kind;
+    const types = (type as any).types as Type[] | undefined;
+    if (!Array.isArray(types)) return (type as any).subKind || type.kind;
 
     stack.push(type);
     const childIds: StrNumber[] = [];
-    for (const childType of type.types) {
+    for (const childType of types) {
         childIds.push(computeDeepkitTypeId(childType, stack));
     }
     stack.pop();
@@ -181,9 +182,13 @@ function computeCollectionTypeId(type: Type, stack: Type[]): StrNumber {
 
 /** Computes type ID for member types (property, array, tupleMember, parameter, etc.) */
 function computeMemberTypeId(type: Type, stack: Type[]): StrNumber {
-    if (!hasType(type)) return (type as any).subKind || type.kind;
+    const memberType = (type as any).type as Type | undefined;
+    if (!memberType || typeof memberType.kind !== 'number') return (type as any).subKind || type.kind;
 
-    const optional = (type as any).optional ? '?' : '';
+    const isRest = memberType.kind === ReflectionKind.rest;
+    const isTupleParam = type.kind === ReflectionKind.tupleMember || type.kind === ReflectionKind.parameter;
+    const hasDefault = isTupleParam && (type as any).default !== undefined;
+    const optional = (type as any).optional || type.kind === ReflectionKind.indexSignature || isRest || hasDefault ? '?' : '';
     const propName =
         (type as TypeProperty).name?.toString() || (type as TypeIndexSignature).index?.kind || (type as any).subKind || type.kind;
     const kindID = `${propName}${optional}`;
@@ -193,17 +198,15 @@ function computeMemberTypeId(type: Type, stack: Type[]): StrNumber {
     if (circularId) return `${kindID}:${circularId}`;
 
     stack.push(type);
-    const memberTypeId = computeDeepkitTypeId(type.type, stack);
+    const memberTypeId = computeDeepkitTypeId(memberType, stack);
     stack.pop();
 
     return `${kindID}:${memberTypeId}`;
 }
 
 /** Computes type ID for function types */
-function computeFunctionTypeId(type: Type, stack: Type[]): StrNumber {
-    const kind = (type as any).subKind || type.kind;
-    const parts: string[] = [];
-
+function computeFunctionTypeId(type: Type): StrNumber {
+    const kind = ReflectionKind.function;
     // For method signatures, include the method name if it's a property of an object/class
     const parent = type.parent;
     const name = (type as any).name;
@@ -214,24 +217,8 @@ function computeFunctionTypeId(type: Type, stack: Type[]): StrNumber {
         baseId = String(kind);
     }
 
-    stack.push(type);
-
-    if (hasParameters(type) && type.parameters.length > 0) {
-        const paramIds = type.parameters.map((p) => computeDeepkitTypeId(p, stack));
-        parts.push(`(${paramIds.join(',')})`);
-    }
-
-    if (hasReturn(type)) {
-        parts.push(`=>${computeDeepkitTypeId(type.return, stack)}`);
-    }
-
-    stack.pop();
-
-    // For method signatures, append :? if optional (mirrors MethodSignatureRunType._getTypeID)
-    const isOptional = (type as any).optional;
-    const optionalSuffix = isOptional ? ':?' : '';
-
-    return parts.length > 0 ? `${baseId}${parts.join('')}${optionalSuffix}` : `${baseId}${optionalSuffix}`;
+    const isOptional = !!(type as any).optional;
+    return isOptional ? `${baseId}:?` : baseId;
 }
 
 /** Computes type ID for class types */
@@ -269,25 +256,17 @@ function computeClassTypeId(type: TypeClass, stack: Type[]): StrNumber {
     }
 
     const kind = (type as any).subKind || type.kind;
-    const className = type.classType?.name || 'UnknownClass';
-
-    // For regular classes, include type arguments if present
-    if (hasArguments(type) && type.arguments.length > 0) {
-        stack.push(type);
-        const argIds = type.arguments.map((a) => computeDeepkitTypeId(a, stack));
-        stack.pop();
-        return `${kind}:${className}<${argIds.join(',')}>`;
-    }
+    const types = (type as any).types as Type[] | undefined;
 
     // For classes with types (properties), compute like a collection
-    if (hasTypes(type) && type.types.length > 0) {
+    if (Array.isArray(types) && types.length > 0) {
         stack.push(type);
-        const childIds = type.types.map((t) => computeDeepkitTypeId(t, stack));
+        const childIds = types.map((t) => computeDeepkitTypeId(t, stack));
         stack.pop();
-        return `${kind}:${className}{${childIds.join(',')}}`;
+        return `${kind}{${childIds.join(',')}}`;
     }
 
-    return `${kind}:${className}`;
+    return kind;
 }
 
 /** Computes type ID for function params (FunctionParamsRunType) - uses parameters array instead of types */
