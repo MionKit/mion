@@ -15,10 +15,9 @@ describe('getDeepkitTypeId', () => {
         const numberRt = runType<number>();
         const booleanRt = runType<boolean>();
 
-        // Atomic types return their ReflectionKind as a number
-        expect(getDeepkitTypeId(stringRt.src)).toBe(ReflectionKind.string);
-        expect(getDeepkitTypeId(numberRt.src)).toBe(ReflectionKind.number);
-        expect(getDeepkitTypeId(booleanRt.src)).toBe(ReflectionKind.boolean);
+        expect(getDeepkitTypeId(stringRt.src)).toBe(stringRt.getTypeID());
+        expect(getDeepkitTypeId(numberRt.src)).toBe(numberRt.getTypeID());
+        expect(getDeepkitTypeId(booleanRt.src)).toBe(booleanRt.getTypeID());
     });
 
     it('should generate consistent IDs for object types', () => {
@@ -32,6 +31,8 @@ describe('getDeepkitTypeId', () => {
 
         // Same type should produce same ID even if different Type objects
         expect(id1).toBe(id2);
+        expect(id1).toBe(rt1.getTypeID());
+        expect(id2).toBe(rt2.getTypeID());
     });
 
     it('should generate different IDs for different types', () => {
@@ -42,6 +43,8 @@ describe('getDeepkitTypeId', () => {
         const rtB = runType<TypeB>();
 
         expect(getDeepkitTypeId(rtA.src)).not.toBe(getDeepkitTypeId(rtB.src));
+        expect(getDeepkitTypeId(rtA.src)).toBe(rtA.getTypeID());
+        expect(getDeepkitTypeId(rtB.src)).toBe(rtB.getTypeID());
     });
 
     it('should handle circular types without infinite loop', () => {
@@ -54,8 +57,7 @@ describe('getDeepkitTypeId', () => {
 
         // Should not throw or hang
         const id = getDeepkitTypeId(rt.src);
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should cache ID on type object', () => {
@@ -69,6 +71,7 @@ describe('getDeepkitTypeId', () => {
         const id2 = getDeepkitTypeId(rt.src);
 
         expect(id1).toBe(id2);
+        expect(id1).toBe(rt.getTypeID());
         expect((rt.src as any)._typeId).toBe(id1);
     });
 
@@ -84,9 +87,8 @@ describe('getDeepkitTypeId', () => {
 
         // Different literals should have different IDs
         expect(idA).not.toBe(idB);
-        // IDs should include the literal value (using String() conversion)
-        expect(idA).toContain('hello');
-        expect(idB).toContain('42');
+        expect(idA).toBe(rtA.getTypeID());
+        expect(idB).toBe(rtB.getTypeID());
     });
 
     it('should handle RegExp literal types', () => {
@@ -95,17 +97,14 @@ describe('getDeepkitTypeId', () => {
         const rtReg = runType<typeof reg>(); // eslint-disable-line @mionkit/no-typeof-runtype
 
         const id = getDeepkitTypeId(rtReg.src);
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
+        expect(id).toBe(rtReg.getTypeID());
     });
 
     it('should handle BigInt literal types', () => {
         const rtBig = runType<1n>();
 
         const id = getDeepkitTypeId(rtBig.src);
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
-        expect(id).toContain('1');
+        expect(id).toBe(rtBig.getTypeID());
     });
 
     it('should handle union types', () => {
@@ -114,8 +113,7 @@ describe('getDeepkitTypeId', () => {
         const rt = runType<UnionType>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle array types', () => {
@@ -124,8 +122,7 @@ describe('getDeepkitTypeId', () => {
         const rt = runType<ArrayType>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle tuple types', () => {
@@ -134,10 +131,7 @@ describe('getDeepkitTypeId', () => {
         const rt = runType<TupleType>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
-        // Tuple should use square brackets
-        expect(id).toContain('[');
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle nested object types', () => {
@@ -152,17 +146,14 @@ describe('getDeepkitTypeId', () => {
         const rt = runType<NestedType>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle Date class type', () => {
         const rt = runType<Date>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        // Date returns a subKind number for special handling
-        expect(['string', 'number']).toContain(typeof id);
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle Map class type', () => {
@@ -171,9 +162,7 @@ describe('getDeepkitTypeId', () => {
         const rt = runType<MapType>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        // Map returns a subKind number for special handling
-        expect(['string', 'number']).toContain(typeof id);
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle Set class type', () => {
@@ -182,9 +171,7 @@ describe('getDeepkitTypeId', () => {
         const rt = runType<SetType>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        // Set returns a subKind number for special handling
-        expect(['string', 'number']).toContain(typeof id);
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle function types', () => {
@@ -193,9 +180,7 @@ describe('getDeepkitTypeId', () => {
         const rt = runType<FnType>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        // Function types return just the kind number (17) to match FunctionRunType._getTypeID()
-        expect(['string', 'number']).toContain(typeof id);
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle optional properties', () => {
@@ -204,10 +189,7 @@ describe('getDeepkitTypeId', () => {
         const rt = runType<WithOptional>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
-        // Optional property should include ? marker
-        expect(id).toContain('?');
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle enum types', () => {
@@ -219,8 +201,7 @@ describe('getDeepkitTypeId', () => {
         const rt = runType<TestEnum>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle intersection types', () => {
@@ -231,8 +212,7 @@ describe('getDeepkitTypeId', () => {
         const rt = runType<IntersectionType>();
         const id = getDeepkitTypeId(rt.src);
 
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
+        expect(id).toBe(rt.getTypeID());
     });
 
     it('should handle deeply nested circular types', () => {
@@ -245,11 +225,11 @@ describe('getDeepkitTypeId', () => {
 
         // Should not throw or hang
         const id = getDeepkitTypeId(rt.src);
-        expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
+        expect(id).toBe(rt.getTypeID());
 
         // Calling again should return cached value
         const id2 = getDeepkitTypeId(rt.src);
         expect(id).toBe(id2);
+        expect(id2).toBe(rt.getTypeID());
     });
 });
