@@ -1,2 +1,1 @@
-import { PersistedJitFunctionsCache } from '@mionkit/core';
-export declare const jitFnsCache: PersistedJitFunctionsCache;
+export declare const jitFnsCache: Record<string, unknown>;

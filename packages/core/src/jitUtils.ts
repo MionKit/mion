@@ -265,7 +265,7 @@ export function addSerializedJitCaches(jitDataFnsCache: FnsDataCache, pureFnsDat
 export function coreAOTLoadJitCaches(): void {
     if (coreAOTCachesLoaded) return;
     coreAOTCachesLoaded = true;
-    restoreCaches(aotJitFnsCache, aotPureFnsCache);
+    restoreCaches(aotJitFnsCache as PersistedJitFunctionsCache, aotPureFnsCache as PersistedPureFunctionsCache);
 }
 
 function restoreCaches(

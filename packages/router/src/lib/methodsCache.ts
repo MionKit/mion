@@ -5,7 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MethodsCache, MethodMetadata, getENV, getJitFunctionsFromHash, importModule, addAOTCaches} from '@mionkit/core';
+import {
+    MethodsCache,
+    MethodMetadata,
+    getENV,
+    getJitFunctionsFromHash,
+    importModule,
+    addAOTCaches,
+    PersistedJitFunctionsCache,
+    PersistedPureFunctionsCache,
+} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
 import {AnyHandler} from '../types/handlers';
 import {IS_TEST_ENV} from '../constants';
@@ -98,10 +107,13 @@ export async function loadDefaultAOTCaches(): Promise<void> {
         try {
             // Dynamically import the aot-caches package
             const aotCaches = await importModule<typeof import('@mionkit/aot-caches')>('@mionkit/aot-caches');
-            addAOTCaches(aotCaches.jitFnsCache, aotCaches.pureFnsCache);
+            addAOTCaches(
+                aotCaches.jitFnsCache as PersistedJitFunctionsCache,
+                aotCaches.pureFnsCache as PersistedPureFunctionsCache
+            );
 
             // Load router cache (default routes metadata)
-            loadCompiledMethods(aotCaches.routerCache);
+            loadCompiledMethods(aotCaches.routerCache as MethodsCache);
 
             defaultAOTCachesLoaded = true;
         } catch (error) {

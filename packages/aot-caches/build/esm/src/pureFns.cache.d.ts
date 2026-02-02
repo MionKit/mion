@@ -1,2 +1,1 @@
-import { PersistedPureFunctionsCache } from '@mionkit/core';
-export declare const pureFnsCache: PersistedPureFunctionsCache;
+export declare const pureFnsCache: Record<string, unknown>;
