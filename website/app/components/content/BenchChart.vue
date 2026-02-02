@@ -81,10 +81,6 @@ onMounted(() => {
   fill: var(--ui-text);
 }
 .dark .bb path {
-  stroke: var(--ui-text-muted)
-}
-
-.mion-bench .bb-chart-text {
-  transform: rotate(-35deg) 
+  stroke: #363232;
 }
 </style>

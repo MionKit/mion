@@ -111,20 +111,28 @@ pre.px-4 {
 }
 
 .home-features h3 {
-    background: linear-gradient(
-      90deg,
-      #8aa85e 0%,
-      color-mix(in srgb, #8aa85e 55%, #60a5fa) 25%,
-      #bdd09d 50%,
-      color-mix(in srgb, #8aa85e 55%, #60a5fa) 75%,
-      #8aa85e 100%
-    );
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-size: 200% 100%;
-    animation: gradient-flow 12s linear infinite;
-  }
+  background: linear-gradient(
+    90deg,
+    #8aa85e 0%,
+    color-mix(in srgb, #8aa85e 55%, #60a5fa) 25%,
+    #bdd09d 50%,
+    color-mix(in srgb, #8aa85e 55%, #60a5fa) 75%,
+    #8aa85e 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 100%;
+  animation: gradient-flow 12s linear infinite;
+}
+
+.dark table tbody td strong {
+    color: var(--color-primary-300)
+}
+
+.dark table th {
+    color: var(--color-primary-400)
+}
 
 @media screen and (min-width: 780px){
   .home-features h2 {

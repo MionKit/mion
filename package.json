@@ -18,7 +18,8 @@
     "deepkit-install": "deepkit-type-install",
     "auto-readme": "embedme README.md && lerna run auto-readme",
     "npm-publish": "lerna publish from-package --no-private",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "copy-benchmarks": "cp -r ../mion-benchmarks/assets/public/* ./website/app/components/content/charts/"
   },
   "lint-staged": {
     "packages/!(examples)/**/!(*.spec|*.test).ts": [
