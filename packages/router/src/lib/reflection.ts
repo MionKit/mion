@@ -12,7 +12,7 @@ import {Handler} from '../types/handlers';
 import {RouterOptions} from '../types/general';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants';
 import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns, importModule} from '@mionkit/core';
-import {persistedMethods} from './methodsCache';
+import {getPersistedMethodMetadata} from './methodsCache';
 
 // ############ This file is the only one importing '@mionkit/run-types' within the router ########
 // In AOT mode, run-types is NOT loaded - all reflection data comes from the AOT cache
@@ -79,14 +79,31 @@ export function resetRunTypesCache(): void {
     runTypesLoadPromise = null;
 }
 
+/** Resets all reflection caches. Useful for testing purposes only. */
+export function resetReflectionCaches(): void {
+    rawLinkedFnReflectionCache.clear();
+    // Note: functionRunTypeCache uses WeakMap so it doesn't need explicit clearing
+    // Note: _cachedReflection on MethodMetadata objects will be cleared when persistedMethods is reset
+}
+
 // ############ Raw LinkedFn Reflection Helper ############
+
+// Cache for common raw linkedFn reflections
+const rawLinkedFnReflectionCache = new Map<string, MethodReflect>();
 
 /**
  * Creates a MethodReflect for raw linkedFns.
  * Raw linkedFns don't need JIT functions - they always use NoopJitFns.
+ * Results are cached to avoid creating duplicate objects.
  */
 function createRawLinkedFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
-    return {
+    // Create cache key from parameters
+    const cacheKey = `${isAsync}_${hasReturnData}_${paramNames.join(',')}`;
+
+    const cached = rawLinkedFnReflectionCache.get(cacheKey);
+    if (cached) return cached;
+
+    const reflection: MethodReflect = {
         paramNames,
         paramsJitFns: getNoopJitFns(),
         returnJitFns: getNoopJitFns(),
@@ -95,15 +112,27 @@ function createRawLinkedFnReflection(isAsync: boolean, hasReturnData: boolean = 
         hasReturnData,
         isAsync,
     };
+
+    rawLinkedFnReflectionCache.set(cacheKey, reflection);
+    return reflection;
 }
 
 // ############ AOT Cache Extraction ############
 
+// Extend MethodMetadata type to include cached reflection
+type CachedMethodMetadata = MethodMetadata & {
+    _cachedReflection?: MethodReflect;
+};
+
 /**
  * Extracts reflection data from a cached method.
  * Used in AOT mode to restore method reflection without loading run-types.
+ * Results are cached on the metadata object to avoid creating duplicate objects.
  */
-function extractReflectionFromCached(cached: MethodMetadata): MethodReflect {
+function extractReflectionFromCached(cached: CachedMethodMetadata): MethodReflect {
+    // Return cached reflection if available
+    if (cached._cachedReflection) return cached._cachedReflection;
+
     const reflectionItems: MethodReflect = {
         paramNames: cached.paramNames || [],
         paramsJitFns: getJitFunctionsFromHash(cached.paramsJitHash),
@@ -132,6 +161,8 @@ function extractReflectionFromCached(cached: MethodMetadata): MethodReflect {
         };
     }
 
+    // Cache for future calls
+    cached._cachedReflection = reflectionItems;
     return reflectionItems;
 }
 
@@ -150,7 +181,7 @@ export async function getHandlerReflection(
     isHeadersLinkedFn: boolean = false
 ): Promise<MethodReflect> {
     // Check AOT cache first
-    const cached = persistedMethods[routeId];
+    const cached = getPersistedMethodMetadata(routeId);
     if (cached) return extractReflectionFromCached(cached);
     if (routerOptions.aot) throw new AOTCacheError(routeId, isHeadersLinkedFn ? 'linkedFn' : 'route');
     // Non-AOT mode: dynamically load run-types and generate reflection
@@ -171,7 +202,7 @@ export async function getRawMethodReflection(
     routerOptions: RouterOptions
 ): Promise<MethodReflect> {
     // Check if raw linkedFn is in cache - if so, use cached data (especially isAsync)
-    const cached = persistedMethods[routeId];
+    const cached = getPersistedMethodMetadata(routeId);
     if (cached) return createRawLinkedFnReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
     // Raw linkedFns don't need JIT functions, so we don't need to load run-types in AOT mode
     if (routerOptions.aot) return createRawLinkedFnReflection(true);
@@ -408,13 +439,22 @@ function getTypeJitFunctions(
     return jitFns;
 }
 
+// Cache for function RunTypes to avoid duplicate reflectFunction calls
+const functionRunTypeCache = new WeakMap<AnyFn, FunctionRunType>();
+
 function getFunctionJitFns<Fn extends AnyFn>(
     fn: Fn,
     opts: RunTypeOptions | undefined,
     rtModule: RunTypesFunctions,
     isReturn: boolean
 ): JitCompiledFunctions {
-    const runType = rtModule.reflectFunction(fn);
+    // Check cache first
+    let runType = functionRunTypeCache.get(fn);
+    if (!runType) {
+        runType = rtModule.reflectFunction(fn);
+        functionRunTypeCache.set(fn, runType);
+    }
+
     const createFn = isReturn
         ? runType.createJitCompiledReturnFunction.bind(runType)
         : runType.createJitCompiledParamsFunction.bind(runType);
