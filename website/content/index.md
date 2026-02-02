@@ -177,7 +177,7 @@ blur: 140px
 
     ::::card
     ---
-    to: /platforms/overview
+    to: /platforms/node-js
     class: sm:col-span-2 lg:col-span-2 text-center
     ---
     ### Write Once Run Everywhere
@@ -204,8 +204,8 @@ blur: 140px
   :::::
 
   ::::div{class="lg:col-span-2"}
-  #### [Hello World Benchmarks (Req/S)](/benchmarks/hello-world)
-  :bench-chart{id='hello-requests'}
+  #### [Benchmarks (Req/S)](/benchmarks/update-user)
+  :bench-chart{id='update-requests'}
   ::::
   ::::
 ::
