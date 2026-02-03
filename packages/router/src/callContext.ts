@@ -77,7 +77,6 @@ export function acquireCallContext(
         // Reuse the pooled context shell, but create fresh body objects
         const ctx = pooledContext as Mutable<CallContext>;
         ctx.path = transformedPath;
-
         // Reset request - reuse the request object shell
         const req = ctx.request as Mutable<MionRequest>;
         req.headers = reqHeaders;
@@ -85,7 +84,6 @@ export function acquireCallContext(
         req.bodyType = reqBodyType ?? getRequestBodyType(reqRawBody);
         req.body = {}; // Must be fresh - handlers write to this
         req.thrownErrors = undefined;
-
         // Reset response - reuse the response object shell
         const resp = ctx.response as Mutable<MionResponse>;
         resp.statusCode = StatusCodes.OK;
@@ -95,13 +93,10 @@ export function acquireCallContext(
         resp.rawBody = '';
         resp.bodyType = SerializerModes.json;
         resp.binSerializer = undefined;
-
         // Reset shared data
         ctx.shared = opts.contextDataFactory ? opts.contextDataFactory() : {};
-
         return ctx;
     }
-
     // No pooled context available, create new one
     return createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
 }
@@ -111,12 +106,10 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
     if (contextPool.length < maxPoolSize) {
         const mutableCtx = ctx as Mutable<CallContext>;
         const req = mutableCtx.request as Mutable<MionRequest>;
-
         // Clear request data - safe to mutate since request is not returned to caller
         req.rawBody = '';
         req.body = null as any; // Will be set when context is acquired
         req.thrownErrors = undefined;
-
         // Create fresh response object - the old one may still be referenced by the caller
         // IMPORTANT: We must NOT mutate the existing response object because it's returned
         // to the platform wrapper (e.g., HTTP handler) which may still be using it
@@ -129,9 +122,7 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
             bodyType: SerializerModes.json,
             binSerializer: undefined,
         };
-
         mutableCtx.shared = null as any;
-
         contextPool.push(ctx);
     }
     // If pool is full, let the context be garbage collected

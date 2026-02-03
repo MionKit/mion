@@ -50,8 +50,8 @@ describe('bun router should', () => {
     const port = 8079;
 
     beforeAll(async () => {
-        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-        registerRoutes({changeUserName, getDate, updateHeaders});
+        await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+        await registerRoutes({changeUserName, getDate, updateHeaders});
         setBunHttpOpts({port});
         server = await startBunServer();
     });
@@ -128,9 +128,9 @@ describe('bun router should', () => {
             defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
         };
         resetBunHttpOpts();
-        initRouter(routerOpts);
+        await initRouter(routerOpts);
         setBunHttpOpts(bunOpts);
-        registerRoutes({changeUserName, getDate, updateHeaders});
+        await registerRoutes({changeUserName, getDate, updateHeaders});
         const smallServer = await startBunServer();
         const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
         const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
@@ -148,8 +148,8 @@ describe('bun router should', () => {
 
         // Restore router state for the main server
         resetBunHttpOpts();
-        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-        registerRoutes({changeUserName, getDate, updateHeaders});
+        await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+        await registerRoutes({changeUserName, getDate, updateHeaders});
         setBunHttpOpts({port});
     });
 
@@ -166,16 +166,16 @@ describe('bun router should', () => {
         };
         resetBunHttpOpts();
         setBunHttpOpts(httpOpts);
-        initRouter(routerOpts);
-        registerRoutes({changeUserName, getDate, updateHeaders});
+        await initRouter(routerOpts);
+        await registerRoutes({changeUserName, getDate, updateHeaders});
         const smallServer = await startBunServer();
         expect(smallServer).toBeUndefined();
 
         // Restore router state for the main server
         delete process.env.MION_COMPILE;
         resetBunHttpOpts();
-        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-        registerRoutes({changeUserName, getDate, updateHeaders});
+        await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+        await registerRoutes({changeUserName, getDate, updateHeaders});
         setBunHttpOpts({port});
     });
 
@@ -186,8 +186,8 @@ describe('bun router should', () => {
         // Start a new server with serializer=json
         const testPort = 8081;
         resetBunHttpOpts();
-        initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
-        registerRoutes({changeUserName, getDate});
+        await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
+        await registerRoutes({changeUserName, getDate});
         setBunHttpOpts({port: testPort});
         const testServer = await startBunServer();
 
@@ -209,8 +209,8 @@ describe('bun router should', () => {
 
         // Restart the main server
         resetBunHttpOpts();
-        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-        registerRoutes({changeUserName, getDate, updateHeaders});
+        await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+        await registerRoutes({changeUserName, getDate, updateHeaders});
         setBunHttpOpts({port});
         server = await startBunServer();
     });
@@ -222,8 +222,8 @@ describe('bun router should', () => {
         // Start a new server with serializer=json
         const testPort = 8081;
         resetBunHttpOpts();
-        initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
-        registerRoutes({changeUserName, getDate});
+        await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
+        await registerRoutes({changeUserName, getDate});
         setBunHttpOpts({port: testPort});
         const testServer = await startBunServer();
 
@@ -245,8 +245,8 @@ describe('bun router should', () => {
 
         // Restart the main server
         resetBunHttpOpts();
-        initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-        registerRoutes({changeUserName, getDate, updateHeaders});
+        await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+        await registerRoutes({changeUserName, getDate, updateHeaders});
         setBunHttpOpts({port});
         server = await startBunServer();
     });
