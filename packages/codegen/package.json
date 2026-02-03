@@ -53,7 +53,6 @@
     "build": "npm run build:aot-template && vite build",
     "build-ts-dts": "echo 'noop: codegen uses custom build'",
     "build:aot-template": "cd mion-aot-template && npm run build",
-    "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage",
     "fresh-start": "npm run clean && rimraf node_modules"
   },

@@ -33,7 +33,6 @@
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
     "build-ts-dts": "echo 'noop: eslint-plugin is pre-built'",
-    "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .coverage",
     "fresh-start": "npm run clean && rimraf node_modules"
   },
