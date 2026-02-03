@@ -51,7 +51,6 @@
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
     "build-ts-dts": "tsc --project tsconfig.json --emitDeclarationOnly --declaration --skipLibCheck --outDir .dist/esm || true",
-    "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage & rimraf aot/build",
     "fresh-start": "npm run clean && rimraf node_modules",
     "run-test-server": "ts-node --project test/tsconfig.json test/test-server.ts"
