@@ -1,0 +1,456 @@
+
+> @mionkit/type-formats@0.7.2 test
+> jest
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/string/[22m[1mdate.runtype.spec.ts[22m ([0m[1m[41m8.483 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 193ms for YYYYMMDD[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/date.runtype.spec.ts[39m[0m[2m:17:40)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/string/[22m[1mdefaultStringFormats.runtype.spec.ts[22m
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 216ms for StrAlphaNumeric[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createTypeErrorsFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:38:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/defaultStringFormats.runtype.spec.ts[39m[0m[2m:50:48)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 132ms for CapitalString[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createMockTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:90:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/defaultStringFormats.runtype.spec.ts[39m[0m[2m:222:44)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/string/[22m[1mdomain.runtype.spec.ts[22m ([0m[1m[41m10.291 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 145ms for StrDomainStrict[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/domain.runtype.spec.ts[39m[0m[2m:13:40)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/string/[22m[1memail.runtype.spec.ts[22m ([0m[1m[41m11.553 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 391ms for StrEmailStrict[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/email.runtype.spec.ts[39m[0m[2m:13:40)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/string/[22m[1mtime.runtype.spec.ts[22m ([0m[1m[41m10.602 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      isExtendable took very long 196 ms comparing ['time'] and [never][39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat isExtendable ([22m[2m../../node_modules/@deepkit/type/src/reflection/extends.ts[2m:76:17)[22m[2m[22m
+[2m      [2mat Processor.loop ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:1072:56)[22m[2m[22m
+[2m      [2mat Processor.runProgram ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:453:25)[22m[2m[22m
+[2m      [2mat Processor._reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:421:27)[22m[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:350:29)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/time.runtype.spec.ts[39m[0m[2m:17:40)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 803ms for HHmmss[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/time.runtype.spec.ts[39m[0m[2m:17:40)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 328ms for unknown[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat Processor.loop ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:1252:53)[22m[2m[22m
+[2m      [2mat Processor.runProgram ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:453:25)[22m[2m[22m
+[2m      [2mat Processor._reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:421:27)[22m[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:350:29)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/time.runtype.spec.ts[39m[0m[2m:213:40)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 329ms for mm[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/time.runtype.spec.ts[39m[0m[2m:213:40)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/number/[22m[1mnumberFormat.runtype.spec.ts[22m ([0m[1m[41m13.029 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 221ms for Max10[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/number/numberFormat.runtype.spec.ts[39m[0m[2m:16:40)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 100ms for Max10[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/number/numberFormat.runtype.spec.ts[39m[0m[2m:16:40)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 258ms for Min10[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createTypeErrorsFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:38:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/number/numberFormat.runtype.spec.ts[39m[0m[2m:69:48)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 339ms for IntegerNumber[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/number/numberFormat.runtype.spec.ts[39m[0m[2m:164:40)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 317ms for MultipleOf5[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createTypeErrorsFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:38:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/number/numberFormat.runtype.spec.ts[39m[0m[2m:262:48)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 125ms for InvalidType[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/number/numberFormat.runtype.spec.ts[39m[0m[2m:363:32)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/string/[22m[1mstringFormat.runtype.spec.ts[22m ([0m[1m[41m14.098 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 155ms for AllowedValues[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/stringFormat.runtype.spec.ts[39m[0m[2m:159:40)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 165ms for AllowedValues[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createMockTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:90:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/stringFormat.runtype.spec.ts[39m[0m[2m:187:44)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 333ms for DisallowedValuesIgnoreCase[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/string/stringFormat.runtype.spec.ts[39m[0m[2m:289:40)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/number/[22m[1mdefaultNumberFormats.spec.ts[22m
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 233ms for NumInteger[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/number/defaultNumberFormats.spec.ts[39m[0m[2m:24:40)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/string/[22m[1mip.runtype.spec.ts[22m ([0m[1m[41m5.243 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/string/[22m[1murl.runtype.spec.ts[22m ([0m[1m[41m7.01 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/string/[22m[1mdateTime.runtype.spec.ts[22m ([0m[1m[41m5.252 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/number/[22m[1mdefaultNumberBinary.spec.ts[22m
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 333ms for NumPositive[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/number/defaultNumberBinary.spec.ts[39m[0m[2m:65:23)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/string/[22m[1muuid.runtype.spec.ts[22m
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/bigint/[22m[1mbigIntFormat.runtype.spec.ts[22m ([0m[1m[41m7.864 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/bigint/[22m[1mdefaultBigNumberFormats.spec.ts[22m ([0m[1m[41m6.387 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 140ms for BigNumPositiveInt[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/bigint/defaultBigNumberFormats.spec.ts[39m[0m[2m:67:40)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2mexamples/[22m[1muser.runtype.spec.ts[22m ([0m[1m[41m22.191 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 248ms for User[39m
+[2m[22m
+[2m    [0m [90m 66 |[39m [36mexport[39m [36mfunction[39m runType[33m<[39m[33mT[39m[33m>[39m(type[33m?[39m[33m:[39m [33mReceiveType[39m[33m<[39m[33mT[39m[33m>[39m)[33m:[39m [33mRunType[39m {[22m
+[2m     [90m 67 |[39m     [36mconst[39m start [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 68 |[39m     [36mconst[39m src [33m=[39m resolveReceiveType(type) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                                   [31m[1m^[22m[2m[39m[22m
+[2m     [90m 69 |[39m     [36mconst[39m took0 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[22m
+[2m     [90m 70 |[39m     createRunTypes(src)[33m;[39m[22m
+[2m     [90m 71 |[39m     [36mconst[39m took1 [33m=[39m [33mDate[39m[33m.[39mnow() [33m-[39m start[33m;[39m[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat resolvePacked ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:116:12)[22m[2m[22m
+[2m      [2mat resolveReceiveType ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:110:25)[22m[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:68:35)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36mexamples/user.runtype.spec.ts[39m[0m[2m:14:40)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 627ms for User[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat createIsTypeFn ([22m[2m../run-types/src/createRunTypeFunctions.ts[2m:32:23)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36mexamples/user.runtype.spec.ts[39m[0m[2m:14:40)[22m[2m[22m
+
+
+[1mTest Suites: [22m[1m[32m16 passed[39m[22m, 16 total
+[1mTests:       [22m[1m[32m335 passed[39m[22m, 335 total
+[1mSnapshots:   [22m0 total
+[1mTime:[22m        30.468 s
+[2mRan all test suites[22m[2m.[22m

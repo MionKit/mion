@@ -1,0 +1,32 @@
+
+> @mionkit/http@0.7.2 test
+> jest
+
+[0m[7m[1m[31m FAIL [39m[22m[27m[0m [2msrc/[22m[1mmionHttp.spec.ts[22m
+  [1m● [22mTest suite failed to run
+
+    Cannot find module 'node-fetch' from 'src/mionHttp.spec.ts'
+
+    [0m [90m 12 |[39m [90m// update to jest 29 gonna take some changes as all globals must be imported from @jest/globals[39m
+     [90m 13 |[39m [90m// also the types for fetch are not available in node 18, fix here: https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6#answer-75676044[39m
+    [31m[1m>[22m[39m[90m 14 |[39m [36mimport[39m fetch [36mfrom[39m [32m'node-fetch'[39m[33m;[39m
+     [90m    |[39m [31m[1m^[22m[39m
+     [90m 15 |[39m [36mimport[39m type {[33mServer[39m} [36mfrom[39m [32m'http'[39m[33m;[39m
+     [90m 16 |[39m
+     [90m 17 |[39m describe([32m'node http router'[39m[33m,[39m () [33m=>[39m {[0m
+
+      [2mat Resolver._throwModNotFoundError ([22m../../node_modules/jest-resolve/build/resolver.js[2m:427:11)[22m
+      [2mat Object.<anonymous> ([22m[0m[36msrc/mionHttp.spec.ts[39m[0m[2m:14:1)[22m
+
+[1mTest Suites: [22m[1m[31m1 failed[39m[22m, 1 total
+[1mTests:       [22m0 total
+[1mSnapshots:   [22m0 total
+[1mTime:[22m        7.993 s
+[2mRan all test suites[22m[2m.[22m
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /Users/majerez/Projects/mion/packages/http
+npm error workspace @mionkit/http@0.7.2
+npm error location /Users/majerez/Projects/mion/packages/http
+npm error command failed
+npm error command sh -c jest

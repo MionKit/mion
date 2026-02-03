@@ -1,0 +1,32 @@
+
+> @mionkit/type-formats@0.7.2 lint
+> eslint src --ext .ts
+
+[0m[0m
+[0m[4m/Users/majerez/Projects/mion/packages/type-formats/src/string/defaultStringFormats.runtype.spec.ts[24m[0m
+[0m  [2m126:11[22m  [33mwarning[39m  'lowercaseError' is assigned a value but never used   [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m126:11[22m  [33mwarning[39m  'lowercaseError' is assigned a value but never used   [2mno-unused-vars[22m[0m
+[0m  [2m167:11[22m  [33mwarning[39m  'uppercaseError' is assigned a value but never used   [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m167:11[22m  [33mwarning[39m  'uppercaseError' is assigned a value but never used   [2mno-unused-vars[22m[0m
+[0m  [2m209:11[22m  [33mwarning[39m  'capitalizeError' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m209:11[22m  [33mwarning[39m  'capitalizeError' is assigned a value but never used  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4m/Users/majerez/Projects/mion/packages/type-formats/src/string/stringFormat.runtype.spec.ts[24m[0m
+[0m  [2m103:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m113:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m125:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m139:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m598:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m614:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m638:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m661:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m690:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m712:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m732:11[22m  [33mwarning[39m  'regex' is assigned a value but only used as a type  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4m/Users/majerez/Projects/mion/packages/type-formats/src/string/time.runtype.spec.ts[24m[0m
+[0m  [2m368:11[22m  [33mwarning[39m  'matchRegex' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m368:11[22m  [33mwarning[39m  'matchRegex' is assigned a value but never used  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[33m[1m✖ 19 problems (0 errors, 19 warnings)[22m[39m[0m
+[0m[33m[1m[22m[39m[0m

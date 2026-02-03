@@ -1,0 +1,51 @@
+
+> @mionkit/core@0.7.2 build
+> vite build
+
+[36mvite v6.4.1 [32mbuilding for production...[36m[39m
+[33m"build.lib.formats" will be ignored because "build.rollupOptions.output" is already an array format.[39m
+transforming...
+[32m✓[39m 18 modules transformed.
+rendering chunks...
+
+[vite:dts] Start generate declaration files...
+computing gzip size...
+[2m.dist/esm/[22m[36msrc/headers.js                             [39m[1m[2m 0.67 kB[22m[1m[22m[2m │ gzip: 0.39 kB[22m[2m │ map:  0.74 kB[22m
+[2m.dist/esm/[22m[36msrc/types/formats/formats.types.js         [39m[1m[2m 1.68 kB[22m[1m[22m[2m │ gzip: 0.61 kB[22m[2m │ map:  0.11 kB[22m
+[2m.dist/esm/[22m[36msrc/binary/bodySerializer.js               [39m[1m[2m 1.98 kB[22m[1m[22m[2m │ gzip: 0.82 kB[22m[2m │ map:  4.81 kB[22m
+[2m.dist/esm/[22m[36msrc/binary/bodyDeserializer.js             [39m[1m[2m 2.11 kB[22m[1m[22m[2m │ gzip: 0.73 kB[22m[2m │ map:  4.62 kB[22m
+[2m.dist/esm/[22m[36msrc/types/formats/formatBrands.types.js    [39m[1m[2m 2.14 kB[22m[1m[22m[2m │ gzip: 0.49 kB[22m[2m │ map:  0.12 kB[22m
+[2m.dist/esm/[22m[36msrc/utils.js                               [39m[1m[2m 2.34 kB[22m[1m[22m[2m │ gzip: 0.98 kB[22m[2m │ map:  6.27 kB[22m
+[2m.dist/esm/[22m[36msrc/types/method.types.js                  [39m[1m[2m 2.38 kB[22m[1m[22m[2m │ gzip: 0.81 kB[22m[2m │ map:  3.24 kB[22m
+[2m.dist/esm/[22m[36msrc/constants.js                           [39m[1m[2m 2.68 kB[22m[1m[22m[2m │ gzip: 1.22 kB[22m[2m │ map:  4.37 kB[22m
+[2m.dist/esm/[22m[36msrc/restoreJitFns.js                       [39m[1m[2m 3.00 kB[22m[1m[22m[2m │ gzip: 0.80 kB[22m[2m │ map:  9.01 kB[22m
+[2m.dist/esm/[22m[36msrc/types/formats/formatsParams.types.js   [39m[1m[2m 6.16 kB[22m[1m[22m[2m │ gzip: 1.52 kB[22m[2m │ map:  5.95 kB[22m
+[2m.dist/esm/[22m[36msrc/types/formats/friendlyErrors.types.js  [39m[1m[2m 6.63 kB[22m[1m[22m[2m │ gzip: 1.70 kB[22m[2m │ map: 11.37 kB[22m
+[2m.dist/esm/[22m[36msrc/binary/dataView.js                     [39m[1m[2m 6.78 kB[22m[1m[22m[2m │ gzip: 1.81 kB[22m[2m │ map: 13.65 kB[22m
+[2m.dist/esm/[22m[36msrc/errors.js                              [39m[1m[2m 6.91 kB[22m[1m[22m[2m │ gzip: 2.17 kB[22m[2m │ map: 10.41 kB[22m
+[2m.dist/esm/[22m[36msrc/friendlyErrors.js                      [39m[1m[2m 7.08 kB[22m[1m[22m[2m │ gzip: 1.59 kB[22m[2m │ map: 21.05 kB[22m
+[2m.dist/esm/[22m[36msrc/jitUtils.js                            [39m[1m[2m 7.42 kB[22m[1m[22m[2m │ gzip: 2.10 kB[22m[2m │ map: 18.11 kB[22m
+[2m.dist/esm/[22m[36msrc/routerUtils.js                         [39m[1m[2m 8.12 kB[22m[1m[22m[2m │ gzip: 2.07 kB[22m[2m │ map: 17.03 kB[22m
+[2m.dist/esm/[22m[36mindex.js                                   [39m[1m[2m 9.62 kB[22m[1m[22m[2m │ gzip: 2.22 kB[22m[2m │ map:  0.11 kB[22m
+[2m.dist/esm/[22m[36msrc/types/general.types.js                 [39m[1m[2m17.08 kB[22m[1m[22m[2m │ gzip: 4.87 kB[22m[2m │ map: 19.57 kB[22m
+[vite:dts] Declaration files built in 2060ms.
+
+[2m.dist/cjs/[22m[36msrc/headers.js                             [39m[1m[2m 0.77 kB[22m[1m[22m[2m │ gzip: 0.43 kB[22m[2m │ map:  0.74 kB[22m
+[2m.dist/cjs/[22m[36msrc/types/formats/formats.types.js         [39m[1m[2m 2.09 kB[22m[1m[22m[2m │ gzip: 0.69 kB[22m[2m │ map:  0.12 kB[22m
+[2m.dist/cjs/[22m[36msrc/binary/bodySerializer.js               [39m[1m[2m 2.15 kB[22m[1m[22m[2m │ gzip: 0.89 kB[22m[2m │ map:  4.92 kB[22m
+[2m.dist/cjs/[22m[36msrc/binary/bodyDeserializer.js             [39m[1m[2m 2.32 kB[22m[1m[22m[2m │ gzip: 0.81 kB[22m[2m │ map:  4.73 kB[22m
+[2m.dist/cjs/[22m[36msrc/utils.js                               [39m[1m[2m 2.59 kB[22m[1m[22m[2m │ gzip: 1.06 kB[22m[2m │ map:  6.34 kB[22m
+[2m.dist/cjs/[22m[36msrc/types/formats/formatBrands.types.js    [39m[1m[2m 2.71 kB[22m[1m[22m[2m │ gzip: 0.61 kB[22m[2m │ map:  0.15 kB[22m
+[2m.dist/cjs/[22m[36msrc/types/method.types.js                  [39m[1m[2m 2.76 kB[22m[1m[22m[2m │ gzip: 0.89 kB[22m[2m │ map:  3.26 kB[22m
+[2m.dist/cjs/[22m[36msrc/constants.js                           [39m[1m[2m 3.04 kB[22m[1m[22m[2m │ gzip: 1.30 kB[22m[2m │ map:  4.38 kB[22m
+[2m.dist/cjs/[22m[36msrc/restoreJitFns.js                       [39m[1m[2m 3.12 kB[22m[1m[22m[2m │ gzip: 0.86 kB[22m[2m │ map:  9.04 kB[22m
+[2m.dist/cjs/[22m[36msrc/binary/dataView.js                     [39m[1m[2m 6.96 kB[22m[1m[22m[2m │ gzip: 1.86 kB[22m[2m │ map: 13.65 kB[22m
+[2m.dist/cjs/[22m[36msrc/types/formats/formatsParams.types.js   [39m[1m[2m 6.96 kB[22m[1m[22m[2m │ gzip: 1.64 kB[22m[2m │ map:  5.98 kB[22m
+[2m.dist/cjs/[22m[36msrc/friendlyErrors.js                      [39m[1m[2m 7.22 kB[22m[1m[22m[2m │ gzip: 1.66 kB[22m[2m │ map: 21.08 kB[22m
+[2m.dist/cjs/[22m[36msrc/errors.js                              [39m[1m[2m 7.27 kB[22m[1m[22m[2m │ gzip: 2.23 kB[22m[2m │ map: 10.51 kB[22m
+[2m.dist/cjs/[22m[36msrc/types/formats/friendlyErrors.types.js  [39m[1m[2m 7.36 kB[22m[1m[22m[2m │ gzip: 1.81 kB[22m[2m │ map: 11.40 kB[22m
+[2m.dist/cjs/[22m[36msrc/jitUtils.js                            [39m[1m[2m 7.64 kB[22m[1m[22m[2m │ gzip: 2.17 kB[22m[2m │ map: 18.24 kB[22m
+[2m.dist/cjs/[22m[36msrc/routerUtils.js                         [39m[1m[2m 8.78 kB[22m[1m[22m[2m │ gzip: 2.17 kB[22m[2m │ map: 17.31 kB[22m
+[2m.dist/cjs/[22m[36mindex.js                                   [39m[1m[2m16.98 kB[22m[1m[22m[2m │ gzip: 2.44 kB[22m[2m │ map:  0.31 kB[22m
+[2m.dist/cjs/[22m[36msrc/types/general.types.js                 [39m[1m[2m18.98 kB[22m[1m[22m[2m │ gzip: 5.06 kB[22m[2m │ map: 19.64 kB[22m
+[32m✓ built in 2.87s[39m

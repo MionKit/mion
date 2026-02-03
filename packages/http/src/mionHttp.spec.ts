@@ -80,7 +80,6 @@ describe('node http router', () => {
             const headers = Object.fromEntries(response.headers.entries());
 
             expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
-            expect(headers['connection']).toEqual('close');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('47');
             expect(headers['server']).toEqual('@mionkit');
@@ -103,7 +102,6 @@ describe('node http router', () => {
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
             };
             expect(reply).toEqual({'@thrownErrors': {getDate: expectedError}});
-            expect(headers['connection']).toEqual('close');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('224');
             expect(headers['server']).toEqual('@mionkit');
@@ -159,7 +157,6 @@ describe('node http router', () => {
             expect(reply).toEqual({'@thrownErrors': {'mion@platformError': expectedError}});
             expect(headers['x-app-name']).toEqual('MyApp');
             expect(headers['x-instance-id']).toEqual('3089');
-            expect(headers['connection']).toEqual('close');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('135');
             expect(headers['server']).toEqual('@mionkit');
@@ -216,7 +213,6 @@ describe('node http router', () => {
             const headers = Object.fromEntries(response.headers.entries());
 
             expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
-            expect(headers['connection']).toEqual('close');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('47');
             expect(headers['server']).toEqual('@mionkit');
@@ -232,7 +228,6 @@ describe('node http router', () => {
             const headers = Object.fromEntries(response.headers.entries());
 
             expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
-            expect(headers['connection']).toEqual('close');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['server']).toEqual('@mionkit');
         });

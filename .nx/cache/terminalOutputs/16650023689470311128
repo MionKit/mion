@@ -1,0 +1,30 @@
+
+> @mionkit/http@0.7.2 test
+> jest
+
+  [2mconsole.log[22m
+    Compiling routes metadata and skipping mion server initialization...
+[2m[22m
+[2m      [2mat [22m[2msrc/mionHttp.ts[2m:56:21[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mmionHttp.spec.ts[22m
+  node http router
+    with serializer=stringifyJson (default)
+      [32m✓[39m [2mget an ok response from a route (283 ms)[22m
+      [32m✓[39m [2mget an error when sending invalid parameters (31 ms)[22m
+      [32m✓[39m [2mset response headers from route response (9 ms)[22m
+      [32m✓[39m [2mget an error when body size is too large, get default headers (82 ms)[22m
+      [32m✓[39m [2mskip server initialization (166 ms)[22m
+    with serializer=json
+      [32m✓[39m [2mget an ok response from a route with Date objects (body type O) (6 ms)[22m
+      [32m✓[39m [2mget an ok response from a route with complex objects (body type O) (18 ms)[22m
+    with serialize=binary
+      [32m✓[39m [2mshould send binary request and receive binary response with Date objects (9 ms)[22m
+      [32m✓[39m [2mshould send binary request and receive binary response with complex objects (5 ms)[22m
+      [32m✓[39m [2mshould handle optional parameters in binary mode (5 ms)[22m
+
+[1mTest Suites: [22m[1m[32m1 passed[39m[22m, 1 total
+[1mTests:       [22m[1m[32m10 passed[39m[22m, 10 total
+[1mSnapshots:   [22m0 total
+[1mTime:[22m        [1m[33m5.32 s[39m[22m
+[2mRan all test suites[22m[2m.[22m
