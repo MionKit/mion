@@ -1,8 +1,0 @@
-
-> @mionkit/run-types@0.7.2 fresh-start
-> npm run clean && rimraf node_modules
-
-
-> @mionkit/run-types@0.7.2 clean
-> rimraf .dist & rimraf .coverage
-
