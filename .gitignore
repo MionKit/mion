@@ -80,5 +80,6 @@ dist
 tmp
 .coverage
 coverage
+.nx
 
 
