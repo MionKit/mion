@@ -313,47 +313,48 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
         case ReflectionKind.union: {
             const rt = runType as UnionRunType;
             rt.checkAllowedChildren(comp);
-            const {simpleItems, objectTypes} = rt.getUnionChildren(comp);
-            const totalLength = simpleItems.length + objectTypes.length;
+            const {simpleItems, objectTypes, anyItem} = rt.getUnionChildren(comp);
+            const totalLength = simpleItems.length + objectTypes.length + (anyItem ? 1 : 0);
             if (totalLength > MAX_UNION_ITEMS) {
                 throw new Error(
                     `Binary serialization not supported for Union with more than ${MAX_UNION_ITEMS} items.` +
                         ` Found ${totalLength} in ${rt.getUnionTypeNames()}`
                 );
             }
-
             const errName = comp.getLocalVarName('uErr', rt);
             const fail = `throw new Error(${errName});`;
             comp.setContextItem(
                 errName,
                 `const ${errName} = "Can not encode union to binary: item does not belong to the union"`
             );
-
             const ifElse = createIfElseFn();
-            const onUnionItems = (items: BaseRunType[]) => {
-                const result = items.map((childRt) => {
-                    const toJit = comp.compile(childRt, 'S', fnID);
-                    const encodeCode = toJit.code || '';
-                    const index = rt.getUnionItemIndex(comp, childRt);
-                    const isUint16 = index > 255;
-                    const writeIndex = isUint16
-                        ? `${sεr}.view.setUint16(${sεr}.index, ${index}, 1, (${sεr}.index += 2))`
-                        : `${sεr}.view.setUint8(${sεr}.index++, ${index})`;
-                    const isTypeCode = rt.getChildIsTypeWithLooseCheck(childRt, comp);
-                    return `${ifElse()} (${isTypeCode}) {${writeIndex};${encodeCode}}`;
-                });
-                return result.filter(Boolean);
+            // Helper to generate encode code for a union item
+            const getEncodeCode = (childRt: BaseRunType) => {
+                const toJit = comp.compile(childRt, 'S', fnID);
+                const encodeCode = toJit.code || '';
+                const index = rt.getUnionItemIndex(comp, childRt);
+                const isUint16 = index > 255;
+                const writeIndex = isUint16
+                    ? `${sεr}.view.setUint16(${sεr}.index, ${index}, 1, (${sεr}.index += 2))`
+                    : `${sεr}.view.setUint8(${sεr}.index++, ${index})`;
+                return `${writeIndex};${encodeCode}`;
             };
-
-            const itemsCode = onUnionItems(simpleItems);
-            if (!objectTypes.length) return {code: `${itemsCode.join('')} else {${fail}}`, type: 'S'};
-            // these need to be in correct order for else if to work properly
-            const nonObjectFail = `${ifElse()} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
-            const objItemsCode = onUnionItems(objectTypes);
-            const allFail = `${ifElse(true)} {${fail}}`;
-            return {code: [...itemsCode, nonObjectFail, ...objItemsCode, allFail].join(''), type: 'S'};
+            // Generate code for simple items (atomic types)
+            const simpleCode = simpleItems.map((childRt) => {
+                const isTypeCode = rt.getChildIsTypeWithLooseCheck(childRt, comp);
+                return `${ifElse()} (${isTypeCode}) {${getEncodeCode(childRt)}}`;
+            });
+            // Generate code for object types (need null guard)
+            const objCode = objectTypes.length
+                ? objectTypes.map((childRt) => {
+                      const isTypeCode = rt.getChildIsTypeWithLooseCheck(childRt, comp);
+                      return `${ifElse()} (typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && ${isTypeCode}) {${getEncodeCode(childRt)}}`;
+                  })
+                : [];
+            // Generate code for anyItem (always matches, checked last as fallback)
+            const anyCode = anyItem ? `${ifElse(true)} {${getEncodeCode(anyItem)}}` : `${ifElse(true)} {${fail}}`;
+            return {code: [...simpleCode, ...objCode, anyCode].join(''), type: 'S'};
         }
-
         default:
             throw new Error(`Binary serialization not supported for ${ReflectionKind[kind]} types`);
     }

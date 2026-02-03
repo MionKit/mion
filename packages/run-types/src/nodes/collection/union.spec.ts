@@ -659,21 +659,74 @@ describe('Union with objects containing methods', () => {
 });
 
 describe('Union with any or unknown', () => {
-    it('should throw when union contains any type', () => {
-        type UnionWithAny = any | string;
+    it('should support union with any type - any checked last', () => {
+        type UnionWithAny = string | any;
         const rt = runType<UnionWithAny>();
-        expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow("Union can not have 'any' or 'unknown' types");
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        // string should match first
+        expect(isType('hello')).toBe(true);
+        // any matches anything as fallback
+        expect(isType(123)).toBe(true);
+        expect(isType({foo: 'bar'})).toBe(true);
+        expect(isType(null)).toBe(true);
     });
 
-    it('should throw when union contains unknown type', () => {
-        type UnionWithUnknown = unknown | string;
+    it('should support union with unknown type - unknown checked last', () => {
+        type UnionWithUnknown = string | unknown;
         const rt = runType<UnionWithUnknown>();
-        expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow("Union can not have 'any' or 'unknown' types");
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        // string should match first
+        expect(isType('hello')).toBe(true);
+        // unknown matches anything as fallback
+        expect(isType(123)).toBe(true);
+        expect(isType({foo: 'bar'})).toBe(true);
     });
 
-    it('should throw when union contains both any and unknown', () => {
-        type UnionWithBoth = any | unknown | string;
+    it('should support union with both any and unknown - only first is used', () => {
+        type UnionWithBoth = string | any | unknown;
         const rt = runType<UnionWithBoth>();
-        expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow("Union can not have 'any' or 'unknown' types");
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        // string should match first
+        expect(isType('hello')).toBe(true);
+        // any/unknown matches anything as fallback
+        expect(isType(123)).toBe(true);
+        expect(isType({foo: 'bar'})).toBe(true);
+    });
+
+    it('should validate specific types before falling back to any', () => {
+        type UnionWithAny = number | {name: string} | any;
+        const rt = runType<UnionWithAny>();
+        const validate = rt.createJitFunction(JitFunctions.typeErrors);
+        // number should validate without errors
+        expect(validate(42)).toEqual([]);
+        // object with name should validate without errors
+        expect(validate({name: 'test'})).toEqual([]);
+        // any catches everything else
+        expect(validate('random string')).toEqual([]);
+        expect(validate(null)).toEqual([]);
+    });
+
+    it('should encode/decode union with any type', () => {
+        type UnionWithAny = string | bigint | any;
+        const rt = runType<UnionWithAny>();
+        const toJson = rt.createJitFunction(JitFunctions.prepareForJson);
+        const fromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
+
+        // string doesn't need tuple encoding
+        const strVal = 'hello';
+        expect(toJson(strVal)).toBe('hello');
+
+        // bigint needs tuple encoding
+        const bigVal = 123n;
+        const encoded = toJson(bigVal);
+        expect(Array.isArray(encoded)).toBe(true);
+        expect(encoded[0]).toBe(1); // index of bigint in union
+        expect(fromJson(encoded)).toBe(123n);
+
+        // any type as fallback - values that don't match string or bigint
+        const numVal = 42;
+        const encodedNum = toJson(numVal);
+        // any is at index 2, but doesn't need special encoding
+        expect(encodedNum).toBe(42);
     });
 });

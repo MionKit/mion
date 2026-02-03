@@ -3,11 +3,8 @@ import type {JitFnCompiler} from '../../lib/jitFnCompiler';
 import type {UnionRunType} from './union';
 import type {PropertyRunType} from '../member/property';
 import {getTotalComplexity, sortRunTypeByComplexity} from '../../lib/utils';
+import {isAnyRunType, isUnknownRunType} from '../../lib/guards';
 
-export type PlainItem = {
-    rt: BaseRunType;
-    unionIndex: number;
-};
 export type FlattenedProp = {
     /** union item, parent of the property */
     unionItem: CollectionRunType<any>;
@@ -20,38 +17,39 @@ export type FlattenedProp = {
     /** name of the property as it should be used in the code */
     compiledName: string;
 };
-export type FlattenedProps = {
-    discriminatorProps: FlattenedProp[];
-    otherProps: FlattenedProp[];
-};
-export type SplitUnionItems = {
-    /** items in the union that are not objects, will have to be fully checked */
-    simpleItems: PlainItem[];
-    /** items in the union that are objects but have index properties, will have to be fully checked */
-    indexItems: PlainItem[];
-    /** The flattened properties of all the items in the union, props are individually checked */
-    flattened: FlattenedProps | undefined;
+
+export type SplitUnionResult = {
+    simpleItems: BaseRunType[];
+    objectTypes: CollectionRunType<any>[];
+    /** any or unknown type if present in the union, should be checked last */
+    anyItem?: BaseRunType;
 };
 
 /**
  * Split the union types in two groups: interface types and simple types
  * interface types are types that have properties, simple types are the rest (atomic types, tuples, etc)
+ * If any or unknown types are present, they are extracted and returned separately as anyItem
+ * so they can be checked last (any/unknown would match anything, so must be last resort)
  */
-export function splitUnionItems(
-    comp: JitFnCompiler,
-    urt: UnionRunType,
-    unionChildren?: BaseRunType[]
-): {simpleItems: BaseRunType[]; objectTypes: CollectionRunType<any>[]} {
+export function splitUnionItems(comp: JitFnCompiler, urt: UnionRunType, unionChildren?: BaseRunType[]): SplitUnionResult {
     const unionItems = unionChildren || urt.getJitChildren(comp);
     const objectTypes: CollectionRunType<any>[] = [];
     const simpleItems: BaseRunType[] = [];
+    let anyItem: BaseRunType | undefined;
+
     unionItems.forEach((unionItem) => {
+        // Extract any/unknown types to be checked last
+        if (isAnyRunType(unionItem) || isUnknownRunType(unionItem)) {
+            // Only keep the first any/unknown type (having multiple is redundant)
+            if (!anyItem) anyItem = unionItem;
+            return;
+        }
         const isObj = urt.isTypeWithProperties(unionItem);
         if (!isObj) return simpleItems.push(unionItem);
         return objectTypes.push(unionItem as CollectionRunType<any>);
     });
 
-    return {simpleItems, objectTypes};
+    return {simpleItems, objectTypes, anyItem};
 }
 
 /**

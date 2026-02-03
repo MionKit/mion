@@ -140,6 +140,40 @@ it('union with methods - methods should be excluded', () => {
     });
 });
 
+it('union with any type - any is checked last as fallback', () => {
+    const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_with_any.getTestData();
+    const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.union_with_any.getTestData(true);
+    const {serialize, deserialize} = createSerializationFns(rt);
+
+    values.forEach((value, i) => {
+        const {deserialized} = roundTrip(serialize, deserialize, value);
+        expect(deserialized).toEqual(originalValues[i]);
+    });
+
+    // Verify that 'any' type is checked last in the generated code
+    // The union is: number | {name: string} | any
+    // So the order should be: number check, object check, then any (true) as fallback
+    const jitSerializeFn = rt.createJitFunction(SERIALIZE_FN);
+    const serializeCode = jitSerializeFn.toString();
+
+    // Find positions of the type checks in the generated code
+    // Number check uses Number.isFinite(v) for number type
+    const numberCheckPos = serializeCode.indexOf('Number.isFinite(v)');
+    // Object check uses typeof v === 'object'
+    const objectCheckPos = serializeCode.indexOf("typeof v === 'object'");
+    // 'any' type is handled in the final else block - it's the last else { in the code
+    const anyCheckPos = serializeCode.lastIndexOf('else {');
+
+    // Verify number and object checks exist and come before the any fallback
+    expect(numberCheckPos).toBeGreaterThan(-1);
+    expect(objectCheckPos).toBeGreaterThan(-1);
+    expect(anyCheckPos).toBeGreaterThan(-1);
+    // Number check should come before any
+    expect(numberCheckPos).toBeLessThan(anyCheckPos);
+    // Object check should come before any
+    expect(objectCheckPos).toBeLessThan(anyCheckPos);
+});
+
 it('union with non serializable types throws an error', () => {
     const {rt} = SERIALIZATION_SPEC.UNIONS.union_whit_non_serializable.getTestData();
     expect(() => rt.createJitFunction(SERIALIZE_FN)).toThrow(

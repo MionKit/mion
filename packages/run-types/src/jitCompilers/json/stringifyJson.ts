@@ -276,43 +276,43 @@ export function createStringifyCompiler(fnID: Operation) {
             case ReflectionKind.union: {
                 const urt = runType as UnionRunType;
                 urt.checkAllowedChildren(comp);
-                const {simpleItems, objectTypes} = urt.getUnionChildren(comp);
+                const {simpleItems, objectTypes, anyItem} = urt.getUnionChildren(comp);
                 const errName = comp.getLocalVarName('uErr', urt);
                 const fail = `throw new Error(${errName});`;
                 comp.setContextItem(
                     errName,
                     `const ${errName} = "Can not ${getOperationName()} union: item does not belong to the union"`
                 );
-
-                const isType = (unionItem) => urt.getChildIsTypeWithLooseCheck(unionItem, comp);
                 const ifElse = createIfElseFn();
-                const onUnionTypes = (items: BaseRunType[]) => {
-                    const result = items.map((unionItem) => {
-                        const childJit = comp.compile(unionItem, 'E', fnID);
-                        // TODO: calling full encode/decode could be expensive and we calling it only to know if it needs encoding.
-                        // we might want to optimize this
-                        const encJit = comp.compilePrepareForJson(unionItem, 'E');
-                        const decJit = comp.compileRestoreFromJson(unionItem, 'E');
-                        const needsTupleEncoding = !!encJit?.code || !!decJit?.code;
-                        const skiEncode = !childJit?.code || childJit.code === comp.vλl;
-                        const stringifyCode = skiEncode ? comp.vλl : childJit.code;
-                        const index = urt.getUnionItemIndex(comp, unionItem);
-                        const toTuple = `'[${index},' + ${stringifyCode} + ']'`;
-                        const tupleCode = unionItem.getFamily() === 'A' ? `(${toTuple})` : toTuple;
-                        if (needsTupleEncoding) return `${ifElse()} (${isType(unionItem)}) {return ${tupleCode}}`;
-                        return `${ifElse()} (${isType(unionItem)}) {return ${stringifyCode}}`;
-                    });
-                    return result.filter(Boolean);
+                // Helper to generate stringify code for a union item
+                const getStringifyCode = (unionItem: BaseRunType) => {
+                    const childJit = comp.compile(unionItem, 'E', fnID);
+                    const encJit = comp.compilePrepareForJson(unionItem, 'E');
+                    const decJit = comp.compileRestoreFromJson(unionItem, 'E');
+                    const needsTupleEncoding = !!encJit?.code || !!decJit?.code;
+                    const skiEncode = !childJit?.code || childJit.code === comp.vλl;
+                    const stringifyCode = skiEncode ? comp.vλl : childJit.code;
+                    const index = urt.getUnionItemIndex(comp, unionItem);
+                    const toTuple = `'[${index},' + ${stringifyCode} + ']'`;
+                    const tupleCode = unionItem.getFamily() === 'A' ? `(${toTuple})` : toTuple;
+                    return needsTupleEncoding ? `return ${tupleCode}` : `return ${stringifyCode}`;
                 };
+                // Generate code for simple items (atomic types)
+                const simpleCode = simpleItems.map((unionItem) => {
+                    const isTypeCode = urt.getChildIsTypeWithLooseCheck(unionItem, comp);
+                    return `${ifElse()} (${isTypeCode}) {${getStringifyCode(unionItem)}}`;
+                });
+                // Generate code for object types (need null guard)
+                const objCode = objectTypes.length
+                    ? objectTypes.map((unionItem) => {
+                          const isTypeCode = urt.getChildIsTypeWithLooseCheck(unionItem, comp);
+                          return `${ifElse()} (typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && ${isTypeCode}) {${getStringifyCode(unionItem)}}`;
+                      })
+                    : [];
+                // Generate code for anyItem (always matches, checked last as fallback)
+                const anyCode = anyItem ? `${ifElse(true)} {${getStringifyCode(anyItem)}}` : `${ifElse(true)} {${fail}}`;
 
-                const itemsCode = onUnionTypes(simpleItems);
-                if (!objectTypes.length) return {code: `${itemsCode.join('')} else {${fail}}`, type: 'RB'};
-                // these need to be in correct order for else if to work properly
-                const nonObjectFail = `${ifElse()} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
-                const objItemsCode = onUnionTypes(objectTypes);
-                const allFail = `${ifElse(true)} {${fail}}`;
-                const childrenCode = [...itemsCode, nonObjectFail, ...objItemsCode, allFail].join('');
-                return {code: childrenCode, type: 'RB'};
+                return {code: [...simpleCode, ...objCode, anyCode].join(''), type: 'RB'};
             }
             default:
                 throw new Error(`Cant ${getOperationName()} for unsupported RunType: ${runType.getTypeName()}`);
