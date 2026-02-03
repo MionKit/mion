@@ -10,15 +10,8 @@ import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
 import type {JitCode} from '../../types';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 import {childIsExpression, createIfElseFn, toLiteral} from '../../lib/utils';
-import {
-    isAnyRunType,
-    isClassRunType,
-    isInterfaceRunType,
-    isIntersectionRunType,
-    isObjectLiteralRunType,
-    isUnknownRunType,
-} from '../../lib/guards';
-import {markDiscriminators, splitUnionItems} from './unionDiscriminator';
+import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
+import {markDiscriminators, splitUnionItems, SplitUnionResult} from './unionDiscriminator';
 import type {PropertyRunType} from '../member/property';
 
 /**
@@ -39,7 +32,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         );
     }
 
-    getUnionChildren(comp: JitFnCompiler) {
+    getUnionChildren(comp: JitFnCompiler): SplitUnionResult {
         const children = this.getJitChildren(comp);
         markDiscriminators(comp, this, children);
         return splitUnionItems(comp, this, children);
@@ -91,14 +84,18 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      */
     emitIsType(comp: JitFnCompiler): JitCode {
         this.checkAllowedChildren(comp);
-        const {simpleItems, objectTypes} = this.getUnionChildren(comp);
-        const items = simpleItems.map((rt) => this.getChildIsTypeWithLooseCheck(rt, comp));
-        const checkItems = items.filter(Boolean).join(' || ');
-        if (!objectTypes.length) return {code: `(${checkItems})`, type: 'E'};
-        const objItems = objectTypes.map((rt) => this.getChildIsTypeWithLooseCheck(rt, comp));
-        const objCode = objItems.filter(Boolean).join(' || ');
-        const checkObjs = `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && (${objCode}))`;
-        return {code: `(${[checkItems, checkObjs].filter(Boolean).join(' || ')})`, type: 'E'};
+        const {simpleItems, objectTypes, anyItem} = this.getUnionChildren(comp);
+        // Simple items (atomic types) don't need null guard
+        const simpleChecks = simpleItems.map((rt) => this.getChildIsTypeWithLooseCheck(rt, comp)).filter(Boolean);
+        // Object types need null guard to prevent accessing properties on null
+        const objChecks = objectTypes.map((rt) => this.getChildIsTypeWithLooseCheck(rt, comp)).filter(Boolean);
+        const objCode = objChecks.length
+            ? `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && (${objChecks.join(' || ')}))`
+            : '';
+        // any/unknown checked last as fallback
+        const anyCheck = anyItem ? this.getChildIsTypeWithLooseCheck(anyItem, comp) : '';
+        const allChecks = [...simpleChecks, objCode, anyCheck].filter(Boolean);
+        return {code: `(${allChecks.join(' || ')})`, type: 'E'};
     }
 
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
@@ -116,38 +113,43 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      */
     emitPrepareForJson(comp: JitFnCompiler): JitCode {
         this.checkAllowedChildren(comp);
-        const {simpleItems, objectTypes} = this.getUnionChildren(comp);
+        const {simpleItems, objectTypes, anyItem} = this.getUnionChildren(comp);
         const errName = comp.getLocalVarName('uErr', this);
         const fail = `throw new Error(${errName});`;
         comp.setContextItem(errName, `const ${errName} = "Can not json encode union: item does not belong to the union"`);
 
         const ifElse = createIfElseFn();
-        const onUnionItems = (items: BaseRunType[]) => {
-            const result = items.map((childRt) => {
-                const toJit = comp.compilePrepareForJson(childRt, 'S');
-                // TODO: calling full decode could be expensive and we calling it only to know if it needs encoding.
-                // we might want to optimize this, call to decode is also being added to the context and should be removed
-                const fromJit = comp.compileRestoreFromJson(childRt, 'S');
-                const needsTupleEncoding = !!toJit.code || !!fromJit.code;
-                const isExpression = childIsExpression(toJit, childRt);
-                const encodeCode = isExpression && toJit.code ? `${comp.vλl} = ${toJit.code};` : toJit.code || '';
-                // item encoded before reassigning varName to [i, item]
-                const index = this.getUnionItemIndex(comp, childRt);
-                const tupleEncode = needsTupleEncoding ? `${comp.vλl} = [${index}, ${comp.vλl}]` : '/*noop*/';
-                const isTypeCode = this.getChildIsTypeWithLooseCheck(childRt, comp);
 
-                return `${ifElse()} (${isTypeCode}) {${encodeCode} ${tupleEncode}}`;
-            });
-            return result.filter(Boolean);
+        // Helper to generate encode code for a union item
+        const getEncodeCode = (childRt: BaseRunType) => {
+            const toJit = comp.compilePrepareForJson(childRt, 'S');
+            const fromJit = comp.compileRestoreFromJson(childRt, 'S');
+            const needsTupleEncoding = !!toJit.code || !!fromJit.code;
+            const isExpression = childIsExpression(toJit, childRt);
+            const encodeCode = isExpression && toJit.code ? `${comp.vλl} = ${toJit.code};` : toJit.code || '';
+            const index = this.getUnionItemIndex(comp, childRt);
+            const tupleEncode = needsTupleEncoding ? `${comp.vλl} = [${index}, ${comp.vλl}]` : '/*noop*/';
+            return `${encodeCode} ${tupleEncode}`;
         };
 
-        const itemsCode = onUnionItems(simpleItems);
-        if (!objectTypes.length) return {code: `${itemsCode.join('')} else {${fail}}`, type: 'S'};
-        // these need to be in correct order for else if to work properly
-        const nonObjectFail = `${ifElse()} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
-        const objItemsCode = onUnionItems(objectTypes);
-        const allFail = `${ifElse(true)} {${fail}}`;
-        return {code: [...itemsCode, nonObjectFail, ...objItemsCode, allFail].join(''), type: 'S'};
+        // Generate code for simple items (atomic types)
+        const simpleCode = simpleItems.map((rt) => {
+            const isTypeCode = this.getChildIsTypeWithLooseCheck(rt, comp);
+            return `${ifElse()} (${isTypeCode}) {${getEncodeCode(rt)}}`;
+        });
+
+        // Generate code for object types (need null guard)
+        const objCode = objectTypes.length
+            ? objectTypes.map((rt) => {
+                  const isTypeCode = this.getChildIsTypeWithLooseCheck(rt, comp);
+                  return `${ifElse()} (typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && ${isTypeCode}) {${getEncodeCode(rt)}}`;
+              })
+            : [];
+
+        // Generate code for anyItem (always matches, checked last as fallback)
+        const anyCode = anyItem ? `${ifElse(true)} {${getEncodeCode(anyItem)}}` : `${ifElse(true)} {${fail}}`;
+
+        return {code: [...simpleCode, ...objCode, anyCode].join(''), type: 'S'};
     }
 
     /**
@@ -199,7 +201,5 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const toSkip = allChildren.filter((rt) => rt.skipJit(comp));
         if (toSkip.length)
             throw new Error(`Union can not have non serializable types, ie: Symbol, Function, etc. \nType: ${this.stringify()}`);
-        const hasAnyOrUnknown = allChildren.some((rt) => isAnyRunType(rt) || isUnknownRunType(rt));
-        if (hasAnyOrUnknown) throw new Error(`Union can not have 'any' or 'unknown' types. \nType: ${this.stringify()}`);
     }
 }

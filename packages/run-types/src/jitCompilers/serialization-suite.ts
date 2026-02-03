@@ -1342,6 +1342,17 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values, deserializedValues};
             },
         },
+        union_with_any: {
+            title: 'union with any type - any is checked last as fallback',
+            description:
+                'any/unknown types in unions are sorted to be checked last, so specific types are matched first before falling back to any',
+            getTestData: (dataOnly = false) => {
+                type UnionWithAny = number | {name: string} | any;
+                const rt = dataOnly ? (null as any) : runType<UnionWithAny>();
+                const values = [42, {name: 'test'}, 'fallback to any', true, null];
+                return {rt, values};
+            },
+        },
         union_whit_non_serializable: {
             title: 'union with non serializable types throws an error',
             description:
