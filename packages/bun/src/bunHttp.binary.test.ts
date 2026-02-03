@@ -4,12 +4,15 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {expect, test, beforeAll, afterAll, describe} from 'bun:test';
+import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
 import {initRouter, registerRoutes, route, getRouteExecutionChain, resetRouter} from '@mionkit/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp';
 import {CallContext} from '@mionkit/router';
 import {serializeBinaryBody, deserializeBinaryBody, MethodWithJitFns} from '@mionkit/core';
 import {Server} from 'bun';
+
+// Increase timeout for tests that involve type reflection (can be slow when running in parallel)
+setDefaultTimeout(30_000);
 
 describe('bun router binary serialization should', () => {
     type SimpleUser = {name: string; surname: string};
