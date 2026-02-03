@@ -1,4 +1,0 @@
-
-> @mionkit/aws@0.7.2 lint
-> eslint src --ext .ts
-

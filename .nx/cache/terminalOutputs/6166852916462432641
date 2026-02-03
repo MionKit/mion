@@ -1,8 +1,0 @@
-
-> @mionkit/cli@0.6.0 fresh-start
-> npm run clean && rimraf node_modules
-
-
-> @mionkit/cli@0.6.0 clean
-> rimraf .dist
-

@@ -39,7 +39,7 @@
       },
       {
         "file": ".gitignore",
-        "hash": "13767070833201682340"
+        "hash": "453139068329591162"
       },
       {
         "file": ".husky/pre-commit",
@@ -839,387 +839,366 @@
       }
     ],
     "projectFileMap": {
-      "@mionkit/eslint-plugin": [
+      "@mionkit/gcloud": [
         {
-          "file": "packages/eslint-plugin/README.md",
-          "hash": "4801675084940277279"
+          "file": "packages/gcloud/README.md",
+          "hash": "8127755555713389793"
         },
         {
-          "file": "packages/eslint-plugin/USAGE.md",
-          "hash": "7322862465648488574"
+          "file": "packages/gcloud/index.ts",
+          "hash": "17095073732994301005"
         },
         {
-          "file": "packages/eslint-plugin/build/cjs/index.js",
-          "hash": "3549386732142228912"
+          "file": "packages/gcloud/jest.config.js",
+          "hash": "17930323499715952904"
         },
         {
-          "file": "packages/eslint-plugin/build/cjs/index.js.map",
-          "hash": "5282465976957072286"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/rules/no-mixed-union-properties.js",
-          "hash": "9160760651883283806"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/rules/no-mixed-union-properties.js.map",
-          "hash": "14731268755884075873"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/rules/no-type-imports.js",
-          "hash": "3666899296378840637"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/rules/no-type-imports.js.map",
-          "hash": "9217323812976192601"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/rules/no-typeof-runtype.js",
-          "hash": "14301435735049990622"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/rules/no-typeof-runtype.js.map",
-          "hash": "8875220915691829045"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/rules/no-unreachable-union-types.js",
-          "hash": "4362528904336514922"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/rules/no-unreachable-union-types.js.map",
-          "hash": "7176298572506201681"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/rules/strong-typed-routes.js",
-          "hash": "12114491047410911157"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/rules/strong-typed-routes.js.map",
-          "hash": "17275088493603836098"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/src/index.d.ts",
-          "hash": "1420447456887774293"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/src/rules/no-mixed-union-properties.d.ts",
-          "hash": "9410743032209573404"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/src/rules/no-type-imports.d.ts",
-          "hash": "9302746733631398713"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/src/rules/no-typeof-runtype.d.ts",
-          "hash": "14809752016621356835"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/src/rules/no-unreachable-union-types.d.ts",
-          "hash": "9902671330142324833"
-        },
-        {
-          "file": "packages/eslint-plugin/build/cjs/src/rules/strong-typed-routes.d.ts",
-          "hash": "6813196254605110252"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/index.js",
-          "hash": "10846915140021564698"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/index.js.map",
-          "hash": "3174304468248998998"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/rules/no-mixed-union-properties.js",
-          "hash": "6697049504528845604"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/rules/no-mixed-union-properties.js.map",
-          "hash": "6427909426660498524"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/rules/no-type-imports.js",
-          "hash": "16986466794039765333"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/rules/no-type-imports.js.map",
-          "hash": "18273953144253454976"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/rules/no-typeof-runtype.js",
-          "hash": "11048246867559297164"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/rules/no-typeof-runtype.js.map",
-          "hash": "18219509033202007695"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/rules/no-unreachable-union-types.js",
-          "hash": "5022449881216537373"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/rules/no-unreachable-union-types.js.map",
-          "hash": "6440509806468000103"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/rules/strong-typed-routes.js",
-          "hash": "332301598133530663"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/rules/strong-typed-routes.js.map",
-          "hash": "8619103945335393487"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/src/index.d.ts",
-          "hash": "1420447456887774293"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/src/rules/no-mixed-union-properties.d.ts",
-          "hash": "9410743032209573404"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/src/rules/no-type-imports.d.ts",
-          "hash": "9302746733631398713"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/src/rules/no-typeof-runtype.d.ts",
-          "hash": "14809752016621356835"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/src/rules/no-unreachable-union-types.d.ts",
-          "hash": "9902671330142324833"
-        },
-        {
-          "file": "packages/eslint-plugin/build/esm/src/rules/strong-typed-routes.d.ts",
-          "hash": "6813196254605110252"
-        },
-        {
-          "file": "packages/eslint-plugin/jest.config.js",
-          "hash": "14968007629171079231"
-        },
-        {
-          "file": "packages/eslint-plugin/package.json",
-          "hash": "14683578070018322733",
+          "file": "packages/gcloud/package.json",
+          "hash": "1449837357018837511",
           "deps": [
-            "npm:@typescript-eslint/utils"
+            "npm:@types/express",
+            "npm:@google-cloud/functions-framework",
+            "@mionkit/core",
+            "@mionkit/router"
           ]
         },
         {
-          "file": "packages/eslint-plugin/src/index.ts",
-          "hash": "9879016213810264690"
+          "file": "packages/gcloud/src/constants.ts",
+          "hash": "4226052308308173760"
         },
         {
-          "file": "packages/eslint-plugin/src/rules/no-mixed-union-properties.spec.ts",
-          "hash": "12961561495099369302"
+          "file": "packages/gcloud/src/googleCF.spec.ts",
+          "hash": "11359630727002938367"
         },
         {
-          "file": "packages/eslint-plugin/src/rules/no-mixed-union-properties.ts",
-          "hash": "15261305421462250086"
+          "file": "packages/gcloud/src/googleCF.ts",
+          "hash": "160721538715615217"
         },
         {
-          "file": "packages/eslint-plugin/src/rules/no-type-imports.spec.ts",
-          "hash": "16030571453710550642"
+          "file": "packages/gcloud/src/headers.ts",
+          "hash": "4637009010432910849"
         },
         {
-          "file": "packages/eslint-plugin/src/rules/no-type-imports.ts",
-          "hash": "9798813548881307806"
+          "file": "packages/gcloud/src/types.ts",
+          "hash": "12380052700582040711"
         },
         {
-          "file": "packages/eslint-plugin/src/rules/no-typeof-runtype.spec.ts",
-          "hash": "4501806425661552631"
+          "file": "packages/gcloud/tsconfig.json",
+          "hash": "9022288069530308566"
         },
         {
-          "file": "packages/eslint-plugin/src/rules/no-typeof-runtype.ts",
-          "hash": "2036467424793961106"
-        },
-        {
-          "file": "packages/eslint-plugin/src/rules/no-unreachable-union-types.spec.ts",
-          "hash": "11424719673482720155"
-        },
-        {
-          "file": "packages/eslint-plugin/src/rules/no-unreachable-union-types.ts",
-          "hash": "3204158637274322505"
-        },
-        {
-          "file": "packages/eslint-plugin/src/rules/strong-typed-routes.spec.ts",
-          "hash": "3861321231244781868"
-        },
-        {
-          "file": "packages/eslint-plugin/src/rules/strong-typed-routes.ts",
-          "hash": "4925325350074475313"
-        },
-        {
-          "file": "packages/eslint-plugin/tsconfig.json",
-          "hash": "10601316158641116940"
-        },
-        {
-          "file": "packages/eslint-plugin/vite.config.ts",
-          "hash": "5054943586078562626"
+          "file": "packages/gcloud/vite.config.ts",
+          "hash": "5883035882924258029"
         }
       ],
-      "@mionkit/router": [
+      "@mionkit/bun": [
         {
-          "file": "packages/router/README.md",
-          "hash": "14768726198006032220"
+          "file": "packages/bun/.gitignore",
+          "hash": "14762636663230911732"
         },
         {
-          "file": "packages/router/examples/eslint-rule-test.routes.ts",
-          "hash": "15402292733874908594"
+          "file": "packages/bun/README.md",
+          "hash": "16797720729030096463"
         },
         {
-          "file": "packages/router/examples/models.ts",
-          "hash": "6907037013240263254"
+          "file": "packages/bun/bun-preload.ts",
+          "hash": "7109620063456929321"
         },
         {
-          "file": "packages/router/index.ts",
-          "hash": "16869361643111717458"
+          "file": "packages/bun/bunfig.toml",
+          "hash": "16303322420169935068"
         },
         {
-          "file": "packages/router/jest.config.js",
+          "file": "packages/bun/index.ts",
+          "hash": "17800369926868229435"
+        },
+        {
+          "file": "packages/bun/loader/runtypes-loader.test.ts",
+          "hash": "16262054400100354870"
+        },
+        {
+          "file": "packages/bun/loader/runtypes-loader.ts",
+          "hash": "12716338112587070000"
+        },
+        {
+          "file": "packages/bun/package.json",
+          "hash": "9630515900850347418",
+          "deps": [
+            "npm:@deepkit/core",
+            "npm:@deepkit/type-compiler",
+            "npm:bun-types",
+            "@mionkit/core",
+            "@mionkit/router"
+          ]
+        },
+        {
+          "file": "packages/bun/src/bunHttp.binary.test.ts",
+          "hash": "10762341739619171743"
+        },
+        {
+          "file": "packages/bun/src/bunHttp.test.ts",
+          "hash": "2180876521475692434"
+        },
+        {
+          "file": "packages/bun/src/bunHttp.ts",
+          "hash": "8757548148506431566"
+        },
+        {
+          "file": "packages/bun/src/constants.ts",
+          "hash": "9163882751858101805"
+        },
+        {
+          "file": "packages/bun/src/types.ts",
+          "hash": "7810571266471476969"
+        },
+        {
+          "file": "packages/bun/tsconfig.json",
+          "hash": "7882080384794969869"
+        },
+        {
+          "file": "packages/bun/vite.config.ts",
+          "hash": "16736844663472682695"
+        }
+      ],
+      "@mionkit/core": [
+        {
+          "file": "packages/core/README.md",
+          "hash": "9536994329643510596"
+        },
+        {
+          "file": "packages/core/index.ts",
+          "hash": "10700786625189406161"
+        },
+        {
+          "file": "packages/core/jest.config.js",
           "hash": "642015822917941092"
         },
         {
-          "file": "packages/router/package.json",
-          "hash": "16394327830436555080",
+          "file": "packages/core/package.json",
+          "hash": "14817096644198594556",
           "deps": [
-            "@mionkit/core",
-            "@mionkit/run-types"
+            "@mionkit/aot-caches"
           ]
         },
         {
-          "file": "packages/router/src/callContext.ts",
-          "hash": "11002626839819748781"
+          "file": "packages/core/src/binary/bodyDeserializer.ts",
+          "hash": "204564648356482334"
         },
         {
-          "file": "packages/router/src/constants.ts",
-          "hash": "3022808124928267250"
+          "file": "packages/core/src/binary/bodySerializer.ts",
+          "hash": "844678281570761063"
         },
         {
-          "file": "packages/router/src/dispatch.spec.ts",
-          "hash": "7992904207032687636"
+          "file": "packages/core/src/binary/dataView.ts",
+          "hash": "7005631167724836247"
         },
         {
-          "file": "packages/router/src/dispatch.ts",
-          "hash": "16459803905088557951"
+          "file": "packages/core/src/constants.ts",
+          "hash": "14498969262990317650"
         },
         {
-          "file": "packages/router/src/lib/dispatchError.ts",
-          "hash": "4589107066115320094"
+          "file": "packages/core/src/errors.spec.ts",
+          "hash": "994726006199663574"
         },
         {
-          "file": "packages/router/src/lib/formats.spec.ts",
-          "hash": "4430776981630064951"
+          "file": "packages/core/src/errors.ts",
+          "hash": "12080265504410767542"
         },
         {
-          "file": "packages/router/src/lib/handlers.spec.ts",
-          "hash": "589962621982588766"
+          "file": "packages/core/src/friendlyErrors.spec.ts",
+          "hash": "14010264533966081419"
         },
         {
-          "file": "packages/router/src/lib/handlers.ts",
-          "hash": "5256627830624990632"
+          "file": "packages/core/src/friendlyErrors.ts",
+          "hash": "10681244008812990212"
         },
         {
-          "file": "packages/router/src/lib/headers.spec.ts",
-          "hash": "4531217567306138583"
+          "file": "packages/core/src/headers.ts",
+          "hash": "9673374909823806310"
         },
         {
-          "file": "packages/router/src/lib/headers.ts",
-          "hash": "12681120683512259487"
+          "file": "packages/core/src/jitUtils.spec.ts",
+          "hash": "4962431391243672690"
         },
         {
-          "file": "packages/router/src/lib/methodsCache.ts",
-          "hash": "7896797431756585053"
+          "file": "packages/core/src/jitUtils.ts",
+          "hash": "15381198193919387657"
         },
         {
-          "file": "packages/router/src/lib/reflection-aot.spec.ts",
-          "hash": "12163255540584501099"
+          "file": "packages/core/src/restoreJitFns.spec.ts",
+          "hash": "7380660274767289395"
         },
         {
-          "file": "packages/router/src/lib/reflection-optimization.spec.ts",
-          "hash": "4169424067612742493"
+          "file": "packages/core/src/restoreJitFns.ts",
+          "hash": "11342087116079321478"
         },
         {
-          "file": "packages/router/src/lib/reflection.ts",
-          "hash": "9298153198532263504"
+          "file": "packages/core/src/routerUtils.ts",
+          "hash": "16813711804577992545"
         },
         {
-          "file": "packages/router/src/lib/remoteMethods.spec.ts",
-          "hash": "3088141403224373271"
+          "file": "packages/core/src/types/formats/formatBrands.types.ts",
+          "hash": "4839722022479644531"
         },
         {
-          "file": "packages/router/src/lib/remoteMethods.ts",
-          "hash": "6145665286953998482"
+          "file": "packages/core/src/types/formats/formats.types.ts",
+          "hash": "10372602800585039421"
         },
         {
-          "file": "packages/router/src/router.spec.ts",
-          "hash": "87232845613792541"
+          "file": "packages/core/src/types/formats/formatsParams.types.ts",
+          "hash": "11652634545202049925"
         },
         {
-          "file": "packages/router/src/router.ts",
-          "hash": "5931598147528129707"
+          "file": "packages/core/src/types/formats/friendlyErrors.types.ts",
+          "hash": "3013466616446777236"
         },
         {
-          "file": "packages/router/src/routes/client.routes.spec.ts",
-          "hash": "5040649935012868822"
+          "file": "packages/core/src/types/general.types.ts",
+          "hash": "7292146744105248843"
         },
         {
-          "file": "packages/router/src/routes/client.routes.ts",
-          "hash": "16039626374609438192"
+          "file": "packages/core/src/types/method.types.ts",
+          "hash": "3137179764314895247"
         },
         {
-          "file": "packages/router/src/routes/errors.routes.ts",
-          "hash": "12572073668890198822"
+          "file": "packages/core/src/utils.ts",
+          "hash": "4682731795029713531"
         },
         {
-          "file": "packages/router/src/routes/mion.routes.ts",
-          "hash": "11660557655645852828"
+          "file": "packages/core/tsconfig.json",
+          "hash": "10139002154939574465"
         },
         {
-          "file": "packages/router/src/routes/serializer.binary.spec.ts",
-          "hash": "7337396128347206196"
+          "file": "packages/core/vite.config.ts",
+          "hash": "1116110642790797694"
+        }
+      ],
+      "@mionkit/test-publish": [
+        {
+          "file": "packages/test-publish/README.md",
+          "hash": "9157277687832462543"
         },
         {
-          "file": "packages/router/src/routes/serializer.routes.spec.ts",
-          "hash": "6875592806883471117"
+          "file": "packages/test-publish/jest.config.js",
+          "hash": "5846939081608776092"
         },
         {
-          "file": "packages/router/src/routes/serializer.routes.ts",
-          "hash": "2746003924950707771"
+          "file": "packages/test-publish/package.json",
+          "hash": "10916907114642378306",
+          "deps": [
+            "npm:dom-storage",
+            "@mionkit/aws",
+            "@mionkit/bun",
+            "@mionkit/client",
+            "@mionkit/core",
+            "@mionkit/gcloud",
+            "@mionkit/http",
+            "@mionkit/router",
+            "@mionkit/run-types",
+            "@mionkit/test-server",
+            "@mionkit/type-formats"
+          ]
         },
         {
-          "file": "packages/router/src/types/context.ts",
-          "hash": "10918206556345512100"
+          "file": "packages/test-publish/src/client.spec.ts",
+          "hash": "2773078271526466945"
         },
         {
-          "file": "packages/router/src/types/definitions.ts",
-          "hash": "2576861195704560018"
+          "file": "packages/test-publish/src/mion-cjs-server.js",
+          "hash": "1556953579592599463"
         },
         {
-          "file": "packages/router/src/types/general.ts",
-          "hash": "16029713941450844323"
+          "file": "packages/test-publish/src/models.d.ts",
+          "hash": "10014259070799593773"
         },
         {
-          "file": "packages/router/src/types/guards.ts",
-          "hash": "15260038469433290584"
+          "file": "packages/test-publish/src/models.d.ts.map",
+          "hash": "6762297643594774161"
         },
         {
-          "file": "packages/router/src/types/handlers.ts",
-          "hash": "6829812424784174047"
+          "file": "packages/test-publish/src/models.js",
+          "hash": "2510663200921919979"
         },
         {
-          "file": "packages/router/src/types/publicMethods.ts",
-          "hash": "12379987205322637915"
+          "file": "packages/test-publish/src/serializer.binary.spec.ts",
+          "hash": "18359268365430513031"
         },
         {
-          "file": "packages/router/src/types/remoteMethods.ts",
-          "hash": "520769389231617105"
+          "file": "packages/test-publish/tsconfig.json",
+          "hash": "4593092772764849381"
+        }
+      ],
+      "@mionkit/cli": [
+        {
+          "file": "packages/cli/README.md",
+          "hash": "4951807219317265196"
         },
         {
-          "file": "packages/router/tsconfig.json",
-          "hash": "11940702021450070981"
+          "file": "packages/cli/jest.config.js",
+          "hash": "642015822917941092"
         },
         {
-          "file": "packages/router/vite.config.ts",
-          "hash": "13946420161359100480"
+          "file": "packages/cli/package.json",
+          "hash": "15728150590595860330",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/cli.spec.ts",
+          "hash": "17713428324793416199"
+        },
+        {
+          "file": "packages/cli/src/cli.ts",
+          "hash": "4780576236929294629"
+        },
+        {
+          "file": "packages/cli/tsconfig.build.json",
+          "hash": "14786405213362674957"
+        },
+        {
+          "file": "packages/cli/tsconfig.json",
+          "hash": "1331151158396519799"
+        }
+      ],
+      "@mionkit/test-server": [
+        {
+          "file": "packages/test-server/README.md",
+          "hash": "17906160147013482749"
+        },
+        {
+          "file": "packages/test-server/index.ts",
+          "hash": "3029634944561084706"
+        },
+        {
+          "file": "packages/test-server/package.json",
+          "hash": "6291563293428688281",
+          "deps": [
+            "@mionkit/core",
+            "@mionkit/http",
+            "@mionkit/router",
+            "@mionkit/type-formats"
+          ]
+        },
+        {
+          "file": "packages/test-server/src/test-server-binary.ts",
+          "hash": "7557489354825355166"
+        },
+        {
+          "file": "packages/test-server/src/test-server-json.ts",
+          "hash": "7532003680159061521"
+        },
+        {
+          "file": "packages/test-server/src/test-server-utils.ts",
+          "hash": "3229426209307541089"
+        },
+        {
+          "file": "packages/test-server/tsconfig.json",
+          "hash": "8566917301927144931"
+        },
+        {
+          "file": "packages/test-server/vite.config.ts",
+          "hash": "8533009207564754274"
         }
       ],
       "@mionkit/aws": [
@@ -1269,37 +1248,826 @@
           "hash": "16736844663472682695"
         }
       ],
-      "@mionkit/cli": [
+      "@mionkit/run-types": [
         {
-          "file": "packages/cli/README.md",
-          "hash": "4951807219317265196"
+          "file": "packages/run-types/README.md",
+          "hash": "9336875954048206252"
         },
         {
-          "file": "packages/cli/jest.config.js",
-          "hash": "642015822917941092"
+          "file": "packages/run-types/index.ts",
+          "hash": "3299187570506502982"
         },
         {
-          "file": "packages/cli/package.json",
-          "hash": "15728150590595860330",
+          "file": "packages/run-types/jest.config.js",
+          "hash": "12109878091053262566"
+        },
+        {
+          "file": "packages/run-types/microbenchs/arrayVsResponseHeaderClass.bench.js",
+          "hash": "15219315117159427114"
+        },
+        {
+          "file": "packages/run-types/microbenchs/dataViewVsTypedArrays.bench.js",
+          "hash": "17324250946055587997"
+        },
+        {
+          "file": "packages/run-types/microbenchs/jitCodeStringVsObject.bench.js",
+          "hash": "15385835959885411085"
+        },
+        {
+          "file": "packages/run-types/microbenchs/mapInitialization.bench.js",
+          "hash": "11582391550410433033"
+        },
+        {
+          "file": "packages/run-types/package.json",
+          "hash": "10513164324894455147",
           "deps": [
-            "npm:commander"
+            "npm:@deepkit/core",
+            "npm:@deepkit/type",
+            "@mionkit/core"
           ]
         },
         {
-          "file": "packages/cli/src/cli.spec.ts",
-          "hash": "17713428324793416199"
+          "file": "packages/run-types/src/constants.functions.ts",
+          "hash": "2528329537687332346"
         },
         {
-          "file": "packages/cli/src/cli.ts",
-          "hash": "4780576236929294629"
+          "file": "packages/run-types/src/constants.kind.ts",
+          "hash": "17410240087392119387"
         },
         {
-          "file": "packages/cli/tsconfig.build.json",
-          "hash": "14786405213362674957"
+          "file": "packages/run-types/src/constants.ts",
+          "hash": "8097824570567209279"
         },
         {
-          "file": "packages/cli/tsconfig.json",
-          "hash": "1331151158396519799"
+          "file": "packages/run-types/src/createRunType.ts",
+          "hash": "12656030482871540985"
+        },
+        {
+          "file": "packages/run-types/src/createRunTypeFunctions.ts",
+          "hash": "7940849428621658889"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySPEC.md",
+          "hash": "17140171905762549596"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/01BinaryAtomic.spec.ts",
+          "hash": "3157386528931051975"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/02BinaryArrays.spec.ts",
+          "hash": "2701541241532480509"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/03BinaryObjects.spec.ts",
+          "hash": "15222631973679478635"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/04BinaryRecords.spec.ts",
+          "hash": "16445198354807690947"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/05BinaryTuples.spec.ts",
+          "hash": "8660012876190980144"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/06BinaryFunctions.spec.ts",
+          "hash": "15849975831747022583"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/07BinaryUtilities.spec.ts",
+          "hash": "13728655385918869999"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/09BinaryUnions.spec.ts",
+          "hash": "17072294302756598886"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/10BinaryCircular.spec.ts",
+          "hash": "16118487666190142791"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/11BinaryIterables.spec.ts",
+          "hash": "12616973313412053837"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/12BinaryOthers.spec.ts",
+          "hash": "4064524414943931084"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/binaryHelpers.ts",
+          "hash": "9135247956053258307"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/fromBinary.ts",
+          "hash": "6352517466660242032"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/binary/toBinary.ts",
+          "hash": "9662636523187968378"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/00JsonOnly.spec.ts",
+          "hash": "14140181050985851590"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/01JsonAtomic.spec.ts",
+          "hash": "13480935130263547401"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/02JsonArrays.spec.ts",
+          "hash": "15187682005216681528"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/03JsonObjects.spec.ts",
+          "hash": "16217568608197628313"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/04JsonRecords.spec.ts",
+          "hash": "11550516978835613390"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/05JsonTuples.spec.ts",
+          "hash": "11012845436124400427"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/06JsonFunctions.spec.ts",
+          "hash": "14055603030932344797"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/07JsonUtilities.spec.ts",
+          "hash": "7024510426732601097"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/09JsonUnions.spec.ts",
+          "hash": "3223003236052387334"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/10JsonCircular.spec.ts",
+          "hash": "18245742750505749519"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/11JsonIterables.spec.ts",
+          "hash": "5538614111758641027"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/12JsonOthers.spec.ts",
+          "hash": "9091519331384930713"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/jsonHelpers.ts",
+          "hash": "15129550764212689452"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifyJson.ts",
+          "hash": "10182605564097373528"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/01StringifyAtomic.spec.ts",
+          "hash": "13010133378008398718"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/02StringifyArrays.spec.ts",
+          "hash": "6987486283283947559"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/03StringifyObjects.spec.ts",
+          "hash": "13335969625060540825"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/04StringifyRecords.spec.ts",
+          "hash": "7415378775904192068"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/05StringifyTuples.spec.ts",
+          "hash": "665731161044789543"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/06StringifyFunctions.spec.ts",
+          "hash": "13801272899242619636"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/07StringifyUtilities.spec.ts",
+          "hash": "5497860754892853146"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/09StringifyUnions.spec.ts",
+          "hash": "1305435845431328983"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/10StringifyCircular.spec.ts",
+          "hash": "12080339764983920234"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/11StringifyIterables.spec.ts",
+          "hash": "12431130090251361401"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/12StringifyOthers.spec.ts",
+          "hash": "2306053935784302235"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/stringifyHelpers.ts",
+          "hash": "6464480340775764488"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/toJsCode.spec.ts",
+          "hash": "14067771712363306937"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/json/toJsCode.ts",
+          "hash": "16011313847289529426"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/serialization-suite.ts",
+          "hash": "15974669088127919261"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/fromXYZ.ts",
+          "hash": "17543511409879583601"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/toXYZ.ts",
+          "hash": "17865266860603361403"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzReadme.md",
+          "hash": "14605175558478538724"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/01xyzAtomic.spec.ts",
+          "hash": "10543878051084333093"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/02xyzArrays.spec.ts",
+          "hash": "18016234609753469490"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/03xyzObjects.spec.ts",
+          "hash": "3687660985878770261"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/04xyzRecords.spec.ts",
+          "hash": "277206558964419261"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/05xyzTuples.spec.ts",
+          "hash": "3105006476380992918"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/06xyzFunctions.spec.ts",
+          "hash": "7071288157686668404"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/07xyzUtilities.spec.ts",
+          "hash": "14617836978469622444"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/09xyzUnions.spec.ts",
+          "hash": "17167192719409016371"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/10xyzCircular.spec.ts",
+          "hash": "6349598343601017922"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/11xyzIterables.spec.ts",
+          "hash": "13085577281331259445"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/12xyzOthers.spec.ts",
+          "hash": "9091519331384930713"
+        },
+        {
+          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/xyzHelpers.ts",
+          "hash": "10990505665207446205"
+        },
+        {
+          "file": "packages/run-types/src/lib/baseRunTypeFormat.ts",
+          "hash": "17294505461450417060"
+        },
+        {
+          "file": "packages/run-types/src/lib/baseRunTypes.ts",
+          "hash": "9386583420196527545"
+        },
+        {
+          "file": "packages/run-types/src/lib/createJitFunction.ts",
+          "hash": "14017254572991512918"
+        },
+        {
+          "file": "packages/run-types/src/lib/dkProxy.ts",
+          "hash": "14597234735814456855"
+        },
+        {
+          "file": "packages/run-types/src/lib/formats.runtype.ts",
+          "hash": "17847885620421171159"
+        },
+        {
+          "file": "packages/run-types/src/lib/formats.spec.ts",
+          "hash": "13497830315177937367"
+        },
+        {
+          "file": "packages/run-types/src/lib/formats.ts",
+          "hash": "17904395005257500432"
+        },
+        {
+          "file": "packages/run-types/src/lib/guards.ts",
+          "hash": "17408778860185375563"
+        },
+        {
+          "file": "packages/run-types/src/lib/jitFnCompiler.spec.ts",
+          "hash": "7619918414053747386"
+        },
+        {
+          "file": "packages/run-types/src/lib/jitFnCompiler.ts",
+          "hash": "1563903080889686217"
+        },
+        {
+          "file": "packages/run-types/src/lib/jitFnsRegistry.ts",
+          "hash": "9022192890142714019"
+        },
+        {
+          "file": "packages/run-types/src/lib/pureFn.spec.ts",
+          "hash": "6849999682335606486"
+        },
+        {
+          "file": "packages/run-types/src/lib/pureFn.ts",
+          "hash": "13356793101765642356"
+        },
+        {
+          "file": "packages/run-types/src/lib/quickHash.ts",
+          "hash": "1245330934716357748"
+        },
+        {
+          "file": "packages/run-types/src/lib/typeId.spec.ts",
+          "hash": "6952774306794925028"
+        },
+        {
+          "file": "packages/run-types/src/lib/typeId.ts",
+          "hash": "4991346108572566824"
+        },
+        {
+          "file": "packages/run-types/src/lib/utils.spec.ts",
+          "hash": "10755166235243355222"
+        },
+        {
+          "file": "packages/run-types/src/lib/utils.ts",
+          "hash": "17344254336323308702"
+        },
+        {
+          "file": "packages/run-types/src/mocking/constants.mock.ts",
+          "hash": "13228069544015880299"
+        },
+        {
+          "file": "packages/run-types/src/mocking/mockRegistry.ts",
+          "hash": "5099866661071903791"
+        },
+        {
+          "file": "packages/run-types/src/mocking/mockType.ts",
+          "hash": "6151791952700713528"
+        },
+        {
+          "file": "packages/run-types/src/mocking/mockUtils.ts",
+          "hash": "12150272594183045272"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/any.spec.ts",
+          "hash": "18185288763399140093"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/any.ts",
+          "hash": "8215157520988432289"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/bigInt.spec.ts",
+          "hash": "9740899683103182098"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/bigInt.ts",
+          "hash": "11475813636642036206"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/boolean.spec.ts",
+          "hash": "7595278242967885325"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/boolean.ts",
+          "hash": "10782708112553786141"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/date.spec.ts",
+          "hash": "7680612725943917840"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/date.ts",
+          "hash": "1405213140491653018"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/enum.spec.ts",
+          "hash": "578672981815201646"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/enum.ts",
+          "hash": "8364838297249686247"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/enumMember.ts",
+          "hash": "1436401555059301354"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/literal.spec.ts",
+          "hash": "7685098734718595343"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/literal.ts",
+          "hash": "10008098925034450871"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/never.spec.ts",
+          "hash": "9675554758797013547"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/never.ts",
+          "hash": "13254979661247142595"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/null.spec.ts",
+          "hash": "8167681987937104302"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/null.ts",
+          "hash": "3249908858139618975"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/number.spec.ts",
+          "hash": "2004280921744506568"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/number.ts",
+          "hash": "4173045017918072626"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/object.spec.ts",
+          "hash": "15512854322088794002"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/object.ts",
+          "hash": "8362956579424897806"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/regexp.spec.ts",
+          "hash": "8211873890787370603"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/regexp.ts",
+          "hash": "12193226080492919597"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/string.spec.ts",
+          "hash": "17629321944185154383"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/string.ts",
+          "hash": "6047900920907398687"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/symbol.spec.ts",
+          "hash": "11741540684791980276"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/symbol.ts",
+          "hash": "7387635666474393272"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/undefined.spec.ts",
+          "hash": "5484212952612229896"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/undefined.ts",
+          "hash": "3237143453275127808"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/unknown.ts",
+          "hash": "6863042424560554910"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/void.spec.ts",
+          "hash": "4209589397679392494"
+        },
+        {
+          "file": "packages/run-types/src/nodes/atomic/void.ts",
+          "hash": "15706921250358095391"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/circularRefs.spec.ts",
+          "hash": "2413735838548847652"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/class.spec.ts",
+          "hash": "11229642957986722349"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/class.ts",
+          "hash": "17534777190203416532"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/classRpcError.spec.ts",
+          "hash": "3186101870803770137"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/functionParams.ts",
+          "hash": "886054129714388708"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/interface.spec.ts",
+          "hash": "4672262239444071851"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/interface.ts",
+          "hash": "9801021910085189720"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/intersection.spec.ts",
+          "hash": "14597999305097077420"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/intersection.ts",
+          "hash": "10910362070825796574"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/tuple.spec.ts",
+          "hash": "5401476153341533347"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/tuple.ts",
+          "hash": "10663031396007659169"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/union.spec.ts",
+          "hash": "10936359249520568370"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/union.ts",
+          "hash": "18113760482817934982"
+        },
+        {
+          "file": "packages/run-types/src/nodes/collection/unionDiscriminator.ts",
+          "hash": "9286686029444667030"
+        },
+        {
+          "file": "packages/run-types/src/nodes/function/function.spec.ts",
+          "hash": "111380950272899911"
+        },
+        {
+          "file": "packages/run-types/src/nodes/function/function.ts",
+          "hash": "18381911014733558982"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/array.spec.ts",
+          "hash": "12352214257348483011"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/array.ts",
+          "hash": "6044180282272194027"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/callSignature.spec.ts",
+          "hash": "16033420766912678147"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/callSignature.ts",
+          "hash": "16623459177049919611"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/genericMember.ts",
+          "hash": "8707179905507289855"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/indexProperty.spec.ts",
+          "hash": "4024112273665145632"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/indexProperty.ts",
+          "hash": "4814995754708164582"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/method.spec.ts",
+          "hash": "4844848433135356432"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/method.ts",
+          "hash": "11867717603490980441"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/methodSignature.ts",
+          "hash": "12537615120107830309"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/param.ts",
+          "hash": "10696140160754977462"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/property.ts",
+          "hash": "17592617494548196595"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/restParams.ts",
+          "hash": "13934890380693427397"
+        },
+        {
+          "file": "packages/run-types/src/nodes/member/tupleMember.ts",
+          "hash": "18349707708706524298"
+        },
+        {
+          "file": "packages/run-types/src/nodes/native/Iterable.ts",
+          "hash": "14079935032841735269"
+        },
+        {
+          "file": "packages/run-types/src/nodes/native/map.spec.ts",
+          "hash": "10088704004072967486"
+        },
+        {
+          "file": "packages/run-types/src/nodes/native/map.ts",
+          "hash": "8618156674708256225"
+        },
+        {
+          "file": "packages/run-types/src/nodes/native/nonSerializable.spec.ts",
+          "hash": "2859442906919149157"
+        },
+        {
+          "file": "packages/run-types/src/nodes/native/nonSerializable.ts",
+          "hash": "1705390759932853895"
+        },
+        {
+          "file": "packages/run-types/src/nodes/native/promise.spec.ts",
+          "hash": "14796828132159511485"
+        },
+        {
+          "file": "packages/run-types/src/nodes/native/promise.ts",
+          "hash": "15227075248126349213"
+        },
+        {
+          "file": "packages/run-types/src/nodes/native/set.spec.ts",
+          "hash": "13562585710756832410"
+        },
+        {
+          "file": "packages/run-types/src/nodes/native/set.ts",
+          "hash": "8132916150286714437"
+        },
+        {
+          "file": "packages/run-types/src/nodes/native/todo-globals.spec.ts",
+          "hash": "3952018098391295270"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/awaited.spec.ts",
+          "hash": "5978548948956575005"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/exclude.spec.ts",
+          "hash": "12032335630911223577"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/extract.spec.ts",
+          "hash": "5033993805535669486"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/nonNullable.spec.ts",
+          "hash": "6199057041428886835"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/omit.spec.ts",
+          "hash": "6536887164191679015"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/params-return.spec.ts",
+          "hash": "13765816797873332706"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/partial.spec.ts",
+          "hash": "10510870448826874097"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/pick.spec.ts",
+          "hash": "3309109686615700885"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/record.spec.ts",
+          "hash": "7239958977603155113"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/required.spec.ts",
+          "hash": "15396245746913757954"
+        },
+        {
+          "file": "packages/run-types/src/nodes/utility/string.spec.ts",
+          "hash": "16729839511930641697"
+        },
+        {
+          "file": "packages/run-types/src/types.ts",
+          "hash": "1097493348104129273"
+        },
+        {
+          "file": "packages/run-types/tsconfig.json",
+          "hash": "6724730677813760285"
+        },
+        {
+          "file": "packages/run-types/vite.config.ts",
+          "hash": "3244631491289268008"
+        }
+      ],
+      "@mionkit/client": [
+        {
+          "file": "packages/client/README.md",
+          "hash": "11482701469717079703"
+        },
+        {
+          "file": "packages/client/index.ts",
+          "hash": "1276896189212701211"
+        },
+        {
+          "file": "packages/client/jest.config.js",
+          "hash": "642015822917941092"
+        },
+        {
+          "file": "packages/client/package.json",
+          "hash": "5667521953418748537",
+          "deps": [
+            "@mionkit/http",
+            "@mionkit/router",
+            "@mionkit/run-types",
+            "@mionkit/test-server",
+            "npm:dom-storage",
+            "npm:jest-environment-jsdom",
+            "@mionkit/core"
+          ]
+        },
+        {
+          "file": "packages/client/project.json",
+          "hash": "9904682649239958621"
+        },
+        {
+          "file": "packages/client/src/client.spec.ts",
+          "hash": "8296033729278340083"
+        },
+        {
+          "file": "packages/client/src/client.ts",
+          "hash": "13364313586556973"
+        },
+        {
+          "file": "packages/client/src/clientMethodsMetadata.spec.ts",
+          "hash": "16219340925537710290"
+        },
+        {
+          "file": "packages/client/src/clientMethodsMetadata.ts",
+          "hash": "10574399941057575503"
+        },
+        {
+          "file": "packages/client/src/constants.ts",
+          "hash": "10348607457974232316"
+        },
+        {
+          "file": "packages/client/src/friendlyErrors.spec.ts",
+          "hash": "16573913227721047374"
+        },
+        {
+          "file": "packages/client/src/handlersRegistry.ts",
+          "hash": "780453883185202611"
+        },
+        {
+          "file": "packages/client/src/request.ts",
+          "hash": "8344216832891937319"
+        },
+        {
+          "file": "packages/client/src/serializer.binary.spec.ts",
+          "hash": "14871664247856298026"
+        },
+        {
+          "file": "packages/client/src/serializer.ts",
+          "hash": "6643024096558528228"
+        },
+        {
+          "file": "packages/client/src/subRequest.ts",
+          "hash": "9024637116460251506"
+        },
+        {
+          "file": "packages/client/src/typedEvent.ts",
+          "hash": "8453527089726531697"
+        },
+        {
+          "file": "packages/client/src/types.ts",
+          "hash": "17729355404645830412"
+        },
+        {
+          "file": "packages/client/src/validation.ts",
+          "hash": "3004917670500266807"
+        },
+        {
+          "file": "packages/client/tsconfig.json",
+          "hash": "15763044497844321053"
+        },
+        {
+          "file": "packages/client/vite.config.ts",
+          "hash": "12340907815087534544"
         }
       ],
       "@mionkit/examples": [
@@ -1820,239 +2588,6 @@
           "hash": "10445623278989773091"
         }
       ],
-      "@mionkit/client": [
-        {
-          "file": "packages/client/README.md",
-          "hash": "11482701469717079703"
-        },
-        {
-          "file": "packages/client/index.ts",
-          "hash": "1276896189212701211"
-        },
-        {
-          "file": "packages/client/jest.config.js",
-          "hash": "642015822917941092"
-        },
-        {
-          "file": "packages/client/package.json",
-          "hash": "5667521953418748537",
-          "deps": [
-            "@mionkit/http",
-            "@mionkit/router",
-            "@mionkit/run-types",
-            "@mionkit/test-server",
-            "npm:dom-storage",
-            "npm:jest-environment-jsdom",
-            "@mionkit/core"
-          ]
-        },
-        {
-          "file": "packages/client/project.json",
-          "hash": "9904682649239958621"
-        },
-        {
-          "file": "packages/client/src/client.spec.ts",
-          "hash": "8296033729278340083"
-        },
-        {
-          "file": "packages/client/src/client.ts",
-          "hash": "13364313586556973"
-        },
-        {
-          "file": "packages/client/src/clientMethodsMetadata.spec.ts",
-          "hash": "16219340925537710290"
-        },
-        {
-          "file": "packages/client/src/clientMethodsMetadata.ts",
-          "hash": "10574399941057575503"
-        },
-        {
-          "file": "packages/client/src/constants.ts",
-          "hash": "10348607457974232316"
-        },
-        {
-          "file": "packages/client/src/friendlyErrors.spec.ts",
-          "hash": "16573913227721047374"
-        },
-        {
-          "file": "packages/client/src/handlersRegistry.ts",
-          "hash": "780453883185202611"
-        },
-        {
-          "file": "packages/client/src/request.ts",
-          "hash": "8344216832891937319"
-        },
-        {
-          "file": "packages/client/src/serializer.binary.spec.ts",
-          "hash": "14871664247856298026"
-        },
-        {
-          "file": "packages/client/src/serializer.ts",
-          "hash": "6643024096558528228"
-        },
-        {
-          "file": "packages/client/src/subRequest.ts",
-          "hash": "9024637116460251506"
-        },
-        {
-          "file": "packages/client/src/typedEvent.ts",
-          "hash": "8453527089726531697"
-        },
-        {
-          "file": "packages/client/src/types.ts",
-          "hash": "17729355404645830412"
-        },
-        {
-          "file": "packages/client/src/validation.ts",
-          "hash": "3004917670500266807"
-        },
-        {
-          "file": "packages/client/tsconfig.json",
-          "hash": "15763044497844321053"
-        },
-        {
-          "file": "packages/client/vite.config.ts",
-          "hash": "12340907815087534544"
-        }
-      ],
-      "@mionkit/aot-caches": [
-        {
-          "file": "packages/aot-caches/README.md",
-          "hash": "8686083798705277871"
-        },
-        {
-          "file": "packages/aot-caches/build/cjs/src/index.d.ts",
-          "hash": "5422656206887106039"
-        },
-        {
-          "file": "packages/aot-caches/build/cjs/src/index.js",
-          "hash": "3869103298800197140"
-        },
-        {
-          "file": "packages/aot-caches/build/cjs/src/jitFns.cache.d.ts",
-          "hash": "16889092437183728188"
-        },
-        {
-          "file": "packages/aot-caches/build/cjs/src/jitFns.cache.js",
-          "hash": "6726160326261975057"
-        },
-        {
-          "file": "packages/aot-caches/build/cjs/src/pureFns.cache.d.ts",
-          "hash": "15936103888002690751"
-        },
-        {
-          "file": "packages/aot-caches/build/cjs/src/pureFns.cache.js",
-          "hash": "8549001800066526673"
-        },
-        {
-          "file": "packages/aot-caches/build/cjs/src/router.cache.d.ts",
-          "hash": "10887804950754926189"
-        },
-        {
-          "file": "packages/aot-caches/build/cjs/src/router.cache.js",
-          "hash": "12943211439845477915"
-        },
-        {
-          "file": "packages/aot-caches/build/esm/src/index.d.ts",
-          "hash": "5422656206887106039"
-        },
-        {
-          "file": "packages/aot-caches/build/esm/src/index.js",
-          "hash": "5448943515005388940"
-        },
-        {
-          "file": "packages/aot-caches/build/esm/src/jitFns.cache.d.ts",
-          "hash": "16889092437183728188"
-        },
-        {
-          "file": "packages/aot-caches/build/esm/src/jitFns.cache.js",
-          "hash": "15562461571151509930"
-        },
-        {
-          "file": "packages/aot-caches/build/esm/src/pureFns.cache.d.ts",
-          "hash": "15936103888002690751"
-        },
-        {
-          "file": "packages/aot-caches/build/esm/src/pureFns.cache.js",
-          "hash": "10245912946376601270"
-        },
-        {
-          "file": "packages/aot-caches/build/esm/src/router.cache.d.ts",
-          "hash": "10887804950754926189"
-        },
-        {
-          "file": "packages/aot-caches/build/esm/src/router.cache.js",
-          "hash": "9453954106407384626"
-        },
-        {
-          "file": "packages/aot-caches/defaultRoutes.ts",
-          "hash": "9702795555065352134"
-        },
-        {
-          "file": "packages/aot-caches/package.json",
-          "hash": "15711317485835403658"
-        },
-        {
-          "file": "packages/aot-caches/tsconfig.json",
-          "hash": "2588353949843579601"
-        },
-        {
-          "file": "packages/aot-caches/vite.config.ts",
-          "hash": "17914829508826871185"
-        }
-      ],
-      "@mionkit/gcloud": [
-        {
-          "file": "packages/gcloud/README.md",
-          "hash": "8127755555713389793"
-        },
-        {
-          "file": "packages/gcloud/index.ts",
-          "hash": "17095073732994301005"
-        },
-        {
-          "file": "packages/gcloud/jest.config.js",
-          "hash": "17930323499715952904"
-        },
-        {
-          "file": "packages/gcloud/package.json",
-          "hash": "1449837357018837511",
-          "deps": [
-            "npm:@types/express",
-            "npm:@google-cloud/functions-framework",
-            "@mionkit/core",
-            "@mionkit/router"
-          ]
-        },
-        {
-          "file": "packages/gcloud/src/constants.ts",
-          "hash": "4226052308308173760"
-        },
-        {
-          "file": "packages/gcloud/src/googleCF.spec.ts",
-          "hash": "11359630727002938367"
-        },
-        {
-          "file": "packages/gcloud/src/googleCF.ts",
-          "hash": "160721538715615217"
-        },
-        {
-          "file": "packages/gcloud/src/headers.ts",
-          "hash": "4637009010432910849"
-        },
-        {
-          "file": "packages/gcloud/src/types.ts",
-          "hash": "12380052700582040711"
-        },
-        {
-          "file": "packages/gcloud/tsconfig.json",
-          "hash": "9022288069530308566"
-        },
-        {
-          "file": "packages/gcloud/vite.config.ts",
-          "hash": "5883035882924258029"
-        }
-      ],
       "@mionkit/drizzle": [
         {
           "file": "packages/drizze/README.md",
@@ -2155,773 +2690,6 @@
         {
           "file": "packages/drizze/vite.config.ts",
           "hash": "14650056009551923796"
-        }
-      ],
-      "@mionkit/test-server": [
-        {
-          "file": "packages/test-server/README.md",
-          "hash": "17906160147013482749"
-        },
-        {
-          "file": "packages/test-server/index.ts",
-          "hash": "3029634944561084706"
-        },
-        {
-          "file": "packages/test-server/package.json",
-          "hash": "6291563293428688281",
-          "deps": [
-            "@mionkit/core",
-            "@mionkit/http",
-            "@mionkit/router",
-            "@mionkit/type-formats"
-          ]
-        },
-        {
-          "file": "packages/test-server/src/test-server-binary.ts",
-          "hash": "7557489354825355166"
-        },
-        {
-          "file": "packages/test-server/src/test-server-json.ts",
-          "hash": "7532003680159061521"
-        },
-        {
-          "file": "packages/test-server/src/test-server-utils.ts",
-          "hash": "3229426209307541089"
-        },
-        {
-          "file": "packages/test-server/tsconfig.json",
-          "hash": "8566917301927144931"
-        },
-        {
-          "file": "packages/test-server/vite.config.ts",
-          "hash": "8533009207564754274"
-        }
-      ],
-      "@mionkit/run-types": [
-        {
-          "file": "packages/run-types/README.md",
-          "hash": "9336875954048206252"
-        },
-        {
-          "file": "packages/run-types/index.ts",
-          "hash": "3299187570506502982"
-        },
-        {
-          "file": "packages/run-types/jest.config.js",
-          "hash": "12109878091053262566"
-        },
-        {
-          "file": "packages/run-types/microbenchs/arrayVsResponseHeaderClass.bench.js",
-          "hash": "15219315117159427114"
-        },
-        {
-          "file": "packages/run-types/microbenchs/dataViewVsTypedArrays.bench.js",
-          "hash": "17324250946055587997"
-        },
-        {
-          "file": "packages/run-types/microbenchs/jitCodeStringVsObject.bench.js",
-          "hash": "15385835959885411085"
-        },
-        {
-          "file": "packages/run-types/microbenchs/mapInitialization.bench.js",
-          "hash": "11582391550410433033"
-        },
-        {
-          "file": "packages/run-types/package.json",
-          "hash": "10513164324894455147",
-          "deps": [
-            "npm:@deepkit/core",
-            "npm:@deepkit/type",
-            "@mionkit/core"
-          ]
-        },
-        {
-          "file": "packages/run-types/src/constants.functions.ts",
-          "hash": "2528329537687332346"
-        },
-        {
-          "file": "packages/run-types/src/constants.kind.ts",
-          "hash": "17410240087392119387"
-        },
-        {
-          "file": "packages/run-types/src/constants.ts",
-          "hash": "8097824570567209279"
-        },
-        {
-          "file": "packages/run-types/src/createRunType.ts",
-          "hash": "12656030482871540985"
-        },
-        {
-          "file": "packages/run-types/src/createRunTypeFunctions.ts",
-          "hash": "7940849428621658889"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySPEC.md",
-          "hash": "17140171905762549596"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/01BinaryAtomic.spec.ts",
-          "hash": "3157386528931051975"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/02BinaryArrays.spec.ts",
-          "hash": "2701541241532480509"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/03BinaryObjects.spec.ts",
-          "hash": "15222631973679478635"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/04BinaryRecords.spec.ts",
-          "hash": "16445198354807690947"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/05BinaryTuples.spec.ts",
-          "hash": "8660012876190980144"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/06BinaryFunctions.spec.ts",
-          "hash": "15849975831747022583"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/07BinaryUtilities.spec.ts",
-          "hash": "13728655385918869999"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/09BinaryUnions.spec.ts",
-          "hash": "18151187684872295329"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/10BinaryCircular.spec.ts",
-          "hash": "16118487666190142791"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/11BinaryIterables.spec.ts",
-          "hash": "12616973313412053837"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/12BinaryOthers.spec.ts",
-          "hash": "4064524414943931084"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/binarySpec/binaryHelpers.ts",
-          "hash": "9135247956053258307"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/fromBinary.ts",
-          "hash": "6352517466660242032"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/binary/toBinary.ts",
-          "hash": "8967209315844869611"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/00JsonOnly.spec.ts",
-          "hash": "14140181050985851590"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/01JsonAtomic.spec.ts",
-          "hash": "13480935130263547401"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/02JsonArrays.spec.ts",
-          "hash": "15187682005216681528"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/03JsonObjects.spec.ts",
-          "hash": "16217568608197628313"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/04JsonRecords.spec.ts",
-          "hash": "11550516978835613390"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/05JsonTuples.spec.ts",
-          "hash": "11012845436124400427"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/06JsonFunctions.spec.ts",
-          "hash": "14055603030932344797"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/07JsonUtilities.spec.ts",
-          "hash": "7024510426732601097"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/09JsonUnions.spec.ts",
-          "hash": "14748241492629595797"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/10JsonCircular.spec.ts",
-          "hash": "18245742750505749519"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/11JsonIterables.spec.ts",
-          "hash": "5538614111758641027"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/12JsonOthers.spec.ts",
-          "hash": "9091519331384930713"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/jsonSpec/jsonHelpers.ts",
-          "hash": "15129550764212689452"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifyJson.ts",
-          "hash": "8273381290227882412"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/01StringifyAtomic.spec.ts",
-          "hash": "13010133378008398718"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/02StringifyArrays.spec.ts",
-          "hash": "6987486283283947559"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/03StringifyObjects.spec.ts",
-          "hash": "13335969625060540825"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/04StringifyRecords.spec.ts",
-          "hash": "7415378775904192068"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/05StringifyTuples.spec.ts",
-          "hash": "665731161044789543"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/06StringifyFunctions.spec.ts",
-          "hash": "13801272899242619636"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/07StringifyUtilities.spec.ts",
-          "hash": "5497860754892853146"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/09StringifyUnions.spec.ts",
-          "hash": "17504229967891767509"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/10StringifyCircular.spec.ts",
-          "hash": "12080339764983920234"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/11StringifyIterables.spec.ts",
-          "hash": "12431130090251361401"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/12StringifyOthers.spec.ts",
-          "hash": "2306053935784302235"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/stringifySpec/stringifyHelpers.ts",
-          "hash": "6464480340775764488"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/toJsCode.spec.ts",
-          "hash": "14067771712363306937"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/json/toJsCode.ts",
-          "hash": "16011313847289529426"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/serialization-suite.ts",
-          "hash": "14346382144213689458"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/fromXYZ.ts",
-          "hash": "17543511409879583601"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/toXYZ.ts",
-          "hash": "17865266860603361403"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzReadme.md",
-          "hash": "14605175558478538724"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/01xyzAtomic.spec.ts",
-          "hash": "10543878051084333093"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/02xyzArrays.spec.ts",
-          "hash": "18016234609753469490"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/03xyzObjects.spec.ts",
-          "hash": "3687660985878770261"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/04xyzRecords.spec.ts",
-          "hash": "277206558964419261"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/05xyzTuples.spec.ts",
-          "hash": "3105006476380992918"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/06xyzFunctions.spec.ts",
-          "hash": "7071288157686668404"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/07xyzUtilities.spec.ts",
-          "hash": "14617836978469622444"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/09xyzUnions.spec.ts",
-          "hash": "17167192719409016371"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/10xyzCircular.spec.ts",
-          "hash": "6349598343601017922"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/11xyzIterables.spec.ts",
-          "hash": "13085577281331259445"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/12xyzOthers.spec.ts",
-          "hash": "9091519331384930713"
-        },
-        {
-          "file": "packages/run-types/src/jitCompilers/xyz-Template/xyzSpec/xyzHelpers.ts",
-          "hash": "10990505665207446205"
-        },
-        {
-          "file": "packages/run-types/src/lib/baseRunTypeFormat.ts",
-          "hash": "17294505461450417060"
-        },
-        {
-          "file": "packages/run-types/src/lib/baseRunTypes.ts",
-          "hash": "9386583420196527545"
-        },
-        {
-          "file": "packages/run-types/src/lib/createJitFunction.ts",
-          "hash": "14017254572991512918"
-        },
-        {
-          "file": "packages/run-types/src/lib/dkProxy.ts",
-          "hash": "14597234735814456855"
-        },
-        {
-          "file": "packages/run-types/src/lib/formats.runtype.ts",
-          "hash": "17847885620421171159"
-        },
-        {
-          "file": "packages/run-types/src/lib/formats.spec.ts",
-          "hash": "13497830315177937367"
-        },
-        {
-          "file": "packages/run-types/src/lib/formats.ts",
-          "hash": "17904395005257500432"
-        },
-        {
-          "file": "packages/run-types/src/lib/guards.ts",
-          "hash": "17408778860185375563"
-        },
-        {
-          "file": "packages/run-types/src/lib/jitFnCompiler.spec.ts",
-          "hash": "7619918414053747386"
-        },
-        {
-          "file": "packages/run-types/src/lib/jitFnCompiler.ts",
-          "hash": "1563903080889686217"
-        },
-        {
-          "file": "packages/run-types/src/lib/jitFnsRegistry.ts",
-          "hash": "9022192890142714019"
-        },
-        {
-          "file": "packages/run-types/src/lib/pureFn.spec.ts",
-          "hash": "6849999682335606486"
-        },
-        {
-          "file": "packages/run-types/src/lib/pureFn.ts",
-          "hash": "13356793101765642356"
-        },
-        {
-          "file": "packages/run-types/src/lib/quickHash.ts",
-          "hash": "1245330934716357748"
-        },
-        {
-          "file": "packages/run-types/src/lib/typeId.spec.ts",
-          "hash": "6952774306794925028"
-        },
-        {
-          "file": "packages/run-types/src/lib/typeId.ts",
-          "hash": "4991346108572566824"
-        },
-        {
-          "file": "packages/run-types/src/lib/utils.spec.ts",
-          "hash": "10755166235243355222"
-        },
-        {
-          "file": "packages/run-types/src/lib/utils.ts",
-          "hash": "17344254336323308702"
-        },
-        {
-          "file": "packages/run-types/src/mocking/constants.mock.ts",
-          "hash": "13228069544015880299"
-        },
-        {
-          "file": "packages/run-types/src/mocking/mockRegistry.ts",
-          "hash": "5099866661071903791"
-        },
-        {
-          "file": "packages/run-types/src/mocking/mockType.ts",
-          "hash": "6151791952700713528"
-        },
-        {
-          "file": "packages/run-types/src/mocking/mockUtils.ts",
-          "hash": "12150272594183045272"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/any.spec.ts",
-          "hash": "18185288763399140093"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/any.ts",
-          "hash": "8215157520988432289"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/bigInt.spec.ts",
-          "hash": "9740899683103182098"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/bigInt.ts",
-          "hash": "11475813636642036206"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/boolean.spec.ts",
-          "hash": "7595278242967885325"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/boolean.ts",
-          "hash": "10782708112553786141"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/date.spec.ts",
-          "hash": "7680612725943917840"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/date.ts",
-          "hash": "1405213140491653018"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/enum.spec.ts",
-          "hash": "578672981815201646"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/enum.ts",
-          "hash": "8364838297249686247"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/enumMember.ts",
-          "hash": "1436401555059301354"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/literal.spec.ts",
-          "hash": "7685098734718595343"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/literal.ts",
-          "hash": "10008098925034450871"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/never.spec.ts",
-          "hash": "9675554758797013547"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/never.ts",
-          "hash": "13254979661247142595"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/null.spec.ts",
-          "hash": "8167681987937104302"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/null.ts",
-          "hash": "3249908858139618975"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/number.spec.ts",
-          "hash": "2004280921744506568"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/number.ts",
-          "hash": "4173045017918072626"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/object.spec.ts",
-          "hash": "15512854322088794002"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/object.ts",
-          "hash": "8362956579424897806"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/regexp.spec.ts",
-          "hash": "8211873890787370603"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/regexp.ts",
-          "hash": "12193226080492919597"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/string.spec.ts",
-          "hash": "17629321944185154383"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/string.ts",
-          "hash": "6047900920907398687"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/symbol.spec.ts",
-          "hash": "11741540684791980276"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/symbol.ts",
-          "hash": "7387635666474393272"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/undefined.spec.ts",
-          "hash": "5484212952612229896"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/undefined.ts",
-          "hash": "3237143453275127808"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/unknown.ts",
-          "hash": "6863042424560554910"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/void.spec.ts",
-          "hash": "4209589397679392494"
-        },
-        {
-          "file": "packages/run-types/src/nodes/atomic/void.ts",
-          "hash": "15706921250358095391"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/circularRefs.spec.ts",
-          "hash": "2413735838548847652"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/class.spec.ts",
-          "hash": "11229642957986722349"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/class.ts",
-          "hash": "17534777190203416532"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/classRpcError.spec.ts",
-          "hash": "3186101870803770137"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/functionParams.ts",
-          "hash": "886054129714388708"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/interface.spec.ts",
-          "hash": "4672262239444071851"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/interface.ts",
-          "hash": "9801021910085189720"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/intersection.spec.ts",
-          "hash": "14597999305097077420"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/intersection.ts",
-          "hash": "10910362070825796574"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/tuple.spec.ts",
-          "hash": "5401476153341533347"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/tuple.ts",
-          "hash": "10663031396007659169"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/union.spec.ts",
-          "hash": "13585544903935933404"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/union.ts",
-          "hash": "10493888423048399323"
-        },
-        {
-          "file": "packages/run-types/src/nodes/collection/unionDiscriminator.ts",
-          "hash": "2466759923780291431"
-        },
-        {
-          "file": "packages/run-types/src/nodes/function/function.spec.ts",
-          "hash": "111380950272899911"
-        },
-        {
-          "file": "packages/run-types/src/nodes/function/function.ts",
-          "hash": "18381911014733558982"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/array.spec.ts",
-          "hash": "12352214257348483011"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/array.ts",
-          "hash": "6044180282272194027"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/callSignature.spec.ts",
-          "hash": "16033420766912678147"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/callSignature.ts",
-          "hash": "16623459177049919611"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/genericMember.ts",
-          "hash": "8707179905507289855"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/indexProperty.spec.ts",
-          "hash": "4024112273665145632"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/indexProperty.ts",
-          "hash": "4814995754708164582"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/method.spec.ts",
-          "hash": "4844848433135356432"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/method.ts",
-          "hash": "11867717603490980441"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/methodSignature.ts",
-          "hash": "12537615120107830309"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/param.ts",
-          "hash": "10696140160754977462"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/property.ts",
-          "hash": "17592617494548196595"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/restParams.ts",
-          "hash": "13934890380693427397"
-        },
-        {
-          "file": "packages/run-types/src/nodes/member/tupleMember.ts",
-          "hash": "18349707708706524298"
-        },
-        {
-          "file": "packages/run-types/src/nodes/native/Iterable.ts",
-          "hash": "14079935032841735269"
-        },
-        {
-          "file": "packages/run-types/src/nodes/native/map.spec.ts",
-          "hash": "10088704004072967486"
-        },
-        {
-          "file": "packages/run-types/src/nodes/native/map.ts",
-          "hash": "8618156674708256225"
-        },
-        {
-          "file": "packages/run-types/src/nodes/native/nonSerializable.spec.ts",
-          "hash": "2859442906919149157"
-        },
-        {
-          "file": "packages/run-types/src/nodes/native/nonSerializable.ts",
-          "hash": "1705390759932853895"
-        },
-        {
-          "file": "packages/run-types/src/nodes/native/promise.spec.ts",
-          "hash": "14796828132159511485"
-        },
-        {
-          "file": "packages/run-types/src/nodes/native/promise.ts",
-          "hash": "15227075248126349213"
-        },
-        {
-          "file": "packages/run-types/src/nodes/native/set.spec.ts",
-          "hash": "13562585710756832410"
-        },
-        {
-          "file": "packages/run-types/src/nodes/native/set.ts",
-          "hash": "8132916150286714437"
-        },
-        {
-          "file": "packages/run-types/src/nodes/native/todo-globals.spec.ts",
-          "hash": "3952018098391295270"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/awaited.spec.ts",
-          "hash": "5978548948956575005"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/exclude.spec.ts",
-          "hash": "12032335630911223577"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/extract.spec.ts",
-          "hash": "5033993805535669486"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/nonNullable.spec.ts",
-          "hash": "6199057041428886835"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/omit.spec.ts",
-          "hash": "6536887164191679015"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/params-return.spec.ts",
-          "hash": "13765816797873332706"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/partial.spec.ts",
-          "hash": "10510870448826874097"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/pick.spec.ts",
-          "hash": "3309109686615700885"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/record.spec.ts",
-          "hash": "7239958977603155113"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/required.spec.ts",
-          "hash": "15396245746913757954"
-        },
-        {
-          "file": "packages/run-types/src/nodes/utility/string.spec.ts",
-          "hash": "16729839511930641697"
-        },
-        {
-          "file": "packages/run-types/src/types.ts",
-          "hash": "1097493348104129273"
-        },
-        {
-          "file": "packages/run-types/tsconfig.json",
-          "hash": "6724730677813760285"
-        },
-        {
-          "file": "packages/run-types/vite.config.ts",
-          "hash": "3244631491289268008"
         }
       ],
       "@mionkit/type-formats": [
@@ -3102,6 +2870,389 @@
           "hash": "13725596058833882072"
         }
       ],
+      "@mionkit/eslint-plugin": [
+        {
+          "file": "packages/eslint-plugin/README.md",
+          "hash": "4801675084940277279"
+        },
+        {
+          "file": "packages/eslint-plugin/USAGE.md",
+          "hash": "7322862465648488574"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/index.js",
+          "hash": "3549386732142228912"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/index.js.map",
+          "hash": "5282465976957072286"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/rules/no-mixed-union-properties.js",
+          "hash": "9160760651883283806"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/rules/no-mixed-union-properties.js.map",
+          "hash": "14731268755884075873"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/rules/no-type-imports.js",
+          "hash": "3666899296378840637"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/rules/no-type-imports.js.map",
+          "hash": "9217323812976192601"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/rules/no-typeof-runtype.js",
+          "hash": "14301435735049990622"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/rules/no-typeof-runtype.js.map",
+          "hash": "8875220915691829045"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/rules/no-unreachable-union-types.js",
+          "hash": "4362528904336514922"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/rules/no-unreachable-union-types.js.map",
+          "hash": "7176298572506201681"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/rules/strong-typed-routes.js",
+          "hash": "12114491047410911157"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/rules/strong-typed-routes.js.map",
+          "hash": "17275088493603836098"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/src/index.d.ts",
+          "hash": "1420447456887774293"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/src/rules/no-mixed-union-properties.d.ts",
+          "hash": "9410743032209573404"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/src/rules/no-type-imports.d.ts",
+          "hash": "9302746733631398713"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/src/rules/no-typeof-runtype.d.ts",
+          "hash": "14809752016621356835"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/src/rules/no-unreachable-union-types.d.ts",
+          "hash": "9902671330142324833"
+        },
+        {
+          "file": "packages/eslint-plugin/build/cjs/src/rules/strong-typed-routes.d.ts",
+          "hash": "6813196254605110252"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/index.js",
+          "hash": "10846915140021564698"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/index.js.map",
+          "hash": "3174304468248998998"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/rules/no-mixed-union-properties.js",
+          "hash": "6697049504528845604"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/rules/no-mixed-union-properties.js.map",
+          "hash": "6427909426660498524"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/rules/no-type-imports.js",
+          "hash": "16986466794039765333"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/rules/no-type-imports.js.map",
+          "hash": "18273953144253454976"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/rules/no-typeof-runtype.js",
+          "hash": "11048246867559297164"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/rules/no-typeof-runtype.js.map",
+          "hash": "18219509033202007695"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/rules/no-unreachable-union-types.js",
+          "hash": "5022449881216537373"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/rules/no-unreachable-union-types.js.map",
+          "hash": "6440509806468000103"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/rules/strong-typed-routes.js",
+          "hash": "332301598133530663"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/rules/strong-typed-routes.js.map",
+          "hash": "8619103945335393487"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/src/index.d.ts",
+          "hash": "1420447456887774293"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/src/rules/no-mixed-union-properties.d.ts",
+          "hash": "9410743032209573404"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/src/rules/no-type-imports.d.ts",
+          "hash": "9302746733631398713"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/src/rules/no-typeof-runtype.d.ts",
+          "hash": "14809752016621356835"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/src/rules/no-unreachable-union-types.d.ts",
+          "hash": "9902671330142324833"
+        },
+        {
+          "file": "packages/eslint-plugin/build/esm/src/rules/strong-typed-routes.d.ts",
+          "hash": "6813196254605110252"
+        },
+        {
+          "file": "packages/eslint-plugin/jest.config.js",
+          "hash": "14968007629171079231"
+        },
+        {
+          "file": "packages/eslint-plugin/package.json",
+          "hash": "14683578070018322733",
+          "deps": [
+            "npm:@typescript-eslint/utils"
+          ]
+        },
+        {
+          "file": "packages/eslint-plugin/src/index.ts",
+          "hash": "9879016213810264690"
+        },
+        {
+          "file": "packages/eslint-plugin/src/rules/no-mixed-union-properties.spec.ts",
+          "hash": "12961561495099369302"
+        },
+        {
+          "file": "packages/eslint-plugin/src/rules/no-mixed-union-properties.ts",
+          "hash": "15261305421462250086"
+        },
+        {
+          "file": "packages/eslint-plugin/src/rules/no-type-imports.spec.ts",
+          "hash": "16030571453710550642"
+        },
+        {
+          "file": "packages/eslint-plugin/src/rules/no-type-imports.ts",
+          "hash": "9798813548881307806"
+        },
+        {
+          "file": "packages/eslint-plugin/src/rules/no-typeof-runtype.spec.ts",
+          "hash": "4501806425661552631"
+        },
+        {
+          "file": "packages/eslint-plugin/src/rules/no-typeof-runtype.ts",
+          "hash": "2036467424793961106"
+        },
+        {
+          "file": "packages/eslint-plugin/src/rules/no-unreachable-union-types.spec.ts",
+          "hash": "11424719673482720155"
+        },
+        {
+          "file": "packages/eslint-plugin/src/rules/no-unreachable-union-types.ts",
+          "hash": "3204158637274322505"
+        },
+        {
+          "file": "packages/eslint-plugin/src/rules/strong-typed-routes.spec.ts",
+          "hash": "3861321231244781868"
+        },
+        {
+          "file": "packages/eslint-plugin/src/rules/strong-typed-routes.ts",
+          "hash": "4925325350074475313"
+        },
+        {
+          "file": "packages/eslint-plugin/tsconfig.json",
+          "hash": "10601316158641116940"
+        },
+        {
+          "file": "packages/eslint-plugin/vite.config.ts",
+          "hash": "5054943586078562626"
+        }
+      ],
+      "@mionkit/router": [
+        {
+          "file": "packages/router/README.md",
+          "hash": "14768726198006032220"
+        },
+        {
+          "file": "packages/router/examples/eslint-rule-test.routes.ts",
+          "hash": "15402292733874908594"
+        },
+        {
+          "file": "packages/router/examples/models.ts",
+          "hash": "6907037013240263254"
+        },
+        {
+          "file": "packages/router/index.ts",
+          "hash": "16869361643111717458"
+        },
+        {
+          "file": "packages/router/jest.config.js",
+          "hash": "642015822917941092"
+        },
+        {
+          "file": "packages/router/package.json",
+          "hash": "16394327830436555080",
+          "deps": [
+            "@mionkit/core",
+            "@mionkit/run-types"
+          ]
+        },
+        {
+          "file": "packages/router/src/callContext.ts",
+          "hash": "11002626839819748781"
+        },
+        {
+          "file": "packages/router/src/constants.ts",
+          "hash": "3022808124928267250"
+        },
+        {
+          "file": "packages/router/src/dispatch.spec.ts",
+          "hash": "7992904207032687636"
+        },
+        {
+          "file": "packages/router/src/dispatch.ts",
+          "hash": "16459803905088557951"
+        },
+        {
+          "file": "packages/router/src/lib/dispatchError.ts",
+          "hash": "4589107066115320094"
+        },
+        {
+          "file": "packages/router/src/lib/formats.spec.ts",
+          "hash": "4430776981630064951"
+        },
+        {
+          "file": "packages/router/src/lib/handlers.spec.ts",
+          "hash": "589962621982588766"
+        },
+        {
+          "file": "packages/router/src/lib/handlers.ts",
+          "hash": "5256627830624990632"
+        },
+        {
+          "file": "packages/router/src/lib/headers.spec.ts",
+          "hash": "4531217567306138583"
+        },
+        {
+          "file": "packages/router/src/lib/headers.ts",
+          "hash": "12681120683512259487"
+        },
+        {
+          "file": "packages/router/src/lib/methodsCache.ts",
+          "hash": "7896797431756585053"
+        },
+        {
+          "file": "packages/router/src/lib/reflection-aot.spec.ts",
+          "hash": "12163255540584501099"
+        },
+        {
+          "file": "packages/router/src/lib/reflection-optimization.spec.ts",
+          "hash": "4169424067612742493"
+        },
+        {
+          "file": "packages/router/src/lib/reflection.ts",
+          "hash": "9298153198532263504"
+        },
+        {
+          "file": "packages/router/src/lib/remoteMethods.spec.ts",
+          "hash": "3088141403224373271"
+        },
+        {
+          "file": "packages/router/src/lib/remoteMethods.ts",
+          "hash": "6145665286953998482"
+        },
+        {
+          "file": "packages/router/src/router.spec.ts",
+          "hash": "87232845613792541"
+        },
+        {
+          "file": "packages/router/src/router.ts",
+          "hash": "5931598147528129707"
+        },
+        {
+          "file": "packages/router/src/routes/client.routes.spec.ts",
+          "hash": "5040649935012868822"
+        },
+        {
+          "file": "packages/router/src/routes/client.routes.ts",
+          "hash": "16039626374609438192"
+        },
+        {
+          "file": "packages/router/src/routes/errors.routes.ts",
+          "hash": "12572073668890198822"
+        },
+        {
+          "file": "packages/router/src/routes/mion.routes.ts",
+          "hash": "11660557655645852828"
+        },
+        {
+          "file": "packages/router/src/routes/serializer.binary.spec.ts",
+          "hash": "7337396128347206196"
+        },
+        {
+          "file": "packages/router/src/routes/serializer.routes.spec.ts",
+          "hash": "6875592806883471117"
+        },
+        {
+          "file": "packages/router/src/routes/serializer.routes.ts",
+          "hash": "2746003924950707771"
+        },
+        {
+          "file": "packages/router/src/types/context.ts",
+          "hash": "10918206556345512100"
+        },
+        {
+          "file": "packages/router/src/types/definitions.ts",
+          "hash": "2576861195704560018"
+        },
+        {
+          "file": "packages/router/src/types/general.ts",
+          "hash": "16029713941450844323"
+        },
+        {
+          "file": "packages/router/src/types/guards.ts",
+          "hash": "15260038469433290584"
+        },
+        {
+          "file": "packages/router/src/types/handlers.ts",
+          "hash": "6829812424784174047"
+        },
+        {
+          "file": "packages/router/src/types/publicMethods.ts",
+          "hash": "12379987205322637915"
+        },
+        {
+          "file": "packages/router/src/types/remoteMethods.ts",
+          "hash": "520769389231617105"
+        },
+        {
+          "file": "packages/router/tsconfig.json",
+          "hash": "11940702021450070981"
+        },
+        {
+          "file": "packages/router/vite.config.ts",
+          "hash": "13946420161359100480"
+        }
+      ],
       "@mionkit/http": [
         {
           "file": "packages/http/README.md",
@@ -3152,196 +3303,90 @@
           "hash": "16736844663472682695"
         }
       ],
-      "@mionkit/bun": [
+      "@mionkit/aot-caches": [
         {
-          "file": "packages/bun/.gitignore",
-          "hash": "14762636663230911732"
+          "file": "packages/aot-caches/README.md",
+          "hash": "8686083798705277871"
         },
         {
-          "file": "packages/bun/README.md",
-          "hash": "16797720729030096463"
+          "file": "packages/aot-caches/build/cjs/src/index.d.ts",
+          "hash": "5422656206887106039"
         },
         {
-          "file": "packages/bun/bun-preload.ts",
-          "hash": "7109620063456929321"
+          "file": "packages/aot-caches/build/cjs/src/index.js",
+          "hash": "3869103298800197140"
         },
         {
-          "file": "packages/bun/bunfig.toml",
-          "hash": "16303322420169935068"
+          "file": "packages/aot-caches/build/cjs/src/jitFns.cache.d.ts",
+          "hash": "16889092437183728188"
         },
         {
-          "file": "packages/bun/index.ts",
-          "hash": "17800369926868229435"
+          "file": "packages/aot-caches/build/cjs/src/jitFns.cache.js",
+          "hash": "6726160326261975057"
         },
         {
-          "file": "packages/bun/loader/runtypes-loader.test.ts",
-          "hash": "16262054400100354870"
+          "file": "packages/aot-caches/build/cjs/src/pureFns.cache.d.ts",
+          "hash": "15936103888002690751"
         },
         {
-          "file": "packages/bun/loader/runtypes-loader.ts",
-          "hash": "12716338112587070000"
+          "file": "packages/aot-caches/build/cjs/src/pureFns.cache.js",
+          "hash": "8549001800066526673"
         },
         {
-          "file": "packages/bun/package.json",
-          "hash": "9630515900850347418",
-          "deps": [
-            "npm:@deepkit/core",
-            "npm:@deepkit/type-compiler",
-            "npm:bun-types",
-            "@mionkit/core",
-            "@mionkit/router"
-          ]
+          "file": "packages/aot-caches/build/cjs/src/router.cache.d.ts",
+          "hash": "10887804950754926189"
         },
         {
-          "file": "packages/bun/src/bunHttp.binary.test.ts",
-          "hash": "10762341739619171743"
+          "file": "packages/aot-caches/build/cjs/src/router.cache.js",
+          "hash": "12943211439845477915"
         },
         {
-          "file": "packages/bun/src/bunHttp.test.ts",
-          "hash": "2180876521475692434"
+          "file": "packages/aot-caches/build/esm/src/index.d.ts",
+          "hash": "5422656206887106039"
         },
         {
-          "file": "packages/bun/src/bunHttp.ts",
-          "hash": "8757548148506431566"
+          "file": "packages/aot-caches/build/esm/src/index.js",
+          "hash": "5448943515005388940"
         },
         {
-          "file": "packages/bun/src/constants.ts",
-          "hash": "9163882751858101805"
+          "file": "packages/aot-caches/build/esm/src/jitFns.cache.d.ts",
+          "hash": "16889092437183728188"
         },
         {
-          "file": "packages/bun/src/types.ts",
-          "hash": "7810571266471476969"
+          "file": "packages/aot-caches/build/esm/src/jitFns.cache.js",
+          "hash": "15562461571151509930"
         },
         {
-          "file": "packages/bun/tsconfig.json",
-          "hash": "7882080384794969869"
+          "file": "packages/aot-caches/build/esm/src/pureFns.cache.d.ts",
+          "hash": "15936103888002690751"
         },
         {
-          "file": "packages/bun/vite.config.ts",
-          "hash": "16736844663472682695"
-        }
-      ],
-      "@mionkit/test-publish": [
-        {
-          "file": "packages/test-publish/README.md",
-          "hash": "9157277687832462543"
+          "file": "packages/aot-caches/build/esm/src/pureFns.cache.js",
+          "hash": "10245912946376601270"
         },
         {
-          "file": "packages/test-publish/jest.config.js",
-          "hash": "5846939081608776092"
+          "file": "packages/aot-caches/build/esm/src/router.cache.d.ts",
+          "hash": "10887804950754926189"
         },
         {
-          "file": "packages/test-publish/package.json",
-          "hash": "10916907114642378306",
-          "deps": [
-            "npm:dom-storage",
-            "@mionkit/aws",
-            "@mionkit/bun",
-            "@mionkit/client",
-            "@mionkit/core",
-            "@mionkit/gcloud",
-            "@mionkit/http",
-            "@mionkit/router",
-            "@mionkit/run-types",
-            "@mionkit/test-server",
-            "@mionkit/type-formats"
-          ]
+          "file": "packages/aot-caches/build/esm/src/router.cache.js",
+          "hash": "9453954106407384626"
         },
         {
-          "file": "packages/test-publish/src/client.spec.ts",
-          "hash": "2773078271526466945"
+          "file": "packages/aot-caches/defaultRoutes.ts",
+          "hash": "9702795555065352134"
         },
         {
-          "file": "packages/test-publish/src/mion-cjs-server.js",
-          "hash": "1556953579592599463"
+          "file": "packages/aot-caches/package.json",
+          "hash": "15711317485835403658"
         },
         {
-          "file": "packages/test-publish/src/models.d.ts",
-          "hash": "10014259070799593773"
+          "file": "packages/aot-caches/tsconfig.json",
+          "hash": "2588353949843579601"
         },
         {
-          "file": "packages/test-publish/src/models.d.ts.map",
-          "hash": "6762297643594774161"
-        },
-        {
-          "file": "packages/test-publish/src/models.js",
-          "hash": "2510663200921919979"
-        },
-        {
-          "file": "packages/test-publish/src/serializer.binary.spec.ts",
-          "hash": "18359268365430513031"
-        },
-        {
-          "file": "packages/test-publish/tsconfig.json",
-          "hash": "4593092772764849381"
-        }
-      ],
-      "@mionkit/quick-start": [
-        {
-          "file": "packages/quick-start/.eslintignore",
-          "hash": "9526016989826096836"
-        },
-        {
-          "file": "packages/quick-start/.eslintrc.js",
-          "hash": "11494811672182554671"
-        },
-        {
-          "file": "packages/quick-start/.gitignore",
-          "hash": "4586286146920512934"
-        },
-        {
-          "file": "packages/quick-start/README.md",
-          "hash": "14561728097862139698"
-        },
-        {
-          "file": "packages/quick-start/bun-preload.ts",
-          "hash": "17176333410374492579"
-        },
-        {
-          "file": "packages/quick-start/package.json",
-          "hash": "11022755231467194784",
-          "deps": [
-            "npm:@types/aws-lambda",
-            "npm:@types/node",
-            "npm:@typescript-eslint/eslint-plugin",
-            "npm:@typescript-eslint/parser",
-            "npm:bun-types",
-            "npm:eslint",
-            "npm:typescript@4.9.5",
-            "@mionkit/aws",
-            "@mionkit/bun",
-            "@mionkit/core",
-            "@mionkit/http",
-            "@mionkit/router"
-          ]
-        },
-        {
-          "file": "packages/quick-start/src/myApi.routes.ts",
-          "hash": "13019866883237834161"
-        },
-        {
-          "file": "packages/quick-start/src/serve-aws-lambda.ts",
-          "hash": "2792108234589145664"
-        },
-        {
-          "file": "packages/quick-start/src/serve-bun.ts",
-          "hash": "8723666328983937804"
-        },
-        {
-          "file": "packages/quick-start/src/serve-google-cf.ts",
-          "hash": "6531411930780423705"
-        },
-        {
-          "file": "packages/quick-start/src/serve-node.ts",
-          "hash": "2851243797916692364"
-        },
-        {
-          "file": "packages/quick-start/tsconfig.json",
-          "hash": "8798578998848090943"
-        },
-        {
-          "file": "packages/quick-start/vite.config.ts",
-          "hash": "10445623278989773091"
+          "file": "packages/aot-caches/vite.config.ts",
+          "hash": "17914829508826871185"
         }
       ],
       "@mionkit/codegen": [
@@ -3533,117 +3578,72 @@
           "hash": "16215258593824487026"
         }
       ],
-      "@mionkit/core": [
+      "@mionkit/quick-start": [
         {
-          "file": "packages/core/README.md",
-          "hash": "9536994329643510596"
+          "file": "packages/quick-start/.eslintignore",
+          "hash": "9526016989826096836"
         },
         {
-          "file": "packages/core/index.ts",
-          "hash": "10700786625189406161"
+          "file": "packages/quick-start/.eslintrc.js",
+          "hash": "11494811672182554671"
         },
         {
-          "file": "packages/core/jest.config.js",
-          "hash": "642015822917941092"
+          "file": "packages/quick-start/.gitignore",
+          "hash": "4586286146920512934"
         },
         {
-          "file": "packages/core/package.json",
-          "hash": "14817096644198594556",
+          "file": "packages/quick-start/README.md",
+          "hash": "14561728097862139698"
+        },
+        {
+          "file": "packages/quick-start/bun-preload.ts",
+          "hash": "17176333410374492579"
+        },
+        {
+          "file": "packages/quick-start/package.json",
+          "hash": "11022755231467194784",
           "deps": [
-            "@mionkit/aot-caches"
+            "npm:@types/aws-lambda",
+            "npm:@types/node",
+            "npm:@typescript-eslint/eslint-plugin",
+            "npm:@typescript-eslint/parser",
+            "npm:bun-types",
+            "npm:eslint",
+            "npm:typescript@4.9.5",
+            "@mionkit/aws",
+            "@mionkit/bun",
+            "@mionkit/core",
+            "@mionkit/http",
+            "@mionkit/router"
           ]
         },
         {
-          "file": "packages/core/src/binary/bodyDeserializer.ts",
-          "hash": "204564648356482334"
+          "file": "packages/quick-start/src/myApi.routes.ts",
+          "hash": "13019866883237834161"
         },
         {
-          "file": "packages/core/src/binary/bodySerializer.ts",
-          "hash": "844678281570761063"
+          "file": "packages/quick-start/src/serve-aws-lambda.ts",
+          "hash": "2792108234589145664"
         },
         {
-          "file": "packages/core/src/binary/dataView.ts",
-          "hash": "7005631167724836247"
+          "file": "packages/quick-start/src/serve-bun.ts",
+          "hash": "8723666328983937804"
         },
         {
-          "file": "packages/core/src/constants.ts",
-          "hash": "14498969262990317650"
+          "file": "packages/quick-start/src/serve-google-cf.ts",
+          "hash": "6531411930780423705"
         },
         {
-          "file": "packages/core/src/errors.spec.ts",
-          "hash": "994726006199663574"
+          "file": "packages/quick-start/src/serve-node.ts",
+          "hash": "2851243797916692364"
         },
         {
-          "file": "packages/core/src/errors.ts",
-          "hash": "12080265504410767542"
+          "file": "packages/quick-start/tsconfig.json",
+          "hash": "8798578998848090943"
         },
         {
-          "file": "packages/core/src/friendlyErrors.spec.ts",
-          "hash": "14010264533966081419"
-        },
-        {
-          "file": "packages/core/src/friendlyErrors.ts",
-          "hash": "10681244008812990212"
-        },
-        {
-          "file": "packages/core/src/headers.ts",
-          "hash": "9673374909823806310"
-        },
-        {
-          "file": "packages/core/src/jitUtils.spec.ts",
-          "hash": "4962431391243672690"
-        },
-        {
-          "file": "packages/core/src/jitUtils.ts",
-          "hash": "15381198193919387657"
-        },
-        {
-          "file": "packages/core/src/restoreJitFns.spec.ts",
-          "hash": "7380660274767289395"
-        },
-        {
-          "file": "packages/core/src/restoreJitFns.ts",
-          "hash": "11342087116079321478"
-        },
-        {
-          "file": "packages/core/src/routerUtils.ts",
-          "hash": "16813711804577992545"
-        },
-        {
-          "file": "packages/core/src/types/formats/formatBrands.types.ts",
-          "hash": "4839722022479644531"
-        },
-        {
-          "file": "packages/core/src/types/formats/formats.types.ts",
-          "hash": "10372602800585039421"
-        },
-        {
-          "file": "packages/core/src/types/formats/formatsParams.types.ts",
-          "hash": "11652634545202049925"
-        },
-        {
-          "file": "packages/core/src/types/formats/friendlyErrors.types.ts",
-          "hash": "3013466616446777236"
-        },
-        {
-          "file": "packages/core/src/types/general.types.ts",
-          "hash": "7292146744105248843"
-        },
-        {
-          "file": "packages/core/src/types/method.types.ts",
-          "hash": "3137179764314895247"
-        },
-        {
-          "file": "packages/core/src/utils.ts",
-          "hash": "4682731795029713531"
-        },
-        {
-          "file": "packages/core/tsconfig.json",
-          "hash": "10139002154939574465"
-        },
-        {
-          "file": "packages/core/vite.config.ts",
-          "hash": "1116110642790797694"
+          "file": "packages/quick-start/vite.config.ts",
+          "hash": "10445623278989773091"
         }
       ]
     }
