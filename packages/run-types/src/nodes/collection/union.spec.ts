@@ -730,3 +730,138 @@ describe('Union with any or unknown', () => {
         expect(encodedNum).toBe(42);
     });
 });
+
+describe('Union with unreachable types (sortUnreachableTypes)', () => {
+    // Test case: object with fewer props defined BEFORE object with more props (same prop types)
+    // Without sorting, the smaller object would always match first, making the larger one unreachable
+    interface SmallObj {
+        a: string;
+    }
+    interface LargeObj {
+        a: string;
+        b: number;
+    }
+    // SmallObj is defined first, but LargeObj should be checked first at runtime
+    type UnionSmallFirst = SmallObj | LargeObj;
+
+    const rt = runType<UnionSmallFirst>();
+
+    it('should validate object with more props even when defined after object with fewer props', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+
+        // Object matching SmallObj only
+        const smallObj: SmallObj = {a: 'hello'};
+        expect(validate(smallObj)).toBe(true);
+
+        // Object matching LargeObj (has both a and b)
+        const largeObj: LargeObj = {a: 'hello', b: 123};
+        expect(validate(largeObj)).toBe(true);
+
+        // Invalid objects
+        expect(validate({b: 123})).toBe(false); // missing 'a'
+        expect(validate({a: 123})).toBe(false); // wrong type for 'a'
+        expect(validate({})).toBe(false); // empty object
+    });
+
+    it('should return no errors for objects matching either type', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+
+        const smallObj: SmallObj = {a: 'hello'};
+        expect(valWithErrors(smallObj)).toEqual([]);
+
+        const largeObj: LargeObj = {a: 'hello', b: 123};
+        expect(valWithErrors(largeObj)).toEqual([]);
+
+        // Invalid objects should return errors
+        expect(valWithErrors({b: 123})).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors({a: 123})).toEqual([{path: [], expected: 'union'}]);
+    });
+
+    it('should handle multiple levels of subset relationships', () => {
+        interface Tiny {
+            x: string;
+        }
+        interface Medium {
+            x: string;
+            y: number;
+        }
+        interface Large {
+            x: string;
+            y: number;
+            z: boolean;
+        }
+        // Tiny defined first, then Medium, then Large - all should be reachable
+        type UnionNested = Tiny | Medium | Large;
+
+        const rtNested = runType<UnionNested>();
+        const validate = rtNested.createJitFunction(JitFunctions.isType);
+        const valWithErrors = rtNested.createJitFunction(JitFunctions.typeErrors);
+
+        const tiny: Tiny = {x: 'hello'};
+        const medium: Medium = {x: 'hello', y: 123};
+        const large: Large = {x: 'hello', y: 123, z: true};
+
+        expect(validate(tiny)).toBe(true);
+        expect(validate(medium)).toBe(true);
+        expect(validate(large)).toBe(true);
+
+        expect(valWithErrors(tiny)).toEqual([]);
+        expect(valWithErrors(medium)).toEqual([]);
+        expect(valWithErrors(large)).toEqual([]);
+    });
+
+    it('should not affect unrelated object types in union', () => {
+        interface TypeA {
+            a: string;
+        }
+        interface TypeB {
+            b: number;
+        }
+        interface TypeC {
+            c: boolean;
+        }
+        // These types have no overlapping properties, order should not matter
+        type UnionUnrelated = TypeA | TypeB | TypeC;
+
+        const rtUnrelated = runType<UnionUnrelated>();
+        const validate = rtUnrelated.createJitFunction(JitFunctions.isType);
+
+        expect(validate({a: 'hello'})).toBe(true);
+        expect(validate({b: 123})).toBe(true);
+        expect(validate({c: true})).toBe(true);
+
+        expect(validate({d: 'other'})).toBe(false);
+        expect(validate({})).toBe(false);
+    });
+
+    it('should handle mixed related and unrelated types', () => {
+        interface Base {
+            id: string;
+        }
+        interface Extended {
+            id: string;
+            name: string;
+        }
+        interface Unrelated {
+            value: number;
+        }
+        // Base and Extended are related (subset), Unrelated is not
+        type UnionMixed = Base | Extended | Unrelated;
+
+        const rtMixed = runType<UnionMixed>();
+        const validate = rtMixed.createJitFunction(JitFunctions.isType);
+        const valWithErrors = rtMixed.createJitFunction(JitFunctions.typeErrors);
+
+        const base: Base = {id: '123'};
+        const extended: Extended = {id: '123', name: 'test'};
+        const unrelated: Unrelated = {value: 42};
+
+        expect(validate(base)).toBe(true);
+        expect(validate(extended)).toBe(true);
+        expect(validate(unrelated)).toBe(true);
+
+        expect(valWithErrors(base)).toEqual([]);
+        expect(valWithErrors(extended)).toEqual([]);
+        expect(valWithErrors(unrelated)).toEqual([]);
+    });
+});

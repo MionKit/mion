@@ -49,7 +49,78 @@ export function splitUnionItems(comp: JitFnCompiler, urt: UnionRunType, unionChi
         return objectTypes.push(unionItem as CollectionRunType<any>);
     });
 
-    return {simpleItems, objectTypes, anyItem};
+    // Sort object types to prevent unreachable types (objects with more props should come first when they share same prop types)
+    const sortedObjectTypes = sortUnreachableTypes(comp, objectTypes);
+
+    return {simpleItems, objectTypes: sortedObjectTypes, anyItem};
+}
+
+/**
+ * Sorts object types to prevent unreachable union types.
+ * When two objects share the same properties (by typeID), the one with more properties must come first.
+ * This ensures that at runtime, the more specific type is checked before the less specific one.
+ * Objects that don't share properties with others maintain their relative order.
+ */
+export function sortUnreachableTypes(comp: JitFnCompiler, objectTypes: CollectionRunType<any>[]): CollectionRunType<any>[] {
+    if (objectTypes.length <= 1) return objectTypes;
+
+    // Get property typeIDs for each object type
+    const typePropsMap = new Map<CollectionRunType<any>, Set<string | number>>();
+    objectTypes.forEach((objType) => {
+        const props = objType.getJitChildren(comp) as PropertyRunType[];
+        const propTypeIDs = new Set<string | number>();
+        props.forEach((prop) => propTypeIDs.add(prop.getTypeID()));
+        typePropsMap.set(objType, propTypeIDs);
+    });
+
+    // Check if one object's props are a subset of another's (all props have same typeIDs)
+    const isSubsetOf = (smaller: CollectionRunType<any>, larger: CollectionRunType<any>): boolean => {
+        const smallerProps = typePropsMap.get(smaller)!;
+        const largerProps = typePropsMap.get(larger)!;
+        if (smallerProps.size >= largerProps.size) return false;
+        for (const typeID of smallerProps) {
+            if (!largerProps.has(typeID)) return false;
+        }
+        return true;
+    };
+
+    // Find groups of objects that share properties (one is subset of another)
+    const processed = new Set<CollectionRunType<any>>();
+    const result: CollectionRunType<any>[] = [];
+
+    for (let i = 0; i < objectTypes.length; i++) {
+        const current = objectTypes[i];
+        if (processed.has(current)) continue;
+
+        // Find all objects that are related (subset/superset) to current
+        const relatedGroup: CollectionRunType<any>[] = [current];
+        processed.add(current);
+
+        for (let j = 0; j < objectTypes.length; j++) {
+            if (i === j) continue;
+            const other = objectTypes[j];
+            if (processed.has(other)) continue;
+
+            // Check if current and other are related (one is subset of the other)
+            if (isSubsetOf(current, other) || isSubsetOf(other, current)) {
+                relatedGroup.push(other);
+                processed.add(other);
+            }
+        }
+
+        // Sort related group by number of properties (more props first)
+        if (relatedGroup.length > 1) {
+            relatedGroup.sort((a, b) => {
+                const aSize = typePropsMap.get(a)!.size;
+                const bSize = typePropsMap.get(b)!.size;
+                return bSize - aSize; // descending order (more props first)
+            });
+        }
+
+        result.push(...relatedGroup);
+    }
+
+    return result;
 }
 
 /**
