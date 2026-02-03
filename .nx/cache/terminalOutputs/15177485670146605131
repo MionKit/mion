@@ -1,0 +1,14 @@
+
+> @mionkit/core@0.7.2 test
+> jest
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1merrors.spec.ts[22m ([0m[1m[41m11.667 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mjitUtils.spec.ts[22m ([0m[1m[41m12.303 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mfriendlyErrors.spec.ts[22m ([0m[1m[41m12.372 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mrestoreJitFns.spec.ts[22m ([0m[1m[41m12.986 s[49m[22m[0m)
+
+[1mTest Suites: [22m[1m[32m4 passed[39m[22m, 4 total
+[1mTests:       [22m[1m[32m70 passed[39m[22m, 70 total
+[1mSnapshots:   [22m0 total
+[1mTime:[22m        19.633 s
+[2mRan all test suites[22m[2m.[22m

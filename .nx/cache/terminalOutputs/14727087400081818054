@@ -1,0 +1,4 @@
+
+> @mionkit/eslint-plugin@0.8.0-alpha.0 lint
+> eslint src --ext .ts
+

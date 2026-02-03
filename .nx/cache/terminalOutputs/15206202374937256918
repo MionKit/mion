@@ -1,0 +1,13 @@
+
+> @mionkit/drizzle@0.7.2 lint
+> eslint src --ext .ts
+
+[0m[0m
+[0m[4m/Users/majerez/Projects/mion/packages/drizze/src/postgres.spec.ts[24m[0m
+[0m  [2m9:21[22m  [33mwarning[39m  'pgTable' is defined but never used    [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m9:21[22m  [33mwarning[39m  'pgTable' is defined but never used    [2mno-unused-vars[22m[0m
+[0m  [2m9:30[22m  [33mwarning[39m  'timestamp' is defined but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m9:30[22m  [33mwarning[39m  'timestamp' is defined but never used  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[33m[1m✖ 4 problems (0 errors, 4 warnings)[22m[39m[0m
+[0m[33m[1m[22m[39m[0m

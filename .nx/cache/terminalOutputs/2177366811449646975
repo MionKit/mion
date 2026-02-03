@@ -1,0 +1,23 @@
+
+> @mionkit/client@0.7.2 test
+> jest
+
+[SERVER] Binary test server started on port 8089
+[SERVER] [Binary Server] Test message
+[SERVER] Test server started on port 8087
+[SERVER ERROR] Type computation took very long 166ms for (context: CallContext) => MayReturnError
+[SERVER ERROR] RunType overhead is very long: 103ms for (ctx: any, methodsIds: Array<string>, getAllRemoteMethods?: boolean) => SerializableMethodsData | RpcError<'rpc-metadata-not-found', any>
+[SERVER] Test server started on port 8088
+[SERVER] Test server started on port 8086
+[SERVER ERROR] RunType overhead is very long: 66ms for (ctx: any, path: string, getAllRemoteMethods?: boolean) => SerializableMethodsData | RpcError<'rpc-metadata-not-found', any>
+[SERVER ERROR] RunType overhead is very long: 66ms for (_ctx: any, user: User) => string | RpcError<'some-error', any>
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mserializer.binary.spec.ts[22m ([0m[1m[41m18.805 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mclientMethodsMetadata.spec.ts[22m ([0m[1m[41m19.244 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mfriendlyErrors.spec.ts[22m ([0m[1m[41m19.505 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mclient.spec.ts[22m ([0m[1m[41m21.718 s[49m[22m[0m)
+
+[1mTest Suites: [22m[1m[32m4 passed[39m[22m, 4 total
+[1mTests:       [22m[1m[32m72 passed[39m[22m, 72 total
+[1mSnapshots:   [22m0 total
+[1mTime:[22m        22.928 s, estimated 26 s
+[2mRan all test suites[22m[2m.[22m

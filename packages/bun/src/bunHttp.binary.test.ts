@@ -9,7 +9,6 @@ import {initRouter, registerRoutes, route, getRouteExecutionChain, resetRouter} 
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp';
 import {CallContext} from '@mionkit/router';
 import {serializeBinaryBody, deserializeBinaryBody, MethodWithJitFns} from '@mionkit/core';
-import fetch from 'node-fetch';
 import {Server} from 'bun';
 
 describe('bun router binary serialization should', () => {

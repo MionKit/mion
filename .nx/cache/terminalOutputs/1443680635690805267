@@ -1,0 +1,31 @@
+
+> @mionkit/bun@0.7.2 test
+> bun test
+
+[0m[1mbun test [0m[2mv1.3.8 (b64edcb4)[0m
+[0m
+src/bunHttp.binary.test.ts:
+[0m[32m✓[0m [0mbun router binary serialization should[2m >[0m[1m send binary request and receive binary response with Date objects[0m [0m[2m[[1m54.78ms[0m[2m][0m
+[0m[32m✓[0m [0mbun router binary serialization should[2m >[0m[1m send binary request and receive binary response with complex objects[0m [0m[2m[1.94ms[0m[2m][0m
+[0m[32m✓[0m [0mbun router binary serialization should[2m >[0m[1m handle optional parameters in binary mode[0m [0m[2m[4.54ms[0m[2m][0m
+[0m
+src/bunHttp.test.ts:
+[0m[32m✓[0m [0mbun router should[2m >[0m[1m get an ok response from a route[0m [0m[2m[1.47ms[0m[2m][0m
+[0m[32m✓[0m [0mbun router should[2m >[0m[1m get an error when sending invalid parameters[0m [0m[2m[1.90ms[0m[2m][0m
+[0m[32m✓[0m [0mbun router should[2m >[0m[1m set response headers from route response[0m [0m[2m[0.72ms[0m[2m][0m
+[0m[32m✓[0m [0mbun router should[2m >[0m[1m get an error when body size is too large and get default headers[0m [0m[2m[[1m92.46ms[0m[2m][0m
+Compiling routes metadata and skipping mion server initialization...
+[0m[32m✓[0m [0mbun router should[2m >[0m[1m compile routes metadata and skip server initialization[0m [0m[2m[6.29ms[0m[2m][0m
+[0m[32m✓[0m [0mbun router should[2m >[0m[1m get an ok response from a route with Date objects using serializer=json[0m [0m[2m[[1m92.16ms[0m[2m][0m
+[0m[32m✓[0m [0mbun router should[2m >[0m[1m get an ok response from a route with complex objects using serializer=json[0m [0m[2m[[1m39.98ms[0m[2m][0m
+Stopping server
+[0m
+loader/runtypes-loader.test.ts:
+[0m[32m✓[0m[0m[1m test reflect function works[0m [0m[2m[7.16ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m test validate works[0m [0m[2m[7.02ms[0m[2m][0m
+[0m[32m✓[0m[0m[1m test serialize works[0m [0m[2m[6.68ms[0m[2m][0m
+
+[0m[32m 13 pass[0m
+[0m[2m 0 fail[0m
+ 41 expect() calls
+Ran 13 tests across 3 files. [0m[2m[[1m3.92s[0m[2m][0m

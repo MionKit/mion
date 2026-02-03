@@ -1,0 +1,396 @@
+
+> @mionkit/router@0.7.2 test
+> jest
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/routes/[22m[1mserializer.binary.spec.ts[22m ([0m[1m[41m9.664 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/routes/[22m[1mserializer.routes.spec.ts[22m ([0m[1m[41m11.154 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 257ms for (ctx: CallContext) => Record<string, RpcError<string, any>>[39m
+[2m[22m
+[2m    [0m [90m 77 |[39m[22m
+[2m     [90m 78 |[39m [36mexport[39m [36mfunction[39m reflectFunction[33m<[39m[33mFn[39m [36mextends[39m ([33m...[39margs[33m:[39m any[]) [33m=>[39m any[33m>[39m(fn[33m:[39m [33mFn[39m)[33m:[39m [33mFunctionRunType[39m {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 79 |[39m     [36mconst[39m src [33m=[39m reflect(fn) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                        [31m[1m^[22m[2m[39m[22m
+[2m     [90m 80 |[39m     runType(src)[33m;[39m[22m
+[2m     [90m 81 |[39m     [36mreturn[39m src[33m.[39m_rt [36mas[39m [33mFunctionRunType[39m[33m;[39m[22m
+[2m     [90m 82 |[39m }[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:114:30)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:79:24)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat initMionRouter ([22m[2msrc/router.ts[2m:115:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/routes/serializer.routes.spec.ts[39m[0m[2m:65:9)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 266ms for (_ctx: CallContext) => RpcError<string, any>[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat initMionRouter ([22m[2msrc/router.ts[2m:115:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/routes/serializer.routes.spec.ts[39m[0m[2m:65:9)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/lib/[22m[1mreflection-aot.spec.ts[22m ([0m[1m[41m10.833 s[49m[22m[0m)
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/routes/[22m[1mclient.routes.spec.ts[22m ([0m[1m[41m12.173 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 255ms for JitCompiledFnData[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat [22m[2m[0m[36msrc/routes/client.routes.spec.ts[39m[0m[2m:269:28[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/routes/client.routes.spec.ts[39m[0m[2m:130:1)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mrouter.spec.ts[22m ([0m[1m[41m11.729 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 210ms for (_ctx: CallContext) => RpcError<string, any>[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/router.spec.ts[39m[0m[2m:110:9)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/lib/[22m[1mreflection-optimization.spec.ts[22m
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 428ms for (ctx: CallContext) => Record<string, RpcError<string, any>>[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/lib/reflection-optimization.spec.ts[39m[0m[2m:19:9)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 361ms for (_ctx: CallContext) => RpcError<string, any>[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/lib/reflection-optimization.spec.ts[39m[0m[2m:19:9)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/lib/[22m[1mheaders.spec.ts[22m ([0m[1m[41m13.244 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 112ms for (ctx: CallContext) => Record<string, RpcError<string, any>>[39m
+[2m[22m
+[2m    [0m [90m 77 |[39m[22m
+[2m     [90m 78 |[39m [36mexport[39m [36mfunction[39m reflectFunction[33m<[39m[33mFn[39m [36mextends[39m ([33m...[39margs[33m:[39m any[]) [33m=>[39m any[33m>[39m(fn[33m:[39m [33mFn[39m)[33m:[39m [33mFunctionRunType[39m {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 79 |[39m     [36mconst[39m src [33m=[39m reflect(fn) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                        [31m[1m^[22m[2m[39m[22m
+[2m     [90m 80 |[39m     runType(src)[33m;[39m[22m
+[2m     [90m 81 |[39m     [36mreturn[39m src[33m.[39m_rt [36mas[39m [33mFunctionRunType[39m[33m;[39m[22m
+[2m     [90m 82 |[39m }[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:114:30)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:79:24)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/lib/headers.spec.ts[39m[0m[2m:74:13)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mdispatch.spec.ts[22m ([0m[1m[41m14.324 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 253ms for (context: CallContext) => MayReturnError[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateRawMethodReflection ([22m[2msrc/lib/reflection.ts[2m:311:29)[22m[2m[22m
+[2m      [2mat getRawMethodReflection ([22m[2msrc/lib/reflection.ts[2m:211:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRawLinkedFn ([22m[2msrc/router.ts[2m:417:28)[22m[2m[22m
+[2m      [2mat getExecutablesFromLinkedFnsCollectionAsync ([22m[2msrc/router.ts[2m:498:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:143:22)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/dispatch.spec.ts[39m[0m[2m:69:13)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      Type computation took very long 277ms for (ctx: CallContext) => Record<string, RpcError<string, any>>[39m
+[2m[22m
+[2m    [0m [90m 77 |[39m[22m
+[2m     [90m 78 |[39m [36mexport[39m [36mfunction[39m reflectFunction[33m<[39m[33mFn[39m [36mextends[39m ([33m...[39margs[33m:[39m any[]) [33m=>[39m any[33m>[39m(fn[33m:[39m [33mFn[39m)[33m:[39m [33mFunctionRunType[39m {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 79 |[39m     [36mconst[39m src [33m=[39m reflect(fn) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                        [31m[1m^[22m[2m[39m[22m
+[2m     [90m 80 |[39m     runType(src)[33m;[39m[22m
+[2m     [90m 81 |[39m     [36mreturn[39m src[33m.[39m_rt [36mas[39m [33mFunctionRunType[39m[33m;[39m[22m
+[2m     [90m 82 |[39m }[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:114:30)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:79:24)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/dispatch.spec.ts[39m[0m[2m:69:13)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 249ms for (ctx: CallContext) => Record<string, RpcError<string, any>>[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/dispatch.spec.ts[39m[0m[2m:69:13)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 187ms for (_ctx: CallContext) => RpcError<string, any>[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/dispatch.spec.ts[39m[0m[2m:69:13)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 221ms for (ctx: any, methodsIds: Array<string>, getAllRemoteMethods?: boolean) => SerializableMethodsData | RpcError<'rpc-metadata-not-found', any>[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:137:42)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/dispatch.spec.ts[39m[0m[2m:252:13)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/lib/[22m[1mformats.spec.ts[22m
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 229ms for (ctx: CallContext) => RpcError<'route-not-found', any>[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/lib/formats.spec.ts[39m[0m[2m:58:13)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 125ms for (_ctx: CallContext) => RpcError<string, any>[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/lib/formats.spec.ts[39m[0m[2m:58:13)[22m[2m[22m
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 109ms for (_ctx: any, user: UserWithFormats) => UserWithFormats[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/lib/formats.spec.ts[39m[0m[2m:140:13)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/lib/[22m[1mremoteMethods.spec.ts[22m ([0m[1m[41m6.036 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 112ms for (ctx: CallContext, name: string) => string[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/lib/remoteMethods.spec.ts[39m[0m[2m:204:21)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/lib/[22m[1mhandlers.spec.ts[22m ([0m[1m[41m5.509 s[49m[22m[0m)
+  [1m● [22mConsole
+
+    [2m[33mconsole.warn[39m[22m
+[33m      RunType overhead is very long: 217ms for (ctx: CallContext) => Record<string, RpcError<string, any>>[39m
+[2m[22m
+[2m    [0m [90m 72 |[39m     [36mconst[39m diff [33m=[39m took1 [33m-[39m took0[33m;[39m[22m
+[2m     [90m 73 |[39m     [90m// max RunType overhead 60 ms[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 74 |[39m     [36mif[39m (diff [33m>[39m [35m60[39m) console[33m.[39mwarn([32m`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`[39m)[33m;[39m[22m
+[2m     [90m    |[39m                            [31m[1m^[22m[2m[39m[22m
+[2m     [90m 75 |[39m     [36mreturn[39m src[33m.[39m_rt[33m;[39m[22m
+[2m     [90m 76 |[39m }[22m
+[2m     [90m 77 |[39m[0m[22m
+[2m[22m
+[2m      [2mat runType ([22m[2m../run-types/src/createRunType.ts[2m:74:28)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:80:5)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2msrc/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2msrc/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2msrc/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2msrc/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2msrc/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/lib/handlers.spec.ts[39m[0m[2m:60:9)[22m[2m[22m
+
+
+[1mTest Suites: [22m[1m[32m11 passed[39m[22m, 11 total
+[1mTests:       [22m[1m[32m146 passed[39m[22m, 146 total
+[1mSnapshots:   [22m0 total
+[1mTime:[22m        26.34 s
+[2mRan all test suites[22m[2m.[22m

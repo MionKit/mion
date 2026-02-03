@@ -1,0 +1,4 @@
+
+> @mionkit/examples@0.6.0 lint
+> eslint src --ext .ts
+

@@ -1,0 +1,25 @@
+
+> @mionkit/bun@0.7.2 build
+> vite build
+
+[36mvite v6.4.1 [32mbuilding for production...[36m[39m
+[33m"build.lib.formats" will be ignored because "build.rollupOptions.output" is already an array format.[39m
+transforming...
+[32m✓[39m 4 modules transformed.
+[33mGenerated an empty chunk: "src/types".[39m
+rendering chunks...
+
+[vite:dts] Start generate declaration files...
+computing gzip size...
+[2m.dist/esm/[22m[36msrc/types.js      [39m[1m[2m0.04 kB[22m[1m[22m[2m │ gzip: 0.06 kB[22m[2m │ map: 0.09 kB[22m
+[2m.dist/esm/[22m[36mindex.js          [39m[1m[2m0.28 kB[22m[1m[22m[2m │ gzip: 0.18 kB[22m[2m │ map: 0.09 kB[22m
+[2m.dist/esm/[22m[36msrc/constants.js  [39m[1m[2m0.34 kB[22m[1m[22m[2m │ gzip: 0.26 kB[22m[2m │ map: 0.76 kB[22m
+[2m.dist/esm/[22m[36msrc/bunHttp.js    [39m[1m[2m4.42 kB[22m[1m[22m[2m │ gzip: 1.45 kB[22m[2m │ map: 9.82 kB[22m
+[vite:dts] Declaration files built in 3669ms.
+
+[33mGenerated an empty chunk: "src/types".[39m
+[2m.dist/cjs/[22m[36msrc/types.js      [39m[1m[2m0.05 kB[22m[1m[22m[2m │ gzip: 0.07 kB[22m[2m │ map:  0.09 kB[22m
+[2m.dist/cjs/[22m[36msrc/constants.js  [39m[1m[2m0.45 kB[22m[1m[22m[2m │ gzip: 0.32 kB[22m[2m │ map:  0.76 kB[22m
+[2m.dist/cjs/[22m[36mindex.js          [39m[1m[2m0.46 kB[22m[1m[22m[2m │ gzip: 0.25 kB[22m[2m │ map:  0.10 kB[22m
+[2m.dist/cjs/[22m[36msrc/bunHttp.js    [39m[1m[2m4.59 kB[22m[1m[22m[2m │ gzip: 1.51 kB[22m[2m │ map: 10.05 kB[22m
+[32m✓ built in 4.08s[39m

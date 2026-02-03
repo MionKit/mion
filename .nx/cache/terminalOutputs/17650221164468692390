@@ -1,0 +1,8 @@
+
+> @mionkit/eslint-plugin@0.8.0-alpha.0 fresh-start
+> npm run clean && rimraf node_modules
+
+
+> @mionkit/eslint-plugin@0.8.0-alpha.0 clean
+> rimraf .coverage
+

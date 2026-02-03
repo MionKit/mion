@@ -1,0 +1,43 @@
+
+> @mionkit/aws@0.7.2 test
+> jest
+
+  [2m[33mconsole.warn[39m[22m
+[33m    Type computation took very long 286ms for (ctx: CallContext) => Record<string, RpcError<string, any>>[39m
+[2m[22m
+[2m    [0m [90m 77 |[39m[22m
+[2m     [90m 78 |[39m [36mexport[39m [36mfunction[39m reflectFunction[33m<[39m[33mFn[39m [36mextends[39m ([33m...[39margs[33m:[39m any[]) [33m=>[39m any[33m>[39m(fn[33m:[39m [33mFn[39m)[33m:[39m [33mFunctionRunType[39m {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 79 |[39m     [36mconst[39m src [33m=[39m reflect(fn) [36mas[39m [33mSrcType[39m[33m;[39m[22m
+[2m     [90m    |[39m                        [31m[1m^[22m[2m[39m[22m
+[2m     [90m 80 |[39m     runType(src)[33m;[39m[22m
+[2m     [90m 81 |[39m     [36mreturn[39m src[33m.[39m_rt [36mas[39m [33mFunctionRunType[39m[33m;[39m[22m
+[2m     [90m 82 |[39m }[0m[22m
+[2m[22m
+[2m      [2mat Processor.reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:354:21)[22m[2m[22m
+[2m      [2mat resolveRuntimeType ([22m[2m../../node_modules/@deepkit/type/src/reflection/processor.ts[2m:129:34)[22m[2m[22m
+[2m      [2mat reflect ([22m[2m../../node_modules/@deepkit/type/src/reflection/reflection.ts[2m:114:30)[22m[2m[22m
+[2m      [2mat Object.reflectFunction ([22m[2m../run-types/src/createRunType.ts[2m:79:24)[22m[2m[22m
+[2m      [2mat generateHandlerReflection ([22m[2m../router/src/lib/reflection.ts[2m:231:29)[22m[2m[22m
+[2m      [2mat getHandlerReflection ([22m[2m../router/src/lib/reflection.ts[2m:189:12)[22m[2m[22m
+[2m      [2mat getExecutableFromRoute ([22m[2m../router/src/router.ts[2m:446:32)[22m[2m[22m
+[2m      [2mat recursiveFlatRoutesAsync ([22m[2m../router/src/router.ts[2m:262:26)[22m[2m[22m
+[2m      [2mat registerRoutes ([22m[2m../router/src/router.ts[2m:145:5)[22m[2m[22m
+[2m      [2mat initRouter ([22m[2m../router/src/router.ts[2m:136:5)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/awsLambda.spec.ts[39m[0m[2m:79:13)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2msrc/[22m[1mawsLambda.spec.ts[22m ([0m[1m[41m8.649 s[49m[22m[0m)
+  serverless router
+    with serializer=stringifyJson (default)
+      [32m✓[39m [2mshould get an ok response from a route (247 ms)[22m
+      [32m✓[39m [2mshould get an error when sending invalid parameters (2 ms)[22m
+      [32m✓[39m [2mshould set response headers from route response (1 ms)[22m
+      [32m✓[39m [2mget default headers (6 ms)[22m
+    with serializer=json
+      [32m✓[39m [2mshould get an ok response from a route with Date objects (body type O) (1 ms)[22m
+      [32m✓[39m [2mshould get an ok response from a route with complex objects (body type O) (1 ms)[22m
+
+[1mTest Suites: [22m[1m[32m1 passed[39m[22m, 1 total
+[1mTests:       [22m[1m[32m6 passed[39m[22m, 6 total
+[1mSnapshots:   [22m0 total
+[1mTime:[22m        11.736 s
+[2mRan all test suites[22m[2m.[22m
