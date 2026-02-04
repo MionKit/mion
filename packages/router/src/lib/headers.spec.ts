@@ -9,7 +9,7 @@ import {registerRoutes, resetRouter, initRouter} from '../router';
 import {dispatchRoute} from '../dispatch';
 import {route, headersFn, linkedFn} from './handlers';
 import {headersFromRecord} from './headers';
-import {MionHeaders} from '../types/context';
+import {MionHeaders, PlatformResponse} from '../types/context';
 import {HeadersSubset, RpcError} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
 
@@ -17,6 +17,9 @@ type RawRequest = {
     headers: MionHeaders;
     body: string;
 };
+
+/** Helper to check if response has errors based on status code */
+const hasErrors = (response: PlatformResponse): boolean => response.statusCode >= 400;
 
 describe('Request and Response Headers', () => {
     const getDefaultRequest = (path: string, params?: any, rawHeaders: Record<string, string> = {}): RawRequest => ({
@@ -81,11 +84,12 @@ describe('Request and Response Headers', () => {
             });
 
             const request = getDefaultRequest('getUser', [], {Authorization: 'bearer-token-123'});
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.body.getUser).toEqual('Token: bearer-token-123');
+            expect(hasErrors(response)).toBeFalsy();
+            expect((response.body as any).getUser).toEqual('Token: bearer-token-123');
         });
 
         it('should handle case-insensitive header names', async () => {
@@ -103,11 +107,12 @@ describe('Request and Response Headers', () => {
 
             // Use mixed case header name
             const request = getDefaultRequest('getUser', [], {AuThoriZatioN: 'mixed-case-token'});
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.body.getUser).toEqual('Token: mixed-case-token');
+            expect(hasErrors(response)).toBeFalsy();
+            expect((response.body as any).getUser).toEqual('Token: mixed-case-token');
         });
 
         it('should return validation error when required header is missing', async () => {
@@ -125,10 +130,11 @@ describe('Request and Response Headers', () => {
 
             // No Authorization header provided
             const request = getDefaultRequest('getUser', []);
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeTruthy();
+            expect(hasErrors(response)).toBeTruthy();
             const error = response.body['@thrownErrors']?.auth;
             const expected = new RpcError({
                 type: 'validation-error',
@@ -153,11 +159,12 @@ describe('Request and Response Headers', () => {
 
             // Empty Authorization header
             const request = getDefaultRequest('getUser', [], {Authorization: ''});
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
             // Empty string should fail validation
-            expect(response.hasErrors).toBeTruthy();
+            expect(hasErrors(response)).toBeTruthy();
         });
 
         it('should not error on empty header values when optional', async () => {
@@ -175,11 +182,12 @@ describe('Request and Response Headers', () => {
 
             // Empty Authorization header
             const request = getDefaultRequest('getUser', [], {});
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.body.getUser).toEqual('Token: empty');
+            expect(hasErrors(response)).toBeFalsy();
+            expect((response.body as any).getUser).toEqual('Token: empty');
         });
     });
 
@@ -197,11 +205,12 @@ describe('Request and Response Headers', () => {
             });
 
             const request = getDefaultRequest('testRoute', []);
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/testRoute', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/testRoute', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.headers.get('x-custom')).toEqual('custom-value');
+            expect(hasErrors(response)).toBeFalsy();
+            expect(respHeaders.get('x-custom')).toEqual('custom-value');
         });
 
         it('should set multiple headers from linkedFn return value', async () => {
@@ -221,13 +230,14 @@ describe('Request and Response Headers', () => {
             });
 
             const request = getDefaultRequest('testRoute', []);
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/testRoute', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/testRoute', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.headers.get('x-custom')).toEqual('custom-value');
-            expect(response.headers.get('x-token')).toEqual('token-value');
-            expect(response.headers.get('x-version')).toEqual('v1.0');
+            expect(hasErrors(response)).toBeFalsy();
+            expect(respHeaders.get('x-custom')).toEqual('custom-value');
+            expect(respHeaders.get('x-token')).toEqual('token-value');
+            expect(respHeaders.get('x-version')).toEqual('v1.0');
         });
 
         it('should handle case-insensitive header names in response', async () => {
@@ -243,13 +253,14 @@ describe('Request and Response Headers', () => {
             });
 
             const request = getDefaultRequest('testRoute', []);
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/testRoute', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/testRoute', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
+            expect(hasErrors(response)).toBeFalsy();
             // Headers should be stored in lowercase
-            expect(response.headers.get('x-custom')).toEqual('custom-value');
-            expect(response.headers.get('X-CUSTOM')).toEqual('custom-value');
+            expect(respHeaders.get('x-custom')).toEqual('custom-value');
+            expect(respHeaders.get('X-CUSTOM')).toEqual('custom-value');
         });
 
         it('should skip undefined header values', async () => {
@@ -265,12 +276,13 @@ describe('Request and Response Headers', () => {
             });
 
             const request = getDefaultRequest('testRoute', []);
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/testRoute', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/testRoute', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.headers.get('x-custom')).toEqual('custom-value');
-            expect(response.headers.get('x-token')).toBeUndefined();
+            expect(hasErrors(response)).toBeFalsy();
+            expect(respHeaders.get('x-custom')).toEqual('custom-value');
+            expect(respHeaders.get('x-token')).toBeUndefined();
         });
     });
 
@@ -287,11 +299,12 @@ describe('Request and Response Headers', () => {
             });
 
             const request = getDefaultRequest('getUser', []);
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.headers.get('x-user-id')).toEqual('user-123');
+            expect(hasErrors(response)).toBeFalsy();
+            expect(respHeaders.get('x-user-id')).toEqual('user-123');
         });
 
         it('should set multiple headers from route return value', async () => {
@@ -310,13 +323,14 @@ describe('Request and Response Headers', () => {
             });
 
             const request = getDefaultRequest('getUser', []);
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.headers.get('x-user-id')).toEqual('user-123');
-            expect(response.headers.get('x-user-role')).toEqual('admin');
-            expect(response.headers.get('x-timestamp')).toEqual('1234567890');
+            expect(hasErrors(response)).toBeFalsy();
+            expect(respHeaders.get('x-user-id')).toEqual('user-123');
+            expect(respHeaders.get('x-user-role')).toEqual('admin');
+            expect(respHeaders.get('x-timestamp')).toEqual('1234567890');
         });
 
         it('should handler return headers when headers type is n and union', async () => {
@@ -331,11 +345,12 @@ describe('Request and Response Headers', () => {
             });
 
             const request = getDefaultRequest('getUser', []);
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.headers.get('x-user-id')).toEqual('user-123');
+            expect(hasErrors(response)).toBeFalsy();
+            expect(respHeaders.get('x-user-id')).toEqual('user-123');
         });
     });
 
@@ -360,12 +375,13 @@ describe('Request and Response Headers', () => {
                 Authorization: 'bearer-token-123',
                 'X-User-Id': 'user-456',
             });
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.body.getUser).toEqual('User user-456 with token bearer-token-123');
-            expect(response.headers.get('x-auth-status')).toEqual('authenticated');
+            expect(hasErrors(response)).toBeFalsy();
+            expect((response.body as any).getUser).toEqual('User user-456 with token bearer-token-123');
+            expect(respHeaders.get('x-auth-status')).toEqual('authenticated');
         });
 
         it('should handle multiple headers with different cases', async () => {
@@ -388,11 +404,12 @@ describe('Request and Response Headers', () => {
                 authorization: 'bearer-token-123',
                 'x-user-id': 'user-456',
             });
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.body.getUser).toEqual('User user-456');
+            expect(hasErrors(response)).toBeFalsy();
+            expect((response.body as any).getUser).toEqual('User user-456');
         });
 
         it('should fail validation when one of multiple required headers is missing', async () => {
@@ -414,10 +431,11 @@ describe('Request and Response Headers', () => {
             const request = getDefaultRequest('getUser', [], {
                 Authorization: 'bearer-token-123',
             });
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeTruthy();
+            expect(hasErrors(response)).toBeTruthy();
             const error = response.body['@thrownErrors']?.auth;
             const expected = new RpcError({
                 type: 'validation-error',
@@ -446,11 +464,12 @@ describe('Request and Response Headers', () => {
                 Authorization:
                     'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
             });
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.body.getUser).toContain('Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9');
+            expect(hasErrors(response)).toBeFalsy();
+            expect((response.body as any).getUser).toContain('Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9');
         });
 
         it('should handle headers with whitespace', async () => {
@@ -469,11 +488,12 @@ describe('Request and Response Headers', () => {
             const request = getDefaultRequest('getUser', [], {
                 Authorization: '  bearer-token-with-spaces  ',
             });
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.body.getUser).toEqual('Token:   bearer-token-with-spaces  ');
+            expect(hasErrors(response)).toBeFalsy();
+            expect((response.body as any).getUser).toEqual('Token:   bearer-token-with-spaces  ');
         });
 
         it('should handle long header values', async () => {
@@ -493,11 +513,12 @@ describe('Request and Response Headers', () => {
             const request = getDefaultRequest('getUser', [], {
                 Authorization: longToken,
             });
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.body.getUser).toEqual('Token length: 1000');
+            expect(hasErrors(response)).toBeFalsy();
+            expect((response.body as any).getUser).toEqual('Token length: 1000');
         });
 
         it('should preserve header order when setting multiple headers', async () => {
@@ -517,13 +538,14 @@ describe('Request and Response Headers', () => {
             });
 
             const request = getDefaultRequest('testRoute', []);
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/testRoute', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/testRoute', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.headers.get('x-first')).toEqual('first-value');
-            expect(response.headers.get('x-second')).toEqual('second-value');
-            expect(response.headers.get('x-third')).toEqual('third-value');
+            expect(hasErrors(response)).toBeFalsy();
+            expect(respHeaders.get('x-first')).toEqual('first-value');
+            expect(respHeaders.get('x-second')).toEqual('second-value');
+            expect(respHeaders.get('x-third')).toEqual('third-value');
         });
 
         it('should handle overwriting headers set by multiple linkedFns', async () => {
@@ -542,12 +564,13 @@ describe('Request and Response Headers', () => {
             });
 
             const request = getDefaultRequest('testRoute', []);
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/testRoute', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/testRoute', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
+            expect(hasErrors(response)).toBeFalsy();
             // The last linkedFn to set the header should win
-            expect(response.headers.get('x-custom')).toEqual('second-value');
+            expect(respHeaders.get('x-custom')).toEqual('second-value');
         });
 
         it('should handle unicode characters in header values', async () => {
@@ -566,11 +589,12 @@ describe('Request and Response Headers', () => {
             const request = getDefaultRequest('getUser', [], {
                 Authorization: 'Bearer 🔐-token-🎯',
             });
+            const respHeaders = headersFromRecord({});
 
-            const response = await dispatchRoute('/getUser', request.body, request.headers, headersFromRecord({}), request, {});
+            const response = await dispatchRoute('/getUser', request.body, request.headers, respHeaders, request, {});
 
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.body.getUser).toEqual('Token: Bearer 🔐-token-🎯');
+            expect(hasErrors(response)).toBeFalsy();
+            expect((response.body as any).getUser).toEqual('Token: Bearer 🔐-token-🎯');
         });
     });
 });

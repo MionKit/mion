@@ -138,7 +138,7 @@ describe('node http router', () => {
             setNodeHttpOpts(httpOpts);
             initRouter(routerOpts);
             registerRoutes({changeUserName, getDate, updateHeaders});
-            const smallServer = await startNodeServer();
+            const smallServer = await startNodeServer({port: smallPort});
             expect(smallServer.listening).toBe(true);
 
             const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};

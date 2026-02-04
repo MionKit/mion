@@ -290,7 +290,11 @@ describe('Client Routes should', () => {
             auth: methodsMetadata.auth,
             last: methodsMetadata.last,
         };
-        const methodsData = response.body[methodsId] as SerializableMethodsData; // serializable data for remote methods
+        // Body may be a string (stringifyJson mode) or object (json mode)
+        const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+        // Response is serialized as [index, data] format
+        const methodResponse = body[methodsId];
+        const methodsData = (Array.isArray(methodResponse) ? methodResponse[1] : methodResponse) as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
@@ -317,7 +321,9 @@ describe('Client Routes should', () => {
             'users/getUser': methodsMetadata['users/getUser'],
             last: methodsMetadata['last'],
         };
-        const methodsData = response.body[methodsId] as SerializableMethodsData; // serializable data for remote methods
+        const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+        const methodResponse = body[methodsId];
+        const methodsData = (Array.isArray(methodResponse) ? methodResponse[1] : methodResponse) as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
@@ -342,7 +348,9 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedMethods = methodsMetadata;
-        const methodsData = response.body[methodsId] as SerializableMethodsData; // serializable data for remote methods
+        const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+        const methodResponse = body[methodsId];
+        const methodsData = (Array.isArray(methodResponse) ? methodResponse[1] : methodResponse) as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
@@ -369,7 +377,9 @@ describe('Client Routes should', () => {
             'users/getUser': methodsMetadata['users/getUser'],
             last: methodsMetadata.last,
         };
-        const methodsData = response.body[routeMethodsId] as SerializableMethodsData; // serializable data for remote methods
+        const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+        const methodResponse = body[routeMethodsId];
+        const methodsData = (Array.isArray(methodResponse) ? methodResponse[1] : methodResponse) as SerializableMethodsData; // serializable data for remote methods
         const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
         expect(methodsData.methods).toEqual(expectedMethods);
         Object.values(dependencies).forEach((dep) => {
@@ -392,7 +402,10 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse = new RpcError({
+        const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+        const methodResponse = body[methodsId];
+        const errorData = Array.isArray(methodResponse) ? methodResponse[1] : methodResponse;
+        expect(errorData).toMatchObject({
             type: 'rpc-metadata-not-found',
             publicMessage: 'Errors getting Remote Methods Metadata',
             errorData: {
@@ -400,7 +413,6 @@ describe('Client Routes should', () => {
                 helloWorld: 'Remote Method helloWorld not found',
             },
         });
-        expect(response.body[methodsId]).toEqual(expectedResponse);
     });
 
     it('fail when route path is not defined', async () => {
@@ -416,11 +428,13 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse = new RpcError({
+        const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+        const methodResponse = body[routeMethodsId];
+        const errorData = Array.isArray(methodResponse) ? methodResponse[1] : methodResponse;
+        expect(errorData).toMatchObject({
             type: 'rpc-metadata-not-found',
             publicMessage: 'Route /abcd not found',
         });
-        expect(response.body[routeMethodsId]).toEqual(expectedResponse);
     });
 });
 

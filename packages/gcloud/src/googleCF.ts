@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, SerializerModes} from '@mionkit/core';
+import {DataViewSerializer, RpcError, SerializerModes} from '@mionkit/core';
 import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionkit/router';
-import type {MionHeaders, MionResponse} from '@mionkit/router';
+import type {MionHeaders, PlatformResponse} from '@mionkit/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants';
 import {GoogleCFOptions} from './types';
@@ -65,7 +65,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
             rawResponse,
             reqBodyType
         );
-        reply(routeResponse, rawResponse);
+        reply(routeResponse, rawResponse, respHeaders);
     } catch (err) {
         const error =
             err instanceof RpcError
@@ -76,18 +76,18 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
                       type: 'unknown-error',
                   });
         const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
-        reply(routeResponse, rawResponse);
+        reply(routeResponse, rawResponse, respHeaders);
     }
 }
 
 // ############# PRIVATE METHODS #############
 
-function reply(mionResp: MionResponse, resp: Response): void {
-    resp.status(mionResp.statusCode);
-    const bodyType = mionResp.bodyType;
+function reply(platformResp: PlatformResponse, resp: Response, respHeaders: MionHeaders): void {
+    resp.status(platformResp.statusCode);
+    const bodyType = platformResp.bodyType;
     switch (bodyType) {
         case SerializerModes.stringifyJson: {
-            const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');
+            const buffer = Buffer.from(platformResp.body as string, 'utf8');
             resp.set('content-length', `${buffer.byteLength}`);
             // content-type already set by serializer
             resp.end(buffer);
@@ -95,7 +95,7 @@ function reply(mionResp: MionResponse, resp: Response): void {
         }
         case SerializerModes.json: {
             // Platform adapter stringifies the prepared body object
-            const jsonString = JSON.stringify(mionResp.body);
+            const jsonString = JSON.stringify(platformResp.body);
             const buffer = Buffer.from(jsonString, 'utf8');
             resp.set('content-type', 'application/json; charset=utf-8');
             resp.set('content-length', `${buffer.byteLength}`);
@@ -103,7 +103,7 @@ function reply(mionResp: MionResponse, resp: Response): void {
             break;
         }
         case SerializerModes.binary: {
-            const serializer = mionResp.binSerializer!;
+            const serializer = platformResp.body as DataViewSerializer;
             resp.set('content-length', `${serializer.getLength()}`);
             // content-type already set by serializer
             resp.end(Buffer.from(serializer.getBufferView()));
@@ -120,7 +120,7 @@ function reply(mionResp: MionResponse, resp: Response): void {
                 type: 'unknown-error',
                 errorData: {bodyType},
             });
-            unexpectedFail(resp, mionResp.headers, error);
+            unexpectedFail(resp, respHeaders, error);
         }
     }
 }
@@ -128,5 +128,5 @@ function reply(mionResp: MionResponse, resp: Response): void {
 function unexpectedFail(resp: Response, respHeaders: MionHeaders, error: RpcError<string>) {
     if (resp.writableEnded) return;
     const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
-    reply(routeResponse, resp);
+    reply(routeResponse, resp, respHeaders);
 }

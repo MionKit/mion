@@ -100,7 +100,7 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            expect(response.hasErrors).toBeFalsy();
+            expect(response.statusCode).toEqual(200);
             expect(response.body).toEqual({changeUserName: {name: 'LOREM', surname: 'Tungsten'}});
         });
 
@@ -140,16 +140,11 @@ describe('Dispatch routes', () => {
                 body: JSON.stringify({changeUserName: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
 
-            const response = await dispatchRoute(
-                '/changeUserName',
-                request.body,
-                request.headers,
-                headersFromRecord({}),
-                request,
-                {}
-            );
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.headers.get('user-id')).toEqual('MyUser-Id');
+            const respHeaders = headersFromRecord({});
+            const response = await dispatchRoute('/changeUserName', request.body, request.headers, respHeaders, request, {});
+            expect(response.body).toEqual({changeUserName: {name: 'LOREM', surname: 'Tungsten'}});
+            expect(response.statusCode).toEqual(StatusCodes.OK);
+            expect(respHeaders.get('user-id')).toEqual('MyUser-Id');
         });
 
         it('should be able to accept request headers and regular rpc params', async () => {
@@ -173,8 +168,8 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.body.auth).toEqual('user-1234');
+            expect(response.statusCode).toBe(200);
+            expect((response.body as any).auth).toEqual('user-1234');
         });
 
         it('if there are no params input field can be omitted', async () => {
@@ -533,9 +528,10 @@ describe('Dispatch routes', () => {
             );
             // When rawBody is empty and parsedBody is undefined, parseRequestBody returns early
             // leaving request.body as empty object, then route fails validation (correct behavior)
-            expect(response.hasErrors).toBeTruthy();
+            expect(response.statusCode).toEqual(StatusCodes.UNEXPECTED_ERROR);
             // Validation errors are unexpected errors (not part of return type union)
-            expect(response.body[MION_ROUTES.thrownErrors]?.changeUserName).toMatchObject({
+            const body = response.body as Record<string, any>;
+            expect(body[MION_ROUTES.thrownErrors]?.changeUserName).toMatchObject({
                 'mion@isΣrrθr': true,
                 type: 'validation-error',
             });

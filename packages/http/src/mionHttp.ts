@@ -12,8 +12,8 @@ import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {NodeHttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {MionHeaders, MionResponse} from '@mionkit/router';
-import {getENV, SerializerModes} from '@mionkit/core';
+import type {MionHeaders, PlatformResponse} from '@mionkit/router';
+import {getENV, SerializerModes, DataViewSerializer} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 
@@ -126,10 +126,10 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const reqBodyType = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
 
         dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse, reqBodyType)
-            .then((mionResponse: MionResponse) => {
+            .then((platformResponse: PlatformResponse) => {
                 if (replied || httpResponse.writableEnded) return;
                 replied = true;
-                reply(httpResponse, mionResponse);
+                reply(httpResponse, platformResponse, respHeaders);
             })
             .catch((e) => {
                 // this is only called when there is an unhandled error in the dispatchRoute
@@ -161,15 +161,15 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
 function fatalFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error: RpcError<string>) {
     if (httpResponse.writableEnded) return;
     const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
-    reply(httpResponse, routeResponse);
+    reply(httpResponse, routeResponse, respHeaders);
 }
 
-function reply(httpResp: ServerResponse, mionResp: MionResponse) {
-    httpResp.statusCode = mionResp.statusCode;
-    const bodyType = mionResp.bodyType;
+function reply(httpResp: ServerResponse, platformResp: PlatformResponse, respHeaders: MionHeaders) {
+    httpResp.statusCode = platformResp.statusCode;
+    const bodyType = platformResp.bodyType;
     switch (bodyType) {
         case SerializerModes.stringifyJson: {
-            const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');
+            const buffer = Buffer.from(platformResp.body as string, 'utf8');
             httpResp.setHeader('content-length', buffer.byteLength);
             // content-type already set by serializer
             httpResp.end(buffer);
@@ -177,14 +177,14 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
         }
         case SerializerModes.json: {
             // Platform adapter stringifies the prepared body object
-            const jsonString = JSON.stringify(mionResp.body);
+            const jsonString = JSON.stringify(platformResp.body);
             const buffer = Buffer.from(jsonString, 'utf8');
             httpResp.setHeader('content-length', buffer.byteLength);
             httpResp.end(buffer);
             break;
         }
         case SerializerModes.binary: {
-            const serializer = mionResp.binSerializer!;
+            const serializer = platformResp.body as DataViewSerializer;
             httpResp.setHeader('content-length', serializer.getLength());
             // content-type already set by serializer
             httpResp.end(serializer.getBufferView());
@@ -200,7 +200,7 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
                 type: 'unknown-error',
                 errorData: {bodyType},
             });
-            fatalFail(httpResp, mionResp.headers, error);
+            fatalFail(httpResp, respHeaders, error);
         }
     }
 }

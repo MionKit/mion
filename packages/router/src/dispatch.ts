@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context';
+import type {
+    CallContext,
+    MionRequest,
+    MionHeaders,
+    RawRequestBody,
+    PlatformResponse,
+    InternalPlatformResponse,
+} from './types/context';
 import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
 import {HeadersMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
@@ -33,7 +40,7 @@ export async function dispatchRoute<Req, Resp>(
     rawRequest: Req,
     rawResponse?: Resp,
     reqBodyType?: SerializerCode
-): Promise<MionResponse> {
+): Promise<PlatformResponse> {
     const opts = getRouterOptions();
     const usePooling = opts.maxContextPoolSize > 0;
     // Use pooled context if enabled (maxContextPoolSize > 0), otherwise create new context
@@ -53,8 +60,7 @@ export async function dispatchRoute<Req, Resp>(
                 });
             }
         }
-        await runExecutionChain(context, rawRequest, rawResponse, executionChain, opts);
-        return context.response;
+        return await runExecutionChain(context, rawRequest, rawResponse, executionChain, opts);
     } catch (err: any | RpcError<string> | Error) {
         // this should never happen, exceptions should be handled inside runExecutionChain
         return Promise.reject(err);
@@ -75,10 +81,10 @@ async function runExecutionChain(
     rawResponse: unknown,
     executionChain: MethodsExecutionList,
     opts: RouterOptions
-): Promise<MionResponse> {
-    const {response, request} = context;
+): Promise<PlatformResponse> {
+    const {response, request, platformResponse} = context;
     const executables = executionChain.methods;
-    (response as Mutable<MionResponse>).bodyType = executionChain.serializer;
+    (platformResponse as Mutable<InternalPlatformResponse>).bodyType = executionChain.serializer;
 
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];
@@ -105,7 +111,20 @@ async function runExecutionChain(
             onExecutableError(context, executable, err);
         }
     }
-    return context.response;
+
+    const platformResp = platformResponse as unknown as Mutable<PlatformResponse>;
+    switch (platformResp.bodyType) {
+        case SerializerModes.stringifyJson:
+            platformResp.body = response.rawBody as string;
+            break;
+        case SerializerModes.json:
+            platformResp.body = response.body;
+            break;
+        case SerializerModes.binary:
+            platformResp.body = response.binSerializer!;
+            break;
+    }
+    return platformResp;
 }
 
 async function runRawLinkedFn(

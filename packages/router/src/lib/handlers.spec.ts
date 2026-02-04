@@ -68,10 +68,11 @@ describe('route & linkedFns init functions', () => {
                 print: ['John'],
             }),
         };
+        const respHeaders = headersFromRecord({});
 
-        const response = await dispatchRoute('/print', request.body, request.headers, headersFromRecord({}), request, {});
+        const response = await dispatchRoute('/print', request.body, request.headers, respHeaders, request, {});
         expect(response.body).toEqual({timestamp: 'time: 123', print: 'name: John'});
-        expect(response.headers.get('x-user-id')).toEqual('user-1234');
+        expect(respHeaders.get('x-user-id')).toEqual('user-1234');
 
         // send all incorrect parameters and all of them should fail
         const wrongRequest: RawRequest = {
@@ -81,16 +82,17 @@ describe('route & linkedFns init functions', () => {
                 print: [123],
             }),
         };
+        const wrongRespHeaders = headersFromRecord({});
 
         const wrongResponse = await dispatchRoute(
             '/print',
             wrongRequest.body,
             wrongRequest.headers,
-            headersFromRecord({}),
+            wrongRespHeaders,
             wrongRequest,
             {}
         );
-        expect(wrongResponse.body['@thrownErrors']?.auth).toEqual(expect.objectContaining({type: 'validation-error'}));
-        expect(wrongResponse.headers.get('Authorization')).toEqual(undefined);
+        expect((wrongResponse.body as any)['@thrownErrors']?.auth).toEqual(expect.objectContaining({type: 'validation-error'}));
+        expect(wrongRespHeaders.get('Authorization')).toEqual(undefined);
     });
 });

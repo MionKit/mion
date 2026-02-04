@@ -7,7 +7,7 @@
 
 import {RpcError, SerializerModes} from '@mionkit/core';
 import {dispatchRoute, getRouterFatalErrorResponse, headersFromRecord, resetRouter} from '@mionkit/router';
-import type {MionResponse, MionHeaders} from '@mionkit/router';
+import type {PlatformResponse, MionHeaders} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants';
 import {AwsLambdaOptions} from '..';
@@ -59,7 +59,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
 
 // ############# PRIVATE METHODS #############
 
-function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
+function reply(platformResponse: PlatformResponse, headers: MionHeaders): APIGatewayProxyResult {
     // AWS manages content-length automatically, so no need to set header unlike node
     const singleHeaders: Record<string, string> = {};
     const multiHeaders: Record<string, string[]> = {};
@@ -73,16 +73,16 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
         singleHeaders[name] = value;
     });
 
-    const bodyType = routeResponse.bodyType;
+    const bodyType = platformResponse.bodyType;
     let responseBody: string;
 
     switch (bodyType) {
         case SerializerModes.stringifyJson:
-            responseBody = routeResponse.rawBody as string;
+            responseBody = platformResponse.body as string;
             break;
         case SerializerModes.json:
             // Platform adapter stringifies the prepared body object
-            responseBody = JSON.stringify(routeResponse.body);
+            responseBody = JSON.stringify(platformResponse.body);
             singleHeaders['content-type'] = 'application/json; charset=utf-8';
             break;
         case SerializerModes.binary:
@@ -92,7 +92,7 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
     }
 
     const resp: APIGatewayProxyResult = {
-        statusCode: routeResponse.statusCode,
+        statusCode: platformResponse.statusCode,
         headers: singleHeaders,
         body: responseBody,
     };

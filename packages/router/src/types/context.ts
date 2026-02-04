@@ -21,8 +21,26 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
     readonly response: MionResponse;
     /** context data between handlers (route/linkedFns) and that is not returned in the response. */
     shared: ContextData;
+    /** Platform response object - body is null during execution, set at end of dispatch */
+    readonly platformResponse: InternalPlatformResponse;
 }
 // type-call-context-end
+
+// ####### PLATFORM RESPONSE #######
+
+/** Internal platform response - body is null during execution */
+export interface InternalPlatformResponse {
+    statusCode: number;
+    bodyType: SerializerCode;
+    body: null;
+}
+
+/** Platform response returned to platform wrappers - body is always set */
+export interface PlatformResponse {
+    statusCode: number;
+    bodyType: SerializerCode;
+    body: string | AnyObject | DataViewSerializer;
+}
 
 // ####### REQUEST & RESPONSE #######
 
@@ -60,13 +78,10 @@ export interface MionRequest {
 // type-mion-response-start
 /** Router's own response object, do not confuse with the underlying raw response */
 export interface MionResponse {
-    /** response http status code */
-    readonly statusCode: number;
     /** response headers */
     readonly headers: Readonly<MionHeaders>;
     /** Raw response body, can be string for json or an arrayBuffer for binary. */
     readonly rawBody: RawResponseBody;
-    readonly bodyType: SerializerCode;
     /** the router response data, body should not be modified manually so marked as Read Only */
     readonly body: Readonly<ResponseBody>;
     /** response errors: empty if there were no errors during execution */

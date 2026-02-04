@@ -48,15 +48,18 @@ export function createCallContext(
             thrownErrors: undefined,
         },
         response: {
-            statusCode: StatusCodes.OK,
             hasErrors: false,
             headers: respHeaders,
             body: {},
             rawBody: '',
-            bodyType: SerializerModes.json,
             binSerializer: undefined,
         },
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
+        platformResponse: {
+            statusCode: StatusCodes.OK,
+            bodyType: SerializerModes.json,
+            body: null,
+        },
     } as CallContext;
 }
 
@@ -86,13 +89,17 @@ export function acquireCallContext(
         req.thrownErrors = undefined;
         // Reset response - reuse the response object shell
         const resp = ctx.response as Mutable<MionResponse>;
-        resp.statusCode = StatusCodes.OK;
-        resp.hasErrors = false;
+        // resp.hasErrors = false; // already done
         resp.headers = respHeaders;
         resp.body = {}; // Must be fresh - handlers write to this
-        resp.rawBody = '';
-        resp.bodyType = SerializerModes.json;
-        resp.binSerializer = undefined;
+        // resp.rawBody = ''; // already done
+        // resp.binSerializer = undefined;
+        // Reset platformResponse - creates a new object as old one was returned to caller
+        ctx.platformResponse = {
+            statusCode: StatusCodes.OK,
+            bodyType: SerializerModes.json,
+            body: null,
+        };
         // Reset shared data
         ctx.shared = opts.contextDataFactory ? opts.contextDataFactory() : {};
         return ctx;
@@ -102,27 +109,25 @@ export function acquireCallContext(
 }
 
 /** Releases a CallContext back to the pool for reuse */
-export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void {
+export function releaseCallContext(context: CallContext, maxPoolSize: number): void {
     if (contextPool.length < maxPoolSize) {
-        const mutableCtx = ctx as Mutable<CallContext>;
-        const req = mutableCtx.request as Mutable<MionRequest>;
+        const ctx = context as Mutable<CallContext>;
+        const req = ctx.request as Mutable<MionRequest>;
+        const resp = ctx.response as Mutable<MionResponse>;
         // Clear request data - safe to mutate since request is not returned to caller
         req.rawBody = '';
         req.body = null as any; // Will be set when context is acquired
         req.thrownErrors = undefined;
-        // Create fresh response object - the old one may still be referenced by the caller
-        // IMPORTANT: We must NOT mutate the existing response object because it's returned
-        // to the platform wrapper (e.g., HTTP handler) which may still be using it
-        mutableCtx.response = {
-            statusCode: StatusCodes.OK,
-            hasErrors: false,
-            headers: null as any, // Will be set when context is acquired
-            body: null as any, // Will be set when context is acquired
-            rawBody: '',
-            bodyType: SerializerModes.json,
-            binSerializer: undefined,
-        };
-        mutableCtx.shared = null as any;
+        // Clear response data - safe to mutate since response is not returned to caller
+        resp.binSerializer = undefined;
+        resp.body = null as any; // Will be set when context is acquired
+        resp.rawBody = '';
+        resp.hasErrors = false;
+        resp.headers = null as any;
+        // Clear platformResponse data
+        ctx.platformResponse = null as any;
+        // Clear shared data
+        ctx.shared = null as any;
         contextPool.push(ctx);
     }
     // If pool is full, let the context be garbage collected

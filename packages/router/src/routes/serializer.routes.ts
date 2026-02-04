@@ -89,7 +89,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
 export function serializeResponseBody(context: CallContext, opts: RouterOptions): MayReturnError {
     const response = context.response as Mutable<MionResponse>;
     const respBody: AnyObject = response.body;
-    const bodyType = context.response.bodyType;
+    const bodyType = context.platformResponse.bodyType;
     const thrownErrors = context.request.thrownErrors as Record<string, RpcError<string>> | undefined;
     // Add thrownErrors to response body before the serializer runs
     if (thrownErrors) (response.body as Mutable<AnyObject>)['@thrownErrors'] = thrownErrors;
