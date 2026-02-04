@@ -42,6 +42,7 @@ import {
 } from './lib/methodsCache';
 import {mionClientRoutes} from './routes/client.routes';
 import {mionErrorsRoutes} from './routes/errors.routes';
+import {clearContextPool} from './callContext';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -102,6 +103,7 @@ export const resetRouter = () => {
     resetRemoteMethodsMetadata();
     resetPersistedMethods();
     resetDefaultAOTCachesState();
+    clearContextPool();
     // Note: We intentionally do NOT call resetJitFnCaches() here because:
     // 1. JIT function caches are global and should persist across router resets
     // 2. The serializableClassRegistry (cleared by resetJitFnCaches) is needed for

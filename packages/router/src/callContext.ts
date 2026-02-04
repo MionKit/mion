@@ -11,7 +11,7 @@ import {Mutable, StatusCodes, SerializerModes, SerializerCode} from '@mionkit/co
 
 // ############# POOL STATE #############
 
-const contextPool: CallContext[] = [];
+let contextPool: CallContext[] = [];
 
 /** Get current pool statistics for monitoring */
 export function getContextPoolStats(): {poolSize: number} {
@@ -22,7 +22,7 @@ export function getContextPoolStats(): {poolSize: number} {
 
 /** Clear the context pool - useful for testing */
 export function clearContextPool(): void {
-    contextPool.length = 0;
+    contextPool = [];
 }
 
 // ############# CONTEXT CREATION #############
