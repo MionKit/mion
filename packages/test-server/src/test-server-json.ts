@@ -6,7 +6,7 @@
  * ######## */
 
 import {PublicApi, Routes, initRouter, registerRoutes, route, headersFn, linkedFn} from '@mionkit/router';
-import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
+import {setNodeHttpOpts, startNodeServer} from '@mionkit/node';
 import {RpcError, HeadersSubset} from '@mionkit/core';
 // Import format types (regular import to ensure JIT functions are created)
 import {StrFormat, StrEmail} from '@mionkit/type-formats/FormatsString';
@@ -118,7 +118,7 @@ async function startServer() {
 
         console.log(`Test server started on port ${port}`);
 
-        // Note: Graceful shutdown is already handled by @mionkit/http package
+        // Note: Graceful shutdown is already handled by @mionkit/node package
         // It automatically listens for SIGINT and closes the server gracefully
     } catch (error) {
         console.error('Failed to start test server:', error);

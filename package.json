@@ -90,7 +90,7 @@
     "packages/eslint-plugin",
     "packages/type-formats",
     "packages/gcloud",
-    "packages/http",
+    "packages/node",
     "packages/quick-start",
     "packages/router",
     "packages/run-types",

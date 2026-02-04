@@ -1,4 +1,4 @@
-import {NodeHttpOptions, startNodeServer} from '@mionkit/http';
+import {NodeHttpOptions, startNodeServer} from '@mionkit/node';
 import './myApi.routes';
 
 // init a http server with options specific for node

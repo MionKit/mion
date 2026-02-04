@@ -1,5 +1,5 @@
 import {initMionRouter, route, Routes} from '@mionkit/router';
-import {startNodeServer} from '@mionkit/http';
+import {startNodeServer} from '@mionkit/node';
 import {RpcError} from '@mionkit/core'; 
 // @annotate: Automatic Validation and Serialization from Typescript types
 

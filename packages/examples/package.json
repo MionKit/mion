@@ -44,7 +44,7 @@
     "@mionkit/bun": "^0.7.0",
     "@mionkit/core": "^0.7.0",
     "@mionkit/drizzle": "^0.7.0",
-    "@mionkit/http": "^0.7.0",
+    "@mionkit/node": "^0.7.0",
     "@mionkit/router": "^0.7.0",
     "@mionkit/gcloud": "^0.7.0",
     "@mionkit/client": "^0.7.0",

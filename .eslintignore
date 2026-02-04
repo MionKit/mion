@@ -10,3 +10,4 @@ __snapshots__
 build
 xyzSpec
 packages/codegen/bin
+vite.config.ts

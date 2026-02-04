@@ -439,7 +439,7 @@ export default defineWorkspace([
   'packages/core/vitest.config.ts',
   'packages/type-formats/vitest.config.ts',
   'packages/router/vitest.config.ts',
-  'packages/http/vitest.config.ts',
+  'packages/node/vitest.config.ts',
   'packages/client/vitest.config.ts',
   'packages/codegen/vitest.config.ts',
   'packages/aws/vitest.config.ts',
