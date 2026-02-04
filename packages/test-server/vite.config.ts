@@ -78,7 +78,7 @@ export default defineConfig({
             external: [
                 '@mionkit/core',
                 '@mionkit/router',
-                '@mionkit/http',
+                '@mionkit/node',
                 '@mionkit/type-formats',
                 '@mionkit/run-types',
                 /^[^./]/,

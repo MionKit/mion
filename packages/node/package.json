@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/http",
+  "name": "@mionkit/node",
   "version": "0.7.2",
   "description": "mion HTTP Server for quick Api development.",
   "keywords": [

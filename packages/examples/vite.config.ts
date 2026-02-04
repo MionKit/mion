@@ -27,7 +27,7 @@ export default defineConfig({
             external: [
                 '@mionkit/core',
                 '@mionkit/router',
-                '@mionkit/http',
+                '@mionkit/node',
                 '@mionkit/aws',
                 '@mionkit/bun',
                 '@mionkit/gcloud',

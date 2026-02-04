@@ -7,7 +7,7 @@
  * ######## */
 
 import {PublicApi, Routes, initRouter, registerRoutes, route, linkedFn} from '@mionkit/router';
-import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
+import {setNodeHttpOpts, startNodeServer} from '@mionkit/node';
 import {RpcError} from '@mionkit/core';
 
 // ============ Simple Types ============

@@ -30,7 +30,7 @@
     {"path": "./packages/type-formats"},
     {"path": "./packages/router"},
     {"path": "./packages/client"},
-    {"path": "./packages/http"},
+    {"path": "./packages/node"},
     {"path": "./packages/aws"},
     {"path": "./packages/gcloud"},
     {"path": "./packages/bun"},
