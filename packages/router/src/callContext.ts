@@ -115,6 +115,7 @@ export function releaseCallContext(context: CallContext, maxPoolSize: number): v
         const req = ctx.request as Mutable<MionRequest>;
         const resp = ctx.response as Mutable<MionResponse>;
         // Clear request data - safe to mutate since request is not returned to caller
+        req.headers = null as any;
         req.rawBody = '';
         req.body = null as any; // Will be set when context is acquired
         req.thrownErrors = undefined;
