@@ -123,7 +123,7 @@ describe('node http router', () => {
         });
 
         it('get an error when body size is too large, get default headers', async () => {
-            const smallPort = port + 1;
+            const smallPort = port + 100;
             const routerOpts = {
                 contextDataFactory: getSharedData,
                 prefix: 'api/',
