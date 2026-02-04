@@ -79,7 +79,7 @@ Platform adapters like HTTP, AWS, Bun, and GCloud do **not** need any type refle
 
 | Package           | Config File                                                    |
 | ----------------- | -------------------------------------------------------------- |
-| `@mionkit/http`   | [`packages/http/vite.config.ts`](packages/http/vite.config.ts) |
+| `@mionkit/node`   | [`packages/node/vite.config.ts`](packages/node/vite.config.ts) |
 | `@mionkit/aws`    | [`packages/aws/vite.config.ts`](packages/aws/vite.config.ts)   |
 | `@mionkit/bun`    | [`packages/bun/vite.config.ts`](packages/bun/vite.config.ts)   |
 | `@mionkit/gcloud` | `packages/gcloud/vite.config.ts`                               |
