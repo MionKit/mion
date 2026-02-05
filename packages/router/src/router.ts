@@ -27,7 +27,7 @@ import {
     isRoutes,
     isAnyLinkedFnDef,
 } from './types/guards';
-import {HandlerType, SerializerModes, SerializerCode, SerializerMode} from '@mionkit/core';
+import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection';
 import {serializerLinkedFns} from './routes/serializer.routes';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES} from '@mionkit/core';
@@ -137,6 +137,7 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
     isRouterInitialized = true;
     await registerRoutes({...mionErrorsRoutes});
     if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});
+    if (!isTestEnv()) console.log('mion router initialized', {routerOptions});
     return routerOptions;
 }
 

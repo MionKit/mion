@@ -118,14 +118,14 @@ export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 
 
 | Serializer mode | Body Type | Content-Type                      |
 | --------------- | --------- | --------------------------------- |
-| `json`          | `'O'`     | `application/json; charset=utf-8` |
-| `binary`        | `'B'`     | `application/octet-stream`        |
-| `stringifyJson` | `'J'`     | `application/json; charset=utf-8` |
+| `json`          | `1`       | `application/json; charset=utf-8` |
+| `binary`        | `2`       | `application/octet-stream`        |
+| `stringifyJson` | `3`       | `application/json; charset=utf-8` |
 
 | Deserializer Mode mode | Body Type | Content-Type                      |
 | ---------------------- | --------- | --------------------------------- |
-| `json`                 | `'O'`     | `application/json; charset=utf-8` |
-| `binary`               | `'B'`     | `application/octet-stream`        |
+| `json`                 | `1`       | `application/json; charset=utf-8` |
+| `binary`               | `2`       | `application/octet-stream`        |
 
 ## Current State Analysis
 
@@ -145,8 +145,8 @@ export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 
 3. **router package** (`@mionkit/router`):
    - `RouterOptions.useBinarySerialization` option exists (to be replaced)
    - `MionRequest.binDeserializer` and `MionResponse.binSerializer` fields exist
-   - `bodyType` supports 'B' for binary
-   - `dispatch.ts` creates `binDeserializer` when bodyType is 'B'
+   - `bodyType` supports 2 for binary
+   - `dispatch.ts` creates `binDeserializer` when bodyType is 2
    - Platform adapters (http, bun, gcloud) have partial binary response handling
 
 4. **Platform packages**:

@@ -41,14 +41,9 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     rawResponse.setHeader('server', '@mionkit');
     const reqHeaders = headersFromIncomingMessage(rawRequest);
     const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
-
-    // Check content-type to determine if this is a binary request
     const contentType = rawRequest.headers['content-type'] || '';
-    const isBinary = contentType.includes('application/octet-stream');
-    // For binary requests, pass the Buffer directly (it's an ArrayBufferView)
-    // Google Cloud Functions provides rawBody as a Buffer on the request object
+    const isBinary = contentType.startsWith('application/octet-stream');
     const rawBody = isBinary ? (rawRequest as any).rawBody : rawRequest.body;
-    // GCF may auto-parse JSON body, so use json mode for parsed objects, stringifyJson for strings
     const reqBodyType = isBinary
         ? SerializerModes.binary
         : typeof rawBody === 'string'
