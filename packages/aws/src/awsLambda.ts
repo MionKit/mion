@@ -42,19 +42,28 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     // AWS Lambda always receives body as string (JSON)
     const reqBodyType = SerializerModes.stringifyJson;
 
-    return dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, awsContext, reqBodyType)
-        .then((routeResponse) => reply(routeResponse, respHeaders))
-        .catch((err) => {
-            const error =
-                err instanceof RpcError
-                    ? err
-                    : new RpcError({
-                          publicMessage: 'Internal Error',
-                          originalError: err,
-                          type: 'unknown-error',
-                      });
-            return reply(getRouterFatalErrorResponse(error, respHeaders), respHeaders);
-        });
+    try {
+        const routeResponse = await dispatchRoute(
+            rawRequest.path,
+            rawBody,
+            reqHeaders,
+            respHeaders,
+            rawRequest,
+            awsContext,
+            reqBodyType
+        );
+        return reply(routeResponse, respHeaders);
+    } catch (err) {
+        const error =
+            err instanceof RpcError
+                ? err
+                : new RpcError({
+                      publicMessage: 'Internal Error',
+                      originalError: err as Error,
+                      type: 'unknown-error',
+                  });
+        return reply(getRouterFatalErrorResponse(error, respHeaders), respHeaders);
+    }
 }
 
 // ############# PRIVATE METHODS #############

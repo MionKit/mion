@@ -44,7 +44,11 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
     if (options) setNodeHttpOpts(options);
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
-    if (!isTest && !isCompiling) console.log(`mion node server running on ${url}`);
+    if (!isTest && !isCompiling)
+        console.log(`mion node server running on ${url}`, {
+            port: httpOptions.port,
+            httpOptions,
+        });
 
     return new Promise<HttpServer | HttpsServer>((resolve, reject) => {
         const server =
@@ -116,33 +120,37 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         fatalFail(httpResponse, respHeaders, error);
     });
 
-    httpReq.on('end', () => {
+    httpReq.on('end', async () => {
         if (replied) return;
         const buffer = Buffer.concat(bodyChunks);
-        // Check content-type to determine if this is a binary request
         const contentType = httpReq.headers['content-type'] || '';
-        const isBinary = contentType.includes('application/octet-stream');
+        const isBinary = contentType.startsWith('application/octet-stream');
         const reqRawBody = isBinary ? buffer : buffer.toString();
         const reqBodyType = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
 
-        dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse, reqBodyType)
-            .then((mionResponse: MionResponse) => {
-                if (replied || httpResponse.writableEnded) return;
-                replied = true;
-                reply(httpResponse, mionResponse);
-            })
-            .catch((e) => {
-                // this is only called when there is an unhandled error in the dispatchRoute
-                // which is a pretty unlikely scenario
-                if (replied) return;
-                replied = true;
-                const error = new RpcError({
-                    publicMessage: 'Unknown Error',
-                    type: 'unknown-error',
-                    originalError: e,
-                });
-                fatalFail(httpResponse, respHeaders, error);
+        try {
+            const mionResponse = await dispatchRoute(
+                path,
+                reqRawBody,
+                reqHeaders,
+                respHeaders,
+                httpReq,
+                httpResponse,
+                reqBodyType
+            );
+            if (replied || httpResponse.writableEnded) return;
+            replied = true;
+            reply(httpResponse, mionResponse);
+        } catch (e) {
+            if (replied) return;
+            replied = true;
+            const error = new RpcError({
+                publicMessage: 'Unknown Error',
+                type: 'unknown-error',
+                originalError: e as Error,
             });
+            fatalFail(httpResponse, respHeaders, error);
+        }
     });
 
     httpResponse.on('error', (e) => {

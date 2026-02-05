@@ -56,11 +56,11 @@ export interface JITUtils {
 
 export const SerializerModes = {
     /** Use prepareForJson (mutates original objects), and leaves JSON.stringify to the platform adapter */
-    json: 'O',
+    json: 1,
     /** Use toBinary JIT function for binary serialization */
-    binary: 'B',
+    binary: 2,
     /** Use stringifyJson JIT function that do not mutates objects. */
-    stringifyJson: 'J',
+    stringifyJson: 3,
 } as const;
 
 /**
@@ -121,8 +121,10 @@ export interface RpcErrorWithPrivate<ErrType extends StrNumber, ErrData = any> e
 }
 
 /** Error data returned to the clients  */
-export interface PublicRpcError<ErrType extends StrNumber, ErrData = any>
-    extends Omit<RpcErrorParams<ErrType, ErrData>, 'message' | 'originalError'> {
+export interface PublicRpcError<ErrType extends StrNumber, ErrData = any> extends Omit<
+    RpcErrorParams<ErrType, ErrData>,
+    'message' | 'originalError'
+> {
     readonly 'mion@isΣrrθr': true;
     type: ErrType;
     errorData?: ErrData;

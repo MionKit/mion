@@ -40,7 +40,10 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
     if (options) setBunHttpOpts(options);
 
     if (isCompiling) {
-        console.log('Compiling routes metadata and skipping mion server initialization...');
+        console.log('Compiling routes metadata and skipping mion server initialization...', {
+            port: httpOptions.port,
+            httpOptions,
+        });
         return undefined as any;
     }
 
@@ -53,15 +56,12 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
         ...httpOptions.options,
 
         async fetch(req) {
-            // Inline path extraction for performance - Bun's url includes protocol (http://host/path)
             const reqUrl = req.url;
             const pathStart = reqUrl.indexOf('/', 8);
             const queryStart = reqUrl.indexOf('?', pathStart);
             const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
-            // Check content-type to determine if this is a binary request
             const contentType = req.headers.get('content-type') || '';
             const isBinary = contentType.startsWith('application/octet-stream');
-            // Use Bun's native req.json() for JSON bodies - avoids intermediate string allocation
             const rawBody = req.body
                 ? isBinary
                     ? await req.arrayBuffer()
@@ -70,19 +70,28 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
             const reqBodyType = isBinary ? SerializerModes.binary : SerializerModes.json;
             const responseHeaders = new Headers(defaultHeaders);
 
-            return dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined, reqBodyType)
-                .then((routeResp: MionResponse) => reply(routeResp, responseHeaders))
-                .catch((e) => {
-                    const error =
-                        e instanceof RpcError
-                            ? e
-                            : new RpcError({
-                                  publicMessage: 'Unknown Error',
-                                  type: 'unknown-error',
-                                  originalError: e,
-                              });
-                    return fatalFail(error, responseHeaders);
-                });
+            try {
+                const platformResp = await dispatchRoute(
+                    path,
+                    rawBody,
+                    req.headers,
+                    responseHeaders,
+                    req,
+                    undefined,
+                    reqBodyType
+                );
+                return reply(platformResp, responseHeaders);
+            } catch (e) {
+                const error =
+                    e instanceof RpcError
+                        ? e
+                        : new RpcError({
+                              publicMessage: 'Unknown Error',
+                              type: 'unknown-error',
+                              originalError: e as Error,
+                          });
+                return fatalFail(error, responseHeaders);
+            }
         },
         error(errReq) {
             const responseHeaders = new Headers({
