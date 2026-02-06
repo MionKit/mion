@@ -71,9 +71,8 @@ onMounted(() => {
   display: block;
   width: 100%;
   font-size: 3rem; /* text-5xl */
-  line-height: 1;
+  line-height: 1.3;
   font-weight: 700; /* font-bold */
-  letter-spacing: -0.025em; /* tracking-tight */
   text-wrap: pretty;
   color: var(--ui-text-highlighted, var(--color-gray-900));
 }
