@@ -70,4 +70,10 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
      * @default 0 (disabled)
      */
     maxContextPoolSize: number;
+    /**
+     * Maximum number of routes allowed in a single batch request.
+     * Requests exceeding this limit will be rejected with an error.
+     * @default 20
+     */
+    maxBatchSize: number;
 }

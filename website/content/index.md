@@ -23,11 +23,12 @@ blur: 150px
   leading: "Typescript Full Stack APIs"
   titles:
     - 'At The Speed Of Light ⚡'
+    - 'Are Made For SaaS'
+    - 'Are Client Rendered Apps'
     - 'Are Safer To Refactor'
     - 'Are Developer Friendly'
     - 'Are Not RestFull APIs'
     - 'Are Serverless Ready'
-    - 'Are Made For SaaS'
     - 'Are RPC like'
   ---
   #description

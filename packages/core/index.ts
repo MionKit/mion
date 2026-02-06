@@ -7,6 +7,7 @@
 
 export * from './src/types/general.types';
 export * from './src/types/method.types';
+export * from './src/types/batch.types';
 export * from './src/types/formats/formats.types';
 export * from './src/types/formats/formatsParams.types';
 export * from './src/types/formats/friendlyErrors.types';

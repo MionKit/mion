@@ -34,6 +34,8 @@ export const DEFAULT_ROUTE_OPTIONS = {
     aot: false,
     /** Context pooling size == 100 by default */
     maxContextPoolSize: 100,
+    /** Maximum number of routes in a single batch request */
+    maxBatchSize: 20,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;

@@ -19,6 +19,7 @@ interface Post {
     createdAt: Date;
 }
 
+// @annotate: hover over `users` and `posts` to see the auto-generated Drizzle table types!
 // Primary keys should be defined in the tableConfig override
 export const users = mapPGTable<User>().build('users', {
     id: uuid('id').primaryKey(), // Primary key defined here

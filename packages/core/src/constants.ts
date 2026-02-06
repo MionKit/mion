@@ -37,7 +37,12 @@ export const MION_ROUTES = {
      * Errors thrown by routes/linkedFns, these are not strongly typed
      * */
     thrownErrors: '@thrownErrors',
+    /** Batch routes endpoint - dispatches multiple routes in a single HTTP request */
+    batchRoutes: 'mion-batch-routes',
 } as const;
+
+/** Reserved URL path for batch route requests */
+export const BATCH_ROUTE_PATH = `${PATH_SEPARATOR}${MION_ROUTES.batchRoutes}`;
 
 /**
  * Mime types used by mion.
@@ -66,6 +71,8 @@ export const StatusCodes = {
     NOT_FOUND: 404,
     /** Standard success code */
     OK: 200,
+    /** Multi-status response for batch requests with mixed results */
+    MULTI_STATUS: 207,
 } as const;
 
 export const HandlerType = {

@@ -12,6 +12,7 @@ import {HeadersMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './ty
 import {getRouteExecutionChain, getRouterOptions} from './router';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
+import {BatchRequest, BatchResponse} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
 import {createCallContext, acquireCallContext, releaseCallContext} from './callContext';
 
@@ -64,6 +65,129 @@ export async function dispatchRoute<Req, Resp>(
             releaseCallContext(context, opts.maxContextPoolSize);
         }
     }
+}
+
+/** Dispatches multiple routes in a single request, collecting individual responses into a BatchResponse */
+export async function dispatchBatchRoute<Req, Resp>(
+    reqRawBody: RawRequestBody,
+    reqHeaders: MionHeaders,
+    respHeaders: MionHeaders,
+    rawRequest: Req,
+    rawResponse?: Resp
+): Promise<MionResponse> {
+    const opts = getRouterOptions();
+
+    // Parse the batch envelope
+    let batchRequest: BatchRequest;
+    try {
+        batchRequest = parseBatchEnvelope(reqRawBody);
+    } catch (err: any) {
+        throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'batch-envelope-parse-error',
+            publicMessage: err?.message || 'Failed to parse batch request envelope',
+            originalError: err instanceof Error ? err : undefined,
+        });
+    }
+
+    // Validate batch size
+    const {routeIds, bodies} = batchRequest;
+    if (routeIds.length === 0) {
+        throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'batch-empty-request',
+            publicMessage: 'Batch request must contain at least one route.',
+        });
+    }
+    if (routeIds.length > opts.maxBatchSize) {
+        throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'batch-size-exceeded',
+            publicMessage: `Batch request contains ${routeIds.length} routes, maximum allowed is ${opts.maxBatchSize}.`,
+        });
+    }
+    if (routeIds.length !== bodies.length) {
+        throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'batch-mismatched-lengths',
+            publicMessage: `Batch routeIds length (${routeIds.length}) does not match bodies length (${bodies.length}).`,
+        });
+    }
+
+    // Dispatch each route sequentially, collecting responses
+    const batchResponse: BatchResponse = {
+        routeIds: [],
+        statuses: [],
+        bodies: [],
+    };
+
+    let hasNonOkStatus = false;
+
+    for (let i = 0; i < routeIds.length; i++) {
+        const routeId = routeIds[i];
+        const routeBody = bodies[i];
+
+        try {
+            // Each route body is already a parsed JS object, pass as pre-parsed (json mode)
+            const mionResponse = await dispatchRoute(
+                routeId,
+                routeBody,
+                reqHeaders,
+                respHeaders,
+                rawRequest,
+                rawResponse,
+                SerializerModes.json
+            );
+
+            batchResponse.routeIds.push(routeId);
+            batchResponse.statuses.push(mionResponse.statusCode);
+            batchResponse.bodies.push(mionResponse.body as AnyObject);
+
+            if (mionResponse.statusCode !== StatusCodes.OK) hasNonOkStatus = true;
+        } catch (err: any) {
+            // Unrecoverable dispatch error for this route - still isolate it
+            batchResponse.routeIds.push(routeId);
+            batchResponse.statuses.push(StatusCodes.UNEXPECTED_ERROR);
+            batchResponse.bodies.push({
+                error: err instanceof RpcError ? err.publicMessage : 'Unknown dispatch error',
+            });
+            hasNonOkStatus = true;
+        }
+    }
+
+    // Build the combined MionResponse
+    const overallStatus = hasNonOkStatus ? StatusCodes.MULTI_STATUS : StatusCodes.OK;
+    respHeaders.set('content-type', 'application/json; charset=utf-8');
+
+    return {
+        statusCode: overallStatus,
+        headers: respHeaders,
+        body: batchResponse as unknown as AnyObject,
+        rawBody: JSON.stringify(batchResponse),
+        bodyType: SerializerModes.stringifyJson,
+        hasErrors: hasNonOkStatus,
+        binSerializer: undefined,
+    };
+}
+
+/** Parses the batch request envelope from raw body */
+function parseBatchEnvelope(reqRawBody: RawRequestBody): BatchRequest {
+    let parsed: any;
+    if (typeof reqRawBody === 'string') {
+        parsed = JSON.parse(reqRawBody);
+    } else if (reqRawBody instanceof ArrayBuffer || reqRawBody instanceof Uint8Array) {
+        // Binary batch envelope - will be implemented in Phase 2
+        throw new Error('Binary batch requests are not yet supported.');
+    } else {
+        // Already a parsed object (pre-parsed by platform adapter)
+        parsed = reqRawBody;
+    }
+
+    if (!parsed || !Array.isArray(parsed.routeIds) || !Array.isArray(parsed.bodies)) {
+        throw new Error('Invalid batch request format: expected { routeIds: string[], bodies: object[] }');
+    }
+
+    return parsed as BatchRequest;
 }
 
 // ############# PRIVATE METHODS #############
