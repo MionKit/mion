@@ -18,7 +18,7 @@
     "deepkit-install": "deepkit-type-install",
     "npm-publish": "lerna publish from-package --no-private",
     "prepare": "husky install",
-    "copy-benchmarks": "cp -r ../mion-benchmarks/assets/public/* ./website/app/components/content/charts/"
+    "copy-benchmarks": "cp -r ../mion-benchmarks/assets/public/* ./website/app/components/content/charts/ && node scripts/copy-benchmarks.js"
   },
   "lint-staged": {
     "packages/!(examples)/**/!(*.spec|*.test).ts": [
