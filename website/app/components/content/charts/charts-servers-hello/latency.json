@@ -1,1 +1,1 @@
-{"data":{"x":"x","columns":[["x","Latency (ms)"],["http-node","23.40"],["fastify","25.20"],["mion","26.44"],["hono","33.28"],["hapi","34.21"],["express","46.07"]],"type":"bar","labels":true},"axis":{"x":{"type":"category","labels":{"rotate":75}}},"transition":{"duration":0}}
+{"data":{"x":"x","columns":[["x","Latency (ms)"],["fastify","7.70"],["http-node","7.94"],["mion","9.03"],["hono","9.58"],["hapi","11.56"],["express","13.12"]],"type":"bar","labels":true},"axis":{"x":{"type":"category","labels":{"rotate":75}}},"transition":{"duration":0}}

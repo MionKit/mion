@@ -13,7 +13,12 @@ import chartUpdateLatency from './charts/charts-servers/latency.json';
 import chartUpdateThroughput from './charts/charts-servers/throughput.json';
 import chartUpdateMaxMemory from './charts/charts-servers/maxMem.json';
 import chartUpdateMemorySeries from './charts/charts-servers/memSeries.json';
-import chartColdStarts from './charts/charts/cold-starts.json';
+
+import chartUpdateSimpleRequests from './charts/charts-servers-simple/requests.json';
+import chartUpdateSimpleLatency from './charts/charts-servers-simple/latency.json';
+import chartUpdateSimpleThroughput from './charts/charts-servers-simple/throughput.json';
+import chartUpdateSimpleMaxMemory from './charts/charts-servers-simple/maxMem.json';
+import chartUpdateSimpleMemorySeries from './charts/charts-servers-simple/memSeries.json';
 
 const chartList: Record<string, unknown> = {
   'hello-requests': chartHelloRequests,
@@ -26,7 +31,11 @@ const chartList: Record<string, unknown> = {
   'update-throughput': chartUpdateThroughput,
   'update-max-mem': chartUpdateMaxMemory,
   'update-mem-series': chartUpdateMemorySeries,
-  'cold-starts': chartColdStarts,
+  'update-simple-requests': chartUpdateSimpleRequests,
+  'update-simple-latency': chartUpdateSimpleLatency,
+  'update-simple-throughput': chartUpdateSimpleThroughput,
+  'update-simple-max-mem': chartUpdateSimpleMaxMemory,
+  'update-simple-mem-series': chartUpdateSimpleMemorySeries,
 };
 
 const props = defineProps<{
