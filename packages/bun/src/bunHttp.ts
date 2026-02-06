@@ -5,10 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
+import {
+    dispatchRoute,
+    dispatchBatchRoute,
+    getRouterFatalErrorResponse,
+    resetRouter,
+    MionResponse as MionResponse,
+} from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
-import {getENV, SerializerModes} from '@mionkit/core';
+import {getENV, SerializerModes, BATCH_ROUTE_PATH} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {Server} from 'bun';
 
@@ -71,15 +77,10 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
             const responseHeaders = new Headers(defaultHeaders);
 
             try {
-                const platformResp = await dispatchRoute(
-                    path,
-                    rawBody,
-                    req.headers,
-                    responseHeaders,
-                    req,
-                    undefined,
-                    reqBodyType
-                );
+                const isBatchRoute = path === BATCH_ROUTE_PATH;
+                const platformResp = isBatchRoute
+                    ? await dispatchBatchRoute(rawBody, req.headers, responseHeaders, req, undefined, reqBodyType)
+                    : await dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined, reqBodyType);
                 return reply(platformResp, responseHeaders);
             } catch (e) {
                 const error =
@@ -157,16 +158,25 @@ function reply(
             });
         }
         case SerializerModes.binary: {
-            const serializer = mionResp.binSerializer!;
-            responseHeaders.set('content-length', String(serializer.getLength()));
-            // content-type already set by serializer
-            const response = new Response(serializer.getBufferView(), {
+            const serializer = mionResp.binSerializer;
+            if (serializer) {
+                responseHeaders.set('content-length', String(serializer.getLength()));
+                // content-type already set by serializer
+                const response = new Response(serializer.getBufferView(), {
+                    status: mionResp.statusCode,
+                    headers: responseHeaders,
+                });
+                // Mark buffer as ended immediately - Bun copies the buffer to the response
+                serializer.markAsEnded();
+                return response;
+            }
+            // Batch binary responses provide rawBody as Uint8Array without a serializer
+            const rawBody = mionResp.rawBody as Uint8Array;
+            responseHeaders.set('content-length', String(rawBody.length));
+            return new Response(rawBody, {
                 status: mionResp.statusCode,
                 headers: responseHeaders,
             });
-            // Mark buffer as ended immediately - Bun copies the buffer to the response
-            serializer.markAsEnded();
-            return response;
         }
         default: {
             const error = new RpcError({

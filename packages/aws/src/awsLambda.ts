@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, SerializerModes} from '@mionkit/core';
-import {dispatchRoute, getRouterFatalErrorResponse, headersFromRecord, resetRouter} from '@mionkit/router';
+import {RpcError, SerializerModes, BATCH_ROUTE_PATH} from '@mionkit/core';
+import {dispatchRoute, dispatchBatchRoute, getRouterFatalErrorResponse, headersFromRecord, resetRouter} from '@mionkit/router';
 import type {MionResponse, MionHeaders} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants';
@@ -43,15 +43,10 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     const reqBodyType = SerializerModes.stringifyJson;
 
     try {
-        const routeResponse = await dispatchRoute(
-            rawRequest.path,
-            rawBody,
-            reqHeaders,
-            respHeaders,
-            rawRequest,
-            awsContext,
-            reqBodyType
-        );
+        const isBatchRoute = rawRequest.path === BATCH_ROUTE_PATH;
+        const routeResponse = isBatchRoute
+            ? await dispatchBatchRoute(rawBody, reqHeaders, respHeaders, rawRequest, awsContext, reqBodyType)
+            : await dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, awsContext, reqBodyType);
         return reply(routeResponse, respHeaders);
     } catch (err) {
         const error =
