@@ -441,7 +441,7 @@ export interface DataViewSerializer {
     reset: () => void;
     getBuffer: () => StrictArrayBuffer;
     getBufferView: () => Uint8Array;
-    markAsEnded: () => void;
+    updateResponseSize: (routeId: string) => void;
     getLength(): number;
     // serialization functions
     serString(str: string): void;
@@ -455,7 +455,6 @@ export interface DataViewDeserializer {
     view: DataView;
     reset: () => void;
     setBuffer: (buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) => void;
-    markAsEnded: () => void;
     getLength(): number;
     // deserialization functions
     desString(): string;

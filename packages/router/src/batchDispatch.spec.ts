@@ -309,7 +309,7 @@ describe('Batch Dispatch routes', () => {
             await expect(
                 dispatchBatchRoute(JSON.stringify(invalidBody), headersFromRecord({}), headersFromRecord({}), {}, {})
             ).rejects.toMatchObject({
-                type: 'batch-envelope-parse-error',
+                type: 'batch-parsing-json-request-error',
             });
         });
 
@@ -322,7 +322,7 @@ describe('Batch Dispatch routes', () => {
             await expect(
                 dispatchBatchRoute(JSON.stringify(invalidBody), headersFromRecord({}), headersFromRecord({}), {}, {})
             ).rejects.toMatchObject({
-                type: 'batch-envelope-parse-error',
+                type: 'batch-parsing-json-request-error',
             });
         });
 
@@ -333,7 +333,7 @@ describe('Batch Dispatch routes', () => {
             await expect(
                 dispatchBatchRoute('{invalid-json', headersFromRecord({}), headersFromRecord({}), {}, {})
             ).rejects.toMatchObject({
-                type: 'batch-envelope-parse-error',
+                type: 'batch-parsing-json-request-error',
             });
         });
     });

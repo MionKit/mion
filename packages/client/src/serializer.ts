@@ -85,7 +85,7 @@ export function serializeRequestBody(req: MionClientRequest<any, any>): Serializ
  */
 function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
     const subRequestIds = Object.keys(req.subRequestList);
-    const serializer = createDataViewSerializer('client-request');
+    const serializer = createDataViewSerializer(req.path);
 
     try {
         // Write number of methods
@@ -114,10 +114,9 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
             }
         }
 
-        serializer.markAsEnded();
+        serializer.updateResponseSize(req.path);
         return serializer.getBufferView();
     } catch (e: any) {
-        serializer.markAsEnded();
         throw new RpcError({
             type: 'binary-serialize-request-error',
             publicMessage: `Failed to serialize request body to binary: ${e?.message || 'unknown error'}`,
@@ -210,7 +209,7 @@ async function deserializeJsonResponseBody(response: Response): Promise<any> {
  */
 async function deserializeBinaryResponseBody(response: Response): Promise<ResponseBody> {
     const arrayBuffer = await response.arrayBuffer();
-    const deserializer = createDataViewDeserializer('client-response', arrayBuffer);
+    const deserializer = createDataViewDeserializer(arrayBuffer);
     const body: ResponseBody = {};
 
     try {
@@ -232,8 +231,6 @@ async function deserializeBinaryResponseBody(response: Response): Promise<Respon
                 body[methodId] = method.returnJitFns.fromBinary.fn(undefined, deserializer);
             }
         }
-
-        deserializer.markAsEnded();
     } catch (err: any) {
         if (err instanceof RpcError) throw err;
         throw new RpcError({

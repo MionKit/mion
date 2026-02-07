@@ -43,18 +43,20 @@ export function setSerializationOptions(options: Partial<SerializationOptions>) 
 export function createDataViewSerializer(routeId: string): DataViewSerializer {
     const size = calculateDefaultBufferSize(routeId);
     if (size >= POW_2_32) throw new Error('bufferSize option must be strictly less than 2 ** 32');
-    return new DataViewSerializerImpl(routeId, size);
+    return new DataViewSerializerImpl(size);
+}
+
+export function createBatchDataViewSerializer(routeIds: string[]): DataViewSerializer {
+    let size = 0;
+    for (const routeId of routeIds) size += calculateDefaultBufferSize(routeId);
+    if (size >= POW_2_32) throw new Error('bufferSize option must be strictly less than 2 ** 32');
+    return new DataViewSerializerImpl(size);
 }
 
 /** Creates a deserializer from ArrayBuffer or any typed array view (including Node.js Buffer) */
-export function createDataViewDeserializer(routeId: string, input: BinaryInput): DataViewDeserializer {
-    // Extract ArrayBuffer and offset/length from typed array views (Uint8Array, Buffer, etc.)
-    if (ArrayBuffer.isView(input)) {
-        const buffer = input.buffer as StrictArrayBuffer;
-        return new DataViewDeserializerImpl(routeId, buffer, input.byteOffset, input.byteLength);
-    }
+export function createDataViewDeserializer(input: BinaryInput): DataViewDeserializer {
     // Plain ArrayBuffer
-    return new DataViewDeserializerImpl(routeId, input as StrictArrayBuffer);
+    return new DataViewDeserializerImpl(input as StrictArrayBuffer);
 }
 
 // TODO: at the moment we do not resize the buffer, if data does not fit it will throw an error,
@@ -62,19 +64,15 @@ export function createDataViewDeserializer(routeId: string, input: BinaryInput):
 class DataViewSerializerImpl implements DataViewSerializer {
     readonly buffer: ArrayBuffer;
     private uint8View: Uint8Array; // Reusable view
-    readonly routeId: string;
     index: number = 0; // byte offset
     view: DataView;
-    hasEnded: boolean = false;
-    constructor(routeId: string, size: number) {
-        this.routeId = routeId;
+    constructor(size: number) {
         this.buffer = new ArrayBuffer(size);
         this.view = new DataView(this.buffer);
         this.uint8View = new Uint8Array(this.buffer);
     }
     reset(): void {
         this.index = 0;
-        this.hasEnded = false;
     }
     resize(size: number): void {
         (this as any).buffer = new ArrayBuffer(size);
@@ -88,9 +86,8 @@ class DataViewSerializerImpl implements DataViewSerializer {
     getBufferView(): Uint8Array {
         return new Uint8Array(this.buffer, 0, this.index);
     }
-    markAsEnded(): void {
-        this.hasEnded = true;
-        updateResponseSize(this.routeId, this.index);
+    updateResponseSize(routeId: string) {
+        updateResponseSize(routeId, this.index);
     }
     getLength(): number {
         return this.index;
@@ -148,12 +145,9 @@ class DataViewSerializerImpl implements DataViewSerializer {
 class DataViewDeserializerImpl implements DataViewDeserializer {
     readonly buffer: StrictArrayBuffer;
     private uint8View: Uint8Array; // Reusable view
-    readonly routeId: string;
     index: number = 0;
     view: DataView;
-    hasEnded: boolean = false;
-    constructor(routeId: string, buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) {
-        this.routeId = routeId;
+    constructor(buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) {
         this.buffer = buffer;
         // index should always start at 0 because DataView/Uint8Array already account for byteOffset
         this.index = 0;
@@ -162,7 +156,6 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
     }
     reset(): void {
         this.index = 0;
-        this.hasEnded = false;
     }
     setBuffer(buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number): void {
         // index should always start at 0 because DataView/Uint8Array already account for byteOffset
@@ -170,10 +163,6 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
         (this as any).buffer = buffer;
         this.view = new DataView(buffer, byteOffset, byteLength);
         this.uint8View = new Uint8Array(buffer, byteOffset, byteLength); // Update working view
-        this.hasEnded = false;
-    }
-    markAsEnded(): void {
-        this.hasEnded = true;
     }
     getLength(): number {
         return this.index;
@@ -221,7 +210,9 @@ function calculateDefaultBufferSize(routeId: string): number {
     return size * opts.averageResponseSizeMultiplier;
 }
 
-function updateResponseSize(routeId: string, responseSize: number) {
+function updateResponseSize(routeId: string | string[], responseSize: number) {
+    // Skip per-route size tracking for batch (array) route IDs
+    if (Array.isArray(routeId)) return;
     const currentSize = opts.responseAverageSizes.get(routeId) || opts.bufferSize;
     const average = (currentSize + responseSize) / 2;
     opts.responseAverageSizes.set(routeId, Math.floor(average));

@@ -19,7 +19,7 @@ const toJsonSerializers: Map<(v: any) => any, (v: any) => string> = new Map();
 
 setSerializationOptions({bufferSize: 1024});
 export const serContext: DataViewSerializer = createDataViewSerializer('test');
-export const desContext: DataViewDeserializer = createDataViewDeserializer('test', new ArrayBuffer(0));
+export const desContext: DataViewDeserializer = createDataViewDeserializer(new ArrayBuffer(0));
 
 const SERIALIZE_FN = JitFunctions.toBinary;
 const DESERIALIZE_FN = JitFunctions.fromBinary;

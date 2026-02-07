@@ -17,16 +17,18 @@ export function serializeBinaryBody(
     executionChain: MethodWithJitFns[],
     body: Record<string, any>,
     /** If true, the body is a response body, otherwise it's a request body */
-    isResponse: boolean
+    isResponse: boolean,
+    /** Optional pre-created serializer (used in batch mode to share a single serializer across routes) */
+    sharedSerializer?: DataViewSerializer
 ): {
     serializer: DataViewSerializer;
     buffer: ReturnType<DataViewSerializer['getBuffer']>;
 } {
     try {
-        // Create serializer
-        const serializer = createDataViewSerializer(path);
+        // Use shared serializer if provided (batch mode), otherwise create new one
+        const serializer = sharedSerializer || createDataViewSerializer(path);
 
-        // Reserve space for items length at index 0 (will be written after counting)
+        // Reserve space for items length at current position (will be written after counting)
         const itemsLengthIndex = serializer.index;
         serializer.index += 4;
 
@@ -40,11 +42,15 @@ export function serializeBinaryBody(
                 itemsLength++;
             }
         }
-        // Write items length at reserved index 0
+        // Write items length at reserved position
         serializer.view.setUint32(itemsLengthIndex, itemsLength, true);
-        serializer.markAsEnded();
 
-        return {serializer, buffer: serializer.getBuffer()};
+        // Only mark as ended and get buffer for non-shared (single route) mode
+        if (!sharedSerializer) {
+            return {serializer, buffer: serializer.getBuffer()};
+        }
+        // In batch mode, buffer is managed by the batch serializer
+        return {serializer, buffer: new ArrayBuffer(0)};
     } catch (err: any) {
         if (err instanceof RpcError) throw err;
         throw new RpcError({

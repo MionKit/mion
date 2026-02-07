@@ -49,13 +49,14 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
             break;
         case SerializerModes.binary: {
             // binary
-            // Binary deserialization is handled per-method in dispatch.ts
             const rawBody = context.request.rawBody as Uint8Array;
             const executionChain = getRouteExecutionChain(context.path)?.methods || [];
             // Build methods map for deserialization
             const methodsMap = new Map<string, RemoteMethod>();
             for (const method of executionChain) methodsMap.set(method.id, method);
-            const {body} = coreDeserializeBinaryBody(context.path, methodsMap, rawBody, false);
+            // Use shared deserializer if available (batch mode), otherwise create from rawBody
+            const sharedDeserializer = context.request.binaryDeserializer;
+            const {body} = coreDeserializeBinaryBody(context.path, methodsMap, rawBody, false, sharedDeserializer);
             parsedBody = body;
             break;
         }
@@ -126,9 +127,17 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
 /** Serializes response body to binary format using the core serializeBinaryBody function */
 function serializeBinaryBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
     const response = context.response as Mutable<MionResponse>;
-    const {serializer, buffer} = coreSerializeBinaryBody(context.path, executionChain, respBody, true);
-    response.binSerializer = serializer;
-    response.rawBody = new Uint8Array(buffer);
+    const sharedSerializer = context.response.binSerializer;
+    if (sharedSerializer) {
+        // Batch mode: write into shared serializer, don't create new buffer
+        coreSerializeBinaryBody(context.path, executionChain, respBody, true, sharedSerializer);
+        // Don't set rawBody — batch loop handles final buffer
+    } else {
+        // Single route mode: current behavior
+        const {serializer, buffer} = coreSerializeBinaryBody(context.path, executionChain, respBody, true);
+        response.binSerializer = serializer;
+        response.rawBody = new Uint8Array(buffer);
+    }
 }
 
 function stringifyBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): string {

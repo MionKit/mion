@@ -175,7 +175,7 @@ describe('Binary Serialization - Router', () => {
         serializeResponseBody(context, opts);
 
         const rawBody = response.rawBody as BinaryInput;
-        const deserializer = createDataViewDeserializer('test-response', rawBody);
+        const deserializer = createDataViewDeserializer(rawBody);
 
         // Read number of methods
         const numMethods = deserializer.view.getUint32(deserializer.index, true);
@@ -202,7 +202,7 @@ describe('Binary Serialization - Router', () => {
         serializeResponseBody(context, opts);
 
         const rawBody = response.rawBody as BinaryInput;
-        const deserializer = createDataViewDeserializer('test-response', rawBody);
+        const deserializer = createDataViewDeserializer(rawBody);
 
         // Read number of methods (should be 1 - only sayHello has return data)
         // auth linkedFn has void return type so hasReturnData is false

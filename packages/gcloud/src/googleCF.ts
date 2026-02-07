@@ -101,12 +101,7 @@ function reply(mionResp: MionResponse, resp: Response): void {
             const serializer = mionResp.binSerializer!;
             resp.set('content-length', `${serializer.getLength()}`);
             // content-type already set by serializer
-            resp.end(Buffer.from(serializer.getBufferView()));
-
-            // Release buffer when response is finished
-            const onFinish = () => serializer.markAsEnded();
-            resp.on('finish', onFinish);
-            resp.on('close', onFinish); // Fallback for aborted connection
+            resp.end(serializer.getBufferView());
             break;
         }
         default: {

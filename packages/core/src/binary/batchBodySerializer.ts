@@ -7,149 +7,110 @@
 
 import {StatusCodes} from '../constants';
 import {RpcError} from '../errors';
+import {DataViewSerializer} from '../types/general.types';
+import {createBatchDataViewSerializer} from './dataView';
 
-const textEncoder = new TextEncoder();
-
-/** Entry for serializing a batch binary response */
-export interface BatchBinaryResponseSerEntry {
-    routeId: string;
-    statusCode: number;
-    /** The individual route's binary response body (already serialized by the route's own dispatch cycle) */
-    body: Uint8Array;
-}
-
-/** Entry for serializing a batch binary request */
-export interface BatchBinaryRequestSerEntry {
-    routeId: string;
-    /** The individual route's binary request body */
-    body: Uint8Array;
-}
+const LE = true;
 
 /**
- * Serializes a batch binary response envelope.
- * Wraps individual route binary response bodies into a single buffer.
+ * Init shared DataViewSerializer for batch. Writes route count header.
  *
- * Binary format:
- * [4 bytes]  - Number of routes (uint32 LE)
- * For each route:
- *   [4 bytes]  - Route ID string length (uint32 LE)
- *   [N bytes]  - Route ID string (UTF-8)
- *   [4 bytes]  - Status code (uint32 LE)
- *   [4 bytes]  - Body length in bytes (uint32 LE)
- *   [M bytes]  - Individual route binary body
+ * Binary format header:
+ * [4 bytes] - Number of routes (uint32 LE)
  */
-export function serializeBatchBinaryResponse(entries: BatchBinaryResponseSerEntry[]): Uint8Array {
+export function initBatchSerializer(
+    routeIds: string[],
+    /** If true, the batch is a response batch, otherwise it's a request batch */
+    isResponse: boolean
+): DataViewSerializer {
     try {
-        // Calculate total buffer size
-        let totalSize = 4; // route count
-        for (const entry of entries) {
-            const routeIdBytes = textEncoder.encode(entry.routeId);
-            totalSize += 4 + routeIdBytes.length + 4 + 4 + entry.body.length; // routeIdLen + routeId + status + bodyLen + body
-        }
-
-        const buffer = new ArrayBuffer(totalSize);
-        const view = new DataView(buffer);
-        const uint8 = new Uint8Array(buffer);
-        let offset = 0;
-
+        const serializer = createBatchDataViewSerializer(routeIds);
         // Write route count
-        view.setUint32(offset, entries.length, true);
-        offset += 4;
-
-        for (const entry of entries) {
-            const routeIdBytes = textEncoder.encode(entry.routeId);
-
-            // Write route ID string length
-            view.setUint32(offset, routeIdBytes.length, true);
-            offset += 4;
-
-            // Write route ID string
-            uint8.set(routeIdBytes, offset);
-            offset += routeIdBytes.length;
-
-            // Write status code
-            view.setUint32(offset, entry.statusCode, true);
-            offset += 4;
-
-            // Write body length
-            view.setUint32(offset, entry.body.length, true);
-            offset += 4;
-
-            // Write body
-            uint8.set(entry.body, offset);
-            offset += entry.body.length;
-        }
-
-        return new Uint8Array(buffer, 0, offset);
+        serializer.view.setUint32(serializer.index, routeIds.length, LE);
+        serializer.index += 4;
+        return serializer;
     } catch (err: any) {
         if (err instanceof RpcError) throw err;
         throw new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'batch-binary-response-serialization-error',
-            publicMessage: `Failed to serialize batch binary response: ${err?.message || 'unknown error'}`,
+            type: isResponse ? 'batch-binary-response-serialization-error' : 'batch-binary-request-serialization-error',
+            publicMessage: `Failed to init batch ${isResponse ? 'response' : 'request'} serializer: ${err?.message || 'unknown error'}`,
             originalError: err,
         });
     }
 }
 
 /**
- * Serializes a batch binary request envelope.
- * Wraps individual route binary request bodies into a single buffer.
+ * Write route entry into the batch serializer.
  *
- * Binary format:
- * [4 bytes]  - Number of routes (uint32 LE)
- * For each route:
+ * Request per-route format:
  *   [4 bytes]  - Route ID string length (uint32 LE)
  *   [N bytes]  - Route ID string (UTF-8)
  *   [4 bytes]  - Body length in bytes (uint32 LE)
  *   [M bytes]  - Individual route binary body
+ *
+ * Response per-route format (incremental with placeholders):
+ *   [4 bytes]  - Route ID string length (uint32 LE)
+ *   [N bytes]  - Route ID string (UTF-8)
+ *   [4 bytes]  - Status code placeholder (uint32 LE) — backfilled later
+ *   [4 bytes]  - Body length placeholder (uint32 LE) — backfilled later
+ *   [M bytes]  - Individual route binary body (written later)
  */
-export function serializeBatchBinaryRequest(entries: BatchBinaryRequestSerEntry[]): Uint8Array {
-    try {
-        // Calculate total buffer size
-        let totalSize = 4; // route count
-        for (const entry of entries) {
-            const routeIdBytes = textEncoder.encode(entry.routeId);
-            totalSize += 4 + routeIdBytes.length + 4 + entry.body.length; // routeIdLen + routeId + bodyLen + body
+export function writeBatchEntry(
+    serializer: DataViewSerializer,
+    routeId: string,
+    /** Body bytes (only for requests, responses write body separately) */
+    requestBody?: Uint8Array
+): {
+    statusIndex?: number;
+    bodyLengthIndex?: number;
+    bodyStartIndex?: number;
+} {
+    const isResponse = !requestBody;
+    // Write routeId string (length-prefixed UTF-8)
+    serializer.serString(routeId);
+
+    if (isResponse) {
+        // Response mode: write placeholders for statusCode and bodyLength
+        const statusIndex = serializer.index;
+        serializer.index += 4;
+
+        const bodyLengthIndex = serializer.index;
+        serializer.index += 4;
+
+        const bodyStartIndex = serializer.index;
+
+        return {statusIndex, bodyLengthIndex, bodyStartIndex};
+    } else {
+        // Request mode: write body immediately
+        if (!requestBody) throw new Error('Body is required for request batch entries');
+
+        // Write body length
+        serializer.view.setUint32(serializer.index, requestBody.length, LE);
+        serializer.index += 4;
+
+        // Write body bytes
+        if (requestBody.length > 0) {
+            const uint8View = new Uint8Array(serializer.view.buffer, 0, serializer.view.byteLength);
+            uint8View.set(requestBody, serializer.index);
+            serializer.index += requestBody.length;
         }
 
-        const buffer = new ArrayBuffer(totalSize);
-        const view = new DataView(buffer);
-        const uint8 = new Uint8Array(buffer);
-        let offset = 0;
-
-        // Write route count
-        view.setUint32(offset, entries.length, true);
-        offset += 4;
-
-        for (const entry of entries) {
-            const routeIdBytes = textEncoder.encode(entry.routeId);
-
-            // Write route ID string length
-            view.setUint32(offset, routeIdBytes.length, true);
-            offset += 4;
-
-            // Write route ID string
-            uint8.set(routeIdBytes, offset);
-            offset += routeIdBytes.length;
-
-            // Write body length
-            view.setUint32(offset, entry.body.length, true);
-            offset += 4;
-
-            // Write body
-            uint8.set(entry.body, offset);
-            offset += entry.body.length;
-        }
-
-        return new Uint8Array(buffer, 0, offset);
-    } catch (err: any) {
-        if (err instanceof RpcError) throw err;
-        throw new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'batch-binary-request-serialization-error',
-            publicMessage: `Failed to serialize batch binary request: ${err?.message || 'unknown error'}`,
-            originalError: err,
-        });
+        return {};
     }
+}
+
+/** Backfill statusCode and bodyLength after route body has been written into the serializer (response mode only). */
+export function finalizeBatchEntry(
+    serializer: DataViewSerializer,
+    statusCode: number,
+    statusIndex: number,
+    bodyLengthIndex: number,
+    bodyStartIndex: number
+): void {
+    // Backfill statusCode
+    serializer.view.setUint32(statusIndex, statusCode, LE);
+    // Calculate and backfill bodyLength
+    const bodyLength = serializer.index - bodyStartIndex;
+    serializer.view.setUint32(bodyLengthIndex, bodyLength, LE);
 }

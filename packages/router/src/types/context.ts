@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyObject, DataViewSerializer, SerializerCode} from '@mionkit/core';
+import type {AnyObject, DataViewSerializer, DataViewDeserializer, SerializerCode} from '@mionkit/core';
 import type {RpcError} from '@mionkit/core';
 
 // ####### Call Context #######
@@ -54,6 +54,8 @@ export interface MionRequest {
      * without being part of the route's type signature.
      */
     readonly thrownErrors?: Readonly<Record<string, RpcError<string>>>;
+    /** Shared binary deserializer for batch mode — when set, binary deserialization reads from this shared instance */
+    readonly binaryDeserializer?: DataViewDeserializer | undefined;
 }
 // type-mion-request-end
 

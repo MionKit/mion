@@ -12,11 +12,11 @@ import {HeadersMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './ty
 import {getRouteExecutionChain, getRouterOptions} from './router';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
-import {BatchRequest, BatchResponse} from '@mionkit/core';
-import {deserializeBatchBinaryRequest} from '@mionkit/core';
-import {serializeBatchBinaryResponse, BatchBinaryResponseSerEntry} from '@mionkit/core';
+import {BatchRequest, BatchResponse, DataViewSerializer, DataViewDeserializer} from '@mionkit/core';
+import {initBatchDeserializer, readNextBatchEntry} from '@mionkit/core';
+import {initBatchSerializer, writeBatchEntry, finalizeBatchEntry} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
-import {createCallContext, acquireCallContext, releaseCallContext} from './callContext';
+import {acquireCallContext, releaseCallContext} from './callContext';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -35,14 +35,24 @@ export async function dispatchRoute<Req, Resp>(
     respHeaders: MionHeaders,
     rawRequest: Req,
     rawResponse?: Resp,
-    reqBodyType?: SerializerCode
+    reqBodyType?: SerializerCode,
+    binaryDeserializer?: DataViewDeserializer,
+    binarySerializer?: DataViewSerializer
 ): Promise<MionResponse> {
     const opts = getRouterOptions();
     const usePooling = opts.maxContextPoolSize > 0;
-    // Use pooled context if enabled (maxContextPoolSize > 0), otherwise create new context
-    const context = usePooling
-        ? acquireCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType)
-        : createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
+    const context = acquireCallContext(
+        path,
+        opts,
+        reqRawBody,
+        rawRequest,
+        reqHeaders,
+        respHeaders,
+        usePooling,
+        reqBodyType,
+        binaryDeserializer,
+        binarySerializer
+    );
 
     try {
         let executionChain = getRouteExecutionChain(context.path);
@@ -81,24 +91,144 @@ export async function dispatchBatchRoute<Req, Resp>(
     const opts = getRouterOptions();
     const isBinary = reqBodyType === SerializerModes.binary;
 
-    // Parse the batch envelope (JSON or binary)
-    let routeIds: string[];
-    let routeBodies: (AnyObject | Uint8Array)[];
-    try {
-        if (isBinary) {
-            const entries = deserializeBatchBinaryRequest(reqRawBody as ArrayBuffer | Uint8Array);
-            routeIds = entries.map((e) => e.routeId);
-            routeBodies = entries.map((e) => e.body);
-        } else {
-            const batchRequest = parseBatchJsonEnvelope(reqRawBody);
-            routeIds = batchRequest.routeIds;
-            routeBodies = batchRequest.bodies;
+    if (isBinary) {
+        return dispatchBinaryBatch(reqRawBody, reqHeaders, respHeaders, rawRequest, rawResponse, opts);
+    }
+    return dispatchJsonBatch(reqRawBody, reqHeaders, respHeaders, rawRequest, rawResponse, opts);
+}
+
+/** Dispatches binary batch using shared DataViewSerializer/DataViewDeserializer across all routes */
+async function dispatchBinaryBatch<Req, Resp>(
+    reqRawBody: RawRequestBody,
+    reqHeaders: MionHeaders,
+    respHeaders: MionHeaders,
+    rawRequest: Req,
+    rawResponse: Resp | undefined,
+    opts: RouterOptions
+): Promise<MionResponse> {
+    // Init shared deserializer from batch request buffer
+    const {deserializer, routeCount} = initBatchDeserializer(reqRawBody as ArrayBuffer | Uint8Array, false);
+
+    // Validate batch size
+    if (routeCount === 0) {
+        throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'batch-empty-request',
+            publicMessage: 'Batch request must contain at least one route.',
+        });
+    }
+    if (routeCount > opts.maxBatchSize) {
+        throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'batch-size-exceeded',
+            publicMessage: `Batch request contains ${routeCount} routes, maximum allowed is ${opts.maxBatchSize}.`,
+        });
+    }
+
+    // Peek all routeIds for serializer buffer sizing (read headers, then rewind)
+    // Instead, we read routeIds incrementally in the loop and collect them for the serializer init
+    // We need routeIds upfront for initBatchResponseSerializer, so we do a first pass to collect them
+    const savedIndex = deserializer.index;
+    const routeIds: string[] = [];
+    const bodyLengths: number[] = [];
+    for (let i = 0; i < routeCount; i++) {
+        const {routeId, bodyLength} = readNextBatchEntry(deserializer, false);
+        routeIds.push(routeId);
+        bodyLengths.push(bodyLength);
+        // Skip past the body bytes to read the next entry header
+        deserializer.index += bodyLength;
+    }
+    // Rewind deserializer to start of first route entry
+    deserializer.index = savedIndex;
+
+    // Init shared serializer for batch response
+    const serializer = initBatchSerializer(routeIds, true);
+
+    let hasNonOkStatus = false;
+
+    for (let i = 0; i < routeCount; i++) {
+        const {routeId, bodyLength} = readNextBatchEntry(deserializer, false);
+        const bodyStartIndex = deserializer.index;
+
+        // Write response route header (routeId + placeholders for statusCode and bodyLength)
+        const headerPositions = writeBatchEntry(serializer, routeId, undefined);
+
+        try {
+            // Dispatch route with shared deserializer and serializer via context
+            const mionResponse = await dispatchRoute(
+                routeId,
+                reqRawBody, // full batch buffer (not used directly — shared deserializer reads inline)
+                reqHeaders,
+                respHeaders,
+                rawRequest,
+                rawResponse,
+                SerializerModes.binary,
+                deserializer,
+                serializer
+            );
+
+            // Backfill statusCode and bodyLength in the response serializer
+            finalizeBatchEntry(
+                serializer,
+                mionResponse.statusCode,
+                headerPositions.statusIndex!,
+                headerPositions.bodyLengthIndex!,
+                headerPositions.bodyStartIndex!
+            );
+
+            if (mionResponse.statusCode !== StatusCodes.OK) hasNonOkStatus = true;
+        } catch {
+            // Error recovery: skip past the failed route body in the deserializer
+            deserializer.index = bodyStartIndex + bodyLength;
+
+            // Backfill error status with empty body
+            finalizeBatchEntry(
+                serializer,
+                StatusCodes.UNEXPECTED_ERROR,
+                headerPositions.statusIndex!,
+                headerPositions.bodyLengthIndex!,
+                headerPositions.bodyStartIndex!
+            );
+            hasNonOkStatus = true;
         }
+    }
+
+    const binaryResponse = serializer.getBufferView();
+
+    const overallStatus = hasNonOkStatus ? StatusCodes.MULTI_STATUS : StatusCodes.OK;
+    respHeaders.set('content-type', 'application/octet-stream');
+    return {
+        statusCode: overallStatus,
+        headers: respHeaders,
+        body: {} as AnyObject,
+        rawBody: binaryResponse,
+        bodyType: SerializerModes.binary,
+        hasErrors: hasNonOkStatus,
+        binSerializer: undefined,
+    };
+}
+
+/** Dispatches JSON batch (original behavior, unchanged) */
+async function dispatchJsonBatch<Req, Resp>(
+    reqRawBody: RawRequestBody,
+    reqHeaders: MionHeaders,
+    respHeaders: MionHeaders,
+    rawRequest: Req,
+    rawResponse: Resp | undefined,
+    opts: RouterOptions
+): Promise<MionResponse> {
+    // Parse the batch JSON envelope
+    let routeIds: string[];
+    let routeBodies: AnyObject[];
+    try {
+        const batchRequest = parseBatchJsonRequest(reqRawBody);
+        routeIds = batchRequest.routeIds;
+        routeBodies = batchRequest.bodies;
     } catch (err: any) {
         if (err instanceof RpcError) throw err;
         throw new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'batch-envelope-parse-error',
+            type: 'batch-parsing-json-request-error',
             publicMessage: err?.message || 'Failed to parse batch request envelope',
             originalError: err instanceof Error ? err : undefined,
         });
@@ -128,9 +258,7 @@ export async function dispatchBatchRoute<Req, Resp>(
     }
 
     // Dispatch each route sequentially, collecting responses
-    const routeSerializerMode = isBinary ? SerializerModes.binary : SerializerModes.json;
     const batchResponse: BatchResponse = {routeIds: [], statuses: [], bodies: []};
-    const binaryEntries: BatchBinaryResponseSerEntry[] = [];
     let hasNonOkStatus = false;
 
     for (let i = 0; i < routeIds.length; i++) {
@@ -145,52 +273,25 @@ export async function dispatchBatchRoute<Req, Resp>(
                 respHeaders,
                 rawRequest,
                 rawResponse,
-                routeSerializerMode
+                SerializerModes.json
             );
 
-            if (isBinary) {
-                binaryEntries.push({
-                    routeId,
-                    statusCode: mionResponse.statusCode,
-                    body: (mionResponse.rawBody as Uint8Array) || new Uint8Array(0),
-                });
-            } else {
-                batchResponse.routeIds.push(routeId);
-                batchResponse.statuses.push(mionResponse.statusCode);
-                batchResponse.bodies.push(mionResponse.body as AnyObject);
-            }
+            batchResponse.routeIds.push(routeId);
+            batchResponse.statuses.push(mionResponse.statusCode);
+            batchResponse.bodies.push(mionResponse.body as AnyObject);
 
             if (mionResponse.statusCode !== StatusCodes.OK) hasNonOkStatus = true;
         } catch (err: any) {
-            if (isBinary) {
-                binaryEntries.push({routeId, statusCode: StatusCodes.UNEXPECTED_ERROR, body: new Uint8Array(0)});
-            } else {
-                batchResponse.routeIds.push(routeId);
-                batchResponse.statuses.push(StatusCodes.UNEXPECTED_ERROR);
-                batchResponse.bodies.push({
-                    error: err instanceof RpcError ? err.publicMessage : 'Unknown dispatch error',
-                });
-            }
+            batchResponse.routeIds.push(routeId);
+            batchResponse.statuses.push(StatusCodes.UNEXPECTED_ERROR);
+            batchResponse.bodies.push({
+                error: err instanceof RpcError ? err.publicMessage : 'Unknown dispatch error',
+            });
             hasNonOkStatus = true;
         }
     }
 
     const overallStatus = hasNonOkStatus ? StatusCodes.MULTI_STATUS : StatusCodes.OK;
-
-    // Build the combined MionResponse based on format
-    if (isBinary) {
-        const binaryResponse = serializeBatchBinaryResponse(binaryEntries);
-        respHeaders.set('content-type', 'application/octet-stream');
-        return {
-            statusCode: overallStatus,
-            headers: respHeaders,
-            body: {} as AnyObject,
-            rawBody: binaryResponse,
-            bodyType: SerializerModes.binary,
-            hasErrors: hasNonOkStatus,
-            binSerializer: undefined,
-        };
-    }
 
     // JSON: let the platform adapter handle stringification
     return {
@@ -205,7 +306,7 @@ export async function dispatchBatchRoute<Req, Resp>(
 }
 
 /** Parses the batch JSON request envelope from raw body */
-function parseBatchJsonEnvelope(reqRawBody: RawRequestBody): BatchRequest {
+function parseBatchJsonRequest(reqRawBody: RawRequestBody): BatchRequest {
     let parsed: any;
     if (typeof reqRawBody === 'string') {
         parsed = JSON.parse(reqRawBody);

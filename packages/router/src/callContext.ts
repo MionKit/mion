@@ -7,7 +7,7 @@
 
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context';
 import type {RouterOptions} from './types/general';
-import {Mutable, StatusCodes, SerializerModes, SerializerCode} from '@mionkit/core';
+import {Mutable, StatusCodes, SerializerModes, SerializerCode, DataViewSerializer, DataViewDeserializer} from '@mionkit/core';
 
 // ############# POOL STATE #############
 
@@ -35,7 +35,9 @@ export function createCallContext(
     rawRequest: unknown,
     reqHeaders: MionHeaders,
     respHeaders: MionHeaders,
-    reqBodyType?: SerializerCode
+    reqBodyType?: SerializerCode,
+    binaryDeserializer?: DataViewDeserializer,
+    binarySerializer?: DataViewSerializer
 ): CallContext {
     const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
     return {
@@ -46,6 +48,7 @@ export function createCallContext(
             bodyType: reqBodyType ?? getRequestBodyType(reqRawBody),
             body: {},
             thrownErrors: undefined,
+            binaryDeserializer,
         },
         response: {
             statusCode: StatusCodes.OK,
@@ -54,13 +57,13 @@ export function createCallContext(
             body: {},
             rawBody: '',
             bodyType: SerializerModes.json,
-            binSerializer: undefined,
+            binSerializer: binarySerializer,
         },
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
     } as CallContext;
 }
 
-/** Acquires a CallContext from the pool or creates a new one */
+/** Acquires a CallContext from the pool or creates a new one based on usePooling parameter */
 export function acquireCallContext(
     path: string,
     opts: RouterOptions,
@@ -68,8 +71,27 @@ export function acquireCallContext(
     rawRequest: unknown,
     reqHeaders: MionHeaders,
     respHeaders: MionHeaders,
-    reqBodyType?: SerializerCode
+    usePooling: boolean,
+    reqBodyType?: SerializerCode,
+    binaryDeserializer?: DataViewDeserializer,
+    binarySerializer?: DataViewSerializer
 ): CallContext {
+    // If pooling is disabled, create a new context directly
+    if (!usePooling) {
+        return createCallContext(
+            path,
+            opts,
+            reqRawBody,
+            rawRequest,
+            reqHeaders,
+            respHeaders,
+            reqBodyType,
+            binaryDeserializer,
+            binarySerializer
+        );
+    }
+
+    // Pooling is enabled, try to acquire from pool
     const pooledContext = contextPool.pop();
     const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
 
@@ -84,6 +106,7 @@ export function acquireCallContext(
         req.bodyType = reqBodyType ?? getRequestBodyType(reqRawBody);
         req.body = {}; // Must be fresh - handlers write to this
         req.thrownErrors = undefined;
+        req.binaryDeserializer = binaryDeserializer;
         // Reset response - reuse the response object shell
         const resp = ctx.response as Mutable<MionResponse>;
         resp.statusCode = StatusCodes.OK;
@@ -92,13 +115,23 @@ export function acquireCallContext(
         resp.body = {}; // Must be fresh - handlers write to this
         resp.rawBody = '';
         resp.bodyType = SerializerModes.json;
-        resp.binSerializer = undefined;
+        resp.binSerializer = binarySerializer;
         // Reset shared data
         ctx.shared = opts.contextDataFactory ? opts.contextDataFactory() : {};
         return ctx;
     }
     // No pooled context available, create new one
-    return createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
+    return createCallContext(
+        path,
+        opts,
+        reqRawBody,
+        rawRequest,
+        reqHeaders,
+        respHeaders,
+        reqBodyType,
+        binaryDeserializer,
+        binarySerializer
+    );
 }
 
 /** Releases a CallContext back to the pool for reuse */
@@ -110,6 +143,7 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
         req.rawBody = '';
         req.body = null as any; // Will be set when context is acquired
         req.thrownErrors = undefined;
+        req.binaryDeserializer = undefined;
         // Create fresh response object - the old one may still be referenced by the caller
         // IMPORTANT: We must NOT mutate the existing response object because it's returned
         // to the platform wrapper (e.g., HTTP handler) which may still be using it

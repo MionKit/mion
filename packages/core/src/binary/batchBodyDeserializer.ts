@@ -7,169 +7,90 @@
 
 import {StatusCodes} from '../constants';
 import {RpcError} from '../errors';
-import {BinaryInput} from '../types/general.types';
+import {BinaryInput, DataViewDeserializer} from '../types/general.types';
+import {createDataViewDeserializer} from './dataView';
+
+const LE = true;
 
 /**
- * Result of deserializing a batch binary request envelope.
- * Contains route IDs and per-route binary body slices.
- * Individual route bodies are NOT deserialized here - that happens in each route's own dispatch cycle.
- */
-export interface BatchBinaryRequestEntry {
-    routeId: string;
-    body: Uint8Array;
-}
-
-/**
- * Result of deserializing a batch binary response envelope.
- * Contains route IDs, status codes, and per-route binary body slices.
- */
-export interface BatchBinaryResponseEntry {
-    routeId: string;
-    statusCode: number;
-    body: Uint8Array;
-}
-
-const textDecoder = new TextDecoder();
-
-/**
- * Deserializes a batch binary request envelope.
- * Extracts route IDs and per-route binary body slices from the batch buffer.
+ * Init deserializer from batch buffer. Reads route count.
  *
- * Binary format:
- * [4 bytes]  - Number of routes (uint32 LE)
- * For each route:
- *   [4 bytes]  - Route ID string length (uint32 LE)
- *   [N bytes]  - Route ID string (UTF-8)
- *   [4 bytes]  - Body length in bytes (uint32 LE)
- *   [M bytes]  - Individual route binary body
+ * Binary format header:
+ * [4 bytes] - Number of routes (uint32 LE)
  */
-export function deserializeBatchBinaryRequest(buffer: BinaryInput): BatchBinaryRequestEntry[] {
+export function initBatchDeserializer(
+    buffer: BinaryInput,
+    /** If true, the batch is a response batch, otherwise it's a request batch */
+    isResponse: boolean
+): {
+    deserializer: DataViewDeserializer;
+    routeCount: number;
+} {
     try {
-        const {view, uint8, byteOffset, byteLength} = getViewsFromInput(buffer);
-        let offset = 0;
-
-        // Read number of routes
-        const routeCount = view.getUint32(offset, true);
-        offset += 4;
-
-        const entries: BatchBinaryRequestEntry[] = [];
-
-        for (let i = 0; i < routeCount; i++) {
-            // Read route ID string length
-            const routeIdLen = view.getUint32(offset, true);
-            offset += 4;
-
-            // Read route ID string
-            const routeId = textDecoder.decode(uint8.subarray(byteOffset + offset, byteOffset + offset + routeIdLen));
-            offset += routeIdLen;
-
-            // Read body length
-            const bodyLen = view.getUint32(offset, true);
-            offset += 4;
-
-            // Extract body slice (zero-copy view into the original buffer)
-            const body = uint8.subarray(byteOffset + offset, byteOffset + offset + bodyLen);
-            offset += bodyLen;
-
-            entries.push({routeId, body});
-        }
-
-        if (offset > byteLength) {
-            throw new Error(`Binary batch request buffer overrun: read ${offset} bytes but buffer is ${byteLength} bytes`);
-        }
-
-        return entries;
+        const deserializer = createDataViewDeserializer(buffer);
+        const routeCount = deserializer.view.getUint32(deserializer.index, LE);
+        deserializer.index += 4;
+        return {deserializer, routeCount};
     } catch (err: any) {
         if (err instanceof RpcError) throw err;
         throw new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'batch-binary-request-deserialization-error',
-            publicMessage: `Failed to deserialize batch binary request: ${err?.message || 'unknown error'}`,
+            type: isResponse ? 'batch-binary-response-deserialization-error' : 'batch-binary-request-deserialization-error',
+            publicMessage: `Failed to init batch ${isResponse ? 'response' : 'request'} deserializer: ${err?.message || 'unknown error'}`,
             originalError: err,
         });
     }
 }
 
 /**
- * Deserializes a batch binary response envelope.
- * Extracts route IDs, status codes, and per-route binary body slices.
+ * Read next route entry from the batch deserializer.
  *
- * Binary format:
- * [4 bytes]  - Number of routes (uint32 LE)
- * For each route:
+ * Request per-route format:
+ *   [4 bytes]  - Route ID string length (uint32 LE)
+ *   [N bytes]  - Route ID string (UTF-8)
+ *   [4 bytes]  - Body length in bytes (uint32 LE)
+ *   [M bytes]  - Individual route binary body (NOT read for requests — deserializer index at body start)
+ *
+ * Response per-route format:
  *   [4 bytes]  - Route ID string length (uint32 LE)
  *   [N bytes]  - Route ID string (UTF-8)
  *   [4 bytes]  - Status code (uint32 LE)
  *   [4 bytes]  - Body length in bytes (uint32 LE)
- *   [M bytes]  - Individual route binary body
+ *   [M bytes]  - Individual route binary body (fully extracted for responses)
  */
-export function deserializeBatchBinaryResponse(buffer: BinaryInput): BatchBinaryResponseEntry[] {
-    try {
-        const {view, uint8, byteOffset, byteLength} = getViewsFromInput(buffer);
-        let offset = 0;
-
-        // Read number of routes
-        const routeCount = view.getUint32(offset, true);
-        offset += 4;
-
-        const entries: BatchBinaryResponseEntry[] = [];
-
-        for (let i = 0; i < routeCount; i++) {
-            // Read route ID string length
-            const routeIdLen = view.getUint32(offset, true);
-            offset += 4;
-
-            // Read route ID string
-            const routeId = textDecoder.decode(uint8.subarray(byteOffset + offset, byteOffset + offset + routeIdLen));
-            offset += routeIdLen;
-
-            // Read status code
-            const statusCode = view.getUint32(offset, true);
-            offset += 4;
-
-            // Read body length
-            const bodyLen = view.getUint32(offset, true);
-            offset += 4;
-
-            // Extract body slice
-            const body = uint8.subarray(byteOffset + offset, byteOffset + offset + bodyLen);
-            offset += bodyLen;
-
-            entries.push({routeId, statusCode, body});
-        }
-
-        if (offset > byteLength) {
-            throw new Error(`Binary batch response buffer overrun: read ${offset} bytes but buffer is ${byteLength} bytes`);
-        }
-
-        return entries;
-    } catch (err: any) {
-        if (err instanceof RpcError) throw err;
-        throw new RpcError({
-            statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'batch-binary-response-deserialization-error',
-            publicMessage: `Failed to deserialize batch binary response: ${err?.message || 'unknown error'}`,
-            originalError: err,
-        });
-    }
-}
-
-/** Extracts DataView and Uint8Array from various binary input types */
-function getViewsFromInput(buffer: BinaryInput): {
-    view: DataView;
-    uint8: Uint8Array;
-    byteOffset: number;
-    byteLength: number;
+export function readNextBatchEntry(
+    deserializer: DataViewDeserializer,
+    /** If true, the batch is a response batch, otherwise it's a request batch */
+    isResponse: boolean
+): {
+    routeId: string;
+    bodyLength: number;
+    statusCode?: number;
+    body?: Uint8Array;
 } {
-    if (ArrayBuffer.isView(buffer)) {
-        const byteOffset = buffer.byteOffset;
-        const byteLength = buffer.byteLength;
-        const view = new DataView(buffer.buffer, byteOffset, byteLength);
-        const uint8 = new Uint8Array(buffer.buffer);
-        return {view, uint8, byteOffset, byteLength};
+    // Read routeId string (length-prefixed)
+    const routeId = deserializer.desString();
+
+    // Read status code (only for responses)
+    let statusCode: number | undefined;
+    if (isResponse) {
+        statusCode = deserializer.view.getUint32(deserializer.index, LE);
+        deserializer.index += 4;
     }
-    // Plain ArrayBuffer
-    const view = new DataView(buffer);
-    const uint8 = new Uint8Array(buffer);
-    return {view, uint8, byteOffset: 0, byteLength: buffer.byteLength};
+
+    // Read body length
+    const bodyLength = deserializer.view.getUint32(deserializer.index, LE);
+    deserializer.index += 4;
+
+    // Extract body slice (only for responses)
+    let body: Uint8Array | undefined;
+    if (isResponse) {
+        const bodyStart = deserializer.index;
+        const uint8View = new Uint8Array(deserializer.view.buffer, deserializer.view.byteOffset, deserializer.view.byteLength);
+        body = uint8View.subarray(bodyStart, bodyStart + bodyLength);
+        deserializer.index += bodyLength;
+    }
+    // For requests, deserializer index is now at the start of the body bytes
+
+    return {routeId, bodyLength, statusCode, body};
 }

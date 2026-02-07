@@ -15,18 +15,20 @@ export function deserializeBinaryBody(
     methodsMap: Map<string, MethodWithJitFns>,
     buffer: BinaryInput,
     /** If true, the body is a response body, otherwise it's a request body */
-    isResponse: boolean
+    isResponse: boolean,
+    /** Optional pre-created deserializer (used in batch mode to share a single deserializer across routes) */
+    sharedDeserializer?: DataViewDeserializer
 ): {
     deserializer: DataViewDeserializer;
     body: Record<string, any>;
 } {
     try {
-        // Create deserializer from buffer
-        const deserializer = createDataViewDeserializer(path, buffer);
+        // Use shared deserializer if provided (batch mode), otherwise create from buffer
+        const deserializer = sharedDeserializer || createDataViewDeserializer(buffer);
         const body: Record<string, any> = {};
 
-        // Read items length from first 32 bits
-        const itemsLength = deserializer.view.getUint32(0, true);
+        // Read items length from current position
+        const itemsLength = deserializer.view.getUint32(deserializer.index, true);
         deserializer.index += 4;
 
         // Deserialize each item
@@ -51,8 +53,6 @@ export function deserializeBinaryBody(
             const value = deserializeMethod(key, method, deserializer, isResponse);
             body[key] = value;
         }
-
-        deserializer.markAsEnded();
         return {deserializer, body};
     } catch (err: any) {
         if (err instanceof RpcError) throw err;

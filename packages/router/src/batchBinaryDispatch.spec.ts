@@ -12,9 +12,11 @@ import {
     StatusCodes,
     SerializerModes,
     serializeBinaryBody,
-    serializeBatchBinaryRequest,
-    deserializeBatchBinaryResponse,
-    BatchBinaryRequestSerEntry,
+    initBatchSerializer,
+    writeBatchEntry,
+    finalizeBatchEntry,
+    initBatchDeserializer,
+    readNextBatchEntry,
 } from '@mionkit/core';
 import {route} from './lib/handlers';
 import {headersFromRecord} from './lib/headers';
@@ -47,15 +49,35 @@ describe('Binary Batch Dispatch routes', () => {
         return new Uint8Array(buffer);
     }
 
+    /** Helper to create a batch binary request using the incremental API */
+    function createBatchBinaryRequest(entries: {routeId: string; body: Uint8Array}[]): Uint8Array {
+        const routeIds = entries.map((e) => e.routeId);
+        const serializer = initBatchSerializer(routeIds, false);
+        for (const entry of entries) {
+            writeBatchEntry(serializer, entry.routeId, entry.body);
+        }
+        return serializer.getBufferView();
+    }
+
+    /** Helper to deserialize a batch binary response using the incremental API */
+    function deserializeBatchResponse(buffer: Uint8Array): {routeId: string; statusCode: number; body: Uint8Array}[] {
+        const {deserializer, routeCount} = initBatchDeserializer(buffer, true);
+        const entries: {routeId: string; statusCode: number; body: Uint8Array}[] = [];
+        for (let i = 0; i < routeCount; i++) {
+            const entry = readNextBatchEntry(deserializer, true);
+            entries.push({routeId: entry.routeId, statusCode: entry.statusCode!, body: entry.body!});
+        }
+        return entries;
+    }
+
     describe('batch binary envelope roundtrip should', () => {
         it('serialize and deserialize a batch binary request/response', () => {
             // Create a simple batch binary request
-            const entries: BatchBinaryRequestSerEntry[] = [
+            const serialized = createBatchBinaryRequest([
                 {routeId: '/sayHello', body: new Uint8Array([1, 2, 3])},
                 {routeId: '/sumTwo', body: new Uint8Array([4, 5, 6, 7])},
-            ];
+            ]);
 
-            const serialized = serializeBatchBinaryRequest(entries);
             expect(serialized).toBeInstanceOf(Uint8Array);
             expect(serialized.length).toBeGreaterThan(0);
 
@@ -65,16 +87,29 @@ describe('Binary Batch Dispatch routes', () => {
         });
 
         it('roundtrip batch binary response with status codes', () => {
-            const responseEntries = [
-                {routeId: '/sayHello', statusCode: 200, body: new Uint8Array([10, 20])},
-                {routeId: '/sumTwo', statusCode: 422, body: new Uint8Array([30, 40, 50])},
-            ];
+            const routeIds = ['/sayHello', '/sumTwo'];
+            const serializer = initBatchSerializer(routeIds, true);
 
-            // Import the serializer from core
-            const {serializeBatchBinaryResponse} = require('@mionkit/core');
-            const serialized = serializeBatchBinaryResponse(responseEntries);
+            // Write first route entry
+            const h1 = writeBatchEntry(serializer, '/sayHello', undefined);
+            // Write body bytes directly
+            const body1 = new Uint8Array([10, 20]);
+            const uint8View1 = new Uint8Array(serializer.view.buffer, 0, serializer.view.byteLength);
+            uint8View1.set(body1, serializer.index);
+            serializer.index += body1.length;
+            finalizeBatchEntry(serializer, 200, h1.statusIndex!, h1.bodyLengthIndex!, h1.bodyStartIndex!);
 
-            const deserialized = deserializeBatchBinaryResponse(serialized);
+            // Write second route entry
+            const h2 = writeBatchEntry(serializer, '/sumTwo', undefined);
+            const body2 = new Uint8Array([30, 40, 50]);
+            const uint8View2 = new Uint8Array(serializer.view.buffer, 0, serializer.view.byteLength);
+            uint8View2.set(body2, serializer.index);
+            serializer.index += body2.length;
+            finalizeBatchEntry(serializer, 422, h2.statusIndex!, h2.bodyLengthIndex!, h2.bodyStartIndex!);
+
+            const serialized = serializer.getBufferView();
+
+            const deserialized = deserializeBatchResponse(serialized);
             expect(deserialized).toHaveLength(2);
             expect(deserialized[0].routeId).toBe('/sayHello');
             expect(deserialized[0].statusCode).toBe(200);
@@ -85,9 +120,8 @@ describe('Binary Batch Dispatch routes', () => {
         });
 
         it('handle empty bodies in batch binary envelope', () => {
-            const entries: BatchBinaryRequestSerEntry[] = [{routeId: '/routeFail', body: new Uint8Array(0)}];
+            const serialized = createBatchBinaryRequest([{routeId: '/routeFail', body: new Uint8Array(0)}]);
 
-            const serialized = serializeBatchBinaryRequest(entries);
             expect(serialized).toBeInstanceOf(Uint8Array);
 
             // Verify route count
@@ -105,7 +139,7 @@ describe('Binary Batch Dispatch routes', () => {
             const sumTwoBody = createBinaryRouteBody('/sumTwo', {sumTwo: [3]});
 
             // Create batch binary request envelope
-            const batchBinaryRequest = serializeBatchBinaryRequest([
+            const batchBinaryRequest = createBatchBinaryRequest([
                 {routeId: '/sayHello', body: sayHelloBody},
                 {routeId: '/sumTwo', body: sumTwoBody},
             ]);
@@ -124,7 +158,7 @@ describe('Binary Batch Dispatch routes', () => {
             expect(response.rawBody).toBeInstanceOf(Uint8Array);
 
             // Deserialize the batch binary response
-            const entries = deserializeBatchBinaryResponse(response.rawBody as Uint8Array);
+            const entries = deserializeBatchResponse(response.rawBody as Uint8Array);
             expect(entries).toHaveLength(2);
             expect(entries[0].routeId).toBe('/sayHello');
             expect(entries[0].statusCode).toBe(200);
@@ -137,7 +171,7 @@ describe('Binary Batch Dispatch routes', () => {
 
             const processBody = createBinaryRouteBody('/processArray', {processArray: [[1, 2, 3]]});
 
-            const batchBinaryRequest = serializeBatchBinaryRequest([{routeId: '/processArray', body: processBody}]);
+            const batchBinaryRequest = createBatchBinaryRequest([{routeId: '/processArray', body: processBody}]);
 
             const response = await dispatchBatchRoute(
                 batchBinaryRequest,
@@ -149,7 +183,7 @@ describe('Binary Batch Dispatch routes', () => {
             );
 
             expect(response.statusCode).toBe(StatusCodes.OK);
-            const entries = deserializeBatchBinaryResponse(response.rawBody as Uint8Array);
+            const entries = deserializeBatchResponse(response.rawBody as Uint8Array);
             expect(entries).toHaveLength(1);
             expect(entries[0].routeId).toBe('/processArray');
             expect(entries[0].statusCode).toBe(200);
@@ -165,7 +199,7 @@ describe('Binary Batch Dispatch routes', () => {
             const routeFailBody = createBinaryRouteBody('/routeFail', {});
             const sumTwoBody = createBinaryRouteBody('/sumTwo', {sumTwo: [5]});
 
-            const batchBinaryRequest = serializeBatchBinaryRequest([
+            const batchBinaryRequest = createBatchBinaryRequest([
                 {routeId: '/sayHello', body: sayHelloBody},
                 {routeId: '/routeFail', body: routeFailBody},
                 {routeId: '/sumTwo', body: sumTwoBody},
@@ -183,7 +217,7 @@ describe('Binary Batch Dispatch routes', () => {
             // Overall status should be 207 Multi-Status
             expect(response.statusCode).toBe(StatusCodes.MULTI_STATUS);
 
-            const entries = deserializeBatchBinaryResponse(response.rawBody as Uint8Array);
+            const entries = deserializeBatchResponse(response.rawBody as Uint8Array);
             expect(entries).toHaveLength(3);
 
             // First route succeeds
@@ -202,13 +236,13 @@ describe('Binary Batch Dispatch routes', () => {
         it('dispatch with 5 routes in binary format', async () => {
             await initMionRouter(routes, {serializer: 'binary'});
 
-            const batchEntries: BatchBinaryRequestSerEntry[] = [];
+            const batchEntries: {routeId: string; body: Uint8Array}[] = [];
             for (let i = 0; i < 5; i++) {
                 const body = createBinaryRouteBody('/sumTwo', {sumTwo: [i]});
                 batchEntries.push({routeId: '/sumTwo', body});
             }
 
-            const batchBinaryRequest = serializeBatchBinaryRequest(batchEntries);
+            const batchBinaryRequest = createBatchBinaryRequest(batchEntries);
 
             const response = await dispatchBatchRoute(
                 batchBinaryRequest,
@@ -220,7 +254,7 @@ describe('Binary Batch Dispatch routes', () => {
             );
 
             expect(response.statusCode).toBe(StatusCodes.OK);
-            const entries = deserializeBatchBinaryResponse(response.rawBody as Uint8Array);
+            const entries = deserializeBatchResponse(response.rawBody as Uint8Array);
             expect(entries).toHaveLength(5);
             for (let i = 0; i < 5; i++) {
                 expect(entries[i].routeId).toBe('/sumTwo');
@@ -232,7 +266,7 @@ describe('Binary Batch Dispatch routes', () => {
             await initMionRouter(routes, {serializer: 'binary'});
 
             const sayHelloBody = createBinaryRouteBody('/sayHello', {sayHello: ['World']});
-            const batchBinaryRequest = serializeBatchBinaryRequest([{routeId: '/sayHello', body: sayHelloBody}]);
+            const batchBinaryRequest = createBatchBinaryRequest([{routeId: '/sayHello', body: sayHelloBody}]);
 
             const response = await dispatchBatchRoute(
                 batchBinaryRequest,

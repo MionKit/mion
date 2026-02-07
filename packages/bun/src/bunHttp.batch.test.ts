@@ -13,9 +13,10 @@ import {
     BatchResponse,
     BATCH_ROUTE_PATH,
     serializeBinaryBody,
-    serializeBatchBinaryRequest,
-    deserializeBatchBinaryResponse,
-    MethodWithJitFns,
+    initBatchSerializer,
+    writeBatchEntry,
+    initBatchDeserializer,
+    readNextBatchEntry,
 } from '@mionkit/core';
 import {Server} from 'bun';
 
@@ -173,10 +174,11 @@ describe('bun router binary batch routes should', () => {
         const {buffer: sayHelloBuffer} = serializeBinaryBody('/api/sayHello', sayHelloChain, {sayHello: ['World']}, false);
         const {buffer: sumTwoBuffer} = serializeBinaryBody('/api/sumTwo', sumTwoChain, {sumTwo: [3]}, false);
 
-        const batchBinaryRequest = serializeBatchBinaryRequest([
-            {routeId: '/api/sayHello', body: new Uint8Array(sayHelloBuffer)},
-            {routeId: '/api/sumTwo', body: new Uint8Array(sumTwoBuffer)},
-        ]);
+        const routeIds = ['/api/sayHello', '/api/sumTwo'];
+        const batchSerializer = initBatchSerializer(routeIds, false);
+        writeBatchEntry(batchSerializer, '/api/sayHello', new Uint8Array(sayHelloBuffer));
+        writeBatchEntry(batchSerializer, '/api/sumTwo', new Uint8Array(sumTwoBuffer));
+        const batchBinaryRequest = batchSerializer.getBufferView();
 
         const response = await fetch(`http://127.0.0.1:${port}${BATCH_ROUTE_PATH}`, {
             method: 'POST',
@@ -189,12 +191,14 @@ describe('bun router binary batch routes should', () => {
         expect(headers['content-type']).toEqual('application/octet-stream');
 
         const responseBuffer = await response.arrayBuffer();
-        const entries = deserializeBatchBinaryResponse(responseBuffer);
-        expect(entries).toHaveLength(2);
-        expect(entries[0].routeId).toBe('/api/sayHello');
-        expect(entries[0].statusCode).toBe(200);
-        expect(entries[1].routeId).toBe('/api/sumTwo');
-        expect(entries[1].statusCode).toBe(200);
+        const {deserializer: respDes, routeCount} = initBatchDeserializer(responseBuffer, true);
+        expect(routeCount).toBe(2);
+        const entry0 = readNextBatchEntry(respDes, true);
+        expect(entry0.routeId).toBe('/api/sayHello');
+        expect(entry0.statusCode).toBe(200);
+        const entry1 = readNextBatchEntry(respDes, true);
+        expect(entry1.routeId).toBe('/api/sumTwo');
+        expect(entry1.statusCode).toBe(200);
     });
 
     test('handle mixed success/error in binary batch', async () => {
@@ -206,11 +210,12 @@ describe('bun router binary batch routes should', () => {
         const {buffer: routeFailBuffer} = serializeBinaryBody('/api/routeFail', routeFailChain, {}, false);
         const {buffer: sumTwoBuffer} = serializeBinaryBody('/api/sumTwo', sumTwoChain, {sumTwo: [5]}, false);
 
-        const batchBinaryRequest = serializeBatchBinaryRequest([
-            {routeId: '/api/sayHello', body: new Uint8Array(sayHelloBuffer)},
-            {routeId: '/api/routeFail', body: new Uint8Array(routeFailBuffer)},
-            {routeId: '/api/sumTwo', body: new Uint8Array(sumTwoBuffer)},
-        ]);
+        const routeIds2 = ['/api/sayHello', '/api/routeFail', '/api/sumTwo'];
+        const batchSerializer2 = initBatchSerializer(routeIds2, false);
+        writeBatchEntry(batchSerializer2, '/api/sayHello', new Uint8Array(sayHelloBuffer));
+        writeBatchEntry(batchSerializer2, '/api/routeFail', new Uint8Array(routeFailBuffer));
+        writeBatchEntry(batchSerializer2, '/api/sumTwo', new Uint8Array(sumTwoBuffer));
+        const batchBinaryRequest = batchSerializer2.getBufferView();
 
         const response = await fetch(`http://127.0.0.1:${port}${BATCH_ROUTE_PATH}`, {
             method: 'POST',
@@ -221,16 +226,19 @@ describe('bun router binary batch routes should', () => {
         expect(response.status).toBe(StatusCodes.MULTI_STATUS);
 
         const responseBuffer = await response.arrayBuffer();
-        const entries = deserializeBatchBinaryResponse(responseBuffer);
-        expect(entries).toHaveLength(3);
+        const {deserializer: respDes2, routeCount: rc2} = initBatchDeserializer(responseBuffer, true);
+        expect(rc2).toBe(3);
 
-        expect(entries[0].routeId).toBe('/api/sayHello');
-        expect(entries[0].statusCode).toBe(200);
+        const e0 = readNextBatchEntry(respDes2, true);
+        expect(e0.routeId).toBe('/api/sayHello');
+        expect(e0.statusCode).toBe(200);
 
-        expect(entries[1].routeId).toBe('/api/routeFail');
-        expect(entries[1].statusCode).toBe(StatusCodes.UNEXPECTED_ERROR);
+        const e1 = readNextBatchEntry(respDes2, true);
+        expect(e1.routeId).toBe('/api/routeFail');
+        expect(e1.statusCode).toBe(StatusCodes.UNEXPECTED_ERROR);
 
-        expect(entries[2].routeId).toBe('/api/sumTwo');
-        expect(entries[2].statusCode).toBe(200);
+        const e2 = readNextBatchEntry(respDes2, true);
+        expect(e2.routeId).toBe('/api/sumTwo');
+        expect(e2.statusCode).toBe(200);
     });
 });

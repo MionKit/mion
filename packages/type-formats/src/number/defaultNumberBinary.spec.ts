@@ -32,7 +32,7 @@ setSerializationOptions({bufferSize: 1024});
 const SERIALIZE_FN = JitFunctions.toBinary;
 const DESERIALIZE_FN = JitFunctions.fromBinary;
 const serContext: DataViewSerializer = createDataViewSerializer('test');
-const desContext: DataViewDeserializer = createDataViewDeserializer('test', new ArrayBuffer(1024));
+const desContext: DataViewDeserializer = createDataViewDeserializer(new ArrayBuffer(1024));
 
 function createSerializationFns(rt: RunType) {
     const toBinary = rt.createJitFunction(SERIALIZE_FN);

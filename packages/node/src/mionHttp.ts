@@ -196,10 +196,6 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
             httpResp.setHeader('content-length', serializer.getLength());
             // content-type already set by serializer
             httpResp.end(serializer.getBufferView());
-            // Release buffer when response is finished
-            const onFinish = () => serializer.markAsEnded();
-            httpResp.on('finish', onFinish);
-            httpResp.on('close', onFinish); // Fallback for aborted connection
             break;
         }
         default: {
