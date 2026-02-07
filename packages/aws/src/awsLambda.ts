@@ -82,7 +82,7 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
         singleHeaders[name] = value;
     });
 
-    const bodyType = routeResponse.bodyType;
+    const bodyType = routeResponse.serializer;
     let responseBody: string;
 
     switch (bodyType) {

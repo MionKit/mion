@@ -51,9 +51,9 @@ function getNewJsonContext(path: string, body: any) {
     const respHeaders = headersFromRecord({});
     const context = createCallContext(path, opts, rawBody, {}, reqHeaders, respHeaders);
     // Set bodyType from ExecutionChain (as done in runExecutionChain)
-    const executionChain = getRouteExecutionChain(path);
+    const executionChain = getRouteExecutionChain(path)!;
     if (executionChain) {
-        (context.response as Mutable<MionResponse>).bodyType = executionChain.serializer;
+        (context.response as Mutable<MionResponse>).serializer = executionChain.serializer;
     }
     return context;
 }
@@ -170,7 +170,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
         const context = getNewJsonContext('/users/updateUser', {});
         const response = context.response as Mutable<MionResponse>;
         response.body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
-        expect(context.response.bodyType).toEqual(SerializerModes.json);
+        expect(context.response.serializer).toEqual(SerializerModes.json);
         serializeResponseBody(context, opts);
         expect(response.body).toEqual({
             'users/updateUser': {name: 'John', age: 30, lastActivity},
@@ -188,7 +188,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
         const context = getNewJsonContext('/sayHello', {});
         const response = context.response as Mutable<MionResponse>;
         response.body = {sayHello: 'Hello, Jack!'};
-        expect(context.response.bodyType).toEqual(SerializerModes.json);
+        expect(context.response.serializer).toEqual(SerializerModes.json);
         serializeResponseBody(context, opts);
         expect(response.body).toEqual({sayHello: 'Hello, Jack!'});
         const jsonString = JSON.stringify(response.body);
@@ -209,7 +209,7 @@ describe('serialize Response Body with serialize=json (body type O)', () => {
                 extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
             },
         };
-        expect(context.response.bodyType).toEqual(SerializerModes.json);
+        expect(context.response.serializer).toEqual(SerializerModes.json);
         serializeResponseBody(context, opts);
         expect(response.body).toEqual({
             'users/updateUser': {

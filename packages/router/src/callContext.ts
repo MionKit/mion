@@ -5,9 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {NOT_FOUND_PATH} from './constants';
+import {getRouteExecutionChain} from './router';
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context';
 import type {RouterOptions} from './types/general';
-import {Mutable, StatusCodes, SerializerModes, SerializerCode} from '@mionkit/core';
+import {Mutable, StatusCodes, SerializerModes, SerializerCode, RpcError} from '@mionkit/core';
+import {MethodsExecutionList} from './types/remoteMethods';
 
 // ############# POOL STATE #############
 
@@ -38,6 +41,7 @@ export function createCallContext(
     reqBodyType?: SerializerCode
 ): CallContext {
     const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
+    const executionChain = getExecutionChain(transformedPath);
     return {
         path: transformedPath,
         request: {
@@ -53,15 +57,17 @@ export function createCallContext(
             headers: respHeaders,
             body: {},
             rawBody: '',
-            bodyType: SerializerModes.json,
+            serializer: SerializerModes.json,
             binSerializer: undefined,
         },
+        executionChain,
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
     } as CallContext;
 }
 
 /** Acquires a CallContext from the pool or creates a new one */
 export function acquireCallContext(
+    usePooling: boolean,
     path: string,
     opts: RouterOptions,
     reqRawBody: RawRequestBody,
@@ -70,6 +76,7 @@ export function acquireCallContext(
     respHeaders: MionHeaders,
     reqBodyType?: SerializerCode
 ): CallContext {
+    if (!usePooling) return createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
     const pooledContext = contextPool.pop();
     const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
 
@@ -91,8 +98,10 @@ export function acquireCallContext(
         resp.headers = respHeaders;
         resp.body = {}; // Must be fresh - handlers write to this
         resp.rawBody = '';
-        resp.bodyType = SerializerModes.json;
+        resp.serializer = SerializerModes.json;
         resp.binSerializer = undefined;
+        // Reset execution chain
+        ctx.executionChain = getExecutionChain(transformedPath);
         // Reset shared data
         ctx.shared = opts.contextDataFactory ? opts.contextDataFactory() : {};
         return ctx;
@@ -119,10 +128,11 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
             headers: null as any, // Will be set when context is acquired
             body: null as any, // Will be set when context is acquired
             rawBody: '',
-            bodyType: SerializerModes.json,
+            serializer: SerializerModes.json,
             binSerializer: undefined,
         };
         mutableCtx.shared = null as any;
+        mutableCtx.executionChain = null as any;
         contextPool.push(ctx);
     }
     // If pool is full, let the context be garbage collected
@@ -134,4 +144,19 @@ function getRequestBodyType(rawBody: RawRequestBody): SerializerCode {
     if (typeof rawBody === 'string') return SerializerModes.stringifyJson;
     if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array) return SerializerModes.binary;
     return SerializerModes.json;
+}
+
+function getExecutionChain(path: string): MethodsExecutionList {
+    let executionChain = getRouteExecutionChain(path);
+    if (!executionChain) {
+        executionChain = getRouteExecutionChain(NOT_FOUND_PATH);
+        if (!executionChain) {
+            throw new RpcError({
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
+                type: 'not-found',
+                publicMessage: 'Not-found route is not registered. This should never happen.',
+            });
+        }
+    }
+    return executionChain;
 }
