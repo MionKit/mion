@@ -7,10 +7,8 @@
 
 import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchBatchRoute} from './dispatch';
-import {CallContext, MionHeaders} from './types/context';
-import {Routes} from './types/general';
 import {HeadersSubset, RpcError, StatusCodes, BatchResponse} from '@mionkit/core';
-import {headersFn, linkedFn, route} from './lib/handlers';
+import {headersFn, route} from './lib/handlers';
 import {headersFromRecord} from './lib/headers';
 
 describe('Batch Dispatch routes', () => {

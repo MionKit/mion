@@ -193,7 +193,6 @@ export async function dispatchBatchRoute<Req, Resp>(
     }
 
     // JSON: let the platform adapter handle stringification
-    respHeaders.set('content-type', 'application/json; charset=utf-8');
     return {
         statusCode: overallStatus,
         headers: respHeaders,
