@@ -7,13 +7,12 @@
 
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context';
 import {type RouterOptions} from './types/general';
-import {NOT_FOUND_PATH} from './constants';
-import {HeadersMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
-import {getRouteExecutionChain, getRouterOptions} from './router';
+import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods';
+import {getRouterOptions} from './router';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
-import {createCallContext, acquireCallContext, releaseCallContext} from './callContext';
+import {acquireCallContext, releaseCallContext} from './callContext';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -36,24 +35,10 @@ export async function dispatchRoute<Req, Resp>(
 ): Promise<MionResponse> {
     const opts = getRouterOptions();
     const usePooling = opts.maxContextPoolSize > 0;
-    // Use pooled context if enabled (maxContextPoolSize > 0), otherwise create new context
-    const context = usePooling
-        ? acquireCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType)
-        : createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
+    const context = acquireCallContext(usePooling, path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
 
     try {
-        let executionChain = getRouteExecutionChain(context.path);
-        if (!executionChain) {
-            executionChain = getRouteExecutionChain(NOT_FOUND_PATH);
-            if (!executionChain) {
-                throw new RpcError({
-                    statusCode: StatusCodes.UNEXPECTED_ERROR,
-                    type: 'not-found',
-                    publicMessage: 'Not-found route is not registered. This should never happen.',
-                });
-            }
-        }
-        await runExecutionChain(context, rawRequest, rawResponse, executionChain, opts);
+        await runExecutionChain(context, rawRequest, rawResponse, opts);
         return context.response;
     } catch (err: any | RpcError<string> | Error) {
         // this should never happen, exceptions should be handled inside runExecutionChain
@@ -73,15 +58,13 @@ async function runExecutionChain(
     context: CallContext,
     rawRequest: unknown,
     rawResponse: unknown,
-    executionChain: MethodsExecutionList,
     opts: RouterOptions
 ): Promise<MionResponse> {
     const {response, request} = context;
-    const executables = executionChain.methods;
-    (response as Mutable<MionResponse>).bodyType = executionChain.serializer;
-
-    for (let i = 0; i < executables.length; i++) {
-        const executable = executables[i];
+    (response as Mutable<MionResponse>).serializer = context.executionChain.serializer;
+    // IMPORTANT: we need to access context.executionChain as the executionChain object could be modified in the workflow route
+    for (let i = 0; i < context.executionChain.methods.length; i++) {
+        const executable = context.executionChain.methods[i];
         if (response.hasErrors && !executable.options.runOnError) continue;
 
         try {

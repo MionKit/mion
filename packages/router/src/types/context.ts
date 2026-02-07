@@ -7,6 +7,7 @@
 
 import type {AnyObject, DataViewSerializer, SerializerCode} from '@mionkit/core';
 import type {RpcError} from '@mionkit/core';
+import type {MethodsExecutionList} from './remoteMethods';
 
 // ####### Call Context #######
 
@@ -21,6 +22,8 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
     readonly response: MionResponse;
     /** context data between handlers (route/linkedFns) and that is not returned in the response. */
     shared: ContextData;
+    /** The execution chain of the current route */
+    readonly executionChain: MethodsExecutionList;
 }
 // type-call-context-end
 
@@ -66,7 +69,7 @@ export interface MionResponse {
     readonly headers: Readonly<MionHeaders>;
     /** Raw response body, can be string for json or an arrayBuffer for binary. */
     readonly rawBody: RawResponseBody;
-    readonly bodyType: SerializerCode;
+    readonly serializer: SerializerCode;
     /** the router response data, body should not be modified manually so marked as Read Only */
     readonly body: Readonly<ResponseBody>;
     /** response errors: empty if there were no errors during execution */

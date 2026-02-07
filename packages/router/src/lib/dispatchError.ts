@@ -23,7 +23,7 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
         headers: respHeaders,
         body,
         rawBody: JSON.stringify(body),
-        bodyType: SerializerModes.json, // global errors are always json
+        serializer: SerializerModes.json, // global errors are always json
     };
     return response;
 }

@@ -174,7 +174,7 @@ function fatalFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error
 
 function reply(httpResp: ServerResponse, mionResp: MionResponse) {
     httpResp.statusCode = mionResp.statusCode;
-    const bodyType = mionResp.bodyType;
+    const bodyType = mionResp.serializer;
     switch (bodyType) {
         case SerializerModes.stringifyJson: {
             const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');

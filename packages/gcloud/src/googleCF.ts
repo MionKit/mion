@@ -79,7 +79,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
 
 function reply(mionResp: MionResponse, resp: Response): void {
     resp.status(mionResp.statusCode);
-    const bodyType = mionResp.bodyType;
+    const bodyType = mionResp.serializer;
     switch (bodyType) {
         case SerializerModes.stringifyJson: {
             const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');

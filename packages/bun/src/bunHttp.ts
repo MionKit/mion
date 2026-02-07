@@ -138,7 +138,7 @@ function reply(
     // responseHeaders: Headers,
     responseHeaders: any
 ): Response {
-    const bodyType = mionResp.bodyType;
+    const bodyType = mionResp.serializer;
     switch (bodyType) {
         case SerializerModes.stringifyJson: {
             // Pass string directly to Response - Bun handles encoding internally
