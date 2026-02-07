@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* @font-face {
+  font-family: 'Gugi';
+  src: url('/fonts/Gugi/Gugi-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+} */
+
 @theme static {
   --color-green-50: #f7f9f4;
   --color-green-100: #e8edd9;
