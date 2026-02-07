@@ -71,7 +71,7 @@ describe('Batch Dispatch routes', () => {
                 {}
             );
 
-            const batch = JSON.parse(response.rawBody as string) as BatchResponse;
+            const batch = response.body as unknown as BatchResponse;
             expect(response.statusCode).toBe(StatusCodes.OK);
             expect(batch.routeIds).toEqual(['/changeUserName', '/sayHello', '/sumTwo']);
             expect(batch.statuses).toEqual([200, 200, 200]);
@@ -97,7 +97,7 @@ describe('Batch Dispatch routes', () => {
                 {}
             );
 
-            const batch = JSON.parse(response.rawBody as string) as BatchResponse;
+            const batch = response.body as unknown as BatchResponse;
             expect(response.statusCode).toBe(StatusCodes.OK);
             expect(batch.routeIds).toEqual(['/sayHello']);
             expect(batch.statuses).toEqual([200]);
@@ -115,7 +115,7 @@ describe('Batch Dispatch routes', () => {
 
             const response = await dispatchBatchRoute(batchBody as any, headersFromRecord({}), headersFromRecord({}), {}, {});
 
-            const batch = JSON.parse(response.rawBody as string) as BatchResponse;
+            const batch = response.body as unknown as BatchResponse;
             expect(response.statusCode).toBe(StatusCodes.OK);
             expect(batch.bodies[0]).toEqual({sayHello: 'Hello World'});
             expect(batch.bodies[1]).toEqual({sumTwo: 12});
@@ -138,7 +138,7 @@ describe('Batch Dispatch routes', () => {
                 {}
             );
 
-            const batch = JSON.parse(response.rawBody as string) as BatchResponse;
+            const batch = response.body as unknown as BatchResponse;
             expect(response.statusCode).toBe(StatusCodes.OK);
             expect(batch.statuses).toEqual([200, 200]);
         });
@@ -184,7 +184,7 @@ describe('Batch Dispatch routes', () => {
                 {}
             );
 
-            const batch = JSON.parse(response.rawBody as string) as BatchResponse;
+            const batch = response.body as unknown as BatchResponse;
             // Overall status should be 207 Multi-Status since one route failed
             expect(response.statusCode).toBe(StatusCodes.MULTI_STATUS);
             expect(batch.routeIds).toEqual(['/sayHello', '/routeFail', '/sumTwo']);
@@ -219,7 +219,7 @@ describe('Batch Dispatch routes', () => {
                 {}
             );
 
-            const batch = JSON.parse(response.rawBody as string) as BatchResponse;
+            const batch = response.body as unknown as BatchResponse;
             expect(response.statusCode).toBe(StatusCodes.MULTI_STATUS);
             // Both routes should have error status since auth fails for both
             expect(batch.statuses[0]).not.toBe(200);
@@ -243,7 +243,7 @@ describe('Batch Dispatch routes', () => {
                 {}
             );
 
-            const batch = JSON.parse(response.rawBody as string) as BatchResponse;
+            const batch = response.body as unknown as BatchResponse;
             expect(response.statusCode).toBe(StatusCodes.MULTI_STATUS);
             // First route succeeds
             expect(batch.statuses[0]).toBe(200);

@@ -128,22 +128,9 @@ export async function dispatchBatchRoute<Req, Resp>(
     }
 
     // Dispatch each route sequentially, collecting responses
-    if (isBinary) {
-        return dispatchBinaryBatch(routeIds, routeBodies as Uint8Array[], reqHeaders, respHeaders, rawRequest, rawResponse);
-    }
-    return dispatchJsonBatch(routeIds, routeBodies as AnyObject[], reqHeaders, respHeaders, rawRequest, rawResponse);
-}
-
-/** Dispatches batch routes with JSON format */
-async function dispatchJsonBatch<Req, Resp>(
-    routeIds: string[],
-    routeBodies: AnyObject[],
-    reqHeaders: MionHeaders,
-    respHeaders: MionHeaders,
-    rawRequest: Req,
-    rawResponse?: Resp
-): Promise<MionResponse> {
+    const routeSerializerMode = isBinary ? SerializerModes.binary : SerializerModes.json;
     const batchResponse: BatchResponse = {routeIds: [], statuses: [], bodies: []};
+    const binaryEntries: BatchBinaryResponseSerEntry[] = [];
     let hasNonOkStatus = false;
 
     for (let i = 0; i < routeIds.length; i++) {
@@ -158,92 +145,61 @@ async function dispatchJsonBatch<Req, Resp>(
                 respHeaders,
                 rawRequest,
                 rawResponse,
-                SerializerModes.json
+                routeSerializerMode
             );
 
-            batchResponse.routeIds.push(routeId);
-            batchResponse.statuses.push(mionResponse.statusCode);
-            batchResponse.bodies.push(mionResponse.body as AnyObject);
+            if (isBinary) {
+                binaryEntries.push({
+                    routeId,
+                    statusCode: mionResponse.statusCode,
+                    body: (mionResponse.rawBody as Uint8Array) || new Uint8Array(0),
+                });
+            } else {
+                batchResponse.routeIds.push(routeId);
+                batchResponse.statuses.push(mionResponse.statusCode);
+                batchResponse.bodies.push(mionResponse.body as AnyObject);
+            }
 
             if (mionResponse.statusCode !== StatusCodes.OK) hasNonOkStatus = true;
         } catch (err: any) {
-            batchResponse.routeIds.push(routeId);
-            batchResponse.statuses.push(StatusCodes.UNEXPECTED_ERROR);
-            batchResponse.bodies.push({
-                error: err instanceof RpcError ? err.publicMessage : 'Unknown dispatch error',
-            });
+            if (isBinary) {
+                binaryEntries.push({routeId, statusCode: StatusCodes.UNEXPECTED_ERROR, body: new Uint8Array(0)});
+            } else {
+                batchResponse.routeIds.push(routeId);
+                batchResponse.statuses.push(StatusCodes.UNEXPECTED_ERROR);
+                batchResponse.bodies.push({
+                    error: err instanceof RpcError ? err.publicMessage : 'Unknown dispatch error',
+                });
+            }
             hasNonOkStatus = true;
         }
     }
 
     const overallStatus = hasNonOkStatus ? StatusCodes.MULTI_STATUS : StatusCodes.OK;
-    respHeaders.set('content-type', 'application/json; charset=utf-8');
 
+    // Build the combined MionResponse based on format
+    if (isBinary) {
+        const binaryResponse = serializeBatchBinaryResponse(binaryEntries);
+        respHeaders.set('content-type', 'application/octet-stream');
+        return {
+            statusCode: overallStatus,
+            headers: respHeaders,
+            body: {} as AnyObject,
+            rawBody: binaryResponse,
+            bodyType: SerializerModes.binary,
+            hasErrors: hasNonOkStatus,
+            binSerializer: undefined,
+        };
+    }
+
+    // JSON: let the platform adapter handle stringification
+    respHeaders.set('content-type', 'application/json; charset=utf-8');
     return {
         statusCode: overallStatus,
         headers: respHeaders,
         body: batchResponse as unknown as AnyObject,
-        rawBody: JSON.stringify(batchResponse),
-        bodyType: SerializerModes.stringifyJson,
-        hasErrors: hasNonOkStatus,
-        binSerializer: undefined,
-    };
-}
-
-/** Dispatches batch routes with binary format */
-async function dispatchBinaryBatch<Req, Resp>(
-    routeIds: string[],
-    routeBodies: Uint8Array[],
-    reqHeaders: MionHeaders,
-    respHeaders: MionHeaders,
-    rawRequest: Req,
-    rawResponse?: Resp
-): Promise<MionResponse> {
-    const responseEntries: BatchBinaryResponseSerEntry[] = [];
-    let hasNonOkStatus = false;
-
-    for (let i = 0; i < routeIds.length; i++) {
-        const routeId = routeIds[i];
-        const routeBody = routeBodies[i];
-
-        try {
-            const mionResponse = await dispatchRoute(
-                routeId,
-                routeBody,
-                reqHeaders,
-                respHeaders,
-                rawRequest,
-                rawResponse,
-                SerializerModes.binary
-            );
-
-            responseEntries.push({
-                routeId,
-                statusCode: mionResponse.statusCode,
-                body: (mionResponse.rawBody as Uint8Array) || new Uint8Array(0),
-            });
-
-            if (mionResponse.statusCode !== StatusCodes.OK) hasNonOkStatus = true;
-        } catch {
-            responseEntries.push({
-                routeId,
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
-                body: new Uint8Array(0),
-            });
-            hasNonOkStatus = true;
-        }
-    }
-
-    const overallStatus = hasNonOkStatus ? StatusCodes.MULTI_STATUS : StatusCodes.OK;
-    const binaryResponse = serializeBatchBinaryResponse(responseEntries);
-    respHeaders.set('content-type', 'application/octet-stream');
-
-    return {
-        statusCode: overallStatus,
-        headers: respHeaders,
-        body: {} as AnyObject,
-        rawBody: binaryResponse,
-        bodyType: SerializerModes.binary,
+        rawBody: '',
+        bodyType: SerializerModes.json,
         hasErrors: hasNonOkStatus,
         binSerializer: undefined,
     };
