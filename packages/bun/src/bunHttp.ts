@@ -5,10 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
+import {
+    dispatchRoute,
+    dispatchWorkflow,
+    getRouterFatalErrorResponse,
+    resetRouter,
+    MionResponse as MionResponse,
+} from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
-import {getENV, SerializerModes} from '@mionkit/core';
+import {getENV, SerializerModes, MION_ROUTES} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {Server} from 'bun';
 
@@ -71,15 +77,11 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
             const responseHeaders = new Headers(defaultHeaders);
 
             try {
-                const platformResp = await dispatchRoute(
-                    path,
-                    rawBody,
-                    req.headers,
-                    responseHeaders,
-                    req,
-                    undefined,
-                    reqBodyType
-                );
+                const workflowPath = `/${MION_ROUTES.workflowRoute}`;
+                const platformResp =
+                    path === workflowPath
+                        ? await dispatchWorkflow(rawBody, req.headers, responseHeaders, req, undefined, reqBodyType)
+                        : await dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined, reqBodyType);
                 return reply(platformResp, responseHeaders);
             } catch (e) {
                 const error =

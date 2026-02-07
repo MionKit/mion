@@ -56,6 +56,7 @@ export function createCallContext(
             bodyType: SerializerModes.json,
             binSerializer: undefined,
         },
+        executionChain: undefined as any, // will be set in the dispatch
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
     } as CallContext;
 }
@@ -123,6 +124,7 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
             binSerializer: undefined,
         };
         mutableCtx.shared = null as any;
+        mutableCtx.executionChain = null as any;
         contextPool.push(ctx);
     }
     // If pool is full, let the context be garbage collected

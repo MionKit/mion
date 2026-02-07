@@ -19,7 +19,7 @@ import {
     SerializerModes,
 } from '@mionkit/core';
 import {rawLinkedFn} from '../lib/handlers';
-import {getRouteExecutableFromPath, getRouteExecutionChain, getRouteExecutable} from '../router';
+import {getRouteExecutionChain, getRouteExecutable} from '../router';
 import {RpcError} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods';
 import {onExecutableError} from '../lib/dispatchError';
@@ -50,6 +50,14 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
         case SerializerModes.binary: {
             // binary
             // Binary deserialization is handled per-method in dispatch.ts
+            // Workflow requests do not support binary serialization
+            if (context.executionChain) {
+                throw new RpcError({
+                    statusCode: StatusCodes.UNEXPECTED_ERROR,
+                    type: 'workflow-binary-not-supported',
+                    publicMessage: 'Binary serialization is not supported for workflow requests.',
+                });
+            }
             const rawBody = context.request.rawBody as Uint8Array;
             const executionChain = getRouteExecutionChain(context.path)?.methods || [];
             // Build methods map for deserialization
@@ -69,7 +77,8 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
         if (Array.isArray(parsedBody)) {
             // when the body is an array we assume it's a single route call and we have to reconstruct the body
             // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
-            parsedBody = {[getRouteExecutableFromPath(context.path).id]: parsedBody};
+            const executable = context.executionChain.methods[context.executionChain.routeIndex];
+            parsedBody = {[executable.id]: parsedBody};
         }
         if (typeof parsedBody !== 'object')
             throw new RpcError({
@@ -97,7 +106,7 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
         case SerializerModes.stringifyJson: {
             // json - use stringifyJson JIT function
             response.headers.set('content-type', 'application/json; charset=utf-8');
-            const executionChain = getRouteExecutionChain(context.path)!;
+            const executionChain = context.executionChain;
             const body = stringifyBody(context, executionChain.methods, respBody);
             response.rawBody = body;
             break;
@@ -107,15 +116,22 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
             // Platform adapters will handle the actual JSON stringification
             // prepareForJson mutates response.body in place, so we don't set rawBody
             response.headers.set('content-type', 'application/json; charset=utf-8');
-            const executionChain = getRouteExecutionChain(context.path)!;
+            const executionChain = context.executionChain;
             prepareBodyForJson(context, executionChain.methods, respBody);
             break;
         }
         case SerializerModes.binary: {
             // binary - use toBinary JIT function
+            // Workflow requests do not support binary serialization
+            if (context.executionChain) {
+                throw new RpcError({
+                    statusCode: StatusCodes.UNEXPECTED_ERROR,
+                    type: 'workflow-binary-not-supported',
+                    publicMessage: 'Binary serialization is not supported for workflow requests.',
+                });
+            }
             response.headers.set('content-type', 'application/octet-stream');
-            const executionChain = getRouteExecutionChain(context.path)!;
-            serializeBinaryBody(context, executionChain.methods, respBody);
+            serializeBinaryBody(context, context.executionChain, respBody);
             break;
         }
         default:

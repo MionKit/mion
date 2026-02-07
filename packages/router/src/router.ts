@@ -30,7 +30,7 @@ import {
 import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection';
 import {serializerLinkedFns} from './routes/serializer.routes';
-import {getRouterItemId, getRoutePath, getENV, MION_ROUTES} from '@mionkit/core';
+import {getRouterItemId, getRoutePath, getENV} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
 import {
@@ -206,15 +206,6 @@ export function getAllExecutablesIds(): string[] {
 // used by codegen
 export function shouldFullGenerateSpec(): boolean {
     return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true';
-}
-
-export function getRouteExecutableFromPath(path: string): RouteMethod {
-    const executionChain = flatRouter.get(path);
-    if (!executionChain) {
-        // Return the not-found route executable
-        return getAnyExecutable(MION_ROUTES.notFound) as RouteMethod;
-    }
-    return executionChain.methods[executionChain.routeIndex] as RouteMethod;
 }
 
 // ############# PRIVATE METHODS #############

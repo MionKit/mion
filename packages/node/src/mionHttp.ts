@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionkit/router';
+import {dispatchRoute, dispatchWorkflow, getRouterFatalErrorResponse, resetRouter} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -13,7 +13,7 @@ import type {NodeHttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionkit/router';
-import {getENV, SerializerModes} from '@mionkit/core';
+import {getENV, SerializerModes, MION_ROUTES} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 
@@ -129,15 +129,11 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const reqBodyType = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
 
         try {
-            const mionResponse = await dispatchRoute(
-                path,
-                reqRawBody,
-                reqHeaders,
-                respHeaders,
-                httpReq,
-                httpResponse,
-                reqBodyType
-            );
+            const workflowPath = `/${MION_ROUTES.workflowRoute}`;
+            const mionResponse =
+                path === workflowPath
+                    ? await dispatchWorkflow(reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse, reqBodyType)
+                    : await dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse, reqBodyType);
             if (replied || httpResponse.writableEnded) return;
             replied = true;
             reply(httpResponse, mionResponse);

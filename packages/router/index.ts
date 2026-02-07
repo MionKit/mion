@@ -23,3 +23,4 @@ export * from './src/lib/handlers';
 export * from './src/lib/methodsCache';
 export * from './src/routes/errors.routes';
 export * from './src/routes/mion.routes';
+export * from './src/workflow';

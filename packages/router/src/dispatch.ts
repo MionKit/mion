@@ -10,10 +10,11 @@ import {type RouterOptions} from './types/general';
 import {NOT_FOUND_PATH} from './constants';
 import {HeadersMethod, RemoteMethod, MethodsExecutionList, RawMethod} from './types/remoteMethods';
 import {getRouteExecutionChain, getRouterOptions} from './router';
-import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionkit/core';
+import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode, MION_ROUTES} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
 import {onExecutableError} from './lib/dispatchError';
 import {createCallContext, acquireCallContext, releaseCallContext} from './callContext';
+import {extractWorkflowRoutes, buildWorkflowExecutionChain} from './workflow';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -66,6 +67,49 @@ export async function dispatchRoute<Req, Resp>(
     }
 }
 
+/** Dispatches a workflow request that executes multiple routes in a single call */
+export async function dispatchWorkflow<Req, Resp>(
+    reqRawBody: RawRequestBody,
+    reqHeaders: MionHeaders,
+    respHeaders: MionHeaders,
+    rawRequest: Req,
+    rawResponse?: Resp,
+    reqBodyType?: SerializerCode
+): Promise<MionResponse> {
+    const opts = getRouterOptions();
+    const workflowPath = `/${MION_ROUTES.workflowRoute}`;
+    const usePooling = opts.maxContextPoolSize > 0;
+    const context = usePooling
+        ? acquireCallContext(workflowPath, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType)
+        : createCallContext(workflowPath, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
+
+    try {
+        // Pre-parse body to extract workflow route list
+        const routeIds = extractWorkflowRoutes(reqRawBody);
+        if (!routeIds) {
+            throw new RpcError({
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
+                type: 'invalid-workflow-request',
+                publicMessage: `Invalid workflow request: missing '${MION_ROUTES.workflowMiddy}' property in request body.`,
+            });
+        }
+
+        // Build merged execution chain
+        const executionChain = buildWorkflowExecutionChain(routeIds);
+
+        // Store on context for serializer access
+        (context as Mutable<CallContext>).executionChain = executionChain;
+
+        await runExecutionChain(context, rawRequest, rawResponse, executionChain, opts);
+        return context.response;
+    } catch (err: any | RpcError<string> | Error) {
+        // this should never happen, exceptions should be handled inside runExecutionChain
+        return Promise.reject(err);
+    } finally {
+        if (usePooling) releaseCallContext(context, opts.maxContextPoolSize);
+    }
+}
+
 // ############# PRIVATE METHODS #############
 
 // runs the ExecutionChain of a route
@@ -77,11 +121,12 @@ async function runExecutionChain(
     opts: RouterOptions
 ): Promise<MionResponse> {
     const {response, request} = context;
-    const executables = executionChain.methods;
+    // we can't use a direct reference to executables as this is changed dynamically by workflow requests
+    // const executables = executionChain.methods;
     (response as Mutable<MionResponse>).bodyType = executionChain.serializer;
 
-    for (let i = 0; i < executables.length; i++) {
-        const executable = executables[i];
+    for (let i = 0; i < executionChain.methods.length; i++) {
+        const executable = executionChain.methods[i];
         if (response.hasErrors && !executable.options.runOnError) continue;
 
         try {

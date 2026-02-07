@@ -37,6 +37,10 @@ export const MION_ROUTES = {
      * Errors thrown by routes/linkedFns, these are not strongly typed
      * */
     thrownErrors: '@thrownErrors',
+    /** Workflow route for executing multiple routes in a single request */
+    workflowMiddy: 'mion@workflow',
+    /** URL path for workflow requests - uses hyphen instead of @ for URL safety */
+    workflowRoute: 'mion-workflow',
 } as const;
 
 /**

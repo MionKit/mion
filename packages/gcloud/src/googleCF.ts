@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, SerializerModes} from '@mionkit/core';
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionkit/router';
+import {RpcError, SerializerModes, MION_ROUTES} from '@mionkit/core';
+import {dispatchRoute, dispatchWorkflow, getRouterFatalErrorResponse, resetRouter} from '@mionkit/router';
 import type {MionHeaders, MionResponse} from '@mionkit/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants';
@@ -51,15 +51,11 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
           : SerializerModes.json;
 
     try {
-        const routeResponse = await dispatchRoute(
-            rawRequest.path,
-            rawBody,
-            reqHeaders,
-            respHeaders,
-            rawRequest,
-            rawResponse,
-            reqBodyType
-        );
+        const workflowPath = `/${MION_ROUTES.workflowRoute}`;
+        const routeResponse =
+            rawRequest.path === workflowPath
+                ? await dispatchWorkflow(rawBody, reqHeaders, respHeaders, rawRequest, rawResponse, reqBodyType)
+                : await dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, rawResponse, reqBodyType);
         reply(routeResponse, rawResponse);
     } catch (err) {
         const error =
