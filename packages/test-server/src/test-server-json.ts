@@ -97,6 +97,24 @@ const routes = {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     log: linkedFn((ctx): void => undefined, {runOnError: true}),
+
+    // Routes for testing serialization/deserialization of complex types
+    getSameDate: route((_ctx, date: Date): Date => date),
+    getDatePlusDays: route((_ctx, date: Date, days: number): Date => {
+        const result = new Date(date);
+        result.setDate(result.getDate() + days);
+        return result;
+    }),
+    getSameMap: route((_ctx, map: Map<string, number>): Map<string, number> => map),
+    mergeMap: route((_ctx, map: Map<string, number>, key: string, value: number): Map<string, number> => {
+        map.set(key, value);
+        return map;
+    }),
+    getSameSet: route((_ctx, set: Set<string>): Set<string> => set),
+    addToSet: route((_ctx, set: Set<string>, item: string): Set<string> => {
+        set.add(item);
+        return set;
+    }),
 } satisfies Routes;
 
 // Get port from command line args or use default

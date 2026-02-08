@@ -145,6 +145,130 @@ describe('workflow', () => {
         });
     });
 
+    describe('serialization/deserialization in workflows', () => {
+        it('should serialize and deserialize Date params and results', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            const testDate = new Date('2024-06-15T12:30:00.000Z');
+
+            const [results, errors] = await workflow([routes.getSameDate(testDate)], {
+                auth: linkedFns.auth(authHeaders),
+            });
+
+            expect(errors).toBeUndefined();
+            expect(results).toBeDefined();
+            expect(results?.[0]).toBeInstanceOf(Date);
+            expect(results?.[0]?.toISOString()).toEqual('2024-06-15T12:30:00.000Z');
+        });
+
+        it('should serialize Date params and return computed Date result', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            const testDate = new Date('2024-01-01T00:00:00.000Z');
+
+            const [results, errors] = await workflow([routes.getDatePlusDays(testDate, 10)], {
+                auth: linkedFns.auth(authHeaders),
+            });
+
+            expect(errors).toBeUndefined();
+            expect(results).toBeDefined();
+            expect(results?.[0]).toBeInstanceOf(Date);
+            expect(results?.[0]?.toISOString()).toEqual('2024-01-11T00:00:00.000Z');
+        });
+
+        it('should serialize and deserialize Map params and results', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            const testMap = new Map<string, number>([
+                ['a', 1],
+                ['b', 2],
+            ]);
+
+            const [results, errors] = await workflow([routes.getSameMap(testMap)], {
+                auth: linkedFns.auth(authHeaders),
+            });
+
+            expect(errors).toBeUndefined();
+            expect(results).toBeDefined();
+            expect(results?.[0]).toBeInstanceOf(Map);
+            expect(results?.[0]?.get('a')).toEqual(1);
+            expect(results?.[0]?.get('b')).toEqual(2);
+        });
+
+        it('should serialize Map params and return modified Map result', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            const testMap = new Map<string, number>([['x', 10]]);
+
+            const [results, errors] = await workflow([routes.mergeMap(testMap, 'y', 20)], {
+                auth: linkedFns.auth(authHeaders),
+            });
+
+            expect(errors).toBeUndefined();
+            expect(results).toBeDefined();
+            expect(results?.[0]).toBeInstanceOf(Map);
+            expect(results?.[0]?.get('x')).toEqual(10);
+            expect(results?.[0]?.get('y')).toEqual(20);
+        });
+
+        it('should serialize and deserialize Set params and results', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            const testSet = new Set(['hello', 'world']);
+
+            const [results, errors] = await workflow([routes.getSameSet(testSet)], {
+                auth: linkedFns.auth(authHeaders),
+            });
+
+            expect(errors).toBeUndefined();
+            expect(results).toBeDefined();
+            expect(results?.[0]).toBeInstanceOf(Set);
+            expect(results?.[0]?.has('hello')).toBe(true);
+            expect(results?.[0]?.has('world')).toBe(true);
+        });
+
+        it('should serialize Set params and return modified Set result', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            const testSet = new Set(['a', 'b']);
+
+            const [results, errors] = await workflow([routes.addToSet(testSet, 'c')], {
+                auth: linkedFns.auth(authHeaders),
+            });
+
+            expect(errors).toBeUndefined();
+            expect(results).toBeDefined();
+            expect(results?.[0]).toBeInstanceOf(Set);
+            expect(results?.[0]?.has('a')).toBe(true);
+            expect(results?.[0]?.has('b')).toBe(true);
+            expect(results?.[0]?.has('c')).toBe(true);
+        });
+
+        it('should handle multiple routes mixing serializable and plain types in a workflow', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            const testDate = new Date('2024-06-15T12:30:00.000Z');
+
+            const [results, errors] = await workflow(
+                [routes.getSameDate(testDate), routes.sayHello(someUser), routes.calculateAge(1990)],
+                {auth: linkedFns.auth(authHeaders)}
+            );
+
+            expect(errors).toBeUndefined();
+            expect(results).toBeDefined();
+
+            // Date result
+            expect(results?.[0]).toBeInstanceOf(Date);
+            expect(results?.[0]?.toISOString()).toEqual('2024-06-15T12:30:00.000Z');
+
+            // String result
+            expect(results?.[1]).toEqual('Hello John Doe');
+
+            // Number result
+            expect(results?.[2]).toEqual(new Date().getFullYear() - 1990);
+        });
+    });
+
     describe('proxy returns callWithWorkflow method', () => {
         it('proxy should include callWithWorkflow method on subrequests', () => {
             const {routes} = initClient<MyApi>({baseURL});

@@ -26,6 +26,8 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
     readonly executionChain: MethodsExecutionChain;
     /** Query string from URL, used for workflow routes */
     readonly urlQuery?: string;
+    /** Route IDs for workflow calls, used for binary serialization buffer sizing */
+    readonly workflowRouteIds?: string[];
 }
 // type-call-context-end
 
@@ -105,3 +107,10 @@ export interface ResponseBody extends Record<string, any> {
     '@thrownErrors'?: Record<string, RpcError<string>>;
 }
 // type-response-body-end
+
+/** Result of getWorkflowExecutionChain including the route IDs for buffer sizing */
+export interface WorkflowExecutionResult {
+    executionChain: MethodsExecutionChain;
+    /** Route IDs for binary serialization buffer sizing */
+    workflowRouteIds?: string[];
+}

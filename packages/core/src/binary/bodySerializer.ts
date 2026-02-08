@@ -11,20 +11,20 @@ import {MethodWithJitFns} from '../types/method.types';
  * Note: This function assumes all methods in executionChain have valid JIT functions.
  * Methods with noop JIT functions or undefined values should be filtered out before calling this function,
  * or handled by the caller. Any serialization errors will be thrown as RpcError.
+ *
  */
 export function serializeBinaryBody(
     path: string,
     executionChain: MethodWithJitFns[],
     body: Record<string, any>,
-    /** If true, the body is a response body, otherwise it's a request body */
-    isResponse: boolean
+    isResponse: boolean,
+    workflowRouteIds?: string[]
 ): {
     serializer: DataViewSerializer;
     buffer: ReturnType<DataViewSerializer['getBuffer']>;
 } {
     try {
-        // Create serializer
-        const serializer = createDataViewSerializer(path);
+        const serializer = createDataViewSerializer(path, workflowRouteIds);
 
         // Reserve space for items length at index 0 (will be written after counting)
         const itemsLengthIndex = serializer.index;

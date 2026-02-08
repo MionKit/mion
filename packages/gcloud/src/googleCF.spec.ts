@@ -8,14 +8,7 @@
 import {initRouter, registerRoutes, resetRouter, route, getRouteExecutionChain} from '@mionkit/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF';
 import type {CallContext, Route} from '@mionkit/router';
-import {
-    MION_ROUTES,
-    PublicRpcError,
-    StatusCodes,
-    serializeBinaryBody,
-    deserializeBinaryBody,
-    MethodWithJitFns,
-} from '@mionkit/core';
+import {MION_ROUTES, PublicRpcError, StatusCodes, serializeBinaryBody, deserializeBinaryBody} from '@mionkit/core';
 import {Server} from 'http';
 import {getTestServer} from '@google-cloud/functions-framework/testing';
 import * as functions from '@google-cloud/functions-framework';
@@ -276,13 +269,6 @@ describe('serverless router', () => {
         const port3 = 8090;
         let server3: Server;
 
-        /** Helper to build a methods map from an ExecutionChain */
-        function buildMethodsMap(executionChain: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
-            const map = new Map<string, MethodWithJitFns>();
-            for (const method of executionChain) map.set(method.id, method);
-            return map;
-        }
-
         async function initServer3(portToUse: number) {
             return new Promise<Server>((resolve, reject) => {
                 functions.http('HelloTestsBinary', googleCFHandler);
@@ -303,7 +289,6 @@ describe('serverless router', () => {
 
         it('should send binary request and receive binary response with Date objects', async () => {
             const executionChain = getRouteExecutionChain('/getDate')!.methods;
-            const methodsMap = buildMethodsMap(executionChain);
 
             // Serialize request body to binary
             const requestBody = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
@@ -317,8 +302,8 @@ describe('serverless router', () => {
             const headers = Object.fromEntries(response.headers.entries());
             const responseBuffer = await response.arrayBuffer();
 
-            // Deserialize binary response
-            const {body: responseBody} = deserializeBinaryBody('/getDate', methodsMap, responseBuffer, true);
+            // Deserialize binary response - uses routesCache to look up method JIT functions
+            const {body: responseBody} = deserializeBinaryBody('/getDate', responseBuffer, true);
 
             expect(responseBody.getDate).toBeDefined();
             expect(responseBody.getDate.date).toEqual(new Date('2022-04-22T00:17:00.000Z'));
@@ -328,7 +313,6 @@ describe('serverless router', () => {
 
         it('should send binary request and receive binary response with complex objects', async () => {
             const executionChain = getRouteExecutionChain('/changeUserName')!.methods;
-            const methodsMap = buildMethodsMap(executionChain);
 
             // Serialize request body to binary
             const requestBody = {changeUserName: [{name: 'John', surname: 'Doe'}]};
@@ -342,8 +326,8 @@ describe('serverless router', () => {
             const headers = Object.fromEntries(response.headers.entries());
             const responseBuffer = await response.arrayBuffer();
 
-            // Deserialize binary response
-            const {body: responseBody} = deserializeBinaryBody('/changeUserName', methodsMap, responseBuffer, true);
+            // Deserialize binary response - uses routesCache to look up method JIT functions
+            const {body: responseBody} = deserializeBinaryBody('/changeUserName', responseBuffer, true);
 
             expect(responseBody.changeUserName).toBeDefined();
             expect(responseBody.changeUserName.name).toEqual('NewName');
@@ -354,7 +338,6 @@ describe('serverless router', () => {
 
         it('should handle optional parameters in binary mode', async () => {
             const executionChain = getRouteExecutionChain('/getDate')!.methods;
-            const methodsMap = buildMethodsMap(executionChain);
 
             // Serialize request body with no params (optional dataPoint)
             const requestBody = {getDate: [undefined]};
@@ -368,8 +351,8 @@ describe('serverless router', () => {
             const headers = Object.fromEntries(response.headers.entries());
             const responseBuffer = await response.arrayBuffer();
 
-            // Deserialize binary response - should return default date
-            const {body: responseBody} = deserializeBinaryBody('/getDate', methodsMap, responseBuffer, true);
+            // Deserialize binary response - uses routesCache to look up method JIT functions
+            const {body: responseBody} = deserializeBinaryBody('/getDate', responseBuffer, true);
 
             expect(responseBody.getDate).toBeDefined();
             expect(responseBody.getDate.date).toEqual(new Date('2022-04-10T02:13:00.000Z'));

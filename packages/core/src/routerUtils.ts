@@ -74,15 +74,6 @@ export const routesCache = {
     },
 
     /**
-     * Clears the router cache.
-     * This is useful for testing purposes only.
-     */
-    reset(): void {
-        for (const k in methodsCache) delete methodsCache[k];
-        routesCacheLoaded = false;
-    },
-
-    /**
      * Get method metadata with JIT functions restored from the router cache by id.
      * This augments the MethodWithOptions with paramsJitFns and returnJitFns.
      * JIT functions are cached in the entry after first access for performance.
