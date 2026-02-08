@@ -37,8 +37,8 @@ export type WorkflowResult<
     Routes extends RSubRequest<any>[],
     LinkedFns extends Record<string, HSubRequest<any>> = Record<string, HSubRequest<any>>,
 > = [
-    WorkflowRouteResults<Routes> | undefined,
-    WorkflowRouteErrors<Routes> | undefined,
+    WorkflowRouteResults<Routes>,
+    WorkflowRouteErrors<Routes>,
     {[K in keyof LinkedFns]?: LinkedFnSuccess<LinkedFns[K]>} | undefined,
     {[K in keyof LinkedFns]?: LinkedFnError<LinkedFns[K]>} | undefined,
 ];

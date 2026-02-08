@@ -10,8 +10,6 @@ import {
     CallWithLinkedFnsResult,
     ClientOptions,
     HSubRequest,
-    LinkedFnSuccess,
-    LinkedFnError,
     InitOptions,
     RSubRequest,
     SubRequest,
@@ -22,7 +20,7 @@ import {
     WorkflowResult,
 } from './types';
 import type {RemoteApi} from '@mionkit/router';
-import {registerErrorDeserializers, RpcError} from '@mionkit/core';
+import {registerErrorDeserializers} from '@mionkit/core';
 import {getRouterItemId} from '@mionkit/core';
 import {MionClientRequest} from './request';
 import type {RunTypeError} from '@mionkit/core';
@@ -57,75 +55,90 @@ export class MionClient {
 
     /** Executes a route call and returns a Result 4-tuple */
     executeCall<RR extends RSubRequest<any>>(routeSubRequest: RR): Promise<Result<any, any>> {
-        return new Promise((resolve) => {
-            const request = new MionClientRequest(this.clientOptions, this.prefilledLinkedFnsCache, routeSubRequest, []);
+        return this.executeRequest(routeSubRequest, undefined, undefined);
+    }
+
+    /** Executes a route call with linkedFns and returns a typed result object */
+    executeCallWithLinkedFns<H extends Record<string, HSubRequest<any>>>(
+        routeSubRequest: RSubRequest<any>,
+        linkedFnsRecord: H
+    ): Promise<CallWithLinkedFnsResult<any, any, H>> {
+        return this.executeRequest(routeSubRequest, undefined, linkedFnsRecord);
+    }
+
+    /** Executes a workflow call with multiple routes and optional linkedFns */
+    executeCallWithWorkflow<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+        workflowSubRequests: Routes,
+        linkedFnsRecord: H
+    ): Promise<WorkflowResult<Routes, H>> {
+        return this.executeRequest(undefined, workflowSubRequests, linkedFnsRecord);
+    }
+
+    private executeRequest<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+        routeSubRequest: RSubRequest<any> | undefined,
+        workflowSubRequests: Routes | undefined,
+        linkedFnsRecord: H | undefined
+    ): Promise<any> {
+        return new Promise((resolve, reject) => {
+            let request: MionClientRequest<any, any>;
+            const linkedFnSubRequests = linkedFnsRecord ? Object.values(linkedFnsRecord) : [];
+            try {
+                request = new MionClientRequest(
+                    this.clientOptions,
+                    this.prefilledLinkedFnsCache,
+                    routeSubRequest,
+                    linkedFnSubRequests,
+                    workflowSubRequests
+                );
+            } catch (error) {
+                reject(error);
+                return;
+            }
 
             request
                 .call()
                 .then(() => {
-                    const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeSubRequest.id);
+                    const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
+                    const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeIds);
                     this.processLinkedFnsResponses(allLinkedFns, undefined);
-                    const {linkedFnsResults, linkedFnsErrors} = this.buildLinkedFnsResultsFromList(
-                        allLinkedFns,
-                        undefined,
-                        routeSubRequest.id
+                    const result = this.buildResult(
+                        routeSubRequest,
+                        workflowSubRequests,
+                        linkedFnsRecord || allLinkedFns,
+                        undefined
                     );
-                    resolve([routeSubRequest.resolvedValue, undefined, linkedFnsResults, linkedFnsErrors]);
+                    resolve(result);
                 })
                 .catch((errors: RequestErrors) => {
-                    const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeSubRequest.id);
+                    const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
+                    const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeIds);
                     this.processLinkedFnsResponses(allLinkedFns, errors);
-                    const {linkedFnsResults, linkedFnsErrors} = this.buildLinkedFnsResultsFromList(
-                        allLinkedFns,
-                        errors,
-                        routeSubRequest.id
+                    const result = this.buildResult(
+                        routeSubRequest,
+                        workflowSubRequests,
+                        linkedFnsRecord || allLinkedFns,
+                        errors
                     );
-                    const routeError = errors.get(routeSubRequest.id) || findSubRequestError(routeSubRequest, errors);
-                    resolve([undefined, routeError, linkedFnsResults, linkedFnsErrors]);
+                    resolve(result);
                 });
         });
     }
 
-    /** Build linkedFns results and errors from a list of linkedFn sub-requests */
-    private buildLinkedFnsResultsFromList(
-        linkedFnSubRequests: HSubRequest<any>[],
-        errors: RequestErrors | undefined,
-        routeId?: string
-    ): {linkedFnsResults: Record<string, unknown>; linkedFnsErrors: Record<string, RpcError<string, unknown>>} {
-        const linkedFnsResults: Record<string, unknown> = {};
-        const linkedFnsErrors: Record<string, RpcError<string, unknown>> = {};
-
-        const processedIds = new Set<string>();
-        if (routeId) processedIds.add(routeId);
-
-        for (const linkedFn of linkedFnSubRequests) {
-            processedIds.add(linkedFn.id);
-            const linkedFnError = errors?.get(linkedFn.id);
-            if (linkedFnError) {
-                linkedFnsErrors[linkedFn.id] = linkedFnError;
-            } else if (linkedFn.resolvedValue !== undefined) {
-                linkedFnsResults[linkedFn.id] = linkedFn.resolvedValue;
-            }
-        }
-
-        if (errors) {
-            for (const [id, error] of errors) {
-                if (!processedIds.has(id)) {
-                    linkedFnsErrors[id] = error;
-                }
-            }
-        }
-
-        return {linkedFnsResults, linkedFnsErrors};
+    /** Get route IDs from single route or workflow routes */
+    private getRouteIds(
+        routeSubRequest: RSubRequest<any> | undefined,
+        workflowSubRequests: RSubRequest<any>[] | undefined
+    ): Set<string> {
+        const routeIds = new Set<string>();
+        if (routeSubRequest) routeIds.add(routeSubRequest.id);
+        if (workflowSubRequests) workflowSubRequests.forEach((sr) => routeIds.add(sr.id));
+        return routeIds;
     }
 
-    /** Get all linkedFns from the request's subRequestList, excluding the route */
-    private getAllLinkedFnsFromRequest(
-        request: MionClientRequest<RSubRequest<any>, HSubRequest<any>[]>,
-        routeId: string
-    ): HSubRequest<any>[] {
+    /** Get all linkedFns from the request's subRequestList, excluding the route(s) */
+    private getAllLinkedFnsFromRequest(request: MionClientRequest<any, any>, excludedIds: Set<string>): HSubRequest<any>[] {
         return Object.entries(request.subRequestList)
-            .filter(([id]) => id !== routeId)
+            .filter(([id]) => !excludedIds.has(id))
             .map(([, subRequest]) => subRequest as HSubRequest<any>);
     }
 
@@ -141,174 +154,80 @@ export class MionClient {
         }
     }
 
-    /** Executes a route call with linkedFns and returns a typed result object */
-    executeCallWithLinkedFns<H extends Record<string, HSubRequest<any>>>(
-        routeSubRequest: RSubRequest<any>,
-        linkedFnsRecord: H,
-        linkedFnSubRequests: HSubRequest<any>[]
-    ): Promise<CallWithLinkedFnsResult<any, any, H>> {
-        return new Promise((resolve) => {
-            const request = new MionClientRequest(
-                this.clientOptions,
-                this.prefilledLinkedFnsCache,
-                routeSubRequest,
-                linkedFnSubRequests
-            );
-
-            request
-                .call()
-                .then(() => {
-                    const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeSubRequest.id);
-                    this.processLinkedFnsResponses(allLinkedFns, undefined);
-                    const result = this.buildCallWithLinkedFnsResult(routeSubRequest, linkedFnsRecord, undefined);
-                    resolve(result);
-                })
-                .catch((errors: RequestErrors) => {
-                    const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeSubRequest.id);
-                    this.processLinkedFnsResponses(allLinkedFns, errors);
-                    const result = this.buildCallWithLinkedFnsResult(routeSubRequest, linkedFnsRecord, errors);
-                    resolve(result);
-                });
-        });
-    }
-
-    /** Build the CallWithLinkedFnsResult 4-tuple from the request results */
-    private buildCallWithLinkedFnsResult<H extends Record<string, HSubRequest<any>>>(
-        routeSubRequest: RSubRequest<any>,
-        linkedFnsRecord: H,
+    /** Build the result 4-tuple from the request results. linkedFns can be a named record or an array of subrequests */
+    private buildResult<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+        routeSubRequest: RSubRequest<any> | undefined,
+        workflowSubRequests: Routes | undefined,
+        linkedFns: H | HSubRequest<any>[],
         errors: RequestErrors | undefined
-    ): CallWithLinkedFnsResult<any, any, H> {
-        const routeError = errors?.get(routeSubRequest.id);
-        const routeResult = routeError ? undefined : routeSubRequest.resolvedValue;
-
-        const linkedFnsResults = {} as {[K in keyof H]?: LinkedFnSuccess<H[K]>};
-        const linkedFnsErrors = {} as {[K in keyof H]?: LinkedFnError<H[K]>};
-
-        const processedIds = new Set<string>([routeSubRequest.id]);
-
-        for (const [name, linkedFn] of Object.entries(linkedFnsRecord)) {
-            processedIds.add(linkedFn.id);
-            const linkedFnError = errors?.get(linkedFn.id);
-            if (linkedFnError) {
-                (linkedFnsErrors as Record<string, any>)[name] = linkedFnError;
-            } else if (linkedFn.resolvedValue !== undefined) {
-                (linkedFnsResults as Record<string, any>)[name] = linkedFn.resolvedValue;
-            }
-        }
-
-        if (errors) {
-            for (const [id, error] of errors) {
-                if (!processedIds.has(id)) {
-                    (linkedFnsErrors as Record<string, any>)[id] = error;
-                }
-            }
-        }
-
-        return [routeResult, routeError, linkedFnsResults, linkedFnsErrors];
-    }
-
-    /** Executes a workflow call with multiple routes and optional linkedFns */
-    executeCallWithWorkflow<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
-        workflowSubRequests: Routes,
-        linkedFnsRecord: H,
-        linkedFnSubRequests: HSubRequest<any>[]
-    ): Promise<WorkflowResult<Routes, H>> {
-        return new Promise((resolve, reject) => {
-            let request: MionClientRequest<any, any>;
-            try {
-                request = new MionClientRequest(
-                    this.clientOptions,
-                    this.prefilledLinkedFnsCache,
-                    undefined,
-                    linkedFnSubRequests,
-                    workflowSubRequests
-                );
-            } catch (error) {
-                reject(error);
-                return;
-            }
-
-            request
-                .call()
-                .then(() => {
-                    const workflowRouteIds = new Set(workflowSubRequests.map((sr) => sr.id));
-                    const allLinkedFns = this.getAllLinkedFnsFromWorkflowRequest(request, workflowRouteIds);
-                    this.processLinkedFnsResponses(allLinkedFns, undefined);
-                    const result = this.buildWorkflowResult(workflowSubRequests, linkedFnsRecord, undefined);
-                    resolve(result);
-                })
-                .catch((errors: RequestErrors) => {
-                    const workflowRouteIds = new Set(workflowSubRequests.map((sr) => sr.id));
-                    const allLinkedFns = this.getAllLinkedFnsFromWorkflowRequest(request, workflowRouteIds);
-                    this.processLinkedFnsResponses(allLinkedFns, errors);
-                    const result = this.buildWorkflowResult(workflowSubRequests, linkedFnsRecord, errors);
-                    resolve(result);
-                });
-        });
-    }
-
-    /** Get all linkedFns from the request's subRequestList, excluding workflow routes */
-    private getAllLinkedFnsFromWorkflowRequest(
-        request: MionClientRequest<any, any>,
-        workflowRouteIds: Set<string>
-    ): HSubRequest<any>[] {
-        return Object.entries(request.subRequestList)
-            .filter(([id]) => !workflowRouteIds.has(id))
-            .map(([, subRequest]) => subRequest as HSubRequest<any>);
-    }
-
-    /** Build the WorkflowResult 4-tuple from the request results */
-    private buildWorkflowResult<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
-        workflowSubRequests: Routes,
-        linkedFnsRecord: H,
-        errors: RequestErrors | undefined
-    ): WorkflowResult<Routes, H> {
-        const routeResults: (any | undefined)[] = [];
-        const routeErrors: (any | undefined)[] = [];
+    ): CallWithLinkedFnsResult<any, any, H> | WorkflowResult<Routes, H> | Result<any, any> {
+        const linkedFnsResults = {} as Record<string, any>;
+        const linkedFnsErrors = {} as Record<string, any>;
         const processedIds = new Set<string>();
 
-        for (const routeSubRequest of workflowSubRequests) {
+        let routeResultPart: any;
+        let routeErrorPart: any;
+
+        if (routeSubRequest) {
             processedIds.add(routeSubRequest.id);
-            const routeError = errors?.get(routeSubRequest.id);
-            if (routeError) {
-                routeResults.push(undefined);
-                routeErrors.push(routeError);
-            } else {
-                routeResults.push(routeSubRequest.resolvedValue);
-                routeErrors.push(undefined);
+            const routeError =
+                errors?.get(routeSubRequest.id) || (errors ? findSubRequestError(routeSubRequest, errors) : undefined);
+            routeResultPart = routeError ? undefined : routeSubRequest.resolvedValue;
+            routeErrorPart = routeError;
+        } else if (workflowSubRequests) {
+            const routeResults: (any | undefined)[] = [];
+            const routeErrors: (any | undefined)[] = [];
+            for (const routeSubRequest of workflowSubRequests) {
+                processedIds.add(routeSubRequest.id);
+                const routeError = errors?.get(routeSubRequest.id);
+                if (routeError) {
+                    routeResults.push(undefined);
+                    routeErrors.push(routeError);
+                } else {
+                    routeResults.push(routeSubRequest.resolvedValue);
+                    routeErrors.push(undefined);
+                }
             }
+            const hasAnyResult = routeResults.some((r) => r !== undefined);
+            const hasAnyError = routeErrors.some((e) => e !== undefined);
+            routeResultPart = hasAnyResult ? routeResults : undefined;
+            routeErrorPart = hasAnyError ? routeErrors : undefined;
         }
 
-        const linkedFnsResults = {} as {[K in keyof H]?: LinkedFnSuccess<H[K]>};
-        const linkedFnsErrors = {} as {[K in keyof H]?: LinkedFnError<H[K]>};
-
-        for (const [name, linkedFn] of Object.entries(linkedFnsRecord)) {
-            processedIds.add(linkedFn.id);
-            const linkedFnError = errors?.get(linkedFn.id);
-            if (linkedFnError) {
-                (linkedFnsErrors as Record<string, any>)[name] = linkedFnError;
-            } else if (linkedFn.resolvedValue !== undefined) {
-                (linkedFnsResults as Record<string, any>)[name] = linkedFn.resolvedValue;
+        // linkedFns can be a named record (from callWithLinkedFns/workflow) or an array (from executeCall)
+        if (Array.isArray(linkedFns)) {
+            // Array of subrequests - use IDs as keys
+            for (const linkedFn of linkedFns) {
+                processedIds.add(linkedFn.id);
+                const linkedFnError = errors?.get(linkedFn.id);
+                if (linkedFnError) {
+                    linkedFnsErrors[linkedFn.id] = linkedFnError;
+                } else if (linkedFn.resolvedValue !== undefined) {
+                    linkedFnsResults[linkedFn.id] = linkedFn.resolvedValue;
+                }
+            }
+        } else {
+            // Named record - use names as keys
+            for (const [name, linkedFn] of Object.entries(linkedFns)) {
+                processedIds.add(linkedFn.id);
+                const linkedFnError = errors?.get(linkedFn.id);
+                if (linkedFnError) {
+                    linkedFnsErrors[name] = linkedFnError;
+                } else if (linkedFn.resolvedValue !== undefined) {
+                    linkedFnsResults[name] = linkedFn.resolvedValue;
+                }
             }
         }
 
         if (errors) {
             for (const [id, error] of errors) {
                 if (!processedIds.has(id)) {
-                    (linkedFnsErrors as Record<string, any>)[id] = error;
+                    linkedFnsErrors[id] = error;
                 }
             }
         }
 
-        const hasAnyResult = routeResults.some((r) => r !== undefined);
-        const hasAnyError = routeErrors.some((e) => e !== undefined);
-
-        return [
-            hasAnyResult ? (routeResults as any) : undefined,
-            hasAnyError ? (routeErrors as any) : undefined,
-            Object.keys(linkedFnsResults).length > 0 ? linkedFnsResults : undefined,
-            Object.keys(linkedFnsErrors).length > 0 ? linkedFnsErrors : undefined,
-        ];
+        return [routeResultPart, routeErrorPart, linkedFnsResults, linkedFnsErrors] as any;
     }
 
     typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {

@@ -30,11 +30,12 @@ export async function workflow<
     }
 
     const client = firstSubRequest.client;
-    const linkedFnSubRequests: HSubRequest<any>[] = linkedFns ? Object.values(linkedFns) : [];
 
-    return client.executeCallWithWorkflow(
+    const [results, errors, linkedFnResults, linkedFnErrors] = await client.executeCallWithWorkflow(
         routeSubRequests as any,
-        (linkedFns ?? {}) as any,
-        linkedFnSubRequests
-    ) as unknown as Promise<WorkflowResult<Routes, LinkedFns>>;
+        (linkedFns ?? {}) as any
+    );
+    const emptyResults = routeSubRequests.map(() => undefined);
+    const emptyErrors = routeSubRequests.map(() => undefined);
+    return [results ?? emptyResults, errors ?? emptyErrors, linkedFnResults, linkedFnErrors] as WorkflowResult<Routes, LinkedFns>;
 }
