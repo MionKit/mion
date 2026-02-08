@@ -106,6 +106,15 @@ describe('workflow', () => {
         it('should throw error when called with empty routes array', async () => {
             await expect(workflow([])).rejects.toThrow('Workflow requires at least one route subrequest.');
         });
+
+        it('should throw error when subrequests have different client instances', async () => {
+            const {routes: routes1} = initClient<MyApi>({baseURL});
+            const {routes: routes2} = initClient<MyApi>({baseURL});
+
+            await expect(workflow([routes1.sayHello(someUser), routes2.calculateAge(1990)])).rejects.toThrow(
+                'All subrequests in a workflow must use the same client instance'
+            );
+        });
     });
 
     describe('callWithWorkflow() method', () => {

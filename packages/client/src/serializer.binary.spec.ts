@@ -332,70 +332,77 @@ describe('Binary Serialization E2E', () => {
         it('should serialize and deserialize simple types in a workflow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            const [results, errors] = await workflow([routes.echo('Hello Workflow!'), routes.addNumbers(10, 20)]);
+            const [[result1, result2], [error1, error2]] = await workflow([
+                routes.echo('Hello Workflow!'),
+                routes.addNumbers(10, 20),
+            ]);
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBe('Hello Workflow!');
-            expect(results?.[1]).toBe(30);
+            expect(error1).toBeUndefined();
+            expect(error2).toBeUndefined();
+            expect(result1).toBe('Hello Workflow!');
+            expect(result2).toBe(30);
         });
 
         it('should serialize and deserialize objects in a workflow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            const [results, errors] = await workflow([
+            const [[result1, result2], [error1, error2]] = await workflow([
                 routes.getSimpleUser('Alice', 28),
                 routes.processSimpleUser({name: 'Bob', age: 35}),
             ]);
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toEqual({name: 'Alice', age: 28});
-            expect(results?.[1]).toBe('User: Bob, Age: 35');
+            expect(error1).toBeUndefined();
+            expect(error2).toBeUndefined();
+            expect(result1).toEqual({name: 'Alice', age: 28});
+            expect(result2).toBe('User: Bob, Age: 35');
         });
 
         it('should serialize and deserialize arrays in a workflow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            const [results, errors] = await workflow([
+            const [[result1, result2, result3], [error1, error2, error3]] = await workflow([
                 routes.sumArray([1, 2, 3, 4, 5]),
                 routes.doubleArray([10, 20, 30]),
                 routes.reverseStrings(['a', 'b', 'c']),
             ]);
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBe(15);
-            expect(results?.[1]).toEqual([20, 40, 60]);
-            expect(results?.[2]).toEqual(['c', 'b', 'a']);
+            expect(error1).toBeUndefined();
+            expect(error2).toBeUndefined();
+            expect(error3).toBeUndefined();
+            expect(result1).toBe(15);
+            expect(result2).toEqual([20, 40, 60]);
+            expect(result3).toEqual(['c', 'b', 'a']);
         });
 
         it('should serialize and deserialize Date types in a workflow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const inputDate = new Date('2025-01-15T00:00:00Z');
 
-            const [results, errors] = await workflow([routes.getCurrentDate(), routes.addDays(inputDate, 5)]);
+            const [[result1, result2], [error1, error2]] = await workflow([
+                routes.getCurrentDate(),
+                routes.addDays(inputDate, 5),
+            ]);
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBeInstanceOf(Date);
-            expect(results?.[1]).toBeInstanceOf(Date);
-            expect(results?.[1]?.getTime()).toBe(new Date('2025-01-20T00:00:00Z').getTime());
+            expect(error1).toBeUndefined();
+            expect(error2).toBeUndefined();
+            expect(result1).toBeInstanceOf(Date);
+            expect(result2).toBeInstanceOf(Date);
+            expect(result2?.getTime()).toBe(new Date('2025-01-20T00:00:00Z').getTime());
         });
 
         it('should serialize and deserialize complex objects in a workflow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            const [results, errors] = await workflow([
+            const [[result1, result2], [error1, error2]] = await workflow([
                 routes.createComplexUser('user-1', 'John Doe', 'john@example.com'),
                 routes.createNestedData('deep value', [1, 2, 3]),
             ]);
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
+            expect(error1).toBeUndefined();
+            expect(error2).toBeUndefined();
 
             // Complex user
-            expect(results?.[0]).toMatchObject({
+            expect(result1).toMatchObject({
                 id: 'user-1',
                 name: 'John Doe',
                 email: 'john@example.com',
@@ -404,10 +411,10 @@ describe('Binary Serialization E2E', () => {
                 tags: ['user', 'active'],
                 scores: [100, 95, 88],
             });
-            expect(results?.[0]?.createdAt).toBeInstanceOf(Date);
+            expect(result1?.createdAt).toBeInstanceOf(Date);
 
             // Nested data
-            expect(results?.[1]).toEqual({
+            expect(result2).toEqual({
                 level1: {level2: {level3: {value: 'deep value', numbers: [1, 2, 3]}}},
             });
         });
@@ -416,7 +423,7 @@ describe('Binary Serialization E2E', () => {
             const {routes} = initClient<MyApi>({baseURL});
             const inputDate = new Date('2025-06-01T12:00:00Z');
 
-            const [results, errors] = await workflow([
+            const [[result1, result2, result3, result4, result5], [error1, error2, error3, error4, error5]] = await workflow([
                 routes.echo('test'),
                 routes.addNumbers(5, 10),
                 routes.getSimpleUser('Test', 25),
@@ -424,27 +431,33 @@ describe('Binary Serialization E2E', () => {
                 routes.negate(true),
             ]);
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBe('test');
-            expect(results?.[1]).toBe(15);
-            expect(results?.[2]).toEqual({name: 'Test', age: 25});
-            expect(results?.[3]).toBeInstanceOf(Date);
-            expect(results?.[3]?.getTime()).toBe(new Date('2025-06-04T12:00:00Z').getTime());
-            expect(results?.[4]).toBe(false);
+            expect(error1).toBeUndefined();
+            expect(error2).toBeUndefined();
+            expect(error3).toBeUndefined();
+            expect(error4).toBeUndefined();
+            expect(error5).toBeUndefined();
+            expect(result1).toBe('test');
+            expect(result2).toBe(15);
+            expect(result3).toEqual({name: 'Test', age: 25});
+            expect(result4).toBeInstanceOf(Date);
+            expect(result4?.getTime()).toBe(new Date('2025-06-04T12:00:00Z').getTime());
+            expect(result5).toBe(false);
         });
 
         it('should handle workflow with linkedFns in binary mode', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
 
-            const [results, errors, linkedFnResults] = await workflow([routes.echo('workflow test'), routes.addNumbers(1, 2)], {
-                session: linkedFns.session('valid-token'),
-            });
+            const [[result1, result2], [error1, error2], linkedFnResults] = await workflow(
+                [routes.echo('workflow test'), routes.addNumbers(1, 2)],
+                {
+                    session: linkedFns.session('valid-token'),
+                }
+            );
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBe('workflow test');
-            expect(results?.[1]).toBe(3);
+            expect(error1).toBeUndefined();
+            expect(error2).toBeUndefined();
+            expect(result1).toBe('workflow test');
+            expect(result2).toBe(3);
             expect(linkedFnResults?.session).toEqual({valid: true, userId: 'user-123'});
         });
 
