@@ -41,6 +41,13 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     const respHeaders = headersFromRecord(rawRespHeaders, true);
     // AWS Lambda always receives body as string (JSON)
     const reqBodyType = SerializerModes.stringifyJson;
+    // Reconstruct query string from AWS parsed query parameters
+    const urlQuery = rawRequest.queryStringParameters
+        ? Object.entries(rawRequest.queryStringParameters)
+              .filter(([, v]) => v !== undefined)
+              .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v!)}`)
+              .join('&')
+        : undefined;
 
     try {
         const routeResponse = await dispatchRoute(
@@ -50,7 +57,8 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
             respHeaders,
             rawRequest,
             awsContext,
-            reqBodyType
+            reqBodyType,
+            urlQuery
         );
         return reply(routeResponse, respHeaders);
     } catch (err) {

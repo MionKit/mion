@@ -9,7 +9,7 @@ import {linkedFn, initMionRouter, Routes} from '@mionkit/router';
 
 const routes = {
     // only required as initMionRouter needs at least one route/linkedFn
-    '@mionkit/mionEmptyLinkedFn': linkedFn((): void => undefined),
+    'mion@mionEmptyLinkedFn': linkedFn((): void => undefined),
 } satisfies Routes;
 
 // Initialize the router

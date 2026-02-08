@@ -31,11 +31,22 @@ export async function dispatchRoute<Req, Resp>(
     respHeaders: MionHeaders,
     rawRequest: Req,
     rawResponse?: Resp,
-    reqBodyType?: SerializerCode
+    reqBodyType?: SerializerCode,
+    urlQuery?: string
 ): Promise<MionResponse> {
     const opts = getRouterOptions();
     const usePooling = opts.maxContextPoolSize > 0;
-    const context = acquireCallContext(usePooling, path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
+    const context = acquireCallContext(
+        usePooling,
+        path,
+        opts,
+        reqRawBody,
+        rawRequest,
+        reqHeaders,
+        respHeaders,
+        reqBodyType,
+        urlQuery
+    );
 
     try {
         await runExecutionChain(context, rawRequest, rawResponse, opts);
@@ -61,16 +72,17 @@ async function runExecutionChain(
     opts: RouterOptions
 ): Promise<MionResponse> {
     const {response, request} = context;
+    const executionList = context.executionChain.methods;
     (response as Mutable<MionResponse>).serializer = context.executionChain.serializer;
-    // IMPORTANT: we need to access context.executionChain as the executionChain object could be modified in the workflow route
-    for (let i = 0; i < context.executionChain.methods.length; i++) {
-        const executable = context.executionChain.methods[i];
+    for (let i = 0; i < executionList.length; i++) {
+        const executable = executionList[i];
         if (response.hasErrors && !executable.options.runOnError) continue;
 
         try {
             const methodCaller = executable.methodCaller || getMethodCaller(executable);
             // runRawLinkedFn , runHeadersLinkedFn & runRouteOrLinkedFn must always accept the same parameters in the same order
             const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+
             if (result === undefined || !executable.hasReturnData) continue;
             if (executable.headersReturn && result instanceof HeadersSubset) {
                 const headersMap = result.headers;

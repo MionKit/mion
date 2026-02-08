@@ -60,6 +60,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
             const pathStart = reqUrl.indexOf('/', 8);
             const queryStart = reqUrl.indexOf('?', pathStart);
             const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
+            const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
             const contentType = req.headers.get('content-type') || '';
             const isBinary = contentType.startsWith('application/octet-stream');
             const rawBody = req.body
@@ -78,7 +79,8 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
                     responseHeaders,
                     req,
                     undefined,
-                    reqBodyType
+                    reqBodyType,
+                    urlQuery
                 );
                 return reply(platformResp, responseHeaders);
             } catch (e) {
