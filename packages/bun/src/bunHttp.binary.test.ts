@@ -8,7 +8,7 @@ import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bu
 import {initRouter, registerRoutes, route, getRouteExecutionChain, resetRouter} from '@mionkit/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp';
 import {CallContext} from '@mionkit/router';
-import {serializeBinaryBody, deserializeBinaryBody, MethodWithJitFns} from '@mionkit/core';
+import {serializeBinaryBody, deserializeBinaryBody} from '@mionkit/core';
 import {Server} from 'bun';
 
 // Increase timeout for tests that involve type reflection (can be slow when running in parallel)
@@ -29,13 +29,6 @@ describe('bun router binary serialization should', () => {
     const getDate = route((context: Context, dataPoint?: DataPoint): DataPoint => {
         return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
     });
-
-    /** Helper to build a methods map from an ExecutionChain */
-    function buildMethodsMap(executionChain: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
-        const map = new Map<string, MethodWithJitFns>();
-        for (const method of executionChain) map.set(method.id, method);
-        return map;
-    }
 
     let server: Server<any>;
     const port = 8090; // Use a unique port for binary tests
@@ -58,7 +51,6 @@ describe('bun router binary serialization should', () => {
 
     test('send binary request and receive binary response with Date objects', async () => {
         const executionChain = getRouteExecutionChain('/api/getDate')!.methods;
-        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize request body to binary
         const requestBody = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
@@ -72,8 +64,8 @@ describe('bun router binary serialization should', () => {
         const headers = Object.fromEntries(response.headers.entries());
         const responseBuffer = await response.arrayBuffer();
 
-        // Deserialize binary response
-        const {body: responseBody} = deserializeBinaryBody('/api/getDate', methodsMap, responseBuffer, true);
+        // Deserialize binary response - uses routesCache to look up method JIT functions
+        const {body: responseBody} = deserializeBinaryBody('/api/getDate', responseBuffer, true);
 
         expect(responseBody.getDate).toBeDefined();
         expect(responseBody.getDate.date).toEqual(new Date('2022-04-22T00:17:00.000Z'));
@@ -83,7 +75,6 @@ describe('bun router binary serialization should', () => {
 
     test('send binary request and receive binary response with complex objects', async () => {
         const executionChain = getRouteExecutionChain('/api/changeUserName')!.methods;
-        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize request body to binary
         const requestBody = {changeUserName: [{name: 'John', surname: 'Doe'}]};
@@ -97,8 +88,8 @@ describe('bun router binary serialization should', () => {
         const headers = Object.fromEntries(response.headers.entries());
         const responseBuffer = await response.arrayBuffer();
 
-        // Deserialize binary response
-        const {body: responseBody} = deserializeBinaryBody('/api/changeUserName', methodsMap, responseBuffer, true);
+        // Deserialize binary response - uses routesCache to look up method JIT functions
+        const {body: responseBody} = deserializeBinaryBody('/api/changeUserName', responseBuffer, true);
 
         expect(responseBody.changeUserName).toBeDefined();
         expect(responseBody.changeUserName.name).toEqual('NewName');
@@ -109,7 +100,6 @@ describe('bun router binary serialization should', () => {
 
     test('handle optional parameters in binary mode', async () => {
         const executionChain = getRouteExecutionChain('/api/getDate')!.methods;
-        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize request body with no parameters (optional)
         const requestBody = {getDate: []};
@@ -123,8 +113,8 @@ describe('bun router binary serialization should', () => {
         const headers = Object.fromEntries(response.headers.entries());
         const responseBuffer = await response.arrayBuffer();
 
-        // Deserialize binary response
-        const {body: responseBody} = deserializeBinaryBody('/api/getDate', methodsMap, responseBuffer, true);
+        // Deserialize binary response - uses routesCache to look up method JIT functions
+        const {body: responseBody} = deserializeBinaryBody('/api/getDate', responseBuffer, true);
 
         expect(responseBody.getDate).toBeDefined();
         expect(responseBody.getDate.date).toEqual(new Date('2022-04-22T00:17:00.000Z'));

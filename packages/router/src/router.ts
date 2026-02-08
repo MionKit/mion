@@ -27,7 +27,7 @@ import {
     isRoutes,
     isAnyLinkedFnDef,
 } from './types/guards';
-import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv} from '@mionkit/core';
+import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv, resetRoutesCache} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection';
 import {serializerLinkedFns} from './routes/serializer.routes';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionkit/core';
@@ -106,7 +106,7 @@ export const resetRouter = () => {
     resetRemoteMethodsMetadata();
     resetPersistedMethods();
     resetDefaultAOTCachesState();
-    routesCache.reset();
+    resetRoutesCache();
     clearContextPool();
     clearWorkflowCache();
     // Note: We intentionally do NOT call resetJitFnCaches() here because:

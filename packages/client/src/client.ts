@@ -296,14 +296,20 @@ export class MionClient {
         linkedFnsRecord: H,
         linkedFnSubRequests: HSubRequest<any>[]
     ): Promise<WorkflowResult<Routes, H>> {
-        return new Promise((resolve) => {
-            const request = new MionClientRequest(
-                this.clientOptions,
-                this.prefilledLinkedFnsCache,
-                undefined, // No single route - workflow handles multiple routes
-                linkedFnSubRequests,
-                workflowSubRequests // Pass workflow subrequests
-            );
+        return new Promise((resolve, reject) => {
+            let request: MionClientRequest<any, any>;
+            try {
+                request = new MionClientRequest(
+                    this.clientOptions,
+                    this.prefilledLinkedFnsCache,
+                    undefined, // No single route - workflow handles multiple routes
+                    linkedFnSubRequests,
+                    workflowSubRequests // Pass workflow subrequests
+                );
+            } catch (error) {
+                reject(error);
+                return;
+            }
 
             request
                 .call()

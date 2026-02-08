@@ -40,8 +40,14 @@ export function setSerializationOptions(options: Partial<SerializationOptions>) 
     opts = {...opts, ...options};
 }
 
-export function createDataViewSerializer(routeId: string): DataViewSerializer {
-    const size = calculateDefaultBufferSize(routeId);
+/**
+ * Creates a DataView-based serializer for binary serialization.
+ * @param routeId - The route ID for buffer size calculation and tracking
+ * @param workflowRouteIds - Optional array of route IDs for workflow requests.
+ *                           When provided, buffer size is calculated by summing sizes for each route.
+ */
+export function createDataViewSerializer(routeId: string, workflowRouteIds?: string[]): DataViewSerializer {
+    const size = calculateBufferSizeForRequest(routeId, workflowRouteIds);
     if (size >= POW_2_32) throw new Error('bufferSize option must be strictly less than 2 ** 32');
     return new DataViewSerializerImpl(routeId, size);
 }
@@ -214,7 +220,24 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
     }
 }
 
-/** return the 75% percentile of the response size for the given route, and updates the map */
+/**
+ * Calculates buffer size for a request, handling both single routes and workflows.
+ * For workflows, sums up the buffer sizes for each individual route.
+ */
+function calculateBufferSizeForRequest(routeId: string, workflowRouteIds?: string[]): number {
+    if (!workflowRouteIds || workflowRouteIds.length === 0) {
+        return calculateDefaultBufferSize(routeId);
+    }
+
+    // For workflows, sum up the buffer sizes for each individual route
+    let totalSize = 0;
+    for (const id of workflowRouteIds) {
+        totalSize += calculateDefaultBufferSize(id);
+    }
+    return totalSize;
+}
+
+/** Returns the average response size for the given route, multiplied by a factor for safety margin */
 function calculateDefaultBufferSize(routeId: string): number {
     const size = opts.responseAverageSizes.get(routeId);
     if (!size) return opts.bufferSize;

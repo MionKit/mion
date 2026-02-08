@@ -13,9 +13,9 @@ import {
     routesCache,
     MION_ROUTES,
     HandlerType,
-    createDataViewSerializer,
-    createDataViewDeserializer,
     type SerializerMode,
+    serializeBinaryBody as coreSerializeBinaryBody,
+    deserializeBinaryBody as coreDeserializeBinaryBody,
 } from '@mionkit/core';
 import type {MionClientRequest} from './request';
 import {DEFAULT_PREFILL_OPTIONS} from './constants';
@@ -37,9 +37,12 @@ export interface SerializedRequest {
 /**
  * Determines the serializer mode to use for a request.
  * Reads from method metadata if available, otherwise defaults to JSON.
+ * For workflows, uses the first workflow subrequest's serializer mode.
  */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
-    const method = routesCache.getMethodJitFns(req.route?.methodId);
+    // For workflows, use the first workflow subrequest's serializer mode
+    const methodId = req.route?.id ?? req.workflowSubRequests?.[0]?.id;
+    const method = routesCache.getMethodJitFns(methodId);
     const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serializer;
     // we do not want to mutate data, so we do not use 'json' mode in the client
     if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serializer;
@@ -74,56 +77,34 @@ export function serializeRequestBody(req: MionClientRequest<any, any>): Serializ
     }
 }
 
-/**
- * Serializes request body to binary format.
- * Binary Protocol Request Format:
- * [4 bytes] - Number of methods (uint32 LE)
- * For each method:
- *   [4 bytes] - Method ID string length (uint32 LE)
- *   [N bytes] - Method ID string (UTF-8)
- *   [M bytes] - Serialized params (using toBinary JIT)
- */
+/** Serializes request body to binary format using the core serializeBinaryBody function */
 function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
     const subRequestIds = Object.keys(req.subRequestList);
-    const serializer = createDataViewSerializer('client-request');
 
-    try {
-        // Write number of methods
-        serializer.view.setUint32(serializer.index, subRequestIds.length, true);
-        serializer.index += 4;
+    // Build request body and execution chain for core serializer
+    // For headersFn methods, strip the HeadersSubset param before serialization
+    const body: Record<string, any> = {};
+    const executionChain: MethodWithJitFns[] = [];
 
-        for (let i = 0; i < subRequestIds.length; i++) {
-            const id = subRequestIds[i];
-            const subRequest = req.subRequestList[id];
-            if (!subRequest) continue;
+    for (const id of subRequestIds) {
+        const subRequest = req.subRequestList[id];
+        let params = subRequest.params;
+        const method = routesCache.useMethodJitFns(id);
 
-            let params = subRequest.params;
-            const method = routesCache.useMethodJitFns(id);
-
-            // For headersFn methods, skip the HeadersSubset param (first param after context)
-            if (method.type === HandlerType.headersLinkedFn && method.headersParam) {
-                params = getParamsWithoutHeadersSubset(params);
-            }
-
-            // Write method ID
-            serializer.serString(id);
-
-            // Serialize params using toBinary JIT function
-            if (!method.paramsJitFns.toBinary.isNoop) {
-                method.paramsJitFns.toBinary.fn(params, serializer);
-            }
+        // For headersFn methods, skip the HeadersSubset param (first param after context)
+        if (method.type === HandlerType.headersLinkedFn && method.headersParam) {
+            params = getParamsWithoutHeadersSubset(params);
         }
 
-        serializer.markAsEnded();
-        return serializer.getBufferView();
-    } catch (e: any) {
-        serializer.markAsEnded();
-        throw new RpcError({
-            type: 'binary-serialize-request-error',
-            publicMessage: `Failed to serialize request body to binary: ${e?.message || 'unknown error'}`,
-            originalError: e,
-        });
+        body[id] = params;
+        executionChain.push(method);
     }
+
+    // For workflows, pass the individual route IDs for proper buffer size calculation
+    // This ensures the buffer is sized based on the sum of all routes in the workflow
+    const workflowRouteIds = req.workflowSubRequests?.map((sr) => sr.id);
+    const {buffer} = coreSerializeBinaryBody(req.path, executionChain, body, false, workflowRouteIds);
+    return new Uint8Array(buffer);
 }
 
 /**
@@ -199,50 +180,12 @@ async function deserializeJsonResponseBody(response: Response): Promise<any> {
     }
 }
 
-/**
- * Deserializes binary response body.
- * Binary Protocol Response Format:
- * [4 bytes] - Number of methods with return data (uint32 LE)
- * For each method:
- *   [4 bytes] - Method ID string length (uint32 LE)
- *   [N bytes] - Method ID string (UTF-8)
- *   [M bytes] - Serialized return value (using fromBinary JIT)
- */
+/** Deserializes binary response body using the core deserializeBinaryBody function */
 async function deserializeBinaryResponseBody(response: Response): Promise<ResponseBody> {
     const arrayBuffer = await response.arrayBuffer();
-    const deserializer = createDataViewDeserializer('client-response', arrayBuffer);
-    const body: ResponseBody = {};
 
-    try {
-        // Read number of methods
-        const numMethods = deserializer.view.getUint32(deserializer.index, true);
-        deserializer.index += 4;
-
-        for (let i = 0; i < numMethods; i++) {
-            // Read method ID
-            const methodId = deserializer.desString();
-
-            // Get the method to access its fromBinary JIT function
-            const method = routesCache.useMethodJitFns(methodId);
-
-            // Deserialize return value using fromBinary JIT function
-            if (method.returnJitFns.fromBinary.isNoop) {
-                body[methodId] = undefined;
-            } else {
-                body[methodId] = method.returnJitFns.fromBinary.fn(undefined, deserializer);
-            }
-        }
-
-        deserializer.markAsEnded();
-    } catch (err: any) {
-        if (err instanceof RpcError) throw err;
-        throw new RpcError({
-            type: 'binary-deserialization-error',
-            publicMessage: `Failed to deserialize binary response body: ${err?.message || 'unknown error'}`,
-            originalError: err,
-        });
-    }
-
+    // Method metadata is looked up from routesCache internally by deserializeBinaryBody
+    const {body} = coreDeserializeBinaryBody('client-response', arrayBuffer, true);
     return body;
 }
 
