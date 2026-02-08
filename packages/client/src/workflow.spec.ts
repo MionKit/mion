@@ -42,7 +42,6 @@ describe('workflow', () => {
 
             // Prefill auth so it's included automatically
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const [results, errors] = await workflow([routes.sayHello(someUser)]);
 
@@ -60,7 +59,6 @@ describe('workflow', () => {
 
             // Prefill auth so it's included automatically
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const [results, errors] = await workflow([
                 routes.sayHello(someUser),
@@ -119,7 +117,6 @@ describe('workflow', () => {
 
             // Prefill auth so it's included automatically
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const [results, errors] = await routes.sayHello(someUser).callWithWorkflow([routes.calculateAge(1990)]);
 
