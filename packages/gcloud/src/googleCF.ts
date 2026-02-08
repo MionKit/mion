@@ -49,6 +49,8 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
         : typeof rawBody === 'string'
           ? SerializerModes.stringifyJson
           : SerializerModes.json;
+    // Extract query string from Express request
+    const urlQuery = rawRequest.originalUrl?.includes('?') ? rawRequest.originalUrl.split('?')[1] : undefined;
 
     try {
         const routeResponse = await dispatchRoute(
@@ -58,7 +60,8 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
             respHeaders,
             rawRequest,
             rawResponse,
-            reqBodyType
+            reqBodyType,
+            urlQuery
         );
         reply(routeResponse, rawResponse);
     } catch (err) {

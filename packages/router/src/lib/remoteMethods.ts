@@ -25,7 +25,11 @@ import {
     getJitUtils,
     HandlerType,
     EMPTY_HASH,
+    MION_ROUTES,
 } from '@mionkit/core';
+
+/** Internal mion route IDs that should not be exposed to clients */
+const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
 
 // ############# PRIVATE STATE #############
 const publicMethods: Map<string, MethodWithOptions> = new Map();
@@ -97,6 +101,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
         newRemoteMethod.linkedFnIds = pathPointers
             .map((pointer) => getRouterItemId(pointer))
             .filter((id) => {
+                if (mionInternalRoutes.includes(id)) return false;
                 const exec = getLinkedFnExecutable(id);
                 return exec && isPublicExecutable(exec);
             });

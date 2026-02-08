@@ -96,6 +96,7 @@ function mionGetRemoteMethodsDataByPath(
 function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
     const {methods, deps, purFnDeps} = resp;
     if (methods[id]) return;
+    if (mionInternalRoutes.includes(id)) return;
     const executable = getLinkedFnExecutable(id) || getRouteExecutable(id);
     if (!executable) {
         errorData[id] = `Remote Method ${id} not found`;

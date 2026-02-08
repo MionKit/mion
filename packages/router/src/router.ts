@@ -9,7 +9,7 @@ import {join} from 'path';
 import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
 import type {
     RemoteMethod,
-    MethodsExecutionList,
+    MethodsExecutionChain,
     RawMethod,
     HeadersMethod,
     LinkedFnMethod,
@@ -17,7 +17,7 @@ import type {
 } from './types/remoteMethods';
 import type {PublicApi, PrivateDef, LinkedFnsCollection} from './types/publicMethods';
 import type {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef} from './types/definitions';
-import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
+import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, WORKFLOW_KEY} from './constants';
 import {
     isRawLinkedFnDef,
     isHeadersLinkedFnDef,
@@ -42,6 +42,7 @@ import {
 } from './lib/methodsCache';
 import {mionClientRoutes} from './routes/client.routes';
 import {mionErrorsRoutes} from './routes/errors.routes';
+import {clearWorkflowCache} from './workflows';
 import {clearContextPool} from './callContext';
 
 type RouterKeyEntryList = [string, RouterEntry][];
@@ -52,7 +53,7 @@ type RoutesWithId = {
 
 // ############# PRIVATE STATE #############
 
-const flatRouter: Map<string, MethodsExecutionList> = new Map(); // Main Router
+const flatRouter: Map<string, MethodsExecutionChain> = new Map(); // Main Router
 const linkedFnsById: Map<string, LinkedFnMethod | HeadersMethod | RawMethod> = new Map();
 const routesById: Map<string, RouteMethod> = new Map();
 const rawLinkedFnsById: Map<string, RawMethod> = new Map();
@@ -64,7 +65,9 @@ let isRouterInitialized = false;
 let allExecutablesIds: string[] | undefined;
 
 /** Global linkedFns to be run before and after any other linkedFns or routes set using `registerRoutes` */
-const defaultStartLinkedFns = {mionDeserializeRequest: serializerLinkedFns.mionDeserializeRequest};
+const defaultStartLinkedFns = {
+    mionDeserializeRequest: serializerLinkedFns.mionDeserializeRequest,
+};
 const defaultEndLinkedFns = {
     mionSerializeResponse: serializerLinkedFns.mionSerializeResponse,
 };
@@ -104,6 +107,7 @@ export const resetRouter = () => {
     resetPersistedMethods();
     resetDefaultAOTCachesState();
     clearContextPool();
+    clearWorkflowCache();
     // Note: We intentionally do NOT call resetJitFnCaches() here because:
     // 1. JIT function caches are global and should persist across router resets
     // 2. The serializableClassRegistry (cleared by resetJitFnCaches) is needed for
@@ -143,9 +147,9 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
 
 export async function registerRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
-    startLinkedFns = await getExecutablesFromLinkedFnsCollectionAsync(startLinkedFnsDef);
-    endLinkedFns = await getExecutablesFromLinkedFnsCollectionAsync(endLinkedFnsDef);
-    await recursiveFlatRoutesAsync(routes);
+    startLinkedFns = await getExecutablesFromLinkedFnsCollection(startLinkedFnsDef);
+    endLinkedFns = await getExecutablesFromLinkedFnsCollection(endLinkedFnsDef);
+    await recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
     if (shouldFullGenerateSpec()) return getPublicApi(routes);
     return {} as PublicApi<R>;
@@ -227,7 +231,7 @@ export function getRouteExecutableFromPath(path: string): RouteMethod {
  * @param postLinkedFns linkedFns one level up  following the current pointer
  * @param nestLevel
  */
-async function recursiveFlatRoutesAsync(
+async function recursiveFlatRoutes(
     routes: Routes,
     currentPointer: string[] = [],
     preLinkedFns: RemoteMethod[] = [],
@@ -249,6 +253,9 @@ async function recursiveFlatRoutesAsync(
         let routeEntry: RemoteMethod | RoutesWithId;
         if (typeof key !== 'string' || !isNaN(key as any))
             throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
+        if (key.includes(',')) throw new Error(`Invalid route: ${join(...newPointer)}. Route names cannot contain commas.`);
+        if (key === WORKFLOW_KEY)
+            throw new Error(`Invalid route: ${join(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
 
         // generates a linkedFn
         if (isAnyLinkedFnDef(item)) {
@@ -330,6 +337,7 @@ async function recursiveCreateExecutionChainAsync(
 
     if (isExec && props.isRoute) {
         const path = getRoutePath(routeEntry.pointer, routerOptions);
+        const routeMethod = routeEntry as RouteMethod;
         const levelMethods = [
             ...preLinkedFns,
             ...props.preLevelLinkedFns,
@@ -338,15 +346,14 @@ async function recursiveCreateExecutionChainAsync(
             ...postLinkedFns,
         ];
         const methods = [...startLinkedFns, ...levelMethods, ...endLinkedFns];
-        const routeMethod = routeEntry as RouteMethod;
-        const executionChain: MethodsExecutionList = {
+        const executionChain: MethodsExecutionChain = {
             routeIndex: startLinkedFns.length + preLinkedFns.length + props.preLevelLinkedFns.length,
             methods,
             serializer: getSerializerCodeFromMode(routeMethod.options.serializer),
         };
         flatRouter.set(path, executionChain);
     } else if (!isExec) {
-        await recursiveFlatRoutesAsync(
+        await recursiveFlatRoutes(
             routeEntry.routes,
             routeEntry.pathPointer,
             [...preLinkedFns, ...props.preLevelLinkedFns],
@@ -492,7 +499,7 @@ function getRouteEntryProperties(
     };
 }
 
-async function getExecutablesFromLinkedFnsCollectionAsync(
+async function getExecutablesFromLinkedFnsCollection(
     linkedFnsDef: LinkedFnsCollection
 ): Promise<(RawMethod | LinkedFnMethod | HeadersMethod)[]> {
     const results: (RawMethod | LinkedFnMethod | HeadersMethod)[] = [];

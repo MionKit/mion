@@ -70,4 +70,13 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
      * @default 0 (disabled)
      */
     maxContextPoolSize: number;
+    /**
+     * Maximum size of the workflow execution chain cache.
+     * Caches merged execution chains for workflow requests to avoid
+     * recalculating them on every request with the same route combination.
+     * Uses FILO (First In, Last Out) eviction when cache is full.
+     * Set to 0 to disable caching.
+     * @default 100
+     */
+    maxWorkflowsCacheSize: number;
 }

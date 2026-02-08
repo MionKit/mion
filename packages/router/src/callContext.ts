@@ -5,12 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {NOT_FOUND_PATH} from './constants';
+import {NOT_FOUND_PATH, WORKFLOW_PATH} from './constants';
 import {getRouteExecutionChain} from './router';
 import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context';
 import type {RouterOptions} from './types/general';
 import {Mutable, StatusCodes, SerializerModes, SerializerCode, RpcError} from '@mionkit/core';
-import {MethodsExecutionList} from './types/remoteMethods';
+import {MethodsExecutionChain} from './types/remoteMethods';
+import {getWorkflowExecutionChain} from './workflows';
 
 // ############# POOL STATE #############
 
@@ -38,10 +39,11 @@ export function createCallContext(
     rawRequest: unknown,
     reqHeaders: MionHeaders,
     respHeaders: MionHeaders,
-    reqBodyType?: SerializerCode
+    reqBodyType?: SerializerCode,
+    urlQuery?: string
 ): CallContext {
     const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
-    const executionChain = getExecutionChain(transformedPath);
+    const executionChain = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
     return {
         path: transformedPath,
         request: {
@@ -62,6 +64,7 @@ export function createCallContext(
         },
         executionChain,
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
+        urlQuery,
     } as CallContext;
 }
 
@@ -74,9 +77,10 @@ export function acquireCallContext(
     rawRequest: unknown,
     reqHeaders: MionHeaders,
     respHeaders: MionHeaders,
-    reqBodyType?: SerializerCode
+    reqBodyType?: SerializerCode,
+    urlQuery?: string
 ): CallContext {
-    if (!usePooling) return createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
+    if (!usePooling) return createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
     const pooledContext = contextPool.pop();
     const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
 
@@ -101,13 +105,15 @@ export function acquireCallContext(
         resp.serializer = SerializerModes.json;
         resp.binSerializer = undefined;
         // Reset execution chain
-        ctx.executionChain = getExecutionChain(transformedPath);
+        ctx.executionChain = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
         // Reset shared data
         ctx.shared = opts.contextDataFactory ? opts.contextDataFactory() : {};
+        // Reset urlQuery
+        ctx.urlQuery = urlQuery;
         return ctx;
     }
     // No pooled context available, create new one
-    return createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType);
+    return createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
 }
 
 /** Releases a CallContext back to the pool for reuse */
@@ -146,8 +152,22 @@ function getRequestBodyType(rawBody: RawRequestBody): SerializerCode {
     return SerializerModes.json;
 }
 
-function getExecutionChain(path: string): MethodsExecutionList {
-    let executionChain = getRouteExecutionChain(path);
+/** Gets the execution chain for a path, handling workflow paths specially */
+function getExecutionChain(
+    originalPath: string,
+    transformedPath: string,
+    urlQuery: string | undefined,
+    rawRequest: unknown,
+    opts: RouterOptions
+): MethodsExecutionChain {
+    // Handle workflow path - build merged execution chain from multiple routes
+    // Compare with original path since WORKFLOW_PATH is not transformed
+    if (originalPath === WORKFLOW_PATH) {
+        return getWorkflowExecutionChain(rawRequest, opts, urlQuery);
+    }
+
+    // Normal path - get execution chain from router using transformed path
+    let executionChain = getRouteExecutionChain(transformedPath);
     if (!executionChain) {
         executionChain = getRouteExecutionChain(NOT_FOUND_PATH);
         if (!executionChain) {

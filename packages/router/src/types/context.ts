@@ -7,7 +7,7 @@
 
 import type {AnyObject, DataViewSerializer, SerializerCode} from '@mionkit/core';
 import type {RpcError} from '@mionkit/core';
-import type {MethodsExecutionList} from './remoteMethods';
+import type {MethodsExecutionChain} from './remoteMethods';
 
 // ####### Call Context #######
 
@@ -23,7 +23,9 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
     /** context data between handlers (route/linkedFns) and that is not returned in the response. */
     shared: ContextData;
     /** The execution chain of the current route */
-    readonly executionChain: MethodsExecutionList;
+    readonly executionChain: MethodsExecutionChain;
+    /** Query string from URL, used for workflow routes */
+    readonly urlQuery?: string;
 }
 // type-call-context-end
 

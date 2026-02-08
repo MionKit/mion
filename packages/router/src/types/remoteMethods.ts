@@ -43,7 +43,7 @@ export type HeadersLinkedFnOptions = Partial<
 // RawLinkedFnOptions doesn't need encoding - raw linkedFns handle their own serialization
 export type RawLinkedFnOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>;
 
-export interface MethodsExecutionList {
+export interface MethodsExecutionChain {
     routeIndex: number;
     methods: RemoteMethod[];
     /** Precalculated serializer code for the route's response body type */
