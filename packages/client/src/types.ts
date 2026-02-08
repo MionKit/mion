@@ -71,6 +71,41 @@ export type CallWithLinkedFnsResult<RouteSuccess, RouteError, LinkedFns extends 
 ];
 // type-call-with-linkedFns-result-end
 
+// ############# Workflow Result Types #############
+
+// type-workflow-result-start
+/**
+ * Result type for workflow() function - 4-tuple pattern matching array input.
+ * Returns [routeResults, routeErrors, linkedFnsResults, linkedFnsErrors] where:
+ * - routeResults: array of success values matching input order (undefined if route failed)
+ * - routeErrors: array of errors matching input order (undefined if route succeeded)
+ * - linkedFnsResults: record of linkedFn names to their success values
+ * - linkedFnsErrors: record of linkedFn names to their error values
+ *
+ * @typeParam Routes - Tuple type of RSubRequest instances passed to workflow
+ * @typeParam LinkedFns - Record of linkedFn names to HSubRequest instances
+ */
+export type WorkflowResult<
+    Routes extends RSubRequest<any>[],
+    LinkedFns extends Record<string, HSubRequest<any>> = Record<string, HSubRequest<any>>,
+> = [
+    WorkflowRouteResults<Routes> | undefined,
+    WorkflowRouteErrors<Routes> | undefined,
+    {[K in keyof LinkedFns]?: LinkedFnSuccess<LinkedFns[K]>} | undefined,
+    {[K in keyof LinkedFns]?: LinkedFnError<LinkedFns[K]>} | undefined,
+];
+// type-workflow-result-end
+
+/** Extract success types from route subrequests as tuple */
+export type WorkflowRouteResults<Routes extends RSubRequest<any>[]> = {
+    [K in keyof Routes]: Routes[K] extends RSubRequest<infer PH> ? HandlerSuccessResponse<PH> | undefined : never;
+};
+
+/** Extract error types from route subrequests as tuple */
+export type WorkflowRouteErrors<Routes extends RSubRequest<any>[]> = {
+    [K in keyof Routes]: Routes[K] extends RSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> | undefined : never;
+};
+
 export type ClientOptions = {
     baseURL: string;
     fetchOptions: RequestInit;
@@ -209,6 +244,19 @@ export interface RSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     callWithLinkedFns: <H extends Record<string, HSubRequest<any>>>(
         linkedFns: H
     ) => Promise<CallWithLinkedFnsResult<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, H>>;
+
+    /**
+     * Calls this route as part of a workflow with other routes in a single HTTP request.
+     * All routes execute in order with shared context on the server.
+     *
+     * @param otherRoutes Additional routes to include in the workflow
+     * @param linkedFns Optional record of linkedFn subrequests to include
+     * @returns Promise resolving to WorkflowResult 4-tuple [routeResults, routeErrors, linkedFnResults, linkedFnErrors]
+     */
+    callWithWorkflow: <OtherRoutes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+        otherRoutes: [...OtherRoutes],
+        linkedFns?: H
+    ) => Promise<WorkflowResult<any, H>>;
 }
 // type-route-sub-request-end
 

@@ -88,6 +88,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     const nodeUrl = httpReq.url || '/';
     const queryIndex = nodeUrl.indexOf('?');
     const path = queryIndex === -1 ? nodeUrl : nodeUrl.substring(0, queryIndex);
+    const urlQuery = queryIndex === -1 ? undefined : nodeUrl.substring(queryIndex + 1);
     let size = 0;
     const bodyChunks: any[] = [];
 
@@ -136,7 +137,8 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
                 respHeaders,
                 httpReq,
                 httpResponse,
-                reqBodyType
+                reqBodyType,
+                urlQuery
             );
             if (replied || httpResponse.writableEnded) return;
             replied = true;

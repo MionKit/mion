@@ -13,6 +13,7 @@ import {getRoutePath} from '@mionkit/core';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {validateSubRequests} from './validation';
 import {serializeRequestBody, deserializeResponseBody} from './serializer';
+import {WORKFLOW_PATH} from './constants';
 
 export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList extends HSubRequest<any>[]> {
     readonly path: string;
@@ -23,11 +24,23 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
         public readonly options: ClientOptions,
         private readonly prefilledLinkedFnsCache: PrefilledLinkedFnsCache,
         public readonly route?: RR,
-        public readonly linkedFns?: LinkedFnRequestsList
+        public readonly linkedFns?: LinkedFnRequestsList,
+        /** Array of workflow subrequests when executing a workflow */
+        public readonly workflowSubRequests?: RSubRequest<any>[]
     ) {
-        this.path = route ? getRoutePath(route.pointer, this.options) : 'no-route';
-        this.requestId = route ? route.id : 'no-route';
-        if (route) this.addSubRequest(route);
+        if (workflowSubRequests && workflowSubRequests.length > 0) {
+            // Workflow mode: build path with query string from route paths
+            const routePaths = workflowSubRequests.map((sr) => getRoutePath(sr.pointer, this.options));
+            this.path = `${WORKFLOW_PATH}?${routePaths.join(',')}`;
+            this.requestId = 'mion-workflow-route';
+            // Add all workflow subrequests to the subRequestList
+            workflowSubRequests.forEach((sr) => this.addSubRequest(sr));
+        } else {
+            // Standard mode: single route
+            this.path = route ? getRoutePath(route.pointer, this.options) : 'no-route';
+            this.requestId = route ? route.id : 'no-route';
+            if (route) this.addSubRequest(route);
+        }
         if (linkedFns) linkedFns.forEach((linkedFn) => this.addSubRequest(linkedFn));
     }
 
@@ -212,6 +225,12 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
 
     // Restore prefilled linkedFns from in-memory cache
     private restorePrefilledLinkedFns(errors: RequestErrors): void {
+        if (this.workflowSubRequests && this.workflowSubRequests.length > 0) {
+            // Workflow mode: restore prefilled linkedFns for ALL routes in the workflow
+            this.restorePrefilledLinkedFnsForWorkflow(errors);
+            return;
+        }
+
         const methodMeta = routesCache.getMetadata(this.requestId);
         if (!methodMeta) {
             errors.set(
@@ -241,6 +260,42 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
                 this.addSubRequest(clonedSubRequest);
             }
         });
+    }
+
+    /** Restore prefilled linkedFns for all routes in a workflow, deduplicating by ID */
+    private restorePrefilledLinkedFnsForWorkflow(errors: RequestErrors): void {
+        const workflowRouteIds = new Set(this.workflowSubRequests!.map((sr) => sr.id));
+
+        for (const routeSubRequest of this.workflowSubRequests!) {
+            const methodMeta = routesCache.getMetadata(routeSubRequest.id);
+            if (!methodMeta) {
+                errors.set(
+                    routeSubRequest.id,
+                    new RpcError({
+                        type: 'route-metadata-not-found',
+                        publicMessage: `Metadata for Route '${routeSubRequest.id}' not found.`,
+                    })
+                );
+                continue;
+            }
+            const missingIds = methodMeta.linkedFnIds?.filter((id) => !!id && !workflowRouteIds.has(id)) || [];
+            missingIds.forEach((id) => {
+                // Skip if already in subRequestList (deduplication)
+                const subRequest = this.subRequestList[id];
+                if (subRequest) return;
+                const cacheKey = this.getPrefilledLinkedFnCacheKey(id);
+                const cachedSubRequest = this.prefilledLinkedFnsCache.get(cacheKey);
+                if (cachedSubRequest) {
+                    const clonedSubRequest: SubRequest<any> = {
+                        ...cachedSubRequest,
+                        isResolved: false,
+                        resolvedValue: undefined,
+                        error: undefined,
+                    };
+                    this.addSubRequest(clonedSubRequest);
+                }
+            });
+        }
     }
 
     // Store prefilled linkedFns in in-memory cache
