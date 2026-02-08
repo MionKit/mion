@@ -35,7 +35,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         parentProps: string[],
         handlerId: string,
         argArray: any[],
-        private readonly client: MionClient
+        readonly client: MionClient
     ) {
         this.pointer = [...parentProps];
         this.id = handlerId;
