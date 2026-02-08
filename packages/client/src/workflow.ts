@@ -31,6 +31,17 @@ export async function workflow<
 
     const client = firstSubRequest.client;
 
+    // Validate all subrequests use the same client instance
+    for (let i = 1; i < routeSubRequests.length; i++) {
+        const subRequest = routeSubRequests[i] as MionSubRequest;
+        if (subRequest.client !== client) {
+            throw new RpcError({
+                type: 'workflow-client-mismatch',
+                publicMessage: `All subrequests in a workflow must use the same client instance. Subrequest at index ${i} has a different client.`,
+            });
+        }
+    }
+
     const [results, errors, linkedFnResults, linkedFnErrors] = await client.executeCallWithWorkflow(
         routeSubRequests as any,
         (linkedFns ?? {}) as any
