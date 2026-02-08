@@ -43,11 +43,10 @@ describe('workflow', () => {
             // Prefill auth so it's included automatically
             linkedFns.auth(authHeaders).prefill();
 
-            const [results, errors] = await workflow([routes.sayHello(someUser)]);
+            const [[greeting], [greetingError]] = await workflow([routes.sayHello(someUser)]);
 
-            expect(results).toBeDefined();
-            expect(results?.[0]).toEqual('Hello John Doe');
-            expect(errors).toBeUndefined();
+            expect(greeting).toEqual('Hello John Doe');
+            expect(greetingError).toBeUndefined();
 
             // Clean up
             linkedFns.auth(authHeaders).removePrefill();
@@ -60,17 +59,18 @@ describe('workflow', () => {
             // Prefill auth so it's included automatically
             linkedFns.auth(authHeaders).prefill();
 
-            const [results, errors] = await workflow([
+            const [[greeting, age, sum], [greetingError, ageError, sumError]] = await workflow([
                 routes.sayHello(someUser),
                 routes.calculateAge(1990),
                 routes.utils.sumTwo(5),
             ]);
 
-            expect(results).toBeDefined();
-            expect(results?.[0]).toEqual('Hello John Doe');
-            expect(results?.[1]).toEqual(new Date().getFullYear() - 1990);
-            expect(results?.[2]).toEqual(7);
-            expect(errors).toBeUndefined();
+            expect(greeting).toEqual('Hello John Doe');
+            expect(age).toEqual(new Date().getFullYear() - 1990);
+            expect(sum).toEqual(7);
+            expect(greetingError).toBeUndefined();
+            expect(ageError).toBeUndefined();
+            expect(sumError).toBeUndefined();
 
             // Clean up
             linkedFns.auth(authHeaders).removePrefill();
@@ -80,13 +80,12 @@ describe('workflow', () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [results, errors, linkedFnResults, linkedFnErrors] = await workflow([routes.sayHello(someUser)], {
+            const [[greeting], [greetingError], , linkedFnErrors] = await workflow([routes.sayHello(someUser)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
-            expect(results).toBeDefined();
-            expect(results?.[0]).toEqual('Hello John Doe');
-            expect(errors).toBeUndefined();
+            expect(greeting).toEqual('Hello John Doe');
+            expect(greetingError).toBeUndefined();
             expect(linkedFnErrors?.auth).toBeUndefined();
         });
 
@@ -94,15 +93,14 @@ describe('workflow', () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [results, errors] = await workflow([routes.alwaysFails(someUser)], {
+            const [[failResult], [failError]] = await workflow([routes.alwaysFails(someUser)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
             // The failing route should have an error
-            expect(errors).toBeDefined();
-            expect(errors?.[0]).toBeDefined();
-            expect(errors?.[0]?.type).toBe('unknown-error');
-            expect(results?.[0]).toBeUndefined();
+            expect(failError).toBeDefined();
+            expect(failError?.type).toBe('unknown-error');
+            expect(failResult).toBeUndefined();
         });
 
         it('should throw error when called with empty routes array', async () => {
@@ -118,12 +116,14 @@ describe('workflow', () => {
             // Prefill auth so it's included automatically
             linkedFns.auth(authHeaders).prefill();
 
-            const [results, errors] = await routes.sayHello(someUser).callWithWorkflow([routes.calculateAge(1990)]);
+            const [[greeting, age], [greetingError, ageError]] = await routes
+                .sayHello(someUser)
+                .callWithWorkflow([routes.calculateAge(1990)]);
 
-            expect(results).toBeDefined();
-            expect(results?.[0]).toEqual('Hello John Doe');
-            expect(results?.[1]).toEqual(new Date().getFullYear() - 1990);
-            expect(errors).toBeUndefined();
+            expect(greeting).toEqual('Hello John Doe');
+            expect(age).toEqual(new Date().getFullYear() - 1990);
+            expect(greetingError).toBeUndefined();
+            expect(ageError).toBeUndefined();
 
             // Clean up
             linkedFns.auth(authHeaders).removePrefill();
@@ -133,14 +133,14 @@ describe('workflow', () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [results, errors, linkedFnResults, linkedFnErrors] = await routes
+            const [[greeting, age], [greetingError, ageError], , linkedFnErrors] = await routes
                 .sayHello(someUser)
                 .callWithWorkflow([routes.calculateAge(1990)], {auth: linkedFns.auth(authHeaders)});
 
-            expect(results).toBeDefined();
-            expect(results?.[0]).toEqual('Hello John Doe');
-            expect(results?.[1]).toEqual(new Date().getFullYear() - 1990);
-            expect(errors).toBeUndefined();
+            expect(greeting).toEqual('Hello John Doe');
+            expect(age).toEqual(new Date().getFullYear() - 1990);
+            expect(greetingError).toBeUndefined();
+            expect(ageError).toBeUndefined();
             expect(linkedFnErrors?.auth).toBeUndefined();
         });
     });
@@ -151,14 +151,13 @@ describe('workflow', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testDate = new Date('2024-06-15T12:30:00.000Z');
 
-            const [results, errors] = await workflow([routes.getSameDate(testDate)], {
+            const [[sameDate], [dateError]] = await workflow([routes.getSameDate(testDate)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBeInstanceOf(Date);
-            expect(results?.[0]?.toISOString()).toEqual('2024-06-15T12:30:00.000Z');
+            expect(dateError).toBeUndefined();
+            expect(sameDate).toBeInstanceOf(Date);
+            expect(sameDate?.toISOString()).toEqual('2024-06-15T12:30:00.000Z');
         });
 
         it('should serialize Date params and return computed Date result', async () => {
@@ -166,14 +165,13 @@ describe('workflow', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testDate = new Date('2024-01-01T00:00:00.000Z');
 
-            const [results, errors] = await workflow([routes.getDatePlusDays(testDate, 10)], {
+            const [[datePlusDays], [dateError]] = await workflow([routes.getDatePlusDays(testDate, 10)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBeInstanceOf(Date);
-            expect(results?.[0]?.toISOString()).toEqual('2024-01-11T00:00:00.000Z');
+            expect(dateError).toBeUndefined();
+            expect(datePlusDays).toBeInstanceOf(Date);
+            expect(datePlusDays?.toISOString()).toEqual('2024-01-11T00:00:00.000Z');
         });
 
         it('should serialize and deserialize Map params and results', async () => {
@@ -184,15 +182,14 @@ describe('workflow', () => {
                 ['b', 2],
             ]);
 
-            const [results, errors] = await workflow([routes.getSameMap(testMap)], {
+            const [[sameMap], [mapError]] = await workflow([routes.getSameMap(testMap)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBeInstanceOf(Map);
-            expect(results?.[0]?.get('a')).toEqual(1);
-            expect(results?.[0]?.get('b')).toEqual(2);
+            expect(mapError).toBeUndefined();
+            expect(sameMap).toBeInstanceOf(Map);
+            expect(sameMap?.get('a')).toEqual(1);
+            expect(sameMap?.get('b')).toEqual(2);
         });
 
         it('should serialize Map params and return modified Map result', async () => {
@@ -200,15 +197,14 @@ describe('workflow', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testMap = new Map<string, number>([['x', 10]]);
 
-            const [results, errors] = await workflow([routes.mergeMap(testMap, 'y', 20)], {
+            const [[mergedMap], [mapError]] = await workflow([routes.mergeMap(testMap, 'y', 20)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBeInstanceOf(Map);
-            expect(results?.[0]?.get('x')).toEqual(10);
-            expect(results?.[0]?.get('y')).toEqual(20);
+            expect(mapError).toBeUndefined();
+            expect(mergedMap).toBeInstanceOf(Map);
+            expect(mergedMap?.get('x')).toEqual(10);
+            expect(mergedMap?.get('y')).toEqual(20);
         });
 
         it('should serialize and deserialize Set params and results', async () => {
@@ -216,15 +212,14 @@ describe('workflow', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testSet = new Set(['hello', 'world']);
 
-            const [results, errors] = await workflow([routes.getSameSet(testSet)], {
+            const [[sameSet], [setError]] = await workflow([routes.getSameSet(testSet)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBeInstanceOf(Set);
-            expect(results?.[0]?.has('hello')).toBe(true);
-            expect(results?.[0]?.has('world')).toBe(true);
+            expect(setError).toBeUndefined();
+            expect(sameSet).toBeInstanceOf(Set);
+            expect(sameSet?.has('hello')).toBe(true);
+            expect(sameSet?.has('world')).toBe(true);
         });
 
         it('should serialize Set params and return modified Set result', async () => {
@@ -232,16 +227,15 @@ describe('workflow', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testSet = new Set(['a', 'b']);
 
-            const [results, errors] = await workflow([routes.addToSet(testSet, 'c')], {
+            const [[modifiedSet], [setError]] = await workflow([routes.addToSet(testSet, 'c')], {
                 auth: linkedFns.auth(authHeaders),
             });
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
-            expect(results?.[0]).toBeInstanceOf(Set);
-            expect(results?.[0]?.has('a')).toBe(true);
-            expect(results?.[0]?.has('b')).toBe(true);
-            expect(results?.[0]?.has('c')).toBe(true);
+            expect(setError).toBeUndefined();
+            expect(modifiedSet).toBeInstanceOf(Set);
+            expect(modifiedSet?.has('a')).toBe(true);
+            expect(modifiedSet?.has('b')).toBe(true);
+            expect(modifiedSet?.has('c')).toBe(true);
         });
 
         it('should handle multiple routes mixing serializable and plain types in a workflow', async () => {
@@ -249,23 +243,24 @@ describe('workflow', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testDate = new Date('2024-06-15T12:30:00.000Z');
 
-            const [results, errors] = await workflow(
+            const [[sameDate, greeting, age], [dateError, greetingError, ageError]] = await workflow(
                 [routes.getSameDate(testDate), routes.sayHello(someUser), routes.calculateAge(1990)],
                 {auth: linkedFns.auth(authHeaders)}
             );
 
-            expect(errors).toBeUndefined();
-            expect(results).toBeDefined();
+            expect(dateError).toBeUndefined();
+            expect(greetingError).toBeUndefined();
+            expect(ageError).toBeUndefined();
 
             // Date result
-            expect(results?.[0]).toBeInstanceOf(Date);
-            expect(results?.[0]?.toISOString()).toEqual('2024-06-15T12:30:00.000Z');
+            expect(sameDate).toBeInstanceOf(Date);
+            expect(sameDate?.toISOString()).toEqual('2024-06-15T12:30:00.000Z');
 
             // String result
-            expect(results?.[1]).toEqual('Hello John Doe');
+            expect(greeting).toEqual('Hello John Doe');
 
             // Number result
-            expect(results?.[2]).toEqual(new Date().getFullYear() - 1990);
+            expect(age).toEqual(new Date().getFullYear() - 1990);
         });
     });
 

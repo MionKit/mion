@@ -56,27 +56,31 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
 
     /** Calls a remote route with linkedFns and returns a fully-typed 4-tuple result */
     callWithLinkedFns<H extends Record<string, HSubRequest<any>>>(linkedFns: H): Promise<CallWithLinkedFnsResult<S, E, H>> {
-        const linkedFnEntries = Object.entries(linkedFns);
-        if (linkedFnEntries.length === 0) {
+        if (Object.keys(linkedFns).length === 0) {
             throw new Error(
                 'callWithLinkedFns requires at least one linkedFn. Use call() instead for requests without linkedFns.'
             );
         }
-        const linkedFnSubRequests = linkedFnEntries.map(([, linkedFn]) => linkedFn);
-        return this.client.executeCallWithLinkedFns(this as RSubRequest<any>, linkedFns, linkedFnSubRequests) as Promise<
+        return this.client.executeCallWithLinkedFns(this as RSubRequest<any>, linkedFns) as Promise<
             CallWithLinkedFnsResult<S, E, H>
         >;
     }
 
     /** Calls this route as part of a workflow with other routes in a single HTTP request */
-    callWithWorkflow<OtherRoutes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+    async callWithWorkflow<OtherRoutes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         otherRoutes: [...OtherRoutes],
         linkedFns?: H
     ): Promise<WorkflowResult<[RSubRequest<any>, ...OtherRoutes], H>> {
         const allRoutes = [this as unknown as RSubRequest<any>, ...otherRoutes];
-        const linkedFnSubRequests: HSubRequest<any>[] = linkedFns ? Object.values(linkedFns) : [];
-        return this.client.executeCallWithWorkflow(allRoutes, linkedFns ?? ({} as H), linkedFnSubRequests) as Promise<
-            WorkflowResult<[RSubRequest<any>, ...OtherRoutes], H>
+        const [results, errors, linkedFnResults, linkedFnErrors] = await this.client.executeCallWithWorkflow(
+            allRoutes,
+            linkedFns ?? ({} as H)
+        );
+        const emptyResults = allRoutes.map(() => undefined);
+        const emptyErrors = allRoutes.map(() => undefined);
+        return [results ?? emptyResults, errors ?? emptyErrors, linkedFnResults, linkedFnErrors] as WorkflowResult<
+            [RSubRequest<any>, ...OtherRoutes],
+            H
         >;
     }
 
