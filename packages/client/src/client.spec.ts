@@ -161,8 +161,6 @@ describe('client', () => {
         const request = linkedFns.auth(authHeaders);
         request.prefill();
         // note auth has been prefilled and is not required to be sent in the call
-        // Small delay to ensure prefill completes
-        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const [response, callError] = await routes.sayHello(someUser).call();
         expect(callError).toBeUndefined();
@@ -190,7 +188,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn so call() works without callWithLinkedFns
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const [greeting, error] = await routes.sayHello(someUser).call();
 
@@ -207,7 +204,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn so call() works without callWithLinkedFns
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const [response, error] = await routes.alwaysFails(someUser).call();
 
@@ -226,7 +222,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn so call() works without callWithLinkedFns
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // This should NOT throw
             let didThrow = false;
@@ -249,7 +244,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn so call() works without callWithLinkedFns
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const [response, error] = await routes.alwaysFails(someUser).call();
 
@@ -284,7 +278,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn so call() works without callWithLinkedFns
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Make first request
             await routes.sayHello(someUser).call();
@@ -322,7 +315,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn so call() works without callWithLinkedFns
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Make request - should fail with session-expired
             await routes.sayHello(someUser).call();
@@ -351,7 +343,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn so call() works without callWithLinkedFns
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // First request - handler should be called
             await routes.sayHello(someUser).call();
@@ -389,7 +380,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn so call() works without callWithLinkedFns
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Make successful request
             await routes.sayHello(someUser).call();
@@ -446,7 +436,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // call() should return both route result AND linkedFn results/errors in the 4-tuple
             const [greeting, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).call();
@@ -487,7 +476,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // call() should return linkedFn errors in the 4-tuple
             const [, , linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).call();
@@ -524,7 +512,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Call a route that always fails - linkedFns still execute and succeed, but route returns error
             const [result, routeError, linkedFnResults, linkedFnErrors] = await routes.alwaysFails(someUser).call();
@@ -779,7 +766,6 @@ describe('client', () => {
 
             // Prefill auth linkedFn
             linkedFns.auth(authHeaders).prefill();
-            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Send wrong param type
             const wrongParams = 'not-a-number' as unknown as number;
