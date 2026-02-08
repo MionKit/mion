@@ -9,12 +9,7 @@ import {RpcError, routesCache} from '@mionkit/core';
 import {RequestErrors, SubRequest} from './types';
 import type {MionClientRequest} from './request';
 
-// ############# VALIDATION #############
-
-/**
- * Validate subRequests locally using existing RemoteApi metadata.
- * If there are errors subRequest is marked as resolved and error is added to the errors  are added as subRequest responses.
- */
+/** Validate subRequests locally using existing RemoteApi metadata */
 export function validateSubRequests(
     subRequestIds: string[],
     req: MionClientRequest<any, any>,
@@ -27,7 +22,6 @@ export function validateSubRequests(
         validateSubRequest(id, subRequest, errors);
         const methodMeta = routesCache.getMetadata(id);
         if (validateRouteLinkedFns && methodMeta?.linkedFnIds?.length) {
-            // Filter out undefined/null linkedFn IDs
             const validLinkedFnIds = methodMeta.linkedFnIds.filter((linkedFnId) => linkedFnId != null);
             validateSubRequests(validLinkedFnIds, req, errors, validateRouteLinkedFns);
         }
@@ -35,20 +29,15 @@ export function validateSubRequests(
     return;
 }
 
-/**
- * Validate subRequest locally using existing RemoteApi metadata.
- * If there is an error then subRequest is marked as resolved and error is added as subRequest response.
- */
+/** Validate subRequest locally using existing RemoteApi metadata */
 export function validateSubRequest(id: string, subRequest: SubRequest<any>, errors: RequestErrors): void {
-    // subRequest might be undefined if does not require to send parameters or are optional
     if (subRequest?.error || subRequest?.isResolved) return;
 
     const params = subRequest?.params || [];
     const validationResponse = getTypeErrors(id, params);
-    if (!validationResponse) return; // if validation is void then validation is disabled for this method
+    if (!validationResponse) return;
     const error = validationResponse;
     errors.set(id, error);
-    // if errors then mark subRequest as resolved
     if (subRequest) {
         subRequest.error = error;
         subRequest.isResolved = true;
@@ -56,11 +45,8 @@ export function validateSubRequest(id: string, subRequest: SubRequest<any>, erro
     return;
 }
 
-// ############# PRIVATE METHODS #############
-
 function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-error' | 'unexpected-validation-error'> {
     const method = routesCache.useMethodJitFns(id);
-    // Skip validation if handler has no params
     if (!method.paramNames || method.paramNames.length === 0) return;
     const paramsJit = method.paramsJitFns;
     if (paramsJit.typeErrors.isNoop) return;

@@ -19,12 +19,11 @@ type MethodsMetadataResponse = Awaited<ReturnType<GetRemoteMethodsMetadataById>>
 type GlobalErrorRoute = MionRoutes[typeof MION_ROUTES.platformError]['handler'];
 type GlobalErrorResponse = Awaited<ReturnType<GlobalErrorRoute>>;
 
-/**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
+/** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(methodIds: string[], options: ClientOptions) {
     restoreFromLocalStorage(methodIds, options);
     const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
     if (!missingAfterLocal.length) return;
-    // TODO change for a configurable name
     const shouldReturnAllMethods = true;
     const body: RequestBody = {
         [MION_ROUTES.methodsMetadataById]: [missingAfterLocal, shouldReturnAllMethods],
@@ -37,7 +36,6 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
             body: JSON.stringify(body),
         });
 
-        // jit functions and routes metadata needs to be in caches before calling deserialize
         const deserialized = await deserializeResponseBody(response);
         const platformError = deserialized[MION_ROUTES.platformError] as GlobalErrorResponse | undefined;
         const serializableMethodsData = deserialized[MION_ROUTES.methodsMetadataById] as MethodsMetadataResponse;
@@ -51,18 +49,13 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
                 errorData: {response},
             });
 
-        // Store dependencies globally for future use in localStorage
         storeDependencies(serializableMethodsData.deps, serializableMethodsData.purFnDeps, options);
         storeMethodsMetadata(serializableMethodsData.methods, options);
-        // Store method metadata and JIT cache dependencies in the routerCache and global JIT caches
-        // This also deserializes and restores all JIT functions and pure functions
         addToCaches(serializableMethodsData);
     } catch (error: any) {
         throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
     }
 }
-
-// ############# PRIVATE METHODS #############
 
 function getSerializedMethodDataKey(methodId: string, options: ClientOptions) {
     return `${STORAGE_KEY}:serialized-method-data:${options.baseURL}:${methodId}`;
@@ -76,19 +69,15 @@ function getJitPureFnKey(pureFnHash: string, options: ClientOptions) {
     return `${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:${pureFnHash}`;
 }
 
-/**
- * Stores JIT compiled functions and pure functions globally in localStorage
- */
+/** Stores JIT compiled functions and pure functions globally in localStorage */
 export function storeDependencies(
     deps: Record<string, JitCompiledFnData>,
     pureFnDeps: Record<string, PureFunctionData>,
     options: ClientOptions
 ) {
-    // Store JIT compiled functions
     Object.entries(deps).forEach(([hash, jitFnData]: [string, JitCompiledFnData]) => {
         const key = getJitCompiledFnKey(hash, options);
         try {
-            // Convert Sets to Arrays for JSON serialization since Sets are not JSON serializable
             const serializableJitFnData = {
                 ...jitFnData,
                 dependenciesSet: Array.from(jitFnData.dependenciesSet),
@@ -100,11 +89,9 @@ export function storeDependencies(
         }
     });
 
-    // Store pure functions
     Object.entries(pureFnDeps).forEach(([hash, pureFnData]: [string, PureFunctionData]) => {
         const key = getJitPureFnKey(hash, options);
         try {
-            // Convert Set to Array for JSON serialization since Sets are not JSON serializable
             const serializablePureFnData = {
                 ...pureFnData,
                 dependencies: Array.from(pureFnData.dependencies),
@@ -116,9 +103,7 @@ export function storeDependencies(
     });
 }
 
-/**
- * Stores method metadata in localStorage using the new storage format
- */
+/** Stores method metadata in localStorage using the new storage format */
 export function storeMethodsMetadata(methods: MethodsCache, options: ClientOptions) {
     Object.entries(methods).forEach(([methodId, methodData]) => {
         const key = getSerializedMethodDataKey(methodId, options);
@@ -130,17 +115,11 @@ export function storeMethodsMetadata(methods: MethodsCache, options: ClientOptio
     });
 }
 
-/**
- * Restores all JIT compiled functions and pure functions from localStorage and deserializes them
- *
- * // After this, all JIT functions are available in the cache and methods can be fetched as needed
- * await fetchRemoteMethodsMetadata(['method1', 'method2'], options, metadataById, jitFunctionsById);
- */
+/** Restores all JIT compiled functions and pure functions from localStorage and deserializes them */
 export function restoreAllDependencies(options: ClientOptions) {
     const deps: Record<string, JitCompiledFnData> = {};
     const pureFnDeps: Record<string, PureFunctionData> = {};
 
-    // Restore JIT compiled functions
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key?.startsWith(`${STORAGE_KEY}:jit-compiled-fn:${options.baseURL}:`)) {
@@ -161,7 +140,6 @@ export function restoreAllDependencies(options: ClientOptions) {
         }
     }
 
-    // Restore pure functions
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key?.startsWith(`${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:`)) {
@@ -181,19 +159,13 @@ export function restoreAllDependencies(options: ClientOptions) {
         }
     }
 
-    // Add all dependencies to the global JIT caches if any were found
     if (Object.keys(deps).length > 0 || Object.keys(pureFnDeps).length > 0) {
         addSerializedJitCaches(deps, pureFnDeps);
     }
 }
 
-/**
- * Restores method metadata from localStorage using the new storage format
- * Will first restore all dependencies globally if not already loaded
- */
+/** Restores method metadata from localStorage using the new storage format */
 function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
-    // First ensure all JIT function dependencies are restored from localStorage
-    // This must happen before restoring method metadata so JIT functions are available
     restoreAllDependencies(options);
 
     const methods: MethodsCache = {};
@@ -201,7 +173,6 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
 
     methodIds.forEach((id) => {
         if (routesCache.hasMetadata(id)) return;
-        // Try to load method metadata using new storage key format
         const methodKey = getSerializedMethodDataKey(id, options);
         const methodMetaJson = localStorage.getItem(methodKey);
         if (methodMetaJson) {
@@ -216,12 +187,11 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
         }
     });
 
-    // If we restored any methods, process them
     if (anyMethodsRestored) {
         const serializableMethodsData: SerializableMethodsData = {
             methods,
-            deps: {}, // Dependencies are already loaded globally
-            purFnDeps: {}, // Dependencies are already loaded globally
+            deps: {},
+            purFnDeps: {},
         };
         addToCaches(serializableMethodsData);
     }
@@ -239,14 +209,9 @@ export function resetClientCaches() {
 }
 
 function loadClientCaches() {
-    // Load AOT caches from @mionkit/aot-caches
-    // The client always needs these caches for serialization/deserialization
-    // The router generates them at runtime so this is only needed for the client
     coreAOTLoadRoutesMetadataCache();
     coreAOTLoadJitCaches();
 
-    // Validate that required MION_ROUTES are available in the router cache
-    // These routes are required for the client to function properly
     const requiredRoutes = Object.values(MION_ROUTES);
     const missingRoutes = requiredRoutes.filter((routeId) => !routesCache.hasMetadata(routeId));
     if (missingRoutes.length > 0) {

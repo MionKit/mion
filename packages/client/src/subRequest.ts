@@ -11,24 +11,14 @@ import type {CallWithLinkedFnsResult, HSubRequest, RequestErrors, Result, RSubRe
 import type {MionClient} from './client';
 import {TypedEvent} from './typedEvent';
 
-/**
- * Implementation of both RouteSubRequest and LinkedFnSubRequest interfaces.
- * This is returned by the MethodProxy when a remote method is invoked.
- */
+/** Implementation of both RouteSubRequest and LinkedFnSubRequest interfaces */
 export class MionSubRequest<S = any, E extends RpcError<string, any> = any> implements RSubRequest<any>, HSubRequest<any> {
-    /** The path segments to the method */
     pointer: string[];
-    /** Unique identifier for this sub-request */
     id: string;
-    /** Whether the request has been resolved */
     isResolved: boolean = false;
-    /** Parameters to pass to the method */
     params: any[];
-    /** The resolved value after the request completes successfully */
     resolvedValue?: S;
-    /** Error after resolution (undefined until resolved) */
     error?: E;
-    /** Serialized parameters for transport */
     serializedParams?: any[];
 
     constructor(
@@ -42,53 +32,29 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         this.params = argArray;
     }
 
-    /**
-     * Prefills LinkedFn's parameters and returns TypedEvent for event handler registration.
-     * The TypedEvent allows registering:
-     * - onSuccess handlers called for ALL future successful requests from this linkedFn
-     * - onError handlers called for ALL future requests that fail with specific error types
-     */
+    /** Prefills LinkedFn's parameters and returns TypedEvent for event handler registration */
     prefill(): TypedEvent<S, E> {
-        // Create TypedEvent linked to this linkedFn's ID and the shared HandlersRegistry
         const typedEvent = new TypedEvent<S, E>(this.id, this.client.handlersRegistry);
 
-        // Execute validation and storage asynchronously
         this.client.prefill(this as HSubRequest<any>).catch((errors: RequestErrors) => {
-            // Prefill errors are logged but not handled by TypedEvent
-            // They should be caught by the caller if needed
             console.error('Prefill error:', findSubRequestError(this, errors));
         });
 
-        // Return TypedEvent immediately for chaining handlers
         return typedEvent;
     }
 
-    /**
-     * Removes prefilled value and clears any registered error handlers for this linkedFn.
-     */
+    /** Removes prefilled value and clears any registered error handlers for this linkedFn */
     removePrefill(): Promise<void> {
-        // Clear error handlers for this linkedFn from the registry
         this.client.handlersRegistry.clearHandlers(this.id);
         return this.client.removePrefill(this as HSubRequest<any>);
     }
 
-    /**
-     * Calls a remote route and returns a Result 4-tuple with full typing preserved.
-     * Never throws - errors are always in the result tuple.
-     *
-     * @returns Promise that resolves to [routeResult, routeError, linkedFnsResults, linkedFnsErrors] 4-tuple
-     */
+    /** Calls a remote route and returns a Result 4-tuple with full typing preserved */
     call(): Promise<Result<S, E>> {
         return this.client.executeCall(this as unknown as RSubRequest<any>);
     }
 
-    /**
-     * Calls a remote route with linkedFns and returns a fully-typed 4-tuple result.
-     * Always returns (never throws) - can have partial success where some linkedFns/route succeed and others fail.
-     *
-     * @param linkedFns Record of linkedFn names to LinkedFnSubRequest instances
-     * @returns Promise that resolves to [routeResult, routeError, linkedFnsResults, linkedFnsErrors] 4-tuple
-     */
+    /** Calls a remote route with linkedFns and returns a fully-typed 4-tuple result */
     callWithLinkedFns<H extends Record<string, HSubRequest<any>>>(linkedFns: H): Promise<CallWithLinkedFnsResult<S, E, H>> {
         const linkedFnEntries = Object.entries(linkedFns);
         if (linkedFnEntries.length === 0) {
@@ -102,14 +68,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         >;
     }
 
-    /**
-     * Calls this route as part of a workflow with other routes in a single HTTP request.
-     * All routes execute in order with shared context on the server.
-     *
-     * @param otherRoutes Additional routes to include in the workflow
-     * @param linkedFns Optional record of linkedFn subrequests to include
-     * @returns Promise resolving to WorkflowResult 4-tuple [routeResults, routeErrors, linkedFnResults, linkedFnErrors]
-     */
+    /** Calls this route as part of a workflow with other routes in a single HTTP request */
     callWithWorkflow<OtherRoutes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         otherRoutes: [...OtherRoutes],
         linkedFns?: H
@@ -121,9 +80,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         >;
     }
 
-    /**
-     * Validates parameters and returns type errors.
-     */
+    /** Validates parameters and returns type errors */
     typeErrors(): Promise<RunTypeError[]> {
         return this.client
             .typeErrors(this as SubRequest<any>)
@@ -131,10 +88,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     }
 }
 
-/**
- * Finds the most relevant error from the errors map for a given sub-request.
- * Returns the specific error for the sub-request if found, otherwise returns the first error.
- */
+/** Finds the most relevant error from the errors map for a given sub-request */
 export function findSubRequestError(subRequest: SubRequest<any>, errors: RequestErrors): RpcError<string> {
     const specificError = errors.get(subRequest.id);
     if (specificError) return specificError;
@@ -142,7 +96,6 @@ export function findSubRequestError(subRequest: SubRequest<any>, errors: Request
     const firstError = errors.values().next().value;
     if (firstError) return firstError;
 
-    // Fallback error if no errors found (shouldn't happen)
     return new RpcError({
         type: 'unknown-error',
         publicMessage: 'An unknown error occurred',
