@@ -11,17 +11,17 @@ import {setNodeHttpOpts, startNodeServer} from '@mionkit/node';
 import {RpcError} from '@mionkit/core';
 
 // ============ Simple Types ============
-type SimpleUser = {name: string; age: number};
+export type SimpleUser = {name: string; age: number};
 
 // ============ Complex Types ============
-type Address = {
+export type Address = {
     street: string;
     city: string;
     zip: string;
     country: string;
 };
 
-type ComplexUser = {
+export type ComplexUser = {
     id: string;
     name: string;
     email: string;
@@ -33,7 +33,7 @@ type ComplexUser = {
     scores: number[];
 };
 
-type NestedData = {
+export type NestedData = {
     level1: {
         level2: {
             level3: {
@@ -45,7 +45,7 @@ type NestedData = {
 };
 
 // ============ Routes ============
-const routes = {
+export const binaryTestRoutes = {
     // Health check route that uses JSON serialization (for test server startup detection)
     health: route((_ctx): {status: string} => ({status: 'ok'}), {serializer: 'json'}),
 
@@ -163,7 +163,7 @@ async function startServer() {
         });
 
         // Register routes
-        registerRoutes(routes);
+        registerRoutes(binaryTestRoutes);
 
         // Set HTTP options
         setNodeHttpOpts({port});
@@ -179,7 +179,7 @@ async function startServer() {
 }
 
 // Export the API type for the client tests
-export type BinaryTestServerApi = PublicApi<typeof routes>;
+export type BinaryTestServerApi = PublicApi<typeof binaryTestRoutes>;
 
 // Start the server if this file is run directly
 if (require.main === module) {
