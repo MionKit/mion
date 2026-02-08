@@ -13,17 +13,15 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
     },
-    /** Prefix for all routes, i.e: api/v1.
-     * path separator is added between the prefix and the route */
+    /** Prefix for all routes, i.e: api/v1 */
     prefix: '',
-    /** Suffix for all routes, i.e: .json.
-     * No path separator is added between the route and the suffix */
+    /** Suffix for all routes, i.e: .json */
     suffix: '',
     /** Enables automatic parameter validation */
     validateParams: true,
-    /** Set true to automatically generate and id for every error.  */
+    /** Set true to automatically generate and id for every error */
     autoGenerateErrorId: false,
-    /** Default serializer mode - stringifyJson as default native serializer, so we don't mutate data */
+    /** Default serializer mode - stringifyJson as default native serializer */
     serializer: 'stringifyJson',
 };
 

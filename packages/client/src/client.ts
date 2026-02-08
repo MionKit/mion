@@ -46,8 +46,6 @@ export function initClient<RM extends RemoteApi>(
     };
 }
 
-// ############# Client   #############
-// state is managed inside a class in case multiple clients are required (using multiple apis)
 export class MionClient {
     /** Shared registry for persistent linkedFn error handlers */
     readonly handlersRegistry = new HandlersRegistry();
@@ -57,13 +55,7 @@ export class MionClient {
 
     constructor(private clientOptions: ClientOptions) {}
 
-    /**
-     * Executes a route call and returns a Result 4-tuple.
-     * This is the main orchestration method that:
-     * 1. Executes the request via MionRequest
-     * 2. Processes linkedFn success/error handlers (fire-and-forget for prefill)
-     * 3. Returns [routeResult, routeError, linkedFnsResults, linkedFnsErrors] 4-tuple
-     */
+    /** Executes a route call and returns a Result 4-tuple */
     executeCall<RR extends RSubRequest<any>>(routeSubRequest: RR): Promise<Result<any, any>> {
         return new Promise((resolve) => {
             const request = new MionClientRequest(this.clientOptions, this.prefilledLinkedFnsCache, routeSubRequest, []);
@@ -71,51 +63,30 @@ export class MionClient {
             request
                 .call()
                 .then(() => {
-                    // Get ALL linkedFns from request.subRequestList (includes prefilled linkedFns restored from storage)
                     const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeSubRequest.id);
-
-                    // Process all linkedFn responses - call success/error handlers for each linkedFn individually
                     this.processLinkedFnsResponses(allLinkedFns, undefined);
-
-                    // Build linkedFns results/errors from prefilled linkedFns (and any server-side linkedFn errors)
                     const {linkedFnsResults, linkedFnsErrors} = this.buildLinkedFnsResultsFromList(
                         allLinkedFns,
                         undefined,
                         routeSubRequest.id
                     );
-
-                    // Return success result 4-tuple
                     resolve([routeSubRequest.resolvedValue, undefined, linkedFnsResults, linkedFnsErrors]);
                 })
                 .catch((errors: RequestErrors) => {
-                    // Get ALL linkedFns from request.subRequestList (includes prefilled linkedFns restored from storage)
                     const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeSubRequest.id);
-
-                    // Process all linkedFn responses - call success/error handlers for each linkedFn individually
-                    // LinkedFns with runOnError=true may succeed even when the route fails
                     this.processLinkedFnsResponses(allLinkedFns, errors);
-
-                    // Build linkedFns results/errors from prefilled linkedFns (and any server-side linkedFn errors)
                     const {linkedFnsResults, linkedFnsErrors} = this.buildLinkedFnsResultsFromList(
                         allLinkedFns,
                         errors,
                         routeSubRequest.id
                     );
-
-                    // Return error result 4-tuple
                     const routeError = errors.get(routeSubRequest.id) || findSubRequestError(routeSubRequest, errors);
-                    // route result is never successful if there is an error
                     resolve([undefined, routeError, linkedFnsResults, linkedFnsErrors]);
                 });
         });
     }
 
-    /**
-     * Build linkedFns results and errors from a list of linkedFn sub-requests.
-     * Used by executeCall() to collect prefilled linkedFn data.
-     * Also includes errors from linkedFns that ran on the server but weren't explicitly requested by the client
-     * (e.g., from @thrownErrors in the response body - validation errors, serialization errors, etc.)
-     */
+    /** Build linkedFns results and errors from a list of linkedFn sub-requests */
     private buildLinkedFnsResultsFromList(
         linkedFnSubRequests: HSubRequest<any>[],
         errors: RequestErrors | undefined,
@@ -124,11 +95,8 @@ export class MionClient {
         const linkedFnsResults: Record<string, unknown> = {};
         const linkedFnsErrors: Record<string, RpcError<string, unknown>> = {};
 
-        // Collect IDs of linkedFns we've explicitly processed
         const processedIds = new Set<string>();
-        if (routeId) {
-            processedIds.add(routeId);
-        }
+        if (routeId) processedIds.add(routeId);
 
         for (const linkedFn of linkedFnSubRequests) {
             processedIds.add(linkedFn.id);
@@ -140,8 +108,6 @@ export class MionClient {
             }
         }
 
-        // Also include errors from linkedFns that ran on the server but weren't explicitly requested
-        // These come from @thrownErrors in the response body (e.g., validation errors, serialization errors)
         if (errors) {
             for (const [id, error] of errors) {
                 if (!processedIds.has(id)) {
@@ -153,10 +119,7 @@ export class MionClient {
         return {linkedFnsResults, linkedFnsErrors};
     }
 
-    /**
-     * Get all linkedFns from the request's subRequestList, excluding the route.
-     * This includes both explicitly passed linkedFns and prefilled linkedFns restored from storage.
-     */
+    /** Get all linkedFns from the request's subRequestList, excluding the route */
     private getAllLinkedFnsFromRequest(
         request: MionClientRequest<RSubRequest<any>, HSubRequest<any>[]>,
         routeId: string
@@ -166,33 +129,19 @@ export class MionClient {
             .map(([, subRequest]) => subRequest as HSubRequest<any>);
     }
 
-    /**
-     * Process all linkedFn responses - call success or error handlers for each linkedFn individually.
-     * This is indifferent to the overall request success/error - each linkedFn is processed based on its own result.
-     * LinkedFns with runOnError=true may succeed even when the route fails, and their success handlers should be called.
-     */
+    /** Process all linkedFn responses - call success or error handlers for each linkedFn individually */
     private processLinkedFnsResponses(linkedFnSubRequests: HSubRequest<any>[], errors: RequestErrors | undefined): void {
         for (const linkedFn of linkedFnSubRequests) {
             const linkedFnError = errors?.get(linkedFn.id);
             if (linkedFnError) {
-                // LinkedFn failed - execute error handler if registered
                 this.handlersRegistry.executeHandler(linkedFn.id, linkedFnError);
             } else if (linkedFn.resolvedValue !== undefined) {
-                // LinkedFn succeeded - execute success handler if registered
                 this.handlersRegistry.executeSuccessHandler(linkedFn.id, linkedFn.resolvedValue);
             }
         }
     }
 
-    /**
-     * Executes a route call with linkedFns and returns a typed result object.
-     * This method always returns (never throws) and supports partial success scenarios.
-     *
-     * @param routeSubRequest The route to execute
-     * @param linkedFnsRecord Record of linkedFn names to LinkedFnSubRequest instances
-     * @param linkedFnSubRequests Array of linkedFn subrequests to execute
-     * @returns Promise resolving to CallWithLinkedFnsResult
-     */
+    /** Executes a route call with linkedFns and returns a typed result object */
     executeCallWithLinkedFns<H extends Record<string, HSubRequest<any>>>(
         routeSubRequest: RSubRequest<any>,
         linkedFnsRecord: H,
@@ -209,54 +158,34 @@ export class MionClient {
             request
                 .call()
                 .then(() => {
-                    // Get ALL linkedFns from request.subRequestList (includes prefilled linkedFns restored from storage)
                     const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeSubRequest.id);
-
-                    // Process all linkedFn responses - call success/error handlers for each linkedFn individually
                     this.processLinkedFnsResponses(allLinkedFns, undefined);
-
-                    // Build the result object
                     const result = this.buildCallWithLinkedFnsResult(routeSubRequest, linkedFnsRecord, undefined);
                     resolve(result);
                 })
                 .catch((errors: RequestErrors) => {
-                    // Get ALL linkedFns from request.subRequestList (includes prefilled linkedFns restored from storage)
                     const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeSubRequest.id);
-
-                    // Process all linkedFn responses - call success/error handlers for each linkedFn individually
-                    // LinkedFns with runOnError=true may succeed even when the route fails
                     this.processLinkedFnsResponses(allLinkedFns, errors);
-
-                    // Build the result object with errors
                     const result = this.buildCallWithLinkedFnsResult(routeSubRequest, linkedFnsRecord, errors);
                     resolve(result);
                 });
         });
     }
 
-    /**
-     * Build the CallWithLinkedFnsResult 4-tuple from the request results.
-     * Returns [routeResult, routeError, linkedFnsResults, linkedFnsErrors] 4-tuple.
-     * Also includes errors from linkedFns that ran on the server but weren't explicitly requested
-     * (e.g., from @thrownErrors in the response body - validation errors, serialization errors, etc.)
-     */
+    /** Build the CallWithLinkedFnsResult 4-tuple from the request results */
     private buildCallWithLinkedFnsResult<H extends Record<string, HSubRequest<any>>>(
         routeSubRequest: RSubRequest<any>,
         linkedFnsRecord: H,
         errors: RequestErrors | undefined
     ): CallWithLinkedFnsResult<any, any, H> {
-        // Process route
         const routeError = errors?.get(routeSubRequest.id);
         const routeResult = routeError ? undefined : routeSubRequest.resolvedValue;
 
-        // Build linkedFns results/errors
         const linkedFnsResults = {} as {[K in keyof H]?: LinkedFnSuccess<H[K]>};
         const linkedFnsErrors = {} as {[K in keyof H]?: LinkedFnError<H[K]>};
 
-        // Collect IDs of linkedFns and route we've explicitly processed
         const processedIds = new Set<string>([routeSubRequest.id]);
 
-        // Process linkedFns
         for (const [name, linkedFn] of Object.entries(linkedFnsRecord)) {
             processedIds.add(linkedFn.id);
             const linkedFnError = errors?.get(linkedFn.id);
@@ -265,12 +194,8 @@ export class MionClient {
             } else if (linkedFn.resolvedValue !== undefined) {
                 (linkedFnsResults as Record<string, any>)[name] = linkedFn.resolvedValue;
             }
-            // If neither error nor resolvedValue, the linkedFn didn't execute - leave undefined
         }
 
-        // Also include errors from linkedFns that ran on the server but weren't explicitly requested
-        // These come from @thrownErrors in the response body (e.g., validation errors, serialization errors)
-        // Store them using their ID as the key (since they're not in the typed linkedFnsRecord)
         if (errors) {
             for (const [id, error] of errors) {
                 if (!processedIds.has(id)) {
@@ -282,15 +207,7 @@ export class MionClient {
         return [routeResult, routeError, linkedFnsResults, linkedFnsErrors];
     }
 
-    /**
-     * Executes a workflow call with multiple routes and optional linkedFns.
-     * Similar to executeCallWithLinkedFns but for workflows with multiple routes.
-     *
-     * @param workflowSubRequests Array of route subrequests for the workflow
-     * @param linkedFnsRecord Record of linkedFn names to subrequests
-     * @param linkedFnSubRequests Array of linkedFn subrequests
-     * @returns Promise resolving to WorkflowResult 4-tuple
-     */
+    /** Executes a workflow call with multiple routes and optional linkedFns */
     executeCallWithWorkflow<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         workflowSubRequests: Routes,
         linkedFnsRecord: H,
@@ -302,9 +219,9 @@ export class MionClient {
                 request = new MionClientRequest(
                     this.clientOptions,
                     this.prefilledLinkedFnsCache,
-                    undefined, // No single route - workflow handles multiple routes
+                    undefined,
                     linkedFnSubRequests,
-                    workflowSubRequests // Pass workflow subrequests
+                    workflowSubRequests
                 );
             } catch (error) {
                 reject(error);
@@ -314,35 +231,23 @@ export class MionClient {
             request
                 .call()
                 .then(() => {
-                    // Get ALL linkedFns from request.subRequestList (excludes workflow routes)
                     const workflowRouteIds = new Set(workflowSubRequests.map((sr) => sr.id));
                     const allLinkedFns = this.getAllLinkedFnsFromWorkflowRequest(request, workflowRouteIds);
-
-                    // Process all linkedFn responses
                     this.processLinkedFnsResponses(allLinkedFns, undefined);
-
-                    // Build the workflow result
                     const result = this.buildWorkflowResult(workflowSubRequests, linkedFnsRecord, undefined);
                     resolve(result);
                 })
                 .catch((errors: RequestErrors) => {
-                    // Get ALL linkedFns from request.subRequestList (excludes workflow routes)
                     const workflowRouteIds = new Set(workflowSubRequests.map((sr) => sr.id));
                     const allLinkedFns = this.getAllLinkedFnsFromWorkflowRequest(request, workflowRouteIds);
-
-                    // Process all linkedFn responses
                     this.processLinkedFnsResponses(allLinkedFns, errors);
-
-                    // Build the workflow result with errors
                     const result = this.buildWorkflowResult(workflowSubRequests, linkedFnsRecord, errors);
                     resolve(result);
                 });
         });
     }
 
-    /**
-     * Get all linkedFns from the request's subRequestList, excluding workflow routes.
-     */
+    /** Get all linkedFns from the request's subRequestList, excluding workflow routes */
     private getAllLinkedFnsFromWorkflowRequest(
         request: MionClientRequest<any, any>,
         workflowRouteIds: Set<string>
@@ -352,16 +257,12 @@ export class MionClient {
             .map(([, subRequest]) => subRequest as HSubRequest<any>);
     }
 
-    /**
-     * Build the WorkflowResult 4-tuple from the request results.
-     * Returns [routeResults, routeErrors, linkedFnsResults, linkedFnsErrors] 4-tuple.
-     */
+    /** Build the WorkflowResult 4-tuple from the request results */
     private buildWorkflowResult<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         workflowSubRequests: Routes,
         linkedFnsRecord: H,
         errors: RequestErrors | undefined
     ): WorkflowResult<Routes, H> {
-        // Build route results and errors arrays matching input order
         const routeResults: (any | undefined)[] = [];
         const routeErrors: (any | undefined)[] = [];
         const processedIds = new Set<string>();
@@ -378,11 +279,9 @@ export class MionClient {
             }
         }
 
-        // Build linkedFns results/errors
         const linkedFnsResults = {} as {[K in keyof H]?: LinkedFnSuccess<H[K]>};
         const linkedFnsErrors = {} as {[K in keyof H]?: LinkedFnError<H[K]>};
 
-        // Process linkedFns
         for (const [name, linkedFn] of Object.entries(linkedFnsRecord)) {
             processedIds.add(linkedFn.id);
             const linkedFnError = errors?.get(linkedFn.id);
@@ -393,7 +292,6 @@ export class MionClient {
             }
         }
 
-        // Also include errors from linkedFns that ran on the server but weren't explicitly requested
         if (errors) {
             for (const [id, error] of errors) {
                 if (!processedIds.has(id)) {
@@ -402,7 +300,6 @@ export class MionClient {
             }
         }
 
-        // Check if all results are undefined (no successful routes)
         const hasAnyResult = routeResults.some((r) => r !== undefined);
         const hasAnyError = routeErrors.some((e) => e !== undefined);
 
@@ -429,16 +326,11 @@ export class MionClient {
         return request.removePrefill(subRequest);
     }
 
-    /**
-     * Clear all error handlers from the registry.
-     * Called when client is destroyed.
-     */
+    /** Clear all error handlers from the registry */
     destroy(): void {
         this.handlersRegistry.clearAll();
     }
 }
-
-// ############# Remote Methods Proxy   #############
 
 class MethodProxy {
     propsProxies: Record<string, MethodProxy> = {};
@@ -466,7 +358,6 @@ class MethodProxy {
         private client: MionClient,
         private clientOptions: ClientOptions
     ) {
-        // the target must be a function so the handler can trap calls using apply
         const target = () => null;
         this.proxy = new Proxy(target, this.handler);
     }
