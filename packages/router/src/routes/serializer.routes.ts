@@ -49,13 +49,8 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
             break;
         case SerializerModes.binary: {
             // binary
-            // Binary deserialization is handled per-method in dispatch.ts
             const rawBody = context.request.rawBody as Uint8Array;
-            const executionChain = context.executionChain.methods || [];
-            // Build methods map for deserialization
-            const methodsMap = new Map<string, RemoteMethod>();
-            for (const method of executionChain) methodsMap.set(method.id, method);
-            const {body} = coreDeserializeBinaryBody(context.path, methodsMap, rawBody, false);
+            const {body} = coreDeserializeBinaryBody(context.path, rawBody, false);
             parsedBody = body;
             break;
         }

@@ -30,7 +30,7 @@ import {
 import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection';
 import {serializerLinkedFns} from './routes/serializer.routes';
-import {getRouterItemId, getRoutePath, getENV, MION_ROUTES} from '@mionkit/core';
+import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
 import {
@@ -106,6 +106,7 @@ export const resetRouter = () => {
     resetRemoteMethodsMetadata();
     resetPersistedMethods();
     resetDefaultAOTCachesState();
+    routesCache.reset();
     clearContextPool();
     clearWorkflowCache();
     // Note: We intentionally do NOT call resetJitFnCaches() here because:
@@ -413,6 +414,7 @@ export async function getExecutableFromLinkedFn(
     }
 
     linkedFnsById.set(linkedFnId, executable as any);
+    routesCache.setMethodJitFns(linkedFnId, executable as any);
     return executable as any;
 }
 
@@ -440,6 +442,7 @@ export async function getExecutableFromRawLinkedFn(
         },
     };
     rawLinkedFnsById.set(linkedFnId, executable);
+    routesCache.setMethodJitFns(linkedFnId, executable as any);
     return executable;
 }
 
@@ -472,6 +475,7 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
         addToPersistedMethods(routeId, executable);
     }
     routesById.set(routeId, executable);
+    routesCache.setMethodJitFns(routeId, executable as any);
     return executable;
 }
 

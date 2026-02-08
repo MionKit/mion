@@ -3,16 +3,15 @@ import {StatusCodes} from '../constants';
 import {RpcError} from '../errors';
 import {BinaryInput, DataViewDeserializer} from '../types/general.types';
 import {MethodWithJitFns} from '../types/method.types';
+import {routesCache} from '../routerUtils';
 
 /**
  * Deserializes API body from binary format using JIT-compiled deserialization functions.
  * Reads the binary buffer and reconstructs the body record.
- *
- * Note: The methodsMap should be built once and reused across multiple calls for better performance.
+ * Method metadata is looked up from routesCache automatically.
  */
 export function deserializeBinaryBody(
     path: string,
-    methodsMap: Map<string, MethodWithJitFns>,
     buffer: BinaryInput,
     /** If true, the body is a response body, otherwise it's a request body */
     isResponse: boolean
@@ -34,8 +33,8 @@ export function deserializeBinaryBody(
             // Deserialize key (method id)
             const key = deserializer.desString();
 
-            // Find the corresponding method
-            const method = methodsMap.get(key);
+            // Find the corresponding method from routesCache
+            const method = routesCache.getMethodJitFns(key);
             if (!method) {
                 throw new RpcError({
                     statusCode: StatusCodes.UNEXPECTED_ERROR,
