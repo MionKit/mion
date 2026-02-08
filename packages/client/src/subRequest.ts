@@ -7,7 +7,7 @@
 
 import {RpcError} from '@mionkit/core';
 import type {RunTypeError} from '@mionkit/core';
-import type {CallWithLinkedFnsResult, HSubRequest, RequestErrors, Result, RSubRequest, SubRequest} from './types';
+import type {CallWithLinkedFnsResult, HSubRequest, RequestErrors, Result, RSubRequest, SubRequest, WorkflowResult} from './types';
 import type {MionClient} from './client';
 import {TypedEvent} from './typedEvent';
 
@@ -99,6 +99,25 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         const linkedFnSubRequests = linkedFnEntries.map(([, linkedFn]) => linkedFn);
         return this.client.executeCallWithLinkedFns(this as RSubRequest<any>, linkedFns, linkedFnSubRequests) as Promise<
             CallWithLinkedFnsResult<S, E, H>
+        >;
+    }
+
+    /**
+     * Calls this route as part of a workflow with other routes in a single HTTP request.
+     * All routes execute in order with shared context on the server.
+     *
+     * @param otherRoutes Additional routes to include in the workflow
+     * @param linkedFns Optional record of linkedFn subrequests to include
+     * @returns Promise resolving to WorkflowResult 4-tuple [routeResults, routeErrors, linkedFnResults, linkedFnErrors]
+     */
+    callWithWorkflow<OtherRoutes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+        otherRoutes: [...OtherRoutes],
+        linkedFns?: H
+    ): Promise<WorkflowResult<[RSubRequest<any>, ...OtherRoutes], H>> {
+        const allRoutes = [this as unknown as RSubRequest<any>, ...otherRoutes];
+        const linkedFnSubRequests: HSubRequest<any>[] = linkedFns ? Object.values(linkedFns) : [];
+        return this.client.executeCallWithWorkflow(allRoutes, linkedFns ?? ({} as H), linkedFnSubRequests) as Promise<
+            WorkflowResult<[RSubRequest<any>, ...OtherRoutes], H>
         >;
     }
 

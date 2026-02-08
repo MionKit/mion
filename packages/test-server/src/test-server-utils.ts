@@ -24,6 +24,7 @@ export const TEST_PORT_MAPPING = {
     binarySerialization: 8089,
     esmTest: 8090,
     cjsTest: 8091,
+    workflow: 8092,
     // Add more test files here as needed
 } as const;
 

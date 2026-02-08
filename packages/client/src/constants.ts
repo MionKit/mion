@@ -28,3 +28,9 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
 };
 
 export const STORAGE_KEY = 'mionkit:client';
+
+/** Workflow route key - matches router constant */
+export const WORKFLOW_KEY = 'mion-workflow-route';
+
+/** Workflow route path - matches router constant */
+export const WORKFLOW_PATH = `/${WORKFLOW_KEY}`;

@@ -14,3 +14,4 @@ export * from './src/request';
 export * from './src/client';
 export * from './src/typedEvent';
 export * from './src/handlersRegistry';
+export * from './src/workflow';

@@ -19,6 +19,7 @@ import {
     ClientRoutes,
     ClientLinkedFns,
     Result,
+    WorkflowResult,
 } from './types';
 import type {RemoteApi} from '@mionkit/router';
 import {registerErrorDeserializers, RpcError} from '@mionkit/core';
@@ -279,6 +280,132 @@ export class MionClient {
         }
 
         return [routeResult, routeError, linkedFnsResults, linkedFnsErrors];
+    }
+
+    /**
+     * Executes a workflow call with multiple routes and optional linkedFns.
+     * Similar to executeCallWithLinkedFns but for workflows with multiple routes.
+     *
+     * @param workflowSubRequests Array of route subrequests for the workflow
+     * @param linkedFnsRecord Record of linkedFn names to subrequests
+     * @param linkedFnSubRequests Array of linkedFn subrequests
+     * @returns Promise resolving to WorkflowResult 4-tuple
+     */
+    executeCallWithWorkflow<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+        workflowSubRequests: Routes,
+        linkedFnsRecord: H,
+        linkedFnSubRequests: HSubRequest<any>[]
+    ): Promise<WorkflowResult<Routes, H>> {
+        return new Promise((resolve) => {
+            const request = new MionClientRequest(
+                this.clientOptions,
+                this.prefilledLinkedFnsCache,
+                undefined, // No single route - workflow handles multiple routes
+                linkedFnSubRequests,
+                workflowSubRequests // Pass workflow subrequests
+            );
+
+            request
+                .call()
+                .then(() => {
+                    // Get ALL linkedFns from request.subRequestList (excludes workflow routes)
+                    const workflowRouteIds = new Set(workflowSubRequests.map((sr) => sr.id));
+                    const allLinkedFns = this.getAllLinkedFnsFromWorkflowRequest(request, workflowRouteIds);
+
+                    // Process all linkedFn responses
+                    this.processLinkedFnsResponses(allLinkedFns, undefined);
+
+                    // Build the workflow result
+                    const result = this.buildWorkflowResult(workflowSubRequests, linkedFnsRecord, undefined);
+                    resolve(result);
+                })
+                .catch((errors: RequestErrors) => {
+                    // Get ALL linkedFns from request.subRequestList (excludes workflow routes)
+                    const workflowRouteIds = new Set(workflowSubRequests.map((sr) => sr.id));
+                    const allLinkedFns = this.getAllLinkedFnsFromWorkflowRequest(request, workflowRouteIds);
+
+                    // Process all linkedFn responses
+                    this.processLinkedFnsResponses(allLinkedFns, errors);
+
+                    // Build the workflow result with errors
+                    const result = this.buildWorkflowResult(workflowSubRequests, linkedFnsRecord, errors);
+                    resolve(result);
+                });
+        });
+    }
+
+    /**
+     * Get all linkedFns from the request's subRequestList, excluding workflow routes.
+     */
+    private getAllLinkedFnsFromWorkflowRequest(
+        request: MionClientRequest<any, any>,
+        workflowRouteIds: Set<string>
+    ): HSubRequest<any>[] {
+        return Object.entries(request.subRequestList)
+            .filter(([id]) => !workflowRouteIds.has(id))
+            .map(([, subRequest]) => subRequest as HSubRequest<any>);
+    }
+
+    /**
+     * Build the WorkflowResult 4-tuple from the request results.
+     * Returns [routeResults, routeErrors, linkedFnsResults, linkedFnsErrors] 4-tuple.
+     */
+    private buildWorkflowResult<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+        workflowSubRequests: Routes,
+        linkedFnsRecord: H,
+        errors: RequestErrors | undefined
+    ): WorkflowResult<Routes, H> {
+        // Build route results and errors arrays matching input order
+        const routeResults: (any | undefined)[] = [];
+        const routeErrors: (any | undefined)[] = [];
+        const processedIds = new Set<string>();
+
+        for (const routeSubRequest of workflowSubRequests) {
+            processedIds.add(routeSubRequest.id);
+            const routeError = errors?.get(routeSubRequest.id);
+            if (routeError) {
+                routeResults.push(undefined);
+                routeErrors.push(routeError);
+            } else {
+                routeResults.push(routeSubRequest.resolvedValue);
+                routeErrors.push(undefined);
+            }
+        }
+
+        // Build linkedFns results/errors
+        const linkedFnsResults = {} as {[K in keyof H]?: LinkedFnSuccess<H[K]>};
+        const linkedFnsErrors = {} as {[K in keyof H]?: LinkedFnError<H[K]>};
+
+        // Process linkedFns
+        for (const [name, linkedFn] of Object.entries(linkedFnsRecord)) {
+            processedIds.add(linkedFn.id);
+            const linkedFnError = errors?.get(linkedFn.id);
+            if (linkedFnError) {
+                (linkedFnsErrors as Record<string, any>)[name] = linkedFnError;
+            } else if (linkedFn.resolvedValue !== undefined) {
+                (linkedFnsResults as Record<string, any>)[name] = linkedFn.resolvedValue;
+            }
+        }
+
+        // Also include errors from linkedFns that ran on the server but weren't explicitly requested
+        if (errors) {
+            for (const [id, error] of errors) {
+                if (!processedIds.has(id)) {
+                    (linkedFnsErrors as Record<string, any>)[id] = error;
+                }
+            }
+        }
+
+        // Check if all results are undefined (no successful routes)
+        const hasAnyResult = routeResults.some((r) => r !== undefined);
+        const hasAnyError = routeErrors.some((e) => e !== undefined);
+
+        return [
+            hasAnyResult ? (routeResults as any) : undefined,
+            hasAnyError ? (routeErrors as any) : undefined,
+            Object.keys(linkedFnsResults).length > 0 ? linkedFnsResults : undefined,
+            Object.keys(linkedFnsErrors).length > 0 ? linkedFnsErrors : undefined,
+        ];
     }
 
     typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
