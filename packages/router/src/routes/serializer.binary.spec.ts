@@ -12,15 +12,8 @@ import {serializeResponseBody, deserializeRequestBody} from './serializer.routes
 import {createCallContext} from '../callContext';
 import {headersFromRecord} from '../lib/headers';
 import type {MionResponse, RawRequestBody} from '../types/context';
-import type {Mutable, MethodWithJitFns, BinaryInput} from '@mionkit/core';
+import type {Mutable, BinaryInput} from '@mionkit/core';
 import {createDataViewDeserializer, serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mionkit/core';
-
-/** Helper to build a methods map from an ExecutionChain */
-function buildMethodsMap(executionChain: MethodWithJitFns[]): Map<string, MethodWithJitFns> {
-    const map = new Map<string, MethodWithJitFns>();
-    for (const method of executionChain) map.set(method.id, method);
-    return map;
-}
 
 // Test types
 interface User {
@@ -214,14 +207,13 @@ describe('Binary Serialization - Router', () => {
     it('should correctly roundtrip string response', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
         const executionChain = getRouteExecutionChain('/sayHello')!.methods;
-        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize
         const originalBody = {sayHello: 'Hello, World!'};
         const {buffer} = serializeBinaryBody('/sayHello', executionChain, originalBody, true);
 
-        // Deserialize
-        const {body: deserializedBody} = deserializeBinaryBody('/sayHello', methodsMap, buffer, true);
+        // Deserialize (uses routesCache internally)
+        const {body: deserializedBody} = deserializeBinaryBody('/sayHello', buffer, true);
 
         expect(deserializedBody.sayHello).toBe('Hello, World!');
     });
@@ -229,14 +221,13 @@ describe('Binary Serialization - Router', () => {
     it('should correctly roundtrip number response', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
         const executionChain = getRouteExecutionChain('/addNumbers')!.methods;
-        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize
         const originalBody = {addNumbers: 42};
         const {buffer} = serializeBinaryBody('/addNumbers', executionChain, originalBody, true);
 
-        // Deserialize
-        const {body: deserializedBody} = deserializeBinaryBody('/addNumbers', methodsMap, buffer, true);
+        // Deserialize (uses routesCache internally)
+        const {body: deserializedBody} = deserializeBinaryBody('/addNumbers', buffer, true);
 
         expect(deserializedBody.addNumbers).toBe(42);
     });
@@ -244,14 +235,13 @@ describe('Binary Serialization - Router', () => {
     it('should correctly roundtrip array response', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
         const executionChain = getRouteExecutionChain('/processArray')!.methods;
-        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize
         const originalBody = {processArray: [1, 2, 3, 4, 5]};
         const {buffer} = serializeBinaryBody('/processArray', executionChain, originalBody, true);
 
-        // Deserialize
-        const {body: deserializedBody} = deserializeBinaryBody('/processArray', methodsMap, buffer, true);
+        // Deserialize (uses routesCache internally)
+        const {body: deserializedBody} = deserializeBinaryBody('/processArray', buffer, true);
 
         expect(deserializedBody.processArray).toEqual([1, 2, 3, 4, 5]);
     });
@@ -259,7 +249,6 @@ describe('Binary Serialization - Router', () => {
     it('should correctly roundtrip complex object response with Date', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
         const executionChain = getRouteExecutionChain('/getUser')!.methods;
-        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize
         const originalDate = new Date('2025-01-01T00:00:00Z');
@@ -273,8 +262,8 @@ describe('Binary Serialization - Router', () => {
         };
         const {buffer} = serializeBinaryBody('/getUser', executionChain, originalBody, true);
 
-        // Deserialize
-        const {body: deserializedBody} = deserializeBinaryBody('/getUser', methodsMap, buffer, true);
+        // Deserialize (uses routesCache internally)
+        const {body: deserializedBody} = deserializeBinaryBody('/getUser', buffer, true);
 
         expect(deserializedBody.getUser.id).toBe('123');
         expect(deserializedBody.getUser.name).toBe('John');
@@ -285,14 +274,13 @@ describe('Binary Serialization - Router', () => {
     it('should correctly roundtrip request params', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
         const executionChain = getRouteExecutionChain('/sayHello')!.methods;
-        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize request params (isResponse = false)
         const originalBody = {sayHello: ['World']};
         const {buffer} = serializeBinaryBody('/sayHello', executionChain, originalBody, false);
 
-        // Deserialize
-        const {body: deserializedBody} = deserializeBinaryBody('/sayHello', methodsMap, buffer, false);
+        // Deserialize (uses routesCache internally)
+        const {body: deserializedBody} = deserializeBinaryBody('/sayHello', buffer, false);
 
         expect(deserializedBody.sayHello).toEqual(['World']);
     });
@@ -300,14 +288,13 @@ describe('Binary Serialization - Router', () => {
     it('should correctly roundtrip multiple number params', async () => {
         await initMionRouter(routes, {serializer: 'binary'});
         const executionChain = getRouteExecutionChain('/addNumbers')!.methods;
-        const methodsMap = buildMethodsMap(executionChain);
 
         // Serialize request params (isResponse = false)
         const originalBody = {addNumbers: [10, 25]};
         const {buffer} = serializeBinaryBody('/addNumbers', executionChain, originalBody, false);
 
-        // Deserialize
-        const {body: deserializedBody} = deserializeBinaryBody('/addNumbers', methodsMap, buffer, false);
+        // Deserialize (uses routesCache internally)
+        const {body: deserializedBody} = deserializeBinaryBody('/addNumbers', buffer, false);
 
         expect(deserializedBody.addNumbers).toEqual([10, 25]);
     });
