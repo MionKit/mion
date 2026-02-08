@@ -5,7 +5,7 @@
     "composite": true,
     "rootDir": "."
   },
-  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../type-formats"}],
+  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../type-formats"}, {"path": "../test-server"}],
   "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", ".dist", "vite.config.ts"]
