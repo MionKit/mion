@@ -506,4 +506,144 @@ describe('Workflow routes', () => {
             expect(getWorkflowCacheSize()).toBe(0);
         });
     });
+
+    describe('scoped linkedFns in workflows', () => {
+        const route1 = route((ctx): string => 'result1');
+        const route2 = route((ctx): string => 'result2');
+        const route3 = route((ctx): string => 'result3');
+
+        const scopedLinkedFn = linkedFn((ctx): void => {
+            ctx.shared.scopedLinkedFnCalled = (ctx.shared.scopedLinkedFnCalled || 0) + 1;
+        });
+
+        const routes = {
+            route1,
+            other: {
+                scopedLinkedFn,
+                route2,
+            },
+            route3,
+        } satisfies Routes;
+
+        beforeEach(() => {
+            clearWorkflowCache();
+        });
+
+        it('should include scoped linkedFn when route from that scope is called', async () => {
+            await initRouter({contextDataFactory: () => ({scopedLinkedFnCalled: 0})});
+            await registerRoutes(routes);
+
+            const request = getDefaultRequest({
+                route1: [],
+                'other/route2': [],
+                route3: [],
+            });
+            const workflowPath = WORKFLOW_PATH;
+            const urlQuery = '/route1,/other/route2,/route3';
+
+            const response = await dispatchRoute(
+                workflowPath,
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                undefined,
+                undefined,
+                urlQuery
+            );
+
+            expect(response.hasErrors).toBe(false);
+            expect(response.body.route1).toBe('result1');
+            expect(response.body['other/route2']).toBe('result2');
+            expect(response.body.route3).toBe('result3');
+
+            // Verify the cached workflow has the scoped linkedFn
+            const cachedWorkflow = getCachedWorkflow(urlQuery);
+            expect(cachedWorkflow).toBeDefined();
+
+            // The scopedLinkedFn should appear in the merged methods (with path prefix)
+            const scopedLinkedFnMethod = cachedWorkflow!.methods.find((m) => m.id === 'other/scopedLinkedFn');
+            expect(scopedLinkedFnMethod).toBeDefined();
+
+            // Verify execution order: route1, other/scopedLinkedFn, other/route2, route3
+            const methodIds = cachedWorkflow!.methods
+                .filter((m) => ['route1', 'other/scopedLinkedFn', 'other/route2', 'route3'].includes(m.id))
+                .map((m) => m.id);
+            expect(methodIds).toEqual(['route1', 'other/scopedLinkedFn', 'other/route2', 'route3']);
+        });
+
+        it('should maintain correct order when scoped route is called first', async () => {
+            await initRouter({contextDataFactory: () => ({scopedLinkedFnCalled: 0})});
+            await registerRoutes(routes);
+
+            const request = getDefaultRequest({
+                'other/route2': [],
+                route1: [],
+                route3: [],
+            });
+            const workflowPath = WORKFLOW_PATH;
+            const urlQuery = '/other/route2,/route1,/route3';
+
+            const response = await dispatchRoute(
+                workflowPath,
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                undefined,
+                undefined,
+                urlQuery
+            );
+
+            expect(response.hasErrors).toBe(false);
+            expect(response.body['other/route2']).toBe('result2');
+            expect(response.body.route1).toBe('result1');
+            expect(response.body.route3).toBe('result3');
+
+            // Verify the cached workflow has the scoped linkedFn
+            const cachedWorkflow = getCachedWorkflow(urlQuery);
+            expect(cachedWorkflow).toBeDefined();
+
+            // Verify execution order: other/scopedLinkedFn, other/route2, route1, route3
+            const methodIds = cachedWorkflow!.methods
+                .filter((m) => ['route1', 'other/scopedLinkedFn', 'other/route2', 'route3'].includes(m.id))
+                .map((m) => m.id);
+            expect(methodIds).toEqual(['other/scopedLinkedFn', 'other/route2', 'route1', 'route3']);
+        });
+
+        it('should not include scoped linkedFn when no routes from that scope are called', async () => {
+            await initRouter({contextDataFactory: () => ({scopedLinkedFnCalled: 0})});
+            await registerRoutes(routes);
+
+            const request = getDefaultRequest({
+                route1: [],
+                route3: [],
+            });
+            const workflowPath = WORKFLOW_PATH;
+            const urlQuery = '/route1,/route3';
+
+            const response = await dispatchRoute(
+                workflowPath,
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                undefined,
+                undefined,
+                urlQuery
+            );
+
+            expect(response.hasErrors).toBe(false);
+            expect(response.body.route1).toBe('result1');
+            expect(response.body.route3).toBe('result3');
+
+            // Verify the cached workflow does NOT have the scoped linkedFn
+            const cachedWorkflow = getCachedWorkflow(urlQuery);
+            expect(cachedWorkflow).toBeDefined();
+
+            // The scopedLinkedFn should NOT appear in the merged methods (with path prefix)
+            const scopedLinkedFnMethod = cachedWorkflow!.methods.find((m) => m.id === 'other/scopedLinkedFn');
+            expect(scopedLinkedFnMethod).toBeUndefined();
+        });
+    });
 });
