@@ -787,4 +787,124 @@ describe('client', () => {
             await linkedFns.auth(authHeaders).removePrefill();
         });
     });
+
+    // ========== Pure Functions E2E Tests (UUID validation with serialized pure functions) ==========
+
+    describe('Pure Functions E2E (UUID validation)', () => {
+        let routes: ReturnType<typeof initClient<MyApi>>['routes'];
+        let linkedFns: ReturnType<typeof initClient<MyApi>>['linkedFns'];
+        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+        beforeEach(() => {
+            const client = initClient<MyApi>({baseURL});
+            routes = client.routes;
+            linkedFns = client.linkedFns;
+            linkedFns.auth(authHeaders).prefill();
+        });
+
+        afterEach(async () => {
+            await linkedFns.auth(authHeaders).removePrefill();
+        });
+
+        it('should successfully call route with valid UUID v4', async () => {
+            const validUUID = '550e8400-e29b-41d4-a716-446655440000';
+
+            const [result, routeError] = await routes.validateUUID(validUUID as any).call();
+
+            expect(routeError).toBeUndefined();
+            expect(result).toBe(`Valid UUID: ${validUUID}`);
+        });
+
+        it('should fail server-side validation with invalid UUID format', async () => {
+            const invalidUUID = 'not-a-valid-uuid';
+
+            const [result, routeError] = await routes.validateUUID(invalidUUID as any).call();
+
+            // Server should reject invalid UUID
+            expect(result).toBeUndefined();
+            expect(routeError).toBeDefined();
+        });
+
+        it('should validate UUID locally using typeErrors() with serialized pure function', async () => {
+            const validUUID = '550e8400-e29b-41d4-a716-446655440000';
+
+            // typeErrors() uses serialized pure functions locally to validate
+            const errors = await routes.validateUUID(validUUID as any).typeErrors();
+
+            // Should have no errors for valid UUID
+            expect(Array.isArray(errors)).toBe(true);
+            expect(errors.length).toBe(0);
+        });
+
+        it('should return validation errors locally for invalid UUID using typeErrors()', async () => {
+            const invalidUUID = 'not-a-valid-uuid';
+
+            // typeErrors() uses serialized pure functions locally to validate
+            const errors = await routes.validateUUID(invalidUUID as any).typeErrors();
+
+            // Should have errors for invalid UUID
+            expect(Array.isArray(errors)).toBe(true);
+            expect(errors.length).toBeGreaterThan(0);
+        });
+
+        it('should validate UUID v4 version locally (reject v7 format)', async () => {
+            // UUID v7 format (starts with timestamp, version digit is 7)
+            const uuidV7 = '01932c6c-426b-7b93-9000-f1e2d3c4b5a6';
+
+            // typeErrors() should detect this is not a valid v4 UUID
+            const errors = await routes.validateUUID(uuidV7 as any).typeErrors();
+
+            // Should have errors because route expects v4, not v7
+            expect(Array.isArray(errors)).toBe(true);
+            expect(errors.length).toBeGreaterThan(0);
+        });
+
+        it('should work with getUserById route that returns UUID in response', async () => {
+            const validUUID = '550e8400-e29b-41d4-a716-446655440000';
+
+            const [result, routeError] = await routes.getUserById(validUUID as any).call();
+
+            expect(routeError).toBeUndefined();
+            expect(result).toBeDefined();
+            expect(result?.id).toBe(validUUID);
+            expect(result?.name).toBe('Test User');
+        });
+
+        it('should validate getUserById params locally using typeErrors()', async () => {
+            const invalidUUID = 'invalid-uuid-format';
+
+            // typeErrors() uses serialized pure functions locally to validate
+            const errors = await routes.getUserById(invalidUUID as any).typeErrors();
+
+            // Should have errors for invalid UUID
+            expect(Array.isArray(errors)).toBe(true);
+            expect(errors.length).toBeGreaterThan(0);
+        });
+
+        it('should validate multiple UUID formats correctly', async () => {
+            // Test valid UUID formats
+            const validUUIDs = [
+                '550e8400-e29b-41d4-a716-446655440000', // valid v4
+                '6ba7b810-9dad-41d1-80b4-00c04fd430c8', // valid v4 variant
+            ];
+
+            for (const uuid of validUUIDs) {
+                const errors = await routes.validateUUID(uuid as any).typeErrors();
+                expect(errors.length).toBe(0);
+            }
+
+            // Test invalid UUID formats
+            const invalidUUIDs = [
+                'not-a-uuid', // invalid format
+                '550e8400-e29b-51d4-a716-446655440000', // v5 instead of v4
+                '', // empty string
+                '550e8400-e29b-41d4-a716', // truncated UUID
+            ];
+
+            for (const uuid of invalidUUIDs) {
+                const errors = await routes.validateUUID(uuid as any).typeErrors();
+                expect(errors.length).toBeGreaterThan(0);
+            }
+        });
+    });
 });
