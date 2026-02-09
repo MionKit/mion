@@ -8,7 +8,14 @@
 import {type RouterEntry, type Routes} from '../types/general';
 import {type RemoteMethod} from '../types/remoteMethods';
 import type {PublicApi} from '../types/publicMethods';
-import type {AnyObject, JitCompiledFn, JitCompiledFnData, PureFunctionData, MethodWithOptions} from '@mionkit/core';
+import type {
+    AnyObject,
+    JitCompiledFn,
+    JitCompiledFnData,
+    PureFunctionData,
+    MethodWithOptions,
+    PureFnsDataCache,
+} from '@mionkit/core';
 import {isRoute, isHeadersLinkedFnDef, isLinkedFnDef, isPublicExecutable} from '../types/guards';
 import {
     getLinkedFnExecutable,
@@ -110,25 +117,41 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
     return newRemoteMethod as MethodWithOptions;
 }
 
-export function serializePureDeps(depHash: string, purFnDeps: Record<string, PureFunctionData>, depth = 0) {
-    if (depth >= MAX_STACK_DEPTH) throw new Error(`Max depth reached serializing pure function dependencies, for: ${depHash}`);
-    const pureDep = getJitUtils().getCompiledPureFn(depHash);
-    if (!pureDep) throw new Error(`Pure function ${depHash} not found`);
-    if (purFnDeps[pureDep.pureFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies
+/** Serializes pure function dependencies into a namespaced cache structure.
+ * @param namespacedDepHash - Pure function dependency in format "namespace::fnHash"
+ * @param purFnDeps - Namespaced cache to store serialized pure functions
+ * @param depth - Current recursion depth for stack overflow protection
+ */
+export function serializePureDeps(namespacedDepHash: string, purFnDeps: PureFnsDataCache, depth = 0) {
+    if (depth >= MAX_STACK_DEPTH)
+        throw new Error(`Max depth reached serializing pure function dependencies, for: ${namespacedDepHash}`);
+    // Parse "namespace::fnHash" format
+    const parts = namespacedDepHash.split('::');
+    if (parts.length !== 2)
+        throw new Error(`Invalid pure function dependency format: ${namespacedDepHash}, expected "namespace::fnHash"`);
+    const [namespace, fnHash] = parts;
+    // Ensure namespace exists in the cache
+    if (!purFnDeps[namespace]) purFnDeps[namespace] = {};
+    // Check if already serialized (prevent infinite recursion on circular dependencies)
+    if (purFnDeps[namespace][fnHash]) return;
+    const pureDep = getJitUtils().getCompiledPureFn(namespace, fnHash);
+    if (!pureDep) throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
     const serializedPureDep: PureFunctionData = {
+        namespace: pureDep.namespace,
         paramNames: pureDep.paramNames,
         code: pureDep.code,
         pureFnHash: pureDep.pureFnHash,
         dependencies: new Set(pureDep.dependencies),
     };
-    purFnDeps[pureDep.pureFnHash] = serializedPureDep;
-    pureDep.dependencies.forEach((h) => serializePureDeps(h, purFnDeps, depth + 1));
+    purFnDeps[namespace][fnHash] = serializedPureDep;
+    // Dependencies within the same namespace are stored as just fnHash, not namespaced
+    pureDep.dependencies.forEach((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1));
 }
 
 export function serializeJitFn(
     jitFnHash: string,
     deps: Record<string, JitCompiledFnData>,
-    purFnDeps: Record<string, PureFunctionData>,
+    purFnDeps: PureFnsDataCache,
     depth = 0
 ) {
     if (depth >= MAX_STACK_DEPTH)
@@ -145,7 +168,7 @@ export function serializeJitFn(
 export function serializeMethodDeps(
     method: MethodWithOptions,
     deps: Record<string, JitCompiledFnData>,
-    purFnDeps: Record<string, PureFunctionData>
+    purFnDeps: PureFnsDataCache
 ) {
     const {paramsJitHash, returnJitHash} = method;
     // Skip serialization for empty hashes (no params or void return)

@@ -11,6 +11,9 @@
 // See: https://github.com/deepkit/deepkit-framework/issues/634
 // TODO: Revert to named exports once the issue is fixed
 
+// Import pure functions module to register all pure functions
+import './src/type-formats-pure-fns';
+
 // Import date/time format modules to register formatters
 import './src/string/date.runtype';
 import './src/string/dateTime.runtype';
@@ -39,6 +42,9 @@ export * from './src/string/url.runtype';
 export * from './src/string/ip.runtype';
 export * from './src/string/uuid.runtype';
 export * from './src/string/defaultStringFormats.runtype';
+
+// Re-export pure functions for easy access
+export * from './src/type-formats-pure-fns';
 
 // COMMENTED OUT - Original named exports (to be restored after issue is fixed):
 // // ############### Main StringFormat Export ###############

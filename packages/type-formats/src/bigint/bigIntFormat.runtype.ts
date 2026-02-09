@@ -4,13 +4,32 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
+import type {
+    BaseRunType,
+    JitFnCompiler,
+    JitErrorsFnCompiler,
+    JitCode,
+    jitBinarySerializerArgs,
+    JitFunctions,
+    BaseFnCompiler,
+    jitBinaryDeserializerArgs,
+} from '@mionkit/run-types';
 // TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils';
 import {FormatParams_BigInt} from '@mionkit/core';
+
+type BinarySerializer = BaseFnCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
+type BinaryDeserializer = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;
+
+// BigInt64 range: -9223372036854775808n to 9223372036854775807n (signed 64-bit)
+const BIGINT64_MIN = -9223372036854775808n;
+const BIGINT64_MAX = 9223372036854775807n;
+// BigUInt64 range: 0n to 18446744073709551615n (unsigned 64-bit)
+const BIGUINT64_MIN = 0n;
+const BIGUINT64_MAX = 18446744073709551615n;
 
 // ############### BigInt Format ###############
 
@@ -101,6 +120,38 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigInt> 
         return {code: undefined, type: 'S'};
     }
 
+    emitToBinary(comp: BinarySerializer, rt: BaseRunType): JitCode {
+        const params = this.getParams(rt);
+        const bigintType = getBigIntType(params);
+        // If the bigint fits in 8 bytes (Int64 or UInt64), use binary encoding
+        if (bigintType.isBigInt64 || bigintType.isBigUInt64) {
+            const sεr = comp.args.sεr;
+            if (bigintType.isBigUInt64) {
+                return {code: `${sεr}.view.setBigUint64(${sεr}.index, ${comp.vλl}, 1, ${sεr}.index += 8)`, type: 'S'};
+            }
+            // isBigInt64
+            return {code: `${sεr}.view.setBigInt64(${sεr}.index, ${comp.vλl}, 1, ${sεr}.index += 8)`, type: 'S'};
+        }
+        // For bigints outside 8-byte range, let run-types handle it (serializes as string)
+        return {code: undefined, type: 'S'};
+    }
+
+    emitFromBinary(comp: BinaryDeserializer, rt: BaseRunType): JitCode {
+        const params = this.getParams(rt);
+        const bigintType = getBigIntType(params);
+        // If the bigint fits in 8 bytes (Int64 or UInt64), use binary decoding
+        if (bigintType.isBigInt64 || bigintType.isBigUInt64) {
+            const dεs = comp.args.dεs;
+            if (bigintType.isBigUInt64) {
+                return {code: `${dεs}.view.getBigUint64(${dεs}.index, 1, ${dεs}.index += 8)`, type: 'E'};
+            }
+            // isBigInt64
+            return {code: `${dεs}.view.getBigInt64(${dεs}.index, 1, ${dεs}.index += 8)`, type: 'E'};
+        }
+        // For bigints outside 8-byte range, let run-types handle it (deserializes from string)
+        return {code: undefined, type: 'S'};
+    }
+
     _mock(opts: RunTypeOptions, rt: BaseRunType): bigint {
         const params = this.getParams(rt);
         let min = params.min !== undefined ? (paramVal(params.min) as bigint) : -99999n;
@@ -166,6 +217,17 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigInt> 
             }
         }
     }
+}
+
+/** Determines if the bigint params fit within Int64 or UInt64 ranges for 8-byte binary encoding */
+function getBigIntType(params: FormatParams_BigInt) {
+    const min = params.min !== undefined ? (paramVal(params.min) as bigint) : undefined;
+    const max = params.max !== undefined ? (paramVal(params.max) as bigint) : undefined;
+    // Check if fits in signed 64-bit range (BigInt64)
+    const isBigInt64 = min !== undefined && max !== undefined && min >= BIGINT64_MIN && max <= BIGINT64_MAX;
+    // Check if fits in unsigned 64-bit range (BigUInt64)
+    const isBigUInt64 = min !== undefined && max !== undefined && min >= BIGUINT64_MIN && max <= BIGUINT64_MAX;
+    return {isBigInt64, isBigUInt64};
 }
 
 // ############### Register runtypes ###############

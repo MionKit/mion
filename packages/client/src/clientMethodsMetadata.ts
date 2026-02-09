@@ -8,7 +8,14 @@
 import {RpcError, isRpcError, addRoutesToCache, resetRoutesCache, resetJitFnCaches} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
 import {ClientOptions, RequestBody} from './types';
-import type {JitCompiledFnData, MethodsCache, MethodWithOptions, PureFunctionData, SerializableMethodsData} from '@mionkit/core';
+import type {
+    JitCompiledFnData,
+    MethodsCache,
+    MethodWithOptions,
+    PureFunctionData,
+    SerializableMethodsData,
+    PureFnsDataCache,
+} from '@mionkit/core';
 import {routesCache, coreAOTLoadJitCaches, coreAOTLoadRoutesMetadataCache, addSerializedJitCaches} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {deserializeResponseBody} from './serializer';
@@ -65,16 +72,12 @@ function getJitCompiledFnKey(jitFnHash: string, options: ClientOptions) {
     return `${STORAGE_KEY}:jit-compiled-fn:${options.baseURL}:${jitFnHash}`;
 }
 
-function getJitPureFnKey(pureFnHash: string, options: ClientOptions) {
-    return `${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:${pureFnHash}`;
+function getJitPureFnKey(namespace: string, pureFnHash: string, options: ClientOptions) {
+    return `${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:${namespace}:${pureFnHash}`;
 }
 
 /** Stores JIT compiled functions and pure functions globally in localStorage */
-export function storeDependencies(
-    deps: Record<string, JitCompiledFnData>,
-    pureFnDeps: Record<string, PureFunctionData>,
-    options: ClientOptions
-) {
+export function storeDependencies(deps: Record<string, JitCompiledFnData>, pureFnDeps: PureFnsDataCache, options: ClientOptions) {
     Object.entries(deps).forEach(([hash, jitFnData]: [string, JitCompiledFnData]) => {
         const key = getJitCompiledFnKey(hash, options);
         try {
@@ -89,17 +92,20 @@ export function storeDependencies(
         }
     });
 
-    Object.entries(pureFnDeps).forEach(([hash, pureFnData]: [string, PureFunctionData]) => {
-        const key = getJitPureFnKey(hash, options);
-        try {
-            const serializablePureFnData = {
-                ...pureFnData,
-                dependencies: Array.from(pureFnData.dependencies),
-            };
-            localStorage.setItem(key, JSON.stringify(serializablePureFnData));
-        } catch (error) {
-            console.warn(`Failed to store pure function dependency ${hash}:`, error);
-        }
+    // Store namespaced pure functions
+    Object.entries(pureFnDeps).forEach(([namespace, nsPureFns]) => {
+        Object.entries(nsPureFns).forEach(([fnHash, pureFnData]: [string, PureFunctionData]) => {
+            const key = getJitPureFnKey(namespace, fnHash, options);
+            try {
+                const serializablePureFnData = {
+                    ...pureFnData,
+                    dependencies: Array.from(pureFnData.dependencies),
+                };
+                localStorage.setItem(key, JSON.stringify(serializablePureFnData));
+            } catch (error) {
+                console.warn(`Failed to store pure function dependency ${namespace}::${fnHash}:`, error);
+            }
+        });
     });
 }
 
@@ -118,7 +124,8 @@ export function storeMethodsMetadata(methods: MethodsCache, options: ClientOptio
 /** Restores all JIT compiled functions and pure functions from localStorage and deserializes them */
 export function restoreAllDependencies(options: ClientOptions) {
     const deps: Record<string, JitCompiledFnData> = {};
-    const pureFnDeps: Record<string, PureFunctionData> = {};
+    const pureFnDeps: PureFnsDataCache = {};
+    const pureFnKeyPrefix = `${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:`;
 
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -142,7 +149,7 @@ export function restoreAllDependencies(options: ClientOptions) {
 
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key?.startsWith(`${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:`)) {
+        if (key?.startsWith(pureFnKeyPrefix)) {
             try {
                 const data = localStorage.getItem(key);
                 if (data) {
@@ -151,7 +158,11 @@ export function restoreAllDependencies(options: ClientOptions) {
                         ...parsedData,
                         dependencies: new Set(parsedData.dependencies),
                     };
-                    pureFnDeps[pureFnData.pureFnHash] = pureFnData;
+                    // Extract namespace from key: "mion:jit-pure-fn:baseURL:namespace:fnHash"
+                    const keyParts = key.slice(pureFnKeyPrefix.length).split(':');
+                    const namespace = keyParts[0] || pureFnData.namespace;
+                    if (!pureFnDeps[namespace]) pureFnDeps[namespace] = {};
+                    pureFnDeps[namespace][pureFnData.pureFnHash] = pureFnData;
                 }
             } catch (error) {
                 console.warn(`Failed to restore pure function from key ${key}:`, error);
