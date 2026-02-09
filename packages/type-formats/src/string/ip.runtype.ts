@@ -59,7 +59,7 @@ export function mionIsLocalHost() {
 
 /** @reflection never */
 export function mionIsIPV4(utl: JITUtils) {
-    const is_Localhost = utl.getPureFn('mionIsLocalHost') as ReturnType<typeof mionIsLocalHost>;
+    const is_Localhost = utl.getPureFn('mionFormats', 'mionIsLocalHost') as ReturnType<typeof mionIsLocalHost>;
     function get_address(ip: string, p: FormatParams_IP): false | string {
         if (!p.allowPort) return ip;
         const parts = ip.split(':');
@@ -88,7 +88,7 @@ export function mionIsIPV4(utl: JITUtils) {
 
 /** @reflection never */
 export function mionIsIPV6(utl: JITUtils) {
-    const is_Localhost = utl.getPureFn('mionIsLocalHost') as ReturnType<typeof mionIsLocalHost>;
+    const is_Localhost = utl.getPureFn('mionFormats', 'mionIsLocalHost') as ReturnType<typeof mionIsLocalHost>;
     const ipv6PortRegexp = /^\[([^\]]+)\](?::(\d+))?$/;
     function get_address(ip: string, p: FormatParams_IP): false | string {
         if (!p.allowPort) return ip;
@@ -128,8 +128,8 @@ export function mionIsIPV6(utl: JITUtils) {
 
 /** @reflection never */
 export function mionGetIPErrors(utl: JITUtils) {
-    const is_ip_v4 = utl.getPureFn('mionIsIPV4') as ReturnType<typeof mionIsIPV4>;
-    const is_ip_v6 = utl.getPureFn('mionIsIPV6') as ReturnType<typeof mionIsIPV6>;
+    const is_ip_v4 = utl.getPureFn('mionFormats', 'mionIsIPV4') as ReturnType<typeof mionIsIPV4>;
+    const is_ip_v6 = utl.getPureFn('mionFormats', 'mionIsIPV6') as ReturnType<typeof mionIsIPV6>;
     const noopDeps = {};
     return function get_ip_errors(
         ip: string,
@@ -162,9 +162,9 @@ export function mockIpV6(p: FormatParams_IP): string {
 // ############### Register runtypes ###############
 
 // register pure functions so they can be used in the jit compiler
-registerPureFnClosure(mionIsLocalHost);
-registerPureFnClosure(mionIsIPV4, [mionIsLocalHost]);
-registerPureFnClosure(mionIsIPV6, [mionIsLocalHost]);
+registerPureFnClosure('mionFormats', mionIsLocalHost);
+registerPureFnClosure('mionFormats', mionIsIPV4, [mionIsLocalHost]);
+registerPureFnClosure('mionFormats', mionIsIPV6, [mionIsLocalHost]);
 
 // register Validator operations so they can be used in the jit compiler
 export const IP_RUN_TYPE_FORMATTER = registerFormatter(new IPRunTypeFormat());

@@ -67,7 +67,7 @@ export function mionIsUUID() {
 
 // ############### Register runtypes ###############
 
-registerPureFnClosure(mionIsUUID);
+registerPureFnClosure('mionFormats', mionIsUUID);
 export const UUID_RUN_TYPE_FORMATTER = registerFormatter(new UUIDRunTypeFormat());
 
 /** UUID v4 format, always branded with 'uuid'. */

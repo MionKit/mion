@@ -134,8 +134,9 @@ it('should compile pure functions cache to code', () => {
         };
     }
 
-    const compiledPureFn = registerPureFnClosure(pureFnWIthContext);
-    const mockCache = {addNumbers: compiledPureFn};
+    const TEST_NS = 'test';
+    const compiledPureFn = registerPureFnClosure(TEST_NS, pureFnWIthContext);
+    const mockCache = {[TEST_NS]: {addNumbers: compiledPureFn}};
     const {pureFnsCache} = getJitFnCaches();
 
     function compilePureESM() {
@@ -150,8 +151,8 @@ it('should compile pure functions cache to code', () => {
             .replace(/;\s*$/, '')
             .trim();
         const evalResult = eval(`(${evalCode})`);
-        evalResult['addNumbers'].fn = evalResult['addNumbers'].createJitFn(getJitUtils());
-        expect(evalResult.addNumbers.fn(1, 2)).toBe(3);
+        evalResult[TEST_NS]['addNumbers'].fn = evalResult[TEST_NS]['addNumbers'].createJitFn(getJitUtils());
+        expect(evalResult[TEST_NS].addNumbers.fn(1, 2)).toBe(3);
 
         // guarantees (real cache) in core package can be compiled
         // this contains any pure functions that are used by core package or mion packages
@@ -187,8 +188,8 @@ it('should compile pure functions cache to code', () => {
         const endIndex = compiledMock.lastIndexOf(' };');
         const evalCode = compiledMock.substring(startIndex, endIndex).trim();
         const evalResult = eval(`(${evalCode})`);
-        evalResult['addNumbers'].fn = evalResult['addNumbers'].createJitFn(getJitUtils());
-        expect(evalResult.addNumbers.fn(1, 2)).toBe(3);
+        evalResult[TEST_NS]['addNumbers'].fn = evalResult[TEST_NS]['addNumbers'].createJitFn(getJitUtils());
+        expect(evalResult[TEST_NS].addNumbers.fn(1, 2)).toBe(3);
 
         // guarantees (real cache) in core package can be compiled
         const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(

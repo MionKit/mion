@@ -121,7 +121,7 @@ export function mionIsDateString() {
 
 /** @reflection never */
 export function mionIsDateString_YMD(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[0], parts[1], parts[2]);
@@ -130,7 +130,7 @@ export function mionIsDateString_YMD(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsDateString_DMY(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[2], parts[1], parts[0]);
@@ -139,7 +139,7 @@ export function mionIsDateString_DMY(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsDateString_MDY(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[2], parts[0], parts[1]);
@@ -148,7 +148,7 @@ export function mionIsDateString_MDY(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsDateString_YM(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(parts[0], parts[1]);
@@ -157,7 +157,7 @@ export function mionIsDateString_YM(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsDateString_MD(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(undefined, parts[0], parts[1]);
@@ -166,7 +166,7 @@ export function mionIsDateString_MD(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsDateString_DM(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(undefined, parts[1], parts[0]);
@@ -184,13 +184,13 @@ export const dateFunctions = [
     mionIsDateString_MD,
     mionIsDateString_DM,
 ];
-registerPureFnClosure(mionIsDateString);
-registerPureFnClosure(mionIsDateString_YMD, [mionIsDateString]);
-registerPureFnClosure(mionIsDateString_DMY, [mionIsDateString]);
-registerPureFnClosure(mionIsDateString_MDY, [mionIsDateString]);
-registerPureFnClosure(mionIsDateString_YM, [mionIsDateString]);
-registerPureFnClosure(mionIsDateString_MD, [mionIsDateString]);
-registerPureFnClosure(mionIsDateString_DM, [mionIsDateString]);
+registerPureFnClosure('mionFormats', mionIsDateString);
+registerPureFnClosure('mionFormats', mionIsDateString_YMD, [mionIsDateString]);
+registerPureFnClosure('mionFormats', mionIsDateString_DMY, [mionIsDateString]);
+registerPureFnClosure('mionFormats', mionIsDateString_MDY, [mionIsDateString]);
+registerPureFnClosure('mionFormats', mionIsDateString_YM, [mionIsDateString]);
+registerPureFnClosure('mionFormats', mionIsDateString_MD, [mionIsDateString]);
+registerPureFnClosure('mionFormats', mionIsDateString_DM, [mionIsDateString]);
 
 export const DATE_RUN_TYPE_FORMATTER = registerFormatter(new DateStringRunTypeFormat());
 
