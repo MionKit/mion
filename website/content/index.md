@@ -126,6 +126,28 @@ blur: 140px
 
     ::::card
     ---
+    class: sm:col-span-2 lg:col-span-1 home-card
+    ---
+    ### Workflows
+    [Execute multiple routes in a single HTTP request](/client/workflows) — batch API calls together to reduce network overhead and improve performance.
+
+    <br>
+
+    ::note{class="text-sm"}
+    **Coming Soon:** Result mapping between routes — enabling GraphQL-like data composition with the simplicity of RPC.
+    ::
+    ::::
+
+    ::::twoslash-code
+    ---
+    path: packages/examples/src/_homepage/home-workflow.ts
+    title: mion-workflow.ts
+    class: sm:col-span-2 lg:col-span-2
+    ---
+    ::::
+
+    ::::card
+    ---
     class: sm:col-span-2 lg:col-span-1
     ---
     ### RunTypes <sup>©</sup>
@@ -215,4 +237,4 @@ blur: 140px
 
 [&nbsp;]{style="padding-bottom: 6rem;"}
 
-<!-- code-import-timestamp 1769726052719 -->
+<!-- code-import-timestamp 1770603353367 -->
