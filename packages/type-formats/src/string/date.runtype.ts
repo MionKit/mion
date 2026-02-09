@@ -4,12 +4,19 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JITUtils, GenericPureFunction} from '@mionkit/core';
 import {ReflectionKind} from '@deepkit/type';
 import type {JitFnCompiler, JitErrorsFnCompiler, BaseRunType, RunTypeOptions, JitCode} from '@mionkit/run-types';
-import {BaseRunTypeFormat, registerFormatter, registerPureFnClosure, TypeFormat} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {BaseRunTypeFormat, registerFormatter, TypeFormat} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {paramVal} from '../utils';
 import {DateFmt, FormatParams_Date} from '@mionkit/core';
+import {
+    isDateString_YMD,
+    isDateString_DMY,
+    isDateString_MDY,
+    isDateString_YM,
+    isDateString_MD,
+    isDateString_DM,
+} from '../type-formats-pure-fns';
 
 // Date validator
 export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date> {
@@ -59,17 +66,17 @@ export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date
         switch (format) {
             case 'ISO':
             case 'YYYY-MM-DD':
-                return mionIsDateString_YMD;
+                return isDateString_YMD;
             case 'DD-MM-YYYY':
-                return mionIsDateString_DMY;
+                return isDateString_DMY;
             case 'MM-DD-YYYY':
-                return mionIsDateString_MDY;
+                return isDateString_MDY;
             case 'YYYY-MM':
-                return mionIsDateString_YM;
+                return isDateString_YM;
             case 'MM-DD':
-                return mionIsDateString_MD;
+                return isDateString_MD;
             case 'DD-MM':
-                return mionIsDateString_DM;
+                return isDateString_DM;
             default:
                 throw new Error(`Invalid date format: ${format}`);
         }
@@ -87,110 +94,7 @@ function getMaxDaysInMonth(year: number, month: number): number {
     return 31;
 }
 
-/** @reflection never */
-export function mionIsDateString() {
-    // check is a valid date taking into account leap years
-    return function is_date_string(year: string | undefined, month: string, day?: string): boolean {
-        let y: undefined | number = undefined;
-        if (year) {
-            if (year.length !== 4) return false;
-            y = Number(year);
-            if (isNaN(y)) return false;
-            if (y < 0 || y > 9999) return false;
-        }
-        if (month.length !== 2) return false;
-        const m = Number(month);
-        if (isNaN(m)) return false;
-        if (m < 1 || m > 12) return false;
-        if (day) {
-            if (day.length !== 2) return false;
-            const d = Number(day);
-            if (isNaN(d)) return false;
-            if (d < 1 || d > 31) return false;
-            // check for leap years
-            if (m === 2) {
-                if (d > 29) return false;
-                if (y && d === 29 && !(y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0))) return false;
-            } else if ((m === 4 || m === 6 || m === 9 || m === 11) && d > 30) {
-                return false;
-            }
-        }
-        return true;
-    };
-}
-
-/** @reflection never */
-export function mionIsDateString_YMD(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
-    return function is_date(value: string): boolean {
-        const parts = value.split('-');
-        return parts.length === 3 && isDate(parts[0], parts[1], parts[2]);
-    } satisfies GenericPureFunction<FormatParams_Date>;
-}
-
-/** @reflection never */
-export function mionIsDateString_DMY(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
-    return function is_date(value: string): boolean {
-        const parts = value.split('-');
-        return parts.length === 3 && isDate(parts[2], parts[1], parts[0]);
-    } satisfies GenericPureFunction<FormatParams_Date>;
-}
-
-/** @reflection never */
-export function mionIsDateString_MDY(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
-    return function is_date(value: string): boolean {
-        const parts = value.split('-');
-        return parts.length === 3 && isDate(parts[2], parts[0], parts[1]);
-    } satisfies GenericPureFunction<FormatParams_Date>;
-}
-
-/** @reflection never */
-export function mionIsDateString_YM(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
-    return function is_date(value: string): boolean {
-        const parts = value.split('-');
-        return parts.length === 2 && isDate(parts[0], parts[1]);
-    } satisfies GenericPureFunction<FormatParams_Date>;
-}
-
-/** @reflection never */
-export function mionIsDateString_MD(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
-    return function is_date(value: string): boolean {
-        const parts = value.split('-');
-        return parts.length === 2 && isDate(undefined, parts[0], parts[1]);
-    } satisfies GenericPureFunction<FormatParams_Date>;
-}
-
-/** @reflection never */
-export function mionIsDateString_DM(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
-    return function is_date(value: string): boolean {
-        const parts = value.split('-');
-        return parts.length === 2 && isDate(undefined, parts[1], parts[0]);
-    } satisfies GenericPureFunction<FormatParams_Date>;
-}
-
 // ######### Registering the date validator #########
-
-export const dateFunctions = [
-    mionIsDateString,
-    mionIsDateString_YMD,
-    mionIsDateString_DMY,
-    mionIsDateString_MDY,
-    mionIsDateString_YM,
-    mionIsDateString_MD,
-    mionIsDateString_DM,
-];
-registerPureFnClosure('mionFormats', mionIsDateString);
-registerPureFnClosure('mionFormats', mionIsDateString_YMD, [mionIsDateString]);
-registerPureFnClosure('mionFormats', mionIsDateString_DMY, [mionIsDateString]);
-registerPureFnClosure('mionFormats', mionIsDateString_MDY, [mionIsDateString]);
-registerPureFnClosure('mionFormats', mionIsDateString_YM, [mionIsDateString]);
-registerPureFnClosure('mionFormats', mionIsDateString_MD, [mionIsDateString]);
-registerPureFnClosure('mionFormats', mionIsDateString_DM, [mionIsDateString]);
 
 export const DATE_RUN_TYPE_FORMATTER = registerFormatter(new DateStringRunTypeFormat());
 

@@ -4,13 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {GenericPureFunction} from '@mionkit/core';
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
-import {registerFormatter, registerPureFnClosure, BaseRunTypeFormat, RunTypeOptions, TypeFormat} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {registerFormatter, BaseRunTypeFormat, RunTypeOptions, TypeFormat} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {randomUUID_V7} from '@mionkit/core';
 import {paramVal} from '../utils';
 import {FormatParams_UUID} from '@mionkit/core';
+import {isUUID} from '../type-formats-pure-fns';
 
 // UUID validator
 export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
@@ -20,7 +20,7 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
     emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         // version must be set as a string to call pure function isUUID, this is so no transform is needed when comparing with uuid charat
-        return {code: this.compilePureFunctionCall(comp, rt, mionIsUUID, params).callCode, type: 'E'};
+        return {code: this.compilePureFunctionCall(comp, rt, isUUID, params).callCode, type: 'E'};
     }
     emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
@@ -42,32 +42,8 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
     emitFormat?; // no format needed
 }
 
-// ############### Pure Functions ###############
-
-/** @reflection never */
-export function mionIsUUID() {
-    return function is_uuid(value: string, p: FormatParams_UUID) {
-        if (value.length !== 36) return false;
-        for (let i = 0; i < 36; i++) {
-            if (i === 8 || i === 13 || i === 18 || i === 23) {
-                if (value[i] !== '-') return false;
-            } else if (i === 14) {
-                if (value[i] !== p.version) return false;
-            } else {
-                const charCode = value.charCodeAt(i);
-                const is09 = charCode >= 48 && charCode <= 57;
-                const isaf = charCode >= 97 && charCode <= 102;
-                const isAF = charCode >= 65 && charCode <= 70;
-                if (!(is09 || isaf || isAF)) return false;
-            }
-        }
-        return true;
-    } as GenericPureFunction<FormatParams_UUID>;
-}
-
 // ############### Register runtypes ###############
 
-registerPureFnClosure('mionFormats', mionIsUUID);
 export const UUID_RUN_TYPE_FORMATTER = registerFormatter(new UUIDRunTypeFormat());
 
 /** UUID v4 format, always branded with 'uuid'. */

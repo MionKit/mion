@@ -196,9 +196,6 @@ export type PureFunction = (...args: any[]) => any;
  */
 export type PureFunctionClosure = (jitUtils: JITUtils) => PureFunction;
 
-/** Namespace for pure functions - allows organizing and isolating pure functions by namespace */
-export type PureFunctionNamespace = string;
-
 /** Data for a pure function that can be serialized and deserialized. */
 export interface PureFunctionData {
     /** The namespace this pure function belongs to */
@@ -317,23 +314,20 @@ export type FromBinaryFn = (value: undefined, deserializer: DataViewDeserializer
 
 // jit and pure functions at runtime, contains both createJitFn and fn
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
-export type PureFunctionsCache = Record<string, CompiledPureFunction>;
 /** Namespaced cache structure for pure functions: { namespace: { fnHash: CompiledPureFunction } } */
-export type NamespacedPureFunctionsCache = Record<PureFunctionNamespace, PureFunctionsCache>;
+export type PureFunctionsCache = Record<string, Record<string, CompiledPureFunction>>;
 
 // jit and pure functions persisted to src code, contains createJitFn but not fn
 // this allow usage in environments that can not use eval or new Function()
 export type PersistedJitFunctionsCache = Record<string, PersistedJitFn>;
-export type PersistedPureFunctionsCache = Record<string, PersistedPureFunction>;
 /** Namespaced cache structure for persisted pure functions */
-export type NamespacedPersistedPureFunctionsCache = Record<PureFunctionNamespace, PersistedPureFunctionsCache>;
+export type PersistedPureFunctionsCache = Record<string, Record<string, PersistedPureFunction>>;
 
 // jit and pure functions data, does not contain createJitFn or fn
 // this is used to serialize over the network, but requires using new Function() to restore functionality
 export type FnsDataCache = Record<string, JitCompiledFnData>;
-export type PureFnsDataCache = Record<string, PureFunctionData>;
 /** Namespaced cache structure for pure function data */
-export type NamespacedPureFnsDataCache = Record<PureFunctionNamespace, PureFnsDataCache>;
+export type PureFnsDataCache = Record<string, Record<string, PureFunctionData>>;
 
 // ########################################### JIT SRC CODE ####################################
 
@@ -360,7 +354,7 @@ export interface SrcCodeCompiledPureFunction extends PureFunctionData {
     readonly fn: undefined;
 }
 export type SrcCodeJITCompiledFnsCache = Record<string, SrcCodeJitCompiledFn>;
-export type SrcCodePureFunctionsCache = Record<PureFunctionNamespace, Record<string, SrcCodeCompiledPureFunction>>;
+export type SrcCodePureFunctionsCache = Record<string, Record<string, SrcCodeCompiledPureFunction>>;
 
 // ########################################## other #########################################
 

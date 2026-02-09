@@ -194,8 +194,10 @@ function mockData(): SerializableMethodsData {
             prepareForJson: compiledFnData2,
         },
         purFnDeps: {
-            addNumbers: pureFunctionData1,
-            multiplyNumbers: pureFunctionData2,
+            test: {
+                addNumbers: pureFunctionData1,
+                multiplyNumbers: pureFunctionData2,
+            },
         },
     };
     return md;

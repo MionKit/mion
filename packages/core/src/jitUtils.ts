@@ -10,9 +10,8 @@ import type {
     JitFunctionsCache,
     PureFunction,
     PureFunctionsCache,
-    NamespacedPureFunctionsCache,
-    NamespacedPersistedPureFunctionsCache,
-    NamespacedPureFnsDataCache,
+    PersistedPureFunctionsCache,
+    PureFnsDataCache,
     RunTypeError,
     DeserializeClassFn,
     AnyClass,
@@ -31,16 +30,7 @@ import {TypeFormatError} from './types/formats/formats.types';
 // Local caches - can be populated from AOT caches via loadJitCaches()
 const jitFnsCache: JitFunctionsCache = {};
 /** Namespaced pure functions cache: { namespace: { fnHash: CompiledPureFunction } } */
-const pureFnsCache: NamespacedPureFunctionsCache = {};
-
-/** Helper function to ensure namespace exists in the cache */
-function ensureNamespace(namespace: string): PureFunctionsCache {
-    if (!pureFnsCache[namespace]) {
-        pureFnsCache[namespace] = {};
-    }
-    return pureFnsCache[namespace];
-}
-
+const pureFnsCache: PureFunctionsCache = {};
 let coreAOTCachesLoaded = false;
 
 // eslint-disable-next-line no-control-regex
@@ -268,7 +258,7 @@ export function getJitUtils(): JITUtils {
  * @param aotFnsCache
  * @param aotPureCache - Namespaced pure functions cache
  */
-export function addAOTCaches(aotFnsCache: PersistedJitFunctionsCache, aotPureCache: NamespacedPersistedPureFunctionsCache) {
+export function addAOTCaches(aotFnsCache: PersistedJitFunctionsCache, aotPureCache: PersistedPureFunctionsCache) {
     restoreCaches(aotFnsCache, aotPureCache);
 }
 
@@ -278,7 +268,7 @@ export function addAOTCaches(aotFnsCache: PersistedJitFunctionsCache, aotPureCac
  * @param jitDataFnsCache
  * @param pureFnsDataCache - Namespaced pure functions cache
  */
-export function addSerializedJitCaches(jitDataFnsCache: FnsDataCache, pureFnsDataCache: NamespacedPureFnsDataCache) {
+export function addSerializedJitCaches(jitDataFnsCache: FnsDataCache, pureFnsDataCache: PureFnsDataCache) {
     restoreCaches(jitDataFnsCache, pureFnsDataCache);
 }
 
@@ -291,12 +281,12 @@ export function addSerializedJitCaches(jitDataFnsCache: FnsDataCache, pureFnsDat
 export function coreAOTLoadJitCaches(): void {
     if (coreAOTCachesLoaded) return;
     coreAOTCachesLoaded = true;
-    restoreCaches(aotJitFnsCache as PersistedJitFunctionsCache, aotPureFnsCache as NamespacedPersistedPureFunctionsCache);
+    restoreCaches(aotJitFnsCache as PersistedJitFunctionsCache, aotPureFnsCache as PersistedPureFunctionsCache);
 }
 
 function restoreCaches(
     fnsCache: PersistedJitFunctionsCache | FnsDataCache,
-    pureCache: NamespacedPersistedPureFunctionsCache | NamespacedPureFnsDataCache
+    pureCache: PersistedPureFunctionsCache | PureFnsDataCache
 ) {
     // First load the caches so all entries are available in the global cache
     // This is needed because createJitFn uses jitUtils.getJIT() to resolve dependencies
@@ -332,7 +322,7 @@ function restoreCaches(
 export function getJitFnCaches() {
     return {
         jitFnsCache: jitFnsCache as Readonly<JitFunctionsCache>,
-        pureFnsCache: pureFnsCache as Readonly<NamespacedPureFunctionsCache>,
+        pureFnsCache: pureFnsCache as Readonly<PureFunctionsCache>,
     };
 }
 
@@ -346,4 +336,12 @@ export function resetJitFnCaches() {
     deserializeFnsRegistry.clear();
     serializableClassRegistry.clear();
     coreAOTCachesLoaded = false;
+}
+
+/** Helper function to ensure namespace exists in the cache */
+function ensureNamespace(namespace: string): Record<string, CompiledPureFunction> {
+    if (!pureFnsCache[namespace]) {
+        pureFnsCache[namespace] = {};
+    }
+    return pureFnsCache[namespace];
 }

@@ -9,9 +9,9 @@ import {restoreCompiledJitFns} from './restoreJitFns';
 import {addAOTCaches, addSerializedJitCaches, getJitUtils, resetJitFnCaches} from './jitUtils';
 import type {
     PersistedJitFunctionsCache,
-    NamespacedPersistedPureFunctionsCache,
+    PersistedPureFunctionsCache,
     FnsDataCache,
-    NamespacedPureFnsDataCache,
+    PureFnsDataCache,
 } from './types/general.types';
 
 const TEST_NS = 'test';
@@ -42,7 +42,7 @@ describe('restoreJitFns', () => {
                     fn: undefined,
                 },
             };
-            const pureCache: NamespacedPersistedPureFunctionsCache = {};
+            const pureCache: PersistedPureFunctionsCache = {};
 
             addAOTCaches(jitCache, pureCache);
 
@@ -54,7 +54,7 @@ describe('restoreJitFns', () => {
 
         it('should restore a persisted pure function with createJitFn', () => {
             const jitCache: PersistedJitFunctionsCache = {};
-            const pureCache: NamespacedPersistedPureFunctionsCache = {
+            const pureCache: PersistedPureFunctionsCache = {
                 [TEST_NS]: {
                     addNumbers: {
                         namespace: TEST_NS,
@@ -100,7 +100,7 @@ describe('restoreJitFns', () => {
                     fn: undefined,
                 },
             };
-            const pureCache: NamespacedPersistedPureFunctionsCache = {
+            const pureCache: PersistedPureFunctionsCache = {
                 [TEST_NS]: {
                     helper: {
                         namespace: TEST_NS,
@@ -166,7 +166,7 @@ describe('restoreJitFns', () => {
                     fn: undefined,
                 },
             };
-            const pureCache: NamespacedPersistedPureFunctionsCache = {};
+            const pureCache: PersistedPureFunctionsCache = {};
 
             addAOTCaches(jitCache, pureCache);
 
@@ -180,7 +180,7 @@ describe('restoreJitFns', () => {
 
         it('should restore pure function with pure dependencies', () => {
             const jitCache: PersistedJitFunctionsCache = {};
-            const pureCache: NamespacedPersistedPureFunctionsCache = {
+            const pureCache: PersistedPureFunctionsCache = {
                 [TEST_NS]: {
                     multiply: {
                         namespace: TEST_NS,
@@ -242,7 +242,7 @@ describe('restoreJitFns', () => {
                     fn: existingFn as any,
                 },
             };
-            const pureCache: NamespacedPersistedPureFunctionsCache = {};
+            const pureCache: PersistedPureFunctionsCache = {};
 
             addAOTCaches(jitCache, pureCache);
 
@@ -267,7 +267,7 @@ describe('restoreJitFns', () => {
                     pureFnDependencies: new Set(),
                 },
             };
-            const pureCache: NamespacedPureFnsDataCache = {};
+            const pureCache: PureFnsDataCache = {};
 
             addSerializedJitCaches(jitCache, pureCache);
 
@@ -280,7 +280,7 @@ describe('restoreJitFns', () => {
 
         it('should restore a serialized pure function without createJitFn', () => {
             const jitCache: FnsDataCache = {};
-            const pureCache: NamespacedPureFnsDataCache = {
+            const pureCache: PureFnsDataCache = {
                 [TEST_NS]: {
                     subtract: {
                         namespace: TEST_NS,
@@ -313,7 +313,7 @@ describe('restoreJitFns', () => {
                     pureFnDependencies: new Set([`${TEST_NS}::isArray`]),
                 },
             };
-            const pureCache: NamespacedPureFnsDataCache = {
+            const pureCache: PureFnsDataCache = {
                 [TEST_NS]: {
                     isArray: {
                         namespace: TEST_NS,
@@ -361,7 +361,7 @@ describe('restoreJitFns', () => {
                     pureFnDependencies: new Set(),
                 },
             };
-            const pureCache: NamespacedPureFnsDataCache = {};
+            const pureCache: PureFnsDataCache = {};
 
             addSerializedJitCaches(jitCache, pureCache);
 
@@ -377,7 +377,7 @@ describe('restoreJitFns', () => {
 
         it('should restore serialized pure function with serialized pure dependencies', () => {
             const jitCache: FnsDataCache = {};
-            const pureCache: NamespacedPureFnsDataCache = {
+            const pureCache: PureFnsDataCache = {
                 [TEST_NS]: {
                     divide: {
                         namespace: TEST_NS,
@@ -428,14 +428,14 @@ describe('restoreJitFns', () => {
                     fn: undefined,
                 },
             };
-            const pureCache: NamespacedPersistedPureFunctionsCache = {};
+            const pureCache: PersistedPureFunctionsCache = {};
 
             expect(() => restoreCompiledJitFns(jitCache, pureCache, getJitUtils())).toThrow('Jit function missing not found');
         });
 
         it('should throw error when pure function is not found', () => {
             const jitCache: PersistedJitFunctionsCache = {};
-            const pureCache: NamespacedPersistedPureFunctionsCache = {
+            const pureCache: PersistedPureFunctionsCache = {
                 [TEST_NS]: {
                     parent: {
                         namespace: TEST_NS,
@@ -473,14 +473,14 @@ describe('restoreJitFns', () => {
                     pureFnDependencies: new Set(),
                 },
             };
-            const pureCache: NamespacedPureFnsDataCache = {};
+            const pureCache: PureFnsDataCache = {};
 
             expect(() => restoreCompiledJitFns(jitCache, pureCache, getJitUtils())).toThrow();
         });
 
         it('should throw TypedError when serialized pure function code is invalid', () => {
             const jitCache: FnsDataCache = {};
-            const pureCache: NamespacedPureFnsDataCache = {
+            const pureCache: PureFnsDataCache = {
                 [TEST_NS]: {
                     invalid: {
                         namespace: TEST_NS,
@@ -546,7 +546,7 @@ describe('restoreJitFns', () => {
 
         it('should restore deep dependency chain', () => {
             const jitCache: FnsDataCache = {};
-            const pureCache: NamespacedPureFnsDataCache = {
+            const pureCache: PureFnsDataCache = {
                 [TEST_NS]: {
                     base: {
                         namespace: TEST_NS,

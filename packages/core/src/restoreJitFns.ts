@@ -10,10 +10,10 @@ import type {
     CompiledPureFunction,
     JitCompiledFn,
     PersistedJitFunctionsCache,
-    NamespacedPersistedPureFunctionsCache,
+    PersistedPureFunctionsCache,
     FnsDataCache,
-    NamespacedPureFnsDataCache,
-    NamespacedPureFunctionsCache,
+    PureFnsDataCache,
+    PureFunctionsCache,
     JitCompiledFnData,
     JITUtils,
     PersistedPureFunction,
@@ -33,7 +33,7 @@ import {TypedError} from './errors';
  * */
 export function restoreCompiledJitFns(
     jitCache: PersistedJitFunctionsCache | FnsDataCache,
-    pureCache: NamespacedPureFunctionsCache | NamespacedPersistedPureFunctionsCache | NamespacedPureFnsDataCache,
+    pureCache: PureFunctionsCache | PersistedPureFunctionsCache | PureFnsDataCache,
     jUtil: JITUtils
 ): void {
     // Use visited sets to prevent infinite recursion on circular dependencies
@@ -53,7 +53,7 @@ export function restoreCompiledJitFns(
 }
 
 function restoreCompiledPureFn(
-    pureCache: NamespacedPureFunctionsCache | NamespacedPersistedPureFunctionsCache | NamespacedPureFnsDataCache,
+    pureCache: PureFunctionsCache | PersistedPureFunctionsCache | PureFnsDataCache,
     namespace: string,
     fnName: string,
     jUtil: JITUtils,
@@ -84,7 +84,7 @@ function restoreCompiledPureFn(
 
 function restoreCompiledJitFn(
     jitCache: PersistedJitFunctionsCache | FnsDataCache,
-    pureCache: NamespacedPureFunctionsCache | NamespacedPersistedPureFunctionsCache | NamespacedPureFnsDataCache,
+    pureCache: PureFunctionsCache | PersistedPureFunctionsCache | PureFnsDataCache,
     fnHash: string,
     jUtil: JITUtils,
     visitedPure: Set<string>,
