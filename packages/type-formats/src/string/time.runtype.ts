@@ -108,8 +108,8 @@ export function mockTimeZone(): string {
 
 /** @reflection never */
 export function mionIsTimeZone(jUtil: JITUtils) {
-    const isH = jUtil.getPureFn('pf_mionIsHours') as ReturnType<typeof mionIsHours>;
-    const isM = jUtil.getPureFn('pf_mionIsMinutes') as ReturnType<typeof mionIsMinutes>;
+    const isH = jUtil.getPureFn('mionIsHours') as ReturnType<typeof mionIsHours>;
+    const isM = jUtil.getPureFn('mionIsMinutes') as ReturnType<typeof mionIsMinutes>;
     return function is_tz(timeZone: string): timeZone is 'TZ' {
         const isZ = timeZone === 'Z' || timeZone === 'z';
         if (isZ) return true;
@@ -153,7 +153,7 @@ export function mionIsSeconds() {
 
 /** @reflection never */
 export function mionIsSecondsWithMs(jUtil: JITUtils) {
-    const isS = jUtil.getPureFn('pf_mionIsSeconds') as ReturnType<typeof mionIsSeconds>;
+    const isS = jUtil.getPureFn('mionIsSeconds') as ReturnType<typeof mionIsSeconds>;
     return function is_s_ms(secsAnsMls: string): secsAnsMls is 'ss.mmm' {
         const parts = secsAnsMls.split('.') as ['ss', 'mmm' | undefined];
         if (parts.length > 2) return false;
@@ -172,8 +172,8 @@ export function mionIsSecondsWithMs(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsTimeString_ISO_TZ(jUtil: JITUtils) {
-    const isTWms = jUtil.getPureFn('pf_mionIsTimeString_ISO') as ReturnType<typeof mionIsTimeString_ISO>;
-    const isTZ = jUtil.getPureFn('pf_mionIsTimeZone') as ReturnType<typeof mionIsTimeZone>;
+    const isTWms = jUtil.getPureFn('mionIsTimeString_ISO') as ReturnType<typeof mionIsTimeString_ISO>;
+    const isTZ = jUtil.getPureFn('mionIsTimeZone') as ReturnType<typeof mionIsTimeZone>;
     return function is_iso_time(value: string): boolean {
         // 'ISO' OR 'HH:mm:ss[.mmm]TZ'
         const isZ = value.endsWith('Z') || value.endsWith('z');
@@ -192,9 +192,9 @@ export function mionIsTimeString_ISO_TZ(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsTimeString_ISO(jUtil: JITUtils) {
-    const isH = jUtil.getPureFn('pf_mionIsHours') as ReturnType<typeof mionIsHours>;
-    const isM = jUtil.getPureFn('pf_mionIsMinutes') as ReturnType<typeof mionIsMinutes>;
-    const isSWithMls = jUtil.getPureFn('pf_mionIsSecondsWithMs') as ReturnType<typeof mionIsSecondsWithMs>;
+    const isH = jUtil.getPureFn('mionIsHours') as ReturnType<typeof mionIsHours>;
+    const isM = jUtil.getPureFn('mionIsMinutes') as ReturnType<typeof mionIsMinutes>;
+    const isSWithMls = jUtil.getPureFn('mionIsSecondsWithMs') as ReturnType<typeof mionIsSecondsWithMs>;
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 3 && isH(parts[0]) && isM(parts[1]) && isSWithMls(parts[2]);
@@ -203,9 +203,9 @@ export function mionIsTimeString_ISO(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsTimeString_HHmmss(jUtil: JITUtils) {
-    const isH = jUtil.getPureFn('pf_mionIsHours') as ReturnType<typeof mionIsHours>;
-    const isM = jUtil.getPureFn('pf_mionIsMinutes') as ReturnType<typeof mionIsMinutes>;
-    const isS = jUtil.getPureFn('pf_mionIsSeconds') as ReturnType<typeof mionIsSeconds>;
+    const isH = jUtil.getPureFn('mionIsHours') as ReturnType<typeof mionIsHours>;
+    const isM = jUtil.getPureFn('mionIsMinutes') as ReturnType<typeof mionIsMinutes>;
+    const isS = jUtil.getPureFn('mionIsSeconds') as ReturnType<typeof mionIsSeconds>;
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 3 && isH(parts[0]) && isM(parts[1]) && isS(parts[2]);
@@ -214,8 +214,8 @@ export function mionIsTimeString_HHmmss(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsTimeString_HHmm(jUtil: JITUtils) {
-    const isH = jUtil.getPureFn('pf_mionIsHours') as ReturnType<typeof mionIsHours>;
-    const isM = jUtil.getPureFn('pf_mionIsMinutes') as ReturnType<typeof mionIsMinutes>;
+    const isH = jUtil.getPureFn('mionIsHours') as ReturnType<typeof mionIsHours>;
+    const isM = jUtil.getPureFn('mionIsMinutes') as ReturnType<typeof mionIsMinutes>;
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 2 && isH(parts[0]) && isM(parts[1]);
@@ -224,8 +224,8 @@ export function mionIsTimeString_HHmm(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsTimeString_mmss(jUtil: JITUtils) {
-    const isM = jUtil.getPureFn('pf_mionIsMinutes') as ReturnType<typeof mionIsMinutes>;
-    const isS = jUtil.getPureFn('pf_mionIsSeconds') as ReturnType<typeof mionIsSeconds>;
+    const isM = jUtil.getPureFn('mionIsMinutes') as ReturnType<typeof mionIsMinutes>;
+    const isS = jUtil.getPureFn('mionIsSeconds') as ReturnType<typeof mionIsSeconds>;
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 2 && isM(parts[0]) && isS(parts[1]);

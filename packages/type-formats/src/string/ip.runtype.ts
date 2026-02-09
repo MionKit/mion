@@ -59,7 +59,7 @@ export function mionIsLocalHost() {
 
 /** @reflection never */
 export function mionIsIPV4(utl: JITUtils) {
-    const is_Localhost = utl.getPureFn('pf_mionIsLocalHost') as ReturnType<typeof mionIsLocalHost>;
+    const is_Localhost = utl.getPureFn('mionIsLocalHost') as ReturnType<typeof mionIsLocalHost>;
     function get_address(ip: string, p: FormatParams_IP): false | string {
         if (!p.allowPort) return ip;
         const parts = ip.split(':');
@@ -88,7 +88,7 @@ export function mionIsIPV4(utl: JITUtils) {
 
 /** @reflection never */
 export function mionIsIPV6(utl: JITUtils) {
-    const is_Localhost = utl.getPureFn('pf_mionIsLocalHost') as ReturnType<typeof mionIsLocalHost>;
+    const is_Localhost = utl.getPureFn('mionIsLocalHost') as ReturnType<typeof mionIsLocalHost>;
     const ipv6PortRegexp = /^\[([^\]]+)\](?::(\d+))?$/;
     function get_address(ip: string, p: FormatParams_IP): false | string {
         if (!p.allowPort) return ip;
@@ -128,8 +128,8 @@ export function mionIsIPV6(utl: JITUtils) {
 
 /** @reflection never */
 export function mionGetIPErrors(utl: JITUtils) {
-    const is_ip_v4 = utl.getPureFn('pf_mionIsIPV4') as ReturnType<typeof mionIsIPV4>;
-    const is_ip_v6 = utl.getPureFn('pf_mionIsIPV6') as ReturnType<typeof mionIsIPV6>;
+    const is_ip_v4 = utl.getPureFn('mionIsIPV4') as ReturnType<typeof mionIsIPV4>;
+    const is_ip_v6 = utl.getPureFn('mionIsIPV6') as ReturnType<typeof mionIsIPV6>;
     const noopDeps = {};
     return function get_ip_errors(
         ip: string,
