@@ -9,7 +9,7 @@ import {PublicApi, Routes, initRouter, registerRoutes, route, headersFn, linkedF
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/node';
 import {RpcError, HeadersSubset} from '@mionkit/core';
 // Import format types (regular import to ensure JIT functions are created)
-import {StrFormat, StrEmail} from '@mionkit/type-formats/FormatsString';
+import {StrFormat, StrEmail, StrUUIDv4} from '@mionkit/type-formats/FormatsString';
 import {NumFormat} from '@mionkit/type-formats/FormatsNumber';
 
 // Define routes for testing different validation scenarios
@@ -97,6 +97,10 @@ const routes = {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     log: linkedFn((ctx): void => undefined, {runOnError: true}),
+
+    // Routes for testing pure functions with UUID validation
+    validateUUID: route((_ctx, uuid: StrUUIDv4): string => `Valid UUID: ${uuid}`),
+    getUserById: route((_ctx, userId: StrUUIDv4): {id: StrUUIDv4; name: string} => ({id: userId, name: 'Test User'})),
 
     // Routes for testing serialization/deserialization of complex types
     getSameDate: route((_ctx, date: Date): Date => date),
