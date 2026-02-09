@@ -66,15 +66,18 @@ describe('jitUtils', () => {
     });
 
     it('should load compiled pure functions cache from cache data', () => {
-        // Create a test pure functions cache data
-        const testPureCache = {
-            testPureFn: {
-                paramNames: ['a', 'b'],
-                pureFnHash: 'testPureFn',
-                code: 'return (a, b) => a + b;',
-                dependencies: new Set<string>(),
-                createJitFn: () => (a: number, b: number) => a + b,
-                fn: (a: number, b: number) => a + b,
+        // Create a test pure functions cache data (namespaced structure)
+        const testPureCache: PureFunctionsCache = {
+            testNamespace: {
+                testPureFn: {
+                    namespace: 'testNamespace',
+                    paramNames: ['a', 'b'],
+                    pureFnHash: 'testPureFn',
+                    code: 'return (a, b) => a + b;',
+                    dependencies: new Set<string>(),
+                    createJitFn: () => (a: number, b: number) => a + b,
+                    fn: (a: number, b: number) => a + b,
+                },
             },
         };
 
@@ -90,7 +93,8 @@ describe('jitUtils', () => {
         const updatedPureCacheSize = Object.keys(updatedCaches.pureFnsCache).length;
 
         expect(updatedPureCacheSize).toBeGreaterThan(initialPureCacheSize);
-        expect(updatedCaches.pureFnsCache).toHaveProperty('testPureFn');
+        expect(updatedCaches.pureFnsCache).toHaveProperty('testNamespace');
+        expect(updatedCaches.pureFnsCache.testNamespace).toHaveProperty('testPureFn');
     });
 
     it('should handle empty cache data gracefully', () => {
