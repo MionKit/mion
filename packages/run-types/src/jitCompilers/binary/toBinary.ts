@@ -185,7 +185,7 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
 
             const memberCode = comp.compile(rt.getJitChild(comp), 'S', fnID).code || '';
             if (rt.isOptional()) {
-                const {bitMIndexVar, bitIndex} = getOptionalPropsItems(parent, comp, 0, rt.optionalIndex);
+                const {bitMIndexVar, bitIndex} = getOptionalBitmapItems(parent, comp, 0, rt.optionalIndex, false);
                 const setBitMask = `${sεr}.setBitMask(${bitMIndexVar}, ${bitIndex})`;
                 return {code: `if (${comp.getChildVλl()} !== undefined) {${memberCode};${setBitMask}}`, type: 'S'};
             }
@@ -199,12 +199,16 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
             const nullJIt = emitToBinaryAs(rt, comp, ReflectionKind.undefined);
             const itemJit = childJit?.code ? childJit : nullJIt; // if child is not serializable, we serialize null as need to fill the space in the tuple
             if (rt.isRest()) return itemJit;
-            if (rt.isOptional()) {
-                // todo, we could optimize this by using bitmap mask to use a single bit per optional param (similar to what we do for properties)
-                const isDefined = `${sεr}.view.setUint8(${sεr}.index++, 1)`;
-                const notDefined = `${sεr}.view.setUint8(${sεr}.index++, 0)`;
-                const code = `if (${comp.getChildVλl()} !== undefined){${isDefined};${itemJit.code}} else {${notDefined}}`;
-                return {code, type: 'S'};
+            // Optional handling uses bitmap set at tuple level
+            const optionalIndex = (rt as any).optionalIndex;
+            const bitMIndexVar = (rt as any)._bitmapVar;
+            const isFnParam = (rt as any)._isFnParam;
+            // Treat as optional if either isOptional() is true OR it's a function param (all fn params are optional in binary)
+            const isOptional = rt.isOptional() || isFnParam;
+            if (isOptional && optionalIndex !== undefined && bitMIndexVar) {
+                const bitIndex = optionalIndex & 7; // equivalent to optionalIndex % 8
+                const setBitMask = `${sεr}.setBitMask(${bitMIndexVar}, ${bitIndex})`;
+                return {code: `if (${comp.getChildVλl()} !== undefined) {${itemJit.code};${setBitMask}}`, type: 'S'};
             }
             return itemJit;
         }
@@ -235,7 +239,7 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
 
                 let optionalPropsCode = '';
                 if (optional.length) {
-                    const {bitMapInit, bitMIndexVar} = getOptionalPropsItems(rt, comp, optional.length);
+                    const {bitMapInit, bitMIndexVar} = getOptionalBitmapItems(rt, comp, optional.length, 0, false);
                     const propsCode = optional
                         .map((prop, i) => {
                             prop.optionalIndex = i;
@@ -304,8 +308,44 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
             if (skip) return {code: undefined, type: 'S'};
             const params = rt.getParamRunTypes(comp);
             if (params.length === 0) return {code: undefined, type: 'S'};
-            const paramsCode = params.map((p) => comp.compile(p, 'S', fnID).code).join(';');
-            return {code: paramsCode, type: 'S'};
+
+            // For function params, all params are treated as optional in binary serialization
+            // This allows sending null/undefined values over the wire even if the type is not optional
+            const isFnParams = runType.src.subKind === ReflectionSubKind.params;
+
+            // Split params into required, optional, and rest
+            // For function params, all non-rest params are treated as optional
+            const required = isFnParams ? [] : params.filter((p) => !p.isOptional() && !p.isRest());
+            const optional = isFnParams ? params.filter((p) => !p.isRest()) : params.filter((p) => p.isOptional() && !p.isRest());
+            const rest = params.filter((p) => p.isRest());
+
+            // Serialize required params first
+            const requiredCode = required.map((p) => comp.compile(p, 'S', fnID).code).join(';');
+
+            // Serialize optional params with bitmap (groups of 8)
+            let optionalCode = '';
+            if (optional.length) {
+                const {bitMapInit, bitMIndexVar} = getOptionalBitmapItems(rt, comp, optional.length, 0, true);
+                const optionalParamsCode = optional
+                    .map((p, i) => {
+                        (p as any).optionalIndex = i; // set optionalIndex for use in tupleMember case
+                        (p as any)._bitmapVar = bitMIndexVar; // pass bitmap variable name to tupleMember case
+                        (p as any)._isFnParam = isFnParams; // flag to indicate this is a function param
+                        const paramCode = comp.compile(p, 'S', fnID).code || '';
+                        const modIndex = i + 1;
+                        const shouldIncreaseBufferIndex = modIndex % 8 === 0 && modIndex < optional.length;
+                        const increaseIndex = shouldIncreaseBufferIndex ? `${bitMIndexVar}++;` : '';
+                        return `${paramCode} ${increaseIndex}`;
+                    })
+                    .join('');
+                optionalCode = `${bitMapInit}\n${optionalParamsCode}`;
+            }
+
+            // Serialize rest params (handled as array by the rest param itself)
+            const restCode = rest.map((p) => comp.compile(p, 'S', fnID).code).join(';');
+
+            const allCode = [requiredCode, optionalCode, restCode].filter(Boolean).join(';');
+            return {code: allCode, type: 'S'};
         }
         case ReflectionKind.typeParameter:
             throw new Error('Type parameter not implemented in Binary serialization');
@@ -363,15 +403,21 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
     return {code: undefined, type: 'S'};
 }
 
-// there is a bitmask used to determine which optional props are present
-// the bitmask length increments by 1 byte for every 8 optional props
-function getOptionalPropsItems(rt: InterfaceRunType, comp: BinaryCompiler, optionalPropsLength = 0, currentPropIndex = 0) {
+/** Generates bitmap initialization code for optional properties/params. Uses 1 bit per optional item (8 items per byte). */
+function getOptionalBitmapItems(
+    rt: InterfaceRunType | TupleRunType,
+    comp: BinaryCompiler,
+    optionalLength = 0,
+    currentIndex = 0,
+    isTuple = false
+) {
     const sεr = comp.args.sεr;
-    const bitMIndexVar = comp.getLocalVarName('bmI', rt); // index of the optional prop loop
-    const bitmapLength = Math.ceil(optionalPropsLength / 8);
-    const bitIndex = `${currentPropIndex} & 7`; // equivalent to index % 8
+    const prefix = isTuple ? 't' : '';
+    const bitMIndexVar = comp.getLocalVarName(`${prefix}bmI`, rt); // index of the bitmap
+    const bitmapLength = Math.ceil(optionalLength / 8);
+    const bitIndex = `${currentIndex} & 7`; // equivalent to index % 8
     // initialize bitmap to zero as there could be values left from previous serialization
-    const indexVar = comp.getLocalVarName('iBl', rt);
+    const indexVar = comp.getLocalVarName(`${prefix}iBl`, rt);
     const setBitmapToZero =
         bitmapLength > 1
             ? `for (let ${indexVar} = 0; ${indexVar} < ${bitmapLength}; ${indexVar}++) {${sεr}.view.setUint8(${sεr}.index++, 0)}`
