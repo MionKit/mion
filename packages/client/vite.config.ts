@@ -39,12 +39,6 @@ export default defineConfig({
         minifySyntax: true,
     },
     plugins: [
-        deepkitType({
-            tsConfig: resolve(__dirname, 'tsconfig.json'),
-            compilerOptions: {
-                sourceMap: true,
-            },
-        }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
             include: ['index.ts', 'src/**/*.ts'],

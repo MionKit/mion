@@ -39,13 +39,14 @@ export default defineConfig({
         deepkitType({
             tsConfig: resolve(__dirname, 'tsconfig.json'),
             compilerOptions: {sourceMap: true},
-            exclude: '**/{dispatch,headers,methodsCache,dispatchError,constants}.ts',
+            exclude: '**/{dispatch,headers,methodsCache,dispatchError,constants,callContext,workflows}.ts',
         }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
             include: ['index.ts', 'src/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
             pathsToAliases: false,
+            tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
         }),
     ],
     build: {

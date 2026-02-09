@@ -46,6 +46,7 @@ export default defineConfig({
             include: ['index.ts', 'src/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
             pathsToAliases: false,
+            tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
         }),
     ],
     build: {

@@ -32,6 +32,7 @@ export type CallWithLinkedFnsResult<RouteSuccess, RouteError, LinkedFns extends 
     {[K in keyof LinkedFns]?: LinkedFnError<LinkedFns[K]>} | undefined,
 ];
 
+// type-workflow-result-start
 /** Result type for workflow() function - 4-tuple pattern matching array input */
 export type WorkflowResult<
     Routes extends RSubRequest<any>[],
@@ -42,16 +43,21 @@ export type WorkflowResult<
     {[K in keyof LinkedFns]?: LinkedFnSuccess<LinkedFns[K]>} | undefined,
     {[K in keyof LinkedFns]?: LinkedFnError<LinkedFns[K]>} | undefined,
 ];
+// type-workflow-result-end
 
+// type-workflow-route-results-start
 /** Extract success types from route subrequests as tuple */
 export type WorkflowRouteResults<Routes extends RSubRequest<any>[]> = {
     [K in keyof Routes]: Routes[K] extends RSubRequest<infer PH> ? HandlerSuccessResponse<PH> | undefined : never;
 };
+// type-workflow-route-results-end
 
+// type-workflow-route-errors-start
 /** Extract error types from route subrequests as tuple */
 export type WorkflowRouteErrors<Routes extends RSubRequest<any>[]> = {
     [K in keyof Routes]: Routes[K] extends RSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> | undefined : never;
 };
+// type-workflow-route-errors-end
 
 export type ClientOptions = {
     baseURL: string;
