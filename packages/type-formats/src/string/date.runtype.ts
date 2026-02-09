@@ -121,7 +121,7 @@ export function mionIsDateString() {
 
 /** @reflection never */
 export function mionIsDateString_YMD(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('pf_mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[0], parts[1], parts[2]);
@@ -130,7 +130,7 @@ export function mionIsDateString_YMD(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsDateString_DMY(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('pf_mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[2], parts[1], parts[0]);
@@ -139,7 +139,7 @@ export function mionIsDateString_DMY(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsDateString_MDY(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('pf_mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[2], parts[0], parts[1]);
@@ -148,7 +148,7 @@ export function mionIsDateString_MDY(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsDateString_YM(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('pf_mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(parts[0], parts[1]);
@@ -157,7 +157,7 @@ export function mionIsDateString_YM(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsDateString_MD(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('pf_mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(undefined, parts[0], parts[1]);
@@ -166,7 +166,7 @@ export function mionIsDateString_MD(jUtil: JITUtils) {
 
 /** @reflection never */
 export function mionIsDateString_DM(jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('pf_mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
+    const isDate = jUtil.getPureFn('mionIsDateString') as any as ReturnType<typeof mionIsDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(undefined, parts[1], parts[0]);

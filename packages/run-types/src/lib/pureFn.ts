@@ -1,5 +1,4 @@
 import {PureFunctionClosure, CompiledPureFunction, getJitUtils, PureFunction} from '@mionkit/core';
-import {JitFunctions} from '../constants.functions';
 
 export function getCompiledPureFn(fnOrName: string | PureFunctionClosure): CompiledPureFunction | undefined {
     const key = getPureFunctionKey(fnOrName);
@@ -9,7 +8,7 @@ export function getCompiledPureFn(fnOrName: string | PureFunctionClosure): Compi
 export function getPureFunctionKey(fnOrName: string | PureFunctionClosure): string {
     const name = typeof fnOrName === 'string' ? fnOrName : fnOrName.name;
     if (!name) throw new Error('Pure Functions must have a name');
-    return `${JitFunctions.pureFunction.id}_${name}`;
+    return name;
 }
 
 export function getPureFn(fnOrName: string | PureFunctionClosure): PureFunction | undefined {

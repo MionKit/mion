@@ -27,7 +27,7 @@ export interface AOTCompileOptions {
 }
 
 export const EXCLUDED_FNS: JitFnID[] = [JitFunctions.toJSCode.id];
-export const EXCLUDED_PURE_FNS: string[] = ['pf_sanitizeCompiledFn'];
+export const EXCLUDED_PURE_FNS: string[] = ['sanitizeCompiledFn'];
 
 /**
  * Reset cache files by copying original template files to the target AOT directory.
