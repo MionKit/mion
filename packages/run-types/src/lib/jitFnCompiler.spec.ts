@@ -169,19 +169,21 @@ function mockData(): SerializableMethodsData {
         defaultParamValues: {vλl: '', θpts: '{}', εrr: '[]', someOther: ''},
         code: 'function prepareForJson(v) {return v;} return prepareForJson;',
         dependenciesSet: new Set<string>(),
-        pureFnDependencies: new Set<string>(['addNumbers']),
+        pureFnDependencies: new Set<string>(['test::addNumbers']),
     };
     const pureFunctionData1: PureFunctionData = {
+        namespace: 'test',
         paramNames: ['a', 'b'],
         code: 'function addNumbers(a, b) {return a + b;} return addNumbers;',
         pureFnHash: 'addNumbers',
         dependencies: new Set<string>(),
     };
     const pureFunctionData2: PureFunctionData = {
+        namespace: 'test',
         paramNames: ['a', 'b'],
         code: 'function multiplyNumbers(a, b) {return a * b;} return multiplyNumbers;',
         pureFnHash: 'multiplyNumbers',
-        dependencies: new Set<string>(['addNumbers']),
+        dependencies: new Set<string>(['test::addNumbers']),
     };
     const md: SerializableMethodsData = {
         methods: {

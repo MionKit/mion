@@ -1,8 +1,8 @@
 import {PureFunctionClosure, CompiledPureFunction, getJitUtils, PureFunction} from '@mionkit/core';
 
-export function getCompiledPureFn(fnOrName: string | PureFunctionClosure): CompiledPureFunction | undefined {
+export function getCompiledPureFn(namespace: string, fnOrName: string | PureFunctionClosure): CompiledPureFunction | undefined {
     const key = getPureFunctionKey(fnOrName);
-    return getJitUtils().getCompiledPureFn(key);
+    return getJitUtils().getCompiledPureFn(namespace, key);
 }
 
 export function getPureFunctionKey(fnOrName: string | PureFunctionClosure): string {
@@ -11,13 +11,13 @@ export function getPureFunctionKey(fnOrName: string | PureFunctionClosure): stri
     return name;
 }
 
-export function getPureFn(fnOrName: string | PureFunctionClosure): PureFunction | undefined {
+export function getPureFn(namespace: string, fnOrName: string | PureFunctionClosure): PureFunction | undefined {
     const key = getPureFunctionKey(fnOrName);
-    return getJitUtils().getPureFn(key);
+    return getJitUtils().getPureFn(namespace, key);
 }
 
-export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionClosure[]): CompiledPureFunction[] {
-    const compiledFns = fnsWithCtx.map((fn) => registerPureFnClosure(fn));
+export function registerPureFnClosuresGroup(namespace: string, fnsWithCtx: PureFunctionClosure[]): CompiledPureFunction[] {
+    const compiledFns = fnsWithCtx.map((fn) => registerPureFnClosure(namespace, fn));
     compiledFns.forEach((cfn) => {
         compiledFns.forEach((cf) => {
             if (cfn.pureFnHash === cf.pureFnHash) return;
@@ -28,20 +28,21 @@ export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionClosure[]): 
 }
 
 export function registerPureFnClosure(
+    namespace: string,
     fnWithCtx: PureFunctionClosure,
     dependencies?: PureFunctionClosure[]
 ): CompiledPureFunction {
     const key = getPureFunctionKey(fnWithCtx);
-    const existing = getJitUtils().getCompiledPureFn(key);
+    const existing = getJitUtils().getCompiledPureFn(namespace, key);
     if (existing && existing.createJitFn && existing.createJitFn !== fnWithCtx)
-        throw new Error(`Pure function with name ${key} already exists`);
+        throw new Error(`Pure function with name ${key} already exists in namespace ${namespace}`);
     if (existing) return existing;
-    const compiled = parsePureFunctionWithCtx(fnWithCtx);
+    const compiled = parsePureFunctionWithCtx(namespace, fnWithCtx);
     if (dependencies) {
-        dependencies.forEach((d) => registerPureFnClosure(d));
+        dependencies.forEach((d) => registerPureFnClosure(namespace, d));
         dependencies.forEach((d) => compiled.dependencies.add(getPureFunctionKey(d.name)));
     }
-    getJitUtils().addPureFn(compiled);
+    getJitUtils().addPureFn(namespace, compiled);
     return compiled;
 }
 
@@ -49,10 +50,11 @@ export function registerPureFnClosure(
  * Parses a pure function and returns it's data.
  * We are using toString() to get the function code, this might not work in all environments.
  * Also using regexp to parse the function code, a proper AST could be better bu this is working for now and is simpler.
- * @param createJitFn
+ * @param namespace - The namespace this pure function belongs to
+ * @param createJitFn - The pure function closure
  * @returns
  */
-function parsePureFunctionWithCtx(createJitFn: PureFunctionClosure): CompiledPureFunction {
+function parsePureFunctionWithCtx(namespace: string, createJitFn: PureFunctionClosure): CompiledPureFunction {
     if (!createJitFn.name) throw new Error('Pure Functions must have a name');
 
     const fnString = createJitFn.toString();
@@ -87,6 +89,7 @@ function parsePureFunctionWithCtx(createJitFn: PureFunctionClosure): CompiledPur
     const compiled: CompiledPureFunction = {
         createJitFn: createJitFn,
         fn: null as any, // will be set later so all possible dependencies are resolved
+        namespace,
         pureFnHash: getPureFunctionKey(createJitFn.name),
         paramNames,
         code: body,

@@ -213,8 +213,11 @@ export function toLiteralInContext(
 export function dependencyValueToLiteral(comp: JitFnCompiler | JitErrorsFnCompiler | undefined, propVal: any): string {
     if (typeof propVal === 'function') {
         if (!comp) throw new Error('Dependencies must be pure functions or code');
-        comp.addPureFnDependency(propVal);
-        return `utl.getPureFn(${toLiteral(propVal.name)})`;
+        // Find the pure function across all namespaces to get its namespace
+        const compiled = getJitUtils().findCompiledPureFn(propVal.name);
+        if (!compiled) throw new Error(`Pure function ${propVal.name} not found in any namespace`);
+        comp.addPureFnDependency(compiled.namespace, propVal);
+        return `utl.getPureFn(${toLiteral(compiled.namespace)}, ${toLiteral(propVal.name)})`;
     }
     if (typeof propVal === 'string') return propVal;
     throw new Error('Dependencies must be pure functions or code');

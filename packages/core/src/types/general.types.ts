@@ -23,11 +23,13 @@ export interface JITUtils {
     getJIT(jitFnHash: string): JitCompiledFn | undefined;
     getJitFn(jitFnHash: string): (...args: any[]) => any;
     hasJitFn(jitFnHash: string): boolean;
-    addPureFn(compiledFn: CompiledPureFunction): void;
-    usePureFn(name: string): PureFunction;
-    getPureFn(name: string): PureFunction | undefined;
-    getCompiledPureFn(name: string): CompiledPureFunction | undefined;
-    hasPureFn(name: string): boolean;
+    addPureFn(namespace: string, compiledFn: CompiledPureFunction): void;
+    usePureFn(namespace: string, name: string): PureFunction;
+    getPureFn(namespace: string, name: string): PureFunction | undefined;
+    getCompiledPureFn(namespace: string, name: string): CompiledPureFunction | undefined;
+    hasPureFn(namespace: string, name: string): boolean;
+    /** Find a pure function across all namespaces. Returns the compiled function or undefined. */
+    findCompiledPureFn(name: string): CompiledPureFunction | undefined;
     setSerializableClass<C extends SerializableClass>(cls: C): void;
     useSerializeClass(className: string): SerializableClass;
     getSerializeClass(className: string): SerializableClass | undefined;
@@ -194,8 +196,13 @@ export type PureFunction = (...args: any[]) => any;
  */
 export type PureFunctionClosure = (jitUtils: JITUtils) => PureFunction;
 
+/** Namespace for pure functions - allows organizing and isolating pure functions by namespace */
+export type PureFunctionNamespace = string;
+
 /** Data for a pure function that can be serialized and deserialized. */
 export interface PureFunctionData {
+    /** The namespace this pure function belongs to */
+    readonly namespace: string;
     /** The names of the arguments of the function */
     readonly paramNames: string[];
     /** The code of the function closure */
@@ -247,6 +254,7 @@ export interface JitCompiledFnData {
     readonly code: string;
     /** The list of all jit functions that are used by this function and it's children. */
     readonly dependenciesSet: Set<string>;
+    /** Pure function dependencies in format "namespace::fnHash" */
     readonly pureFnDependencies: Set<string>;
     /** function param names if the compiled type is function params */
     paramNames?: string[];
@@ -310,16 +318,22 @@ export type FromBinaryFn = (value: undefined, deserializer: DataViewDeserializer
 // jit and pure functions at runtime, contains both createJitFn and fn
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;
+/** Namespaced cache structure for pure functions: { namespace: { fnHash: CompiledPureFunction } } */
+export type NamespacedPureFunctionsCache = Record<PureFunctionNamespace, PureFunctionsCache>;
 
 // jit and pure functions persisted to src code, contains createJitFn but not fn
 // this allow usage in environments that can not use eval or new Function()
 export type PersistedJitFunctionsCache = Record<string, PersistedJitFn>;
 export type PersistedPureFunctionsCache = Record<string, PersistedPureFunction>;
+/** Namespaced cache structure for persisted pure functions */
+export type NamespacedPersistedPureFunctionsCache = Record<PureFunctionNamespace, PersistedPureFunctionsCache>;
 
 // jit and pure functions data, does not contain createJitFn or fn
 // this is used to serialize over the network, but requires using new Function() to restore functionality
 export type FnsDataCache = Record<string, JitCompiledFnData>;
 export type PureFnsDataCache = Record<string, PureFunctionData>;
+/** Namespaced cache structure for pure function data */
+export type NamespacedPureFnsDataCache = Record<PureFunctionNamespace, PureFnsDataCache>;
 
 // ########################################### JIT SRC CODE ####################################
 
@@ -346,7 +360,7 @@ export interface SrcCodeCompiledPureFunction extends PureFunctionData {
     readonly fn: undefined;
 }
 export type SrcCodeJITCompiledFnsCache = Record<string, SrcCodeJitCompiledFn>;
-export type SrcCodePureFunctionsCache = Record<string, SrcCodeCompiledPureFunction>;
+export type SrcCodePureFunctionsCache = Record<PureFunctionNamespace, Record<string, SrcCodeCompiledPureFunction>>;
 
 // ########################################## other #########################################
 

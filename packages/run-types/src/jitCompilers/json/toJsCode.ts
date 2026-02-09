@@ -70,7 +70,7 @@ export function createToCodeCompiler() {
                         };
                     return {code: `'${safeName}:'+${paramsCode?.code}${sep}`, type: 'E'};
                 } else {
-                    const fnName = comp.addPureFunction(sanitizeCompiledFn);
+                    const fnName = comp.addPureFunction('mion', sanitizeCompiledFn);
                     const parent = srcMS.parent as any as TypePropertySignature;
 
                     // in some scenarios the parent is a propertySignature instead the Expected TypeObjectLiteral so we have to handle that
@@ -143,7 +143,7 @@ export function sanitizeCompiledFn() {
     };
 }
 
-registerPureFnClosure(sanitizeCompiledFn);
+registerPureFnClosure('mion', sanitizeCompiledFn);
 
 // lazy loading as this function wont be used often just for (AOT)
 // TODO move to async code loading (but this would need a big refactor of the router)

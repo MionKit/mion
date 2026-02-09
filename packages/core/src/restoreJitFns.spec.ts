@@ -9,10 +9,12 @@ import {restoreCompiledJitFns} from './restoreJitFns';
 import {addAOTCaches, addSerializedJitCaches, getJitUtils, resetJitFnCaches} from './jitUtils';
 import type {
     PersistedJitFunctionsCache,
-    PersistedPureFunctionsCache,
+    NamespacedPersistedPureFunctionsCache,
     FnsDataCache,
-    PureFnsDataCache,
+    NamespacedPureFnsDataCache,
 } from './types/general.types';
+
+const TEST_NS = 'test';
 
 describe('restoreJitFns', () => {
     beforeEach(() => {
@@ -40,7 +42,7 @@ describe('restoreJitFns', () => {
                     fn: undefined,
                 },
             };
-            const pureCache: PersistedPureFunctionsCache = {};
+            const pureCache: NamespacedPersistedPureFunctionsCache = {};
 
             addAOTCaches(jitCache, pureCache);
 
@@ -52,24 +54,27 @@ describe('restoreJitFns', () => {
 
         it('should restore a persisted pure function with createJitFn', () => {
             const jitCache: PersistedJitFunctionsCache = {};
-            const pureCache: PersistedPureFunctionsCache = {
-                addNumbers: {
-                    paramNames: ['a', 'b'],
-                    code: 'return function addNumbers(a, b){return a + b}',
-                    pureFnHash: 'addNumbers',
-                    dependencies: new Set(),
-                    createJitFn: function (utl) {
-                        return function addNumbers(a: number, b: number) {
-                            return a + b;
-                        };
+            const pureCache: NamespacedPersistedPureFunctionsCache = {
+                [TEST_NS]: {
+                    addNumbers: {
+                        namespace: TEST_NS,
+                        paramNames: ['a', 'b'],
+                        code: 'return function addNumbers(a, b){return a + b}',
+                        pureFnHash: 'addNumbers',
+                        dependencies: new Set(),
+                        createJitFn: function (utl) {
+                            return function addNumbers(a: number, b: number) {
+                                return a + b;
+                            };
+                        },
+                        fn: undefined,
                     },
-                    fn: undefined,
                 },
             };
 
             addAOTCaches(jitCache, pureCache);
 
-            const restored = getJitUtils().getPureFn('addNumbers')!;
+            const restored = getJitUtils().getPureFn(TEST_NS, 'addNumbers')!;
             expect(restored).toBeDefined();
             expect(restored(2, 3)).toBe(5);
         });
@@ -83,11 +88,11 @@ describe('restoreJitFns', () => {
                     jitFnHash: 'test_with_pure',
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
-                    code: 'const helper = utl.getPureFn("helper"); return function test_with_pure(v){return helper(v)}',
+                    code: `const helper = utl.getPureFn("${TEST_NS}", "helper"); return function test_with_pure(v){return helper(v)}`,
                     dependenciesSet: new Set(),
-                    pureFnDependencies: new Set(['helper']),
+                    pureFnDependencies: new Set([`${TEST_NS}::helper`]),
                     createJitFn: function (utl) {
-                        const helper = utl.getPureFn('helper')!;
+                        const helper = utl.getPureFn(TEST_NS, 'helper')!;
                         return function test_with_pure(v: any) {
                             return helper(v);
                         };
@@ -95,25 +100,28 @@ describe('restoreJitFns', () => {
                     fn: undefined,
                 },
             };
-            const pureCache: PersistedPureFunctionsCache = {
-                helper: {
-                    paramNames: ['v'],
-                    code: 'return function helper(v){return typeof v === "number"}',
-                    pureFnHash: 'helper',
-                    dependencies: new Set(),
-                    createJitFn: function (utl) {
-                        return function helper(v: any) {
-                            return typeof v === 'number';
-                        };
+            const pureCache: NamespacedPersistedPureFunctionsCache = {
+                [TEST_NS]: {
+                    helper: {
+                        namespace: TEST_NS,
+                        paramNames: ['v'],
+                        code: 'return function helper(v){return typeof v === "number"}',
+                        pureFnHash: 'helper',
+                        dependencies: new Set(),
+                        createJitFn: function (utl) {
+                            return function helper(v: any) {
+                                return typeof v === 'number';
+                            };
+                        },
+                        fn: undefined,
                     },
-                    fn: undefined,
                 },
             };
 
             addAOTCaches(jitCache, pureCache);
 
             const restoredJit = getJitUtils().getJIT('test_with_pure')!;
-            const restoredPure = getJitUtils().getPureFn('helper')!;
+            const restoredPure = getJitUtils().getPureFn(TEST_NS, 'helper')!;
             expect(restoredPure).toBeDefined();
             expect(restoredJit.fn).toBeDefined();
             expect(restoredJit.fn(42)).toBe(true);
@@ -158,7 +166,7 @@ describe('restoreJitFns', () => {
                     fn: undefined,
                 },
             };
-            const pureCache: PersistedPureFunctionsCache = {};
+            const pureCache: NamespacedPersistedPureFunctionsCache = {};
 
             addAOTCaches(jitCache, pureCache);
 
@@ -172,38 +180,42 @@ describe('restoreJitFns', () => {
 
         it('should restore pure function with pure dependencies', () => {
             const jitCache: PersistedJitFunctionsCache = {};
-            const pureCache: PersistedPureFunctionsCache = {
-                multiply: {
-                    paramNames: ['a', 'b'],
-                    code: 'return function multiply(a, b){return a * b}',
-                    pureFnHash: 'multiply',
-                    dependencies: new Set(),
-                    createJitFn: function (utl) {
-                        return function multiply(a: number, b: number) {
-                            return a * b;
-                        };
+            const pureCache: NamespacedPersistedPureFunctionsCache = {
+                [TEST_NS]: {
+                    multiply: {
+                        namespace: TEST_NS,
+                        paramNames: ['a', 'b'],
+                        code: 'return function multiply(a, b){return a * b}',
+                        pureFnHash: 'multiply',
+                        dependencies: new Set(),
+                        createJitFn: function (utl) {
+                            return function multiply(a: number, b: number) {
+                                return a * b;
+                            };
+                        },
+                        fn: undefined,
                     },
-                    fn: undefined,
-                },
-                square: {
-                    paramNames: ['x'],
-                    code: 'const multiply = utl.getPureFn("multiply"); return function square(x){return multiply(x, x)}',
-                    pureFnHash: 'square',
-                    dependencies: new Set(['multiply']),
-                    createJitFn: function (utl) {
-                        const multiply = utl.getPureFn('multiply')!;
-                        return function square(x: number) {
-                            return multiply(x, x);
-                        };
+                    square: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: `const multiply = utl.getPureFn("${TEST_NS}", "multiply"); return function square(x){return multiply(x, x)}`,
+                        pureFnHash: 'square',
+                        dependencies: new Set(['multiply']),
+                        createJitFn: function (utl) {
+                            const multiply = utl.getPureFn(TEST_NS, 'multiply')!;
+                            return function square(x: number) {
+                                return multiply(x, x);
+                            };
+                        },
+                        fn: undefined,
                     },
-                    fn: undefined,
                 },
             };
 
             addAOTCaches(jitCache, pureCache);
 
-            const restoredMultiply = getJitUtils().getPureFn('multiply')!;
-            const restoredSquare = getJitUtils().getPureFn('square')!;
+            const restoredMultiply = getJitUtils().getPureFn(TEST_NS, 'multiply')!;
+            const restoredSquare = getJitUtils().getPureFn(TEST_NS, 'square')!;
             expect(restoredMultiply).toBeDefined();
             expect(restoredSquare).toBeDefined();
             expect(restoredSquare(5)).toBe(25);
@@ -230,7 +242,7 @@ describe('restoreJitFns', () => {
                     fn: existingFn as any,
                 },
             };
-            const pureCache: PersistedPureFunctionsCache = {};
+            const pureCache: NamespacedPersistedPureFunctionsCache = {};
 
             addAOTCaches(jitCache, pureCache);
 
@@ -255,7 +267,7 @@ describe('restoreJitFns', () => {
                     pureFnDependencies: new Set(),
                 },
             };
-            const pureCache: PureFnsDataCache = {};
+            const pureCache: NamespacedPureFnsDataCache = {};
 
             addSerializedJitCaches(jitCache, pureCache);
 
@@ -268,18 +280,21 @@ describe('restoreJitFns', () => {
 
         it('should restore a serialized pure function without createJitFn', () => {
             const jitCache: FnsDataCache = {};
-            const pureCache: PureFnsDataCache = {
-                subtract: {
-                    paramNames: ['a', 'b'],
-                    code: 'return function subtract(a, b){return a - b}',
-                    pureFnHash: 'subtract',
-                    dependencies: new Set(),
+            const pureCache: NamespacedPureFnsDataCache = {
+                [TEST_NS]: {
+                    subtract: {
+                        namespace: TEST_NS,
+                        paramNames: ['a', 'b'],
+                        code: 'return function subtract(a, b){return a - b}',
+                        pureFnHash: 'subtract',
+                        dependencies: new Set(),
+                    },
                 },
             };
 
             addSerializedJitCaches(jitCache, pureCache);
 
-            const restored = getJitUtils().getPureFn('subtract')!;
+            const restored = getJitUtils().getPureFn(TEST_NS, 'subtract')!;
             expect(restored).toBeDefined();
             expect(restored(10, 3)).toBe(7);
         });
@@ -293,24 +308,27 @@ describe('restoreJitFns', () => {
                     jitFnHash: 'test_serialized',
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
-                    code: 'const isArray = utl.getPureFn("isArray"); return function test_serialized(v){return isArray(v)}',
+                    code: `const isArray = utl.getPureFn("${TEST_NS}", "isArray"); return function test_serialized(v){return isArray(v)}`,
                     dependenciesSet: new Set(),
-                    pureFnDependencies: new Set(['isArray']),
+                    pureFnDependencies: new Set([`${TEST_NS}::isArray`]),
                 },
             };
-            const pureCache: PureFnsDataCache = {
-                isArray: {
-                    paramNames: ['v'],
-                    code: 'return function isArray(v){return Array.isArray(v)}',
-                    pureFnHash: 'isArray',
-                    dependencies: new Set(),
+            const pureCache: NamespacedPureFnsDataCache = {
+                [TEST_NS]: {
+                    isArray: {
+                        namespace: TEST_NS,
+                        paramNames: ['v'],
+                        code: 'return function isArray(v){return Array.isArray(v)}',
+                        pureFnHash: 'isArray',
+                        dependencies: new Set(),
+                    },
                 },
             };
 
             addSerializedJitCaches(jitCache, pureCache);
 
             const restoredJit = getJitUtils().getJIT('test_serialized')!;
-            const restoredPure = getJitUtils().getPureFn('isArray')!;
+            const restoredPure = getJitUtils().getPureFn(TEST_NS, 'isArray')!;
             expect(restoredPure).toBeDefined();
             expect(restoredJit.fn).toBeDefined();
             expect(restoredJit.createJitFn).toBeDefined();
@@ -343,7 +361,7 @@ describe('restoreJitFns', () => {
                     pureFnDependencies: new Set(),
                 },
             };
-            const pureCache: PureFnsDataCache = {};
+            const pureCache: NamespacedPureFnsDataCache = {};
 
             addSerializedJitCaches(jitCache, pureCache);
 
@@ -359,25 +377,29 @@ describe('restoreJitFns', () => {
 
         it('should restore serialized pure function with serialized pure dependencies', () => {
             const jitCache: FnsDataCache = {};
-            const pureCache: PureFnsDataCache = {
-                divide: {
-                    paramNames: ['a', 'b'],
-                    code: 'return function divide(a, b){return a / b}',
-                    pureFnHash: 'divide',
-                    dependencies: new Set(),
-                },
-                half: {
-                    paramNames: ['x'],
-                    code: 'const divide = utl.getPureFn("divide"); return function half(x){return divide(x, 2)}',
-                    pureFnHash: 'half',
-                    dependencies: new Set(['divide']),
+            const pureCache: NamespacedPureFnsDataCache = {
+                [TEST_NS]: {
+                    divide: {
+                        namespace: TEST_NS,
+                        paramNames: ['a', 'b'],
+                        code: 'return function divide(a, b){return a / b}',
+                        pureFnHash: 'divide',
+                        dependencies: new Set(),
+                    },
+                    half: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: `const divide = utl.getPureFn("${TEST_NS}", "divide"); return function half(x){return divide(x, 2)}`,
+                        pureFnHash: 'half',
+                        dependencies: new Set(['divide']),
+                    },
                 },
             };
 
             addSerializedJitCaches(jitCache, pureCache);
 
-            const restoredDivide = getJitUtils().getPureFn('divide')!;
-            const restoredHalf = getJitUtils().getPureFn('half')!;
+            const restoredDivide = getJitUtils().getPureFn(TEST_NS, 'divide')!;
+            const restoredHalf = getJitUtils().getPureFn(TEST_NS, 'half')!;
             expect(restoredDivide).toBeDefined();
             expect(restoredHalf).toBeDefined();
             expect(restoredHalf(10)).toBe(5);
@@ -406,30 +428,35 @@ describe('restoreJitFns', () => {
                     fn: undefined,
                 },
             };
-            const pureCache: PersistedPureFunctionsCache = {};
+            const pureCache: NamespacedPersistedPureFunctionsCache = {};
 
             expect(() => restoreCompiledJitFns(jitCache, pureCache, getJitUtils())).toThrow('Jit function missing not found');
         });
 
         it('should throw error when pure function is not found', () => {
             const jitCache: PersistedJitFunctionsCache = {};
-            const pureCache: PersistedPureFunctionsCache = {
-                parent: {
-                    paramNames: ['x'],
-                    code: 'const missing = utl.getPureFn("missing"); return function parent(x){return missing(x)}',
-                    pureFnHash: 'parent',
-                    dependencies: new Set(['missing']), // missing dependency
-                    createJitFn: function (utl) {
-                        const missing = utl.getPureFn('missing')!;
-                        return function parent(x: any) {
-                            return missing(x);
-                        };
+            const pureCache: NamespacedPersistedPureFunctionsCache = {
+                [TEST_NS]: {
+                    parent: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: `const missing = utl.getPureFn("${TEST_NS}", "missing"); return function parent(x){return missing(x)}`,
+                        pureFnHash: 'parent',
+                        dependencies: new Set(['missing']), // missing dependency
+                        createJitFn: function (utl) {
+                            const missing = utl.getPureFn(TEST_NS, 'missing')!;
+                            return function parent(x: any) {
+                                return missing(x);
+                            };
+                        },
+                        fn: undefined,
                     },
-                    fn: undefined,
                 },
             };
 
-            expect(() => restoreCompiledJitFns(jitCache, pureCache, getJitUtils())).toThrow('Pure function missing not found');
+            expect(() => restoreCompiledJitFns(jitCache, pureCache, getJitUtils())).toThrow(
+                `Pure function missing not found in namespace ${TEST_NS}`
+            );
         });
 
         it('should throw TypedError when serialized JIT function code is invalid', () => {
@@ -446,19 +473,22 @@ describe('restoreJitFns', () => {
                     pureFnDependencies: new Set(),
                 },
             };
-            const pureCache: PureFnsDataCache = {};
+            const pureCache: NamespacedPureFnsDataCache = {};
 
             expect(() => restoreCompiledJitFns(jitCache, pureCache, getJitUtils())).toThrow();
         });
 
         it('should throw TypedError when serialized pure function code is invalid', () => {
             const jitCache: FnsDataCache = {};
-            const pureCache: PureFnsDataCache = {
-                invalid: {
-                    paramNames: ['x'],
-                    code: 'this is also invalid!!!',
-                    pureFnHash: 'invalid',
-                    dependencies: new Set(),
+            const pureCache: NamespacedPureFnsDataCache = {
+                [TEST_NS]: {
+                    invalid: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: 'this is also invalid!!!',
+                        pureFnHash: 'invalid',
+                        dependencies: new Set(),
+                    },
                 },
             };
 
@@ -516,32 +546,37 @@ describe('restoreJitFns', () => {
 
         it('should restore deep dependency chain', () => {
             const jitCache: FnsDataCache = {};
-            const pureCache: PureFnsDataCache = {
-                base: {
-                    paramNames: ['x'],
-                    code: 'return function base(x){return x + 1}',
-                    pureFnHash: 'base',
-                    dependencies: new Set(),
-                },
-                level1: {
-                    paramNames: ['x'],
-                    code: 'const base = utl.getPureFn("base"); return function level1(x){return base(x) * 2}',
-                    pureFnHash: 'level1',
-                    dependencies: new Set(['base']),
-                },
-                level2: {
-                    paramNames: ['x'],
-                    code: 'const level1 = utl.getPureFn("level1"); return function level2(x){return level1(x) + 10}',
-                    pureFnHash: 'level2',
-                    dependencies: new Set(['level1']),
+            const pureCache: NamespacedPureFnsDataCache = {
+                [TEST_NS]: {
+                    base: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: 'return function base(x){return x + 1}',
+                        pureFnHash: 'base',
+                        dependencies: new Set(),
+                    },
+                    level1: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: `const base = utl.getPureFn("${TEST_NS}", "base"); return function level1(x){return base(x) * 2}`,
+                        pureFnHash: 'level1',
+                        dependencies: new Set(['base']),
+                    },
+                    level2: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: `const level1 = utl.getPureFn("${TEST_NS}", "level1"); return function level2(x){return level1(x) + 10}`,
+                        pureFnHash: 'level2',
+                        dependencies: new Set(['level1']),
+                    },
                 },
             };
 
             addSerializedJitCaches(jitCache, pureCache);
 
-            const restoredBase = getJitUtils().getPureFn('base')!;
-            const restoredLevel1 = getJitUtils().getPureFn('level1')!;
-            const restoredLevel2 = getJitUtils().getPureFn('level2')!;
+            const restoredBase = getJitUtils().getPureFn(TEST_NS, 'base')!;
+            const restoredLevel1 = getJitUtils().getPureFn(TEST_NS, 'level1')!;
+            const restoredLevel2 = getJitUtils().getPureFn(TEST_NS, 'level2')!;
             expect(restoredBase).toBeDefined();
             expect(restoredLevel1).toBeDefined();
             expect(restoredLevel2).toBeDefined();

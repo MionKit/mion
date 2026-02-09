@@ -10,9 +10,10 @@ import type {
     CompiledPureFunction,
     JitCompiledFn,
     PersistedJitFunctionsCache,
-    PersistedPureFunctionsCache,
+    NamespacedPersistedPureFunctionsCache,
     FnsDataCache,
-    PureFnsDataCache,
+    NamespacedPureFnsDataCache,
+    NamespacedPureFunctionsCache,
     JitCompiledFnData,
     JITUtils,
     PersistedPureFunction,
@@ -32,7 +33,7 @@ import {TypedError} from './errors';
  * */
 export function restoreCompiledJitFns(
     jitCache: PersistedJitFunctionsCache | FnsDataCache,
-    pureCache: PersistedPureFunctionsCache | PureFnsDataCache,
+    pureCache: NamespacedPureFunctionsCache | NamespacedPersistedPureFunctionsCache | NamespacedPureFnsDataCache,
     jUtil: JITUtils
 ): void {
     // Use visited sets to prevent infinite recursion on circular dependencies
@@ -41,27 +42,37 @@ export function restoreCompiledJitFns(
     const visitedPure = new Set<string>();
     const visitedJit = new Set<string>();
 
-    const keysPureFns = Object.keys(pureCache);
-    keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, key, jUtil, visitedPure));
+    // Iterate over all namespaces and restore pure functions
+    for (const namespace in pureCache) {
+        const nsCache = pureCache[namespace];
+        const keysPureFns = Object.keys(nsCache);
+        keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, namespace, key, jUtil, visitedPure));
+    }
     const keysJitFns = Object.keys(jitCache);
     keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key, jUtil, visitedPure, visitedJit));
 }
 
 function restoreCompiledPureFn(
-    pureCache: PersistedPureFunctionsCache | PureFnsDataCache,
+    pureCache: NamespacedPureFunctionsCache | NamespacedPersistedPureFunctionsCache | NamespacedPureFnsDataCache,
+    namespace: string,
     fnName: string,
     jUtil: JITUtils,
     visited: Set<string>
 ) {
+    // Use namespace:fnName as the visited key to handle same function names in different namespaces
+    const visitedKey = `${namespace}:${fnName}`;
     // Skip if already visited (handles circular dependencies)
-    if (visited.has(fnName)) return;
-    visited.add(fnName);
+    if (visited.has(visitedKey)) return;
+    visited.add(visitedKey);
 
-    const pureCompiled = pureCache[fnName];
-    if (!pureCompiled) throw new Error(`Pure function ${fnName} not found`);
+    const nsCache = pureCache[namespace];
+    if (!nsCache) throw new Error(`Pure function namespace ${namespace} not found`);
+    const pureCompiled = nsCache[fnName];
+    if (!pureCompiled) throw new Error(`Pure function ${fnName} not found in namespace ${namespace}`);
     if ((pureCompiled as CompiledPureFunction).fn) return;
     const dependencies = pureCompiled.dependencies;
-    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName, jUtil, visited));
+    // Dependencies are in the same namespace
+    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, namespace, depName, jUtil, visited));
     // persisted pure functions (AOT code caches) have the createJitFn but not the fn
     if ((pureCompiled as PersistedPureFunction).createJitFn) {
         (pureCompiled as any as Mutable<CompiledPureFunction>).fn = (pureCompiled as PersistedPureFunction).createJitFn(jUtil);
@@ -73,7 +84,7 @@ function restoreCompiledPureFn(
 
 function restoreCompiledJitFn(
     jitCache: PersistedJitFunctionsCache | FnsDataCache,
-    pureCache: PersistedPureFunctionsCache | PureFnsDataCache,
+    pureCache: NamespacedPureFunctionsCache | NamespacedPersistedPureFunctionsCache | NamespacedPureFnsDataCache,
     fnHash: string,
     jUtil: JITUtils,
     visitedPure: Set<string>,
@@ -87,7 +98,13 @@ function restoreCompiledJitFn(
     if (!jitCompiled) throw new Error(`Jit function ${fnHash} not found`);
     if ((jitCompiled as JitCompiledFn).fn) return;
     const pureDependencies = jitCompiled.pureFnDependencies;
-    pureDependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName, jUtil, visitedPure));
+    // Pure function dependencies are stored as "namespace::fnHash"
+    pureDependencies.forEach((dep) => {
+        const parts = dep.split('::');
+        if (parts.length !== 2) throw new Error(`Invalid pure function dependency format: ${dep}, expected "namespace::fnHash"`);
+        const [namespace, fnHash] = parts;
+        restoreCompiledPureFn(pureCache, namespace, fnHash, jUtil, visitedPure);
+    });
     const dependencies = jitCompiled.dependenciesSet;
     dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep, jUtil, visitedPure, visitedJit));
     if ((jitCompiled as PersistedJitFn).createJitFn) {

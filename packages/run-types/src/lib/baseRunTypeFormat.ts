@@ -25,6 +25,8 @@ import {getENV, getJitUtils} from '@mionkit/core';
 export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     abstract kind: ReflectionKind;
     abstract name: string;
+    /** The namespace for pure functions used by this formatter. Defaults to 'mionFormats'. */
+    readonly namespace: string = 'mionFormats';
     rootFormatName: string = '';
     /**
      * The jit code for the formatter can be embedded together with the jit code for the type itself.
@@ -253,7 +255,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         const paramsName = paramsToLiteral(comp, params || this.getParams(rt), this.getIgnoredProps());
         const dependenciesName = dependenciesToLiteral(comp, dependenciesParams || {});
         const callParams = [val, paramsName, dependenciesName];
-        const fnName = comp.addPureFunction(pureFn);
+        const fnName = comp.addPureFunction(this.namespace, pureFn);
         const callCode = `${fnName}(${callParams.join(',')})`;
         return {callCode, fnName, paramsName, dependenciesName};
     }
@@ -293,7 +295,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         const callParams = [val, path, err, expected, formatName, formatParams, formatPath, deps];
         if (accessPath) callParams.push(accessPath);
 
-        const fnName = comp.addPureFunction(pureFn);
+        const fnName = comp.addPureFunction(this.namespace, pureFn);
         const callCode = `${fnName}(${callParams.join(',')})`;
         return {callCode, fnName, paramsName: formatParams, dependenciesName: deps};
     }

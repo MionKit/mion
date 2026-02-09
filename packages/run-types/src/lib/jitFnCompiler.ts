@@ -554,24 +554,25 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
 
     // ################### Pure Functions Operations ###################
 
-    addPureFunction(pureFn: PureFunctionClosure): string {
+    addPureFunction(namespace: string, pureFn: PureFunctionClosure): string {
         const fnHash = getPureFunctionKey(pureFn.name);
-        registerPureFnClosure(pureFn); // will throw if there is a different pure function with the same name
+        registerPureFnClosure(namespace, pureFn); // will throw if there is a different pure function with the same name
         if (this.hasContextItem(fnHash)) return fnHash;
-        this.addPureFnDependency(pureFn);
+        this.addPureFnDependency(namespace, pureFn);
         // Add context code for the pure function and params
-        const pureFunctionCode = `const ${fnHash} = utl.getPureFn(${toLiteral(fnHash)})`;
+        const pureFunctionCode = `const ${fnHash} = utl.getPureFn(${toLiteral(namespace)}, ${toLiteral(fnHash)})`;
         this.setContextItem(fnHash, pureFunctionCode);
         return fnHash;
     }
 
-    addPureFnDependency(fn: PureFunction | string): void {
+    addPureFnDependency(namespace: string, fn: PureFunction | string): void {
         const fnHash = getPureFunctionKey(fn);
-        if (!getJitUtils().hasPureFn(fnHash))
+        if (!getJitUtils().hasPureFn(namespace, fnHash))
             throw new Error(
-                `Pure function with name ${fnHash} can not be added as jit dependency, be sure to register the pure function first by calling getJitUtils().addPureFn()`
+                `Pure function with name ${fnHash} can not be added as jit dependency in namespace ${namespace}, be sure to register the pure function first by calling getJitUtils().addPureFn()`
             );
-        this.pureFnDependencies.add(fnHash);
+        // Store as "namespace::fnHash" format (using :: to avoid conflicts with : in names)
+        this.pureFnDependencies.add(`${namespace}::${fnHash}`);
     }
 }
 

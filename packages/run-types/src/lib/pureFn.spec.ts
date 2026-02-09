@@ -1,6 +1,8 @@
 import type {JITUtils, GenericPureFunction} from '@mionkit/core';
 import {registerPureFnClosure, getPureFn, getCompiledPureFn, registerPureFnClosuresGroup} from './pureFn';
 
+const TEST_NAMESPACE = 'test';
+
 it('register and get pure function', async () => {
     type StringParams = {
         isLowercase?: boolean;
@@ -16,8 +18,8 @@ it('register and get pure function', async () => {
             return true;
         };
     }
-    registerPureFnClosure(stringPureFn);
-    const restoredFn = getPureFn('stringPureFn') as ReturnType<typeof stringPureFn>;
+    registerPureFnClosure(TEST_NAMESPACE, stringPureFn);
+    const restoredFn = getPureFn(TEST_NAMESPACE, 'stringPureFn') as ReturnType<typeof stringPureFn>;
     expect(restoredFn).toBeDefined();
     expect(restoredFn).toBeInstanceOf(Function);
     expect(restoredFn?.('a', {isLowercase: true})).toBe(true);
@@ -40,16 +42,16 @@ it('register a group of pure functions so all declared as dependencies', async (
     // reflection never tag is required so pure function do not include any artifacts from @deepkit/compiler
     /** @reflection never */
     function pureFunctionB(jUtils: JITUtils) {
-        const isA = jUtils.getPureFn('pureFunctionA') as ReturnType<typeof pureFunctionA>;
+        const isA = jUtils.getPureFn(TEST_NAMESPACE, 'pureFunctionA') as ReturnType<typeof pureFunctionA>;
         return function is_b(s: string, p: Params): boolean {
             const isAResult = isA(s, p);
             if (p.isB) return isAResult && s.includes('b');
             return isAResult;
         } as GenericPureFunction<Params>;
     }
-    registerPureFnClosuresGroup([pureFunctionA, pureFunctionB]);
-    const compiledIsA = getCompiledPureFn('pureFunctionA');
-    const compiledIsB = getCompiledPureFn('pureFunctionB');
+    registerPureFnClosuresGroup(TEST_NAMESPACE, [pureFunctionA, pureFunctionB]);
+    const compiledIsA = getCompiledPureFn(TEST_NAMESPACE, 'pureFunctionA');
+    const compiledIsB = getCompiledPureFn(TEST_NAMESPACE, 'pureFunctionB');
     expect(compiledIsA).toBeDefined();
     expect(compiledIsB).toBeDefined();
     expect(compiledIsA?.fn).toBeDefined();
@@ -58,4 +60,7 @@ it('register a group of pure functions so all declared as dependencies', async (
     expect(compiledIsB?.dependencies.has('pureFunctionA')).toBeTruthy();
     expect(compiledIsA?.dependencies.has('pureFunctionA')).toBeFalsy();
     expect(compiledIsB?.dependencies.has('pureFunctionB')).toBeFalsy();
+    // Verify namespace is set correctly
+    expect(compiledIsA?.namespace).toBe(TEST_NAMESPACE);
+    expect(compiledIsB?.namespace).toBe(TEST_NAMESPACE);
 });

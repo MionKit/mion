@@ -10,6 +10,9 @@ import type {
     JitFunctionsCache,
     PureFunction,
     PureFunctionsCache,
+    NamespacedPureFunctionsCache,
+    NamespacedPersistedPureFunctionsCache,
+    NamespacedPureFnsDataCache,
     RunTypeError,
     DeserializeClassFn,
     AnyClass,
@@ -17,9 +20,7 @@ import type {
     StrNumber,
     JITUtils,
     PersistedJitFunctionsCache,
-    PersistedPureFunctionsCache,
     FnsDataCache,
-    PureFnsDataCache,
 } from './types/general.types';
 import {MAX_UNKNOWN_KEYS} from './constants';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
@@ -29,7 +30,16 @@ import {TypeFormatError} from './types/formats/formats.types';
 
 // Local caches - can be populated from AOT caches via loadJitCaches()
 const jitFnsCache: JitFunctionsCache = {};
-const pureFnsCache: PureFunctionsCache = {};
+/** Namespaced pure functions cache: { namespace: { fnHash: CompiledPureFunction } } */
+const pureFnsCache: NamespacedPureFunctionsCache = {};
+
+/** Helper function to ensure namespace exists in the cache */
+function ensureNamespace(namespace: string): PureFunctionsCache {
+    if (!pureFnsCache[namespace]) {
+        pureFnsCache[namespace] = {};
+    }
+    return pureFnsCache[namespace];
+}
 
 let coreAOTCachesLoaded = false;
 
@@ -105,31 +115,47 @@ const jitUtils: JITUtils = {
         if (isSafeMapKeyValue(value)) return value;
         return null;
     },
-    addPureFn(compiledFn: CompiledPureFunction): CompiledPureFunction {
+    addPureFn(namespace: string, compiledFn: CompiledPureFunction): CompiledPureFunction {
         const fnHash = compiledFn.pureFnHash;
         if (!fnHash) throw new Error('Pure function must have a name and must be unique');
-        const existing = pureFnsCache[fnHash];
+        const nsCache = ensureNamespace(namespace);
+        const existing = nsCache[fnHash];
         if (existing) return existing;
-        pureFnsCache[fnHash] = compiledFn;
+        nsCache[fnHash] = compiledFn;
         return compiledFn;
     },
-    usePureFn(fnHash: string): PureFunction {
-        const compiled = pureFnsCache[fnHash];
-        if (!compiled) throw new Error(`Pure function with name ${fnHash} not found`);
+    usePureFn(namespace: string, fnHash: string): PureFunction {
+        const nsCache = pureFnsCache[namespace];
+        if (!nsCache) throw new Error(`Pure function namespace ${namespace} not found`);
+        const compiled = nsCache[fnHash];
+        if (!compiled) throw new Error(`Pure function with name ${fnHash} not found in namespace ${namespace}`);
         initPureFunction(compiled);
         return compiled.fn;
     },
-    getPureFn(fnHash: string): PureFunction | undefined {
-        const compiled = pureFnsCache[fnHash];
+    getPureFn(namespace: string, fnHash: string): PureFunction | undefined {
+        const nsCache = pureFnsCache[namespace];
+        if (!nsCache) return;
+        const compiled = nsCache[fnHash];
         if (!compiled) return;
         initPureFunction(compiled);
         return compiled.fn;
     },
-    getCompiledPureFn(fnHash: string): CompiledPureFunction | undefined {
-        return pureFnsCache[fnHash];
+    getCompiledPureFn(namespace: string, fnHash: string): CompiledPureFunction | undefined {
+        const nsCache = pureFnsCache[namespace];
+        if (!nsCache) return;
+        return nsCache[fnHash];
     },
-    hasPureFn(fnHash: string): boolean {
-        return !!pureFnsCache[fnHash];
+    hasPureFn(namespace: string, fnHash: string): boolean {
+        const nsCache = pureFnsCache[namespace];
+        if (!nsCache) return false;
+        return !!nsCache[fnHash];
+    },
+    findCompiledPureFn(fnHash: string): CompiledPureFunction | undefined {
+        for (const namespace of Object.keys(pureFnsCache)) {
+            const nsCache = pureFnsCache[namespace];
+            if (nsCache && nsCache[fnHash]) return nsCache[fnHash];
+        }
+        return undefined;
     },
     setSerializableClass<C extends SerializableClass>(cls: C) {
         const className = cls.name;
@@ -240,9 +266,9 @@ export function getJitUtils(): JITUtils {
  * Adds new AOT JIT and pure functions into the respective caches.
  * This function is intended to be used to restore JitFunctions there were serialized to src code (AOT caches)
  * @param aotFnsCache
- * @param aotPureCache
+ * @param aotPureCache - Namespaced pure functions cache
  */
-export function addAOTCaches(aotFnsCache: PersistedJitFunctionsCache, aotPureCache: PersistedPureFunctionsCache) {
+export function addAOTCaches(aotFnsCache: PersistedJitFunctionsCache, aotPureCache: NamespacedPersistedPureFunctionsCache) {
     restoreCaches(aotFnsCache, aotPureCache);
 }
 
@@ -250,9 +276,9 @@ export function addAOTCaches(aotFnsCache: PersistedJitFunctionsCache, aotPureCac
  * Adds new JIT and pure functions into the respective caches.
  * This function is intended to restore JitFunctions that were serialized and deserialized over the network
  * @param jitDataFnsCache
- * @param pureFnsDataCache
+ * @param pureFnsDataCache - Namespaced pure functions cache
  */
-export function addSerializedJitCaches(jitDataFnsCache: FnsDataCache, pureFnsDataCache: PureFnsDataCache) {
+export function addSerializedJitCaches(jitDataFnsCache: FnsDataCache, pureFnsDataCache: NamespacedPureFnsDataCache) {
     restoreCaches(jitDataFnsCache, pureFnsDataCache);
 }
 
@@ -265,12 +291,12 @@ export function addSerializedJitCaches(jitDataFnsCache: FnsDataCache, pureFnsDat
 export function coreAOTLoadJitCaches(): void {
     if (coreAOTCachesLoaded) return;
     coreAOTCachesLoaded = true;
-    restoreCaches(aotJitFnsCache as PersistedJitFunctionsCache, aotPureFnsCache as PersistedPureFunctionsCache);
+    restoreCaches(aotJitFnsCache as PersistedJitFunctionsCache, aotPureFnsCache as NamespacedPersistedPureFunctionsCache);
 }
 
 function restoreCaches(
     fnsCache: PersistedJitFunctionsCache | FnsDataCache,
-    pureCache: PersistedPureFunctionsCache | PureFnsDataCache
+    pureCache: NamespacedPersistedPureFunctionsCache | NamespacedPureFnsDataCache
 ) {
     // First load the caches so all entries are available in the global cache
     // This is needed because createJitFn uses jitUtils.getJIT() to resolve dependencies
@@ -281,10 +307,15 @@ function restoreCaches(
             jitFnsCache[key] = {...fnsCache[key]} as JitCompiledFn;
         }
     }
-    for (const key in pureCache) {
-        if (!(key in pureFnsCache)) {
-            // Cloning to avoid mutating the original
-            pureFnsCache[key] = {...pureCache[key]} as CompiledPureFunction;
+    // Load namespaced pure functions
+    for (const namespace in pureCache) {
+        const nsCache = ensureNamespace(namespace);
+        const sourceNsCache = pureCache[namespace];
+        for (const key in sourceNsCache) {
+            if (!(key in nsCache)) {
+                // Cloning to avoid mutating the original
+                nsCache[key] = {...sourceNsCache[key]} as CompiledPureFunction;
+            }
         }
     }
     // Then restore/initialize the functions (invoke createJitFn to set the fn property)
@@ -301,7 +332,7 @@ function restoreCaches(
 export function getJitFnCaches() {
     return {
         jitFnsCache: jitFnsCache as Readonly<JitFunctionsCache>,
-        pureFnsCache: pureFnsCache as Readonly<PureFunctionsCache>,
+        pureFnsCache: pureFnsCache as Readonly<NamespacedPureFunctionsCache>,
     };
 }
 
