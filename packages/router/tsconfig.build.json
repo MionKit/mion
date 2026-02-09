@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../type-formats"}],
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "**/*.spec.ts", "**/*.test.ts"]
+}

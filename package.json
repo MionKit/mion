@@ -13,7 +13,7 @@
     "lint-pre-committ": "eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
     "build": "lerna run build",
     "build-ts-dts": "npm run clean && lerna run build-ts-dts",
-    "clean": "lerna run clean && nx reset && jest --clearCache",
+    "clean": "lerna run clean; nx reset --onlyCache && jest --clearCache",
     "fresh-start": "lerna run fresh-start && rimraf node_modules",
     "deepkit-install": "deepkit-type-install",
     "npm-publish": "lerna publish from-package --no-private",

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initClient, HSubRequest, RSubRequest} from '@mionkit/client';
+import {initClient, HSubRequest, RSubRequest, workflow} from '@mionkit/client';
 import {isRpcError, HeadersSubset} from '@mionkit/core';
 import {TestServerApi, createTestServerLinkedFns, JEST_TIMEOUT_CONSTANTS, TEST_PORT_MAPPING} from '@mionkit/test-server';
 
@@ -47,6 +47,7 @@ describe('client', () => {
             params: [authHeaders],
             call: expect.any(Function),
             callWithLinkedFns: expect.any(Function),
+            callWithWorkflow: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
@@ -59,6 +60,7 @@ describe('client', () => {
             params: [someUser],
             call: expect.any(Function),
             callWithLinkedFns: expect.any(Function),
+            callWithWorkflow: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
@@ -71,6 +73,7 @@ describe('client', () => {
             params: [2],
             call: expect.any(Function),
             callWithLinkedFns: expect.any(Function),
+            callWithWorkflow: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
@@ -89,6 +92,7 @@ describe('client', () => {
             params: [1, 'a'],
             call: expect.any(Function),
             callWithLinkedFns: expect.any(Function),
+            callWithWorkflow: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
@@ -794,6 +798,129 @@ describe('client', () => {
 
             // Clean up
             await linkedFns.auth(authHeaders).removePrefill();
+        });
+    });
+
+    // ========== Workflow Tests ==========
+
+    describe('workflow() function', () => {
+        it('should execute a single route in a workflow', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            // Prefill auth so it's included automatically
+            linkedFns.auth(authHeaders).prefill();
+            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            const [[greeting], [greetingError]] = await workflow([routes.sayHello(someUser)]);
+
+            expect(greeting).toEqual('Hello John Doe');
+            expect(greetingError).toBeUndefined();
+
+            // Clean up
+            linkedFns.auth(authHeaders).removePrefill();
+        });
+
+        it('should execute multiple routes in a workflow', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            // Prefill auth so it's included automatically
+            linkedFns.auth(authHeaders).prefill();
+            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            const [[greeting, age, sum], [greetingError, ageError, sumError]] = await workflow([
+                routes.sayHello(someUser),
+                routes.calculateAge(1990),
+                routes.utils.sumTwo(5),
+            ]);
+
+            expect(greeting).toEqual('Hello John Doe');
+            expect(age).toEqual(new Date().getFullYear() - 1990);
+            expect(sum).toEqual(7);
+            expect(greetingError).toBeUndefined();
+            expect(ageError).toBeUndefined();
+            expect(sumError).toBeUndefined();
+
+            // Clean up
+            linkedFns.auth(authHeaders).removePrefill();
+        });
+
+        it('should execute workflow with explicit linkedFns', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            const [[greeting], [greetingError], , linkedFnErrors] = await workflow([routes.sayHello(someUser)], {
+                auth: linkedFns.auth(authHeaders),
+            });
+
+            expect(greeting).toEqual('Hello John Doe');
+            expect(greetingError).toBeUndefined();
+            expect(linkedFnErrors?.auth).toBeUndefined();
+        });
+
+        it('should handle route errors in workflow', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            const [[failResult], [failError]] = await workflow([routes.alwaysFails(someUser)], {
+                auth: linkedFns.auth(authHeaders),
+            });
+
+            // The failing route should have an error
+            expect(failError).toBeDefined();
+            expect(failError?.type).toBe('unknown-error');
+            expect(failResult).toBeUndefined();
+        });
+
+        it('should throw error when called with empty routes array', async () => {
+            await expect(workflow([])).rejects.toThrow('Workflow requires at least one route subrequest.');
+        });
+    });
+
+    describe('callWithWorkflow() method', () => {
+        it('should execute workflow via callWithWorkflow on a subrequest', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            // Prefill auth so it's included automatically
+            linkedFns.auth(authHeaders).prefill();
+            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            const [[greeting, age], [greetingError, ageError]] = await routes
+                .sayHello(someUser)
+                .callWithWorkflow([routes.calculateAge(1990)]);
+
+            expect(greeting).toEqual('Hello John Doe');
+            expect(age).toEqual(new Date().getFullYear() - 1990);
+            expect(greetingError).toBeUndefined();
+            expect(ageError).toBeUndefined();
+
+            // Clean up
+            linkedFns.auth(authHeaders).removePrefill();
+        });
+
+        it('should execute callWithWorkflow with explicit linkedFns', async () => {
+            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            const [[greeting, age], [greetingError, ageError], , linkedFnErrors] = await routes
+                .sayHello(someUser)
+                .callWithWorkflow([routes.calculateAge(1990)], {auth: linkedFns.auth(authHeaders)});
+
+            expect(greeting).toEqual('Hello John Doe');
+            expect(age).toEqual(new Date().getFullYear() - 1990);
+            expect(greetingError).toBeUndefined();
+            expect(ageError).toBeUndefined();
+            expect(linkedFnErrors?.auth).toBeUndefined();
+        });
+
+        it('proxy should include callWithWorkflow method on subrequests', () => {
+            const {routes} = initClient<MyApi>({baseURL});
+            const subRequest = routes.sayHello(someUser);
+
+            expect(subRequest.callWithWorkflow).toBeDefined();
+            expect(typeof subRequest.callWithWorkflow).toBe('function');
         });
     });
 });
