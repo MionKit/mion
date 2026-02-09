@@ -1,2 +1,2 @@
-const pureFnsCache = {};
+const pureFnsCache = { mion: {} };
 export { pureFnsCache };

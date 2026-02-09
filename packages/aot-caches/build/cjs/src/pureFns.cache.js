@@ -1,4 +1,4 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const pureFnsCache = {};
+const pureFnsCache = { mion: {} };
 exports.pureFnsCache = pureFnsCache;

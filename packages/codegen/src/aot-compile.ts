@@ -225,6 +225,9 @@ export function filterJitFns(jitFnsCache: JitFunctionsCache, excludedFns: JitFnI
 export function filterPureFns(pureFnsCache: PureFunctionsCache, excludedPureFns: string[] = EXCLUDED_PURE_FNS) {
     if (!excludedPureFns.length) return pureFnsCache;
     return Object.fromEntries(
-        Object.entries(pureFnsCache).filter(([, value]) => !excludedPureFns.includes(value.pureFnHash))
+        Object.entries(pureFnsCache).map(([namespace, nsCache]) => [
+            namespace,
+            Object.fromEntries(Object.entries(nsCache).filter(([, value]) => !excludedPureFns.includes(value.pureFnHash))),
+        ])
     ) as PureFunctionsCache;
 }
