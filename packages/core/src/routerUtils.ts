@@ -34,11 +34,9 @@ export const routesCache = {
      * @returns The method metadata or undefined if not found
      */
     getMetadata(id: string): MethodWithOptions | undefined {
-        // First check local cache
         if (id in methodsCache) {
             return methodsCache[id] as MethodWithOptions | undefined;
         }
-        // Fall back to AOT cache (for router package on-demand loading)
         if (id in aotRouterCache) {
             return aotRouterCache[id] as MethodWithOptions | undefined;
         }
@@ -81,20 +79,16 @@ export const routesCache = {
      * @returns The method metadata with JIT functions or undefined if not found
      */
     getMethodJitFns(id: string): MethodWithOptsAndJitFns | undefined {
-        // First check local cache (may already have JIT functions)
         if (id in methodsCache) {
             const cached = methodsCache[id] as any;
-            // If JIT functions are already cached, return immediately
             if (cached.paramsJitFns && cached.returnJitFns) {
                 return cached as MethodWithOptsAndJitFns;
             }
         }
 
-        // Get metadata (may come from AOT cache)
         const metadata = this.getMetadata(id);
         if (!metadata) return undefined;
 
-        // Restore JIT functions from hashes
         const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash);
         const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash);
         const headersParam = metadata.headersParam
@@ -104,7 +98,6 @@ export const routesCache = {
             ? {...metadata.headersReturn, jitFns: getHeaderJitFunctionsFromHash(metadata.headersReturn.jitHash)}
             : undefined;
 
-        // Build the augmented entry
         const result: MethodWithOptsAndJitFns = {
             ...metadata,
             paramsJitFns,
@@ -113,7 +106,6 @@ export const routesCache = {
             headersReturn,
         };
 
-        // Cache the augmented entry for future calls
         methodsCache[id] = result;
         return result as MethodWithOptsAndJitFns;
     },

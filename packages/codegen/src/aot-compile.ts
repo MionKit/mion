@@ -8,7 +8,7 @@
 import {resolve, join, dirname} from 'path';
 import {existsSync, cpSync} from 'fs';
 import {compileAndWriteJitFunctions, compileAndWritePureFunctions, compileAndWriteRouterMethods} from './cacheCompiler';
-import {getJitFnCaches, JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
+import {getJitFnCaches, getJitUtils, JitFunctionsCache, PureFunctionsCache, routesCache} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
 import {isTest} from './constants';
 import {JitFnID, JitFunctions} from '@mionkit/run-types';
@@ -124,6 +124,7 @@ export async function compileAOT(
     }
     // Set compilation mode
     process.env.MION_COMPILE = 'true';
+    enableCompileTracking();
     if (!isTest) console.log('Running start script to populate caches...');
     // Import and run the original start script (only dynamic import needed)
     try {
@@ -155,6 +156,113 @@ Cache files updated in both CJS and ESM formats:
     }
 }
 
+let compileTrackingEnabled = false;
+let originalJitUtilsBackup: Record<string, any> | null = null;
+let originalRoutesCacheBackup: Record<string, any> | null = null;
+
+/** Reset compile tracking state - for testing purposes only */
+export function resetCompileTracking(): void {
+    if (originalJitUtilsBackup) {
+        const jitUtils = getJitUtils();
+        Object.assign(jitUtils, originalJitUtilsBackup);
+        originalJitUtilsBackup = null;
+    }
+    if (originalRoutesCacheBackup) {
+        Object.assign(routesCache, originalRoutesCacheBackup);
+        originalRoutesCacheBackup = null;
+    }
+    compileTrackingEnabled = false;
+}
+
+function enableCompileTracking(): void {
+    // Prevent double-wrapping when compileAOT is called multiple times
+    if (compileTrackingEnabled) return;
+    compileTrackingEnabled = true;
+
+    const jitUtils = getJitUtils();
+    originalJitUtilsBackup = {
+        addToJitCache: jitUtils.addToJitCache,
+        addPureFn: jitUtils.addPureFn,
+        getJIT: jitUtils.getJIT,
+        getJitFn: jitUtils.getJitFn,
+        getPureFn: jitUtils.getPureFn,
+        getCompiledPureFn: jitUtils.getCompiledPureFn,
+        usePureFn: jitUtils.usePureFn,
+    };
+    const originalJitUtils = originalJitUtilsBackup;
+
+    jitUtils.addToJitCache = (comp) => {
+        comp._used = true;
+        originalJitUtils.addToJitCache(comp);
+    };
+    jitUtils.addPureFn = (namespace, compiledFn) => {
+        const fnHash = compiledFn.pureFnHash;
+        if (!fnHash) throw new Error('Pure function must have a name and must be unique');
+        const caches = getJitFnCaches().pureFnsCache as any;
+        const nsCache = caches[namespace] ?? (caches[namespace] = {});
+        const existing = nsCache[fnHash];
+        if (existing) return existing;
+        compiledFn._used = true;
+        nsCache[fnHash] = compiledFn as any;
+        return compiledFn as any;
+    };
+    jitUtils.getJIT = (jitFnHash) => {
+        const comp = originalJitUtils.getJIT(jitFnHash);
+        if (comp) comp._used = true;
+        return comp;
+    };
+    jitUtils.getJitFn = (jitFnHash) => {
+        const comp = originalJitUtils.getJIT(jitFnHash);
+        if (!comp) throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
+        comp._used = true;
+        return comp.fn;
+    };
+    jitUtils.getPureFn = (namespace, fnHash) => {
+        const compiled = originalJitUtils.getCompiledPureFn(namespace, fnHash);
+        if (!compiled) return;
+        compiled._used = true;
+        return originalJitUtils.getPureFn(namespace, fnHash);
+    };
+    jitUtils.getCompiledPureFn = (namespace, fnHash) => {
+        const compiled = originalJitUtils.getCompiledPureFn(namespace, fnHash);
+        if (compiled) compiled._used = true;
+        return compiled;
+    };
+    jitUtils.usePureFn = (namespace, fnHash) => {
+        const compiled = originalJitUtils.getCompiledPureFn(namespace, fnHash);
+        if (!compiled) throw new Error(`Pure function with name ${fnHash} not found in namespace ${namespace}`);
+        compiled._used = true;
+        return originalJitUtils.usePureFn(namespace, fnHash);
+    };
+
+    originalRoutesCacheBackup = {
+        getMetadata: routesCache.getMetadata,
+        getMethodJitFns: routesCache.getMethodJitFns,
+        setMetadata: routesCache.setMetadata,
+        setMethodJitFns: routesCache.setMethodJitFns,
+    };
+    const originalRoutesCache = originalRoutesCacheBackup;
+
+    routesCache.getMetadata = (id) => {
+        const metadata = originalRoutesCache.getMetadata(id);
+        if (metadata) metadata._used = true;
+        return metadata;
+    };
+    routesCache.getMethodJitFns = (id) => {
+        const method = originalRoutesCache.getMethodJitFns(id);
+        if (method) method._used = true;
+        return method;
+    };
+    routesCache.setMetadata = (id, methodData) => {
+        methodData._used = true;
+        originalRoutesCache.setMetadata(id, methodData);
+    };
+    routesCache.setMethodJitFns = (id, method) => {
+        method._used = true;
+        originalRoutesCache.setMethodJitFns(id, method);
+    };
+}
+
 /**
  * Write cache data to AOT package files
  * Separated from compileAOT for testing purposes
@@ -166,8 +274,9 @@ export function writeAOTCachesToFiles(
     excludedPureFns: string[] = EXCLUDED_PURE_FNS
 ): void {
     const {jitFnsCache, pureFnsCache, routerCache} = cacheData;
-    const filteredJitFnsCache = filterJitFns(jitFnsCache, excludedFns);
-    const filteredPureFnsCache = filterPureFns(pureFnsCache, excludedPureFns);
+    const filteredJitFnsCache = filterJitFns(filterUsedJitFns(jitFnsCache), excludedFns);
+    const filteredPureFnsCache = filterPureFns(filterUsedPureFns(pureFnsCache), excludedPureFns);
+    const filteredRouterCache = filterUsedRouterCache(routerCache);
 
     // Write to both CJS and ESM builds
     const moduleFormats = ['cjs', 'esm'] as const;
@@ -211,8 +320,37 @@ export function writeAOTCachesToFiles(
         if (!isTest) {
             console.log(`Writing router methods cache (${moduleFormat})...`);
         }
-        compileAndWriteRouterMethods(routerCache, aotConfig);
+        compileAndWriteRouterMethods(filteredRouterCache, aotConfig);
     }
+}
+
+export function filterUsedJitFns(jitFnsCache: JitFunctionsCache): JitFunctionsCache {
+    return Object.fromEntries(
+        Object.entries(jitFnsCache)
+            .filter(([, value]) => value._used === true)
+            .map(([key, value]) => [key, {...value, _used: false}])
+    ) as JitFunctionsCache;
+}
+
+export function filterUsedPureFns(pureFnsCache: PureFunctionsCache): PureFunctionsCache {
+    return Object.fromEntries(
+        Object.entries(pureFnsCache).map(([namespace, nsCache]) => [
+            namespace,
+            Object.fromEntries(
+                Object.entries(nsCache)
+                    .filter(([, value]) => value._used === true)
+                    .map(([key, value]) => [key, {...value, _used: false}])
+            ),
+        ])
+    ) as PureFunctionsCache;
+}
+
+export function filterUsedRouterCache(routerCache: Record<string, any>): Record<string, any> {
+    return Object.fromEntries(
+        Object.entries(routerCache)
+            .filter(([, value]) => value?._used === true)
+            .map(([key, value]) => [key, {...value, _used: false}])
+    );
 }
 
 export function filterJitFns(jitFnsCache: JitFunctionsCache, excludedFns: JitFnID[] = EXCLUDED_FNS) {

@@ -242,6 +242,7 @@ it('should compile router methods cache to code', async () => {
     const getUserMethodMetadata = persistedMethods.getUser;
     const mockCache = {auth: authMethodMetadata, getUser: getUserMethodMetadata};
     const expectedAuthMethodData: MethodWithOptions = {
+        _used: true,
         type: 3,
         id: 'auth',
         nestLevel: 0,
@@ -266,6 +267,7 @@ it('should compile router methods cache to code', async () => {
         },
     };
     const expectedGetUserMethodData: MethodWithOptions = {
+        _used: true,
         type: 1,
         id: 'getUser',
         nestLevel: 0,

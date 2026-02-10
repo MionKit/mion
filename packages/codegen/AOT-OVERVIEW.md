@@ -65,6 +65,13 @@ Important !!!!
 The start server script must be the same as the one you use to start your server in production.
 This guarantees the caches for routes and jitFunctions are the same used in your app.
 
+#### AOT cache eviction behavior
+
+- Each cached entry (router metadata, JIT functions, pure functions) carries a `_used` flag.
+- During `mion-build-aot`, caches are accessed with compile-time accessors that mark `_used: true`.
+- When the cache files are written, entries that were not accessed are dropped, and the remaining entries are reset back to `_used: false` in the generated source.
+- This prevents stale cache growth and avoids loading outdated AOT values on servers.
+
 ```bash
 # Run AOT compilation with your start script
 npx mion-build-aot \

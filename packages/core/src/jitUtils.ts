@@ -40,10 +40,6 @@ const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
 const deserializeFnsRegistry = new Map<string, DeserializeClassFn<any>>();
 const serializableClassRegistry = new Map<string, SerializableClass>();
 
-/**
- * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
- * !!! DO NOT MODIFY METHOD NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
- */
 const jitUtils: JITUtils = {
     /** optimized function to convert an string into a json string wrapped in double quotes */
     asJSONString(str: string) {
