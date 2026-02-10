@@ -102,11 +102,24 @@ const jitUtils: JITUtils = {
         return null;
     },
     addPureFn(namespace: string, compiledFn: CompiledPureFunction): CompiledPureFunction {
-        const fnHash = compiledFn.pureFnHash;
+        const fnHash = compiledFn.fnName;
         if (!fnHash) throw new Error('Pure function must have a name and must be unique');
         const nsCache = ensureNamespace(namespace);
         const existing = nsCache[fnHash];
-        if (existing) return existing;
+        if (existing) {
+            // Validate body hash matches - if not, this is a version conflict
+            if (existing.bodyHash && compiledFn.bodyHash && existing.bodyHash !== compiledFn.bodyHash) {
+                console.warn(
+                    `Pure function ${namespace}::${fnHash} body hash mismatch. ` +
+                        `Existing: ${existing.bodyHash}, New: ${compiledFn.bodyHash}. ` +
+                        `Replacing with new version.`
+                );
+                nsCache[fnHash] = compiledFn;
+                return compiledFn;
+            }
+            return existing;
+        }
+
         nsCache[fnHash] = compiledFn;
         return compiledFn;
     },
@@ -293,14 +306,28 @@ function restoreCaches(
             jitFnsCache[key] = {...fnsCache[key]} as JitCompiledFn;
         }
     }
-    // Load namespaced pure functions
+    // Load namespaced pure functions with hash validation
     for (const namespace in pureCache) {
         const nsCache = ensureNamespace(namespace);
         const sourceNsCache = pureCache[namespace];
         for (const key in sourceNsCache) {
-            if (!(key in nsCache)) {
-                // Cloning to avoid mutating the original
-                nsCache[key] = {...sourceNsCache[key]} as CompiledPureFunction;
+            const existing = nsCache[key];
+            const incoming = sourceNsCache[key];
+
+            if (existing) {
+                // Validate body hash - evict if mismatch
+                if (existing.bodyHash && incoming.bodyHash && existing.bodyHash !== incoming.bodyHash) {
+                    console.warn(
+                        `Pure function ${namespace}::${key} cache eviction: ` +
+                            `bodyHash mismatch (cached: ${existing.bodyHash}, server: ${incoming.bodyHash})`
+                    );
+                    // Replace with incoming version
+                    nsCache[key] = {...incoming} as CompiledPureFunction;
+                }
+                // If hashes match or one is missing, keep existing
+            } else {
+                // No existing entry, add new one
+                nsCache[key] = {...incoming} as CompiledPureFunction;
             }
         }
     }

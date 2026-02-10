@@ -1,4 +1,5 @@
 import {PureFunctionClosure, CompiledPureFunction, getJitUtils, PureFunction} from '@mionkit/core';
+import {createUniqueHash} from './quickHash';
 
 export function getCompiledPureFn(namespace: string, fnOrName: string | PureFunctionClosure): CompiledPureFunction | undefined {
     const key = getPureFunctionKey(fnOrName);
@@ -20,8 +21,8 @@ export function registerPureFnClosuresGroup(namespace: string, fnsWithCtx: PureF
     const compiledFns = fnsWithCtx.map((fn) => registerPureFnClosure(namespace, fn));
     compiledFns.forEach((cfn) => {
         compiledFns.forEach((cf) => {
-            if (cfn.pureFnHash === cf.pureFnHash) return;
-            cf.dependencies.add(cfn.pureFnHash);
+            if (cfn.fnName === cf.fnName) return;
+            cf.dependencies.add(cfn.fnName);
         });
     });
     return compiledFns;
@@ -90,7 +91,8 @@ function parsePureFunctionWithCtx(namespace: string, createJitFn: PureFunctionCl
         createJitFn: createJitFn,
         fn: null as any, // will be set later so all possible dependencies are resolved
         namespace,
-        pureFnHash: getPureFunctionKey(createJitFn.name),
+        fnName: getPureFunctionKey(createJitFn.name),
+        bodyHash: createUniqueHash(namespace + createJitFn.name + body, 12),
         paramNames,
         code: body,
         dependencies: new Set<string>(),

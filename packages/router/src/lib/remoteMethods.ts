@@ -136,13 +136,7 @@ export function serializePureDeps(namespacedDepHash: string, purFnDeps: PureFnsD
     if (purFnDeps[namespace][fnHash]) return;
     const pureDep = getJitUtils().getCompiledPureFn(namespace, fnHash);
     if (!pureDep) throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
-    const serializedPureDep: PureFunctionData = {
-        namespace: pureDep.namespace,
-        paramNames: pureDep.paramNames,
-        code: pureDep.code,
-        pureFnHash: pureDep.pureFnHash,
-        dependencies: new Set(pureDep.dependencies),
-    };
+    const serializedPureDep: PureFunctionData = {...pureDep, dependencies: new Set(pureDep.dependencies)};
     purFnDeps[namespace][fnHash] = serializedPureDep;
     // Dependencies within the same namespace are stored as just fnHash, not namespaced
     pureDep.dependencies.forEach((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1));

@@ -175,14 +175,16 @@ function mockData(): SerializableMethodsData {
         namespace: 'test',
         paramNames: ['a', 'b'],
         code: 'function addNumbers(a, b) {return a + b;} return addNumbers;',
-        pureFnHash: 'addNumbers',
+        fnName: 'addNumbers',
+        bodyHash: 'addNumbers_hash',
         dependencies: new Set<string>(),
     };
     const pureFunctionData2: PureFunctionData = {
         namespace: 'test',
         paramNames: ['a', 'b'],
         code: 'function multiplyNumbers(a, b) {return a * b;} return multiplyNumbers;',
-        pureFnHash: 'multiplyNumbers',
+        fnName: 'multiplyNumbers',
+        bodyHash: 'multiplyNumbers_hash',
         dependencies: new Set<string>(['test::addNumbers']),
     };
     const md: SerializableMethodsData = {

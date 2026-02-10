@@ -360,7 +360,7 @@ export function filterPureFns(pureFnsCache: PureFunctionsCache, excludedPureFns:
     return Object.fromEntries(
         Object.entries(pureFnsCache).map(([namespace, nsCache]) => [
             namespace,
-            Object.fromEntries(Object.entries(nsCache).filter(([, value]) => !excludedPureFns.includes(value.pureFnHash))),
+            Object.fromEntries(Object.entries(nsCache).filter(([, value]) => !excludedPureFns.includes(value.fnName))),
         ])
     ) as PureFunctionsCache;
 }
