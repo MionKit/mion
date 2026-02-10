@@ -60,7 +60,8 @@ describe('restoreJitFns', () => {
                         namespace: TEST_NS,
                         paramNames: ['a', 'b'],
                         code: 'return function addNumbers(a, b){return a + b}',
-                        pureFnHash: 'addNumbers',
+                        fnName: 'addNumbers',
+                        bodyHash: 'addNumbers_hash',
                         dependencies: new Set(),
                         createJitFn: function (utl) {
                             return function addNumbers(a: number, b: number) {
@@ -106,7 +107,8 @@ describe('restoreJitFns', () => {
                         namespace: TEST_NS,
                         paramNames: ['v'],
                         code: 'return function helper(v){return typeof v === "number"}',
-                        pureFnHash: 'helper',
+                        fnName: 'helper',
+                        bodyHash: 'helper_hash',
                         dependencies: new Set(),
                         createJitFn: function (utl) {
                             return function helper(v: any) {
@@ -186,7 +188,8 @@ describe('restoreJitFns', () => {
                         namespace: TEST_NS,
                         paramNames: ['a', 'b'],
                         code: 'return function multiply(a, b){return a * b}',
-                        pureFnHash: 'multiply',
+                        fnName: 'multiply',
+                        bodyHash: 'multiply_hash',
                         dependencies: new Set(),
                         createJitFn: function (utl) {
                             return function multiply(a: number, b: number) {
@@ -199,7 +202,8 @@ describe('restoreJitFns', () => {
                         namespace: TEST_NS,
                         paramNames: ['x'],
                         code: `const multiply = utl.getPureFn("${TEST_NS}", "multiply"); return function square(x){return multiply(x, x)}`,
-                        pureFnHash: 'square',
+                        fnName: 'square',
+                        bodyHash: 'square_hash',
                         dependencies: new Set(['multiply']),
                         createJitFn: function (utl) {
                             const multiply = utl.getPureFn(TEST_NS, 'multiply')!;
@@ -286,7 +290,8 @@ describe('restoreJitFns', () => {
                         namespace: TEST_NS,
                         paramNames: ['a', 'b'],
                         code: 'return function subtract(a, b){return a - b}',
-                        pureFnHash: 'subtract',
+                        fnName: 'subtract',
+                        bodyHash: 'subtract_hash',
                         dependencies: new Set(),
                     },
                 },
@@ -319,7 +324,8 @@ describe('restoreJitFns', () => {
                         namespace: TEST_NS,
                         paramNames: ['v'],
                         code: 'return function isArray(v){return Array.isArray(v)}',
-                        pureFnHash: 'isArray',
+                        fnName: 'isArray',
+                        bodyHash: 'isArray_hash',
                         dependencies: new Set(),
                     },
                 },
@@ -383,14 +389,16 @@ describe('restoreJitFns', () => {
                         namespace: TEST_NS,
                         paramNames: ['a', 'b'],
                         code: 'return function divide(a, b){return a / b}',
-                        pureFnHash: 'divide',
+                        fnName: 'divide',
+                        bodyHash: 'divide_hash',
                         dependencies: new Set(),
                     },
                     half: {
                         namespace: TEST_NS,
                         paramNames: ['x'],
                         code: `const divide = utl.getPureFn("${TEST_NS}", "divide"); return function half(x){return divide(x, 2)}`,
-                        pureFnHash: 'half',
+                        fnName: 'half',
+                        bodyHash: 'half_hash',
                         dependencies: new Set(['divide']),
                     },
                 },
@@ -441,7 +449,8 @@ describe('restoreJitFns', () => {
                         namespace: TEST_NS,
                         paramNames: ['x'],
                         code: `const missing = utl.getPureFn("${TEST_NS}", "missing"); return function parent(x){return missing(x)}`,
-                        pureFnHash: 'parent',
+                        fnName: 'parent',
+                        bodyHash: 'parent_hash',
                         dependencies: new Set(['missing']), // missing dependency
                         createJitFn: function (utl) {
                             const missing = utl.getPureFn(TEST_NS, 'missing')!;
@@ -486,7 +495,8 @@ describe('restoreJitFns', () => {
                         namespace: TEST_NS,
                         paramNames: ['x'],
                         code: 'this is also invalid!!!',
-                        pureFnHash: 'invalid',
+                        fnName: 'invalid',
+                        bodyHash: 'invalid_hash',
                         dependencies: new Set(),
                     },
                 },
@@ -552,21 +562,24 @@ describe('restoreJitFns', () => {
                         namespace: TEST_NS,
                         paramNames: ['x'],
                         code: 'return function base(x){return x + 1}',
-                        pureFnHash: 'base',
+                        fnName: 'base',
+                        bodyHash: 'base_hash',
                         dependencies: new Set(),
                     },
                     level1: {
                         namespace: TEST_NS,
                         paramNames: ['x'],
                         code: `const base = utl.getPureFn("${TEST_NS}", "base"); return function level1(x){return base(x) * 2}`,
-                        pureFnHash: 'level1',
+                        fnName: 'level1',
+                        bodyHash: 'level1_hash',
                         dependencies: new Set(['base']),
                     },
                     level2: {
                         namespace: TEST_NS,
                         paramNames: ['x'],
                         code: `const level1 = utl.getPureFn("${TEST_NS}", "level1"); return function level2(x){return level1(x) + 10}`,
-                        pureFnHash: 'level2',
+                        fnName: 'level2',
+                        bodyHash: 'level2_hash',
                         dependencies: new Set(['level1']),
                     },
                 },
@@ -582,6 +595,185 @@ describe('restoreJitFns', () => {
             expect(restoredLevel2).toBeDefined();
             // level2(5) = level1(5) + 10 = (base(5) * 2) + 10 = (6 * 2) + 10 = 22
             expect(restoredLevel2(5)).toBe(22);
+        });
+    });
+
+    describe('bodyHash versioning and cache eviction', () => {
+        it('should evict cached pure function when bodyHash mismatches', () => {
+            // First, add a pure function with a specific bodyHash
+            const initialPureCache: PureFnsDataCache = {
+                [TEST_NS]: {
+                    versionedFn: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: 'return function versionedFn(x){return x * 2}',
+                        fnName: 'versionedFn',
+                        bodyHash: 'hash_v1',
+                        dependencies: new Set(),
+                    },
+                },
+            };
+
+            addSerializedJitCaches({}, initialPureCache);
+
+            // Verify initial function is loaded
+            const initialFn = getJitUtils().getPureFn(TEST_NS, 'versionedFn')!;
+            expect(initialFn).toBeDefined();
+            expect(initialFn(5)).toBe(10);
+
+            // Now add a new version with different bodyHash (simulating server update)
+            const updatedPureCache: PureFnsDataCache = {
+                [TEST_NS]: {
+                    versionedFn: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: 'return function versionedFn(x){return x * 3}',
+                        fnName: 'versionedFn',
+                        bodyHash: 'hash_v2', // Different hash
+                        dependencies: new Set(),
+                    },
+                },
+            };
+
+            // Spy on console.warn to verify eviction warning
+            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+            addSerializedJitCaches({}, updatedPureCache);
+
+            // Verify warning was logged
+            expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('cache eviction'));
+            warnSpy.mockRestore();
+
+            // Verify the function was replaced with the new version
+            const updatedFn = getJitUtils().getPureFn(TEST_NS, 'versionedFn')!;
+            expect(updatedFn).toBeDefined();
+            expect(updatedFn(5)).toBe(15); // New version multiplies by 3
+        });
+
+        it('should keep cached pure function when bodyHash matches', () => {
+            // First, add a pure function with a specific bodyHash
+            const initialPureCache: PureFnsDataCache = {
+                [TEST_NS]: {
+                    stableFn: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: 'return function stableFn(x){return x + 1}',
+                        fnName: 'stableFn',
+                        bodyHash: 'stable_hash',
+                        dependencies: new Set(),
+                    },
+                },
+            };
+
+            addSerializedJitCaches({}, initialPureCache);
+
+            // Verify initial function is loaded
+            const initialFn = getJitUtils().getPureFn(TEST_NS, 'stableFn')!;
+            expect(initialFn).toBeDefined();
+            expect(initialFn(5)).toBe(6);
+
+            // Now add the same version with same bodyHash
+            const samePureCache: PureFnsDataCache = {
+                [TEST_NS]: {
+                    stableFn: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: 'return function stableFn(x){return x + 1}',
+                        fnName: 'stableFn',
+                        bodyHash: 'stable_hash', // Same hash
+                        dependencies: new Set(),
+                    },
+                },
+            };
+
+            // Spy on console.warn to verify no eviction warning
+            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+            addSerializedJitCaches({}, samePureCache);
+
+            // Verify no warning was logged (no eviction)
+            expect(warnSpy).not.toHaveBeenCalled();
+            warnSpy.mockRestore();
+
+            // Function should still work
+            const sameFn = getJitUtils().getPureFn(TEST_NS, 'stableFn')!;
+            expect(sameFn).toBeDefined();
+            expect(sameFn(5)).toBe(6);
+        });
+
+        it('should add new pure function when no existing entry', () => {
+            const newPureCache: PureFnsDataCache = {
+                [TEST_NS]: {
+                    brandNewFn: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: 'return function brandNewFn(x){return x * x}',
+                        fnName: 'brandNewFn',
+                        bodyHash: 'new_hash',
+                        dependencies: new Set(),
+                    },
+                },
+            };
+
+            // Spy on console.warn to verify no eviction warning
+            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+            addSerializedJitCaches({}, newPureCache);
+
+            // Verify no warning was logged (no eviction, just addition)
+            expect(warnSpy).not.toHaveBeenCalled();
+            warnSpy.mockRestore();
+
+            // Verify the function was added
+            const newFn = getJitUtils().getPureFn(TEST_NS, 'brandNewFn')!;
+            expect(newFn).toBeDefined();
+            expect(newFn(5)).toBe(25);
+        });
+
+        it('should handle missing bodyHash gracefully (backward compatibility)', () => {
+            // First, add a pure function without bodyHash (old format)
+            const oldFormatCache: PureFnsDataCache = {
+                [TEST_NS]: {
+                    legacyFn: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: 'return function legacyFn(x){return x - 1}',
+                        fnName: 'legacyFn',
+                        bodyHash: '', // Empty/missing bodyHash
+                        dependencies: new Set(),
+                    },
+                },
+            };
+
+            addSerializedJitCaches({}, oldFormatCache);
+
+            // Now add a new version with bodyHash
+            const newFormatCache: PureFnsDataCache = {
+                [TEST_NS]: {
+                    legacyFn: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: 'return function legacyFn(x){return x - 2}',
+                        fnName: 'legacyFn',
+                        bodyHash: 'new_hash',
+                        dependencies: new Set(),
+                    },
+                },
+            };
+
+            // Spy on console.warn
+            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+            addSerializedJitCaches({}, newFormatCache);
+
+            // Should not warn because one hash is missing (graceful handling)
+            expect(warnSpy).not.toHaveBeenCalled();
+            warnSpy.mockRestore();
+
+            // Original function should be kept (no eviction when hash is missing)
+            const fn = getJitUtils().getPureFn(TEST_NS, 'legacyFn')!;
+            expect(fn).toBeDefined();
+            expect(fn(5)).toBe(4); // Original version
         });
     });
 });

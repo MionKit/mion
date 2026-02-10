@@ -152,7 +152,7 @@ function restoreCreateJitFn(fnData: JitCompiledFnData, jUtil: JITUtils): JitComp
  * @returns A CompiledPureFunction with both the createJitFn closure and the executed fn
  */
 function restorePureFunction(pureFnData: PureFunctionData, jUtil: JITUtils): CompiledPureFunction {
-    const fnName = pureFnData.pureFnHash;
+    const fnName = pureFnData.fnName;
     // pureFnData.code already contains the complete function with context
     const fnWithContext = pureFnData.code;
     try {

@@ -69,10 +69,8 @@ export function initPureFunction(compiled: CompiledPureFunction): asserts compil
             compiled.fn = newWithCtx(getJitUtils()) as PureFunction;
             return;
         } catch (error: any) {
-            console.warn(
-                `Pure ${compiled.pureFnHash} can not be deserialized. Function code:\n${compiled.createJitFn.toString()}`
-            );
-            throw new Error(`Pure function ${compiled.pureFnHash} can not be deserialized: ${error?.message}`);
+            console.warn(`Pure ${compiled.fnName} can not be deserialized. Function code:\n${compiled.createJitFn.toString()}`);
+            throw new Error(`Pure function ${compiled.fnName} can not be deserialized: ${error?.message}`);
         }
     }
     compiled.fn = compiled.createJitFn(getJitUtils());

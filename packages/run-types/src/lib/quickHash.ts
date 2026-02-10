@@ -19,7 +19,7 @@ const PRIME = 37; // Prime number to mix hash robustly, but quick
 export const hashDefaultLength = 6;
 export const defaultLiteralLength = 5;
 
-export function quickHash(input: string, length = hashDefaultLength, prevResult?: string): string {
+function quickHash(input: string, length = hashDefaultLength, prevResult?: string): string {
     let hash = 0;
     // Generate initial numeric hash using Math.imul and forcing unsigned 32-bit arithmetic
     for (let i = 0; i < input.length; i++) {

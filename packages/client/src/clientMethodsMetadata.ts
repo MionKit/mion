@@ -162,7 +162,7 @@ export function restoreAllDependencies(options: ClientOptions) {
                     const keyParts = key.slice(pureFnKeyPrefix.length).split(':');
                     const namespace = keyParts[0] || pureFnData.namespace;
                     if (!pureFnDeps[namespace]) pureFnDeps[namespace] = {};
-                    pureFnDeps[namespace][pureFnData.pureFnHash] = pureFnData;
+                    pureFnDeps[namespace][pureFnData.fnName] = pureFnData;
                 }
             } catch (error) {
                 console.warn(`Failed to restore pure function from key ${key}:`, error);

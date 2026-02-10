@@ -205,7 +205,7 @@ export interface PureFunctionData {
     /** The code of the function closure */
     readonly code: string;
     /** Unique id of the function */
-    readonly pureFnHash: string;
+    readonly fnName: string;
     /** Hash of the function body for version validation */
     readonly bodyHash: string;
     /** The list of all pure functions that are used by this function and it's children. */

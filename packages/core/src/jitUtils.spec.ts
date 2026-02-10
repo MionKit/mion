@@ -72,7 +72,8 @@ describe('jitUtils', () => {
                 testPureFn: {
                     namespace: 'testNamespace',
                     paramNames: ['a', 'b'],
-                    pureFnHash: 'testPureFn',
+                    fnName: 'testPureFn',
+                    bodyHash: 'testPureFn_hash',
                     code: 'return (a, b) => a + b;',
                     dependencies: new Set<string>(),
                     createJitFn: () => (a: number, b: number) => a + b,
