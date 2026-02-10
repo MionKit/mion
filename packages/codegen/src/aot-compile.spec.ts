@@ -18,7 +18,7 @@ import {
 } from './aot-compile';
 import {initAOT} from './cli-init-aot';
 import {headersFn, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
-import {getJitFnCaches, resetJitFnCaches, addAOTCaches, HeadersSubset} from '@mionkit/core';
+import {getJitFnCaches, resetJitFnCaches, addAOTCaches, HeadersSubset, Cacheable} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
 import {linkedFn, route} from '@mionkit/router';
 
@@ -111,15 +111,15 @@ describe('AOT Cache Compilation E2E', () => {
         const originalRouterCache = getPersistedMethods();
 
         Object.values(originalCaches.jitFnsCache).forEach((value) => {
-            value._used = true;
+            (value as Cacheable)._used = true;
         });
         Object.values(originalCaches.pureFnsCache).forEach((nsCache) => {
             Object.values(nsCache).forEach((value) => {
-                value._used = true;
+                (value as Cacheable)._used = true;
             });
         });
         Object.values(originalRouterCache).forEach((value) => {
-            value._used = true;
+            (value as Cacheable)._used = true;
         });
 
         const originalCacheData: CacheData = {
@@ -227,17 +227,17 @@ describe('AOT cache _used', () => {
         const filteredJit = filterUsedJitFns(jitCache as any);
         expect(filteredJit.used).toBeDefined();
         expect(filteredJit.unused).toBeUndefined();
-        expect(filteredJit.used._used).toBe(false);
+        expect((filteredJit.used as Cacheable)._used).toBeUndefined();
 
         const filteredPure = filterUsedPureFns(pureCache as any);
         expect(filteredPure.ns.used).toBeDefined();
         expect(filteredPure.ns.unused).toBeUndefined();
-        expect(filteredPure.ns.used._used).toBe(false);
+        expect((filteredPure.ns.used as Cacheable)._used).toBeUndefined();
 
         const filteredRouter = filterUsedRouterCache(routerCache);
         expect(filteredRouter.used).toBeDefined();
         expect(filteredRouter.unused).toBeUndefined();
-        expect(filteredRouter.used._used).toBe(false);
+        expect(filteredRouter.used._used).toBeUndefined();
     });
 });
 

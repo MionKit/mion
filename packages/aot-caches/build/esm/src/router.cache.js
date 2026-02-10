@@ -1,6 +1,5 @@
 const routerCache = {
 	"@thrownErrors": {
-		_used: false,
 		paramNames: [],
 		type: 1,
 		id: "@thrownErrors",
@@ -18,7 +17,6 @@ const routerCache = {
 		},
 	},
 	"mion@notFound": {
-		_used: false,
 		paramNames: [],
 		type: 1,
 		id: "mion@notFound",
@@ -36,7 +34,6 @@ const routerCache = {
 		},
 	},
 	"mion@platformError": {
-		_used: false,
 		paramNames: [],
 		type: 1,
 		id: "mion@platformError",
@@ -54,14 +51,13 @@ const routerCache = {
 		},
 	},
 	"mion@methodsMetadataById": {
-		_used: false,
 		paramNames: ["methodsIds", "getAllRemoteMethods"],
 		type: 1,
 		id: "mion@methodsMetadataById",
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "JtnVhp",
-		returnJitHash: "Tvv1Z9",
+		returnJitHash: "vdfHR3",
 		pointer: ["mion@methodsMetadataById"],
 		nestLevel: 0,
 		options: {
@@ -72,14 +68,13 @@ const routerCache = {
 		},
 	},
 	"mion@methodsMetadataByPath": {
-		_used: false,
 		paramNames: ["path", "getAllRemoteMethods"],
 		type: 1,
 		id: "mion@methodsMetadataByPath",
 		isAsync: false,
 		hasReturnData: true,
 		paramsJitHash: "hZzD9z",
-		returnJitHash: "Tvv1Z9",
+		returnJitHash: "vdfHR3",
 		pointer: ["mion@methodsMetadataByPath"],
 		nestLevel: 0,
 		options: {
@@ -90,7 +85,6 @@ const routerCache = {
 		},
 	},
 	"mion@mionEmptyLinkedFn": {
-		_used: false,
 		paramNames: [],
 		type: 2,
 		id: "mion@mionEmptyLinkedFn",

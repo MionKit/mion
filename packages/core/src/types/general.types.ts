@@ -15,10 +15,6 @@ import {TypeFormatError, TypeFormatValue} from './formats/formats.types';
  * !! Important: this needs to be defined as a type for reflection to work correctly
  * !! we can not use  typeof jitUtils
  */
-export interface Cacheable {
-    _used?: boolean;
-}
-
 export interface JITUtils {
     /** optimized function to convert an string into a json string wrapped in double quotes */
     asJSONString(str: string): string;
@@ -201,7 +197,7 @@ export type PureFunction = (...args: any[]) => any;
 export type PureFunctionClosure = (jitUtils: JITUtils) => PureFunction;
 
 /** Data for a pure function that can be serialized and deserialized. */
-export interface PureFunctionData extends Cacheable {
+export interface PureFunctionData {
     /** The namespace this pure function belongs to */
     readonly namespace: string;
     /** The names of the arguments of the function */
@@ -210,6 +206,8 @@ export interface PureFunctionData extends Cacheable {
     readonly code: string;
     /** Unique id of the function */
     readonly pureFnHash: string;
+    /** Hash of the function body for version validation */
+    readonly bodyHash: string;
     /** The list of all pure functions that are used by this function and it's children. */
     readonly dependencies: Set<string>;
 }
@@ -236,7 +234,7 @@ export type JitFnArgs = {
     [key: string]: string;
 };
 
-export interface JitCompiledFnData extends Cacheable {
+export interface JitCompiledFnData {
     readonly typeName: string;
     /** The id of the function (operation) to be compiled (isType, typeErrors, prepareForJson, restoreFromJson, etc) */
     readonly fnID: string;

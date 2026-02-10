@@ -25,21 +25,18 @@ export let persistedMethods: MethodsCache = {};
 
 export function addToPersistedMethods(id: string, method: RemoteMethod) {
     if (!shouldCompile() || !!persistedMethods[id]) return;
-    method._used = true;
     persistedMethods[id] = method;
 }
 
 export function getPersistedMethod(id: string, handler: AnyHandler): RemoteMethod | undefined {
     const method = persistedMethods?.[id];
     if (!method) return;
-    method._used = true;
     return restorePersistedMethod(method, handler);
 }
 
 /** Gets method metadata from the persisted methods cache by id. */
 export function getPersistedMethodMetadata(id: string): MethodMetadata | undefined {
     const method = persistedMethods[id];
-    if (method) method._used = true;
     return method;
 }
 

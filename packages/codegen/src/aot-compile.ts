@@ -156,6 +156,10 @@ Cache files updated in both CJS and ESM formats:
     }
 }
 
+export interface Cacheable {
+    _used?: boolean;
+}
+
 let compileTrackingEnabled = false;
 let originalJitUtilsBackup: Record<string, any> | null = null;
 let originalRoutesCacheBackup: Record<string, any> | null = null;
@@ -192,46 +196,37 @@ function enableCompileTracking(): void {
     const originalJitUtils = originalJitUtilsBackup;
 
     jitUtils.addToJitCache = (comp) => {
-        comp._used = true;
+        (comp as Cacheable)._used = true;
         originalJitUtils.addToJitCache(comp);
     };
     jitUtils.addPureFn = (namespace, compiledFn) => {
-        const fnHash = compiledFn.pureFnHash;
-        if (!fnHash) throw new Error('Pure function must have a name and must be unique');
-        const caches = getJitFnCaches().pureFnsCache as any;
-        const nsCache = caches[namespace] ?? (caches[namespace] = {});
-        const existing = nsCache[fnHash];
-        if (existing) return existing;
-        compiledFn._used = true;
-        nsCache[fnHash] = compiledFn as any;
-        return compiledFn as any;
+        (compiledFn as Cacheable)._used = true;
+        return originalJitUtils.addPureFn(namespace, compiledFn);
     };
     jitUtils.getJIT = (jitFnHash) => {
         const comp = originalJitUtils.getJIT(jitFnHash);
-        if (comp) comp._used = true;
+        if (comp) (comp as Cacheable)._used = true;
         return comp;
     };
     jitUtils.getJitFn = (jitFnHash) => {
         const comp = originalJitUtils.getJIT(jitFnHash);
-        if (!comp) throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
-        comp._used = true;
-        return comp.fn;
+        if (comp) (comp as Cacheable)._used = true;
+        return originalJitUtils.getJitFn(jitFnHash);
     };
     jitUtils.getPureFn = (namespace, fnHash) => {
         const compiled = originalJitUtils.getCompiledPureFn(namespace, fnHash);
         if (!compiled) return;
-        compiled._used = true;
+        (compiled as Cacheable)._used = true;
         return originalJitUtils.getPureFn(namespace, fnHash);
     };
     jitUtils.getCompiledPureFn = (namespace, fnHash) => {
         const compiled = originalJitUtils.getCompiledPureFn(namespace, fnHash);
-        if (compiled) compiled._used = true;
+        if (compiled) (compiled as Cacheable)._used = true;
         return compiled;
     };
     jitUtils.usePureFn = (namespace, fnHash) => {
         const compiled = originalJitUtils.getCompiledPureFn(namespace, fnHash);
-        if (!compiled) throw new Error(`Pure function with name ${fnHash} not found in namespace ${namespace}`);
-        compiled._used = true;
+        if (compiled) (compiled as Cacheable)._used = true;
         return originalJitUtils.usePureFn(namespace, fnHash);
     };
 
@@ -254,11 +249,11 @@ function enableCompileTracking(): void {
         return method;
     };
     routesCache.setMetadata = (id, methodData) => {
-        methodData._used = true;
+        (methodData as Cacheable)._used = true;
         originalRoutesCache.setMetadata(id, methodData);
     };
     routesCache.setMethodJitFns = (id, method) => {
-        method._used = true;
+        (method as Cacheable)._used = true;
         originalRoutesCache.setMethodJitFns(id, method);
     };
 }
@@ -327,8 +322,8 @@ export function writeAOTCachesToFiles(
 export function filterUsedJitFns(jitFnsCache: JitFunctionsCache): JitFunctionsCache {
     return Object.fromEntries(
         Object.entries(jitFnsCache)
-            .filter(([, value]) => value._used === true)
-            .map(([key, value]) => [key, {...value, _used: false}])
+            .filter(([, value]) => (value as Cacheable)._used === true)
+            .map(([key, value]) => [key, {...value, _used: undefined}])
     ) as JitFunctionsCache;
 }
 
@@ -338,8 +333,8 @@ export function filterUsedPureFns(pureFnsCache: PureFunctionsCache): PureFunctio
             namespace,
             Object.fromEntries(
                 Object.entries(nsCache)
-                    .filter(([, value]) => value._used === true)
-                    .map(([key, value]) => [key, {...value, _used: false}])
+                    .filter(([, value]) => (value as Cacheable)._used === true)
+                    .map(([key, value]) => [key, {...value, _used: undefined}])
             ),
         ])
     ) as PureFunctionsCache;
@@ -348,8 +343,8 @@ export function filterUsedPureFns(pureFnsCache: PureFunctionsCache): PureFunctio
 export function filterUsedRouterCache(routerCache: Record<string, any>): Record<string, any> {
     return Object.fromEntries(
         Object.entries(routerCache)
-            .filter(([, value]) => value?._used === true)
-            .map(([key, value]) => [key, {...value, _used: false}])
+            .filter(([, value]) => (value as Cacheable)?._used === true)
+            .map(([key, value]) => [key, {...value, _used: undefined}])
     );
 }
 
