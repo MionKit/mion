@@ -7,7 +7,15 @@
 
 import {existsSync, rmSync, mkdirSync, readFileSync} from 'fs';
 import {join, resolve} from 'path';
-import {writeAOTCachesToFiles, compileAOT, type CacheData} from './aot-compile';
+import {
+    writeAOTCachesToFiles,
+    compileAOT,
+    filterUsedJitFns,
+    filterUsedPureFns,
+    filterUsedRouterCache,
+    resetCompileTracking,
+    type CacheData,
+} from './aot-compile';
 import {initAOT} from './cli-init-aot';
 import {headersFn, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
 import {getJitFnCaches, resetJitFnCaches, addAOTCaches, HeadersSubset} from '@mionkit/core';
@@ -61,6 +69,14 @@ describe('AOT Cache Compilation E2E', () => {
         // Reset router and caches
         resetRouter();
         resetJitFnCaches();
+        resetCompileTracking();
+
+        // Clean up require cache to prevent state pollution to other tests
+        Object.keys(require.cache).forEach((key) => {
+            if (key.includes('e2e-aot-test') || key.includes('e2e-eviction-test') || key.includes('test-router')) {
+                delete require.cache[key];
+            }
+        });
     });
 
     it('should preserve cache data through file write and load cycle', async () => {
@@ -93,6 +109,18 @@ describe('AOT Cache Compilation E2E', () => {
         // Step 3: Read all caches and create a list of their entries
         const originalCaches = getJitFnCaches();
         const originalRouterCache = getPersistedMethods();
+
+        Object.values(originalCaches.jitFnsCache).forEach((value) => {
+            value._used = true;
+        });
+        Object.values(originalCaches.pureFnsCache).forEach((nsCache) => {
+            Object.values(nsCache).forEach((value) => {
+                value._used = true;
+            });
+        });
+        Object.values(originalRouterCache).forEach((value) => {
+            value._used = true;
+        });
 
         const originalCacheData: CacheData = {
             jitFnsCache: originalCaches.jitFnsCache,
@@ -173,6 +201,46 @@ describe('AOT Cache Compilation E2E', () => {
     });
 });
 
+describe('AOT cache _used', () => {
+    it('should keep only used entries and reset _used', () => {
+        const jitCache = {
+            used: {fnID: 'isType', jitFnHash: 'used'} as any,
+            unused: {fnID: 'isType', jitFnHash: 'unused'} as any,
+        };
+        jitCache.used._used = true;
+        jitCache.unused._used = false;
+
+        const pureCache = {
+            ns: {
+                used: {pureFnHash: 'used'} as any,
+                unused: {pureFnHash: 'unused'} as any,
+            },
+        };
+        pureCache.ns.used._used = true;
+        pureCache.ns.unused._used = false;
+
+        const routerCache = {
+            used: {_used: true, id: 'used'} as any,
+            unused: {_used: false, id: 'unused'} as any,
+        };
+
+        const filteredJit = filterUsedJitFns(jitCache as any);
+        expect(filteredJit.used).toBeDefined();
+        expect(filteredJit.unused).toBeUndefined();
+        expect(filteredJit.used._used).toBe(false);
+
+        const filteredPure = filterUsedPureFns(pureCache as any);
+        expect(filteredPure.ns.used).toBeDefined();
+        expect(filteredPure.ns.unused).toBeUndefined();
+        expect(filteredPure.ns.used._used).toBe(false);
+
+        const filteredRouter = filterUsedRouterCache(routerCache);
+        expect(filteredRouter.used).toBeDefined();
+        expect(filteredRouter.unused).toBeUndefined();
+        expect(filteredRouter.used._used).toBe(false);
+    });
+});
+
 describe('AOT TypeScript File Compilation', () => {
     const testAotDir = join(TEST_ARTIFACTS_DIR, 'ts-aot-test');
 
@@ -196,6 +264,14 @@ describe('AOT TypeScript File Compilation', () => {
         // Reset router and caches
         resetRouter();
         resetJitFnCaches();
+        resetCompileTracking();
+
+        // Clean up require cache to prevent state pollution from previous tests
+        Object.keys(require.cache).forEach((key) => {
+            if (key.includes('test-router')) {
+                delete require.cache[key];
+            }
+        });
 
         // Create AOT package first
         initAOT({
@@ -213,6 +289,7 @@ describe('AOT TypeScript File Compilation', () => {
         // Reset router and caches
         resetRouter();
         resetJitFnCaches();
+        resetCompileTracking();
     });
 
     it('should compile TypeScript router file using ts-node', async () => {

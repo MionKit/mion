@@ -7,13 +7,13 @@
 
 // ########################################## METHODS METADATA ##########################################
 
-import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, SerializerMode} from './general.types';
+import {Cacheable, FnsDataCache, PureFnsDataCache, JitCompiledFunctions, SerializerMode} from './general.types';
 
 /**
  * Shared interface for PublicMethod that can be used between client and server without handler dependencies
  * Serializable version of MethodMetadata in @/router/types/remoteMethods
  */
-export interface MethodMetadata {
+export interface MethodMetadata extends Cacheable {
     /** Method type identifier */
     type: number;
     /** Unique identifier for the method (usually the full route path) */
