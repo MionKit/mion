@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect, beforeEach, vi} from 'vitest';
 import {restoreCompiledJitFns} from './restoreJitFns';
 import {addAOTCaches, addSerializedJitCaches, getJitUtils, resetJitFnCaches} from '../jitUtils';
 import type {
@@ -636,7 +637,7 @@ describe('restoreJitFns', () => {
             };
 
             // Spy on console.warn to verify eviction warning
-            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
             addSerializedJitCaches({}, updatedPureCache);
 
@@ -687,7 +688,7 @@ describe('restoreJitFns', () => {
             };
 
             // Spy on console.warn to verify no eviction warning
-            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
             addSerializedJitCaches({}, samePureCache);
 
@@ -716,7 +717,7 @@ describe('restoreJitFns', () => {
             };
 
             // Spy on console.warn to verify no eviction warning
-            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
             addSerializedJitCaches({}, newPureCache);
 
@@ -762,7 +763,7 @@ describe('restoreJitFns', () => {
             };
 
             // Spy on console.warn
-            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
             addSerializedJitCaches({}, newFormatCache);
 
