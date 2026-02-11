@@ -1,0 +1,8 @@
+{
+  "name": "test-monorepo-fixture",
+  "private": true,
+  "workspaces": [
+    "packages/test-client",
+    "packages/test-server"
+  ]
+}

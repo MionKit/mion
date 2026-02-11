@@ -18,6 +18,8 @@ const PRIME = 37; // Prime number to mix hash robustly, but quick
 // variable hash length avoids collisions, so there shouldn't be any problems. but better to keep an eye on it
 export const hashDefaultLength = 6;
 export const defaultLiteralLength = 5;
+/** Hash length used for pure function body hashes */
+export const pureFnHashLength = 8;
 
 export function quickHash(input: string, length = hashDefaultLength, prevResult?: string): string {
     let hash = 0;
@@ -66,4 +68,10 @@ export function createUniqueHash(id: string, length = hashDefaultLength, isLiter
 
 export function createHashLiteral(id: string, length = defaultLiteralLength): string {
     return createUniqueHash(id, length, true);
+}
+
+/** Resets the hash dictionaries. Useful for testing to ensure consistent hash generation. */
+export function resetHashes(): void {
+    hashes.clear();
+    literalHashes.clear();
 }
