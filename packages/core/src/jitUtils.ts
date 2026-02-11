@@ -5,10 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {
-    CompiledPureFunction,
     JitCompiledFn,
     JitFunctionsCache,
-    PureFunction,
     PureFunctionsCache,
     PersistedPureFunctionsCache,
     PureFnsDataCache,
@@ -21,9 +19,11 @@ import type {
     PersistedJitFunctionsCache,
     FnsDataCache,
 } from './types/general.types';
+import type {CompiledPureFunction} from './types/pureFunctions.types';
+import type {PureFunction} from './types/pureFunctions.types';
 import {MAX_UNKNOWN_KEYS} from './constants';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
-import {restoreCompiledJitFns} from './restoreJitFns';
+import {restoreCompiledJitFns} from './pureFns/restoreJitFns';
 import {jitFnsCache as aotJitFnsCache, pureFnsCache as aotPureFnsCache} from '@mionkit/aot-caches';
 import {TypeFormatError} from './types/formats/formats.types';
 
@@ -41,44 +41,6 @@ const deserializeFnsRegistry = new Map<string, DeserializeClassFn<any>>();
 const serializableClassRegistry = new Map<string, SerializableClass>();
 
 const jitUtils: JITUtils = {
-    /** optimized function to convert an string into a json string wrapped in double quotes */
-    asJSONString(str: string) {
-        // Bellow code for 'asJSONString' is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
-        // which in turn got 'inspiration' from typia https://github.com/samchon/typia/blob/master/src/functional/$string.ts
-        // both under MIT license
-        // typia license: https://github.com/samchon/typia/blob/master/LICENSE
-        // fastify lisecense: https://github.com/fastify/fast-json-stringify/blob/master/LICENSE
-        if (str.length < 42) {
-            const len = str.length;
-            let result = '';
-            let last = -1;
-            let point = 255;
-
-            // eslint-disable-next-line
-            for (var i = 0; i < len; i++) {
-                point = str.charCodeAt(i);
-                if (
-                    point === 0x22 || // '"'
-                    point === 0x5c // '\'
-                ) {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                    last === -1 && (last = 0);
-                    result += str.slice(last, i) + '\\';
-                    last = i;
-                } else if (point < 32 || (point >= 0xd800 && point <= 0xdfff)) {
-                    // The current character is non-printable characters or a surrogate.
-                    return JSON.stringify(str);
-                }
-            }
-
-            return (last === -1 && '"' + str + '"') || '"' + result + str.slice(last) + '"';
-        } else if (str.length < MAX_SCAPE_TEST_LENGTH && STR_ESCAPE.test(str) === false) {
-            // Only use the regular expression for shorter input. The overhead is otherwise too much.
-            return '"' + str + '"';
-        } else {
-            return JSON.stringify(str);
-        }
-    },
     addToJitCache(comp: JitCompiledFn) {
         jitFnsCache[comp.jitFnHash] = comp;
     },
@@ -185,7 +147,45 @@ const jitUtils: JITUtils = {
     getDeserializeFn(className: string): DeserializeClassFn<any> | undefined {
         return deserializeFnsRegistry.get(className);
     },
-    // TODO: all functions bellow could be moved to pure functions instead being part of jitUtils
+    // ###### TODO: all functions bellow could be moved to pure functions instead being part of jitUtils ######
+    /** optimized function to convert an string into a json string wrapped in double quotes */
+    asJSONString(str: string) {
+        // Bellow code for 'asJSONString' is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
+        // which in turn got 'inspiration' from typia https://github.com/samchon/typia/blob/master/src/functional/$string.ts
+        // both under MIT license
+        // typia license: https://github.com/samchon/typia/blob/master/LICENSE
+        // fastify lisecense: https://github.com/fastify/fast-json-stringify/blob/master/LICENSE
+        if (str.length < 42) {
+            const len = str.length;
+            let result = '';
+            let last = -1;
+            let point = 255;
+
+            // eslint-disable-next-line
+            for (var i = 0; i < len; i++) {
+                point = str.charCodeAt(i);
+                if (
+                    point === 0x22 || // '"'
+                    point === 0x5c // '\'
+                ) {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+                    last === -1 && (last = 0);
+                    result += str.slice(last, i) + '\\';
+                    last = i;
+                } else if (point < 32 || (point >= 0xd800 && point <= 0xdfff)) {
+                    // The current character is non-printable characters or a surrogate.
+                    return JSON.stringify(str);
+                }
+            }
+
+            return (last === -1 && '"' + str + '"') || '"' + result + str.slice(last) + '"';
+        } else if (str.length < MAX_SCAPE_TEST_LENGTH && STR_ESCAPE.test(str) === false) {
+            // Only use the regular expression for shorter input. The overhead is otherwise too much.
+            return '"' + str + '"';
+        } else {
+            return JSON.stringify(str);
+        }
+    },
     getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
         const unknownKeys: StrNumber[] = [];
         for (const prop in obj) {

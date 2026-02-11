@@ -18,8 +18,9 @@ import {
     MethodsCache,
     HeadersSubset,
     MethodWithOptions,
+    registerPureFnClosure,
 } from '@mionkit/core';
-import {BaseRunType, JitFunctions, registerPureFnClosure, runType} from '@mionkit/run-types';
+import {BaseRunType, JitFunctions, runType} from '@mionkit/run-types';
 import {getPersistedMethods, headersFn, initRouter, registerRoutes, route, Routes} from '@mionkit/router';
 
 afterEach(() => resetJitFnCaches());

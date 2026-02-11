@@ -1,20 +1,10 @@
-import {PureFunctionClosure, CompiledPureFunction, getJitUtils, PureFunction} from '@mionkit/core';
+import {PureFunctionClosure, CompiledPureFunction, getJitUtils} from '@mionkit/core';
 import {createUniqueHash} from './quickHash';
 
-export function getCompiledPureFn(namespace: string, fnOrName: string | PureFunctionClosure): CompiledPureFunction | undefined {
-    const key = getPureFunctionKey(fnOrName);
-    return getJitUtils().getCompiledPureFn(namespace, key);
-}
-
-export function getPureFunctionKey(fnOrName: string | PureFunctionClosure): string {
-    const name = typeof fnOrName === 'string' ? fnOrName : fnOrName.name;
+export function getPureFunctionKey(fn: PureFunctionClosure): string {
+    const name = fn.name;
     if (!name) throw new Error('Pure Functions must have a name');
     return name;
-}
-
-export function getPureFn(namespace: string, fnOrName: string | PureFunctionClosure): PureFunction | undefined {
-    const key = getPureFunctionKey(fnOrName);
-    return getJitUtils().getPureFn(namespace, key);
 }
 
 export function registerPureFnClosuresGroup(namespace: string, fnsWithCtx: PureFunctionClosure[]): CompiledPureFunction[] {
@@ -41,7 +31,7 @@ export function registerPureFnClosure(
     const compiled = parsePureFunctionWithCtx(namespace, fnWithCtx);
     if (dependencies) {
         dependencies.forEach((d) => registerPureFnClosure(namespace, d));
-        dependencies.forEach((d) => compiled.dependencies.add(getPureFunctionKey(d.name)));
+        dependencies.forEach((d) => compiled.dependencies.add(getPureFunctionKey(d)));
     }
     getJitUtils().addPureFn(namespace, compiled);
     return compiled;
@@ -91,7 +81,7 @@ function parsePureFunctionWithCtx(namespace: string, createJitFn: PureFunctionCl
         createJitFn: createJitFn,
         fn: null as any, // will be set later so all possible dependencies are resolved
         namespace,
-        fnName: getPureFunctionKey(createJitFn.name),
+        fnName: createJitFn.name,
         bodyHash: createUniqueHash(namespace + createJitFn.name + body, 12),
         paramNames,
         code: body,

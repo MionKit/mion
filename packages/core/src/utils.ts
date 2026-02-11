@@ -8,7 +8,8 @@
 import {resolve} from 'path/posix';
 import {MAX_STACK_DEPTH} from './constants';
 import {getJitUtils} from './jitUtils';
-import type {CompiledPureFunction, PureFunction} from './types/general.types';
+import type {CompiledPureFunction} from './types/pureFunctions.types';
+import type {PureFunction} from './types/pureFunctions.types';
 
 /** Generates a random UUID V7, no hyphens are included in the uuid */
 export function randomUUID_V7(): string {

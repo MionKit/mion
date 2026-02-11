@@ -7,6 +7,7 @@
 
 export * from './src/types/general.types';
 export * from './src/types/method.types';
+export * from './src/types/pureFunctions.types';
 export * from './src/types/formats/formats.types';
 export * from './src/types/formats/formatsParams.types';
 export * from './src/types/formats/friendlyErrors.types';
@@ -22,3 +23,5 @@ export * from './src/jitUtils';
 export * from './src/routerUtils';
 export * from './src/utils';
 export * from './src/headers';
+export * from './src/pureFns/pureFn';
+export * from './src/pureFns/quickHash';

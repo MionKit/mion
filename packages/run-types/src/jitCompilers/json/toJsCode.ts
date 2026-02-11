@@ -16,7 +16,7 @@ import {JitFunctions} from '../../constants.functions';
 import {JitFnCompiler} from '../../lib/jitFnCompiler';
 import {isSafePropName} from '../../lib/utils';
 import {createStringifyCompiler, createStringifyIterable} from './stringifyJson';
-import {registerPureFnClosure} from '../../lib/pureFn';
+import {registerPureFnClosure} from '@mionkit/core';
 
 export function createToCodeCompiler() {
     const fnID = JitFunctions.toJSCode.id;

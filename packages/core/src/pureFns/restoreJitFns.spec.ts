@@ -6,13 +6,13 @@
  * ######## */
 
 import {restoreCompiledJitFns} from './restoreJitFns';
-import {addAOTCaches, addSerializedJitCaches, getJitUtils, resetJitFnCaches} from './jitUtils';
+import {addAOTCaches, addSerializedJitCaches, getJitUtils, resetJitFnCaches} from '../jitUtils';
 import type {
     PersistedJitFunctionsCache,
     PersistedPureFunctionsCache,
     FnsDataCache,
     PureFnsDataCache,
-} from './types/general.types';
+} from '../types/general.types';
 
 const TEST_NS = 'test';
 
