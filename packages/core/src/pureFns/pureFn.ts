@@ -1,6 +1,6 @@
 import type {CompiledPureFunction, PureFunctionClosure} from '../types/pureFunctions.types';
 import {getJitUtils} from '../jitUtils';
-import {createUniqueHash} from './quickHash';
+import {createUniqueHash, pureFnHashLength} from './quickHash';
 
 export function getPureFunctionKey(fn: PureFunctionClosure): string {
     const name = fn.name;
@@ -39,22 +39,17 @@ export function registerPureFnClosure(
 /**
  * Parses a pure function and returns it's data.
  * We are using toString() to get the function code, this might not work in all environments.
- * Also using regexp to parse the function code, a proper AST could be better bu this is working for now and is simpler.
  * @param namespace - The namespace this pure function belongs to
  * @param createJitFn - The pure function closure
- * @returns
  */
 function parsePureFunctionWithCtx(namespace: string, createJitFn: PureFunctionClosure): CompiledPureFunction {
     if (!createJitFn.name) throw new Error('Pure Functions must have a name');
 
     const fnString = createJitFn.toString();
-    const bodyStart = fnString.indexOf('{');
-    const bodyEnd = fnString.lastIndexOf('}');
-    if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) throw new Error("Invalid function, can't parse body");
 
+    // Extract parameters
     const paramsStart = fnString.indexOf('(') + 1;
     const paramsEnd = fnString.indexOf(')');
-
     if (paramsStart === 0 || paramsEnd === -1 || paramsEnd < paramsStart) {
         throw new Error("Invalid function, can't parse parameters");
     }
@@ -72,19 +67,64 @@ function parsePureFunctionWithCtx(namespace: string, createJitFn: PureFunctionCl
             );
     }
 
-    const body = fnString
-        .substring(bodyStart + 1, bodyEnd)
-        .trim()
-        .replace(/[ \t]+/g, ' ');
+    // Extract and normalize body using shared utility
+    const body = normalizePureFnBody(extractFunctionBody(fnString));
     const compiled: CompiledPureFunction = {
         createJitFn: createJitFn,
         fn: null as any, // will be set later so all possible dependencies are resolved
         namespace,
         fnName: createJitFn.name,
-        bodyHash: createUniqueHash(namespace + createJitFn.name + body, 8),
+        bodyHash: createUniqueHash(namespace + createJitFn.name + body, pureFnHashLength),
         paramNames,
         code: body,
         dependencies: new Set<string>(),
     };
     return compiled;
+}
+
+/** Normalizes a pure function body for consistent hashing (collapses whitespace) */
+export function normalizePureFnBody(body: string): string {
+    return body.replace(/[ \t]+/g, ' ').trim();
+}
+
+/** Extracts the function body from a function's toString() representation */
+export function extractFunctionBody(fnString: string): string {
+    // Handle arrow functions with expression body: (x) => x + 1
+    const arrowIndex = fnString.indexOf('=>');
+    if (arrowIndex !== -1) {
+        const afterArrow = fnString.substring(arrowIndex + 2).trim();
+        if (afterArrow.startsWith('{')) {
+            // Arrow function with block body
+            const bodyStart = fnString.indexOf('{', arrowIndex);
+            const bodyEnd = fnString.lastIndexOf('}');
+            if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) {
+                throw new Error("Invalid arrow function, can't parse body");
+            }
+            return fnString.substring(bodyStart + 1, bodyEnd).trim();
+        }
+        // Arrow function with expression body - wrap in return
+        return `return ${afterArrow}`;
+    }
+
+    // Handle regular function
+    const bodyStart = fnString.indexOf('{');
+    const bodyEnd = fnString.lastIndexOf('}');
+    if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) {
+        throw new Error("Invalid function, can't parse body");
+    }
+    return fnString.substring(bodyStart + 1, bodyEnd).trim();
+}
+
+/** Computes the body hash for a pure function (includes fnName in hash for core pure functions) */
+export function computePureFnBodyHash(namespace: string, fnName: string, fnString: string): string {
+    const body = extractFunctionBody(fnString);
+    const normalizedBody = normalizePureFnBody(body);
+    return createUniqueHash(namespace + fnName + normalizedBody, pureFnHashLength);
+}
+
+/** Computes the body hash for a pure server function (body-only hash, no fnName) */
+export function computePureServerFnBodyHash(namespace: string, fnString: string): string {
+    const body = extractFunctionBody(fnString);
+    const normalizedBody = normalizePureFnBody(body);
+    return createUniqueHash(namespace + normalizedBody, pureFnHashLength);
 }

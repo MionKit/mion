@@ -76,7 +76,8 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "vite": "^6.1.0",
-    "vite-plugin-dts": "^4.0.0"
+    "vite-plugin-dts": "^4.0.0",
+    "vitest": "^2.1.9"
   },
   "workspaces": [
     "packages/aot-caches",
@@ -94,6 +95,7 @@
     "packages/quick-start",
     "packages/router",
     "packages/run-types",
+    "packages/server-pure-functions",
     "packages/test-server"
   ],
   "dependencies": {
