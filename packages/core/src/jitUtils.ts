@@ -10,22 +10,18 @@ import type {
     PureFunctionsCache,
     PersistedPureFunctionsCache,
     PureFnsDataCache,
-    RunTypeError,
     DeserializeClassFn,
     AnyClass,
     SerializableClass,
-    StrNumber,
     JITUtils,
     PersistedJitFunctionsCache,
     FnsDataCache,
 } from './types/general.types';
 import type {CompiledPureFunction} from './types/pureFunctions.types';
 import type {PureFunction} from './types/pureFunctions.types';
-import {MAX_UNKNOWN_KEYS} from './constants';
-import {isSafeMapKeyValue, initPureFunction} from './utils';
+import {initPureFunction} from './utils';
 import {restoreCompiledJitFns} from './pureFns/restoreJitFns';
 import {jitFnsCache as aotJitFnsCache, pureFnsCache as aotPureFnsCache} from '@mionkit/aot-caches';
-import {TypeFormatError} from './types/formats/formats.types';
 
 // Local caches - can be populated from AOT caches via loadJitCaches()
 const jitFnsCache: JitFunctionsCache = {};
@@ -33,9 +29,6 @@ const jitFnsCache: JitFunctionsCache = {};
 const pureFnsCache: PureFunctionsCache = {};
 let coreAOTCachesLoaded = false;
 
-// eslint-disable-next-line no-control-regex
-const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
-const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
 // serializable classes registry, serializable classes can be automatically deserialized if they are registered here
 const deserializeFnsRegistry = new Map<string, DeserializeClassFn<any>>();
 const serializableClassRegistry = new Map<string, SerializableClass>();
@@ -59,10 +52,12 @@ const jitUtils: JITUtils = {
     hasJitFn(jitFnHash: string) {
         return !!jitFnsCache[jitFnHash]?.fn;
     },
-    safeKey(value: any): any {
-        if (isSafeMapKeyValue(value)) return value;
-        return null;
-    },
+    /**
+     * Checks if key map can be serialized/deserialized with json and still works as a key for a map.
+     * ie: if a map key is an string, it can be serialized to json and deserialized back an still will identify the correct map entry.
+     * ie: if a map entry is an object, the object can not be serialized/deserialized and wont work as the same key for entry map as they are not same memory ref.
+     *  */
+
     addPureFn(namespace: string, compiledFn: CompiledPureFunction): CompiledPureFunction {
         const fnHash = compiledFn.fnName;
         if (!fnHash) throw new Error('Pure function must have a name and must be unique');
@@ -146,109 +141,6 @@ const jitUtils: JITUtils = {
     },
     getDeserializeFn(className: string): DeserializeClassFn<any> | undefined {
         return deserializeFnsRegistry.get(className);
-    },
-    // ###### TODO: all functions bellow could be moved to pure functions instead being part of jitUtils ######
-    /** optimized function to convert an string into a json string wrapped in double quotes */
-    asJSONString(str: string) {
-        // Bellow code for 'asJSONString' is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
-        // which in turn got 'inspiration' from typia https://github.com/samchon/typia/blob/master/src/functional/$string.ts
-        // both under MIT license
-        // typia license: https://github.com/samchon/typia/blob/master/LICENSE
-        // fastify lisecense: https://github.com/fastify/fast-json-stringify/blob/master/LICENSE
-        if (str.length < 42) {
-            const len = str.length;
-            let result = '';
-            let last = -1;
-            let point = 255;
-
-            // eslint-disable-next-line
-            for (var i = 0; i < len; i++) {
-                point = str.charCodeAt(i);
-                if (
-                    point === 0x22 || // '"'
-                    point === 0x5c // '\'
-                ) {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                    last === -1 && (last = 0);
-                    result += str.slice(last, i) + '\\';
-                    last = i;
-                } else if (point < 32 || (point >= 0xd800 && point <= 0xdfff)) {
-                    // The current character is non-printable characters or a surrogate.
-                    return JSON.stringify(str);
-                }
-            }
-
-            return (last === -1 && '"' + str + '"') || '"' + result + str.slice(last) + '"';
-        } else if (str.length < MAX_SCAPE_TEST_LENGTH && STR_ESCAPE.test(str) === false) {
-            // Only use the regular expression for shorter input. The overhead is otherwise too much.
-            return '"' + str + '"';
-        } else {
-            return JSON.stringify(str);
-        }
-    },
-    getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
-        const unknownKeys: StrNumber[] = [];
-        for (const prop in obj) {
-            let found = false;
-            for (let j = 0; j < keys.length; j++) {
-                if (keys[j] === prop) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                unknownKeys.push(prop as string);
-                if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error('Too many unknown keys');
-            }
-        }
-        // console.log('getUnknownKeysFromArray: ', false, unknownKeys);
-        return unknownKeys;
-    },
-    hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
-        for (const prop in obj) {
-            // iterates over the object keys and if not found prop adds to unknownKeys
-            let found = false;
-            for (let j = 0; j < keys.length; j++) {
-                if (keys[j] === prop) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) return true;
-        }
-        return false;
-    },
-    /**
-     * Creates an new RunTypeError and adds it to the errors array
-     * Note that all paths are copied when creating the new RunTypeError
-     * so they can't be modified after the error is created
-     */
-    err(pλth: readonly StrNumber[], εrr: RunTypeError[], expected: string, accessPath?: readonly StrNumber[]) {
-        const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
-        const runTypeErr: RunTypeError = {expected, path};
-        εrr.push(runTypeErr);
-    },
-    /**
-     * Creates an new RunTypeError with a TypeFormatError and adds it to the errors array
-     * Note that all paths are copied when creating the new RunTypeError
-     * so they can't be modified after the error is created
-     */
-    formatErr(
-        pλth: StrNumber[],
-        εrr: RunTypeError[],
-        expected: string,
-        fmtName: string,
-        paramName: string,
-        paramVal: string | number | boolean | bigint,
-        fmtPath: StrNumber[],
-        accessPath?: StrNumber[],
-        fmtAccessPath?: StrNumber[]
-    ) {
-        const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
-        const formatPath = fmtAccessPath?.length ? [...fmtPath, ...fmtAccessPath, paramName] : [...fmtPath, paramName];
-        const format: TypeFormatError = {name: fmtName, formatPath: formatPath, val: paramVal};
-        const runTypeErr: Required<RunTypeError> = {expected, path, format};
-        εrr.push(runTypeErr);
     },
 };
 

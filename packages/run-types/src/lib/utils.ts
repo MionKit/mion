@@ -23,7 +23,7 @@ export function toLiteral(value: number | string | boolean | undefined | null | 
         case 'number':
             return `${value}`;
         case 'string':
-            return getJitUtils().asJSONString(value);
+            return JSON.stringify(value);
         case 'boolean':
             return value ? 'true' : 'false';
         case 'undefined':

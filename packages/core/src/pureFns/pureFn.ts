@@ -1,4 +1,5 @@
-import {PureFunctionClosure, CompiledPureFunction, getJitUtils} from '@mionkit/core';
+import type {CompiledPureFunction, PureFunctionClosure} from '../types/pureFunctions.types';
+import {getJitUtils} from '../jitUtils';
 import {createUniqueHash} from './quickHash';
 
 export function getPureFunctionKey(fn: PureFunctionClosure): string {
@@ -25,8 +26,6 @@ export function registerPureFnClosure(
 ): CompiledPureFunction {
     const key = getPureFunctionKey(fnWithCtx);
     const existing = getJitUtils().getCompiledPureFn(namespace, key);
-    if (existing && existing.createJitFn && existing.createJitFn !== fnWithCtx)
-        throw new Error(`Pure function with name ${key} already exists in namespace ${namespace}`);
     if (existing) return existing;
     const compiled = parsePureFunctionWithCtx(namespace, fnWithCtx);
     if (dependencies) {
@@ -82,7 +81,7 @@ function parsePureFunctionWithCtx(namespace: string, createJitFn: PureFunctionCl
         fn: null as any, // will be set later so all possible dependencies are resolved
         namespace,
         fnName: createJitFn.name,
-        bodyHash: createUniqueHash(namespace + createJitFn.name + body, 12),
+        bodyHash: createUniqueHash(namespace + createJitFn.name + body, 8),
         paramNames,
         code: body,
         dependencies: new Set<string>(),

@@ -11,7 +11,7 @@ const hashes = new Map<string, string>();
 const literalHashes = new Map<string, string>();
 const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const alphaChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const hashIncrement = 1;
+const hashIncrement = 2;
 const maxHashCollisions = 22;
 const PRIME = 37; // Prime number to mix hash robustly, but quick
 // TODO: investigate if this is a good default length, we want short hashes for small code size but long enough to avoid to many collisions

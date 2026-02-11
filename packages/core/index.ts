@@ -25,3 +25,9 @@ export * from './src/utils';
 export * from './src/headers';
 export * from './src/pureFns/pureFn';
 export * from './src/pureFns/quickHash';
+export * from './src/pureFns/corePureUtils';
+
+// pure function utils must be registered after all modules are loaded
+// register pure functions when this module is loaded
+import {registerCorePureUtils} from './src/pureFns/corePureUtils';
+registerCorePureUtils();

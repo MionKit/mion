@@ -94,11 +94,12 @@ const jitFnsCache = {
 		jitFnHash: "te_cm6MsK",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: "const te_zxRrbt = utl.getJIT(\"te_zxRrbt\"); return function te_cm6MsK(v,pth=[],er=[]){\n if (!(typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'))) {\n utl.err(pth,er,\"object\");\n } else {\n for (const p0 in v) {pth.push(p0); te_zxRrbt.fn(v[p0],pth,er); pth.splice(-1);}\n }\n ; return er}",
+		code: 'const te_zxRrbt = utl.getJIT("te_zxRrbt");\nconst J3h7p77D = utl.getPureFn("mion", "err"); return function te_cm6MsK(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === \'[object Object]\'))) {\n J3h7p77D(pth,er,"object");\n } else {\n for (const p0 in v) {pth.push(p0); te_zxRrbt.fn(v[p0],pth,er); pth.splice(-1);}\n }\n ; return er}',
 		dependenciesSet: new Set(["te_zxRrbt"]),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::err"]),
 		createJitFn: function (utl) {
 			const te_zxRrbt = utl.getJIT("te_zxRrbt");
+			const J3h7p77D = utl.getPureFn("mion", "err");
 			return function te_cm6MsK(v, pth = [], er = []) {
 				if (
 					!(
@@ -108,7 +109,7 @@ const jitFnsCache = {
 						Object.prototype.toString.call(v) === "[object Object]"
 					)
 				) {
-					utl.err(pth, er, "object");
+					J3h7p77D(pth, er, "object");
 				} else {
 					for (const p0 in v) {
 						pth.push(p0);
@@ -128,24 +129,25 @@ const jitFnsCache = {
 		jitFnHash: "te_zxRrbt",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: 'const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_zxRrbt(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n utl.err(pth,er,"class");\n } else {\n if (v["mion@isΣrrθr"] !== true) utl.err(pth,er,"literal",["mion@isΣrrθr"]);if (typeof v.type !== \'string\') utl.err(pth,er,"string",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) utl.err(pth,er,"union",["id"]);};if (typeof v.publicMessage !== \'string\') utl.err(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) utl.err(pth,er,"number",["statusCode"]);}\n }\n ; return er}',
+		code: 'const J3h7p77D = utl.getPureFn("mion", "err");\nconst te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_zxRrbt(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n J3h7p77D(pth,er,"class");\n } else {\n if (v["mion@isΣrrθr"] !== true) J3h7p77D(pth,er,"literal",["mion@isΣrrθr"]);if (typeof v.type !== \'string\') J3h7p77D(pth,er,"string",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) J3h7p77D(pth,er,"union",["id"]);};if (typeof v.publicMessage !== \'string\') J3h7p77D(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) J3h7p77D(pth,er,"number",["statusCode"]);}\n }\n ; return er}',
 		dependenciesSet: new Set(["te_WEWIGI"]),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::err"]),
 		createJitFn: function (utl) {
+			const J3h7p77D = utl.getPureFn("mion", "err");
 			const te_WEWIGI = utl.getJIT("te_WEWIGI");
 			return function te_zxRrbt(v, pth = [], er = []) {
 				if (!(typeof v === "object" && v !== null)) {
-					utl.err(pth, er, "class");
+					J3h7p77D(pth, er, "class");
 				} else {
 					if (v["mion@isΣrrθr"] !== true)
-						utl.err(pth, er, "literal", ["mion@isΣrrθr"]);
-					if (typeof v.type !== "string") utl.err(pth, er, "string", ["type"]);
+						J3h7p77D(pth, er, "literal", ["mion@isΣrrθr"]);
+					if (typeof v.type !== "string") J3h7p77D(pth, er, "string", ["type"]);
 					if (v.id !== undefined) {
 						if (!(Number.isFinite(v.id) || typeof v.id === "string"))
-							utl.err(pth, er, "union", ["id"]);
+							J3h7p77D(pth, er, "union", ["id"]);
 					}
 					if (typeof v.publicMessage !== "string")
-						utl.err(pth, er, "string", ["publicMessage"]);
+						J3h7p77D(pth, er, "string", ["publicMessage"]);
 					if (v.errorData !== undefined) {
 						pth.push("errorData");
 						te_WEWIGI.fn(v.errorData, pth, er);
@@ -153,7 +155,7 @@ const jitFnsCache = {
 					}
 					if (v.statusCode !== undefined) {
 						if (!Number.isFinite(v.statusCode))
-							utl.err(pth, er, "number", ["statusCode"]);
+							J3h7p77D(pth, er, "number", ["statusCode"]);
 					}
 				}
 				return er;
@@ -168,10 +170,11 @@ const jitFnsCache = {
 		jitFnHash: "te_WEWIGI",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: " return function te_WEWIGI(v,pth=[],er=[]){\n if (!(typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'))) {\n utl.err(pth,er,\"object\");\n } else {\n \n }\n ; return er}",
+		code: 'const J3h7p77D = utl.getPureFn("mion", "err"); return function te_WEWIGI(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === \'[object Object]\'))) {\n J3h7p77D(pth,er,"object");\n } else {\n \n }\n ; return er}',
 		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::err"]),
 		createJitFn: function (utl) {
+			const J3h7p77D = utl.getPureFn("mion", "err");
 			return function te_WEWIGI(v, pth = [], er = []) {
 				if (
 					!(
@@ -181,7 +184,7 @@ const jitFnsCache = {
 						Object.prototype.toString.call(v) === "[object Object]"
 					)
 				) {
-					utl.err(pth, er, "object");
+					J3h7p77D(pth, er, "object");
 				} else {
 				}
 				return er;
@@ -341,11 +344,12 @@ const jitFnsCache = {
 		jitFnHash: "sj_cm6MsK",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const sj_zxRrbt = utl.getJIT(\"sj_zxRrbt\"); return function sj_cm6MsK(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_zxRrbt.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		code: "const sj_zxRrbt = utl.getJIT(\"sj_zxRrbt\");\nconst dPZtlHdz = utl.getPureFn(\"mion\", \"asJSONString\"); return function sj_cm6MsK(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(dPZtlHdz(p1) + ':' + sj_zxRrbt.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(["sj_zxRrbt"]),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::asJSONString"]),
 		createJitFn: function (utl) {
 			const sj_zxRrbt = utl.getJIT("sj_zxRrbt");
+			const dPZtlHdz = utl.getPureFn("mion", "asJSONString");
 			return function sj_cm6MsK(v) {
 				return (function () {
 					const ns0 = [];
@@ -354,7 +358,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + sj_zxRrbt.fn(v[p1]));
+									ls1.push(dPZtlHdz(p1) + ":" + sj_zxRrbt.fn(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -373,7 +377,7 @@ const jitFnsCache = {
 		jitFnHash: "sj_zxRrbt",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_zxRrbt(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)}else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+sj_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_zxRrbt(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return JSON.stringify(v.id)}else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+sj_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+JSON.stringify(v.type)+","+\'"publicMessage":\'+JSON.stringify(v.publicMessage)+\'}\'}',
 		dependenciesSet: new Set(["sj_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -390,7 +394,7 @@ const jitFnsCache = {
 								if (Number.isFinite(v.id)) {
 									return v.id;
 								} else if (typeof v.id === "string") {
-									return utl.asJSONString(v.id);
+									return JSON.stringify(v.id);
 								} else {
 									throw new Error(uErr0);
 								}
@@ -407,10 +411,10 @@ const jitFnsCache = {
 					(v["mion@isΣrrθr"] ? "true" : "false") +
 					"," +
 					'"type":' +
-					utl.asJSONString(v.type) +
+					JSON.stringify(v.type) +
 					"," +
 					'"publicMessage":' +
-					utl.asJSONString(v.publicMessage) +
+					JSON.stringify(v.publicMessage) +
 					"}"
 				);
 			};
@@ -424,10 +428,11 @@ const jitFnsCache = {
 		jitFnHash: "sj_WEWIGI",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function sj_WEWIGI(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + JSON.stringify(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		code: "const dPZtlHdz = utl.getPureFn(\"mion\", \"asJSONString\"); return function sj_WEWIGI(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(dPZtlHdz(p1) + ':' + JSON.stringify(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::asJSONString"]),
 		createJitFn: function (utl) {
+			const dPZtlHdz = utl.getPureFn("mion", "asJSONString");
 			return function sj_WEWIGI(v) {
 				return (function () {
 					const ns0 = [];
@@ -436,7 +441,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + JSON.stringify(v[p1]));
+									ls1.push(dPZtlHdz(p1) + ":" + JSON.stringify(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -679,25 +684,26 @@ const jitFnsCache = {
 		jitFnHash: "te_a8UQwC",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: 'const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_a8UQwC(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n utl.err(pth,er,"class");\n } else {\n if (v["mion@isΣrrθr"] !== true) utl.err(pth,er,"literal",["mion@isΣrrθr"]);if (v.type !== "route-not-found") utl.err(pth,er,"literal",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) utl.err(pth,er,"union",["id"]);};if (typeof v.publicMessage !== \'string\') utl.err(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) utl.err(pth,er,"number",["statusCode"]);}\n }\n ; return er}',
+		code: 'const J3h7p77D = utl.getPureFn("mion", "err");\nconst te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_a8UQwC(v,pth=[],er=[]){\n if (!(typeof v === \'object\' && v !== null)) {\n J3h7p77D(pth,er,"class");\n } else {\n if (v["mion@isΣrrθr"] !== true) J3h7p77D(pth,er,"literal",["mion@isΣrrθr"]);if (v.type !== "route-not-found") J3h7p77D(pth,er,"literal",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === \'string\')) J3h7p77D(pth,er,"union",["id"]);};if (typeof v.publicMessage !== \'string\') J3h7p77D(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) J3h7p77D(pth,er,"number",["statusCode"]);}\n }\n ; return er}',
 		dependenciesSet: new Set(["te_WEWIGI"]),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::err"]),
 		createJitFn: function (utl) {
+			const J3h7p77D = utl.getPureFn("mion", "err");
 			const te_WEWIGI = utl.getJIT("te_WEWIGI");
 			return function te_a8UQwC(v, pth = [], er = []) {
 				if (!(typeof v === "object" && v !== null)) {
-					utl.err(pth, er, "class");
+					J3h7p77D(pth, er, "class");
 				} else {
 					if (v["mion@isΣrrθr"] !== true)
-						utl.err(pth, er, "literal", ["mion@isΣrrθr"]);
+						J3h7p77D(pth, er, "literal", ["mion@isΣrrθr"]);
 					if (v.type !== "route-not-found")
-						utl.err(pth, er, "literal", ["type"]);
+						J3h7p77D(pth, er, "literal", ["type"]);
 					if (v.id !== undefined) {
 						if (!(Number.isFinite(v.id) || typeof v.id === "string"))
-							utl.err(pth, er, "union", ["id"]);
+							J3h7p77D(pth, er, "union", ["id"]);
 					}
 					if (typeof v.publicMessage !== "string")
-						utl.err(pth, er, "string", ["publicMessage"]);
+						J3h7p77D(pth, er, "string", ["publicMessage"]);
 					if (v.errorData !== undefined) {
 						pth.push("errorData");
 						te_WEWIGI.fn(v.errorData, pth, er);
@@ -705,7 +711,7 @@ const jitFnsCache = {
 					}
 					if (v.statusCode !== undefined) {
 						if (!Number.isFinite(v.statusCode))
-							utl.err(pth, er, "number", ["statusCode"]);
+							J3h7p77D(pth, er, "number", ["statusCode"]);
 					}
 				}
 				return er;
@@ -789,7 +795,7 @@ const jitFnsCache = {
 		jitFnHash: "sj_a8UQwC",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_a8UQwC(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)}else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+sj_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_a8UQwC(v){return \'{\'+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return JSON.stringify(v.id)}else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+sj_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+JSON.stringify(v.type)+","+\'"publicMessage":\'+JSON.stringify(v.publicMessage)+\'}\'}',
 		dependenciesSet: new Set(["sj_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -806,7 +812,7 @@ const jitFnsCache = {
 								if (Number.isFinite(v.id)) {
 									return v.id;
 								} else if (typeof v.id === "string") {
-									return utl.asJSONString(v.id);
+									return JSON.stringify(v.id);
 								} else {
 									throw new Error(uErr0);
 								}
@@ -823,10 +829,10 @@ const jitFnsCache = {
 					(v["mion@isΣrrθr"] ? "true" : "false") +
 					"," +
 					'"type":' +
-					utl.asJSONString(v.type) +
+					JSON.stringify(v.type) +
 					"," +
 					'"publicMessage":' +
-					utl.asJSONString(v.publicMessage) +
+					JSON.stringify(v.publicMessage) +
 					"}"
 				);
 			};
@@ -976,19 +982,20 @@ const jitFnsCache = {
 		jitFnHash: "te_JtnVhp",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: 'const te_b1N57x = utl.getJIT("te_b1N57x"); return function te_JtnVhp(v,pth=[],er=[]){if (v.length > 2) utl.err(pth,er,"params"); else {pth.push(0); te_b1N57x.fn(v[0],pth,er); pth.splice(-1);if (v[1] !== undefined) {if (typeof v[1] !== \'boolean\') utl.err(pth,er,"boolean",[1]);}} return er}',
+		code: 'const te_b1N57x = utl.getJIT("te_b1N57x");\nconst J3h7p77D = utl.getPureFn("mion", "err"); return function te_JtnVhp(v,pth=[],er=[]){if (v.length > 2) J3h7p77D(pth,er,"params"); else {pth.push(0); te_b1N57x.fn(v[0],pth,er); pth.splice(-1);if (v[1] !== undefined) {if (typeof v[1] !== \'boolean\') J3h7p77D(pth,er,"boolean",[1]);}} return er}',
 		dependenciesSet: new Set(["te_b1N57x"]),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::err"]),
 		createJitFn: function (utl) {
 			const te_b1N57x = utl.getJIT("te_b1N57x");
+			const J3h7p77D = utl.getPureFn("mion", "err");
 			return function te_JtnVhp(v, pth = [], er = []) {
-				if (v.length > 2) utl.err(pth, er, "params");
+				if (v.length > 2) J3h7p77D(pth, er, "params");
 				else {
 					pth.push(0);
 					te_b1N57x.fn(v[0], pth, er);
 					pth.splice(-1);
 					if (v[1] !== undefined) {
-						if (typeof v[1] !== "boolean") utl.err(pth, er, "boolean", [1]);
+						if (typeof v[1] !== "boolean") J3h7p77D(pth, er, "boolean", [1]);
 					}
 				}
 				return er;
@@ -1003,16 +1010,17 @@ const jitFnsCache = {
 		jitFnHash: "te_b1N57x",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: ' return function te_b1N57x(v,pth=[],er=[]){if (!Array.isArray(v)) {utl.err(pth,er,"array")} else {for (let i0 = 0; i0 < v.length; i0++) {if (typeof v[i0] !== \'string\') utl.err(pth,er,"string",[i0]);}} return er}',
+		code: 'const J3h7p77D = utl.getPureFn("mion", "err"); return function te_b1N57x(v,pth=[],er=[]){if (!Array.isArray(v)) {J3h7p77D(pth,er,"array")} else {for (let i0 = 0; i0 < v.length; i0++) {if (typeof v[i0] !== \'string\') J3h7p77D(pth,er,"string",[i0]);}} return er}',
 		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::err"]),
 		createJitFn: function (utl) {
+			const J3h7p77D = utl.getPureFn("mion", "err");
 			return function te_b1N57x(v, pth = [], er = []) {
 				if (!Array.isArray(v)) {
-					utl.err(pth, er, "array");
+					J3h7p77D(pth, er, "array");
 				} else {
 					for (let i0 = 0; i0 < v.length; i0++) {
-						if (typeof v[i0] !== "string") utl.err(pth, er, "string", [i0]);
+						if (typeof v[i0] !== "string") J3h7p77D(pth, er, "string", [i0]);
 					}
 				}
 				return er;
@@ -1126,14 +1134,14 @@ const jitFnsCache = {
 		jitFnHash: "sj_b1N57x",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function sj_b1N57x(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = utl.asJSONString(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
+		code: " return function sj_b1N57x(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = JSON.stringify(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			return function sj_b1N57x(v) {
 				const ls0 = [];
 				for (let i0 = 0; i0 < v.length; i0++) {
-					const res0 = utl.asJSONString(v[i0]);
+					const res0 = JSON.stringify(v[i0]);
 					ls0.push(res0);
 				}
 				return "[" + ls0.join(",") + "]";
@@ -1670,12 +1678,13 @@ const jitFnsCache = {
 		jitFnHash: "te_Rppjbd",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: 'const is_IeiWGq = utl.getJIT("is_IeiWGq");\nconst is_OQaagS = utl.getJIT("is_OQaagS"); return function te_Rppjbd(v,pth=[],er=[]){if (!((typeof v === \'object\' && v !== null && (is_IeiWGq.fn(v) || is_OQaagS.fn(v))))) utl.err(pth,er,"union"); return er}',
+		code: 'const is_IeiWGq = utl.getJIT("is_IeiWGq");\nconst is_OQaagS = utl.getJIT("is_OQaagS");\nconst J3h7p77D = utl.getPureFn("mion", "err"); return function te_Rppjbd(v,pth=[],er=[]){if (!((typeof v === \'object\' && v !== null && (is_IeiWGq.fn(v) || is_OQaagS.fn(v))))) J3h7p77D(pth,er,"union"); return er}',
 		dependenciesSet: new Set(["is_IeiWGq", "is_OQaagS"]),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::err"]),
 		createJitFn: function (utl) {
 			const is_IeiWGq = utl.getJIT("is_IeiWGq");
 			const is_OQaagS = utl.getJIT("is_OQaagS");
+			const J3h7p77D = utl.getPureFn("mion", "err");
 			return function te_Rppjbd(v, pth = [], er = []) {
 				if (
 					!(
@@ -1684,7 +1693,7 @@ const jitFnsCache = {
 						(is_IeiWGq.fn(v) || is_OQaagS.fn(v))
 					)
 				)
-					utl.err(pth, er, "union");
+					J3h7p77D(pth, er, "union");
 				return er;
 			};
 		},
@@ -2440,11 +2449,12 @@ const jitFnsCache = {
 		jitFnHash: "sj_AocyOQ",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const sj_LFHPdN = utl.getJIT(\"sj_LFHPdN\"); return function sj_AocyOQ(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_LFHPdN.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		code: "const sj_LFHPdN = utl.getJIT(\"sj_LFHPdN\");\nconst dPZtlHdz = utl.getPureFn(\"mion\", \"asJSONString\"); return function sj_AocyOQ(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(dPZtlHdz(p1) + ':' + sj_LFHPdN.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(["sj_LFHPdN"]),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::asJSONString"]),
 		createJitFn: function (utl) {
 			const sj_LFHPdN = utl.getJIT("sj_LFHPdN");
+			const dPZtlHdz = utl.getPureFn("mion", "asJSONString");
 			return function sj_AocyOQ(v) {
 				return (function () {
 					const ns0 = [];
@@ -2453,7 +2463,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + sj_LFHPdN.fn(v[p1]));
+									ls1.push(dPZtlHdz(p1) + ":" + sj_LFHPdN.fn(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -2472,11 +2482,12 @@ const jitFnsCache = {
 		jitFnHash: "sj_LFHPdN",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const sj_ew2sYa = utl.getJIT(\"sj_ew2sYa\"); return function sj_LFHPdN(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_ew2sYa.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		code: "const sj_ew2sYa = utl.getJIT(\"sj_ew2sYa\");\nconst dPZtlHdz = utl.getPureFn(\"mion\", \"asJSONString\"); return function sj_LFHPdN(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(dPZtlHdz(p1) + ':' + sj_ew2sYa.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(["sj_ew2sYa"]),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::asJSONString"]),
 		createJitFn: function (utl) {
 			const sj_ew2sYa = utl.getJIT("sj_ew2sYa");
+			const dPZtlHdz = utl.getPureFn("mion", "asJSONString");
 			return function sj_LFHPdN(v) {
 				return (function () {
 					const ns0 = [];
@@ -2485,7 +2496,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + sj_ew2sYa.fn(v[p1]));
+									ls1.push(dPZtlHdz(p1) + ":" + sj_ew2sYa.fn(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -2504,7 +2515,7 @@ const jitFnsCache = {
 		jitFnHash: "sj_ew2sYa",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const sj_Ei8qua = utl.getJIT("sj_Ei8qua"); return function sj_ew2sYa(v){return \'{\'+\'"namespace":\'+utl.asJSONString(v.namespace)+","+\'"paramNames":\'+sj_Ei8qua.fn(v.paramNames)+","+\'"code":\'+utl.asJSONString(v.code)+","+\'"fnName":\'+utl.asJSONString(v.fnName)+","+\'"bodyHash":\'+utl.asJSONString(v.bodyHash)+","+\'"dependencies":\'+(function(){\n const ls0 = [];\n for (const it0 of v.dependencies) {\n const res0 = utl.asJSONString(it0);\n ls0.push(res0);\n }\n return \'[\' + ls0.join(\',\') + \']\'\n })()+\'}\'}',
+		code: 'const sj_Ei8qua = utl.getJIT("sj_Ei8qua"); return function sj_ew2sYa(v){return \'{\'+\'"namespace":\'+JSON.stringify(v.namespace)+","+\'"paramNames":\'+sj_Ei8qua.fn(v.paramNames)+","+\'"code":\'+JSON.stringify(v.code)+","+\'"fnName":\'+JSON.stringify(v.fnName)+","+\'"bodyHash":\'+JSON.stringify(v.bodyHash)+","+\'"dependencies":\'+(function(){\n const ls0 = [];\n for (const it0 of v.dependencies) {\n const res0 = JSON.stringify(it0);\n ls0.push(res0);\n }\n return \'[\' + ls0.join(\',\') + \']\'\n })()+\'}\'}',
 		dependenciesSet: new Set(["sj_Ei8qua"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -2513,25 +2524,25 @@ const jitFnsCache = {
 				return (
 					"{" +
 					'"namespace":' +
-					utl.asJSONString(v.namespace) +
+					JSON.stringify(v.namespace) +
 					"," +
 					'"paramNames":' +
 					sj_Ei8qua.fn(v.paramNames) +
 					"," +
 					'"code":' +
-					utl.asJSONString(v.code) +
+					JSON.stringify(v.code) +
 					"," +
 					'"fnName":' +
-					utl.asJSONString(v.fnName) +
+					JSON.stringify(v.fnName) +
 					"," +
 					'"bodyHash":' +
-					utl.asJSONString(v.bodyHash) +
+					JSON.stringify(v.bodyHash) +
 					"," +
 					'"dependencies":' +
 					(function () {
 						const ls0 = [];
 						for (const it0 of v.dependencies) {
-							const res0 = utl.asJSONString(it0);
+							const res0 = JSON.stringify(it0);
 							ls0.push(res0);
 						}
 						return "[" + ls0.join(",") + "]";
@@ -2549,14 +2560,14 @@ const jitFnsCache = {
 		jitFnHash: "sj_Ei8qua",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function sj_Ei8qua(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = utl.asJSONString(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
+		code: " return function sj_Ei8qua(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = JSON.stringify(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			return function sj_Ei8qua(v) {
 				const ls0 = [];
 				for (let i0 = 0; i0 < v.length; i0++) {
-					const res0 = utl.asJSONString(v[i0]);
+					const res0 = JSON.stringify(v[i0]);
 					ls0.push(res0);
 				}
 				return "[" + ls0.join(",") + "]";
@@ -2571,11 +2582,12 @@ const jitFnsCache = {
 		jitFnHash: "sj_TZrLNn",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const sj_ecqqc8 = utl.getJIT(\"sj_ecqqc8\"); return function sj_TZrLNn(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_ecqqc8.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		code: "const sj_ecqqc8 = utl.getJIT(\"sj_ecqqc8\");\nconst dPZtlHdz = utl.getPureFn(\"mion\", \"asJSONString\"); return function sj_TZrLNn(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(dPZtlHdz(p1) + ':' + sj_ecqqc8.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(["sj_ecqqc8"]),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::asJSONString"]),
 		createJitFn: function (utl) {
 			const sj_ecqqc8 = utl.getJIT("sj_ecqqc8");
+			const dPZtlHdz = utl.getPureFn("mion", "asJSONString");
 			return function sj_TZrLNn(v) {
 				return (function () {
 					const ns0 = [];
@@ -2584,7 +2596,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + sj_ecqqc8.fn(v[p1]));
+									ls1.push(dPZtlHdz(p1) + ":" + sj_ecqqc8.fn(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -2603,7 +2615,7 @@ const jitFnsCache = {
 		jitFnHash: "sj_ecqqc8",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const sj_Ei8qua = utl.getJIT("sj_Ei8qua");\nconst sj_s8eky2 = utl.getJIT("sj_s8eky2");\nconst sj_VJxRzx = utl.getJIT("sj_VJxRzx"); return function sj_ecqqc8(v){return \'{\'+(v.paramNames === undefined ? \'\' : \'"paramNames":\'+sj_Ei8qua.fn(v.paramNames)+",")+(v.headersParam === undefined ? \'\' : \'"headersParam":\'+sj_s8eky2.fn(v.headersParam)+",")+(v.headersReturn === undefined ? \'\' : \'"headersReturn":\'+sj_s8eky2.fn(v.headersReturn)+",")+(v.linkedFnIds === undefined ? \'\' : \'"linkedFnIds":\'+sj_Ei8qua.fn(v.linkedFnIds)+",")+\'"type":\'+v.type+","+\'"id":\'+utl.asJSONString(v.id)+","+\'"isAsync":\'+(v.isAsync ? \'true\' : \'false\')+","+\'"hasReturnData":\'+(v.hasReturnData ? \'true\' : \'false\')+","+\'"paramsJitHash":\'+utl.asJSONString(v.paramsJitHash)+","+\'"returnJitHash":\'+utl.asJSONString(v.returnJitHash)+","+\'"pointer":\'+sj_Ei8qua.fn(v.pointer)+","+\'"nestLevel":\'+v.nestLevel+","+\'"options":\'+sj_VJxRzx.fn(v.options)+\'}\'}',
+		code: 'const sj_Ei8qua = utl.getJIT("sj_Ei8qua");\nconst sj_s8eky2 = utl.getJIT("sj_s8eky2");\nconst sj_VJxRzx = utl.getJIT("sj_VJxRzx"); return function sj_ecqqc8(v){return \'{\'+(v.paramNames === undefined ? \'\' : \'"paramNames":\'+sj_Ei8qua.fn(v.paramNames)+",")+(v.headersParam === undefined ? \'\' : \'"headersParam":\'+sj_s8eky2.fn(v.headersParam)+",")+(v.headersReturn === undefined ? \'\' : \'"headersReturn":\'+sj_s8eky2.fn(v.headersReturn)+",")+(v.linkedFnIds === undefined ? \'\' : \'"linkedFnIds":\'+sj_Ei8qua.fn(v.linkedFnIds)+",")+\'"type":\'+v.type+","+\'"id":\'+JSON.stringify(v.id)+","+\'"isAsync":\'+(v.isAsync ? \'true\' : \'false\')+","+\'"hasReturnData":\'+(v.hasReturnData ? \'true\' : \'false\')+","+\'"paramsJitHash":\'+JSON.stringify(v.paramsJitHash)+","+\'"returnJitHash":\'+JSON.stringify(v.returnJitHash)+","+\'"pointer":\'+sj_Ei8qua.fn(v.pointer)+","+\'"nestLevel":\'+v.nestLevel+","+\'"options":\'+sj_VJxRzx.fn(v.options)+\'}\'}',
 		dependenciesSet: new Set(["sj_Ei8qua", "sj_s8eky2", "sj_VJxRzx"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -2629,7 +2641,7 @@ const jitFnsCache = {
 					v.type +
 					"," +
 					'"id":' +
-					utl.asJSONString(v.id) +
+					JSON.stringify(v.id) +
 					"," +
 					'"isAsync":' +
 					(v.isAsync ? "true" : "false") +
@@ -2638,10 +2650,10 @@ const jitFnsCache = {
 					(v.hasReturnData ? "true" : "false") +
 					"," +
 					'"paramsJitHash":' +
-					utl.asJSONString(v.paramsJitHash) +
+					JSON.stringify(v.paramsJitHash) +
 					"," +
 					'"returnJitHash":' +
-					utl.asJSONString(v.returnJitHash) +
+					JSON.stringify(v.returnJitHash) +
 					"," +
 					'"pointer":' +
 					sj_Ei8qua.fn(v.pointer) +
@@ -2664,7 +2676,7 @@ const jitFnsCache = {
 		jitFnHash: "sj_s8eky2",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const sj_Ei8qua = utl.getJIT(\"sj_Ei8qua\"); return function sj_s8eky2(v){return '{'+'\"headerNames\":'+sj_Ei8qua.fn(v.headerNames)+\",\"+'\"jitHash\":'+utl.asJSONString(v.jitHash)+'}'}",
+		code: "const sj_Ei8qua = utl.getJIT(\"sj_Ei8qua\"); return function sj_s8eky2(v){return '{'+'\"headerNames\":'+sj_Ei8qua.fn(v.headerNames)+\",\"+'\"jitHash\":'+JSON.stringify(v.jitHash)+'}'}",
 		dependenciesSet: new Set(["sj_Ei8qua"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -2676,7 +2688,7 @@ const jitFnsCache = {
 					sj_Ei8qua.fn(v.headerNames) +
 					"," +
 					'"jitHash":' +
-					utl.asJSONString(v.jitHash) +
+					JSON.stringify(v.jitHash) +
 					"}"
 				);
 			};
@@ -2690,7 +2702,7 @@ const jitFnsCache = {
 		jitFnHash: "sj_VJxRzx",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const sj_hxdrPr = utl.getJIT(\"sj_hxdrPr\"); return function sj_VJxRzx(v){return (function(){const ns0 = [];if (v.runOnError !== undefined){ns0.push((v.runOnError === undefined ? '' : '\"runOnError\":'+(v.runOnError ? 'true' : 'false')))}if (v.validateParams !== undefined){ns0.push((v.validateParams === undefined ? '' : '\"validateParams\":'+(v.validateParams ? 'true' : 'false')))}if (v.validateReturn !== undefined){ns0.push((v.validateReturn === undefined ? '' : '\"validateReturn\":'+(v.validateReturn ? 'true' : 'false')))}if (v.description !== undefined){ns0.push((v.description === undefined ? '' : '\"description\":'+utl.asJSONString(v.description)))}if (v.serializer !== undefined){ns0.push((v.serializer === undefined ? '' : '\"serializer\":'+sj_hxdrPr.fn(v.serializer)))};return '{'+ns0.join(',')+'}'})()}",
+		code: "const sj_hxdrPr = utl.getJIT(\"sj_hxdrPr\"); return function sj_VJxRzx(v){return (function(){const ns0 = [];if (v.runOnError !== undefined){ns0.push((v.runOnError === undefined ? '' : '\"runOnError\":'+(v.runOnError ? 'true' : 'false')))}if (v.validateParams !== undefined){ns0.push((v.validateParams === undefined ? '' : '\"validateParams\":'+(v.validateParams ? 'true' : 'false')))}if (v.validateReturn !== undefined){ns0.push((v.validateReturn === undefined ? '' : '\"validateReturn\":'+(v.validateReturn ? 'true' : 'false')))}if (v.description !== undefined){ns0.push((v.description === undefined ? '' : '\"description\":'+JSON.stringify(v.description)))}if (v.serializer !== undefined){ns0.push((v.serializer === undefined ? '' : '\"serializer\":'+sj_hxdrPr.fn(v.serializer)))};return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(["sj_hxdrPr"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -2723,7 +2735,7 @@ const jitFnsCache = {
 						ns0.push(
 							v.description === undefined
 								? ""
-								: '"description":' + utl.asJSONString(v.description),
+								: '"description":' + JSON.stringify(v.description),
 						);
 					}
 					if (v.serializer !== undefined) {
@@ -2746,7 +2758,7 @@ const jitFnsCache = {
 		jitFnHash: "sj_hxdrPr",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union"; return function sj_hxdrPr(v){if (v === "json") {return utl.asJSONString(v)}else if (v === "binary") {return utl.asJSONString(v)}else if (v === "stringifyJson") {return utl.asJSONString(v)}else {throw new Error(uErr0);}}',
+		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union"; return function sj_hxdrPr(v){if (v === "json") {return JSON.stringify(v)}else if (v === "binary") {return JSON.stringify(v)}else if (v === "stringifyJson") {return JSON.stringify(v)}else {throw new Error(uErr0);}}',
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -2754,11 +2766,11 @@ const jitFnsCache = {
 				"Can not StringifyJson union: item does not belong to the union";
 			return function sj_hxdrPr(v) {
 				if (v === "json") {
-					return utl.asJSONString(v);
+					return JSON.stringify(v);
 				} else if (v === "binary") {
-					return utl.asJSONString(v);
+					return JSON.stringify(v);
 				} else if (v === "stringifyJson") {
-					return utl.asJSONString(v);
+					return JSON.stringify(v);
 				} else {
 					throw new Error(uErr0);
 				}
@@ -2773,11 +2785,12 @@ const jitFnsCache = {
 		jitFnHash: "sj_tf5dpV",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const sj_EmCqyw = utl.getJIT(\"sj_EmCqyw\"); return function sj_tf5dpV(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(utl.asJSONString(p1) + ':' + sj_EmCqyw.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
+		code: "const sj_EmCqyw = utl.getJIT(\"sj_EmCqyw\");\nconst dPZtlHdz = utl.getPureFn(\"mion\", \"asJSONString\"); return function sj_tf5dpV(v){return (function(){const ns0 = [];ns0.push((function(){\n const ls1 = [];\n for (const p1 in v) {\n \n if (p1 !== undefined) ls1.push(dPZtlHdz(p1) + ':' + sj_EmCqyw.fn(v[p1]));\n }\n if (!ls1.length) return '';\n return ls1.join(',');\n })());return '{'+ns0.join(',')+'}'})()}",
 		dependenciesSet: new Set(["sj_EmCqyw"]),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::asJSONString"]),
 		createJitFn: function (utl) {
 			const sj_EmCqyw = utl.getJIT("sj_EmCqyw");
+			const dPZtlHdz = utl.getPureFn("mion", "asJSONString");
 			return function sj_tf5dpV(v) {
 				return (function () {
 					const ns0 = [];
@@ -2786,7 +2799,7 @@ const jitFnsCache = {
 							const ls1 = [];
 							for (const p1 in v) {
 								if (p1 !== undefined)
-									ls1.push(utl.asJSONString(p1) + ":" + sj_EmCqyw.fn(v[p1]));
+									ls1.push(dPZtlHdz(p1) + ":" + sj_EmCqyw.fn(v[p1]));
 							}
 							if (!ls1.length) return "";
 							return ls1.join(",");
@@ -2805,7 +2818,7 @@ const jitFnsCache = {
 		jitFnHash: "sj_EmCqyw",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: "const sj_Ei8qua = utl.getJIT(\"sj_Ei8qua\");\nconst sj_gCQYSg = utl.getJIT(\"sj_gCQYSg\"); return function sj_EmCqyw(v){return '{'+(v.isNoop === undefined ? '' : '\"isNoop\":'+(v.isNoop ? 'true' : 'false')+\",\")+(v.paramNames === undefined ? '' : '\"paramNames\":'+sj_Ei8qua.fn(v.paramNames)+\",\")+'\"typeName\":'+utl.asJSONString(v.typeName)+\",\"+'\"fnID\":'+utl.asJSONString(v.fnID)+\",\"+'\"jitFnHash\":'+utl.asJSONString(v.jitFnHash)+\",\"+'\"args\":'+sj_gCQYSg.fn(v.args)+\",\"+'\"defaultParamValues\":'+sj_gCQYSg.fn(v.defaultParamValues)+\",\"+'\"code\":'+utl.asJSONString(v.code)+\",\"+'\"dependenciesSet\":'+(function(){\n const ls0 = [];\n for (const it0 of v.dependenciesSet) {\n const res0 = utl.asJSONString(it0);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']'\n })()+\",\"+'\"pureFnDependencies\":'+(function(){\n const ls1 = [];\n for (const it1 of v.pureFnDependencies) {\n const res1 = utl.asJSONString(it1);\n ls1.push(res1);\n }\n return '[' + ls1.join(',') + ']'\n })()+'}'}",
+		code: "const sj_Ei8qua = utl.getJIT(\"sj_Ei8qua\");\nconst sj_gCQYSg = utl.getJIT(\"sj_gCQYSg\"); return function sj_EmCqyw(v){return '{'+(v.isNoop === undefined ? '' : '\"isNoop\":'+(v.isNoop ? 'true' : 'false')+\",\")+(v.paramNames === undefined ? '' : '\"paramNames\":'+sj_Ei8qua.fn(v.paramNames)+\",\")+'\"typeName\":'+JSON.stringify(v.typeName)+\",\"+'\"fnID\":'+JSON.stringify(v.fnID)+\",\"+'\"jitFnHash\":'+JSON.stringify(v.jitFnHash)+\",\"+'\"args\":'+sj_gCQYSg.fn(v.args)+\",\"+'\"defaultParamValues\":'+sj_gCQYSg.fn(v.defaultParamValues)+\",\"+'\"code\":'+JSON.stringify(v.code)+\",\"+'\"dependenciesSet\":'+(function(){\n const ls0 = [];\n for (const it0 of v.dependenciesSet) {\n const res0 = JSON.stringify(it0);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']'\n })()+\",\"+'\"pureFnDependencies\":'+(function(){\n const ls1 = [];\n for (const it1 of v.pureFnDependencies) {\n const res1 = JSON.stringify(it1);\n ls1.push(res1);\n }\n return '[' + ls1.join(',') + ']'\n })()+'}'}",
 		dependenciesSet: new Set(["sj_Ei8qua", "sj_gCQYSg"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -2821,13 +2834,13 @@ const jitFnsCache = {
 						? ""
 						: '"paramNames":' + sj_Ei8qua.fn(v.paramNames) + ",") +
 					'"typeName":' +
-					utl.asJSONString(v.typeName) +
+					JSON.stringify(v.typeName) +
 					"," +
 					'"fnID":' +
-					utl.asJSONString(v.fnID) +
+					JSON.stringify(v.fnID) +
 					"," +
 					'"jitFnHash":' +
-					utl.asJSONString(v.jitFnHash) +
+					JSON.stringify(v.jitFnHash) +
 					"," +
 					'"args":' +
 					sj_gCQYSg.fn(v.args) +
@@ -2836,13 +2849,13 @@ const jitFnsCache = {
 					sj_gCQYSg.fn(v.defaultParamValues) +
 					"," +
 					'"code":' +
-					utl.asJSONString(v.code) +
+					JSON.stringify(v.code) +
 					"," +
 					'"dependenciesSet":' +
 					(function () {
 						const ls0 = [];
 						for (const it0 of v.dependenciesSet) {
-							const res0 = utl.asJSONString(it0);
+							const res0 = JSON.stringify(it0);
 							ls0.push(res0);
 						}
 						return "[" + ls0.join(",") + "]";
@@ -2852,7 +2865,7 @@ const jitFnsCache = {
 					(function () {
 						const ls1 = [];
 						for (const it1 of v.pureFnDependencies) {
-							const res1 = utl.asJSONString(it1);
+							const res1 = JSON.stringify(it1);
 							ls1.push(res1);
 						}
 						return "[" + ls1.join(",") + "]";
@@ -2870,10 +2883,11 @@ const jitFnsCache = {
 		jitFnHash: "sj_gCQYSg",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function sj_gCQYSg(v){return '{'+(function(){\n const ls0 = [];\n for (const p0 in v) {\n if (\"vλl\" === p0) continue;\n if (p0 !== undefined) ls0.push(utl.asJSONString(p0) + ':' + utl.asJSONString(v[p0]));\n }\n if (!ls0.length) return '';\n return ls0.join(',')+\",\";\n })()+\"\\\"vλl\\\"\"+':'+utl.asJSONString(v[\"vλl\"])+'}'}",
+		code: 'const dPZtlHdz = utl.getPureFn("mion", "asJSONString"); return function sj_gCQYSg(v){return \'{\'+(function(){\n const ls0 = [];\n for (const p0 in v) {\n if ("vλl" === p0) continue;\n if (p0 !== undefined) ls0.push(dPZtlHdz(p0) + \':\' + JSON.stringify(v[p0]));\n }\n if (!ls0.length) return \'\';\n return ls0.join(\',\')+",";\n })()+"\\"vλl\\""+\':\'+JSON.stringify(v["vλl"])+\'}\'}',
 		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::asJSONString"]),
 		createJitFn: function (utl) {
+			const dPZtlHdz = utl.getPureFn("mion", "asJSONString");
 			return function sj_gCQYSg(v) {
 				return (
 					"{" +
@@ -2882,14 +2896,14 @@ const jitFnsCache = {
 						for (const p0 in v) {
 							if ("vλl" === p0) continue;
 							if (p0 !== undefined)
-								ls0.push(utl.asJSONString(p0) + ":" + utl.asJSONString(v[p0]));
+								ls0.push(dPZtlHdz(p0) + ":" + JSON.stringify(v[p0]));
 						}
 						if (!ls0.length) return "";
 						return ls0.join(",") + ",";
 					})() +
 					'"vλl"' +
 					":" +
-					utl.asJSONString(v["vλl"]) +
+					JSON.stringify(v["vλl"]) +
 					"}"
 				);
 			};
@@ -2903,7 +2917,7 @@ const jitFnsCache = {
 		jitFnHash: "sj_OQaagS",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_OQaagS(v){return \'{\'+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return utl.asJSONString(v.id)}else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+sj_WEWIGI.fn(v.errorData)+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+utl.asJSONString(v.type)+","+\'"publicMessage":\'+utl.asJSONString(v.publicMessage)+\'}\'}',
+		code: 'const uErr0 = "Can not StringifyJson union: item does not belong to the union";\nconst sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_OQaagS(v){return \'{\'+(v.statusCode === undefined ? \'\' : \'"statusCode":\'+v.statusCode+",")+(v.id === undefined ? \'\' : \'"id":\'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === \'string\') {return JSON.stringify(v.id)}else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? \'\' : \'"errorData":\'+sj_WEWIGI.fn(v.errorData)+",")+"\\"mion@isΣrrθr\\""+\':\'+(v["mion@isΣrrθr"] ? \'true\' : \'false\')+","+\'"type":\'+JSON.stringify(v.type)+","+\'"publicMessage":\'+JSON.stringify(v.publicMessage)+\'}\'}',
 		dependenciesSet: new Set(["sj_WEWIGI"]),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
@@ -2923,7 +2937,7 @@ const jitFnsCache = {
 								if (Number.isFinite(v.id)) {
 									return v.id;
 								} else if (typeof v.id === "string") {
-									return utl.asJSONString(v.id);
+									return JSON.stringify(v.id);
 								} else {
 									throw new Error(uErr0);
 								}
@@ -2937,10 +2951,10 @@ const jitFnsCache = {
 					(v["mion@isΣrrθr"] ? "true" : "false") +
 					"," +
 					'"type":' +
-					utl.asJSONString(v.type) +
+					JSON.stringify(v.type) +
 					"," +
 					'"publicMessage":' +
-					utl.asJSONString(v.publicMessage) +
+					JSON.stringify(v.publicMessage) +
 					"}"
 				);
 			};
@@ -3906,16 +3920,17 @@ const jitFnsCache = {
 		jitFnHash: "te_hZzD9z",
 		args: { pλth: "pth", εrr: "er", vλl: "v" },
 		defaultParamValues: { pλth: "[]", εrr: "[]", vλl: "" },
-		code: ' return function te_hZzD9z(v,pth=[],er=[]){if (v.length > 2) utl.err(pth,er,"params"); else {if (typeof v[0] !== \'string\') utl.err(pth,er,"string",[0]);if (v[1] !== undefined) {if (typeof v[1] !== \'boolean\') utl.err(pth,er,"boolean",[1]);}} return er}',
+		code: 'const J3h7p77D = utl.getPureFn("mion", "err"); return function te_hZzD9z(v,pth=[],er=[]){if (v.length > 2) J3h7p77D(pth,er,"params"); else {if (typeof v[0] !== \'string\') J3h7p77D(pth,er,"string",[0]);if (v[1] !== undefined) {if (typeof v[1] !== \'boolean\') J3h7p77D(pth,er,"boolean",[1]);}} return er}',
 		dependenciesSet: new Set(),
-		pureFnDependencies: new Set(),
+		pureFnDependencies: new Set(["mion::err"]),
 		createJitFn: function (utl) {
+			const J3h7p77D = utl.getPureFn("mion", "err");
 			return function te_hZzD9z(v, pth = [], er = []) {
-				if (v.length > 2) utl.err(pth, er, "params");
+				if (v.length > 2) J3h7p77D(pth, er, "params");
 				else {
-					if (typeof v[0] !== "string") utl.err(pth, er, "string", [0]);
+					if (typeof v[0] !== "string") J3h7p77D(pth, er, "string", [0]);
 					if (v[1] !== undefined) {
-						if (typeof v[1] !== "boolean") utl.err(pth, er, "boolean", [1]);
+						if (typeof v[1] !== "boolean") J3h7p77D(pth, er, "boolean", [1]);
 					}
 				}
 				return er;
@@ -3970,14 +3985,14 @@ const jitFnsCache = {
 		jitFnHash: "sj_hZzD9z",
 		args: { vλl: "v" },
 		defaultParamValues: { vλl: "" },
-		code: " return function sj_hZzD9z(v){return '['+utl.asJSONString(v[0])+(v[1] === undefined ? ','+'null' : ','+(v[1] ? 'true' : 'false'))+']'}",
+		code: " return function sj_hZzD9z(v){return '['+JSON.stringify(v[0])+(v[1] === undefined ? ','+'null' : ','+(v[1] ? 'true' : 'false'))+']'}",
 		dependenciesSet: new Set(),
 		pureFnDependencies: new Set(),
 		createJitFn: function (utl) {
 			return function sj_hZzD9z(v) {
 				return (
 					"[" +
-					utl.asJSONString(v[0]) +
+					JSON.stringify(v[0]) +
 					(v[1] === undefined
 						? "," + "null"
 						: "," + (v[1] ? "true" : "false")) +

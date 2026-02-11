@@ -6,10 +6,8 @@
  * ############### */
 
 import {resolve} from 'path/posix';
-import {MAX_STACK_DEPTH} from './constants';
 import {getJitUtils} from './jitUtils';
 import type {CompiledPureFunction} from './types/pureFunctions.types';
-import type {PureFunction} from './types/pureFunctions.types';
 
 /** Generates a random UUID V7, no hyphens are included in the uuid */
 export function randomUUID_V7(): string {
@@ -40,40 +38,12 @@ export function isTestEnv() {
 }
 
 /**
- * Checks if key map can be serialized/deserialized with json and still works as a key for a map.
- * ie: if a map key is an string, it can be serialized to json and deserialized back an still will identify the correct map entry.
- * ie: if a map entry is an object, the object can not be serialized/deserialized and wont work as the same key for entry map as they are not same memory ref.
- *  */
-export function isSafeMapKeyValue(value: any, depth = 0): boolean {
-    if (depth > MAX_STACK_DEPTH) return false;
-    if (value === undefined) return true;
-    if (value === null) return true;
-    const type = typeof value;
-    if (type === 'number' || type === 'string' || type === 'boolean') return true;
-    return false;
-}
-
-/**
  * Restores the full state of a compiled pure function,
  * The pure function itself can't be compiled to code as it contains references to context code and jitUtils.
  * So we need to restore it manually by invoking the closure function.
  * */
 export function initPureFunction(compiled: CompiledPureFunction): asserts compiled is Required<CompiledPureFunction> {
     if (compiled.fn) return;
-    if (getENV('MION_COMPILE') === 'true' || getENV('JEST_WORKER_ID') !== undefined) {
-        const {paramNames, code: body} = compiled;
-        try {
-            // when testing we immediately add the deserialized function to ensure test are working with deserialized functions
-            // this is to ensure that the deserialization process is working correctly
-            // this process is not needed in production as the original function is used
-            const newWithCtx = paramNames.length ? new Function(...paramNames, body) : new Function(body);
-            compiled.fn = newWithCtx(getJitUtils()) as PureFunction;
-            return;
-        } catch (error: any) {
-            console.warn(`Pure ${compiled.fnName} can not be deserialized. Function code:\n${compiled.createJitFn.toString()}`);
-            throw new Error(`Pure function ${compiled.fnName} can not be deserialized: ${error?.message}`);
-        }
-    }
     compiled.fn = compiled.createJitFn(getJitUtils());
 }
 

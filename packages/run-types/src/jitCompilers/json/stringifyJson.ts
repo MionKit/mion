@@ -27,6 +27,7 @@ import type {ArrayRunType} from '../../nodes/member/array';
 import type {MemberRunType} from '../../lib/baseRunTypes';
 import type {LiteralRunType} from '../../nodes/atomic/literal';
 import type {IterableRunType} from '../../nodes/native/Iterable';
+import {asJSONString} from '@mionkit/core';
 
 type Operation = typeof JitFunctions.stringifyJson.id | typeof JitFunctions.toJSCode.id;
 
@@ -98,10 +99,12 @@ export function createStringifyCompiler(fnID: Operation) {
             }
             case ReflectionKind.object:
                 return {code: `JSON.stringify(${comp.vλl})`, type: 'E'};
-            case ReflectionKind.regexp:
-                return {code: `utl.asJSONString(${comp.vλl}.toString())`, type: 'E'};
-            case ReflectionKind.string:
-                return {code: `utl.asJSONString(${comp.vλl})`, type: 'E'};
+            case ReflectionKind.regexp: {
+                return {code: `JSON.stringify(${comp.vλl}.toString())`, type: 'E'};
+            }
+            case ReflectionKind.string: {
+                return {code: `JSON.stringify(${comp.vλl})`, type: 'E'};
+            }
             case ReflectionKind.symbol:
                 return {code: `JSON.stringify('Symbol:' + (${comp.vλl}.description || ''))`, type: 'E'};
             case ReflectionKind.templateLiteral:
@@ -148,12 +151,15 @@ export function createStringifyCompiler(fnID: Operation) {
                 const arrName = comp.getLocalVarName('ls', rt);
                 const sep = rt.skipCommas ? '' : '+","';
                 const skipCode = rt.getSkipCode(comp, prop);
+                // asJSONString is more optimized for propNames than JSON.stringify
+                // in Node, bun is actually slower so we might consider removing this and use native JSON.stringify
+                const asJSONStringFn = comp.addPureFunction('mion', asJSONString);
                 return {
                     code: `
                 const ${arrName} = [];
                 for (const ${prop} in ${varName}) {
                     ${skipCode}
-                    if (${prop} !== undefined) ${arrName}.push(utl.asJSONString(${prop}) + ':' + ${childJit.code});
+                    if (${prop} !== undefined) ${arrName}.push(${asJSONStringFn}(${prop}) + ':' + ${childJit.code});
                 }
                 if (!${arrName}.length) return '';
                 return ${arrName}.join(',')${sep};
