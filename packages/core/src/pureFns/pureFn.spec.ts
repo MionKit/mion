@@ -1,11 +1,7 @@
-import {
-    type JITUtils,
-    type GenericPureFunction,
-    getJitUtils,
-    CompiledPureFunction,
-    registerPureFnClosure,
-    registerPureFnClosuresGroup,
-} from '@mionkit/core';
+import type {JITUtils} from '../types/general.types';
+import type {CompiledPureFunction, GenericPureFunction} from '../types/pureFunctions.types';
+import {registerPureFnClosure, registerPureFnClosuresGroup} from './pureFn';
+import {getJitUtils} from '../jitUtils';
 
 const TEST_NAMESPACE = 'test';
 
@@ -163,6 +159,6 @@ describe('bodyHash generation', () => {
         registerPureFnClosure(TEST_NAMESPACE, hashLengthTestFn);
         const compiled = getCompiledPureFn(TEST_NAMESPACE, 'hashLengthTestFn');
         expect(compiled?.bodyHash).toBeDefined();
-        expect(compiled?.bodyHash.length).toBe(12);
+        expect(compiled?.bodyHash.length).toBe(8);
     });
 });

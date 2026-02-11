@@ -11,6 +11,7 @@ import {ReflectionKind, TypeClass} from '@deepkit/type';
 import {IterableRunType} from './Iterable';
 import {JitFunctions} from '../../constants.functions';
 import type {JitFnCompiler} from '../../lib/jitFnCompiler';
+import {safeKey} from '@mionkit/core';
 
 export class MapRunType extends IterableRunType {
     keyRT = new MapKeyRunType();
@@ -54,7 +55,8 @@ class MapKeyRunType extends GenericMemberRunType<any> {
     getStaticPathLiteral(comp: JitFnCompiler): string | number {
         const parent = this.getParent()! as MapRunType;
         const custom = parent.getCustomVλl(comp)!;
-        return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName(comp)},failed:'mapKey'}`;
+        const safeKeyFn = comp.addPureFunction('mion', safeKey);
+        return `{key:${safeKeyFn}(${custom.vλl}[0]),index:${parent.getIndexVarName(comp)},failed:'mapKey'}`;
     }
     getCustomVλl(comp: JitFnCompiler) {
         // temp variable to assign mapKey
@@ -73,7 +75,8 @@ class MapValueRunType extends GenericMemberRunType<any> {
     getStaticPathLiteral(comp: JitFnCompiler): string | number {
         const parent = this.getParent()! as MapRunType;
         const custom = parent.getCustomVλl(comp)!;
-        return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName(comp)},failed:'mapVal'}`;
+        const safeKeyFn = comp.addPureFunction('mion', safeKey);
+        return `{key:${safeKeyFn}(${custom.vλl}[0]),index:${parent.getIndexVarName(comp)},failed:'mapVal'}`;
     }
     getCustomVλl(comp: JitFnCompiler) {
         // temp variable to assign mapKey

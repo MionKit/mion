@@ -6,7 +6,7 @@
  * ######## */
 
 import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, PureFunctionClosure} from '@mionkit/core';
-import {MAX_STACK_DEPTH, getJitUtils, quickHash, registerPureFnClosure, getPureFunctionKey} from '@mionkit/core';
+import {MAX_STACK_DEPTH, getJitUtils, quickHash, registerPureFnClosure, getPureFunctionKey, err, formatErr} from '@mionkit/core';
 import type {TypeFunction} from '@deepkit/type';
 import type {Mutable, JitFnID, StrNumber, JitCode, RunTypeOptions, JitCompilerOpts, RunTypeChildAccessor} from '../types';
 import type {BaseRunType} from './baseRunTypes';
@@ -619,7 +619,8 @@ export class JitErrorsFnCompiler<ID extends JitFnID = any> extends BaseFnCompile
         const args = this._getJitErrorArgs(exp);
         const accessPath = this.getAccessPathLiteral(extraPathLiteral);
         if (accessPath) args.push(accessPath);
-        return `utl.err(${args.join(',')})`;
+        const errFn = this.addPureFunction('mion', err);
+        return `${errFn}(${args.join(',')})`;
     }
     callJitFormatErr(
         expected: AnyKindName | BaseRunType<any>,
@@ -653,7 +654,8 @@ export class JitErrorsFnCompiler<ID extends JitFnID = any> extends BaseFnCompile
         if (!accessPath && formatAccessPath) optionalArgs.push('undefined');
         if (accessPath) optionalArgs.push(accessPath);
         if (formatAccessPath) optionalArgs.push(formatAccessPath);
-        return `utl.formatErr(${[...typeErrArgs, ...formatArgs, ...optionalArgs].join(',')})`;
+        const formatErrFn = this.addPureFunction('mion', formatErr);
+        return `${formatErrFn}(${[...typeErrArgs, ...formatArgs, ...optionalArgs].join(',')})`;
     }
 
     private _getJitErrorArgs(exp: AnyKindName | BaseRunType<any>): string[] {

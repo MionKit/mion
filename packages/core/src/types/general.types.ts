@@ -36,23 +36,6 @@ export interface JITUtils {
     setDeserializeFn<C extends AnyClass>(cls: C, deserializeFn: DeserializeClassFn<InstanceType<C>>): void;
     useDeserializeFn(className: string): DeserializeClassFn<any>;
     getDeserializeFn(className: string): DeserializeClassFn<any> | undefined;
-    // TODO: all functions bellow could be moved to pure functions instead being part of jitUtils
-    asJSONString(str: string): string;
-    getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[];
-    hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean;
-    err(pλth: readonly StrNumber[], εrr: RunTypeError[], expected: string, accessPath?: readonly StrNumber[]): void;
-    formatErr(
-        pλth: StrNumber[],
-        εrr: RunTypeError[],
-        expected: string,
-        fmtName: string,
-        paramName: string,
-        paramVal: string | number | boolean | bigint,
-        fmtPath: StrNumber[],
-        accessPath?: StrNumber[],
-        fmtAccessPath?: StrNumber[]
-    ): void;
-    safeKey(value: any): any;
 }
 
 // ########################################## Serialization Modes ##########################################

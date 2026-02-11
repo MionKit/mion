@@ -9,6 +9,7 @@ import {CoreOptions, AnyErrorParams, TypedErrorParams, DataOnly, RpcErrorParams,
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from './utils';
 import {getJitUtils} from './jitUtils';
+import {hasUnknownKeysFromArray} from './pureFns/corePureUtils';
 
 // ############# Validation Error Types #############
 
@@ -143,6 +144,7 @@ export class RpcError<ErrType extends string, ErrData = any>
 // #######  Error Type Guards #######
 
 /** Returns true if the error is a TypedError or has the same structure. */
+const hasUnknownKeys = hasUnknownKeysFromArray();
 export function isTypedError(error: any): error is TypedError<any> {
     if (!error) return false;
     if (error instanceof TypedError) return true;
@@ -150,7 +152,7 @@ export function isTypedError(error: any): error is TypedError<any> {
         error &&
         error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        !getJitUtils().hasUnknownKeysFromArray(error, ['mion@isΣrrθr', 'type', 'message'])
+        !hasUnknownKeys(error, ['mion@isΣrrθr', 'type', 'message'])
     );
 }
 
@@ -163,15 +165,7 @@ export function isRpcError(error: any): error is RpcError<string> {
         error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
         (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
-        !getJitUtils().hasUnknownKeysFromArray(error, [
-            'mion@isΣrrθr',
-            'id',
-            'message',
-            'publicMessage',
-            'errorData',
-            'type',
-            'statusCode',
-        ])
+        !hasUnknownKeys(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type', 'statusCode'])
     );
 }
 

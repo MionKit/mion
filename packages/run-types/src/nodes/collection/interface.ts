@@ -16,6 +16,7 @@ import {MethodRunType} from '../member/method';
 import {CallSignatureRunType} from '../member/callSignature';
 import {JitFunctions} from '../../constants.functions';
 import {isIndexSignatureRunType} from '../../lib/guards';
+import {getUnknownKeysFromArray, hasUnknownKeysFromArray} from '@mionkit/core';
 
 export type InterfaceMember =
     | PropertyRunType
@@ -269,8 +270,10 @@ function callCheckUnknownProperties(
         allChildrenRuntypes?.length && result.hasNonJitChildren
             ? `${optsVarName}.${checkPropName} ? ${result.allKeysName} : ${result.keysName}`
             : result.keysName;
-    if (returnKeys) return `utl.getUnknownKeysFromArray(${comp.vλl}, ${conditional})`;
-    objectCheckCode.push(`utl.hasUnknownKeysFromArray(${comp.vλl}, ${conditional})`);
+    const getUnknownKeysFn = comp.addPureFunction('mion', getUnknownKeysFromArray);
+    const hasUnknownKeysFn = comp.addPureFunction('mion', hasUnknownKeysFromArray);
+    if (returnKeys) return `${getUnknownKeysFn}(${comp.vλl}, ${conditional})`;
+    objectCheckCode.push(`${hasUnknownKeysFn}(${comp.vλl}, ${conditional})`);
     const filtered = objectCheckCode.filter(Boolean);
     if (filtered.length > 1) return `(${filtered.join(' && ')})`;
     return filtered[0];

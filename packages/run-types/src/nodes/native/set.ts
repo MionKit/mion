@@ -11,6 +11,7 @@ import {GenericMemberRunType} from '../member/genericMember';
 import {IterableRunType} from './Iterable';
 import {JitFunctions} from '../../constants.functions';
 import type {JitFnCompiler} from '../../lib/jitFnCompiler';
+import {safeKey} from '@mionkit/core';
 export class SetRunType extends IterableRunType {
     keyRT = new SetKeyRunType();
     children = [this.keyRT];
@@ -43,7 +44,8 @@ export class SetKeyRunType extends GenericMemberRunType<any> {
     getStaticPathLiteral(comp: JitFnCompiler): string {
         const parent = this.getParent()! as SetRunType;
         const custom = parent.getCustomVλl(comp)!;
-        return `{key:utl.safeKey(${custom.vλl}),index:${parent.getIndexVarName(comp)}}`;
+        const safeKeyFn = comp.addPureFunction('mion', safeKey);
+        return `{key:${safeKeyFn}(${custom.vλl}),index:${parent.getIndexVarName(comp)}}`;
     }
     getCustomVλl(comp: JitFnCompiler) {
         if (comp.fnID === JitFunctions.fromBinary.id)
