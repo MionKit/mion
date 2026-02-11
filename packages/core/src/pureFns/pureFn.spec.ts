@@ -1,7 +1,17 @@
-import type {JITUtils, GenericPureFunction} from '@mionkit/core';
-import {registerPureFnClosure, getPureFn, getCompiledPureFn, registerPureFnClosuresGroup} from './pureFn';
+import {
+    type JITUtils,
+    type GenericPureFunction,
+    getJitUtils,
+    CompiledPureFunction,
+    registerPureFnClosure,
+    registerPureFnClosuresGroup,
+} from '@mionkit/core';
 
 const TEST_NAMESPACE = 'test';
+
+function getCompiledPureFn(namespace: string, fnName: string): CompiledPureFunction | undefined {
+    return getJitUtils().getCompiledPureFn(namespace, fnName);
+}
 
 it('register and get pure function', async () => {
     type StringParams = {
@@ -19,7 +29,7 @@ it('register and get pure function', async () => {
         };
     }
     registerPureFnClosure(TEST_NAMESPACE, stringPureFn);
-    const restoredFn = getPureFn(TEST_NAMESPACE, 'stringPureFn') as ReturnType<typeof stringPureFn>;
+    const restoredFn = getJitUtils().getPureFn(TEST_NAMESPACE, 'stringPureFn') as ReturnType<typeof stringPureFn>;
     expect(restoredFn).toBeDefined();
     expect(restoredFn).toBeInstanceOf(Function);
     expect(restoredFn?.('a', {isLowercase: true})).toBe(true);

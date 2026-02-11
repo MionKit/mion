@@ -9,7 +9,6 @@
 import {JitFunctions} from '../constants.functions';
 import type {BaseRunType, CollectionRunType} from './baseRunTypes';
 import {JitFnCompiler} from './jitFnCompiler';
-import {createUniqueHash} from './quickHash';
 import {runType} from '../createRunType';
 import {getTotalComplexity, sortDiscriminatorsFirst, sortRunTypeByComplexity} from './utils';
 import type {PropertyRunType} from '../nodes/member/property';
@@ -136,26 +135,4 @@ it('should sort discriminators first', () => {
 
     expect(getSortedPropsNames(propsItem0)).toEqual(['type', 'otherProp1']);
     expect(getSortedPropsNames(propsItem1)).toEqual(['type', 'otherProp2']);
-});
-
-it('quick hash should generate unique hashes', () => {
-    const hashes = new Set();
-    const initial = 100_000_000_000;
-    const max = initial + 100;
-    for (let i = initial; i < max; i++) {
-        const typeID = `type${i}`;
-        const hash = createUniqueHash(typeID, 8);
-        expect(hashes.has(hash)).toBe(false);
-        hashes.add(hash);
-        // console.log(typeID, hash);
-    }
-});
-
-it('quick hash should generate hashes with specified length', () => {
-    // important same type with different length param generates different hashes
-    expect(createUniqueHash('type_000000000_1', 6).length).toBe(6);
-    expect(createUniqueHash('type_000000000_1', 8).length).toBe(8);
-    expect(createUniqueHash('type_000000000_1', 10).length).toBe(10);
-    expect(createUniqueHash('type_000000000_1', 12).length).toBe(12);
-    expect(createUniqueHash('type_000000000_1', 14).length).toBe(14);
 });

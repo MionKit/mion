@@ -5,7 +5,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {MAX_STACK_DEPTH} from '@mionkit/core';
+import {MAX_STACK_DEPTH, JitCompiledFn, createUniqueHash, getJitUtils, getENV} from '@mionkit/core';
 import type {
     RunType,
     Mutable,
@@ -31,14 +31,10 @@ import {createJitCompiler, MockJitCompiler} from './jitFnCompiler';
 import {getJITFnHash} from './createJitFunction';
 import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
-import {getJitUtils} from '@mionkit/core';
-import {createUniqueHash} from './quickHash';
 import {initFormatAnnotations} from './formats';
 import {createTypeId} from './typeId';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
-import {JitCompiledFn} from '@mionkit/core';
 import {defaultMockOptions} from '../mocking/constants.mock';
-import {getENV} from '@mionkit/core';
 
 const RB = CodeTypes.returnBlock;
 const S = CodeTypes.statement;

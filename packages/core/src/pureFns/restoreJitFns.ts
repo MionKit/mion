@@ -7,7 +7,6 @@
 
 import type {
     Mutable,
-    CompiledPureFunction,
     JitCompiledFn,
     PersistedJitFunctionsCache,
     PersistedPureFunctionsCache,
@@ -16,12 +15,13 @@ import type {
     PureFunctionsCache,
     JitCompiledFnData,
     JITUtils,
-    PersistedPureFunction,
-    PureFunctionData,
     PersistedJitFn,
-    PureFunctionClosure,
-} from './types/general.types';
-import {TypedError} from './errors';
+} from '../types/general.types';
+import type {PersistedPureFunction} from '../types/pureFunctions.types';
+import type {CompiledPureFunction} from '../types/pureFunctions.types';
+import type {PureFunctionData} from '../types/pureFunctions.types';
+import type {PureFunctionClosure} from '../types/pureFunctions.types';
+import {TypedError} from '../errors';
 
 /**
  * Restores the full state of a persisted/serialized jit functions.

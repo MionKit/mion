@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, PureFunction, PureFunctionClosure} from '@mionkit/core';
-import {MAX_STACK_DEPTH, getJitUtils} from '@mionkit/core';
+import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, PureFunctionClosure} from '@mionkit/core';
+import {MAX_STACK_DEPTH, getJitUtils, quickHash, registerPureFnClosure, getPureFunctionKey} from '@mionkit/core';
 import type {TypeFunction} from '@deepkit/type';
 import type {Mutable, JitFnID, StrNumber, JitCode, RunTypeOptions, JitCompilerOpts, RunTypeChildAccessor} from '../types';
 import type {BaseRunType} from './baseRunTypes';
@@ -18,8 +18,6 @@ import {getJITFnName, getJitFnSettings} from './jitFnsRegistry';
 import {JitFunctions} from '../constants.functions';
 import {isChildAccessorType, isFunctionParamsRunType, isJitErrorsCompiler} from './guards';
 import {addFullStop, getJitFnArgCallVarName, toLiteral, toLiteralInContext} from './utils';
-import {registerPureFnClosure} from './pureFn';
-import {getPureFunctionKey} from './pureFn';
 import {getRunTypeFormat} from './formats';
 import {emitJsonStringify} from '../jitCompilers/json/stringifyJson';
 import {emitToBinary} from '../jitCompilers/binary/toBinary';
@@ -555,24 +553,24 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
     // ################### Pure Functions Operations ###################
 
     addPureFunction(namespace: string, pureFn: PureFunctionClosure): string {
-        const fnHash = getPureFunctionKey(pureFn.name);
+        const varName = quickHash(`${namespace}_${getPureFunctionKey(pureFn)}`, 8);
         registerPureFnClosure(namespace, pureFn); // will throw if there is a different pure function with the same name
-        if (this.hasContextItem(fnHash)) return fnHash;
+        if (this.hasContextItem(varName)) return varName;
         this.addPureFnDependency(namespace, pureFn);
         // Add context code for the pure function and params
-        const pureFunctionCode = `const ${fnHash} = utl.getPureFn(${toLiteral(namespace)}, ${toLiteral(fnHash)})`;
-        this.setContextItem(fnHash, pureFunctionCode);
-        return fnHash;
+        const pureFunctionCode = `const ${varName} = utl.getPureFn(${toLiteral(namespace)}, ${toLiteral(getPureFunctionKey(pureFn))})`;
+        this.setContextItem(varName, pureFunctionCode);
+        return varName;
     }
 
-    addPureFnDependency(namespace: string, fn: PureFunction | string): void {
-        const fnHash = getPureFunctionKey(fn);
-        if (!getJitUtils().hasPureFn(namespace, fnHash))
+    addPureFnDependency(namespace: string, pureFn: PureFunctionClosure): void {
+        const fnName = getPureFunctionKey(pureFn);
+        if (!getJitUtils().hasPureFn(namespace, fnName))
             throw new Error(
-                `Pure function with name ${fnHash} can not be added as jit dependency in namespace ${namespace}, be sure to register the pure function first by calling getJitUtils().addPureFn()`
+                `Pure function with name ${fnName} can not be added as jit dependency in namespace ${namespace}, be sure to register the pure function first by calling getJitUtils().addPureFn()`
             );
         // Store as "namespace::fnHash" format (using :: to avoid conflicts with : in names)
-        this.pureFnDependencies.add(`${namespace}::${fnHash}`);
+        this.pureFnDependencies.add(`${namespace}::${fnName}`);
     }
 }
 

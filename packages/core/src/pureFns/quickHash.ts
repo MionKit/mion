@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getENV} from '@mionkit/core';
+import {getENV} from '../utils';
 
 const hashes = new Map<string, string>();
 const literalHashes = new Map<string, string>();
@@ -19,7 +19,7 @@ const PRIME = 37; // Prime number to mix hash robustly, but quick
 export const hashDefaultLength = 6;
 export const defaultLiteralLength = 5;
 
-function quickHash(input: string, length = hashDefaultLength, prevResult?: string): string {
+export function quickHash(input: string, length = hashDefaultLength, prevResult?: string): string {
     let hash = 0;
     // Generate initial numeric hash using Math.imul and forcing unsigned 32-bit arithmetic
     for (let i = 0; i < input.length; i++) {
