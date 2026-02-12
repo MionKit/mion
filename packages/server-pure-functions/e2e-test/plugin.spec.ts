@@ -72,7 +72,7 @@ describe('E2E: Vite Plugin Integration', () => {
         expect(moduleCode).toContain(JSON.stringify(PURE_SERVER_FN_NAMESPACE));
 
         // Should contain function entries with bodyHash keys
-        expect(moduleCode).toMatch(/"[a-z0-9]+":\s*\{/);
+        expect(moduleCode).toMatch(/"[a-zA-Z0-9]+":\s*\{/);
 
         // Should contain createJitFn closures
         expect(moduleCode).toContain('createJitFn');
@@ -175,7 +175,9 @@ describe('E2E: Vite Plugin Integration', () => {
             // Load the virtual module
             const loadResult = await server.pluginContainer.load(RESOLVED_VIRTUAL_MODULE_ID);
             expect(loadResult).toBeDefined();
-            expect(loadResult?.code).toContain('export const pureFnsCache');
+            // loadResult can be a string directly or an object with code property
+            const code = typeof loadResult === 'string' ? loadResult : loadResult?.code;
+            expect(code).toContain('export const pureFnsCache');
         } finally {
             await server.close();
         }

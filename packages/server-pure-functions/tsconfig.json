@@ -6,7 +6,7 @@
     "rootDir": "."
   },
   "references": [{"path": "../core"}],
-  "reflection": true,
+  "reflection": false,
   "include": [".", "e2e-test/**/*.ts"],
   "exclude": ["node_modules", ".dist", "e2e-test/e2e/fixture"]
 }
