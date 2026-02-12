@@ -8,7 +8,7 @@
 import {RpcError} from '@mionkit/core';
 import type {Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionkit/core';
 import type {PublicHeadersFn, PublicLinkedFn, RemoteApi, PublicRoute} from '@mionkit/router';
-import type {TypedEvent} from './typedEvent';
+import type {TypedEvent} from './typedEvent.ts';
 
 /** Result type for call() and callWithLinkedFns() methods - 4-tuple pattern */
 export type Result<

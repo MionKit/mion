@@ -8,7 +8,8 @@
 import {initClient} from './client.ts';
 import {HSubRequest, RSubRequest} from './types.ts';
 import {isRpcError, HeadersSubset} from '@mionkit/core';
-import {TestServerApi, createTestServerLinkedFns, JEST_TIMEOUT_CONSTANTS, TEST_PORT_MAPPING} from '@mionkit/test-server';
+import {TestServerApi} from '@mionkit/test-server';
+import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
 
 // Mock localStorage for method metadata storage (still needed for clientMethodsMetadata)
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -26,14 +27,7 @@ describe('client', () => {
     const someUser = {name: 'John', surname: 'Doe'};
     type MyApi = TestServerApi;
 
-    const port = TEST_PORT_MAPPING.client;
-
-    // Create server linkedFns using the utility
-    const serverLinkedFns = createTestServerLinkedFns({port});
-    const baseURL = serverLinkedFns.getBaseURL();
-
-    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
+    const baseURL = TEST_SERVER_BASE_URL_JSON;
 
     // Note: prefilledLinkedFnsCache is now per-client instance, so each test with a fresh client starts with empty cache
 

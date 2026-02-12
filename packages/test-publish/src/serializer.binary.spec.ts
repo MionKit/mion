@@ -8,7 +8,6 @@
 import {initClient} from '@mionkit/client';
 import {isRpcError} from '@mionkit/core';
 import {BinaryTestServerApi} from '@mionkit/test-server';
-import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionkit/test-server';
 
 // THIS TESTS ARE INTENDED TO E2E TESTING OF THE BINARY SERIALIZER
 
@@ -18,17 +17,12 @@ const Storage = require('dom-storage');
 global.localStorage = new Storage(null, {strict: true});
 global.sessionStorage = new Storage(null, {strict: true});
 
+// Shared test server port (started by globalSetup)
+const TEST_SERVER_PORT_BINARY = 8087;
+const baseURL = `http://localhost:${TEST_SERVER_PORT_BINARY}`;
+
 describe('Binary Serialization E2E', () => {
     type MyApi = BinaryTestServerApi;
-
-    const port = TEST_PORT_MAPPING.binarySerialization;
-
-    // Create server linkedFns using the utility with binary server script
-    const serverLinkedFns = createTestServerLinkedFns({port, serverType: 'binary'});
-    const baseURL = serverLinkedFns.getBaseURL();
-
-    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
     describe('Simple Types', () => {
         it('should serialize and deserialize string echo', async () => {

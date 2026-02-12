@@ -6,14 +6,14 @@
  * ######## */
 
 import type {ResponseBody} from '@mionkit/router';
-import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledLinkedFnsCache} from './types';
+import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledLinkedFnsCache} from './types.ts';
 import type {RunTypeError} from '@mionkit/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
-import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
-import {validateSubRequests} from './validation';
-import {serializeRequestBody, deserializeResponseBody} from './serializer';
-import {WORKFLOW_PATH} from './constants';
+import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
+import {validateSubRequests} from './validation.ts';
+import {serializeRequestBody, deserializeResponseBody} from './serializer.ts';
+import {WORKFLOW_PATH} from './constants.ts';
 
 export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList extends HSubRequest<any>[]> {
     readonly path: string;

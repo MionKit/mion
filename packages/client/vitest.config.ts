@@ -15,6 +15,18 @@ export default defineConfig({
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],
+        globalSetup: './globalSetup.ts',
+        // Prevent test-server from auto-starting when imported
+        env: {
+            MION_TEST_SERVER_AUTO_START: 'false',
+        },
+        // Run tests sequentially to avoid conflicts with shared server
+        pool: 'forks',
+        poolOptions: {
+            forks: {
+                singleFork: true,
+            },
+        },
         coverage: {
             provider: 'v8',
             reporter: ['text', 'html'],

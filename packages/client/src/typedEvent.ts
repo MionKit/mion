@@ -6,8 +6,8 @@
  * ######## */
 
 import type {RpcError} from '@mionkit/core';
-import type {HandlersRegistry} from './handlersRegistry';
-import type {ErrorHandler, SuccessHandler} from './types';
+import type {HandlersRegistry} from './handlersRegistry.ts';
+import type {ErrorHandler, SuccessHandler} from './types.ts';
 
 /** Persistent event emitter for linkedFn success and error handling */
 export class TypedEvent<S = void, E extends RpcError<string, any> = never> {

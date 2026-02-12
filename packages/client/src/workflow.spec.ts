@@ -5,11 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initClient} from './client';
-import {workflow} from './workflow';
-import {HSubRequest, RSubRequest} from './types';
+import {initClient} from './client.ts';
+import {workflow} from './workflow.ts';
+import {HSubRequest, RSubRequest} from './types.ts';
 import {HeadersSubset} from '@mionkit/core';
-import {TestServerApi, createTestServerLinkedFns, JEST_TIMEOUT_CONSTANTS, TEST_PORT_MAPPING} from '@mionkit/test-server';
+import {TestServerApi} from '@mionkit/test-server';
+import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
 
 // Mock localStorage for method metadata storage
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -26,14 +27,7 @@ describe('workflow', () => {
     const someUser = {name: 'John', surname: 'Doe'};
     type MyApi = TestServerApi;
 
-    const port = TEST_PORT_MAPPING.workflow;
-
-    // Create server linkedFns using the utility
-    const serverLinkedFns = createTestServerLinkedFns({port});
-    const baseURL = serverLinkedFns.getBaseURL();
-
-    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
+    const baseURL = TEST_SERVER_BASE_URL_JSON;
 
     describe('workflow() function', () => {
         it('should execute a single route in a workflow', async () => {

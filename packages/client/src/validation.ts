@@ -6,8 +6,8 @@
  * ######## */
 
 import {RpcError, routesCache} from '@mionkit/core';
-import {RequestErrors, SubRequest} from './types';
-import type {MionClientRequest} from './request';
+import {RequestErrors, SubRequest} from './types.ts';
+import type {MionClientRequest} from './request.ts';
 
 /** Validate subRequests locally using existing RemoteApi metadata */
 export function validateSubRequests(
