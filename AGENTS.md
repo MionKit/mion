@@ -19,7 +19,7 @@
 - all devDependencies should be installed root level not in the packages
 
 ## Testing
-- Uses Jest as testing framework
+- Uses Vitest as testing framework
 - Test files use `.spec.ts` suffix
 - Run tests on single file: `npx jest <file-pattern>` (preferred for faster feedback)
 - Run all tests in package: `npm run test`

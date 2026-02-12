@@ -182,6 +182,6 @@ async function startServer() {
 export type BinaryTestServerApi = PublicApi<typeof binaryTestRoutes>;
 
 // Start the server if this file is run directly
-if (require.main === module) {
-    startServer();
-}
+// In ESM, we always start the server when the file is loaded
+// This file is only meant to be run as a server entry point
+startServer();

@@ -2,6 +2,7 @@
   "name": "mionkit",
   "description": "mion is framework to build full stack APIs at the speed of light",
   "version": "0.1.0",
+  "type": "module",
   "main": "index.js",
   "homepage": "https://github.com/MionKit/mion#readme",
   "scripts": {

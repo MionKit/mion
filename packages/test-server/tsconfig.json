@@ -5,6 +5,8 @@
     "composite": true,
     "rootDir": ".",
     "baseUrl": "..",
+    "module": "nodeNext",
+    "moduleResolution": "nodeNext",
     "paths": {
       "@mionkit/core": ["core/index.ts"],
       "@mionkit/router": ["router/index.ts"],
@@ -13,6 +15,9 @@
       "@mionkit/type-formats/*": ["type-formats/*"],
       "@mionkit/run-types": ["run-types/index.ts"]
     }
+  },
+  "ts-node": {
+    "esm": true
   },
   "references": [
     {"path": "../core"},

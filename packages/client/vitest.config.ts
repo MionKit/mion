@@ -1,4 +1,4 @@
-import {defineConfig} from 'vite';
+import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
 import {deepkitType} from '@deepkit/vite';
 
@@ -11,14 +11,25 @@ export default defineConfig({
             },
         }) as any,
     ],
+    test: {
+        globals: true,
+        environment: 'node',
+        include: ['src/**/*.spec.ts'],
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'html'],
+            include: ['src/**'],
+        },
+    },
     resolve: {
         alias: {
-            '@mionkit/test-server': resolve(__dirname, '.'),
+            '@mionkit/client': resolve(__dirname, '.'),
             '@mionkit/core': resolve(__dirname, '../core'),
-            '@mionkit/router': resolve(__dirname, '../router'),
-            '@mionkit/node': resolve(__dirname, '../node'),
             '@mionkit/run-types': resolve(__dirname, '../run-types'),
             '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
+            '@mionkit/router': resolve(__dirname, '../router'),
+            '@mionkit/node': resolve(__dirname, '../node'),
+            '@mionkit/test-server': resolve(__dirname, '../test-server'),
         },
     },
 });

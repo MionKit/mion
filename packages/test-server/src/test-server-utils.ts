@@ -196,23 +196,14 @@ export class TestServerManager {
         const scriptPath = this.options.serverType === 'json' ? 'test-server-json.ts' : 'test-server-binary.ts';
         const serverScriptPath = join(clientPackageRoot, 'src', scriptPath);
 
-        // Start the server in a separate process using ts-node with tsconfig-paths
-        // Use process.cwd() as working directory so it works from wherever Jest is run
-        // The -r tsconfig-paths/register flag enables path mapping resolution at runtime
+        // Start the server in a separate process using vite-node (supports ESM and path mapping)
+        // Use process.cwd() as working directory so it works from wherever Vitest is run
         this.serverProcess = spawn(
             'npx',
-            [
-                'ts-node',
-                '-r',
-                'tsconfig-paths/register',
-                '--project',
-                tsconfigPath,
-                serverScriptPath,
-                this.availablePort.toString(),
-            ],
+            ['vite-node', '--config', join(clientPackageRoot, 'vite.config.ts'), serverScriptPath, this.availablePort.toString()],
             {
                 stdio: ['pipe', 'pipe', 'pipe'],
-                cwd: process.cwd(), // Use current working directory where Jest is run from
+                cwd: process.cwd(), // Use current working directory where Vitest is run from
             }
         );
 
