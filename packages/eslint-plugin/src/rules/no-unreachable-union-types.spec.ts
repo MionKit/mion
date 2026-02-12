@@ -5,16 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RuleTester} from 'eslint';
+import {RuleTester} from '@typescript-eslint/rule-tester';
 import rule from './no-unreachable-union-types.ts';
 
-const ruleTester = new RuleTester({
-    parser: require.resolve('@typescript-eslint/parser'),
-    parserOptions: {
-        ecmaVersion: 2020,
-        sourceType: 'module',
-    },
-});
+const ruleTester = new RuleTester();
 
 ruleTester.run('no-unreachable-union-types', rule, {
     valid: [
