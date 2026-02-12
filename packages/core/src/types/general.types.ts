@@ -6,9 +6,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-import type {MIME_TYPES} from '../constants';
-import {TypeFormatError} from './formats/formats.types';
-import {CompiledPureFunction, PersistedPureFunction, PureFunction, PureFunctionData} from './pureFunctions.types';
+import type {MIME_TYPES} from '../constants.ts';
+import {TypeFormatError} from './formats/formats.types.ts';
+import {CompiledPureFunction, PersistedPureFunction, PureFunction, PureFunctionData} from './pureFunctions.types.ts';
 
 /**
  * Interface defining the shape of jitUtils

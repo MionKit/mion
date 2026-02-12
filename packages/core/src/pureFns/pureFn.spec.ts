@@ -1,7 +1,7 @@
-import type {JITUtils} from '../types/general.types';
-import type {CompiledPureFunction, GenericPureFunction} from '../types/pureFunctions.types';
-import {registerPureFnClosure, registerPureFnClosuresGroup} from './pureFn';
-import {getJitUtils} from '../jitUtils';
+import type {JITUtils} from '../types/general.types.ts';
+import type {CompiledPureFunction, GenericPureFunction} from '../types/pureFunctions.types.ts';
+import {registerPureFnClosure, registerPureFnClosuresGroup} from './pureFn.ts';
+import {getJitUtils} from '../jitUtils.ts';
 
 const TEST_NAMESPACE = 'test';
 

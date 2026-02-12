@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getFriendlyErrors, defaultErrorPrinter} from './friendlyErrors';
-import type {RunTypeError} from './types/general.types';
-import type {FriendlyErrors} from './types/formats/friendlyErrors.types';
+import {getFriendlyErrors, defaultErrorPrinter} from './friendlyErrors.ts';
+import type {RunTypeError} from './types/general.types.ts';
+import type {FriendlyErrors} from './types/formats/friendlyErrors.types.ts';
 
 describe('friendlyErrors', () => {
     describe('defaultErrorPrinter', () => {

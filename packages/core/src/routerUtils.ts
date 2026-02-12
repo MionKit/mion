@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants';
+import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants.ts';
 import {routerCache as aotRouterCacheRaw} from '@mionkit/aot-caches';
-import type {RemoteMethodOpts, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types';
-import type {JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types';
-import {getJitUtils} from './jitUtils';
+import type {RemoteMethodOpts, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
+import type {JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
+import {getJitUtils} from './jitUtils.ts';
 
 // Cast the imported cache to the proper type (aot-caches uses generic Record to avoid circular dependency)
 const aotRouterCache = aotRouterCacheRaw as MethodsCache;

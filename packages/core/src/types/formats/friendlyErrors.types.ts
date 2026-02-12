@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RunTypeError, StrNumber} from '../general.types';
+import {RunTypeError, StrNumber} from '../general.types.ts';
 import {
     AnyFormatParams,
     AnyStringFormatParam,
@@ -20,9 +20,18 @@ import {
     FormatParams_DateTime,
     FormatParams_Date,
     FormatParams_Time,
-} from './formatsParams.types';
-import {ExtractFormatParams, TypeFormatError} from './formats.types';
-import {BrandEmail, BrandUUID, BrandUrl, BrandDomain, BrandIP, BrandDate, BrandTime, BrandDateTime} from './formatBrands.types';
+} from './formatsParams.types.ts';
+import {ExtractFormatParams, TypeFormatError} from './formats.types.ts';
+import {
+    BrandEmail,
+    BrandUUID,
+    BrandUrl,
+    BrandDomain,
+    BrandIP,
+    BrandDate,
+    BrandTime,
+    BrandDateTime,
+} from './formatBrands.types.ts';
 
 /**
  * Special key for basic type errors (when no format is involved).

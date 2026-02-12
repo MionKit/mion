@@ -1,9 +1,9 @@
-import {createDataViewDeserializer} from './dataView';
-import {StatusCodes} from '../constants';
-import {RpcError} from '../errors';
-import {BinaryInput, DataViewDeserializer} from '../types/general.types';
-import {MethodWithJitFns} from '../types/method.types';
-import {routesCache} from '../routerUtils';
+import {createDataViewDeserializer} from './dataView.ts';
+import {StatusCodes} from '../constants.ts';
+import {RpcError} from '../errors.ts';
+import {BinaryInput, DataViewDeserializer} from '../types/general.types.ts';
+import {MethodWithJitFns} from '../types/method.types.ts';
+import {routesCache} from '../routerUtils.ts';
 
 /**
  * Deserializes API body from binary format using JIT-compiled deserialization functions.

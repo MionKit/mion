@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, TypedError, setErrorOptions, isTypedError, isRpcError} from './errors';
+import {RpcError, TypedError, setErrorOptions, isTypedError, isRpcError} from './errors.ts';
 
 describe('Route errors should', () => {
     it('automatically generate an id when RouteOptions autoGenerateErrorId is set to true', () => {

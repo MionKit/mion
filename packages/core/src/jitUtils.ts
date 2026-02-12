@@ -16,11 +16,11 @@ import type {
     JITUtils,
     PersistedJitFunctionsCache,
     FnsDataCache,
-} from './types/general.types';
-import type {CompiledPureFunction} from './types/pureFunctions.types';
-import type {PureFunction} from './types/pureFunctions.types';
-import {initPureFunction} from './utils';
-import {restoreCompiledJitFns} from './pureFns/restoreJitFns';
+} from './types/general.types.ts';
+import type {CompiledPureFunction} from './types/pureFunctions.types.ts';
+import type {PureFunction} from './types/pureFunctions.types.ts';
+import {initPureFunction} from './utils.ts';
+import {restoreCompiledJitFns} from './pureFns/restoreJitFns.ts';
 import {jitFnsCache as aotJitFnsCache, pureFnsCache as aotPureFnsCache} from '@mionkit/aot-caches';
 
 // Local caches - can be populated from AOT caches via loadJitCaches()

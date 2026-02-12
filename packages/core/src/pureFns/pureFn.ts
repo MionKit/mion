@@ -1,6 +1,6 @@
-import type {CompiledPureFunction, PureFunctionClosure} from '../types/pureFunctions.types';
-import {getJitUtils} from '../jitUtils';
-import {createUniqueHash, pureFnHashLength} from './quickHash';
+import type {CompiledPureFunction, PureFunctionClosure} from '../types/pureFunctions.types.ts';
+import {getJitUtils} from '../jitUtils.ts';
+import {createUniqueHash, pureFnHashLength} from './quickHash.ts';
 
 export function getPureFunctionKey(fn: PureFunctionClosure): string {
     const name = fn.name;

@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions, AnyErrorParams, TypedErrorParams, DataOnly, RpcErrorParams, RunTypeError} from './types/general.types';
-import {DEFAULT_CORE_OPTIONS} from './constants';
-import {randomUUID_V7} from './utils';
-import {getJitUtils} from './jitUtils';
-import {hasUnknownKeysFromArray} from './pureFns/corePureUtils';
+import {CoreOptions, AnyErrorParams, TypedErrorParams, DataOnly, RpcErrorParams, RunTypeError} from './types/general.types.ts';
+import {DEFAULT_CORE_OPTIONS} from './constants.ts';
+import {randomUUID_V7} from './utils.ts';
+import {getJitUtils} from './jitUtils.ts';
+import {hasUnknownKeysFromArray} from './pureFns/corePureUtils.ts';
 
 // ############# Validation Error Types #############
 

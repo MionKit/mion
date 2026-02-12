@@ -12,14 +12,14 @@ import type {
     MapKeyPathSegment,
     MapValuePathSegment,
     SetItemPathSegment,
-} from './types/general.types';
+} from './types/general.types.ts';
 import type {
     FriendlyErrors,
     FriendlyErrorsResult,
     AnyFriendlyErrorParams,
     TypeErrorParam,
-} from './types/formats/friendlyErrors.types';
-import {isTestEnv} from './utils';
+} from './types/formats/friendlyErrors.types.ts';
+import {isTestEnv} from './utils.ts';
 
 // ============================================================================
 // Map/Set Path Type Guards
