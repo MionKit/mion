@@ -1,6 +1,7 @@
 {
   "name": "@mionkit/codegen",
   "version": "0.7.2",
+  "type": "module",
   "description": "Ahead-of-time code generation for mion run-types and router caches.",
   "keywords": [
     "typescript",
@@ -45,9 +46,9 @@
     "access": "public"
   },
   "scripts": {
-    "test": "jest",
+    "test": "vitest run",
     "dev": "vite build --watch",
-    "dev:test": "jest --watch",
+    "dev:test": "vitest watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
     "build": "npm run build:aot-template && vite build",
