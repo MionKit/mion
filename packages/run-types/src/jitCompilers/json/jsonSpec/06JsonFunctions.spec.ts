@@ -5,17 +5,17 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {SERIALIZATION_SPEC} from '../../serialization-suite';
-import {JitFunctions} from '../../../constants.functions';
-import type {InterfaceRunType} from '../../../nodes/collection/interface';
-import type {FunctionRunType} from '../../../nodes/function/function';
+import {SERIALIZATION_SPEC} from '../../serialization-suite.ts';
+import {JitFunctions} from '../../../constants.functions.ts';
+import type {InterfaceRunType} from '../../../nodes/collection/interface.ts';
+import type {FunctionRunType} from '../../../nodes/function/function.ts';
 import {
     createSerializationParamsFn,
     createSerializationReturnFn,
     createSerializationCallSignatureParamsFn,
     createSerializationCallSignatureReturnFn,
     roundTrip,
-} from './jsonHelpers';
+} from './jsonHelpers.ts';
 
 const SERIALIZE_FN = JitFunctions.prepareForJson;
 const DESERIALIZE_FN = JitFunctions.restoreFromJson;

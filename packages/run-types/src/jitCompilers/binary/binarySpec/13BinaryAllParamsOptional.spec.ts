@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctions} from '../../../constants.functions';
-import {FunctionRunType} from '../../../nodes/function/function';
-import {reflectFunction} from '../../../createRunType';
-import {serContext, desContext, roundTrip} from './binaryHelpers';
+import {JitFunctions} from '../../../constants.functions.ts';
+import {FunctionRunType} from '../../../nodes/function/function.ts';
+import {reflectFunction} from '../../../createRunType.ts';
+import {serContext, desContext, roundTrip} from './binaryHelpers.ts';
 import {StrictArrayBuffer} from '@mionkit/core';
-import {normalizeForComparison} from '../../equalsHelpers';
+import {normalizeForComparison} from '../../equalsHelpers.ts';
 
 const SERIALIZE_FN = JitFunctions.toBinary;
 const DESERIALIZE_FN = JitFunctions.fromBinary;

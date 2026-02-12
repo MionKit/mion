@@ -6,10 +6,10 @@
  * ######## */
 
 import {ReflectionKind, TypeTupleMember, type TypeParameter} from '@deepkit/type';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import {MemberRunType} from '../../lib/baseRunTypes';
-import {JitCode} from '../../types';
-import {childIsExpression, getParamIndex} from '../../lib/utils';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {MemberRunType} from '../../lib/baseRunTypes.ts';
+import {JitCode} from '../../types.ts';
+import {childIsExpression, getParamIndex} from '../../lib/utils.ts';
 
 type TupleMemberT = TypeParameter | TypeTupleMember;
 export class TupleMemberRunType<T extends TupleMemberT = TypeTupleMember> extends MemberRunType<T> {

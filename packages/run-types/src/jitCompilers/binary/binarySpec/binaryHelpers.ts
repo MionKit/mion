@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctions} from '../../../constants.functions';
-import {FunctionRunType} from '../../../nodes/function/function';
+import {JitFunctions} from '../../../constants.functions.ts';
+import {FunctionRunType} from '../../../nodes/function/function.ts';
 import type {DataViewDeserializer, DataViewSerializer, StrictArrayBuffer} from '@mionkit/core';
-import type {InterfaceRunType} from '../../../nodes/collection/interface';
-import type {RunType} from '../../../types';
+import type {InterfaceRunType} from '../../../nodes/collection/interface.ts';
+import type {RunType} from '../../../types.ts';
 import {createDataViewDeserializer, createDataViewSerializer, setSerializationOptions} from '@mionkit/core';
 import {getENV} from '@mionkit/core';
 

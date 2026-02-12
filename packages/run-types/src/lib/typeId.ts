@@ -7,11 +7,11 @@
 
 import {Type, TypeIndexSignature, TypeProperty, ReflectionKind, TypeClass, typeAnnotation} from '@deepkit/type';
 import {MAX_STACK_DEPTH, TypeFormatParams} from '@mionkit/core';
-import {ReflectionSubKind} from '../constants.kind';
-import {hasType, hasTypes, hasParameters} from './guards';
-import {getFormatterFromCache, defaultIgnoreFormatProps} from './formats';
-import {typeParamsToString} from './utils';
-import type {FormatAnnotation, SrcType, StrNumber} from '../types';
+import {ReflectionSubKind} from '../constants.kind.ts';
+import {hasType, hasTypes, hasParameters} from './guards.ts';
+import {getFormatterFromCache, defaultIgnoreFormatProps} from './formats.ts';
+import {typeParamsToString} from './utils.ts';
+import type {FormatAnnotation, SrcType, StrNumber} from '../types.ts';
 
 /** Type with optional cached _typeId and _formatId properties - compatible with SrcType */
 export type TypeWithCachedIds = Type & Pick<Partial<SrcType>, '_typeId' | '_formatId'>;

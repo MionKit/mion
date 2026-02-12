@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeClass} from '@deepkit/type';
-import {InterfaceMember, InterfaceRunType} from './interface';
-import {JitFnCompiler} from '../../lib/jitFnCompiler';
+import {InterfaceMember, InterfaceRunType} from './interface.ts';
+import {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
 import {getJitUtils} from '@mionkit/core';
-import {toLiteral} from '../../lib/utils';
-import {isConstructor} from '../../lib/guards';
-import {JitCode} from '../../types';
+import {toLiteral} from '../../lib/utils.ts';
+import {isConstructor} from '../../lib/guards.ts';
+import {JitCode} from '../../types.ts';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     getClassName(): string {

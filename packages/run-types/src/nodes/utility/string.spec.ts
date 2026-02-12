@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../createRunType';
+import {JitFunctions} from '../../constants.functions.ts';
+import {runType} from '../../createRunType.ts';
 
 // Intrinsic String Manipulation Types: these are typescript native utility types but require a runtime implementation
 // Uppercase<StringType>, Lowercase<StringType>, Capitalize<StringType>, Uncapitalize<StringType>

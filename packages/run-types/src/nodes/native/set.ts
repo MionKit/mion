@@ -4,13 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {SrcType} from '../../types';
-import {ReflectionSubKind} from '../../constants.kind';
+import type {SrcType} from '../../types.ts';
+import {ReflectionSubKind} from '../../constants.kind.ts';
 import {ReflectionKind, type TypeClass} from '@deepkit/type';
-import {GenericMemberRunType} from '../member/genericMember';
-import {IterableRunType} from './Iterable';
-import {JitFunctions} from '../../constants.functions';
-import type {JitFnCompiler} from '../../lib/jitFnCompiler';
+import {GenericMemberRunType} from '../member/genericMember.ts';
+import {IterableRunType} from './Iterable.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
 import {safeKey} from '@mionkit/core';
 export class SetRunType extends IterableRunType {
     keyRT = new SetKeyRunType();

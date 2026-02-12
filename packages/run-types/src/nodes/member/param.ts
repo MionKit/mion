@@ -6,8 +6,8 @@
  * ######## */
 
 import type {TypeParameter} from '@deepkit/type';
-import type {JitFnCompiler} from '../../lib/jitFnCompiler';
-import {TupleMemberRunType} from './tupleMember';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {TupleMemberRunType} from './tupleMember.ts';
 
 export class ParameterRunType<T extends TypeParameter = TypeParameter> extends TupleMemberRunType<T> {
     getParamName() {

@@ -6,13 +6,13 @@
  * ######## */
 
 import {PureFunctionClosure, TypeFormatParams, TypeFormatValue} from '@mionkit/core';
-import {ReflectionKindName} from '../constants.kind';
-import type {FormatAnnotation} from '../types';
+import {ReflectionKindName} from '../constants.kind.ts';
+import type {FormatAnnotation} from '../types.ts';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
-import type {BaseRunType} from './baseRunTypes';
-import type {JitErrorsFnCompiler, JitFnCompiler} from './jitFnCompiler';
-import type {BaseRunTypeFormat} from './baseRunTypeFormat';
-import {toLiteralInContext} from './utils';
+import type {BaseRunType} from './baseRunTypes.ts';
+import type {JitErrorsFnCompiler, JitFnCompiler} from './jitFnCompiler.ts';
+import type {BaseRunTypeFormat} from './baseRunTypeFormat.ts';
+import {toLiteralInContext} from './utils.ts';
 
 // ################# REGISTER FORMATTERS & PURE FUNCTIONS  #################
 

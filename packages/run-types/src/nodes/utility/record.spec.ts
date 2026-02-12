@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../createRunType';
+import {JitFunctions} from '../../constants.functions.ts';
+import {runType} from '../../createRunType.ts';
 
 describe('Record  typescript utility type', () => {
     type MyType = Record<string, {a: string; b: number; c: Date}>; // note how record does not check the type of keys

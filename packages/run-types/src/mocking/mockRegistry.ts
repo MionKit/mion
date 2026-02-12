@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFnCompiler} from '../lib/jitFnCompiler';
+import {JitFnCompiler} from '../lib/jitFnCompiler.ts';
 
 // TODO, as mock could return results async with mock promises
 // we might need an unique JitCompiler, for each mock to avoid problems with the stack

@@ -8,15 +8,15 @@
 import {ReflectionKind} from '@deepkit/type';
 import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
 import type {PureFunctionClosure, TypeFormatValue} from '@mionkit/core';
-import type {AnyClass, JitFnID, RunType} from '../types';
-import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
-import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
-import type {PropertyRunType} from '../nodes/member/property';
+import type {AnyClass, JitFnID, RunType} from '../types.ts';
+import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes.ts';
+import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler.ts';
+import type {PropertyRunType} from '../nodes/member/property.ts';
 import {getJitUtils, createHashLiteral} from '@mionkit/core';
-import {validPropertyNameRegExp} from '../constants';
-import {ReflectionSubKind} from '../constants.kind';
-import {getJitFnSettings} from './jitFnsRegistry';
-import type {JitCode} from '../types';
+import {validPropertyNameRegExp} from '../constants.ts';
+import {ReflectionSubKind} from '../constants.kind.ts';
+import {getJitFnSettings} from './jitFnsRegistry.ts';
+import type {JitCode} from '../types.ts';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {

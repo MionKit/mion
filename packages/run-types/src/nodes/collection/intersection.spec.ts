@@ -4,9 +4,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {runType} from '../../createRunType';
-import {InterfaceRunType} from './interface';
-import {NeverRunType} from '../atomic/never';
+import {runType} from '../../createRunType.ts';
+import {InterfaceRunType} from './interface.ts';
+import {NeverRunType} from '../atomic/never.ts';
 
 type IntersectionType = {
     prop3: string;

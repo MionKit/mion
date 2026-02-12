@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {SERIALIZATION_SPEC} from '../../serialization-suite';
-import {roundTrip, createSerializationFns} from './jsonHelpers';
+import {SERIALIZATION_SPEC} from '../../serialization-suite.ts';
+import {roundTrip, createSerializationFns} from './jsonHelpers.ts';
 
 let ranTests = 0;
 afterEach(() => ranTests++);

@@ -6,10 +6,10 @@
  * ######## */
 
 import type {TypeSymbol} from '@deepkit/type';
-import type {JitCode} from '../../types';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import {AtomicRunType} from '../../lib/baseRunTypes';
-import {JitFunctions} from '../../constants.functions';
+import type {JitCode} from '../../types.ts';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {AtomicRunType} from '../../lib/baseRunTypes.ts';
+import {JitFunctions} from '../../constants.functions.ts';
 
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     skipJit(comp: JitFnCompiler): boolean {

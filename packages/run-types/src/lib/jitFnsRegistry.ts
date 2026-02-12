@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitFnID} from '../types';
-import {JitFnSettings, jitFunctionList, jitFunctionsById} from '../constants.functions';
+import type {JitFnID} from '../types.ts';
+import {JitFnSettings, jitFunctionList, jitFunctionsById} from '../constants.functions.ts';
 
 type resolvedCompiler = {
     jitFnSettings: JitFnSettings;

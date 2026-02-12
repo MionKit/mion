@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeMethod} from '@deepkit/type';
-import {FunctionRunType} from '../function/function';
-import {RunTypeChildAccessor} from '../../types';
-import {getPropIndex, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
-import type {JitFnCompiler} from '../../lib/jitFnCompiler';
+import {FunctionRunType} from '../function/function.ts';
+import {RunTypeChildAccessor} from '../../types.ts';
+import {getPropIndex, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils.ts';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
 
 export class MethodRunType extends FunctionRunType<TypeMethod> implements RunTypeChildAccessor {
     getChildIndex = (comp: JitFnCompiler) => {

@@ -6,18 +6,18 @@
  * ######## */
 
 import {ReflectionKind, type TypeLiteral} from '@deepkit/type';
-import type {JitCode, RunType} from '../../types';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
+import type {JitCode, RunType} from '../../types.ts';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
 import type {Mutable} from '@mionkit/core';
-import {toLiteral} from '../../lib/utils';
-import {AtomicRunType} from '../../lib/baseRunTypes';
-import {BigIntRunType} from './bigInt';
-import {RegexpRunType} from './regexp';
-import {SymbolRunType} from './symbol';
-import {AnyKindName} from '../../constants.kind';
-import {StringRunType} from './string';
-import {NumberRunType} from './number';
-import {BooleanRunType} from './boolean';
+import {toLiteral} from '../../lib/utils.ts';
+import {AtomicRunType} from '../../lib/baseRunTypes.ts';
+import {BigIntRunType} from './bigInt.ts';
+import {RegexpRunType} from './regexp.ts';
+import {SymbolRunType} from './symbol.ts';
+import {AnyKindName} from '../../constants.kind.ts';
+import {StringRunType} from './string.ts';
+import {NumberRunType} from './number.ts';
+import {BooleanRunType} from './boolean.ts';
 
 const stringRt = new StringRunType();
 const numberRt = new NumberRunType();

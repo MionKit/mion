@@ -1,8 +1,8 @@
 import {getENV, getJitUtils, type JITUtils} from '@mionkit/core';
-import type {JitFnID, Mutable, RunTypeOptions} from '../types';
-import {BaseFnCompiler, JitCompilerLike, printClosure} from './jitFnCompiler';
-import type {BaseRunType} from './baseRunTypes';
-import {getJITFnName} from './jitFnsRegistry';
+import type {JitFnID, Mutable, RunTypeOptions} from '../types.ts';
+import {BaseFnCompiler, JitCompilerLike, printClosure} from './jitFnCompiler.ts';
+import type {BaseRunType} from './baseRunTypes.ts';
+import {getJITFnName} from './jitFnsRegistry.ts';
 
 /**
  * Creates a function name/hash based on the jitHash of the runType and the id of the function.

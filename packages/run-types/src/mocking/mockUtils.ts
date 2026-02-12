@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {anyValuesList, stringCharSet} from './constants.mock';
-import {mockRegExpsList} from './constants.mock';
+import {anyValuesList, stringCharSet} from './constants.mock.ts';
+import {mockRegExpsList} from './constants.mock.ts';
 
 export function mockBoolean(): boolean {
     return Math.random() < 0.5;

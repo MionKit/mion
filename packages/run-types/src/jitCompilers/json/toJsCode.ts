@@ -5,17 +5,17 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitCode} from '../../types';
-import type {BaseRunType} from '../../lib/baseRunTypes';
-import type {ClassRunType} from '../../nodes/collection/class';
-import type {MethodSignatureRunType} from '../../nodes/member/methodSignature';
-import type {IterableRunType} from '../../nodes/native/Iterable';
+import type {JitCode} from '../../types.ts';
+import type {BaseRunType} from '../../lib/baseRunTypes.ts';
+import type {ClassRunType} from '../../nodes/collection/class.ts';
+import type {MethodSignatureRunType} from '../../nodes/member/methodSignature.ts';
+import type {IterableRunType} from '../../nodes/native/Iterable.ts';
 import {ReflectionKind, type TypeMethodSignature, type TypePropertySignature} from '@deepkit/type';
-import {ReflectionSubKind} from '../../constants.kind';
-import {JitFunctions} from '../../constants.functions';
-import {JitFnCompiler} from '../../lib/jitFnCompiler';
-import {isSafePropName} from '../../lib/utils';
-import {createStringifyCompiler, createStringifyIterable} from './stringifyJson';
+import {ReflectionSubKind} from '../../constants.kind.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {isSafePropName} from '../../lib/utils.ts';
+import {createStringifyCompiler, createStringifyIterable} from './stringifyJson.ts';
 import {registerPureFnClosure} from '@mionkit/core';
 
 export function createToCodeCompiler() {

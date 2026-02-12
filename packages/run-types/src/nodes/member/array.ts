@@ -6,10 +6,10 @@
  * ######## */
 
 import type {Type, TypeArray} from '@deepkit/type';
-import type {JitCode} from '../../types';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import {MemberRunType} from '../../lib/baseRunTypes';
-import {childIsExpression} from '../../lib/utils';
+import type {JitCode} from '../../types.ts';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {MemberRunType} from '../../lib/baseRunTypes.ts';
+import {childIsExpression} from '../../lib/utils.ts';
 
 export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

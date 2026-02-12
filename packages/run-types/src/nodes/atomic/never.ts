@@ -6,9 +6,9 @@
  * ######## */
 
 import type {TypeNever} from '@deepkit/type';
-import {AtomicRunType} from '../../lib/baseRunTypes';
-import {JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import {JitCode} from '../../types';
+import {AtomicRunType} from '../../lib/baseRunTypes.ts';
+import {JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {JitCode} from '../../types.ts';
 
 export class NeverRunType extends AtomicRunType<TypeNever> {
     emitIsType(): JitCode {

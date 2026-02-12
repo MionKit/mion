@@ -4,9 +4,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {runType} from '../../createRunType';
-import {JitFunctions} from '../../constants.functions';
-import {mockRegExpsList} from '../../mocking/constants.mock';
+import {runType} from '../../createRunType.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import {mockRegExpsList} from '../../mocking/constants.mock.ts';
 
 const rt = runType<RegExp>();
 

@@ -4,9 +4,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {runType} from '../../createRunType';
-import {JitFunctions} from '../../constants.functions';
-import {BaseRunType} from '../../lib/baseRunTypes';
+import {runType} from '../../createRunType.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import {BaseRunType} from '../../lib/baseRunTypes.ts';
 
 describe('Interface', () => {
     type ObjectType = {

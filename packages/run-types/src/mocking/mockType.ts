@@ -6,31 +6,31 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import type {MockOptions, Mutable, RunTypeOptions} from '../types';
-import type {BaseRunType} from '../lib/baseRunTypes';
-import {mockString, mockNumber, mockBoolean, mockBigInt, mockDate, random, mockRegExp, mockSymbol, mockAny} from './mockUtils';
-import {stringCharSet} from './constants.mock';
-import {ClassRunType} from '../nodes/collection/class';
-import type {PropertyRunType} from '../nodes/member/property';
-import type {MapRunType} from '../nodes/native/map';
-import type {SetRunType} from '../nodes/native/set';
-import type {InterfaceRunType} from '../nodes/collection/interface';
-import type {TupleRunType} from '../nodes/collection/tuple';
-import type {FunctionParamsRunType} from '../nodes/collection/functionParams';
-import type {UnionRunType} from '../nodes/collection/union';
-import type {EnumRunType} from '../nodes/atomic/enum';
-import type {PromiseRunType} from '../nodes/native/promise';
-import type {ParameterRunType} from '../nodes/member/param';
-import type {RestParamsRunType} from '../nodes/member/restParams';
-import {ReflectionSubKind} from '../constants.kind';
-import {NonSerializableRunType} from '../nodes/native/nonSerializable';
-import {IndexSignatureRunType} from '../nodes/member/indexProperty';
-import {getRunTypeFormat, getRunTypeTransformer} from '../lib/formats';
-import {JIT_STACK_TRACE_MESSAGE} from '../constants';
-import {JitFunctions} from '../constants.functions';
-import type {ArrayRunType} from '../nodes/member/array';
+import type {MockOptions, Mutable, RunTypeOptions} from '../types.ts';
+import type {BaseRunType} from '../lib/baseRunTypes.ts';
+import {mockString, mockNumber, mockBoolean, mockBigInt, mockDate, random, mockRegExp, mockSymbol, mockAny} from './mockUtils.ts';
+import {stringCharSet} from './constants.mock.ts';
+import {ClassRunType} from '../nodes/collection/class.ts';
+import type {PropertyRunType} from '../nodes/member/property.ts';
+import type {MapRunType} from '../nodes/native/map.ts';
+import type {SetRunType} from '../nodes/native/set.ts';
+import type {InterfaceRunType} from '../nodes/collection/interface.ts';
+import type {TupleRunType} from '../nodes/collection/tuple.ts';
+import type {FunctionParamsRunType} from '../nodes/collection/functionParams.ts';
+import type {UnionRunType} from '../nodes/collection/union.ts';
+import type {EnumRunType} from '../nodes/atomic/enum.ts';
+import type {PromiseRunType} from '../nodes/native/promise.ts';
+import type {ParameterRunType} from '../nodes/member/param.ts';
+import type {RestParamsRunType} from '../nodes/member/restParams.ts';
+import {ReflectionSubKind} from '../constants.kind.ts';
+import {NonSerializableRunType} from '../nodes/native/nonSerializable.ts';
+import {IndexSignatureRunType} from '../nodes/member/indexProperty.ts';
+import {getRunTypeFormat, getRunTypeTransformer} from '../lib/formats.ts';
+import {JIT_STACK_TRACE_MESSAGE} from '../constants.ts';
+import {JitFunctions} from '../constants.functions.ts';
+import type {ArrayRunType} from '../nodes/member/array.ts';
 import {getJitUtils} from '@mionkit/core';
-import {MockJitCompiler, type JitFnCompiler} from '../lib/jitFnCompiler';
+import {MockJitCompiler, type JitFnCompiler} from '../lib/jitFnCompiler.ts';
 
 export function mockType(runType: BaseRunType, comp: JitFnCompiler, stack: BaseRunType[] = []): any {
     // TODO: we could use JitCompiler functionality here to controls the stack etc

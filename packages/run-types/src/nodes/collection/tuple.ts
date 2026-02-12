@@ -6,11 +6,11 @@
  * ######## */
 
 import type {TypeFunction, TypeTuple} from '@deepkit/type';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import type {AnyParameterListRunType, SrcType, JitCode} from '../../types';
-import {ParameterRunType} from '../member/param';
-import {CollectionRunType} from '../../lib/baseRunTypes';
-import {TupleMemberRunType} from '../member/tupleMember';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import type {AnyParameterListRunType, SrcType, JitCode} from '../../types.ts';
+import {ParameterRunType} from '../member/param.ts';
+import {CollectionRunType} from '../../lib/baseRunTypes.ts';
+import {TupleMemberRunType} from '../member/tupleMember.ts';
 
 type AnyParamRunType = ParameterRunType | TupleMemberRunType;
 

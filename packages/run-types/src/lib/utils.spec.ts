@@ -6,12 +6,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctions} from '../constants.functions';
-import type {BaseRunType, CollectionRunType} from './baseRunTypes';
-import {JitFnCompiler} from './jitFnCompiler';
-import {runType} from '../createRunType';
-import {getTotalComplexity, sortDiscriminatorsFirst, sortRunTypeByComplexity} from './utils';
-import type {PropertyRunType} from '../nodes/member/property';
+import {JitFunctions} from '../constants.functions.ts';
+import type {BaseRunType, CollectionRunType} from './baseRunTypes.ts';
+import {JitFnCompiler} from './jitFnCompiler.ts';
+import {runType} from '../createRunType.ts';
+import {getTotalComplexity, sortDiscriminatorsFirst, sortRunTypeByComplexity} from './utils.ts';
+import type {PropertyRunType} from '../nodes/member/property.ts';
 
 const anyRT = runType<any>() as BaseRunType;
 // the compiled is just requires to get compiler opts, so we can use same compiler for all tests

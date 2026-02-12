@@ -4,17 +4,17 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {AnyFunction, SrcType, JitFn, JitCode, RunTypeOptions} from '../../types';
+import type {AnyFunction, SrcType, JitFn, JitCode, RunTypeOptions} from '../../types.ts';
 import {ReflectionKind, TypeFunction} from '@deepkit/type';
-import {BaseRunType} from '../../lib/baseRunTypes';
-import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
-import {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import {PromiseRunType} from '../native/promise';
-import {ReflectionSubKind} from '../../constants.kind';
-import {FunctionParamsRunType} from '../collection/functionParams';
+import {BaseRunType} from '../../lib/baseRunTypes.ts';
+import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards.ts';
+import {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {PromiseRunType} from '../native/promise.ts';
+import {ReflectionSubKind} from '../../constants.kind.ts';
+import {FunctionParamsRunType} from '../collection/functionParams.ts';
 import {JitCompiledFn} from '@mionkit/core';
-import {registerJitFunctionCompiler} from '../../lib/jitFnsRegistry';
-import {JitFunctions} from '../../constants.functions';
+import {registerJitFunctionCompiler} from '../../lib/jitFnsRegistry.ts';
+import {JitFunctions} from '../../constants.functions.ts';
 
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
