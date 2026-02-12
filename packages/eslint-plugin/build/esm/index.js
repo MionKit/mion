@@ -25,7 +25,6 @@ const plugin = {
     }
   }
 };
-module.exports = plugin;
 export {
   plugin as default
 };

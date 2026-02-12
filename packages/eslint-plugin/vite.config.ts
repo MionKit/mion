@@ -35,7 +35,7 @@ export default defineConfig({
     },
     plugins: [
         dts({
-            outDir: ['build/cjs', 'build/esm'],
+            outDir: 'build/esm',
             include: ['src/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
         }),
@@ -43,29 +43,19 @@ export default defineConfig({
     build: {
         lib: {
             entry,
-            formats: ['es', 'cjs'],
+            formats: ['es'],
         },
-        outDir: 'build',
+        outDir: 'build/esm',
         emptyOutDir: true,
         sourcemap: true,
         minify: false,
         rollupOptions: {
-            output: [
-                {
-                    format: 'es',
-                    dir: 'build/esm',
-                    entryFileNames: '[name].js',
-                    preserveModules: true,
-                    preserveModulesRoot: 'src',
-                },
-                {
-                    format: 'cjs',
-                    dir: 'build/cjs',
-                    entryFileNames: '[name].js',
-                    preserveModules: true,
-                    preserveModulesRoot: 'src',
-                },
-            ],
+            output: {
+                format: 'es',
+                entryFileNames: '[name].js',
+                preserveModules: true,
+                preserveModulesRoot: 'src',
+            },
             external: [/^[^./]/],
         },
     },

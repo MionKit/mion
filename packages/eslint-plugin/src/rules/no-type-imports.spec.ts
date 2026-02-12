@@ -6,7 +6,7 @@
  * ######## */
 
 import {RuleTester} from 'eslint';
-import rule from './no-type-imports';
+import rule from './no-type-imports.ts';
 
 const ruleTester = new RuleTester({
     parser: require.resolve('@typescript-eslint/parser'),
