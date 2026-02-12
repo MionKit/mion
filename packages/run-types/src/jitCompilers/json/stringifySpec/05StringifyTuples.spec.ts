@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {normalizeForComparison} from '../../equalsHelpers';
-import {SERIALIZATION_SPEC} from '../../serialization-suite';
-import {roundTrip, createSerializationFns} from './stringifyHelpers';
+import {normalizeForComparison} from '../../equalsHelpers.ts';
+import {SERIALIZATION_SPEC} from '../../serialization-suite.ts';
+import {roundTrip, createSerializationFns} from './stringifyHelpers.ts';
 
 let ranTests = 0;
 afterEach(() => ranTests++);

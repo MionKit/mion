@@ -6,7 +6,7 @@
  * ######## */
 
 import {typeAnnotation, typeToObject} from '@deepkit/type';
-import {RunType, RunTypeAnnotation, SrcType} from '../types';
+import {RunType, RunTypeAnnotation, SrcType} from '../types.ts';
 
 /**
  * Returns RunType annotations, ie:

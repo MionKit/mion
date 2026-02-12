@@ -7,14 +7,14 @@
 // ###################### Types FORMATS #####################
 
 import {ReflectionKind} from '@deepkit/type';
-import {runType} from '../createRunType';
-import {BaseRunTypeFormat} from './baseRunTypeFormat';
-import {BaseRunType} from './baseRunTypes';
-import {registerFormatter, getFormatterParams} from './formats';
-import {TypeFormat} from './formats.runtype';
-import {JitFunctions} from '../constants.functions';
-import {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
-import {JitCode} from '../types';
+import {runType} from '../createRunType.ts';
+import {BaseRunTypeFormat} from './baseRunTypeFormat.ts';
+import {BaseRunType} from './baseRunTypes.ts';
+import {registerFormatter, getFormatterParams} from './formats.ts';
+import {TypeFormat} from './formats.runtype.ts';
+import {JitFunctions} from '../constants.functions.ts';
+import {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler.ts';
+import {JitCode} from '../types.ts';
 
 type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
 class Max5Formatter extends BaseRunTypeFormat<any> {

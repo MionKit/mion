@@ -5,17 +5,17 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind} from '@deepkit/type';
-import type {JitCode} from '../../types';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import {arrayToLiteral, getJitFnArgCallVarName, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
-import {PropertyRunType} from '../member/property';
-import {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
-import {MethodSignatureRunType} from '../member/methodSignature';
-import {IndexSignatureRunType} from '../member/indexProperty';
-import {MethodRunType} from '../member/method';
-import {CallSignatureRunType} from '../member/callSignature';
-import {JitFunctions} from '../../constants.functions';
-import {isIndexSignatureRunType} from '../../lib/guards';
+import type {JitCode} from '../../types.ts';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {arrayToLiteral, getJitFnArgCallVarName, memorize, sortDiscriminatorsFirst} from '../../lib/utils.ts';
+import {PropertyRunType} from '../member/property.ts';
+import {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes.ts';
+import {MethodSignatureRunType} from '../member/methodSignature.ts';
+import {IndexSignatureRunType} from '../member/indexProperty.ts';
+import {MethodRunType} from '../member/method.ts';
+import {CallSignatureRunType} from '../member/callSignature.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import {isIndexSignatureRunType} from '../../lib/guards.ts';
 import {getUnknownKeysFromArray, hasUnknownKeysFromArray} from '@mionkit/core';
 
 export type InterfaceMember =

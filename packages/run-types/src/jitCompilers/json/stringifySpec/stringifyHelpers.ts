@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctions} from '../../../constants.functions';
-import type {InterfaceRunType} from '../../../nodes/collection/interface';
-import type {FunctionRunType} from '../../../nodes/function/function';
-import type {RunType} from '../../../types';
+import {JitFunctions} from '../../../constants.functions.ts';
+import type {InterfaceRunType} from '../../../nodes/collection/interface.ts';
+import type {FunctionRunType} from '../../../nodes/function/function.ts';
+import type {RunType} from '../../../types.ts';
 
 const SERIALIZE_FN = JitFunctions.stringifyJson;
 const DESERIALIZE_FN = JitFunctions.restoreFromJson;

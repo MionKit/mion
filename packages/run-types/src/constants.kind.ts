@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import {RunType} from './types';
+import {RunType} from './types.ts';
 
 export const ReflectionKindName: {[key: number]: keyof typeof ReflectionKind} = {
     0: 'never',

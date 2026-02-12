@@ -6,8 +6,8 @@
  * ######## */
 
 import {HandlerType, MethodWithOptions, MethodsCache, RpcError, SerializableMethodsData} from '@mionkit/core';
-import {JitFunctions} from '../constants.functions';
-import {runType} from '../createRunType';
+import {JitFunctions} from '../constants.functions.ts';
+import {runType} from '../createRunType.ts';
 import {JitCompiledFnData, PureFunctionData} from '@mionkit/core';
 
 type MethodsResponse = SerializableMethodsData | RpcError<string>;

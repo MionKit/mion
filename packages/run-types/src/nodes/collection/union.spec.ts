@@ -4,9 +4,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {UnionRunType} from './union';
-import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../createRunType';
+import {UnionRunType} from './union.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import {runType} from '../../createRunType.ts';
 
 describe('Atomic Union', () => {
     type AtomicUnion = Date | number | string | null | bigint;

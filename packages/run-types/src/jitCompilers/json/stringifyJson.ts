@@ -6,27 +6,27 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import {ReflectionSubKind} from '../../constants.kind';
-import {JitFunctions} from '../../constants.functions';
-import {JitFnCompiler} from '../../lib/jitFnCompiler';
-import {createIfElseFn, isSafePropName, parentIs} from '../../lib/utils';
-import type {IndexSignatureRunType} from '../../nodes/member/indexProperty';
-import type {JitCode} from '../../types';
-import type {BaseRunType} from '../../lib/baseRunTypes';
-import type {ClassRunType} from '../../nodes/collection/class';
-import type {PropertyRunType} from '../../nodes/member/property';
-import type {MapRunType} from '../../nodes/native/map';
-import type {SetRunType} from '../../nodes/native/set';
-import type {InterfaceRunType} from '../../nodes/collection/interface';
-import type {TupleRunType} from '../../nodes/collection/tuple';
-import type {FunctionParamsRunType} from '../../nodes/collection/functionParams';
-import type {UnionRunType} from '../../nodes/collection/union';
-import type {ParameterRunType} from '../../nodes/member/param';
-import type {RestParamsRunType} from '../../nodes/member/restParams';
-import type {ArrayRunType} from '../../nodes/member/array';
-import type {MemberRunType} from '../../lib/baseRunTypes';
-import type {LiteralRunType} from '../../nodes/atomic/literal';
-import type {IterableRunType} from '../../nodes/native/Iterable';
+import {ReflectionSubKind} from '../../constants.kind.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {createIfElseFn, isSafePropName, parentIs} from '../../lib/utils.ts';
+import type {IndexSignatureRunType} from '../../nodes/member/indexProperty.ts';
+import type {JitCode} from '../../types.ts';
+import type {BaseRunType} from '../../lib/baseRunTypes.ts';
+import type {ClassRunType} from '../../nodes/collection/class.ts';
+import type {PropertyRunType} from '../../nodes/member/property.ts';
+import type {MapRunType} from '../../nodes/native/map.ts';
+import type {SetRunType} from '../../nodes/native/set.ts';
+import type {InterfaceRunType} from '../../nodes/collection/interface.ts';
+import type {TupleRunType} from '../../nodes/collection/tuple.ts';
+import type {FunctionParamsRunType} from '../../nodes/collection/functionParams.ts';
+import type {UnionRunType} from '../../nodes/collection/union.ts';
+import type {ParameterRunType} from '../../nodes/member/param.ts';
+import type {RestParamsRunType} from '../../nodes/member/restParams.ts';
+import type {ArrayRunType} from '../../nodes/member/array.ts';
+import type {MemberRunType} from '../../lib/baseRunTypes.ts';
+import type {LiteralRunType} from '../../nodes/atomic/literal.ts';
+import type {IterableRunType} from '../../nodes/native/Iterable.ts';
 import {asJSONString} from '@mionkit/core';
 
 type Operation = typeof JitFunctions.stringifyJson.id | typeof JitFunctions.toJSCode.id;

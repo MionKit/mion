@@ -4,8 +4,8 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {runType} from '../../createRunType';
-import {JitFunctions} from '../../constants.functions';
+import {runType} from '../../createRunType.ts';
+import {JitFunctions} from '../../constants.functions.ts';
 
 enum Color {
     Red,

@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {type TypePromise} from '@deepkit/type';
-import type {JitCode} from '../../types';
-import {MemberRunType} from '../../lib/baseRunTypes';
-import {JitFunctions} from '../../constants.functions';
-import type {JitFnCompiler} from '../../lib/jitFnCompiler';
+import type {JitCode} from '../../types.ts';
+import {MemberRunType} from '../../lib/baseRunTypes.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
     skipJit(comp: JitFnCompiler): boolean {

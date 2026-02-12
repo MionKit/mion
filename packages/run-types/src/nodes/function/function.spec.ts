@@ -4,9 +4,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {reflectFunction, runType} from '../../createRunType';
-import {JitFunctions} from '../../constants.functions';
-import {FunctionRunType} from './function';
+import {reflectFunction, runType} from '../../createRunType.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import {FunctionRunType} from './function.ts';
 
 type FunctionType = (a: number, b: boolean, c?: string) => Date;
 type FunctionType2 = (a: Date, b?: boolean) => bigint; // requires encode/decode

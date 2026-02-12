@@ -6,13 +6,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {TypeFormatParams, PureFunctionClosure, TypeFormatValue, JitCompiledFn} from '@mionkit/core';
-import type {BaseRunType} from './baseRunTypes';
-import {createJitCompiler, type JitFnCompiler, type JitErrorsFnCompiler} from './jitFnCompiler';
-import type {JitFnID, Mutable, StrNumber, JitCode, RunTypeOptions} from '../types';
-import {JitFunctions} from '../constants.functions';
+import type {BaseRunType} from './baseRunTypes.ts';
+import {createJitCompiler, type JitFnCompiler, type JitErrorsFnCompiler} from './jitFnCompiler.ts';
+import type {JitFnID, Mutable, StrNumber, JitCode, RunTypeOptions} from '../types.ts';
+import {JitFunctions} from '../constants.functions.ts';
 import {ReflectionKind} from '@deepkit/type';
-import {dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
-import {getFormatterHash} from './utils';
+import {dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats.ts';
+import {getFormatterHash} from './utils.ts';
 import {getENV, getJitUtils} from '@mionkit/core';
 
 /**

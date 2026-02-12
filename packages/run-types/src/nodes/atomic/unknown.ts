@@ -5,6 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyRunType} from './any';
+import {AnyRunType} from './any.ts';
 
 export class UnknownRunType extends AnyRunType {}

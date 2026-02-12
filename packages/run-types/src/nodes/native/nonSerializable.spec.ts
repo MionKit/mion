@@ -4,13 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {runType} from '../../createRunType';
-import {JitFunctions} from '../../constants.functions';
-import {getJITFnHash} from '../../lib/createJitFunction';
+import {runType} from '../../createRunType.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import {getJITFnHash} from '../../lib/createJitFunction.ts';
 import {getJitUtils} from '@mionkit/core';
-import {NonSerializableRunType} from './nonSerializable';
-import {FunctionRunType} from '../function/function';
-import {RunType} from '../../types';
+import {NonSerializableRunType} from './nonSerializable.ts';
+import {FunctionRunType} from '../function/function.ts';
+import {RunType} from '../../types.ts';
 
 /**
  * Non serializable types can create a RunType but will throw when trying to create a JIT function.

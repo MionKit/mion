@@ -6,22 +6,22 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import {ReflectionSubKind} from '../../constants.kind';
-import {jitBinarySerializerArgs, JitFunctions} from '../../constants.functions';
-import {createIfElseFn} from '../../lib/utils';
-import {MAX_UNION_ITEMS} from '../../constants';
-import type {JitCode} from '../../types';
-import type {BaseRunType} from '../../lib/baseRunTypes';
-import type {BaseFnCompiler} from '../../lib/jitFnCompiler';
-import type {ArrayRunType} from '../../nodes/member/array';
-import type {PropertyRunType} from '../../nodes/member/property';
-import type {InterfaceRunType} from '../../nodes/collection/interface';
-import type {IndexSignatureRunType} from '../../nodes/member/indexProperty';
-import type {ParameterRunType} from '../../nodes/member/param';
-import type {TupleRunType} from '../../nodes/collection/tuple';
-import type {UnionRunType} from '../../nodes/collection/union';
-import type {IterableRunType} from '../../nodes/native/Iterable';
-import type {LiteralRunType} from '../../nodes/atomic/literal';
+import {ReflectionSubKind} from '../../constants.kind.ts';
+import {jitBinarySerializerArgs, JitFunctions} from '../../constants.functions.ts';
+import {createIfElseFn} from '../../lib/utils.ts';
+import {MAX_UNION_ITEMS} from '../../constants.ts';
+import type {JitCode} from '../../types.ts';
+import type {BaseRunType} from '../../lib/baseRunTypes.ts';
+import type {BaseFnCompiler} from '../../lib/jitFnCompiler.ts';
+import type {ArrayRunType} from '../../nodes/member/array.ts';
+import type {PropertyRunType} from '../../nodes/member/property.ts';
+import type {InterfaceRunType} from '../../nodes/collection/interface.ts';
+import type {IndexSignatureRunType} from '../../nodes/member/indexProperty.ts';
+import type {ParameterRunType} from '../../nodes/member/param.ts';
+import type {TupleRunType} from '../../nodes/collection/tuple.ts';
+import type {UnionRunType} from '../../nodes/collection/union.ts';
+import type {IterableRunType} from '../../nodes/native/Iterable.ts';
+import type {LiteralRunType} from '../../nodes/atomic/literal.ts';
 
 type BinaryCompiler = BaseFnCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
 const fnID = JitFunctions.toBinary.id;

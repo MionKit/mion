@@ -20,21 +20,21 @@ import type {
     StrNumber,
     DeepPartial,
     RunTypeFamily,
-} from '../types';
-import type {mockType} from '../mocking/mockType';
-import {maxStackErrorMessage} from '../constants';
-import {type CodeType, JitFunctions, CodeTypes} from '../constants.functions';
+} from '../types.ts';
+import type {mockType} from '../mocking/mockType.ts';
+import {maxStackErrorMessage} from '../constants.ts';
+import {type CodeType, JitFunctions, CodeTypes} from '../constants.functions.ts';
 import {ReflectionKind, stringifyType} from '@deepkit/type';
 import type {TypeIndexSignature, TypeProperty, Type} from '@deepkit/type';
-import {getPropIndex, memorize} from './utils';
-import {createJitCompiler, MockJitCompiler} from './jitFnCompiler';
-import {getJITFnHash} from './createJitFunction';
-import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler';
-import {type AnyKindName, getReflectionName} from '../constants.kind';
-import {initFormatAnnotations} from './formats';
-import {createTypeId} from './typeId';
-import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
-import {defaultMockOptions} from '../mocking/constants.mock';
+import {getPropIndex, memorize} from './utils.ts';
+import {createJitCompiler, MockJitCompiler} from './jitFnCompiler.ts';
+import {getJITFnHash} from './createJitFunction.ts';
+import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler.ts';
+import {type AnyKindName, getReflectionName} from '../constants.kind.ts';
+import {initFormatAnnotations} from './formats.ts';
+import {createTypeId} from './typeId.ts';
+import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry.ts';
+import {defaultMockOptions} from '../mocking/constants.mock.ts';
 
 const RB = CodeTypes.returnBlock;
 const S = CodeTypes.statement;

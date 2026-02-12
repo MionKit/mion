@@ -6,12 +6,12 @@
  * ######## */
 
 import type {TypeProperty, TypePropertySignature} from '@deepkit/type';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import type {JitCode} from '../../types';
-import {childIsExpression, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
-import {MemberRunType} from '../../lib/baseRunTypes';
-import {InterfaceRunType} from '../collection/interface';
-import {JitFunctions} from '../../constants.functions';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import type {JitCode} from '../../types.ts';
+import {childIsExpression, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils.ts';
+import {MemberRunType} from '../../lib/baseRunTypes.ts';
+import {InterfaceRunType} from '../collection/interface.ts';
+import {JitFunctions} from '../../constants.functions.ts';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     isUnionDiscriminator = false;

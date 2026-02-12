@@ -6,9 +6,9 @@
  * ######## */
 
 import type {TypeBigInt} from '@deepkit/type';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import type {JitCode} from '../../types';
-import {AtomicRunType} from '../../lib/baseRunTypes';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import type {JitCode} from '../../types.ts';
+import {AtomicRunType} from '../../lib/baseRunTypes.ts';
 
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     emitIsType(comp: JitFnCompiler): JitCode {

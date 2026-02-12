@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {createTypeId} from './typeId';
-import {runType} from '../createRunType';
+import {createTypeId} from './typeId.ts';
+import {runType} from '../createRunType.ts';
 import {ReflectionKind} from '@deepkit/type';
 
 describe('getDeepkitTypeId', () => {

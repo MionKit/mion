@@ -6,8 +6,8 @@
  * ######## */
 
 import {type TypeEnum} from '@deepkit/type';
-import {AtomicRunType} from '../../lib/baseRunTypes';
-import {JitCode} from '../../types';
+import {AtomicRunType} from '../../lib/baseRunTypes.ts';
+import {JitCode} from '../../types.ts';
 
 // TODO: not sure when run type will be generated but doesn't seem to be used when using reflection on enums
 export class EnumMemberRunType extends AtomicRunType<TypeEnum> {

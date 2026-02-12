@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctions} from './constants.functions';
+import {JitFunctions} from './constants.functions.ts';
 import {ReceiveType} from '@deepkit/type';
-import {runType} from './createRunType';
-import {RunTypeOptions} from './types';
+import {runType} from './createRunType.ts';
+import {RunTypeOptions} from './types.ts';
 import {
     FromBinaryFn,
     IsTypeFn,
@@ -19,8 +19,8 @@ import {
     ToCodeFn,
     TypeErrorsFn,
 } from '@mionkit/core';
-import {BaseRunType} from './lib/baseRunTypes';
-import {registerJitFunctionCompiler} from './lib/jitFnsRegistry';
+import {BaseRunType} from './lib/baseRunTypes.ts';
+import {registerJitFunctionCompiler} from './lib/jitFnsRegistry.ts';
 
 // All these functions are async because they might need to compile the jit function first
 // At the moment they are compiled synchronously, but in the future they might be async

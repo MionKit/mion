@@ -4,10 +4,10 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitCode} from '../../types';
-import {ClassRunType} from '../collection/class';
-import {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import {BaseRunType} from '../../lib/baseRunTypes';
+import type {JitCode} from '../../types.ts';
+import {ClassRunType} from '../collection/class.ts';
+import {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {BaseRunType} from '../../lib/baseRunTypes.ts';
 
 // This is the base class for all iterable run types, like SetRunType and MapRunType
 export abstract class IterableRunType extends ClassRunType {

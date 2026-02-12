@@ -6,13 +6,13 @@
  * ######## */
 
 import {ReflectionKind, type TypeUnion} from '@deepkit/type';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import type {JitCode} from '../../types';
-import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
-import {childIsExpression, createIfElseFn, toLiteral} from '../../lib/utils';
-import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
-import {markDiscriminators, splitUnionItems, SplitUnionResult} from './unionDiscriminator';
-import type {PropertyRunType} from '../member/property';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import type {JitCode} from '../../types.ts';
+import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes.ts';
+import {childIsExpression, createIfElseFn, toLiteral} from '../../lib/utils.ts';
+import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards.ts';
+import {markDiscriminators, splitUnionItems, SplitUnionResult} from './unionDiscriminator.ts';
+import type {PropertyRunType} from '../member/property.ts';
 
 /**
  * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.

@@ -6,8 +6,8 @@
  * ######## */
 
 import {TypeIntersection} from '@deepkit/type';
-import {InterfaceRunType} from './interface';
-import {type JitCode} from '../../types';
+import {InterfaceRunType} from './interface.ts';
+import {type JitCode} from '../../types.ts';
 
 /** IMPORTANT:
  * Intersection are already resolved by deepkit so seems like this runType wont ever be called

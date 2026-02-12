@@ -6,10 +6,10 @@
  * ######## */
 
 import type {TypeRest} from '@deepkit/type';
-import type {ParameterRunType} from './param';
-import type {TupleMemberRunType} from './tupleMember';
-import {ArrayRunType} from './array';
-import type {JitFnCompiler} from '../../lib/jitFnCompiler';
+import type {ParameterRunType} from './param.ts';
+import type {TupleMemberRunType} from './tupleMember.ts';
+import {ArrayRunType} from './array.ts';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
 
 export class RestParamsRunType extends ArrayRunType<TypeRest> {
     getChildIndex(comp: JitFnCompiler): number {

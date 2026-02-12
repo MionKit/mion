@@ -4,10 +4,10 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import {MemberRunType} from '../../lib/baseRunTypes';
-import type {JitCode, SrcMember} from '../../types';
-import {childIsExpression} from '../../lib/utils';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {MemberRunType} from '../../lib/baseRunTypes.ts';
+import type {JitCode, SrcMember} from '../../types.ts';
+import {childIsExpression} from '../../lib/utils.ts';
 
 // TODO: investigate is other member types cloud extend this class instead of MemberRunType
 export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> {

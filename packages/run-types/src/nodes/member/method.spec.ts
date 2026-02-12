@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {runType} from '../../createRunType';
+import {runType} from '../../createRunType.ts';
 
 it('should generate different type ids for optional methods', () => {
     type TestType = {value: number; a?: () => void; getValue(): number};

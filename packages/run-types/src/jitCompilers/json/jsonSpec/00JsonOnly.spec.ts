@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctions} from '../../../constants.functions';
-import {runType} from '../../../createRunType';
-import type {BaseRunType} from '../../../lib/baseRunTypes';
+import {JitFunctions} from '../../../constants.functions.ts';
+import {runType} from '../../../createRunType.ts';
+import type {BaseRunType} from '../../../lib/baseRunTypes.ts';
 
 // ####################### ADDITIONAL TESTS SPECIFIC ONLY TO JSON #######################
 

@@ -1,9 +1,9 @@
-import type {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
-import type {JitFnCompiler} from '../../lib/jitFnCompiler';
-import type {UnionRunType} from './union';
-import type {PropertyRunType} from '../member/property';
-import {getTotalComplexity, sortRunTypeByComplexity} from '../../lib/utils';
-import {isAnyRunType, isUnknownRunType} from '../../lib/guards';
+import type {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes.ts';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
+import type {UnionRunType} from './union.ts';
+import type {PropertyRunType} from '../member/property.ts';
+import {getTotalComplexity, sortRunTypeByComplexity} from '../../lib/utils.ts';
+import {isAnyRunType, isUnknownRunType} from '../../lib/guards.ts';
 
 export type FlattenedProp = {
     /** union item, parent of the property */

@@ -4,9 +4,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {runType} from '../../createRunType';
-import {JitFunctions} from '../../constants.functions';
-import type {RunTypeOptions} from '../../types';
+import {runType} from '../../createRunType.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import type {RunTypeOptions} from '../../types.ts';
 
 const reg = /abc/i;
 const reg2 = /['"]\/ \\ \//; // regexp with characters that can be problematic in jit code if not correctly scaped

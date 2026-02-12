@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../createRunType';
+import {JitFunctions} from '../../constants.functions.ts';
+import {runType} from '../../createRunType.ts';
 
 // Deepkit already implements all logic for Partial
 

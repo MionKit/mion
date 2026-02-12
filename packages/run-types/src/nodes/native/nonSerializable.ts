@@ -6,8 +6,8 @@
  * ######## */
 
 import type {TypeClass, TypeObjectLiteral} from '@deepkit/type';
-import {JitCode} from '../../types';
-import {InterfaceRunType} from '../collection/interface';
+import {JitCode} from '../../types.ts';
+import {InterfaceRunType} from '../collection/interface.ts';
 
 // Non serializable types might not be Atomic but will be skipped so it doesn't matter
 export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral | TypeClass> {

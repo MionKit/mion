@@ -1,10 +1,10 @@
 import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
-import {MemberRunType} from '../../lib/baseRunTypes';
-import {type JitCode} from '../../types';
-import {JitFunctions} from '../../constants.functions';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import {InterfaceRunType} from '../collection/interface';
-import {childIsExpression} from '../../lib/utils';
+import {MemberRunType} from '../../lib/baseRunTypes.ts';
+import {type JitCode} from '../../types.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {InterfaceRunType} from '../collection/interface.ts';
+import {childIsExpression} from '../../lib/utils.ts';
 
 /* ########
  * 2024 mion

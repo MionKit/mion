@@ -6,9 +6,9 @@
  * ######## */
 
 import {type TypeClass} from '@deepkit/type';
-import type {JitCode} from '../../types';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
-import {AtomicRunType} from '../../lib/baseRunTypes';
+import type {JitCode} from '../../types.ts';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {AtomicRunType} from '../../lib/baseRunTypes.ts';
 
 export class DateRunType extends AtomicRunType<TypeClass> {
     emitIsType(comp: JitFnCompiler): JitCode {

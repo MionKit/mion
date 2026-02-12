@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {SERIALIZATION_SPEC} from '../../serialization-suite';
-import {roundTrip, createSerializationFns, serContext, desContext} from './binaryHelpers';
+import {SERIALIZATION_SPEC} from '../../serialization-suite.ts';
+import {roundTrip, createSerializationFns, serContext, desContext} from './binaryHelpers.ts';
 
 let ranTests = 0;
 afterEach(() => ranTests++);

@@ -6,8 +6,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunType, Mutable, SrcType} from './types';
-import type {BaseRunType} from './lib/baseRunTypes';
+import type {RunType, Mutable, SrcType} from './types.ts';
+import type {BaseRunType} from './lib/baseRunTypes.ts';
 import type {TypeClass, Type} from '@deepkit/type';
 import {ReflectionKind, resolveReceiveType, ReceiveType, reflect, typeAnnotation, stringifyType} from '@deepkit/type';
 import {
@@ -22,45 +22,45 @@ import {
     isNativeUtilityStringTypes,
     isNonSerializableClass,
     isNonSerializableObject,
-} from './lib/guards';
-import {StringRunType} from './nodes/atomic/string';
-import {DateRunType} from './nodes/atomic/date';
-import {NumberRunType} from './nodes/atomic/number';
-import {BooleanRunType} from './nodes/atomic/boolean';
-import {NullRunType} from './nodes/atomic/null';
-import {BigIntRunType} from './nodes/atomic/bigInt';
-import {AnyRunType} from './nodes/atomic/any';
-import {UndefinedRunType} from './nodes/atomic/undefined';
-import {UnknownRunType} from './nodes/atomic/unknown';
-import {VoidRunType} from './nodes/atomic/void';
-import {ArrayRunType} from './nodes/member/array';
-import {LiteralRunType} from './nodes/atomic/literal';
-import {RegexpRunType} from './nodes/atomic/regexp';
-import {NeverRunType} from './nodes/atomic/never';
-import {EnumRunType} from './nodes/atomic/enum';
-import {EnumMemberRunType} from './nodes/atomic/enumMember';
-import {UnionRunType} from './nodes/collection/union';
-import {TupleRunType} from './nodes/collection/tuple';
-import {FunctionParamsRunType} from './nodes/collection/functionParams';
-import {TupleMemberRunType} from './nodes/member/tupleMember';
-import {InterfaceRunType} from './nodes/collection/interface';
-import {PropertyRunType} from './nodes/member/property';
-import {IndexSignatureRunType} from './nodes/member/indexProperty';
-import {MethodSignatureRunType} from './nodes/member/methodSignature';
-import {CallSignatureRunType} from './nodes/member/callSignature';
-import {FunctionRunType} from './nodes/function/function';
-import {PromiseRunType} from './nodes/native/promise';
-import {ObjectRunType} from './nodes/atomic/object';
-import {IntersectionRunType} from './nodes/collection/intersection';
-import {ParameterRunType} from './nodes/member/param';
-import {MethodRunType} from './nodes/member/method';
-import {RestParamsRunType} from './nodes/member/restParams';
-import {ClassRunType} from './nodes/collection/class';
-import {MapRunType} from './nodes/native/map';
-import {ReflectionSubKind} from './constants.kind';
-import {SetRunType} from './nodes/native/set';
-import {SymbolRunType} from './nodes/atomic/symbol';
-import {NonSerializableRunType} from './nodes/native/nonSerializable';
+} from './lib/guards.ts';
+import {StringRunType} from './nodes/atomic/string.ts';
+import {DateRunType} from './nodes/atomic/date.ts';
+import {NumberRunType} from './nodes/atomic/number.ts';
+import {BooleanRunType} from './nodes/atomic/boolean.ts';
+import {NullRunType} from './nodes/atomic/null.ts';
+import {BigIntRunType} from './nodes/atomic/bigInt.ts';
+import {AnyRunType} from './nodes/atomic/any.ts';
+import {UndefinedRunType} from './nodes/atomic/undefined.ts';
+import {UnknownRunType} from './nodes/atomic/unknown.ts';
+import {VoidRunType} from './nodes/atomic/void.ts';
+import {ArrayRunType} from './nodes/member/array.ts';
+import {LiteralRunType} from './nodes/atomic/literal.ts';
+import {RegexpRunType} from './nodes/atomic/regexp.ts';
+import {NeverRunType} from './nodes/atomic/never.ts';
+import {EnumRunType} from './nodes/atomic/enum.ts';
+import {EnumMemberRunType} from './nodes/atomic/enumMember.ts';
+import {UnionRunType} from './nodes/collection/union.ts';
+import {TupleRunType} from './nodes/collection/tuple.ts';
+import {FunctionParamsRunType} from './nodes/collection/functionParams.ts';
+import {TupleMemberRunType} from './nodes/member/tupleMember.ts';
+import {InterfaceRunType} from './nodes/collection/interface.ts';
+import {PropertyRunType} from './nodes/member/property.ts';
+import {IndexSignatureRunType} from './nodes/member/indexProperty.ts';
+import {MethodSignatureRunType} from './nodes/member/methodSignature.ts';
+import {CallSignatureRunType} from './nodes/member/callSignature.ts';
+import {FunctionRunType} from './nodes/function/function.ts';
+import {PromiseRunType} from './nodes/native/promise.ts';
+import {ObjectRunType} from './nodes/atomic/object.ts';
+import {IntersectionRunType} from './nodes/collection/intersection.ts';
+import {ParameterRunType} from './nodes/member/param.ts';
+import {MethodRunType} from './nodes/member/method.ts';
+import {RestParamsRunType} from './nodes/member/restParams.ts';
+import {ClassRunType} from './nodes/collection/class.ts';
+import {MapRunType} from './nodes/native/map.ts';
+import {ReflectionSubKind} from './constants.kind.ts';
+import {SetRunType} from './nodes/native/set.ts';
+import {SymbolRunType} from './nodes/atomic/symbol.ts';
+import {NonSerializableRunType} from './nodes/native/nonSerializable.ts';
 import {registerErrorDeserializers} from '@mionkit/core';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {

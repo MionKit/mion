@@ -9,8 +9,8 @@
 // we test here as core does not have access to run-types
 
 import {RpcError} from '@mionkit/core';
-import {JitFunctions} from '../../constants.functions';
-import {runType} from '../../createRunType';
+import {JitFunctions} from '../../constants.functions.ts';
+import {runType} from '../../createRunType.ts';
 
 it('can validate RpcError class', () => {
     const rt = runType<RpcError<'test-error'>>();

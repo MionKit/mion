@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeCallSignature} from '@deepkit/type';
-import {RunTypeChildAccessor} from '../../types';
-import {getPropIndex} from '../../lib/utils';
-import {FunctionRunType} from '../function/function';
-import type {JitFnCompiler} from '../../lib/jitFnCompiler';
+import {RunTypeChildAccessor} from '../../types.ts';
+import {getPropIndex} from '../../lib/utils.ts';
+import {FunctionRunType} from '../function/function.ts';
+import type {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
 
 /**
  * Represents a call signature.

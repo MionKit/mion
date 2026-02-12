@@ -15,7 +15,7 @@ export const CodeTypes = {
 } as const;
 export type CodeType = (typeof CodeTypes)[keyof typeof CodeTypes];
 
-type MockModule = typeof import('./mocking/mockType');
+type MockModule = typeof import('./mocking/mockType.ts');
 
 export interface JitFnSettings {
     id: string;

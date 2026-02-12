@@ -6,10 +6,10 @@
  * ######## */
 
 import {TypeEnum} from '@deepkit/type';
-import type {JitCode} from '../../types';
-import {toLiteral} from '../../lib/utils';
-import {AtomicRunType} from '../../lib/baseRunTypes';
-import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler';
+import type {JitCode} from '../../types.ts';
+import {toLiteral} from '../../lib/utils.ts';
+import {AtomicRunType} from '../../lib/baseRunTypes.ts';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     emitIsType(comp: JitFnCompiler): JitCode {

@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {SERIALIZATION_SPEC} from '../../serialization-suite';
-import {JitFunctions} from '../../../constants.functions';
-import {roundTrip, createSerializationFns} from './binaryHelpers';
+import {SERIALIZATION_SPEC} from '../../serialization-suite.ts';
+import {JitFunctions} from '../../../constants.functions.ts';
+import {roundTrip, createSerializationFns} from './binaryHelpers.ts';
 
 const SERIALIZE_FN = JitFunctions.toBinary;
 const DESERIALIZE_FN = JitFunctions.fromBinary;
