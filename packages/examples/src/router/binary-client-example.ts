@@ -1,5 +1,5 @@
 import {initClient} from '@mionkit/client';
-import type {BinaryApi, SensorReading, SensorBatch} from './binary-server-example';
+import type {BinaryApi, SensorReading, SensorBatch} from './binary-server-example.ts';
 import type {NumUInt16, NumUInt8, NumFloat, NumInt32} from '@mionkit/type-formats/FormatsNumber';
 
 // Initialize client with the server URL

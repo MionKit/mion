@@ -1,5 +1,5 @@
 import {createIsTypeFn} from '@mionkit/run-types';
-import {StrEmail} from '@mionkit/type-formats';
+import {StrEmail} from '@mionkit/type-formats/FormatsString';
 
 // run-types example - TypeScript is source of truth
 interface User {
@@ -11,4 +11,3 @@ interface User {
 async function example() {
     const validate = await createIsTypeFn<User>();
 }
-

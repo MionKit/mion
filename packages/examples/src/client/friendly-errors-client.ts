@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {getFriendlyErrors} from '@mionkit/core';
 import {RouteParamType, initClient} from '@mionkit/client';
-import type {MyApi} from './friendly-errors-server';
-import {userFriendlyErrors} from './friendly-errors-map';
+import type {MyApi} from './friendly-errors-server.ts';
+import {userFriendlyErrors} from './friendly-errors-map.ts';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 type User = RouteParamType<MyApi['setUser'], 0>;

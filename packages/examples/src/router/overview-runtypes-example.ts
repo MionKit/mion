@@ -1,5 +1,5 @@
 import {Routes, route} from '@mionkit/router';
-import {createUser} from './myApp';
+import {memoryStoreService} from './full-example.app.ts';
 
 // Your TypeScript types ARE the validation schema
 interface User {
@@ -20,6 +20,6 @@ const routes = {
         // user is already validated and types are restored
         console.log(user.birthDate instanceof Date); // true
         console.log(user.tags instanceof Set); // true
-        return createUser(user);
+        return memoryStoreService.createUser(user);
     }),
 } satisfies Routes;

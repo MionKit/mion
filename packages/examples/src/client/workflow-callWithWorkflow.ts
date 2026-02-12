@@ -1,6 +1,6 @@
 import {initClient} from '@mionkit/client';
 import {HeadersSubset} from '@mionkit/core';
-import type {MyApi} from './server.routes';
+import type {MyApi} from './server.routes.ts';
 
 const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 

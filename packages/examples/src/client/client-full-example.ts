@@ -1,6 +1,6 @@
 import {initClient} from '@mionkit/client';
 // importing only the RemoteApi type from server
-import type {MyApi} from './server.routes';
+import type {MyApi} from './server.routes.ts';
 import {HeadersSubset} from '@mionkit/core';
 
 const john = {id: '123', name: 'John', surname: 'Doe'};

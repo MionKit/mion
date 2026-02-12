@@ -4,7 +4,7 @@
     "outDir": ".dist/esm",
     "skipLibCheck": true,
     "composite": true,
-    "module": "ESNext",
+    "module": "NodeNext",
     "target": "ES2022"
   },
   "references": [

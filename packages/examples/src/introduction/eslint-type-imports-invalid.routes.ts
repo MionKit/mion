@@ -3,7 +3,7 @@
 
 // start:type-imports-invalid
 // ❌ WRONG: Type-only import - types are erased at runtime
-import type {User, Product} from './types';
+import type {User, Product} from './types.ts';
 import {route, linkedFn} from '@mionkit/router';
 
 // Types imported with 'type' keyword are erased at runtime

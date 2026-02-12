@@ -1,7 +1,6 @@
 import {initMionRouter, route} from '@mionkit/router';
-import {myApp} from './myApp';
 import type {CallContext, Routes} from '@mionkit/router';
-import type {Pet, User} from './myModels';
+import type {User} from './full-example.app.ts';
 
 interface ContextData {
     myUser: User | null;

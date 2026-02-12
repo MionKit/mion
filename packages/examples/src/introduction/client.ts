@@ -1,6 +1,6 @@
 import {initClient} from '@mionkit/client';
 // importing only the RemoteApi type from server
-import type {MyApi} from './myApi.routes';
+import type {MyApi} from './myApi.routes.ts';
 
 const john = {id: '123', name: 'John', surname: 'Doe'};
 const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});

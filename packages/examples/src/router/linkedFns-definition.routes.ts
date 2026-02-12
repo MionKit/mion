@@ -1,5 +1,5 @@
 import {CallContext, linkedFn, Routes} from '@mionkit/router';
-import {myApp} from './myApp';
+import {myApp} from './full-example.app.ts';
 
 const routes = {
     // using the linkedFn function to define a linkedFn
