@@ -49,7 +49,7 @@ describe('serverless router', () => {
     });
 
     // fake express server passing the request and response to the google cloud function handler
-    const port = 8087;
+    const port = 8097;
     let server: Server;
     async function initServer(portToUse: number) {
         return new Promise<Server>((resolve, reject) => {
@@ -211,7 +211,7 @@ describe('serverless router', () => {
     });
 
     describe('with serializer=json', () => {
-        const port2 = 8088;
+        const port2 = 8098;
         let server2: Server;
         async function initServer2(portToUse: number) {
             return new Promise<Server>((resolve, reject) => {
