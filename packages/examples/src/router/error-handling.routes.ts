@@ -1,7 +1,7 @@
 import {RpcError} from '@mionkit/core';
 import {Route, route} from '@mionkit/router';
-import type {Pet} from './myModels';
-import {myApp} from './myApp';
+import type {Pet} from './full-example.app.ts';
+import {myApp} from './full-example.app.ts';
 
 export const getPet = route(async (ctx, id: string): Promise<Pet | RpcError<'pet-not-found'>> => {
     try {

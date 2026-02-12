@@ -1,8 +1,7 @@
 import {initMionBun} from '@mionkit/bun';
-import {routes} from './routes';
+import {routes} from './bun-routes.ts';
 
 const handler = initMionBun(routes, {
     prefix: '/api', // API prefix
     // ... other router options
 });
-

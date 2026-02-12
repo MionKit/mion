@@ -20,7 +20,7 @@ import {
     userProfileErrors,
     organizationErrors,
     simpleUserErrors,
-} from './friendly-errors-advanced-map';
+} from './friendly-errors-advanced-map.ts';
 
 // ============================================================================
 // Example 1: Top-Level Array Validation

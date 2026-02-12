@@ -1,7 +1,7 @@
 import type {FriendlyErrors} from '@mionkit/core';
 import {RouteParamType} from '@mionkit/client';
 
-import type {MyApi} from './friendly-errors-server';
+import type {MyApi} from './friendly-errors-server.ts';
 export type User = RouteParamType<MyApi['setUser'], 0>;
 
 export const userFriendlyErrors: FriendlyErrors<User> = {

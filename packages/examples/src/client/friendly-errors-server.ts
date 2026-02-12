@@ -1,6 +1,6 @@
 import {StrFormat, StrEmail, StrDateTime} from '@mionkit/type-formats/FormatsString';
 import {NumFormat} from '@mionkit/type-formats/FormatsNumber';
-import {BigNumFormat} from '@mionkit/type-formats/FormatsBigInt';
+import {BigNumFormat} from '@mionkit/type-formats/FormatsBigint';
 import {initMionRouter, route} from '@mionkit/router';
 import {RpcError} from '@mionkit/core';
 

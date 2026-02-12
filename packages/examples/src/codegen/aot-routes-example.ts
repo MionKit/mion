@@ -6,6 +6,8 @@ export interface User {
     email: string;
 }
 
+export type MyApi = typeof routes;
+
 export const routes = {
     users: {
         getById: route((ctx, id: string): User => {
@@ -16,4 +18,3 @@ export const routes = {
         }),
     },
 } satisfies Routes;
-

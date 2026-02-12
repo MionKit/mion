@@ -24,7 +24,8 @@ async function basicMockExample() {
 // end-basic
 
 // start-formats
-import {StrEmail, NumPositiveInt} from '@mionkit/type-formats';
+import {StrEmail} from '@mionkit/type-formats/FormatsString';
+import {NumPositiveInt} from '@mionkit/type-formats/FormatsNumber';
 
 interface ValidatedUser {
     email: StrEmail;
@@ -37,4 +38,3 @@ async function formatsMockExample() {
     // { email: 'user@example.com', followersCount: 150 }
 }
 // end-formats
-

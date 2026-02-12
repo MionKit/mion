@@ -1,5 +1,5 @@
 import {Routes, route} from '@mionkit/router';
-import {db} from './my-db';
+import {memoryStoreService as db} from './full-example.app.ts';
 
 export const routes = {
     sayHello: route((ctx, name1: string, name2: string): string => {

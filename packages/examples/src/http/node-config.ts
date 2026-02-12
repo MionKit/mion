@@ -1,5 +1,5 @@
 import {initMionHttp} from '@mionkit/node';
-import {routes} from './routes';
+import {routes} from './node-routes.ts';
 
 const handler = initMionHttp(routes, {
     prefix: '/api', // API prefix

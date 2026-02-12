@@ -3,7 +3,7 @@
 
 // start:type-imports-valid
 // ✅ CORRECT: Regular import - types are available at runtime
-import {User, Product} from './types';
+import {User, Product} from './types.ts';
 import {route, linkedFn} from '@mionkit/router';
 
 // Types imported without 'type' keyword work correctly with mion

@@ -1,7 +1,7 @@
 import {RpcError, HeadersSubset} from '@mionkit/core';
 import {headersFn, rawLinkedFn, linkedFn, Routes, initMionRouter, route} from '@mionkit/router';
-import {Context, NewUser, getSharedData, myApp} from './full-example.app';
-import {User} from './myApi.types';
+import {Context, NewUser, getSharedData, myApp} from './full-example.app.ts';
+import {User} from './full-example.app.ts';
 
 const getUser = route((ctx: Context, id: number): User | RpcError<'user-not-found'> => {
     const user = myApp.store.getUser(id);

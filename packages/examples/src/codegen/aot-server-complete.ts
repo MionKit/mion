@@ -4,7 +4,7 @@ import {addAOTCaches} from '@mionkit/core';
 // Then initialize router and server
 import {initMionRouter} from '@mionkit/router';
 import {initHttp} from '@mionkit/node';
-import {routes} from './routes';
+import {routes} from './aot-routes-example.ts';
 
 // Load the pre-compiled caches BEFORE initializing the router
 addAOTCaches(jitFnsCache, pureFnsCache);

@@ -1,5 +1,5 @@
 import {initMionBun} from '@mionkit/bun';
-import {routes} from './routes';
+import {routes} from './bun-routes.ts';
 
 const server = Bun.serve({
     port: 3000,
@@ -7,4 +7,3 @@ const server = Bun.serve({
 });
 
 console.log(`Server running at http://localhost:${server.port}`);
-

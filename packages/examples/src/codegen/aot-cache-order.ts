@@ -1,7 +1,7 @@
 import {jitFnsCache, pureFnsCache} from 'my-api-aot';
 import {addAOTCaches} from '@mionkit/core';
 import {initMionRouter} from '@mionkit/router';
-import {routes} from './routes';
+import {routes} from './aot-routes-example.ts';
 
 // ✅ Correct order
 addAOTCaches(jitFnsCache, pureFnsCache);

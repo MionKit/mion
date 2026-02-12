@@ -1,5 +1,5 @@
 import {Route, LinkedFnDef} from '@mionkit/router';
-import {myApp} from './myApp';
+import {myApp} from './full-example.app.ts';
 
 interface MyRoute extends Route {
     doNotFail: boolean;

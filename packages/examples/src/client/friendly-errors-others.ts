@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type {FriendlyErrors} from '@mionkit/core';
 import {getFriendlyErrors} from '@mionkit/core';
-import {User, userFriendlyErrors} from './friendly-errors-map';
+import {User, userFriendlyErrors} from './friendly-errors-map.ts';
 import type {StrFormat, StrEmail} from '@mionkit/type-formats/FormatsString';
 
 // start-narrowing-params
