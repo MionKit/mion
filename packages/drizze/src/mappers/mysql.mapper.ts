@@ -8,10 +8,10 @@
 import {int, boolean, double, bigint, timestamp, date, time, varchar, json, datetime} from 'drizzle-orm/mysql-core';
 import {ReflectionKind} from '@deepkit/type';
 import {TypedError} from '@mionkit/core';
-import {BaseColumnMapper} from './base.mapper';
-import type {ColumnMapping, DrizzleMapperConfig} from '../types/common.types';
-import {DrizzleTypesMySQL, DEFAULT_VARCHAR_LENGTH} from '../types/common.types';
-import {getMaxLengthFromParams, isIntegerFormat} from '../core/utils';
+import {BaseColumnMapper} from './base.mapper.ts';
+import type {ColumnMapping, DrizzleMapperConfig} from '../types/common.types.ts';
+import {DrizzleTypesMySQL, DEFAULT_VARCHAR_LENGTH} from '../types/common.types.ts';
+import {getMaxLengthFromParams, isIntegerFormat} from '../core/utils.ts';
 import {FormatName, FormatNames} from '@mionkit/type-formats';
 
 /** MySQL-specific column mapper */

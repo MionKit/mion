@@ -9,7 +9,7 @@ import {runType, getRunTypeFormat, isInterfaceRunType, isPropertyRunType, isProp
 import type {BaseRunType, InterfaceRunType, PropertyRunType} from '@mionkit/run-types';
 import {ReflectionKind, type ReceiveType} from '@deepkit/type';
 import {TypedError} from '@mionkit/core';
-import type {PropertyInfo, TypeInfo} from '../types/common.types';
+import type {PropertyInfo, TypeInfo} from '../types/common.types.ts';
 
 /** Extracts property information from a TypeScript type using mion's RunType system */
 export function extractTypeInfo<T>(type?: ReceiveType<T>): TypeInfo {

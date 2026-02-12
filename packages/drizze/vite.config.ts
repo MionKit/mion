@@ -43,7 +43,7 @@ export default defineConfig({
             },
         }),
         dts({
-            outDir: ['.dist/cjs', '.dist/esm'],
+            outDir: '.dist/esm',
             include: ['index.ts', 'src/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
             pathsToAliases: false,
@@ -52,29 +52,20 @@ export default defineConfig({
     build: {
         lib: {
             entry,
-            formats: ['es', 'cjs'],
+            formats: ['es'],
         },
-        outDir: '.dist',
+        outDir: '.dist/esm',
         emptyOutDir: true,
         sourcemap: true,
         minify: false,
         rollupOptions: {
-            output: [
-                {
-                    format: 'es',
-                    dir: '.dist/esm',
-                    entryFileNames: '[name].js',
-                    preserveModules: true,
-                    preserveModulesRoot: '.',
-                },
-                {
-                    format: 'cjs',
-                    dir: '.dist/cjs',
-                    entryFileNames: '[name].js',
-                    preserveModules: true,
-                    preserveModulesRoot: '.',
-                },
-            ],
+            output: {
+                format: 'es',
+                dir: '.dist/esm',
+                entryFileNames: '[name].js',
+                preserveModules: true,
+                preserveModulesRoot: '.',
+            },
             external: ['@mionkit/core', '@mionkit/run-types', /^[^./]/],
         },
     },

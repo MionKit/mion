@@ -22,7 +22,6 @@
   "exports": {
     ".": {
       "types": "./.dist/esm/index.d.ts",
-      "require": "./.dist/cjs/index.js",
       "default": "./.dist/esm/index.js"
     }
   },
