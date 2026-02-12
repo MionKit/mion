@@ -5,6 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * from './src/types';
-export * from './src/constants';
-export * from './src/cacheCompiler';
+export * from './src/types.js';
+export * from './src/constants.js';
+export * from './src/cacheCompiler.js';

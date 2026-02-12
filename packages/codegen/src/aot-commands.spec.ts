@@ -7,8 +7,8 @@
 
 import {existsSync, rmSync, readFileSync, writeFileSync, mkdirSync} from 'fs';
 import {join, resolve} from 'path';
-import {initAOT} from './cli-init-aot';
-import {buildAOT} from './cli-build-aot';
+import {initAOT} from './cli-init-aot.js';
+import {buildAOT} from './cli-build-aot.js';
 
 const CODEGEN_ROOT = resolve(__dirname, '..');
 const TEMPLATE_DIR = join(CODEGEN_ROOT, 'mion-aot-template');

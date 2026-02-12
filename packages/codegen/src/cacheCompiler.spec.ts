@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {compileTypeToJs} from './cacheCompiler';
-import {AOTConfig} from './types';
+import {compileTypeToJs} from './cacheCompiler.js';
+import {AOTConfig} from './types.js';
 import {
     JitCompiledFn,
     RpcError,

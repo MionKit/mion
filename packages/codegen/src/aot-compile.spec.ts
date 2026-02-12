@@ -15,10 +15,11 @@ import {
     filterUsedRouterCache,
     resetCompileTracking,
     type CacheData,
-} from './aot-compile';
-import {initAOT} from './cli-init-aot';
+} from './aot-compile.js';
+import {initAOT} from './cli-init-aot.js';
 import {headersFn, initRouter, registerRoutes, resetRouter, loadCompiledMethods} from '@mionkit/router';
-import {getJitFnCaches, resetJitFnCaches, addAOTCaches, HeadersSubset, Cacheable} from '@mionkit/core';
+import {getJitFnCaches, resetJitFnCaches, addAOTCaches, HeadersSubset} from '@mionkit/core';
+import type {Cacheable} from './aot-compile.js';
 import {getPersistedMethods} from '@mionkit/router';
 import {linkedFn, route} from '@mionkit/router';
 
@@ -152,7 +153,7 @@ describe('AOT Cache Compilation E2E', () => {
         expect(Object.keys(emptyRouterCache)).toHaveLength(0);
 
         // Step 6: Dynamically load the cache objects from the created template and load them manually
-        const aotPackagePath = join(testAotDir, 'build', 'cjs', 'src', 'index.js');
+        const aotPackagePath = join(testAotDir, 'build', 'esm', 'src', 'index.js');
 
         const aotPackage = await import(aotPackagePath);
 
