@@ -6,7 +6,7 @@
  * ######## */
 
 import {RuleTester} from 'eslint';
-import rule from './strong-typed-routes';
+import rule from './strong-typed-routes.ts';
 
 const ruleTester = new RuleTester({
     parser: require.resolve('@typescript-eslint/parser'),

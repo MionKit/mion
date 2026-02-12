@@ -6,7 +6,7 @@
  * ######## */
 
 import {RuleTester} from 'eslint';
-import rule from './no-mixed-union-properties';
+import rule from './no-mixed-union-properties.ts';
 
 const ruleTester = new RuleTester({
     parser: require.resolve('@typescript-eslint/parser'),

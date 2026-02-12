@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import noTypeofRunType from './rules/no-typeof-runtype';
-import strongTypedRoutes from './rules/strong-typed-routes';
-import noUnreachableUnionTypes from './rules/no-unreachable-union-types';
-import noMixedUnionProperties from './rules/no-mixed-union-properties';
-import noTypeImports from './rules/no-type-imports';
+import noTypeofRunType from './rules/no-typeof-runtype.ts';
+import strongTypedRoutes from './rules/strong-typed-routes.ts';
+import noUnreachableUnionTypes from './rules/no-unreachable-union-types.ts';
+import noMixedUnionProperties from './rules/no-mixed-union-properties.ts';
+import noTypeImports from './rules/no-type-imports.ts';
 
 const plugin = {
     rules: {
@@ -34,8 +34,4 @@ const plugin = {
     },
 };
 
-// CommonJS export
-module.exports = plugin;
-
-// ESM export
 export default plugin;

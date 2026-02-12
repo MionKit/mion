@@ -12,7 +12,8 @@
   "author": "ma jerez",
   "homepage": "https://mion.io/",
   "license": "MIT",
-  "main": "build/cjs/index.js",
+  "type": "module",
+  "main": "build/esm/index.js",
   "module": "build/esm/index.js",
   "types": "build/esm/index.d.ts",
   "directories": {
@@ -26,9 +27,9 @@
     "url": "git+https://github.com/MionKit/mion.git"
   },
   "scripts": {
-    "test": "jest",
+    "test": "vitest run",
     "dev": "vite build --watch",
-    "dev:test": "jest --watch",
+    "dev:test": "vitest watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
