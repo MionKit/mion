@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {BigNumFormat} from './bigIntFormat.runtype';
+import {BigNumFormat} from './bigIntFormat.runtype.ts';
 
 export type BigNumPositive = BigNumFormat<{min: 0n}>;
 export type BigNumNegative = BigNumFormat<{max: 0n}>;

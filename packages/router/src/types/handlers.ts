@@ -6,9 +6,9 @@
  * ######## */
 
 import {HeadersSubset} from '@mionkit/core';
-import {CallContext} from './context';
-import {RouterOptions} from './general';
-import {MayReturnError} from './publicMethods';
+import {CallContext} from './context.ts';
+import {RouterOptions} from './general.ts';
+import {MayReturnError} from './publicMethods.ts';
 
 // #######  Route Handlers #######
 

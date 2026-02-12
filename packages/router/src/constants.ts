@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RouterOptions} from './types/general';
+import {RouterOptions} from './types/general.ts';
 import {getENV, MION_ROUTES, PATH_SEPARATOR} from '@mionkit/core';
 
 export const IS_TEST_ENV = getENV('JEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';

@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {resetRouter, initRouter, registerRoutes, getRouteExecutable, getLinkedFnExecutable} from '../router';
-import {route, linkedFn, rawLinkedFn} from './handlers';
-import {setPersistedMethods, resetPersistedMethods, loadCompiledMethods} from './methodsCache';
-import {AOTCacheError, resetRunTypesCache} from './reflection';
+import {resetRouter, initRouter, registerRoutes, getRouteExecutable, getLinkedFnExecutable} from '../router.ts';
+import {route, linkedFn, rawLinkedFn} from './handlers.ts';
+import {setPersistedMethods, resetPersistedMethods, loadCompiledMethods} from './methodsCache.ts';
+import {AOTCacheError, resetRunTypesCache} from './reflection.ts';
 import {HandlerType, EMPTY_HASH, resetJitFnCaches, addAOTCaches, getJitFunctionsFromHash} from '@mionkit/core';
-import type {Routes} from '../types/general';
+import type {Routes} from '../types/general.ts';
 import type {MethodsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache} from '@mionkit/core';
 // Import the default router cache from aot-caches package for testing
 // IMPORTANT!!! if any of the mion routes/linkedFns are changed we might need to recompile caches or this tests might fails

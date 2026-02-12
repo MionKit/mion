@@ -15,11 +15,11 @@ import {
     JitFunctions,
 } from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
-import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype';
+import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype.ts';
 import {FormatParams_Domain, FormatParams_DomainName, FormatParams_Tld, StringParams, Samples} from '@mionkit/core';
 import {StringValidators} from '@mionkit/core';
-import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock';
-import {paramVal} from '../utils';
+import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock.ts';
+import {paramVal} from '../utils.ts';
 
 // latin domain names each domain part must be 61 chars max, tld only supports latin chars
 export const DOMAIN_PATTERN = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/;

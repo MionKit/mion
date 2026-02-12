@@ -7,7 +7,7 @@
 
 import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
 import {RunTypeError, TypeFormatError} from '@mionkit/core';
-import {BigNumPositive, BigNumNegative, BigNumPositiveInt, BigNumNegativeInt, BigNumInt64} from './defaultBigNumberFormats';
+import {BigNumPositive, BigNumNegative, BigNumPositiveInt, BigNumNegativeInt, BigNumInt64} from './defaultBigNumberFormats.ts';
 
 // #### Positive ####
 

@@ -12,39 +12,39 @@
 // TODO: Revert to named exports once the issue is fixed
 
 // Import pure functions module to register all pure functions
-import './src/type-formats-pure-fns';
+import './src/type-formats-pure-fns.ts';
 
 // Import date/time format modules to register formatters
-import './src/string/date.runtype';
-import './src/string/dateTime.runtype';
-import './src/string/time.runtype';
+import './src/string/date.runtype.ts';
+import './src/string/dateTime.runtype.ts';
+import './src/string/time.runtype.ts';
 
 // Import network/web format modules to register formatters
-import './src/string/email.runtype';
-import './src/string/domain.runtype';
-import './src/string/url.runtype';
-import './src/string/ip.runtype';
+import './src/string/email.runtype.ts';
+import './src/string/domain.runtype.ts';
+import './src/string/url.runtype.ts';
+import './src/string/ip.runtype.ts';
 
 // Import identifier format modules to register formatters
-import './src/string/uuid.runtype';
+import './src/string/uuid.runtype.ts';
 
 // Import default string format modules to register formatters
-import './src/string/defaultStringFormats.runtype';
+import './src/string/defaultStringFormats.runtype.ts';
 
 // Re-export everything from string format modules
-export * from './src/string/stringFormat.runtype';
-export * from './src/string/date.runtype';
-export * from './src/string/dateTime.runtype';
-export * from './src/string/time.runtype';
-export * from './src/string/email.runtype';
-export * from './src/string/domain.runtype';
-export * from './src/string/url.runtype';
-export * from './src/string/ip.runtype';
-export * from './src/string/uuid.runtype';
-export * from './src/string/defaultStringFormats.runtype';
+export * from './src/string/stringFormat.runtype.ts';
+export * from './src/string/date.runtype.ts';
+export * from './src/string/dateTime.runtype.ts';
+export * from './src/string/time.runtype.ts';
+export * from './src/string/email.runtype.ts';
+export * from './src/string/domain.runtype.ts';
+export * from './src/string/url.runtype.ts';
+export * from './src/string/ip.runtype.ts';
+export * from './src/string/uuid.runtype.ts';
+export * from './src/string/defaultStringFormats.runtype.ts';
 
 // Re-export pure functions for easy access
-export * from './src/type-formats-pure-fns';
+export * from './src/type-formats-pure-fns.ts';
 
 // COMMENTED OUT - Original named exports (to be restored after issue is fixed):
 // // ############### Main StringFormat Export ###############

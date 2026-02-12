@@ -6,8 +6,8 @@
  * ######## */
 
 import {CoreOptions, SerializerMode} from '@mionkit/core';
-import {ContextDataFactory} from './context';
-import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions';
+import {ContextDataFactory} from './context.ts';
+import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions.ts';
 import type {RunTypeOptions} from '@mionkit/run-types';
 // #######  Router Object #######
 

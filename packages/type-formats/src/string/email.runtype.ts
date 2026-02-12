@@ -7,14 +7,14 @@
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, StrNumber, JitFnID, JitCode} from '@mionkit/run-types';
 import {BaseRunTypeFormat, TypeFormat, RunTypeOptions, registerFormatter, JitFunctions, randomItem} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {DEFAULT_STRICT_DOMAIN_PARAMS} from './domain.runtype';
+import {DEFAULT_STRICT_DOMAIN_PARAMS} from './domain.runtype.ts';
 import {FormatParams_Email} from '@mionkit/core';
-import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype';
+import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype.ts';
 import {StringValidators} from '@mionkit/core';
 import {Samples} from '@mionkit/core';
-import {DomainRunTypeFormat} from './domain.runtype';
-import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock'; // do not import using type
-import {paramVal} from '../utils';
+import {DomainRunTypeFormat} from './domain.runtype.ts';
+import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock.ts'; // do not import using type
+import {paramVal} from '../utils.ts';
 
 // Email pattern, allows punycode domains
 export const EMAIL_PATTERN = /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/;

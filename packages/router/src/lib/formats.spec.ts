@@ -5,14 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes, resetRouter, initRouter, getRouteExecutable} from '../router';
-import {dispatchRoute} from '../dispatch';
-import {MionHeaders} from '../types/context';
-import {Routes} from '../types/general';
+import {registerRoutes, resetRouter, initRouter, getRouteExecutable} from '../router.ts';
+import {dispatchRoute} from '../dispatch.ts';
+import {MionHeaders} from '../types/context.ts';
+import {Routes} from '../types/general.ts';
 import {MION_ROUTES, JitCompiledFnData, PureFunctionData, RunTypeError} from '@mionkit/core';
-import {route} from './handlers';
-import {headersFromRecord} from './headers';
-import {getSerializableMethod, serializeMethodDeps} from './remoteMethods';
+import {route} from './handlers.ts';
+import {headersFromRecord} from './headers.ts';
+import {getSerializableMethod, serializeMethodDeps} from './remoteMethods.ts';
 // Import format types (regular import to ensure JIT functions are created)
 import {StrFormat} from '@mionkit/type-formats/FormatsString';
 import {NumFormat} from '@mionkit/type-formats/FormatsNumber';

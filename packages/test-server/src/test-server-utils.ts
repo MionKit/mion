@@ -204,6 +204,7 @@ export class TestServerManager {
             {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 cwd: process.cwd(), // Use current working directory where Vitest is run from
+                env: {...process.env, MION_TEST_SERVER_AUTO_START: 'true'},
             }
         );
 

@@ -8,11 +8,11 @@
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 import {TypeFormat, RunTypeOptions, BaseRunTypeFormat, registerFormatter} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype';
+import {DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype.ts';
 import {FormatParams_DateTime} from '@mionkit/core';
-import {DEFAULT_TIME_FORMAT_PARAMS, TimeStringRunTypeFormat} from './time.runtype';
-import {stringIgnoreProps} from './stringFormat.runtype';
-import {paramVal} from '../utils';
+import {DEFAULT_TIME_FORMAT_PARAMS, TimeStringRunTypeFormat} from './time.runtype.ts';
+import {stringIgnoreProps} from './stringFormat.runtype.ts';
+import {paramVal} from '../utils.ts';
 
 // DateTime validator
 export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTime> {

@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions';
-import {Route, RouterEntry, Routes} from './general';
-import {RawMethod} from './remoteMethods';
-import {HeadersMethod} from './remoteMethods';
-import {RouteMethod} from './remoteMethods';
-import {RemoteMethod} from './remoteMethods';
+import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions.ts';
+import {Route, RouterEntry, Routes} from './general.ts';
+import {RawMethod} from './remoteMethods.ts';
+import {HeadersMethod} from './remoteMethods.ts';
+import {RouteMethod} from './remoteMethods.ts';
+import {RemoteMethod} from './remoteMethods.ts';
 import {HandlerType} from '@mionkit/core';
 
 // #######  type guards #######

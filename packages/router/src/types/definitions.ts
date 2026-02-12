@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Handler, HeaderHandler, RawLinkedFnHandler} from './handlers';
+import {Handler, HeaderHandler, RawLinkedFnHandler} from './handlers.ts';
 import {
     HeadersLinkedFnOptions,
     HeadersMethod,
@@ -15,7 +15,7 @@ import {
     RawMethod,
     RouteOptions,
     RouteMethod,
-} from './remoteMethods';
+} from './remoteMethods.ts';
 
 // #######  Routes Definitions #######
 

@@ -6,10 +6,10 @@
  * ######## */
 
 import type {Prettify, RpcError, MethodMetadata} from '@mionkit/core';
-import type {CallContext} from './context';
-import type {Routes} from './general';
-import type {Handler} from './handlers';
-import type {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions';
+import type {CallContext} from './context.ts';
+import type {Routes} from './general.ts';
+import type {Handler} from './handlers.ts';
+import type {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions.ts';
 import {HandlerType} from '@mionkit/core'; // do not import type only
 
 // ####### Raw LinkedFns #######

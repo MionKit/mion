@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getPublicApi} from './remoteMethods';
-import {registerRoutes, initRouter, resetRouter} from '../router';
-import {CallContext} from '../types/context';
-import {Routes} from '../types/general';
-import {LinkedFnMethod, RouteMethod} from '../types/remoteMethods';
+import {getPublicApi} from './remoteMethods.ts';
+import {registerRoutes, initRouter, resetRouter} from '../router.ts';
+import {CallContext} from '../types/context.ts';
+import {Routes} from '../types/general.ts';
+import {LinkedFnMethod, RouteMethod} from '../types/remoteMethods.ts';
 import {getJitFnHashes, HandlerType} from '@mionkit/core';
-import {linkedFn, rawLinkedFn, route} from './handlers';
+import {linkedFn, rawLinkedFn, route} from './handlers.ts';
 import {getJitUtils} from '@mionkit/core';
 
 describe('Public Methods should', () => {
