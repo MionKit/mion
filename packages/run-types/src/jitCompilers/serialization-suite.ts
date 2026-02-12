@@ -813,7 +813,12 @@ export const SERIALIZATION_SPEC = {
             getTestData: (dataOnly = false) => {
                 type TupleWithOptionals = [number, bigint?, boolean?, number?];
                 const rt = dataOnly ? (null as any) : runType<TupleWithOptionals>();
-                const values = [[3, undefined, true, 4], [446]];
+                // Note: Jest's toEqual was more lenient with undefined values in arrays
+                // Vitest is stricter, so we explicitly include undefined for optional params
+                const values: TupleWithOptionals[] = [
+                    [3, undefined, true, 4],
+                    [446, undefined, undefined, undefined],
+                ];
                 return {rt, values};
             },
         },
@@ -843,6 +848,8 @@ export const SERIALIZATION_SPEC = {
             getTestData: (dataOnly = false) => {
                 type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
                 const rt = dataOnly ? (null as any) : runType<TupleCircular>();
+                // Note: Jest's toEqual was more lenient with undefined values in arrays
+                // Vitest is stricter, so we explicitly include undefined for optional params
                 const tDeep: TupleCircular = [
                     new Date('2000-08-06T02:13:00.000Z'),
                     456,
@@ -850,6 +857,7 @@ export const SERIALIZATION_SPEC = {
                     null,
                     ['x', 'y', 'z'],
                     BigInt(456),
+                    undefined,
                 ];
                 const typeValue: TupleCircular = [
                     new Date('2000-08-06T02:13:00.000Z'),

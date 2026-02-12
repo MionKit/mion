@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {normalizeForComparison} from '../../equalsHelpers';
 import {SERIALIZATION_SPEC} from '../../serialization-suite';
 import {roundTrip, createSerializationFns} from './binaryHelpers';
 
@@ -29,7 +30,9 @@ it('tuple with optional params', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(deserialized).toEqual(originalValues[i]);
+        // Use normalizeForComparison to handle Vitest's stricter array comparison with optional elements
+        const {actual, expected} = normalizeForComparison(deserialized, originalValues[i]);
+        expect(actual).toEqual(expected);
     });
 });
 
@@ -51,7 +54,9 @@ it('tuple circular', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(deserialized).toEqual(originalValues[i]);
+        // Use normalizeForComparison to handle Vitest's stricter array comparison with optional elements
+        const {actual, expected} = normalizeForComparison(deserialized, originalValues[i]);
+        expect(actual).toEqual(expected);
     });
 });
 

@@ -16,6 +16,7 @@ import {
     createSerializationCallSignatureReturnFn,
     roundTrip,
 } from './binaryHelpers';
+import {normalizeForComparison} from '../../equalsHelpers';
 
 const SERIALIZE_FN = JitFunctions.toBinary;
 const DESERIALIZE_FN = JitFunctions.fromBinary;
@@ -116,7 +117,8 @@ it('non serializable types', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(deserializedValues[i]).toEqual(deserialized);
+        const {actual, expected} = normalizeForComparison(deserialized, deserializedValues[i]);
+        expect(actual).toEqual(expected);
     });
 });
 

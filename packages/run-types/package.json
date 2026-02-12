@@ -1,6 +1,7 @@
 {
   "name": "@mionkit/run-types",
   "version": "0.7.2",
+  "type": "module",
   "description": "Run time functionality directly from typescript types",
   "keywords": [
     "typescript",
@@ -43,9 +44,9 @@
     "access": "public"
   },
   "scripts": {
-    "test": "jest",
+    "test": "vitest run",
     "dev": "vite build --watch",
-    "dev:test": "jest --watch",
+    "dev:test": "vitest watch",
     "lint": "eslint src --ext .ts --ignore-pattern xyzSpec",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",

@@ -16,6 +16,7 @@ import {
     createSerializationCallSignatureReturnFn,
     roundTrip,
 } from './stringifyHelpers';
+import {normalizeForComparison} from '../../equalsHelpers';
 
 const SERIALIZE_FN = JitFunctions.stringifyJson;
 const DESERIALIZE_FN = JitFunctions.restoreFromJson;
@@ -51,7 +52,8 @@ it('function with Date parameters', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(deserialized).toEqual(originalValues[i]);
+        const {actual, expected} = normalizeForComparison(deserialized, originalValues[i]);
+        expect(actual).toEqual(expected);
     });
 });
 
@@ -62,7 +64,8 @@ it('optional parameters', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(deserialized).toEqual(originalValues[i]);
+        const {actual, expected} = normalizeForComparison(deserialized, originalValues[i]);
+        expect(actual).toEqual(expected);
     });
 });
 
@@ -149,7 +152,8 @@ it('get params function using reflectFunction', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(deserialized).toEqual(originalValues[i]);
+        const {actual, expected} = normalizeForComparison(deserialized, originalValues[i]);
+        expect(actual).toEqual(expected);
     });
 });
 

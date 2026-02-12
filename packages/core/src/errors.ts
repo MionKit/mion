@@ -143,8 +143,13 @@ export class RpcError<ErrType extends string, ErrData = any>
 
 // #######  Error Type Guards #######
 
+let hasUnknownKeys: any = undefined;
+function getHasUnknownKeysFn() {
+    if (hasUnknownKeys === undefined) hasUnknownKeys = hasUnknownKeysFromArray();
+    return hasUnknownKeys;
+}
+
 /** Returns true if the error is a TypedError or has the same structure. */
-const hasUnknownKeys = hasUnknownKeysFromArray();
 export function isTypedError(error: any): error is TypedError<any> {
     if (!error) return false;
     if (error instanceof TypedError) return true;
@@ -152,7 +157,7 @@ export function isTypedError(error: any): error is TypedError<any> {
         error &&
         error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        !hasUnknownKeys(error, ['mion@isΣrrθr', 'type', 'message'])
+        !getHasUnknownKeysFn()(error, ['mion@isΣrrθr', 'type', 'message'])
     );
 }
 
@@ -165,7 +170,7 @@ export function isRpcError(error: any): error is RpcError<string> {
         error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
         (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
-        !hasUnknownKeys(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type', 'statusCode'])
+        !getHasUnknownKeysFn()(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type', 'statusCode'])
     );
 }
 
