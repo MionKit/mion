@@ -1,7 +1,16 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
+import {deepkitType} from '@deepkit/vite';
 
 export default defineConfig({
+    plugins: [
+        deepkitType({
+            tsConfig: resolve(__dirname, 'tsconfig.json'),
+            compilerOptions: {
+                sourceMap: true,
+            },
+        }) as any,
+    ],
     test: {
         globals: true,
         environment: 'node',
@@ -10,9 +19,6 @@ export default defineConfig({
             provider: 'v8',
             reporter: ['text', 'html'],
             exclude: ['node_modules/', '.dist/', 'e2e-test/'],
-        },
-        deps: {
-            interopDefault: true,
         },
         pool: 'forks',
         isolate: false,
@@ -26,10 +32,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@mionkit/core': resolve(__dirname, '../core/index.ts'),
+            '@mionkit/server-pure-functions': resolve(__dirname, '.'),
         },
-    },
-    // Use esm interop to handle CJS/ESM issues
-    esbuild: {
-        target: 'node18',
     },
 });
