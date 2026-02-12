@@ -9,7 +9,6 @@ import {runType} from '../../createRunType.ts';
 // TODO: ATM we can't correctly identify this types, the generated deepkit type does not have anything to indicate the type is a native type
 // some types could be identified by the typeName property, but not all of them.
 // Most of these types depend on the typescript types library, ie: lib.es5.d.ts, lib.es2015.d.ts, and so on so might differ from one version to another.
-// eslint-disable-next-line jest/no-disabled-tests
 describe.skip('native types that throw when trying to create a RunType', () => {
     /**
      * List of all the types that throw when trying to create a RunType:

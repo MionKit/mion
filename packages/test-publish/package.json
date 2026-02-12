@@ -2,6 +2,7 @@
   "name": "@mionkit/test-publish",
   "version": "0.7.2",
   "private": true,
+  "type": "module",
   "description": "Build verification tests - validates that all mion packages work correctly after being built",
   "keywords": [
     "mion",
@@ -16,9 +17,9 @@
   "scripts": {
     "test": "echo 'Run verify to test built artifacts'",
     "verify": "npm run test:build-verification",
-    "test:build-verification": "npm run clean && npm run build && jest && npm run clean",
-    "dev:test": "jest --watch",
-    "lint": "eslint src --ext .ts",
+    "test:build-verification": "npm run clean && npm run build && vitest run && npm run clean",
+    "dev:test": "vitest watch",
+    "lint": "npx --node-options='--experimental-strip-types' eslint --flag unstable_native_nodejs_ts_config src",
     "format": "prettier --write src/**/*.ts",
     "build": "tsc --project tsconfig.json",
     "clean": "rimraf .dist",

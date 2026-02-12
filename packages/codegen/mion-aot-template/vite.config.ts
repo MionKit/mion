@@ -1,7 +1,11 @@
 import {defineConfig} from 'vite';
-import {resolve} from 'path';
+import {resolve, dirname} from 'path';
 import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
+import {fileURLToPath} from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Get all TypeScript files from src directory (excluding spec/test files)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {

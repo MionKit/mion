@@ -48,7 +48,7 @@
     "test": "vitest run",
     "dev": "vite build --watch",
     "dev:test": "vitest watch",
-    "lint": "eslint src --ext .ts",
+    "lint": "npx --node-options='--experimental-strip-types' eslint --flag unstable_native_nodejs_ts_config src",
     "format": "prettier --write src/**/*.ts",
     "build": "npm run build:aot-template && vite build",
     "build-ts-dts": "echo 'noop: codegen uses custom build'",

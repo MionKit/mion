@@ -8,14 +8,16 @@
 import {initClient} from '@mionkit/client';
 import {isRpcError} from '@mionkit/core';
 import {BinaryTestServerApi} from '@mionkit/test-server';
+import Storage from 'dom-storage';
+import {beforeAll} from 'vitest';
 
 // THIS TESTS ARE INTENDED TO E2E TESTING OF THE BINARY SERIALIZER
 
 // Mock localStorage for method metadata storage
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-const Storage = require('dom-storage');
-global.localStorage = new Storage(null, {strict: true});
-global.sessionStorage = new Storage(null, {strict: true});
+beforeAll(() => {
+    global.localStorage = new Storage(null, {strict: true});
+    global.sessionStorage = new Storage(null, {strict: true});
+});
 
 // Shared test server port (started by globalSetup)
 const TEST_SERVER_PORT_BINARY = 8087;

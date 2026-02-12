@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-export */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
@@ -313,7 +312,6 @@ export const SERIALIZATION_SPEC = {
             title: 'regexp literal',
             getTestData: (dataOnly = false) => {
                 const reg = /abc/;
-                // eslint-disable-next-line @mionkit/no-typeof-runtype
                 const rt = dataOnly ? (null as any) : runType<typeof reg>();
                 const values = [reg];
                 return {rt, values};
