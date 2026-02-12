@@ -1,5 +1,5 @@
-import type {TypeFormatValue} from './formats/formats.types';
-import type {JITUtils, RunTypeError} from './general.types';
+import type {TypeFormatValue} from './formats/formats.types.ts';
+import type {JITUtils, RunTypeError} from './general.types.ts';
 
 type StrNumber = string | number;
 

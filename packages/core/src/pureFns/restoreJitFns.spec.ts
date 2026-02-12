@@ -6,14 +6,14 @@
  * ######## */
 
 import {describe, it, expect, beforeEach, vi} from 'vitest';
-import {restoreCompiledJitFns} from './restoreJitFns';
-import {addAOTCaches, addSerializedJitCaches, getJitUtils, resetJitFnCaches} from '../jitUtils';
+import {restoreCompiledJitFns} from './restoreJitFns.ts';
+import {addAOTCaches, addSerializedJitCaches, getJitUtils, resetJitFnCaches} from '../jitUtils.ts';
 import type {
     PersistedJitFunctionsCache,
     PersistedPureFunctionsCache,
     FnsDataCache,
     PureFnsDataCache,
-} from '../types/general.types';
+} from '../types/general.types.ts';
 
 const TEST_NS = 'test';
 

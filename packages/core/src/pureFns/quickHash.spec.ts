@@ -1,4 +1,4 @@
-import {createUniqueHash} from './quickHash';
+import {createUniqueHash} from './quickHash.ts';
 
 it('quick hash should generate unique hashes', () => {
     const hashes = new Set();

@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getJitFnCaches} from './jitUtils';
-import {JitFunctionsCache, PureFunctionsCache} from './types/general.types';
+import {getJitFnCaches} from './jitUtils.ts';
+import {JitFunctionsCache, PureFunctionsCache} from './types/general.types.ts';
 
 const {jitFnsCache, pureFnsCache} = getJitFnCaches() as {jitFnsCache: JitFunctionsCache; pureFnsCache: PureFunctionsCache};
 

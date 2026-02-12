@@ -16,12 +16,12 @@ import type {
     JitCompiledFnData,
     JITUtils,
     PersistedJitFn,
-} from '../types/general.types';
-import type {PersistedPureFunction} from '../types/pureFunctions.types';
-import type {CompiledPureFunction} from '../types/pureFunctions.types';
-import type {PureFunctionData} from '../types/pureFunctions.types';
-import type {PureFunctionClosure} from '../types/pureFunctions.types';
-import {TypedError} from '../errors';
+} from '../types/general.types.ts';
+import type {PersistedPureFunction} from '../types/pureFunctions.types.ts';
+import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
+import type {PureFunctionData} from '../types/pureFunctions.types.ts';
+import type {PureFunctionClosure} from '../types/pureFunctions.types.ts';
+import {TypedError} from '../errors.ts';
 
 /**
  * Restores the full state of a persisted/serialized jit functions.

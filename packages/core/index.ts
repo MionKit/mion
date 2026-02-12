@@ -5,29 +5,29 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * from './src/types/general.types';
-export * from './src/types/method.types';
-export * from './src/types/pureFunctions.types';
-export * from './src/types/formats/formats.types';
-export * from './src/types/formats/formatsParams.types';
-export * from './src/types/formats/friendlyErrors.types';
-export * from './src/types/formats/formatBrands.types';
-export * from './src/binary/dataView';
-export * from './src/binary/bodySerializer';
-export * from './src/binary/bodyDeserializer';
-export * from './src/binary/bodyDeserializer';
-export * from './src/constants';
-export * from './src/errors';
-export * from './src/friendlyErrors';
-export * from './src/jitUtils';
-export * from './src/routerUtils';
-export * from './src/utils';
-export * from './src/headers';
-export * from './src/pureFns/pureFn';
-export * from './src/pureFns/quickHash';
-export * from './src/pureFns/corePureUtils';
+export * from './src/types/general.types.ts';
+export * from './src/types/method.types.ts';
+export * from './src/types/pureFunctions.types.ts';
+export * from './src/types/formats/formats.types.ts';
+export * from './src/types/formats/formatsParams.types.ts';
+export * from './src/types/formats/friendlyErrors.types.ts';
+export * from './src/types/formats/formatBrands.types.ts';
+export * from './src/binary/dataView.ts';
+export * from './src/binary/bodySerializer.ts';
+export * from './src/binary/bodyDeserializer.ts';
+export * from './src/binary/bodyDeserializer.ts';
+export * from './src/constants.ts';
+export * from './src/errors.ts';
+export * from './src/friendlyErrors.ts';
+export * from './src/jitUtils.ts';
+export * from './src/routerUtils.ts';
+export * from './src/utils.ts';
+export * from './src/headers.ts';
+export * from './src/pureFns/pureFn.ts';
+export * from './src/pureFns/quickHash.ts';
+export * from './src/pureFns/corePureUtils.ts';
 
 // pure function utils must be registered after all modules are loaded
 // register pure functions when this module is loaded
-import {registerCorePureUtils} from './src/pureFns/corePureUtils';
+import {registerCorePureUtils} from './src/pureFns/corePureUtils.ts';
 registerCorePureUtils();
