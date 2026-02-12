@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {getPersistedMethods, initRouter, registerRoutes, route, resetRouter, getRouteExecutionChain} from '@mionkit/router';
-import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp';
+import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp.ts';
 import type {CallContext, Route} from '@mionkit/router';
 import {StatusCodes, type PublicRpcError, serializeBinaryBody, deserializeBinaryBody} from '@mionkit/core';
 import type {Server} from 'http';

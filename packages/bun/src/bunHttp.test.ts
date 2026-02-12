@@ -6,7 +6,7 @@
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
 import {initRouter, registerRoutes, route} from '@mionkit/router';
-import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp';
+import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp.ts';
 import {CallContext} from '@mionkit/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionkit/core';
 import {Server} from 'bun';

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {GoogleCFOptions} from './types';
+import {GoogleCFOptions} from './types.ts';
 
 export const DEFAULT_GOOGLE_CF_OPTIONS: GoogleCFOptions = {
     defaultResponseHeaders: {},

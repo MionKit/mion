@@ -6,7 +6,7 @@
  * ######## */
 
 import {initRouter, registerRoutes, resetRouter, route, getRouteExecutionChain} from '@mionkit/router';
-import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF';
+import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF.ts';
 import type {CallContext, Route} from '@mionkit/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes, serializeBinaryBody, deserializeBinaryBody} from '@mionkit/core';
 import {Server} from 'http';

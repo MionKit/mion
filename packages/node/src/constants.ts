@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {NodeHttpOptions} from './types';
+import {NodeHttpOptions} from './types.ts';
 
 export const CONTENT_TYPE_HEADER_NAME = 'content-type';
 export const ACCEPT_JSON = 'application/json';

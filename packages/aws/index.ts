@@ -5,6 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * from './src/awsLambda';
-export * from './src/constants';
-export * from './src/types';
+export * from './src/awsLambda.ts';
+export * from './src/constants.ts';
+export * from './src/types.ts';

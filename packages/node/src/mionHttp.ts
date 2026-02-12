@@ -8,14 +8,14 @@
 import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
-import {DEFAULT_HTTP_OPTIONS} from './constants';
-import type {NodeHttpOptions} from './types';
+import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
+import type {NodeHttpOptions} from './types.ts';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionkit/router';
 import {getENV, SerializerModes} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
-import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
+import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
 
 // ############# PRIVATE STATE #############
 
