@@ -7,7 +7,7 @@
 
 // ### IMPORTANT: This file is intended to be used to build the mion-aot using ts-node
 
-import {mionBuildAot} from './cli-build-aot';
+import {mionBuildAot} from './cli-build-aot.js';
 import {join} from 'path';
 
 const templateDir = join(__dirname, '..', 'mion-aot-template');

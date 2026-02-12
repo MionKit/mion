@@ -7,8 +7,8 @@
 
 import {existsSync, rmSync, mkdirSync, readFileSync} from 'fs';
 import {join, resolve} from 'path';
-import {compileAOT, resetCompileTracking} from './aot-compile';
-import {initAOT} from './cli-init-aot';
+import {compileAOT, resetCompileTracking} from './aot-compile.js';
+import {initAOT} from './cli-init-aot.js';
 import {resetRouter, loadCompiledMethods} from '@mionkit/router';
 import {resetJitFnCaches, addAOTCaches} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
@@ -97,7 +97,7 @@ describe('AOT Cache Eviction E2E', () => {
         resetRouter();
         resetJitFnCaches();
 
-        const aotPackagePath = join(evictionTestDir, 'build', 'cjs', 'src', 'index.js');
+        const aotPackagePath = join(evictionTestDir, 'build', 'esm', 'src', 'index.js');
         const aotPackage = await import(aotPackagePath);
 
         // Load the AOT caches

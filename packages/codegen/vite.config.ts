@@ -43,29 +43,39 @@ export default defineConfig({
             },
         }),
         dts({
-            outDir: '.dist/cjs',
+            outDir: ['.dist/cjs', '.dist/esm'],
             include: ['index.ts', 'src/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts', 'mion-aot-template/**', 'bin/**', 'src/run-*.ts'],
             pathsToAliases: false,
+            tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
         }),
     ],
     build: {
         lib: {
             entry,
-            formats: ['cjs'],
+            formats: ['es', 'cjs'],
         },
         outDir: '.dist',
         emptyOutDir: true,
         sourcemap: true,
         minify: false,
         rollupOptions: {
-            output: {
-                format: 'cjs',
-                dir: '.dist/cjs',
-                entryFileNames: '[name].js',
-                preserveModules: true,
-                preserveModulesRoot: '.',
-            },
+            output: [
+                {
+                    format: 'es',
+                    dir: '.dist/esm',
+                    entryFileNames: '[name].js',
+                    preserveModules: true,
+                    preserveModulesRoot: '.',
+                },
+                {
+                    format: 'cjs',
+                    dir: '.dist/cjs',
+                    entryFileNames: '[name].js',
+                    preserveModules: true,
+                    preserveModulesRoot: '.',
+                },
+            ],
             external: ['@mionkit/core', '@mionkit/router', '@mionkit/run-types', /^[^./]/],
         },
     },

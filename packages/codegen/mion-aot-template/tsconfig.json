@@ -1,12 +1,13 @@
 {
   "extends": "../../../tsconfig.json",
   "compilerOptions": {
+    "outDir": "build/esm",
     "composite": false,
     "skipLibCheck": true,
     "declaration": true
   },
   "reflection": true,
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "build"],
+  "exclude": ["node_modules", "build", "vite.config.ts"],
   "references": [{"path": "../../core"}, {"path": "../../run-types"}, {"path": "../../router"}]
 }
