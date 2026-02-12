@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import type {PropertyInfo, TypeInfo, ValidationResult} from '../types/common.types';
+import type {PropertyInfo, TypeInfo, ValidationResult} from '../types/common.types.ts';
 
 /** Validates that provided table config matches the TypeScript type */
 export function validateConfig(typeInfo: TypeInfo, tableConfig: Record<string, any>): ValidationResult {

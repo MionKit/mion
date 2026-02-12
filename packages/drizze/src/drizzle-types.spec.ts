@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DrizzleTypesPostgres, DrizzleTypesMySQL, DrizzleTypesSQLite} from './types/common.types';
+import {DrizzleTypesPostgres, DrizzleTypesMySQL, DrizzleTypesSQLite} from './types/common.types.ts';
 
 // Import PostgreSQL column builder functions
 import {

@@ -9,11 +9,11 @@ import {mysqlTable, type MySqlTableWithColumns, type MySqlColumnBuilderBase} fro
 import type {BuildColumns} from 'drizzle-orm/column-builder';
 import type {ReceiveType} from '@deepkit/type';
 import {TypedError} from '@mionkit/core';
-import {extractTypeInfo} from './core/typeTraverser';
-import {validateConfig} from './core/validator';
-import {MySQLColumnMapper} from './mappers/mysql.mapper';
-import type {MySqlTableConfig, MySqlColumnType} from './types/mysql.types';
-import type {DrizzleMapperConfig} from './types/common.types';
+import {extractTypeInfo} from './core/typeTraverser.ts';
+import {validateConfig} from './core/validator.ts';
+import {MySQLColumnMapper} from './mappers/mysql.mapper.ts';
+import type {MySqlTableConfig, MySqlColumnType} from './types/mysql.types.ts';
+import type {DrizzleMapperConfig} from './types/common.types.ts';
 
 /**
  * Merges auto-generated columns with config overrides.

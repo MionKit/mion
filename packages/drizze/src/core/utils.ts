@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import type {PropertyInfo} from '../types/common.types';
+import type {PropertyInfo} from '../types/common.types.ts';
 
 /** Converts a camelCase property name to snake_case for database column names */
 export function toSnakeCase(str: string): string {

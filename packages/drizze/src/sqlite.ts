@@ -9,11 +9,11 @@ import {sqliteTable, type SQLiteTableWithColumns, type SQLiteColumnBuilderBase} 
 import type {BuildColumns} from 'drizzle-orm/column-builder';
 import type {ReceiveType} from '@deepkit/type';
 import {TypedError} from '@mionkit/core';
-import {extractTypeInfo} from './core/typeTraverser';
-import {validateConfig} from './core/validator';
-import {SQLiteColumnMapper} from './mappers/sqlite.mapper';
-import type {SqliteTableConfig, SqliteColumnType} from './types/sqlite.types';
-import type {DrizzleMapperConfig} from './types/common.types';
+import {extractTypeInfo} from './core/typeTraverser.ts';
+import {validateConfig} from './core/validator.ts';
+import {SQLiteColumnMapper} from './mappers/sqlite.mapper.ts';
+import type {SqliteTableConfig, SqliteColumnType} from './types/sqlite.types.ts';
+import type {DrizzleMapperConfig} from './types/common.types.ts';
 
 /**
  * Merges auto-generated columns with config overrides.

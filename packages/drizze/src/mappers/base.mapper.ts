@@ -6,9 +6,9 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import type {ColumnMapping, PropertyInfo, DrizzleMapperConfig} from '../types/common.types';
-import {DEFAULT_LENGTH_BUFFER} from '../types/common.types';
-import {shouldBeJson} from '../core/utils';
+import type {ColumnMapping, PropertyInfo, DrizzleMapperConfig} from '../types/common.types.ts';
+import {DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
+import {shouldBeJson} from '../core/utils.ts';
 import {FormatName} from '@mionkit/type-formats';
 
 /** Base class for database-specific column mappers */

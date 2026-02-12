@@ -9,11 +9,11 @@ import {pgTable, type PgTableWithColumns, type PgColumnBuilderBase} from 'drizzl
 import type {BuildColumns} from 'drizzle-orm/column-builder';
 import type {ReceiveType} from '@deepkit/type';
 import {TypedError} from '@mionkit/core';
-import {extractTypeInfo} from './core/typeTraverser';
-import {validateConfig} from './core/validator';
-import {PGColumnMapper} from './mappers/pg.mapper';
-import type {PgTableConfig, PgColumnType} from './types/postgres.types';
-import type {DrizzleMapperConfig} from './types/common.types';
+import {extractTypeInfo} from './core/typeTraverser.ts';
+import {validateConfig} from './core/validator.ts';
+import {PGColumnMapper} from './mappers/pg.mapper.ts';
+import type {PgTableConfig, PgColumnType} from './types/postgres.types.ts';
+import type {DrizzleMapperConfig} from './types/common.types.ts';
 
 /**
  * Merges auto-generated columns with config overrides.
