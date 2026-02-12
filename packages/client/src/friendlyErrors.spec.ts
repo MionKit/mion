@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initClient} from './client';
+import {initClient} from './client.ts';
 import {getFriendlyErrors} from '@mionkit/core';
 import type {FriendlyErrors} from '@mionkit/core';
-import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionkit/test-server';
-import type {TestServerApi} from '../../test-server/src/test-server-json';
-import type {RouteParamsType} from './types';
+import type {TestServerApi} from '../../test-server/src/test-server-json.ts';
+import type {RouteParamsType} from './types.ts';
 import {StrEmail} from '@mionkit/type-formats/FormatsString';
+import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
 
 // Mock localStorage for method metadata storage
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -22,16 +22,11 @@ global.sessionStorage = new Storage(null, {strict: true});
 describe('friendlyErrors with client validation', () => {
     type MyApi = TestServerApi;
 
-    const port = TEST_PORT_MAPPING.friendlyErrors;
-    const serverLinkedFns = createTestServerLinkedFns({port});
-    const baseURL = serverLinkedFns.getBaseURL();
+    const baseURL = TEST_SERVER_BASE_URL_JSON;
 
     // Derive UserWithFormats type from the route without importing it from server
     // This demonstrates how a client can get the type from the API definition
     type UserWithFormats = RouteParamsType<MyApi['createUserWithFormats']>;
-
-    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
     beforeEach(() => {
         localStorage.clear();

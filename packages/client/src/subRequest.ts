@@ -7,9 +7,17 @@
 
 import {RpcError} from '@mionkit/core';
 import type {RunTypeError} from '@mionkit/core';
-import type {CallWithLinkedFnsResult, HSubRequest, RequestErrors, Result, RSubRequest, SubRequest, WorkflowResult} from './types';
-import type {MionClient} from './client';
-import {TypedEvent} from './typedEvent';
+import type {
+    CallWithLinkedFnsResult,
+    HSubRequest,
+    RequestErrors,
+    Result,
+    RSubRequest,
+    SubRequest,
+    WorkflowResult,
+} from './types.ts';
+import type {MionClient} from './client.ts';
+import {TypedEvent} from './typedEvent.ts';
 
 /** Implementation of both RouteSubRequest and LinkedFnSubRequest interfaces */
 export class MionSubRequest<S = any, E extends RpcError<string, any> = any> implements RSubRequest<any>, HSubRequest<any> {

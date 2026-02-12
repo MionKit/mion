@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_PREFILL_OPTIONS} from './constants';
+import {DEFAULT_PREFILL_OPTIONS} from './constants.ts';
 import {
     CallWithLinkedFnsResult,
     ClientOptions,
@@ -18,14 +18,14 @@ import {
     ClientLinkedFns,
     Result,
     WorkflowResult,
-} from './types';
+} from './types.ts';
 import type {RemoteApi} from '@mionkit/router';
 import {registerErrorDeserializers} from '@mionkit/core';
 import {getRouterItemId} from '@mionkit/core';
-import {MionClientRequest} from './request';
+import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionkit/core';
-import {HandlersRegistry} from './handlersRegistry';
-import {MionSubRequest, findSubRequestError} from './subRequest';
+import {HandlersRegistry} from './handlersRegistry.ts';
+import {MionSubRequest, findSubRequestError} from './subRequest.ts';
 
 export function initClient<RM extends RemoteApi>(
     options: InitOptions

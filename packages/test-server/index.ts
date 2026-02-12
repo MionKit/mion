@@ -8,20 +8,20 @@
 /**
  * @mionkit/test-server
  *
- * Centralized test server utilities for mion packages.
+ * Centralized test server for mion packages.
  * Provides pre-built test servers with Deepkit type reflection for testing
  * client-server communication with both JSON and binary serialization.
  *
  * IMPORTANT: Set MION_TEST_SERVER_AUTO_START=false before importing this package
  * in test files to prevent automatic server startup when importing routes.
  * The test server files will auto-start by default unless this variable is set.
+ *
+ * Test servers should be started using globalSetup in vitest/jest config.
+ * See packages/client/globalSetup.ts for an example.
  */
 
-// Re-export types and utilities first (these don't trigger server startup)
-export * from './src/test-server-utils';
-
 // Re-export routes and types from test-server-json (safe to import)
-export * from './src/test-server-json';
+export * from './src/test-server-json.ts';
 
 // Re-export from test-server-binary (also safe as server auto-start is conditional)
-export * from './src/test-server-binary';
+export * from './src/test-server-binary.ts';

@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initClient} from './client';
-import {workflow} from './workflow';
+import {initClient} from './client.ts';
+import {workflow} from './workflow.ts';
 import {isRpcError} from '@mionkit/core';
 import {BinaryTestServerApi} from '@mionkit/test-server';
-import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionkit/test-server';
+import {TEST_SERVER_BASE_URL_BINARY} from '../globalSetup.ts';
 
 // THIS TESTS ARE INTENDED TO E2E TESTING OF THE BINARY SERIALIZER
 
@@ -22,14 +22,7 @@ global.sessionStorage = new Storage(null, {strict: true});
 describe('Binary Serialization E2E', () => {
     type MyApi = BinaryTestServerApi;
 
-    const port = TEST_PORT_MAPPING.binarySerialization;
-
-    // Create server linkedFns using the utility with binary server script
-    const serverLinkedFns = createTestServerLinkedFns({port, serverType: 'binary'});
-    const baseURL = serverLinkedFns.getBaseURL();
-
-    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
+    const baseURL = TEST_SERVER_BASE_URL_BINARY;
 
     describe('Simple Types', () => {
         it('should serialize and deserialize string echo', async () => {

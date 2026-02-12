@@ -5,27 +5,21 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata';
-import {ClientOptions} from './types';
+import {vi} from 'vitest';
+import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata.ts';
+import {ClientOptions} from './types.ts';
 import {routesCache} from '@mionkit/core';
-import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionkit/test-server';
 import Storage from 'dom-storage';
+import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
 
 // Setup real localStorage for testing
 global.localStorage = new Storage(null, {strict: true});
 global.sessionStorage = new Storage(null, {strict: true});
 
 describe('fetchRemoteMethodsMetadata', () => {
-    const port = TEST_PORT_MAPPING.clientMethodsMetadata; // Different port from client.spec.ts
-
-    // Create server linkedFns using the utility
-    const serverLinkedFns = createTestServerLinkedFns({port});
-    const baseURL = serverLinkedFns.getBaseURL();
+    const baseURL = TEST_SERVER_BASE_URL_JSON;
 
     let options: ClientOptions;
-
-    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
     beforeEach(() => {
         options = {
@@ -115,7 +109,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
         // Second call - should restore from localStorage without making HTTP request
         const originalFetch = global.fetch;
-        const mockFetch = jest.fn();
+        const mockFetch = vi.fn();
         global.fetch = mockFetch;
 
         try {
@@ -155,7 +149,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
         // Mock fetch to track calls (we can do this for this specific test)
         const originalFetch = global.fetch;
-        const mockFetch = jest.fn();
+        const mockFetch = vi.fn();
         global.fetch = mockFetch;
 
         try {

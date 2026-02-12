@@ -11,4 +11,7 @@ module.exports = {
   testTimeout: 30000,
   // Run tests sequentially to avoid port conflicts
   maxWorkers: 1,
+  // Global setup/teardown for test servers
+  globalSetup: '<rootDir>/globalSetup.js',
+  globalTeardown: '<rootDir>/globalTeardown.js',
 };

@@ -7,7 +7,7 @@
 
 import {RpcError, isRpcError, addRoutesToCache, resetRoutesCache, resetJitFnCaches} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
-import {ClientOptions, RequestBody} from './types';
+import {ClientOptions, RequestBody} from './types.ts';
 import type {
     JitCompiledFnData,
     MethodsCache,
@@ -17,8 +17,8 @@ import type {
     PureFnsDataCache,
 } from '@mionkit/core';
 import {routesCache, coreAOTLoadJitCaches, coreAOTLoadRoutesMetadataCache, addSerializedJitCaches} from '@mionkit/core';
-import {STORAGE_KEY} from './constants';
-import {deserializeResponseBody} from './serializer';
+import {STORAGE_KEY} from './constants.ts';
+import {deserializeResponseBody} from './serializer.ts';
 import type {MionRoutes} from '@mionkit/router';
 
 type GetRemoteMethodsMetadataById = MionRoutes[typeof MION_ROUTES.methodsMetadataById]['handler'];

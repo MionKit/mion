@@ -7,7 +7,7 @@
 
 import {initClient, HSubRequest, RSubRequest, workflow} from '@mionkit/client';
 import {isRpcError, HeadersSubset} from '@mionkit/core';
-import {TestServerApi, createTestServerLinkedFns, JEST_TIMEOUT_CONSTANTS, TEST_PORT_MAPPING} from '@mionkit/test-server';
+import {TestServerApi} from '@mionkit/test-server';
 
 // Mock localStorage for method metadata storage (still needed for clientMethodsMetadata)
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -20,19 +20,14 @@ function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
     return new HeadersSubset({Authorization: token});
 }
 
+// Shared test server port (started by globalSetup)
+const TEST_SERVER_PORT_JSON = 8086;
+const baseURL = `http://localhost:${TEST_SERVER_PORT_JSON}`;
+
 // TODO: test & write client
 describe('client', () => {
     const someUser = {name: 'John', surname: 'Doe'};
     type MyApi = TestServerApi;
-
-    const port = TEST_PORT_MAPPING.client;
-
-    // Create server linkedFns using the utility
-    const serverLinkedFns = createTestServerLinkedFns({port});
-    const baseURL = serverLinkedFns.getBaseURL();
-
-    beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-    afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
     // Note: prefilledLinkedFnsCache is now per-client instance, so each test with a fresh client starts with empty cache
 

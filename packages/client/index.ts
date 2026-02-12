@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * from './src/types';
-export * from './src/constants';
-export * from './src/validation';
-export * from './src/serializer';
-export * from './src/clientMethodsMetadata';
-export * from './src/request';
-export * from './src/client';
-export * from './src/typedEvent';
-export * from './src/handlersRegistry';
-export * from './src/workflow';
+export * from './src/types.ts';
+export * from './src/constants.ts';
+export * from './src/validation.ts';
+export * from './src/serializer.ts';
+export * from './src/clientMethodsMetadata.ts';
+export * from './src/request.ts';
+export * from './src/client.ts';
+export * from './src/typedEvent.ts';
+export * from './src/handlersRegistry.ts';
+export * from './src/workflow.ts';

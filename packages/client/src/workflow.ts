@@ -6,8 +6,8 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import type {HSubRequest, RSubRequest, WorkflowResult} from './types';
-import type {MionSubRequest} from './subRequest';
+import type {HSubRequest, RSubRequest, WorkflowResult} from './types.ts';
+import type {MionSubRequest} from './subRequest.ts';
 
 /** Creates and executes a workflow request with multiple routes */
 export async function workflow<

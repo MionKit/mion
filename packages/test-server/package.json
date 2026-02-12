@@ -12,6 +12,7 @@
   "homepage": "https://mion.io/",
   "license": "MIT",
   "private": true,
+  "type": "module",
   "exports": {
     ".": {
       "types": "./.dist/esm/index.d.ts",
