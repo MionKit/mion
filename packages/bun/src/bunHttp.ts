@@ -6,8 +6,8 @@
  * ######## */
 
 import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
-import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
-import type {BunHttpOptions} from './types';
+import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
+import type {BunHttpOptions} from './types.ts';
 import {getENV, SerializerModes} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {Server} from 'bun';

@@ -9,9 +9,9 @@ import {RpcError, SerializerModes} from '@mionkit/core';
 import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionkit/router';
 import type {MionHeaders, MionResponse} from '@mionkit/router';
 import {Request, Response} from 'express';
-import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants';
-import {GoogleCFOptions} from './types';
-import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
+import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants.ts';
+import {GoogleCFOptions} from './types.ts';
+import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
 
 // ############# STATE #############
 

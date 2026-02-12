@@ -9,8 +9,8 @@ import {RpcError, SerializerModes} from '@mionkit/core';
 import {dispatchRoute, getRouterFatalErrorResponse, headersFromRecord, resetRouter} from '@mionkit/router';
 import type {MionResponse, MionHeaders} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
-import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants';
-import {AwsLambdaOptions} from '..';
+import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
+import {AwsLambdaOptions} from '../index.ts';
 
 // ############# STATE #############
 

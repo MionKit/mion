@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {BunHttpOptions} from './types';
+import {BunHttpOptions} from './types.ts';
 
 export const DEFAULT_BUN_HTTP_OPTIONS: BunHttpOptions = {
     port: 80,
