@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionHeaders} from '../types/context';
-import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from '../router';
+import {MionHeaders} from '../types/context.ts';
+import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from '../router.ts';
 import {
     getRoutePath,
     SerializableMethodsData,
@@ -18,13 +18,13 @@ import {
     RouteOnlyOptions,
     RemoteMethodOpts,
 } from '@mionkit/core';
-import {linkedFn, rawLinkedFn, route} from '../lib/handlers';
-import {Routes} from '../types/general';
-import {mionClientRoutes} from './client.routes';
-import {headersFromRecord} from '../lib/headers';
-import {dispatchRoute} from '../dispatch';
+import {linkedFn, rawLinkedFn, route} from '../lib/handlers.ts';
+import {Routes} from '../types/general.ts';
+import {mionClientRoutes} from './client.routes.ts';
+import {headersFromRecord} from '../lib/headers.ts';
+import {dispatchRoute} from '../dispatch.ts';
 import {runType, JitFunctions} from '@mionkit/run-types';
-import {getSerializableMethod} from '../lib/remoteMethods';
+import {getSerializableMethod} from '../lib/remoteMethods.ts';
 
 type RawRequest = {
     headers: MionHeaders;

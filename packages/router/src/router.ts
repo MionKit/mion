@@ -6,7 +6,7 @@
  * ######## */
 
 import {join} from 'path';
-import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
+import type {Route, RouterOptions, Routes, RouterEntry} from './types/general.ts';
 import type {
     RemoteMethod,
     MethodsExecutionChain,
@@ -14,10 +14,10 @@ import type {
     HeadersMethod,
     LinkedFnMethod,
     RouteMethod,
-} from './types/remoteMethods';
-import type {PublicApi, PrivateDef, LinkedFnsCollection} from './types/publicMethods';
-import type {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef} from './types/definitions';
-import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, WORKFLOW_KEY} from './constants';
+} from './types/remoteMethods.ts';
+import type {PublicApi, PrivateDef, LinkedFnsCollection} from './types/publicMethods.ts';
+import type {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef} from './types/definitions.ts';
+import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, WORKFLOW_KEY} from './constants.ts';
 import {
     isRawLinkedFnDef,
     isHeadersLinkedFnDef,
@@ -26,24 +26,24 @@ import {
     isRoute,
     isRoutes,
     isAnyLinkedFnDef,
-} from './types/guards';
+} from './types/guards.ts';
 import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv, resetRoutesCache} from '@mionkit/core';
-import {getRawMethodReflection, getHandlerReflection} from './lib/reflection';
-import {serializerLinkedFns} from './routes/serializer.routes';
+import {getRawMethodReflection, getHandlerReflection} from './lib/reflection.ts';
+import {serializerLinkedFns} from './routes/serializer.routes.ts';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
-import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods';
+import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {
     addToPersistedMethods,
     getPersistedMethod,
     resetPersistedMethods,
     loadDefaultAOTCaches,
     resetDefaultAOTCachesState,
-} from './lib/methodsCache';
-import {mionClientRoutes} from './routes/client.routes';
-import {mionErrorsRoutes} from './routes/errors.routes';
-import {clearWorkflowCache} from './workflows';
-import {clearContextPool} from './callContext';
+} from './lib/methodsCache.ts';
+import {mionClientRoutes} from './routes/client.routes.ts';
+import {mionErrorsRoutes} from './routes/errors.routes.ts';
+import {clearWorkflowCache} from './workflows.ts';
+import {clearContextPool} from './callContext.ts';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {

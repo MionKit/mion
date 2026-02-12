@@ -8,11 +8,11 @@
 import type {MethodWithJitFns, AnyFn, JitCompiledFunctions, MethodMetadata} from '@mionkit/core';
 // Type-only imports from run-types - these don't load the module at runtime
 import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnCompiler} from '@mionkit/run-types';
-import {Handler} from '../types/handlers';
-import {RouterOptions} from '../types/general';
-import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants';
+import {Handler} from '../types/handlers.ts';
+import {RouterOptions} from '../types/general.ts';
+import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants.ts';
 import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns, importModule} from '@mionkit/core';
-import {getPersistedMethodMetadata} from './methodsCache';
+import {getPersistedMethodMetadata} from './methodsCache.ts';
 
 // ############ This file is the only one importing '@mionkit/run-types' within the router ########
 // In AOT mode, run-types is NOT loaded - all reflection data comes from the AOT cache

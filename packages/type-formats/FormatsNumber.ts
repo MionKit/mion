@@ -8,10 +8,10 @@
 // ############### Import modules to execute side effects (registerFormatter calls) ###############
 
 // Import main number format module to register the formatter
-import './src/number/numberFormat.runtype';
+import './src/number/numberFormat.runtype.ts';
 
 // Import default number format modules to register formatters
-import './src/number/defaultNumberFormats';
+import './src/number/defaultNumberFormats.ts';
 
 // ############### Main NumberFormat Export ###############
 
@@ -20,8 +20,8 @@ import './src/number/defaultNumberFormats';
 // TODO: Revert to named exports once the issue is fixed
 
 // Re-export everything from number format modules
-export * from './src/number/numberFormat.runtype';
-export * from './src/number/defaultNumberFormats';
+export * from './src/number/numberFormat.runtype.ts';
+export * from './src/number/defaultNumberFormats.ts';
 
 // COMMENTED OUT - Original named exports (to be restored after issue is fixed):
 // // Re-export the main NumberFormat type

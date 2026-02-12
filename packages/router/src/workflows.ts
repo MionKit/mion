@@ -6,10 +6,10 @@
  * ######## */
 
 import {RpcError, SerializerCode, SerializerModes, StatusCodes} from '@mionkit/core';
-import {getRouteExecutionChain, getRouterOptions, startLinkedFns, endLinkedFns} from './router';
-import {RouterOptions} from './types/general';
-import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods';
-import {WorkflowExecutionResult} from './types/context';
+import {getRouteExecutionChain, getRouterOptions, startLinkedFns, endLinkedFns} from './router.ts';
+import {RouterOptions} from './types/general.ts';
+import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
+import {WorkflowExecutionResult} from './types/context.ts';
 
 // ############# WORKFLOW CACHE #############
 

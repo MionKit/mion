@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initMionRouter, resetRouter, getRouterOptions, getRouteExecutionChain} from '../router';
-import {route, linkedFn} from '../lib/handlers';
-import {Routes} from '../types/general';
-import {serializeResponseBody, deserializeRequestBody} from './serializer.routes';
-import {createCallContext} from '../callContext';
-import {headersFromRecord} from '../lib/headers';
-import type {MionResponse, RawRequestBody} from '../types/context';
+import {initMionRouter, resetRouter, getRouterOptions, getRouteExecutionChain} from '../router.ts';
+import {route, linkedFn} from '../lib/handlers.ts';
+import {Routes} from '../types/general.ts';
+import {serializeResponseBody, deserializeRequestBody} from './serializer.routes.ts';
+import {createCallContext} from '../callContext.ts';
+import {headersFromRecord} from '../lib/headers.ts';
+import type {MionResponse, RawRequestBody} from '../types/context.ts';
 import type {Mutable, BinaryInput} from '@mionkit/core';
 import {createDataViewDeserializer, serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mionkit/core';
 
@@ -400,7 +400,7 @@ describe('Binary Serialization - Router', () => {
         await initMionRouter(routesWithPerRouteOptions, {serializer: 'binary'});
 
         // Import getRouteExecutable to check the stored options
-        const {getRouteExecutable} = await import('../router');
+        const {getRouteExecutable} = await import('../router.ts');
 
         const jsonRoute = getRouteExecutable('jsonRoute');
         expect(jsonRoute?.options.serializer).toBe('json');

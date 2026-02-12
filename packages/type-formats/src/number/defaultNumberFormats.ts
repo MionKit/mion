@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {NumFormat} from './numberFormat.runtype';
+import {NumFormat} from './numberFormat.runtype.ts';
 
 /** Integer number format, always branded with 'integer'. */
 export type NumInteger = NumFormat<{integer: true}, 'integer'>;

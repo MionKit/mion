@@ -5,15 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes, resetRouter, initRouter} from './router';
-import {dispatchRoute} from './dispatch';
-import {MionHeaders} from './types/context';
-import {Routes} from './types/general';
+import {registerRoutes, resetRouter, initRouter} from './router.ts';
+import {dispatchRoute} from './dispatch.ts';
+import {MionHeaders} from './types/context.ts';
+import {Routes} from './types/general.ts';
 import {RpcError} from '@mionkit/core';
-import {linkedFn, route} from './lib/handlers';
-import {headersFromRecord} from './lib/headers';
-import {clearWorkflowCache, getWorkflowCacheSize, getCachedWorkflow} from './workflows';
-import {WORKFLOW_KEY, WORKFLOW_PATH} from './constants';
+import {linkedFn, route} from './lib/handlers.ts';
+import {headersFromRecord} from './lib/headers.ts';
+import {clearWorkflowCache, getWorkflowCacheSize, getCachedWorkflow} from './workflows.ts';
+import {WORKFLOW_KEY, WORKFLOW_PATH} from './constants.ts';
 
 // Workflows allow calling multiple routes in a single request, with shared context between them
 // a new execution chain is created for each workflow request, merging the execution chains of all routes in the workflow

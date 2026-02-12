@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MionHeaders} from '../types/context';
+import type {MionHeaders} from '../types/context.ts';
 
 // ############# PUBLIC METHODS #############
 

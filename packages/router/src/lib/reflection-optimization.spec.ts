@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, registerRoutes, resetRouter, getRouteExecutable, getLinkedFnExecutable} from '../router';
-import {route, linkedFn} from './handlers';
-import {getHandlerReflection} from './reflection';
-import {DEFAULT_ROUTE_OPTIONS} from '../constants';
+import {initRouter, registerRoutes, resetRouter, getRouteExecutable, getLinkedFnExecutable} from '../router.ts';
+import {route, linkedFn} from './handlers.ts';
+import {getHandlerReflection} from './reflection.ts';
+import {DEFAULT_ROUTE_OPTIONS} from '../constants.ts';
 import {EMPTY_HASH, getNoopJitFns} from '@mionkit/core';
-import {getSerializableMethod} from './remoteMethods';
-import {getPersistedMethod, setPersistedMethods} from './methodsCache';
+import {getSerializableMethod} from './remoteMethods.ts';
+import {getPersistedMethod, setPersistedMethods} from './methodsCache.ts';
 
 describe('JIT Function Generation Optimization', () => {
     beforeEach(async () => {

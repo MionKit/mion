@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {type RouterEntry, type Routes} from '../types/general';
-import {type RemoteMethod} from '../types/remoteMethods';
-import type {PublicApi} from '../types/publicMethods';
+import {type RouterEntry, type Routes} from '../types/general.ts';
+import {type RemoteMethod} from '../types/remoteMethods.ts';
+import type {PublicApi} from '../types/publicMethods.ts';
 import type {
     AnyObject,
     JitCompiledFn,
@@ -16,14 +16,14 @@ import type {
     MethodWithOptions,
     PureFnsDataCache,
 } from '@mionkit/core';
-import {isRoute, isHeadersLinkedFnDef, isLinkedFnDef, isPublicExecutable} from '../types/guards';
+import {isRoute, isHeadersLinkedFnDef, isLinkedFnDef, isPublicExecutable} from '../types/guards.ts';
 import {
     getLinkedFnExecutable,
     getRouteExecutable,
     getRouteExecutionChain,
     getRouterOptions,
     isPrivateDefinition,
-} from '../router';
+} from '../router.ts';
 import {
     getRoutePath,
     getRouterItemId,

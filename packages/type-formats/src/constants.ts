@@ -1,5 +1,5 @@
-import {BigIntRunTypeFormat} from '../FormatsBigint';
-import {NumberRunTypeFormat} from '../FormatsNumber';
+import {BigIntRunTypeFormat} from '../FormatsBigint.ts';
+import {NumberRunTypeFormat} from '../FormatsNumber.ts';
 import {
     DateStringRunTypeFormat,
     DateTimeRunTypeFormat,
@@ -10,7 +10,7 @@ import {
     TimeStringRunTypeFormat,
     URLRunTypeFormat,
     UUIDRunTypeFormat,
-} from '../FormatsString';
+} from '../FormatsString.ts';
 
 /** Format name constants for type formats - values imported from RunTypeFormat classes */
 export const FormatNames = {

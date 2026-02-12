@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes, resetRouter, initRouter} from './router';
-import {dispatchRoute} from './dispatch';
-import {CallContext, MionHeaders} from './types/context';
-import {Routes} from './types/general';
+import {registerRoutes, resetRouter, initRouter} from './router.ts';
+import {dispatchRoute} from './dispatch.ts';
+import {CallContext, MionHeaders} from './types/context.ts';
+import {Routes} from './types/general.ts';
 import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes} from '@mionkit/core';
-import {headersFn, linkedFn, route} from './lib/handlers';
-import {headersFromRecord} from './lib/headers';
+import {headersFn, linkedFn, route} from './lib/handlers.ts';
+import {headersFromRecord} from './lib/headers.ts';
 
 type RawRequest = {
     headers: MionHeaders;

@@ -7,7 +7,7 @@
 import {ReflectionKind} from '@deepkit/type';
 import type {JitFnCompiler, JitErrorsFnCompiler, BaseRunType, RunTypeOptions, JitCode} from '@mionkit/run-types';
 import {BaseRunTypeFormat, registerFormatter, TypeFormat} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {paramVal} from '../utils';
+import {paramVal} from '../utils.ts';
 import {DateFmt, FormatParams_Date} from '@mionkit/core';
 import {
     isDateString_YMD,
@@ -16,7 +16,7 @@ import {
     isDateString_YM,
     isDateString_MD,
     isDateString_DM,
-} from '../type-formats-pure-fns';
+} from '../type-formats-pure-fns.ts';
 
 // Date validator
 export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date> {

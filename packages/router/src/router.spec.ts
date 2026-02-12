@@ -17,11 +17,11 @@ import {
     initRouter,
     addStartLinkedFns,
     addEndLinkedFns,
-} from './router';
-import {type Routes} from './types/general';
-import {linkedFn, route, rawLinkedFn, headersFn} from './lib/handlers';
+} from './router.ts';
+import {type Routes} from './types/general.ts';
+import {linkedFn, route, rawLinkedFn, headersFn} from './lib/handlers.ts';
 import {HandlerType, HeadersSubset} from '@mionkit/core';
-import {isPublicExecutable} from './types/guards';
+import {isPublicExecutable} from './types/guards.ts';
 
 describe('Create routes should', () => {
     const linkedFn1 = linkedFn((): void => undefined);

@@ -8,7 +8,7 @@ import type {BrandTime} from '@mionkit/core';
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
 import {BaseRunTypeFormat, TypeFormat, RunTypeOptions, registerFormatter} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
-import {paramVal} from '../utils';
+import {paramVal} from '../utils.ts';
 import {FormatParams_Time} from '@mionkit/core';
 import {
     isTimeString_ISO_TZ,
@@ -19,7 +19,7 @@ import {
     isHours,
     isMinutes,
     isSeconds,
-} from '../type-formats-pure-fns';
+} from '../type-formats-pure-fns.ts';
 
 // Time validator
 export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time> {

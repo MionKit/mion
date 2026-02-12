@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MionResponse, MionRequest, CallContext} from '../types/context';
-import type {RouterOptions} from '../types/general';
-import type {LinkedFnsCollection, MayReturnError} from '../types/publicMethods';
-import type {ResponseBody} from '../types/context';
+import type {MionResponse, MionRequest, CallContext} from '../types/context.ts';
+import type {RouterOptions} from '../types/general.ts';
+import type {LinkedFnsCollection, MayReturnError} from '../types/publicMethods.ts';
+import type {ResponseBody} from '../types/context.ts';
 import {
     AnyObject,
     Mutable,
@@ -18,11 +18,11 @@ import {
     deserializeBinaryBody as coreDeserializeBinaryBody,
     SerializerModes,
 } from '@mionkit/core';
-import {rawLinkedFn} from '../lib/handlers';
-import {getRouteExecutableFromPath, getRouteExecutable} from '../router';
+import {rawLinkedFn} from '../lib/handlers.ts';
+import {getRouteExecutableFromPath, getRouteExecutable} from '../router.ts';
 import {RpcError} from '@mionkit/core';
-import {RemoteMethod} from '../types/remoteMethods';
-import {onExecutableError} from '../lib/dispatchError';
+import {RemoteMethod} from '../types/remoteMethods.ts';
+import {onExecutableError} from '../lib/dispatchError.ts';
 
 // ############# PUBLIC METHODS #############
 

@@ -8,9 +8,9 @@
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, RunTypeOptions, JitCode} from '@mionkit/run-types';
 import {BaseRunTypeFormat, TypeFormat, registerFormatter} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {paramVal} from '../utils';
+import {paramVal} from '../utils.ts';
 import {FormatParams_IP} from '@mionkit/core';
-import {isIPV4, isIPV6} from '../type-formats-pure-fns';
+import {isIPV4, isIPV6} from '../type-formats-pure-fns.ts';
 
 // IP validator
 export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {

@@ -1,7 +1,7 @@
 // ####### Executables #######
 
 import type {HeadersMethodWithJitFns, MethodWithJitFns, RemoteMethodOpts, RouteOnlyOptions, SerializerCode} from '@mionkit/core'; // do not import type only
-import type {AnyHandler, Handler, HeaderHandler, RawLinkedFnHandler} from './handlers'; // do not import type only
+import type {AnyHandler, Handler, HeaderHandler, RawLinkedFnHandler} from './handlers.ts'; // do not import type only
 import {HandlerType} from '@mionkit/core'; // do not import type only
 
 /** Contains the handlers for linkedFns and routes */

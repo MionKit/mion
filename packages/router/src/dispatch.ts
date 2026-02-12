@@ -5,14 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context';
-import {type RouterOptions} from './types/general';
-import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods';
-import {getRouterOptions} from './router';
+import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context.ts';
+import {type RouterOptions} from './types/general.ts';
+import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
+import {getRouterOptions} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionkit/core';
 import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
-import {onExecutableError} from './lib/dispatchError';
-import {acquireCallContext, releaseCallContext} from './callContext';
+import {onExecutableError} from './lib/dispatchError.ts';
+import {acquireCallContext, releaseCallContext} from './callContext.ts';
 
 /*
  * PERFORMANCE PROFILING NOTE:

@@ -7,10 +7,10 @@
 import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode, StrNumber} from '@mionkit/run-types';
 import {registerFormatter, BaseRunTypeFormat, TypeFormat, RunTypeOptions, JitFunctions, randomItem} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype';
+import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype.ts';
 import {FormatParams_Url} from '@mionkit/core';
-import {DomainRunTypeFormat} from './domain.runtype';
-import {IPRunTypeFormat} from './ip.runtype';
+import {DomainRunTypeFormat} from './domain.runtype.ts';
+import {IPRunTypeFormat} from './ip.runtype.ts';
 import {
     FILE_URL_SAMPLES,
     HTTP_URL_SAMPLES,
@@ -18,8 +18,8 @@ import {
     URL_SAMPLES,
     SOCIAL_MEDIA_DOMAINS_SAMPLES,
     INTERNET_PROTOCOLS,
-} from '../constants.mock'; // do not import using type
-import {paramVal} from '../utils';
+} from '../constants.mock.ts'; // do not import using type
+import {paramVal} from '../utils.ts';
 
 export const URL_REGEXP = /^(?:https?|ftps?|wss?):\/\/[^\s/$.?#-][^\s]*$/i;
 export const URL_FILE_REGEXP = /^file:\/\/\/?(?:[a-zA-Z]:)?[^\s/$.?#-][^\s]*$/i;

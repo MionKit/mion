@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {JitFunctions, type RunType, runType} from '@mionkit/run-types';
-import {BigNumInt64, BigNUmUInt64} from './defaultBigNumberFormats';
+import {BigNumInt64, BigNUmUInt64} from './defaultBigNumberFormats.ts';
 import {
     createDataViewDeserializer,
     createDataViewSerializer,

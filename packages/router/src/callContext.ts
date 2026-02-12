@@ -5,12 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {NOT_FOUND_PATH, WORKFLOW_PATH} from './constants';
-import {getRouteExecutionChain} from './router';
-import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody, WorkflowExecutionResult} from './types/context';
-import type {RouterOptions} from './types/general';
+import {NOT_FOUND_PATH, WORKFLOW_PATH} from './constants.ts';
+import {getRouteExecutionChain} from './router.ts';
+import type {
+    CallContext,
+    MionResponse,
+    MionRequest,
+    MionHeaders,
+    RawRequestBody,
+    WorkflowExecutionResult,
+} from './types/context.ts';
+import type {RouterOptions} from './types/general.ts';
 import {Mutable, StatusCodes, SerializerModes, SerializerCode, RpcError} from '@mionkit/core';
-import {getWorkflowExecutionChain} from './workflows';
+import {getWorkflowExecutionChain} from './workflows.ts';
 
 // ############# POOL STATE #############
 

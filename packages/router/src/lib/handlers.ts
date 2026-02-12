@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeadersLinkedFnOptions, LinkedFnOptions, RawLinkedFnOptions, RouteOptions} from '../types/remoteMethods';
+import {HeadersLinkedFnOptions, LinkedFnOptions, RawLinkedFnOptions, RouteOptions} from '../types/remoteMethods.ts';
 import {HandlerType} from '@mionkit/core';
-import {Handler, HeaderHandler, RawLinkedFnHandler} from '../types/handlers';
-import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from '../types/definitions';
+import {Handler, HeaderHandler, RawLinkedFnHandler} from '../types/handlers.ts';
+import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from '../types/definitions.ts';
 
 // ############# Route & LinkedFns initialization #############
 // these functions are just helpers to initialize the route & linkedFns objects and keep route definitions clean

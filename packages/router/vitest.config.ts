@@ -20,6 +20,10 @@ export default defineConfig({
             reporter: ['text', 'html'],
             include: ['src/**'],
         },
+        env: {
+            // Prevent test-server modules from auto-starting servers when imported
+            MION_TEST_SERVER_AUTO_START: 'false',
+        },
     },
     resolve: {
         alias: {

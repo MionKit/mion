@@ -227,7 +227,7 @@ export {}; // Make this a module
 
 // start:no-type-imports
 // ❌ WRONG: Type-only import - types are erased at runtime
-import type {User, Product} from './models';
+import type {User, Product} from './models.ts';
 
 // Types imported with 'type' keyword are erased at runtime
 // mion cannot generate validation/serialization functions for them

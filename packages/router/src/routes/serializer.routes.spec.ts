@@ -6,14 +6,14 @@
  * ######## */
 
 import type {Mutable} from '@mionkit/core';
-import type {Routes} from '../types/general';
-import type {MionResponse, RawRequestBody} from '../types/context';
+import type {Routes} from '../types/general.ts';
+import type {MionResponse, RawRequestBody} from '../types/context.ts';
 import {HeadersSubset, SerializerModes} from '@mionkit/core';
-import {headersFn, linkedFn, route} from '../lib/handlers';
-import {getRouterOptions, getRouteExecutionChain, initMionRouter, resetRouter} from '../router';
-import {createCallContext} from '../callContext';
-import {headersFromRecord} from '../lib/headers';
-import {deserializeRequestBody, serializeResponseBody} from './serializer.routes';
+import {headersFn, linkedFn, route} from '../lib/handlers.ts';
+import {getRouterOptions, getRouteExecutionChain, initMionRouter, resetRouter} from '../router.ts';
+import {createCallContext} from '../callContext.ts';
+import {headersFromRecord} from '../lib/headers.ts';
+import {deserializeRequestBody, serializeResponseBody} from './serializer.routes.ts';
 
 const lastActivity = new Date();
 interface User {

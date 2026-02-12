@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes, resetRouter, initRouter} from '../router';
-import {dispatchRoute} from '../dispatch';
-import {route, headersFn, linkedFn} from './handlers';
-import {headersFromRecord} from './headers';
-import {MionHeaders} from '../types/context';
+import {registerRoutes, resetRouter, initRouter} from '../router.ts';
+import {dispatchRoute} from '../dispatch.ts';
+import {route, headersFn, linkedFn} from './handlers.ts';
+import {headersFromRecord} from './headers.ts';
+import {MionHeaders} from '../types/context.ts';
 import {HeadersSubset, RpcError} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
 

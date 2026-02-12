@@ -15,11 +15,11 @@ import {
     getTotalExecutables,
     getAllExecutablesIds,
     getAnyExecutable,
-} from '../router';
-import {route} from '../lib/handlers';
-import {RouterOptions, Routes} from '../types/general';
-import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods';
-import {RemoteMethod} from '../types/remoteMethods';
+} from '../router.ts';
+import {route} from '../lib/handlers.ts';
+import {RouterOptions, Routes} from '../types/general.ts';
+import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods.ts';
+import {RemoteMethod} from '../types/remoteMethods.ts';
 
 export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;

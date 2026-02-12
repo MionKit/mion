@@ -18,7 +18,7 @@ import {
     NumUInt8,
     NumUInt16,
     NumUInt32,
-} from './defaultNumberFormats';
+} from './defaultNumberFormats.ts';
 import {
     createDataViewDeserializer,
     createDataViewSerializer,

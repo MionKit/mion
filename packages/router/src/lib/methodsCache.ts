@@ -15,9 +15,9 @@ import {
     PersistedJitFunctionsCache,
     PersistedPureFunctionsCache,
 } from '@mionkit/core';
-import {RemoteMethod} from '../types/remoteMethods';
-import {AnyHandler} from '../types/handlers';
-import {IS_TEST_ENV} from '../constants';
+import {RemoteMethod} from '../types/remoteMethods.ts';
+import {AnyHandler} from '../types/handlers.ts';
+import {IS_TEST_ENV} from '../constants.ts';
 
 export let persistedMethods: MethodsCache = {};
 

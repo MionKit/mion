@@ -16,7 +16,7 @@ import {
     NumNegativeInt,
     NumInt32,
     NumUInt32,
-} from './defaultNumberFormats';
+} from './defaultNumberFormats.ts';
 
 // #### Integer ####
 

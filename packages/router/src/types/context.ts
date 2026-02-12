@@ -7,7 +7,7 @@
 
 import type {AnyObject, DataViewSerializer, SerializerCode} from '@mionkit/core';
 import type {RpcError} from '@mionkit/core';
-import type {MethodsExecutionChain} from './remoteMethods';
+import type {MethodsExecutionChain} from './remoteMethods.ts';
 
 // ####### Call Context #######
 

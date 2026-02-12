@@ -8,9 +8,9 @@ import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mi
 import {registerFormatter, BaseRunTypeFormat, RunTypeOptions, TypeFormat} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {randomUUID_V7} from '@mionkit/core';
-import {paramVal} from '../utils';
+import {paramVal} from '../utils.ts';
 import {FormatParams_UUID} from '@mionkit/core';
-import {isUUID} from '../type-formats-pure-fns';
+import {isUUID} from '../type-formats-pure-fns.ts';
 
 // UUID validator
 export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {

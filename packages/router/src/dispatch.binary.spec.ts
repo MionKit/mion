@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes, resetRouter, initRouter, getRouteExecutionChain} from './router';
-import {dispatchRoute} from './dispatch';
-import {headersFromRecord} from './lib/headers';
+import {registerRoutes, resetRouter, initRouter, getRouteExecutionChain} from './router.ts';
+import {dispatchRoute} from './dispatch.ts';
+import {headersFromRecord} from './lib/headers.ts';
 import {serializeBinaryBody, deserializeBinaryBody, isRpcError, SerializerModes} from '@mionkit/core';
 import {binaryTestRoutes, ComplexUser, NestedData} from '@mionkit/test-server';
 

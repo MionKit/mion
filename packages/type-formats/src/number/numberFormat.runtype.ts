@@ -18,7 +18,7 @@ import type {
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {paramVal} from '../utils';
+import {paramVal} from '../utils.ts';
 import {FormatParams_Number} from '@mionkit/core';
 
 type BinarySerializer = BaseFnCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
