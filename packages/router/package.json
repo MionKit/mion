@@ -1,6 +1,7 @@
 {
   "name": "@mionkit/router",
   "version": "0.7.2",
+  "type": "module",
   "description": "Typescript RPC Like router with automatic Validation and Serialization",
   "keywords": [
     "typescript",
@@ -39,13 +40,13 @@
     "access": "public"
   },
   "scripts": {
-    "test": "jest",
+    "test": "vitest run",
     "dev": "vite build --watch",
-    "dev:test": "jest --watch",
+    "dev:test": "vitest watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
-    "build-ts-dts": "DTS_ONLY=true vite build",
+    "build-ts-dts": "tsc --project tsconfig.json --emitDeclarationOnly --declaration --skipLibCheck --outDir .dist/esm",
     "clean": "rimraf .dist & rimraf .coverage",
     "fresh-start": "npm run clean && rimraf node_modules"
   },
