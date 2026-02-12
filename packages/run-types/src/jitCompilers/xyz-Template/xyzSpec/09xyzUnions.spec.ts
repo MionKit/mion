@@ -150,6 +150,17 @@ it('union with non serializable types throws an error', () => {
     );
 });
 
+it('union with any type - any is checked last as fallback', () => {
+    const {rt, values} = SERIALIZATION_SPEC.UNIONS.union_with_any.getTestData();
+    const {values: originalValues} = SERIALIZATION_SPEC.UNIONS.union_with_any.getTestData(true);
+    const {serialize, deserialize} = createSerializationFns(rt);
+
+    values.forEach((value, i) => {
+        const {deserialized} = roundTrip(serialize, deserialize, value);
+        expect(deserialized).toEqual(originalValues[i]);
+    });
+});
+
 it('all test ran', () => {
     const totalTest = Object.keys(SERIALIZATION_SPEC.UNIONS).length;
     expect(ranTests).toBe(totalTest);

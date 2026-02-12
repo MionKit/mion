@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {normalizeForComparison} from '../../equalsHelpers';
 import {SERIALIZATION_SPEC} from '../../serialization-suite';
 import {createSerializationFns, roundTrip} from './stringifyHelpers';
 
@@ -40,7 +41,8 @@ it('CircularTuple object with discriminator', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(deserialized).toEqual(originalValues[i]);
+        const {actual, expected} = normalizeForComparison(deserialized, originalValues[i]);
+        expect(actual).toEqual(expected);
     });
 });
 
@@ -73,7 +75,8 @@ it('Circular tuple with complex structure', () => {
 
     values.forEach((value, i) => {
         const {deserialized} = roundTrip(serialize, deserialize, value);
-        expect(deserialized).toEqual(originalValues[i]);
+        const {actual, expected} = normalizeForComparison(deserialized, originalValues[i]);
+        expect(actual).toEqual(expected);
     });
 });
 

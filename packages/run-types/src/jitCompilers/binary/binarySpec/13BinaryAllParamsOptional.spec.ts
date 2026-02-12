@@ -10,6 +10,7 @@ import {FunctionRunType} from '../../../nodes/function/function';
 import {reflectFunction} from '../../../createRunType';
 import {serContext, desContext, roundTrip} from './binaryHelpers';
 import {StrictArrayBuffer} from '@mionkit/core';
+import {normalizeForComparison} from '../../equalsHelpers';
 
 const SERIALIZE_FN = JitFunctions.toBinary;
 const DESERIALIZE_FN = JitFunctions.fromBinary;
@@ -49,12 +50,14 @@ describe('Binary serialization: function params are always optional', () => {
         // Test with some params undefined (all function params are optional in binary)
         const partialParams = ['hello', undefined, true];
         const {deserialized: partialResult} = roundTrip(serialize, deserialize, partialParams);
-        expect(partialResult).toEqual(partialParams);
+        const {actual: partialActual, expected: partialExpected} = normalizeForComparison(partialResult, partialParams);
+        expect(partialActual).toEqual(partialExpected);
 
         // Test with all params undefined
         const emptyParams = [undefined, undefined, undefined];
         const {deserialized: emptyResult} = roundTrip(serialize, deserialize, emptyParams);
-        expect(emptyResult).toEqual(emptyParams);
+        const {actual: emptyActual, expected: emptyExpected} = normalizeForComparison(emptyResult, emptyParams);
+        expect(emptyActual).toEqual(emptyExpected);
     });
 
     it('should serialize only first param with value', () => {
@@ -63,7 +66,8 @@ describe('Binary serialization: function params are always optional', () => {
 
         const params = ['hello', undefined, undefined];
         const {deserialized} = roundTrip(serialize, deserialize, params);
-        expect(deserialized).toEqual(params);
+        const {actual, expected} = normalizeForComparison(deserialized, params);
+        expect(actual).toEqual(expected);
     });
 
     it('should serialize only middle param with value', () => {
@@ -72,7 +76,8 @@ describe('Binary serialization: function params are always optional', () => {
 
         const params = [undefined, 42, undefined];
         const {deserialized} = roundTrip(serialize, deserialize, params);
-        expect(deserialized).toEqual(params);
+        const {actual, expected} = normalizeForComparison(deserialized, params);
+        expect(actual).toEqual(expected);
     });
 
     it('should serialize only last param with value', () => {
@@ -81,7 +86,8 @@ describe('Binary serialization: function params are always optional', () => {
 
         const params = [undefined, undefined, true];
         const {deserialized} = roundTrip(serialize, deserialize, params);
-        expect(deserialized).toEqual(params);
+        const {actual, expected} = normalizeForComparison(deserialized, params);
+        expect(actual).toEqual(expected);
     });
 
     it('should work with functions that already have optional params', () => {
@@ -96,12 +102,14 @@ describe('Binary serialization: function params are always optional', () => {
         // Test with first param undefined (normally required, but all fn params are optional in binary)
         const firstUndefined = [undefined, 42, true];
         const {deserialized: firstUndefinedResult} = roundTrip(serialize, deserialize, firstUndefined);
-        expect(firstUndefinedResult).toEqual(firstUndefined);
+        const {actual: firstActual, expected: firstExpected} = normalizeForComparison(firstUndefinedResult, firstUndefined);
+        expect(firstActual).toEqual(firstExpected);
 
         // Test with all params undefined
         const allUndefined = [undefined, undefined, undefined];
         const {deserialized: allUndefinedResult} = roundTrip(serialize, deserialize, allUndefined);
-        expect(allUndefinedResult).toEqual(allUndefined);
+        const {actual: allActual, expected: allExpected} = normalizeForComparison(allUndefinedResult, allUndefined);
+        expect(allActual).toEqual(allExpected);
     });
 
     it('should work with complex types', () => {
@@ -116,12 +124,14 @@ describe('Binary serialization: function params are always optional', () => {
         // Test with some params undefined
         const partialParams = [{name: 'test', value: 123}, undefined, new Date('2025-01-01')];
         const {deserialized: partialResult} = roundTrip(serialize, deserialize, partialParams);
-        expect(partialResult).toEqual(partialParams);
+        const {actual: partialActual, expected: partialExpected} = normalizeForComparison(partialResult, partialParams);
+        expect(partialActual).toEqual(partialExpected);
 
         // Test with only first param
         const onlyFirst = [{name: 'test', value: 123}, undefined, undefined];
         const {deserialized: onlyFirstResult} = roundTrip(serialize, deserialize, onlyFirst);
-        expect(onlyFirstResult).toEqual(onlyFirst);
+        const {actual: onlyFirstActual, expected: onlyFirstExpected} = normalizeForComparison(onlyFirstResult, onlyFirst);
+        expect(onlyFirstActual).toEqual(onlyFirstExpected);
     });
 
     it('should correctly serialize and deserialize even when all values are present', () => {
@@ -158,7 +168,11 @@ describe('Binary serialization: function params are always optional', () => {
         // Test with param undefined
         const withUndefined = [undefined];
         const {deserialized: withUndefinedResult} = roundTrip(serialize, deserialize, withUndefined);
-        expect(withUndefinedResult).toEqual(withUndefined);
+        const {actual: withUndefinedActual, expected: withUndefinedExpected} = normalizeForComparison(
+            withUndefinedResult,
+            withUndefined
+        );
+        expect(withUndefinedActual).toEqual(withUndefinedExpected);
     });
 
     it('should handle many params (more than 8 to test bitmap overflow)', () => {
@@ -185,7 +199,8 @@ describe('Binary serialization: function params are always optional', () => {
         // Test with alternating undefined
         const alternating = ['a', undefined, true, undefined, 2, undefined, 'g', undefined, true, undefined];
         const {deserialized: alternatingResult} = roundTrip(serialize, deserialize, alternating);
-        expect(alternatingResult).toEqual(alternating);
+        const {actual: alternatingActual, expected: alternatingExpected} = normalizeForComparison(alternatingResult, alternating);
+        expect(alternatingActual).toEqual(alternatingExpected);
 
         // Test with all undefined
         const allUndefined = [
@@ -201,7 +216,11 @@ describe('Binary serialization: function params are always optional', () => {
             undefined,
         ];
         const {deserialized: allUndefinedResult} = roundTrip(serialize, deserialize, allUndefined);
-        expect(allUndefinedResult).toEqual(allUndefined);
+        const {actual: allUndefinedActual, expected: allUndefinedExpected} = normalizeForComparison(
+            allUndefinedResult,
+            allUndefined
+        );
+        expect(allUndefinedActual).toEqual(allUndefinedExpected);
     });
 
     it('should produce different hashes for different paramsSlice options', () => {

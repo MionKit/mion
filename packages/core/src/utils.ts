@@ -33,7 +33,7 @@ export function getENV(key: string): string | undefined {
 let isTest: boolean | undefined = undefined;
 export function isTestEnv() {
     if (isTest !== undefined) return isTest;
-    isTest = getENV('JEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
+    isTest = getENV('VITEST') !== undefined || getENV('NODE_ENV') === 'test';
     return isTest;
 }
 
@@ -57,15 +57,8 @@ export function initPureFunction(compiled: CompiledPureFunction): asserts compil
  * In ESM environments, this falls back to dynamic import().
  */
 export async function importModule<T>(moduleName: string, callerDir?: string): Promise<T> {
-    const isCJS = typeof require !== 'undefined' && typeof module !== 'undefined' && typeof require === 'function';
-    if (isCJS) {
-        try {
-            const resolvedPath = moduleName.startsWith('.') && callerDir ? resolve(callerDir, moduleName) : moduleName;
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            return Promise.resolve(require(resolvedPath) as T);
-        } catch (e: any) {
-            if (e?.code !== 'MODULE_NOT_FOUND') throw e;
-        }
-    }
-    return import(moduleName) as Promise<T>;
+    const resolvedPath = moduleName.startsWith('.') && callerDir ? resolve(callerDir, moduleName) : moduleName;
+    // Always use dynamic import() for ESM compatibility
+    // This works in both ESM and CJS environments when the package uses dual module output
+    return import(resolvedPath) as Promise<T>;
 }
