@@ -2,6 +2,7 @@
   "name": "@mionkit/server-pure-functions",
   "version": "0.7.2",
   "description": "Vite plugin for client-defined, server-executed pure mapping functions in mion",
+  "type": "module",
   "keywords": [
     "typescript",
     "vite",
@@ -16,8 +17,8 @@
   "exports": {
     ".": {
       "types": "./.dist/esm/index.d.ts",
-      "require": "./.dist/cjs/index.js",
-      "default": "./.dist/esm/index.js"
+      "import": "./.dist/esm/index.js",
+      "require": "./.dist/cjs/index.js"
     }
   },
   "directories": {
