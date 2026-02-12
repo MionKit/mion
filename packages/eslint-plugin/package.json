@@ -42,5 +42,8 @@
   },
   "dependencies": {
     "@typescript-eslint/utils": "^8.17.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/rule-tester": "^8.17.0"
   }
 }
