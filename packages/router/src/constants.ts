@@ -29,7 +29,7 @@ export const DEFAULT_ROUTE_OPTIONS = {
     /** Set true to automatically generate and id for every error.  */
     autoGenerateErrorId: false,
     /** client routes are initialized by default */
-    skipClientRoutes: false || IS_TEST_ENV,
+    skipClientRoutes: IS_TEST_ENV,
     /** AOT mode is disabled by default */
     aot: false,
     /** Context pooling size == 100 by default */

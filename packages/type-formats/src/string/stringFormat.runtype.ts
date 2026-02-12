@@ -239,7 +239,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
 
 export function isPatternParam(p: any): p is FormatParam_Pattern {
     const isMessage = p.message === undefined || typeof p.message === 'string';
-    const isSamples = !!p.samples === undefined || (Array.isArray(p.samples) && p.samples.every((s) => typeof s === 'string'));
+    const isSamples = p.samples === undefined || (Array.isArray(p.samples) && p.samples.every((s) => typeof s === 'string'));
     const isSampleChars = p.sampleChars === undefined || (typeof p.sampleChars === 'string' && p.sampleChars.length > 0);
     const hasSamples = !!p.samples?.length || !!p.sampleChars?.length;
     const isRegexpObj = typeof p.regexp === 'object' && p.regexp instanceof RegExp;

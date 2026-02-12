@@ -41,7 +41,6 @@ export const mionErrorsRoutes = {
      * This route is used for serialization/deserialization of platform errors.
      * This also prevents users to register a route with the same name.
      */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     [MION_ROUTES.platformError]: route((_ctx: CallContext): RpcError<string> => {
         // Platform errors are passed through context, this route is for type serialization
         return new RpcError({

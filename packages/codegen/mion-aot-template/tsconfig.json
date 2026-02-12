@@ -4,7 +4,9 @@
     "outDir": "build/esm",
     "composite": false,
     "skipLibCheck": true,
-    "declaration": true
+    "declaration": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
   },
   "reflection": true,
   "include": ["src/**/*"],

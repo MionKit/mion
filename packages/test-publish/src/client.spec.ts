@@ -8,12 +8,14 @@
 import {initClient, HSubRequest, RSubRequest, workflow} from '@mionkit/client';
 import {isRpcError, HeadersSubset} from '@mionkit/core';
 import {TestServerApi} from '@mionkit/test-server';
+import Storage from 'dom-storage';
+import {beforeAll} from 'vitest';
 
 // Mock localStorage for method metadata storage (still needed for clientMethodsMetadata)
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-const Storage = require('dom-storage');
-global.localStorage = new Storage(null, {strict: true});
-global.sessionStorage = new Storage(null, {strict: true});
+beforeAll(() => {
+    global.localStorage = new Storage(null, {strict: true});
+    global.sessionStorage = new Storage(null, {strict: true});
+});
 
 // Helper to create auth headers for the test server's headersFn
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
