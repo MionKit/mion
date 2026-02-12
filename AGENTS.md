@@ -1,11 +1,5 @@
 # Mion Monorepo Architectural Guidelines
 
-## Setup and Installation
-- Before starting any task, always run `npm ci` to ensure dependencies are properly installed
-- If installation issues occur, remove package-lock.json and run `npm ci` again
-- Never commit package-lock.json changes unless intentional
-- Run `npm run clean` before starting work to ensure all code is in sync between packages and fresh
-
 ## Monorepo Structure
 - Uses npm workspaces for monorepo management (see workspaces in package.json)
 - Each package is independent and can be worked on separately
