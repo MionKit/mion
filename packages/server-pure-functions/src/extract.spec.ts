@@ -1,5 +1,5 @@
 import {describe, it, expect, beforeAll} from 'vitest';
-import {extractPureFnsFromSource, PurityError, stripTypes} from './extract';
+import {extractPureFnsFromSource, PurityError, stripTypes} from './extract.ts';
 import {resetHashes, pureFnHashLength} from '@mionkit/core';
 
 beforeAll(() => {

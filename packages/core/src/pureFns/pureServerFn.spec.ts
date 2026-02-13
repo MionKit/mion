@@ -1,5 +1,12 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
 import {describe, it, expect, beforeAll} from 'vitest';
-import {pureServerFn} from './pureServerFn';
+import {pureServerFn} from './pureServerFn.ts';
 import {resetHashes, pureFnHashLength} from '@mionkit/core';
 
 beforeAll(() => {

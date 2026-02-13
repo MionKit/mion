@@ -1,6 +1,7 @@
 import {describe, it, expect} from 'vitest';
-import {createRegistry} from './registry';
-import {ExtractedPureFn, PURE_SERVER_FN_NAMESPACE} from './types';
+import {createRegistry} from './registry.ts';
+import {ExtractedPureFn} from './types.ts';
+import {PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
 
 describe('createRegistry', () => {
     it('should create a registry from extracted functions (keyed by bodyHash)', () => {

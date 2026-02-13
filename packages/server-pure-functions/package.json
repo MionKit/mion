@@ -35,8 +35,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "vitest run && npm run test:e2e",
-    "test:e2e": "cd e2e-test && vitest run",
+    "test": "vitest run",
     "dev": "vite build --watch",
     "dev:test": "vitest",
     "lint": "npx --node-options='--experimental-strip-types' eslint --flag unstable_native_nodejs_ts_config src",

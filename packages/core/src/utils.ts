@@ -6,7 +6,7 @@
  * ############### */
 
 import {resolve} from 'path/posix';
-import {getJitUtils} from './jitUtils.ts';
+import {getJitUtils} from './jit/jitUtils.ts';
 import type {CompiledPureFunction} from './types/pureFunctions.types.ts';
 
 /** Generates a random UUID V7, no hyphens are included in the uuid */

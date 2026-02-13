@@ -16,7 +16,7 @@ import type {
     JitCompiledFnData,
     PersistedJitFn,
 } from '../types/general.types.ts';
-import type {JITUtils} from '../types/JITUtils.ts';
+import type {JITUtils} from '../jit/jitUtils.ts';
 import type {PersistedPureFunction} from '../types/pureFunctions.types.ts';
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 import type {PureFunctionData} from '../types/pureFunctions.types.ts';

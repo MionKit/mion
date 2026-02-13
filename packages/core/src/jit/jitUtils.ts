@@ -15,13 +15,14 @@ import type {
     SerializableClass,
     PersistedJitFunctionsCache,
     FnsDataCache,
-} from './types/general.types.ts';
-import type {JITUtils} from './types/JITUtils.ts';
-import type {CompiledPureFunction} from './types/pureFunctions.types.ts';
-import type {PureFunction} from './types/pureFunctions.types.ts';
-import {initPureFunction} from './utils.ts';
-import {restoreCompiledJitFns} from './pureFns/restoreJitFns.ts';
+} from '../types/general.types.ts';
+import {CompiledPureFunction} from '../types/pureFunctions.types.ts';
+import {PureFunction} from '../types/pureFunctions.types.ts';
+import {initPureFunction} from '../utils.ts';
+import {restoreCompiledJitFns} from '../pureFns/restoreJitFns.ts';
 import {jitFnsCache as aotJitFnsCache, pureFnsCache as aotPureFnsCache} from '@mionkit/aot-caches';
+
+export type JITUtils = typeof jitUtils;
 
 // Local caches - can be populated from AOT caches via loadJitCaches()
 const jitFnsCache: JitFunctionsCache = {};
@@ -33,7 +34,7 @@ let coreAOTCachesLoaded = false;
 const deserializeFnsRegistry = new Map<string, DeserializeClassFn<any>>();
 const serializableClassRegistry = new Map<string, SerializableClass>();
 
-const jitUtils: JITUtils = {
+const jitUtils = {
     addToJitCache(comp: JitCompiledFn) {
         jitFnsCache[comp.jitFnHash] = comp;
     },

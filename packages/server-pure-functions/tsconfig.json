@@ -7,6 +7,6 @@
   },
   "references": [{"path": "../core"}],
   "reflection": false,
-  "include": [".", "e2e-test/**/*.ts"],
+  "include": [".", "e2e-test/**/*.ts", "../core/src/pureFns/pureServerFn.ts", "../core/src/pureFns/pureServerFn.spec.ts"],
   "exclude": ["node_modules", ".dist", "e2e-test/e2e/fixture"]
 }

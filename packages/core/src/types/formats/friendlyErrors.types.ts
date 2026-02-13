@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunTypeError, StrNumber} from '../general.types.ts';
-import type {
+import {RunTypeError, StrNumber} from '../general.types.ts';
+import {
     AnyFormatParams,
     AnyStringFormatParam,
     FormatParams_BigInt,
@@ -21,8 +21,8 @@ import type {
     FormatParams_Date,
     FormatParams_Time,
 } from './formatsParams.types.ts';
-import type {ExtractFormatParams, TypeFormatError} from './formats.types.ts';
-import type {
+import {ExtractFormatParams, TypeFormatError} from './formats.types.ts';
+import {
     BrandEmail,
     BrandUUID,
     BrandUrl,

@@ -1,24 +1,8 @@
-import type {TypeFormatValue} from './formats/formats.types.ts';
-import type {RunTypeError} from './general.types.ts';
+import {TypeFormatValue} from './formats/formats.types.ts';
+import {RunTypeError} from './general.types.ts';
+import type {JITUtils} from '../jit/jitUtils.ts';
 
 type StrNumber = string | number;
-
-// Forward declare JITUtils to avoid circular dependency
-export interface JITUtils {
-    addToJitCache(comp: any): void;
-    removeFromJitCache(comp: any): void;
-    getJIT(jitFnHash: string): any | undefined;
-    getJitFn(jitFnHash: string): (...args: any[]) => any;
-    hasJitFn(jitFnHash: string): boolean;
-    addPureFn(namespace: string, compiledFn: any): void;
-    usePureFn(namespace: string, name: string): PureFunction;
-    getPureFn(namespace: string, name: string): PureFunction | undefined;
-    getCompiledPureFn(namespace: string, name: string): CompiledPureFunction | undefined;
-    hasPureFn(namespace: string, name: string): boolean;
-    findCompiledPureFn(name: string): CompiledPureFunction | undefined;
-    setSerializableClass<C extends {new (...args: any[]): any}>(cls: C): void;
-    getSerializableClass(name: string): {new (...args: any[]): any} | undefined;
-}
 
 // ########################################### PURE FNs ##########################################
 /**
@@ -71,4 +55,13 @@ export interface CompiledPureFunction extends PureFunctionData {
 }
 export interface PersistedPureFunction extends CompiledPureFunction {
     fn: undefined;
+} /** Reference object returned by pureServerFn() at runtime on the client */
+
+export interface PureServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> {
+    /** The function name (optional, for debugging purposes only) */
+    readonly fnName?: string;
+    /** Hash of the function body - used as the unique identifier */
+    readonly bodyHash: string;
+    /** The original function (available in dev, stripped in production) */
+    readonly fn?: F;
 }

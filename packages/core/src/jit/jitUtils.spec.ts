@@ -6,7 +6,7 @@
  * ######## */
 
 import {getJitFnCaches} from './jitUtils.ts';
-import {JitFunctionsCache, PureFunctionsCache} from './types/general.types.ts';
+import {JitFunctionsCache, PureFunctionsCache} from '../types/general.types.ts';
 
 const {jitFnsCache, pureFnsCache} = getJitFnCaches() as {jitFnsCache: JitFunctionsCache; pureFnsCache: PureFunctionsCache};
 

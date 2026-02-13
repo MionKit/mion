@@ -12,7 +12,7 @@
  */
 
 import {
-    JITUtils,
+    type JITUtils,
     GenericPureFunction,
     TypeFormatError,
     registerPureFnClosure,
