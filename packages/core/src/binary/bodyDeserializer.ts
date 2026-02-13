@@ -1,8 +1,8 @@
 import {createDataViewDeserializer} from './dataView.ts';
 import {StatusCodes} from '../constants.ts';
 import {RpcError} from '../errors.ts';
-import {BinaryInput, DataViewDeserializer} from '../types/general.types.ts';
-import {MethodWithJitFns} from '../types/method.types.ts';
+import type {BinaryInput, DataViewDeserializer} from '../types/general.types.ts';
+import type {MethodWithJitFns} from '../types/method.types.ts';
 import {routesCache} from '../routerUtils.ts';
 
 /**

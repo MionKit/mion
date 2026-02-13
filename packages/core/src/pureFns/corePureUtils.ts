@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {MAX_UNKNOWN_KEYS} from '../constants.ts';
-import {StrNumber, RunTypeError} from '../types/general.types.ts';
-import {TypeFormatError} from '../types/formats/formats.types.ts';
+import type {StrNumber, RunTypeError} from '../types/general.types.ts';
+import type {TypeFormatError} from '../types/formats/formats.types.ts';
 import {registerPureFnClosure} from './pureFn.ts';
 
 /** optimized function to convert an string into a json string wrapped in double quotes */

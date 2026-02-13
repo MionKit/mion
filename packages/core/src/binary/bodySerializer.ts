@@ -1,8 +1,8 @@
 import {createDataViewSerializer} from './dataView.ts';
 import {MION_ROUTES, StatusCodes} from '../constants.ts';
 import {RpcError} from '../errors.ts';
-import {DataViewSerializer} from '../types/general.types.ts';
-import {MethodWithJitFns} from '../types/method.types.ts';
+import type {DataViewSerializer} from '../types/general.types.ts';
+import type {MethodWithJitFns} from '../types/method.types.ts';
 
 /**
  * Serializes API body to binary format using JIT-compiled serialization functions.

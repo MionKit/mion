@@ -1,4 +1,4 @@
-import {TypeFormatPrimitives} from './formats.types.ts';
+import type {TypeFormatPrimitives} from './formats.types.ts';
 
 /**
  * Base branded type - combines BaseType with a nominal brand marker.

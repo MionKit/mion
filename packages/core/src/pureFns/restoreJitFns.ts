@@ -14,9 +14,9 @@ import type {
     PureFnsDataCache,
     PureFunctionsCache,
     JitCompiledFnData,
-    JITUtils,
     PersistedJitFn,
 } from '../types/general.types.ts';
+import type {JITUtils} from '../types/JITUtils.ts';
 import type {PersistedPureFunction} from '../types/pureFunctions.types.ts';
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 import type {PureFunctionData} from '../types/pureFunctions.types.ts';
