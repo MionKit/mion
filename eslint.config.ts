@@ -1,6 +1,6 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import mionPlugin from '@mionkit/eslint-plugin';
+import mionPlugin from './packages/devtools/src/eslint/index.ts';
 
 const mionRules: Record<string, string> = {
     '@mionkit/no-typeof-runtype': 'error',
@@ -19,6 +19,7 @@ export default tseslint.config(
             '**/shared-fixtures/**',
             '**/coverage/**',
             '**/__snapshots__/**',
+            '**/mion-aot-template/**',
             '**/.dist/**',
             '**/build/**',
             '**/xyzSpec/**',

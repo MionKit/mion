@@ -54,7 +54,7 @@
     "drizzle-orm": "^0.38.0"
   },
   "devDependencies": {
-    "@mionkit/eslint-plugin": "^0.7.0",
+    "@mionkit/devtools": "^0.8.0-alpha.0",
     "@types/aws-lambda": "^8.10.108",
     "@types/node": "^18.17.0",
     "bun-types": "latest",

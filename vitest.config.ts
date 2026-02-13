@@ -36,7 +36,7 @@ export default defineConfig({
             '@mionkit/http': resolve(__dirname, 'packages/http'),
             '@mionkit/aws': resolve(__dirname, 'packages/aws'),
             '@mionkit/gcloud': resolve(__dirname, 'packages/gcloud'),
-            '@mionkit/codegen': resolve(__dirname, 'packages/codegen'),
+            '@mionkit/devtools': resolve(__dirname, 'packages/devtools'),
             '@mionkit/bun': resolve(__dirname, 'packages/bun'),
         },
     },

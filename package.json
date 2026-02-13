@@ -58,12 +58,9 @@
     "@deepkit/core": "1.0.19",
     "@deepkit/type-compiler": "1.0.19",
     "@deepkit/vite": "^1.0.19",
-    "@mionkit/eslint-plugin": "file:./packages/eslint-plugin",
     "@playwright/mcp": "^0.0.56",
     "@types/aws-lambda": "^8.10.108",
-
     "@types/node": "^18.17.0",
-
     "eslint": "^9.20.1",
     "typescript-eslint": "^8.24.0",
     "husky": "^8.0.1",
@@ -83,17 +80,15 @@
     "packages/test-publish",
     "packages/bun",
     "packages/client",
-    "packages/codegen",
+    "packages/devtools",
     "packages/core",
     "packages/drizze",
-    "packages/eslint-plugin",
     "packages/type-formats",
     "packages/gcloud",
     "packages/node",
     "packages/quick-start",
     "packages/router",
     "packages/run-types",
-    "packages/server-pure-functions",
     "packages/test-server"
   ],
   "dependencies": {

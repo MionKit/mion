@@ -1,6 +1,6 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import mionPlugin from '@mionkit/eslint-plugin';
+import {eslintPlugin as mionPlugin} from '@mionkit/devtools';
 
 const mionRules: Record<string, string> = {
     '@mionkit/no-typeof-runtype': 'error',

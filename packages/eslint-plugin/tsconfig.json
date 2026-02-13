@@ -1,8 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "outDir": ".dist/esm",
-    "composite": true
-  },
-  "include": ["src", "vite.config.ts"]
-}

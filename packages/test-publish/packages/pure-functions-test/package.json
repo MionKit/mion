@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@mionkit/core": "^0.7.2",
-    "@mionkit/server-pure-functions": "^0.7.2"
+    "@mionkit/devtools": "^0.8.0-alpha.0"
   },
   "devDependencies": {
     "vitest": "^2.0.0"
