@@ -36,7 +36,7 @@ export default defineConfig({
     },
     plugins: [
         dts({
-            outDir: '.dist/vite-plugin',
+            outDir: 'build/vite-plugin',
             include: ['src/vite-plugin/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
             pathsToAliases: false,
@@ -47,7 +47,7 @@ export default defineConfig({
             entry,
             formats: ['es', 'cjs'],
         },
-        outDir: '.dist/vite-plugin',
+        outDir: 'build/vite-plugin',
         emptyOutDir: true,
         sourcemap: true,
         minify: false,
@@ -55,14 +55,14 @@ export default defineConfig({
             output: [
                 {
                     format: 'es',
-                    dir: '.dist/vite-plugin',
+                    dir: 'build/vite-plugin',
                     entryFileNames: '[name].js',
                     preserveModules: true,
                     preserveModulesRoot: 'src/vite-plugin',
                 },
                 {
                     format: 'cjs',
-                    dir: '.dist/vite-plugin',
+                    dir: 'build/vite-plugin',
                     entryFileNames: '[name].cjs',
                     preserveModules: true,
                     preserveModulesRoot: 'src/vite-plugin',

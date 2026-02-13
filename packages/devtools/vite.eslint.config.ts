@@ -36,7 +36,7 @@ export default defineConfig({
     },
     plugins: [
         dts({
-            outDir: ['.dist/eslint/cjs', '.dist/eslint/esm'],
+            outDir: ['build/eslint/cjs', 'build/eslint/esm'],
             include: ['src/eslint/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
             pathsToAliases: false,
@@ -47,7 +47,7 @@ export default defineConfig({
             entry,
             formats: ['es', 'cjs'],
         },
-        outDir: '.dist/eslint',
+        outDir: 'build/eslint',
         emptyOutDir: true,
         sourcemap: true,
         minify: false,
@@ -55,14 +55,14 @@ export default defineConfig({
             output: [
                 {
                     format: 'es',
-                    dir: '.dist/eslint/esm',
+                    dir: 'build/eslint/esm',
                     entryFileNames: '[name].js',
                     preserveModules: true,
                     preserveModulesRoot: '.',
                 },
                 {
                     format: 'cjs',
-                    dir: '.dist/eslint/cjs',
+                    dir: 'build/eslint/cjs',
                     entryFileNames: '[name].js',
                     preserveModules: true,
                     preserveModulesRoot: '.',

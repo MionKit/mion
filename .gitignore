@@ -75,6 +75,8 @@ nbproject
 # generated files
 ########################
 .dist
+# Note: build folder is committed for devtools package (eslint needs compiled JS)
+# build
 dist
 .tmp
 tmp
