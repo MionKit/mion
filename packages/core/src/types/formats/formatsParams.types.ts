@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {FormatParam} from './formats.types.ts';
+import type {FormatParam} from './formats.types.ts';
 
 // ############### String Format Params ###############
 

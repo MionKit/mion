@@ -13,10 +13,10 @@ import type {
     DeserializeClassFn,
     AnyClass,
     SerializableClass,
-    JITUtils,
     PersistedJitFunctionsCache,
     FnsDataCache,
 } from './types/general.types.ts';
+import type {JITUtils} from './types/JITUtils.ts';
 import type {CompiledPureFunction} from './types/pureFunctions.types.ts';
 import type {PureFunction} from './types/pureFunctions.types.ts';
 import {initPureFunction} from './utils.ts';

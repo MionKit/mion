@@ -1,4 +1,4 @@
-import type {JITUtils} from '../types/general.types.ts';
+import type {JITUtils} from '../types/JITUtils.ts';
 import type {CompiledPureFunction, GenericPureFunction} from '../types/pureFunctions.types.ts';
 import {registerPureFnClosure, registerPureFnClosuresGroup} from './pureFn.ts';
 import {getJitUtils} from '../jitUtils.ts';

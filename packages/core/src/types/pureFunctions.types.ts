@@ -1,7 +1,24 @@
 import type {TypeFormatValue} from './formats/formats.types.ts';
-import type {JITUtils, RunTypeError} from './general.types.ts';
+import type {RunTypeError} from './general.types.ts';
 
 type StrNumber = string | number;
+
+// Forward declare JITUtils to avoid circular dependency
+export interface JITUtils {
+    addToJitCache(comp: any): void;
+    removeFromJitCache(comp: any): void;
+    getJIT(jitFnHash: string): any | undefined;
+    getJitFn(jitFnHash: string): (...args: any[]) => any;
+    hasJitFn(jitFnHash: string): boolean;
+    addPureFn(namespace: string, compiledFn: any): void;
+    usePureFn(namespace: string, name: string): PureFunction;
+    getPureFn(namespace: string, name: string): PureFunction | undefined;
+    getCompiledPureFn(namespace: string, name: string): CompiledPureFunction | undefined;
+    hasPureFn(namespace: string, name: string): boolean;
+    findCompiledPureFn(name: string): CompiledPureFunction | undefined;
+    setSerializableClass<C extends {new (...args: any[]): any}>(cls: C): void;
+    getSerializableClass(name: string): {new (...args: any[]): any} | undefined;
+}
 
 // ########################################### PURE FNs ##########################################
 /**
