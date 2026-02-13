@@ -9,7 +9,7 @@ import {initClient, HSubRequest, RSubRequest, workflow} from '@mionkit/client';
 import {isRpcError, HeadersSubset} from '@mionkit/core';
 import {TestServerApi} from '@mionkit/test-server';
 import Storage from 'dom-storage';
-import {beforeAll} from 'vitest';
+import {describe, it, expect, beforeAll} from 'vitest';
 
 // Mock localStorage for method metadata storage (still needed for clientMethodsMetadata)
 beforeAll(() => {

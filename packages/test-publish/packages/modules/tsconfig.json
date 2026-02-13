@@ -11,7 +11,7 @@
     "target": "ES2023",
     "lib": ["ES2023"],
     "outDir": ".dist",
-    "rootDir": "packages/modules/src",
+    "rootDir": "src",
     "declaration": false,
     "sourceMap": true,
     "isolatedModules": true,
@@ -19,6 +19,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["packages/modules/src/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", ".dist"]
 }

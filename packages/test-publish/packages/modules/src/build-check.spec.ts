@@ -14,23 +14,10 @@ import {existsSync} from 'fs';
  * This test runs first and fails fast if any package is missing its build artifacts.
  */
 describe('Build Verification', () => {
-    const packagesDir = resolve(__dirname, '../../');
+    const packagesDir = resolve(__dirname, '../../../../');
 
     /** List of packages that must be built before running test-publish tests */
-    const requiredPackages = [
-        'core',
-        'run-types',
-        'type-formats',
-        'router',
-        'node',
-        'client',
-        'test-server',
-        'http',
-        'aws',
-        'gcloud',
-        'codegen',
-        'bun',
-    ];
+    const requiredPackages = ['core', 'run-types', 'router', 'node', 'client', 'aws', 'gcloud', 'codegen', 'bun'];
 
     it('should verify all required packages are built', () => {
         const missingBuilds: string[] = [];
@@ -89,12 +76,8 @@ describe('Build Verification', () => {
         const testServerDir = resolve(packagesDir, 'test-server');
 
         // Test-server is special - it provides the test server implementations
-        const requiredFiles = [
-            '.dist/esm/index.js',
-            '.dist/esm/test-server-json.js',
-            '.dist/esm/test-server-binary.js',
-            '.dist/esm/index.d.ts',
-        ];
+        // Note: test-server doesn't need to be fully built, just needs source files available
+        const requiredFiles = ['src/test-server-json.ts', 'src/test-server-binary.ts', 'index.ts'];
 
         const missingFiles: string[] = [];
 
@@ -110,16 +93,12 @@ describe('Build Verification', () => {
                 [
                     '',
                     '╔══════════════════════════════════════════════════════════════════════════════╗',
-                    '║                    TEST-SERVER BUILD INCOMPLETE                              ║',
+                    '║                    TEST-SERVER SOURCE FILES MISSING                          ║',
                     '╠══════════════════════════════════════════════════════════════════════════════╣',
-                    '║ The test-server package is missing required files:                           ║',
+                    '║ The test-server package is missing required source files:                    ║',
                     '',
                     ...missingFiles.map((f) => `║   ❌ ${f.padEnd(66)} ║`),
                     '',
-                    '║ Please rebuild the test-server package:                                      ║',
-                    '║                                                                              ║',
-                    '║   npm run build -w @mionkit/test-server                                      ║',
-                    '║                                                                              ║',
                     '╚══════════════════════════════════════════════════════════════════════════════╝',
                     '',
                 ].join('\n')

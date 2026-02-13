@@ -10,9 +10,9 @@ import {resolve} from 'path';
 export default defineConfig({
     test: {
         environment: 'node',
-        // Run tests from the src folder (TypeScript files)
+        // Run tests from the packages/modules/src folder (TypeScript files)
         // But imports resolve to built .dist folders (no ts transformation)
-        include: ['src/**/*.spec.ts'],
+        include: ['packages/modules/src/**/*.spec.ts'],
         // Longer timeouts for build tests since they test actual server/client interactions
         testTimeout: 30000,
         // Run tests sequentially to avoid port conflicts
@@ -36,7 +36,6 @@ export default defineConfig({
             '@mionkit/node': resolve(__dirname, '../node/.dist/esm'),
             '@mionkit/client': resolve(__dirname, '../client/.dist/esm'),
             '@mionkit/test-server': resolve(__dirname, '../test-server/.dist/esm'),
-            '@mionkit/http': resolve(__dirname, '../http/.dist/esm'),
             '@mionkit/aws': resolve(__dirname, '../aws/.dist/esm'),
             '@mionkit/gcloud': resolve(__dirname, '../gcloud/.dist/esm'),
             '@mionkit/codegen': resolve(__dirname, '../codegen/.dist/esm'),

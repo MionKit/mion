@@ -1,0 +1,27 @@
+{
+  "name": "@mionkit/test-publish-modules",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Test modules for build verification tests",
+  "scripts": {
+    "test": "echo 'Tests are run from parent package'",
+    "lint": "npx --node-options='--experimental-strip-types' eslint --flag unstable_native_nodejs_ts_config src",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "dependencies": {
+    "@mionkit/aws": "^0.7.2",
+    "@mionkit/bun": "^0.7.2",
+    "@mionkit/client": "^0.7.2",
+    "@mionkit/core": "^0.7.2",
+    "@mionkit/gcloud": "^0.7.2",
+    "@mionkit/node": "^0.7.2",
+    "@mionkit/router": "^0.7.2",
+    "@mionkit/run-types": "^0.7.2",
+    "@mionkit/test-server": "^0.7.2",
+    "@mionkit/type-formats": "^0.7.2"
+  },
+  "devDependencies": {
+    "dom-storage": "^2.1.0"
+  }
+}
