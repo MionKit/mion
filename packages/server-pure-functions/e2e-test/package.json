@@ -1,8 +1,13 @@
 {
-  "name": "test-monorepo-fixture",
+  "name": "@mionkit/server-pure-functions-e2e",
+  "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "packages/test-client",
-    "packages/test-server"
-  ]
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
+  }
 }
