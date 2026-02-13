@@ -1,11 +1,12 @@
 /* ########
- * 2025 mion
+ * 2026 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ExtractedPureFn, PureServerFnRegistry, PureServerFnRegistryEntry, PURE_SERVER_FN_NAMESPACE} from './types';
+import {PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
+import {ExtractedPureFn, PureServerFnRegistry, PureServerFnRegistryEntry} from './types.ts';
 
 const REGISTRY_VERSION = '1.0.0';
 

@@ -1,5 +1,5 @@
 /* ########
- * 2025 mion
+ * 2026 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
@@ -8,9 +8,11 @@
 import type {Plugin} from 'vite';
 import {readFileSync, readdirSync, statSync} from 'fs';
 import {join, resolve} from 'path';
-import {PureFunctionsPluginOptions, ExtractedPureFn, VIRTUAL_MODULE_ID, RESOLVED_VIRTUAL_MODULE_ID} from './types';
-import {extractPureFnsFromSource} from './extract';
-import {generateVirtualModule} from './virtualModule';
+import {PureFunctionsPluginOptions, ExtractedPureFn} from './types.ts';
+import {RESOLVED_VIRTUAL_MODULE_ID} from './constants.ts';
+import {VIRTUAL_MODULE_ID} from './constants.ts';
+import {extractPureFnsFromSource} from './extract.ts';
+import {generateVirtualModule} from './virtualModule.ts';
 
 /**
  * Creates the mion pure server functions Vite plugin.

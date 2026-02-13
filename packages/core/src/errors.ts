@@ -15,7 +15,7 @@ import type {
 } from './types/general.types.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 import {randomUUID_V7} from './utils.ts';
-import {getJitUtils} from './jitUtils.ts';
+import {getJitUtils} from './jit/jitUtils.ts';
 import {hasUnknownKeysFromArray} from './pureFns/corePureUtils.ts';
 
 // ############# Validation Error Types #############

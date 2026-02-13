@@ -1,6 +1,7 @@
 import {describe, it, expect} from 'vitest';
-import {generateVirtualModule} from './virtualModule';
-import {ExtractedPureFn, PURE_SERVER_FN_NAMESPACE} from './types';
+import {generateVirtualModule} from './virtualModule.ts';
+import {ExtractedPureFn} from './types.ts';
+import {PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
 
 describe('generateVirtualModule', () => {
     it('should generate a valid module with one function', () => {

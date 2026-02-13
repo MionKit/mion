@@ -7,7 +7,7 @@
 
 // ########################################## METHODS METADATA ##########################################
 
-import type {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, SerializerMode} from './general.types.ts';
+import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, SerializerMode} from './general.types.ts';
 
 /**
  * Shared interface for PublicMethod that can be used between client and server without handler dependencies

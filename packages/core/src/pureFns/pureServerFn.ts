@@ -1,12 +1,15 @@
 /* ########
- * 2025 mion
+ * 2026 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PureServerFnRef, PURE_SERVER_FN_NAMESPACE} from './types';
-import {computePureServerFnBodyHash} from '@mionkit/core';
+import {PureServerFnRef} from '../types/pureFunctions.types.ts';
+import {computePureServerFnBodyHash} from './pureFn.ts';
+
+/** The namespace used for all pureServerFn functions */
+export const PURE_SERVER_FN_NAMESPACE = 'pureServerFn';
 
 /**
  * Defines a pure server function that will be extracted at build time and executed on the server.

@@ -65,13 +65,14 @@ describe('SerializableMethodsData JitCompiler', () => {
         expect(typeErrors(methodsData)).toEqual([]);
     });
 
-    it('prepareForJson / restoreFromJson', () => {
+    it.only('prepareForJson / restoreFromJson', () => {
         const rt = runType<SerializableMethodsData>();
         const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
         const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
         const clone = mockData();
         const jsonString = JSON.stringify(prepareForJson(clone));
         const restored = restoreFromJson(JSON.parse(jsonString));
+        console.log(restored.deps.isType.dependenciesSet);
         expect(restored).toEqual(restoredMethodsData);
     });
 

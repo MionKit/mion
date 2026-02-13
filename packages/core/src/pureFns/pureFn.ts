@@ -1,5 +1,12 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
 import type {CompiledPureFunction, PureFunctionClosure} from '../types/pureFunctions.types.ts';
-import {getJitUtils} from '../jitUtils.ts';
+import {getJitUtils} from '../jit/jitUtils.ts';
 import {createUniqueHash, pureFnHashLength} from './quickHash.ts';
 
 export function getPureFunctionKey(fn: PureFunctionClosure): string {

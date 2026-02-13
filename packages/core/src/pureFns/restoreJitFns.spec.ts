@@ -7,7 +7,7 @@
 
 import {describe, it, expect, beforeEach, vi} from 'vitest';
 import {restoreCompiledJitFns} from './restoreJitFns.ts';
-import {addAOTCaches, addSerializedJitCaches, getJitUtils, resetJitFnCaches} from '../jitUtils.ts';
+import {addAOTCaches, addSerializedJitCaches, getJitUtils, resetJitFnCaches} from '../jit/jitUtils.ts';
 import type {
     PersistedJitFunctionsCache,
     PersistedPureFunctionsCache,

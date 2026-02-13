@@ -1,11 +1,12 @@
 /* ########
- * 2025 mion
+ * 2026 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ExtractedPureFn, PURE_SERVER_FN_NAMESPACE} from './types';
+import {PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
+import {ExtractedPureFn} from './types.ts';
 
 /** Generates the virtual module source code from extracted pure functions */
 export function generateVirtualModule(extractedFns: ExtractedPureFn[]): string {

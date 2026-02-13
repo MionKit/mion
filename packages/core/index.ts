@@ -19,11 +19,12 @@ export * from './src/binary/bodyDeserializer.ts';
 export * from './src/constants.ts';
 export * from './src/errors.ts';
 export * from './src/friendlyErrors.ts';
-export * from './src/jitUtils.ts';
+export * from './src/jit/jitUtils.ts';
 export * from './src/routerUtils.ts';
 export * from './src/utils.ts';
 export * from './src/headers.ts';
 export * from './src/pureFns/pureFn.ts';
+export * from './src/pureFns/pureServerFn.ts';
 export * from './src/pureFns/quickHash.ts';
 export * from './src/pureFns/corePureUtils.ts';
 

@@ -1,7 +1,14 @@
-import type {JITUtils} from '../types/JITUtils.ts';
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import type {JITUtils} from '../jit/jitUtils.ts';
 import type {CompiledPureFunction, GenericPureFunction} from '../types/pureFunctions.types.ts';
 import {registerPureFnClosure, registerPureFnClosuresGroup} from './pureFn.ts';
-import {getJitUtils} from '../jitUtils.ts';
+import {getJitUtils} from '../jit/jitUtils.ts';
 
 const TEST_NAMESPACE = 'test';
 

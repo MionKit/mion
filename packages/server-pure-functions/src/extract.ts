@@ -1,76 +1,14 @@
 /* ########
- * 2025 mion
+ * 2026 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
 import * as ts from 'typescript';
-import {ExtractedPureFn, PURE_SERVER_FN_NAMESPACE} from './types';
-import {createUniqueHash, pureFnHashLength, normalizePureFnBody} from '@mionkit/core';
-
-/** Globals and built-ins that are allowed inside pure functions */
-const ALLOWED_GLOBALS = new Set([
-    // Value types
-    'undefined',
-    'null',
-    'NaN',
-    'Infinity',
-    'true',
-    'false',
-    // Built-in constructors/objects
-    'Object',
-    'Array',
-    'String',
-    'Number',
-    'Boolean',
-    'Math',
-    'JSON',
-    'Date',
-    'RegExp',
-    'Map',
-    'Set',
-    'WeakMap',
-    'WeakSet',
-    'Symbol',
-    'BigInt',
-    'Promise',
-    'Error',
-    'TypeError',
-    'RangeError',
-    'parseInt',
-    'parseFloat',
-    'isNaN',
-    'isFinite',
-    'encodeURIComponent',
-    'decodeURIComponent',
-    'encodeURI',
-    'decodeURI',
-    // Common safe globals
-    'console',
-    'globalThis',
-]);
-
-/** Forbidden identifiers that indicate impure operations */
-const FORBIDDEN_IDENTIFIERS = new Set([
-    'eval',
-    'Function',
-    'fetch',
-    'setTimeout',
-    'setInterval',
-    'clearTimeout',
-    'clearInterval',
-    'process',
-    'window',
-    'document',
-    'global',
-    'require',
-    'XMLHttpRequest',
-    'WebSocket',
-    'localStorage',
-    'sessionStorage',
-    'indexedDB',
-]);
+import {ExtractedPureFn} from './types.ts';
+import {createUniqueHash, pureFnHashLength, normalizePureFnBody, PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
+import {ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS} from './constants.ts';
 
 /** Extracts all pureServerFn() calls from a source file using AST */
 export function extractPureFnsFromSource(source: string, filePath: string): ExtractedPureFn[] {
