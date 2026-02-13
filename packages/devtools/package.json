@@ -1,0 +1,98 @@
+{
+  "name": "@mionkit/devtools",
+  "version": "0.8.0-alpha.0",
+  "description": "Development tooling for mion (ESLint plugin, Vite plugin, and AOT codegen).",
+  "type": "module",
+  "keywords": [
+    "typescript",
+    "eslint",
+    "vite",
+    "plugin",
+    "codegen",
+    "AOT",
+    "mion"
+  ],
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./.dist/eslint/esm/index.d.ts",
+      "import": "./.dist/eslint/esm/index.js",
+      "require": "./.dist/eslint/cjs/index.js"
+    },
+    "./eslint": {
+      "types": "./.dist/eslint/esm/index.d.ts",
+      "import": "./.dist/eslint/esm/index.js",
+      "require": "./.dist/eslint/cjs/index.js"
+    },
+    "./vite-plugin": {
+      "types": "./.dist/vite-plugin/esm/index.d.ts",
+      "import": "./.dist/vite-plugin/esm/index.js",
+      "require": "./.dist/vite-plugin/cjs/index.js"
+    },
+    "./codegen/*": {
+      "types": "./src/codegen/*.ts",
+      "import": "./src/codegen/*.ts",
+      "require": "./src/codegen/*.ts"
+    }
+  },
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist",
+    "src/codegen",
+    "mion-aot-template",
+    "bin"
+  ],
+  "bin": {
+    "mion-init-aot": "./bin/mion-init-aot.js",
+    "mion-build-aot": "./bin/mion-build-aot.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "dev": "npm run build:eslint && npm run build:vite-plugin -- --watch",
+    "dev:test": "vitest watch",
+    "lint": "npx --node-options='--experimental-strip-types' eslint --flag unstable_native_nodejs_ts_config src index.ts",
+    "format": "prettier --write index.ts src/**/*.ts",
+    "build": "npm run build:aot-template && npm run build:eslint && npm run build:vite-plugin",
+    "build:eslint": "vite build --config vite.eslint.config.ts",
+    "build:vite-plugin": "vite build --config vite.vite-plugin.config.ts",
+    "build:aot-template": "cd mion-aot-template && npm run build",
+    "build-ts-dts": "echo 'noop: devtools uses custom build'",
+    "clean": "rimraf .dist & rimraf .coverage",
+    "fresh-start": "npm run clean && rimraf node_modules"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionkit/core": "^0.7.2",
+    "@mionkit/router": "^0.7.2",
+    "@mionkit/run-types": "^0.7.2",
+    "@typescript-eslint/utils": "^8.17.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0"
+  },
+  "peerDependencies": {
+    "vite": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.8",
+    "@typescript-eslint/rule-tester": "^8.17.0",
+    "typescript": "^5.0.0"
+  }
+}

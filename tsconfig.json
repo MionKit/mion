@@ -35,10 +35,8 @@
     {"path": "./packages/aws"},
     {"path": "./packages/gcloud"},
     {"path": "./packages/bun"},
-    {"path": "./packages/cli"},
-    {"path": "./packages/eslint-plugin"},
+    {"path": "./packages/devtools"},
     {"path": "./packages/quick-start"},
-    {"path": "./packages/server-pure-functions"},
     {"path": "./packages/test-server"}
   ],
   "files": [],

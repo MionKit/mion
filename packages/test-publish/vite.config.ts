@@ -18,9 +18,8 @@ export default defineConfig({
             '@mionkit/test-server': resolve(__dirname, '../test-server/.dist/esm'),
             '@mionkit/aws': resolve(__dirname, '../aws/.dist/esm'),
             '@mionkit/gcloud': resolve(__dirname, '../gcloud/.dist/esm'),
-            '@mionkit/codegen': resolve(__dirname, '../codegen/.dist/esm'),
+            '@mionkit/devtools': resolve(__dirname, '../devtools/.dist/esm'),
             '@mionkit/bun': resolve(__dirname, '../bun/.dist/esm'),
-            '@mionkit/server-pure-functions': resolve(__dirname, '../server-pure-functions/.dist/esm'),
         },
     },
 });
