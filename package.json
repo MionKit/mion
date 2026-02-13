@@ -11,7 +11,7 @@
     "check-format": "prettier --check packages/**/*.{ts,md}",
     "check-format-pre-commit": "prettier --check",
     "lint": "lerna run lint",
-    "lint-pre-committ": "npx --node-options='--experimental-strip-types' eslint --flag unstable_native_nodejs_ts_config --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
+    "lint-pre-committ": "npx eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
     "build": "lerna run build",
     "build-ts-dts": "npm run clean && lerna run build-ts-dts",
     "clean": "lerna run clean; nx reset --onlyCache",
