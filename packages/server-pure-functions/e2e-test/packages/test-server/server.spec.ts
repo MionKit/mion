@@ -1,143 +1,111 @@
 import {describe, it, expect, beforeAll} from 'vitest';
-import {join, resolve} from 'path';
-import {readdirSync, readFileSync, statSync} from 'fs';
-import {extractPureFnsFromSource} from '../../../src/extract';
-import {generateVirtualModule} from '../../../src/virtualModule';
-import {resetHashes} from '@mionkit/core';
-import {PURE_SERVER_FN_NAMESPACE, ExtractedPureFn} from '../../../src/types';
-import {getJitUtils, resetJitFnCaches, addAOTCaches} from '@mionkit/core';
+import {resetHashes, resetJitFnCaches, addAOTCaches, getJitUtils} from '@mionkit/core';
+import {PURE_SERVER_FN_NAMESPACE} from '../../../src/types';
 
-const FIXTURE_DIR = resolve(__dirname, '../..');
-const CLIENT_SRC = join(FIXTURE_DIR, 'packages', 'test-client', 'src');
+// Import the virtual module - Vite plugin automatically scans test-client/src
+import {pureFnsCache} from 'virtual:mion-pure-functions';
 
 beforeAll(() => {
     resetHashes();
     resetJitFnCaches();
+    // Register the pure functions from the virtual module into core
+    addAOTCaches({}, pureFnsCache);
 });
 
-/** Scans the client source directory and extracts all pure functions (simulates server plugin behavior) */
-function scanClientSource(): ExtractedPureFn[] {
-    const fns: ExtractedPureFn[] = [];
-
-    function scanDir(dir: string) {
-        const entries = readdirSync(dir);
-        for (const entry of entries) {
-            const fullPath = join(dir, entry);
-            const stat = statSync(fullPath);
-
-            if (stat.isDirectory()) {
-                scanDir(fullPath);
-            } else if (stat.isFile() && /\.(ts|tsx)$/.test(fullPath)) {
-                try {
-                    const code = readFileSync(fullPath, 'utf-8');
-                    if (!code.includes('pureServerFn')) continue;
-                    const extracted = extractPureFnsFromSource(code, fullPath);
-                    fns.push(...extracted);
-                } catch {
-                    // Skip files that can't be parsed (like impureFns.ts which throws)
-                }
-            }
-        }
-    }
-
-    scanDir(CLIENT_SRC);
-    return fns;
-}
-
-/** Generates virtual module from extracted functions and registers into core */
-function loadPureFunctionsIntoCore(fns: ExtractedPureFn[]) {
-    const virtualModuleCode = generateVirtualModule(fns);
-
-    // Evaluate the virtual module (simulates server importing virtual:mion-pure-functions)
-    const moduleExports: any = {};
-    const moduleCode = virtualModuleCode.replace('export const', 'moduleExports.');
-    eval(moduleCode);
-
-    // Register into the core runtime
-    addAOTCaches({}, moduleExports.pureFnsCache);
-}
-
-describe('E2E: Server scans client source and executes pure functions', () => {
-    it('should scan client source directly and execute pure functions without client build', () => {
-        // Server scans client TypeScript source directly (no build required)
-        const extractedFns = scanClientSource();
-
-        expect(extractedFns.length).toBeGreaterThanOrEqual(4);
-
-        // All entries should have bodyHash (fnName is optional now)
-        for (const fn of extractedFns) {
-            // Verify function structure
-            expect(fn.bodyHash).toBeDefined();
-            expect(fn.code).toBeDefined();
-            expect(fn.paramNames).toBeInstanceOf(Array);
-        }
-
-        // Load into core runtime
-        loadPureFunctionsIntoCore(extractedFns);
-
-        // Find functions by name (for named functions) or by code pattern
-        const addOne = extractedFns.find((f) => f.fnName === 'addOne' || f.code.includes('return x + 1'));
-        const mapUsers = extractedFns.find((f) => f.fnName === 'mapUsersToPreferences' || f.code.includes('userId'));
-        const combine = extractedFns.find((f) => f.fnName === 'combineArrays' || f.code.includes('[...a, ...b]'));
-        const filter = extractedFns.find((f) => f.fnName === 'filterByThreshold' || f.code.includes('threshold'));
-
-        expect(addOne).toBeDefined();
-        expect(mapUsers).toBeDefined();
-        expect(combine).toBeDefined();
-        expect(filter).toBeDefined();
-
-        // Verify all functions are accessible via jitUtils using bodyHash
+describe('E2E: Server loads virtual module via Vite plugin', () => {
+    it('should have pure functions automatically extracted from client source', () => {
         const jitUtils = getJitUtils();
-        expect(jitUtils.hasPureFn(PURE_SERVER_FN_NAMESPACE, addOne!.bodyHash)).toBe(true);
-        expect(jitUtils.hasPureFn(PURE_SERVER_FN_NAMESPACE, mapUsers!.bodyHash)).toBe(true);
-        expect(jitUtils.hasPureFn(PURE_SERVER_FN_NAMESPACE, combine!.bodyHash)).toBe(true);
-        expect(jitUtils.hasPureFn(PURE_SERVER_FN_NAMESPACE, filter!.bodyHash)).toBe(true);
+        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
 
-        // Execute addOne using bodyHash
-        const addOneFn = jitUtils.usePureFn(PURE_SERVER_FN_NAMESPACE, addOne!.bodyHash);
-        expect(addOneFn).toBeInstanceOf(Function);
+        expect(namespaceCache).toBeDefined();
+
+        const bodyHashes = Object.keys(namespaceCache);
+        expect(bodyHashes.length).toBeGreaterThanOrEqual(4);
+
+        // All functions should be registered in core
+        for (const bodyHash of bodyHashes) {
+            expect(jitUtils.hasPureFn(PURE_SERVER_FN_NAMESPACE, bodyHash)).toBe(true);
+        }
+    });
+
+    it('should execute addOne function', () => {
+        const jitUtils = getJitUtils();
+        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
+
+        // Find the addOne function by its code pattern
+        const addOneHash = Object.keys(namespaceCache).find((hash) => namespaceCache[hash].code.includes('x + 1'));
+
+        expect(addOneHash).toBeDefined();
+
+        const addOneFn = jitUtils.usePureFn(PURE_SERVER_FN_NAMESPACE, addOneHash!);
         expect(addOneFn(5)).toBe(6);
         expect(addOneFn(0)).toBe(1);
         expect(addOneFn(-1)).toBe(0);
+    });
 
-        // Execute mapUsersToPreferences using bodyHash
-        const mapFn = jitUtils.usePureFn(PURE_SERVER_FN_NAMESPACE, mapUsers!.bodyHash);
+    it('should execute mapUsersToPreferences function', () => {
+        const jitUtils = getJitUtils();
+        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
+
+        const mapFnHash = Object.keys(namespaceCache).find((hash) => namespaceCache[hash].code.includes('userId'));
+
+        expect(mapFnHash).toBeDefined();
+
+        const mapFn = jitUtils.usePureFn(PURE_SERVER_FN_NAMESPACE, mapFnHash!);
         const users = [
             {id: 1, name: 'Alice', preferences: {theme: 'dark'}},
             {id: 2, name: 'Bob', preferences: {theme: 'light'}},
         ];
+
         expect(mapFn(users)).toEqual([
             {userId: 1, prefs: {theme: 'dark'}},
             {userId: 2, prefs: {theme: 'light'}},
         ]);
+    });
 
-        // Execute combineArrays using bodyHash
-        const combineFn = jitUtils.usePureFn(PURE_SERVER_FN_NAMESPACE, combine!.bodyHash);
+    it('should execute combineArrays function', () => {
+        const jitUtils = getJitUtils();
+        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
+
+        const combineHash = Object.keys(namespaceCache).find((hash) => namespaceCache[hash].code.includes('[...a, ...b]'));
+
+        expect(combineHash).toBeDefined();
+
+        const combineFn = jitUtils.usePureFn(PURE_SERVER_FN_NAMESPACE, combineHash!);
         expect(combineFn([1, 2], [3, 4])).toEqual([1, 2, 3, 4]);
+    });
 
-        // Execute filterByThreshold using bodyHash
-        const filterFn = jitUtils.usePureFn(PURE_SERVER_FN_NAMESPACE, filter!.bodyHash);
+    it('should execute filterByThreshold function', () => {
+        const jitUtils = getJitUtils();
+        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
+
+        const filterHash = Object.keys(namespaceCache).find((hash) => namespaceCache[hash].code.includes('threshold'));
+
+        expect(filterHash).toBeDefined();
+
+        const filterFn = jitUtils.usePureFn(PURE_SERVER_FN_NAMESPACE, filterHash!);
         const items = [
             {name: 'low', value: 5},
             {name: 'high', value: 15},
             {name: 'medium', value: 10},
             {name: 'very-high', value: 100},
         ];
+
         expect(filterFn(items)).toEqual([
             {name: 'high', value: 15},
             {name: 'very-high', value: 100},
         ]);
     });
 
-    it('should produce valid bodyHashes that match between extraction and core cache', () => {
-        const extractedFns = scanClientSource();
-        loadPureFunctionsIntoCore(extractedFns);
+    it('should produce valid bodyHashes that match between virtual module and core cache', () => {
+        const jitUtils = getJitUtils();
+        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
 
-        // Verify bodyHash matches between extracted functions and core cache (using bodyHash as key)
-        for (const fn of extractedFns) {
-            const compiled = getJitUtils().getCompiledPureFn(PURE_SERVER_FN_NAMESPACE, fn.bodyHash);
+        // Verify bodyHash matches between virtual module and core cache
+        for (const bodyHash of Object.keys(namespaceCache)) {
+            const compiled = jitUtils.getCompiledPureFn(PURE_SERVER_FN_NAMESPACE, bodyHash);
             expect(compiled).toBeDefined();
-            expect(compiled?.bodyHash).toBe(fn.bodyHash);
+            expect(compiled?.bodyHash).toBe(bodyHash);
         }
     });
 });
