@@ -1,17 +1,17 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
-import {pureFunctionsPlugin} from '../src/plugin';
+import {pureFunctionsPlugin} from '@mionkit/server-pure-functions';
 
 export default defineConfig({
     plugins: [
         pureFunctionsPlugin({
-            clientSrcPath: resolve(__dirname, 'packages/test-client/src'),
-        }),
+            clientSrcPath: resolve(__dirname, '../client/src'),
+        }) as any,
     ],
     test: {
         globals: true,
         environment: 'node',
-        include: ['packages/**/*.spec.ts', './*.spec.ts'],
+        include: ['**/*.spec.ts'],
         pool: 'forks',
         isolate: false,
         fileParallelism: false,
@@ -20,11 +20,5 @@ export default defineConfig({
         },
         minWorkers: 1,
         maxWorkers: 1,
-    },
-    resolve: {
-        alias: {
-            '@mionkit/core': resolve(__dirname, '../../core/index.ts'),
-            '@mionkit/server-pure-functions': resolve(__dirname, '..'),
-        },
     },
 });

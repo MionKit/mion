@@ -1,0 +1,9 @@
+{
+  "name": "@mionkit/pure-functions-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@mionkit/server-pure-functions": "^0.7.2"
+  }
+}

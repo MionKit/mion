@@ -9,7 +9,7 @@ import {initClient} from '@mionkit/client';
 import {isRpcError} from '@mionkit/core';
 import {BinaryTestServerApi} from '@mionkit/test-server';
 import Storage from 'dom-storage';
-import {beforeAll} from 'vitest';
+import {describe, it, expect, beforeAll} from 'vitest';
 
 // THIS TESTS ARE INTENDED TO E2E TESTING OF THE BINARY SERIALIZER
 

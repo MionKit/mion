@@ -15,11 +15,10 @@ During development, tests run against TypeScript source files using `ts-jest`. H
 ## How It Works
 
 1. **Clean** - Removes any existing build artifacts (`.dist` folder)
-2. **Build** - Compiles TypeScript test files to JavaScript using `tsc`
-3. **Test** - Runs Jest against the compiled `.dist/*.spec.js` files (no ts-jest)
-4. **Clean** - Removes build artifacts after tests complete
+2. **Test** - Runs Vitest against TypeScript source files (`.spec.ts`)
+3. **Clean** - Removes build artifacts after tests complete
 
-The tests import from the built `@mionkit/*` packages (which resolve to their `.dist` folders), not from TypeScript source files. This ensures we're testing the actual published artifacts.
+The tests import from the built `@mionkit/*` packages (which resolve to their `.dist` folders via Vitest aliases), not from TypeScript source files. This ensures we're testing the actual published artifacts.
 
 ## Prerequisites
 
@@ -53,7 +52,7 @@ npm run test:build-verification -w @mionkit/test-publish
 
 - **Private package** - Not published to npm, only used internally
 - **Tests built artifacts** - Imports from `@mionkit/*` packages which resolve to `.dist` directories
-- **No ts-jest** - Tests run against compiled JavaScript, not TypeScript
+- **TypeScript native** - Vitest runs TypeScript tests directly without pre-compilation
 - **Auto-cleanup** - Build artifacts are cleaned before and after tests
 - **Sequential execution** - Tests run sequentially to avoid port conflicts
 - **Uses @mionkit/test-server** - Depends on the test-server package for server utilities
@@ -72,4 +71,4 @@ npm run test:build-verification -w @mionkit/test-publish
 | `test:build-verification` | Same as verify - cleans, builds, tests, cleans |
 | `build`                   | Compiles TypeScript test files to JavaScript   |
 | `clean`                   | Removes `.dist` folder                         |
-| `dev:test`                | Runs Jest in watch mode (for debugging)        |
+| `dev:test`                | Runs Vitest in watch mode (for debugging)      |
