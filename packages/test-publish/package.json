@@ -35,11 +35,11 @@
     "@mionkit/node": "^0.7.2",
     "@mionkit/router": "^0.7.2",
     "@mionkit/run-types": "^0.7.2",
-    "@mionkit/devtools": "^0.8.0-alpha.0",
     "@mionkit/test-server": "^0.7.2",
     "@mionkit/type-formats": "^0.7.2"
   },
   "devDependencies": {
-    "dom-storage": "^2.1.0"
+    "dom-storage": "^2.1.0",
+    "@mionkit/devtools": "^0.8.0-alpha.0"
   }
 }
