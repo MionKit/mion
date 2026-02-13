@@ -61,7 +61,7 @@
     "test": "vitest run",
     "dev": "npm run build:eslint && npm run build:vite-plugin -- --watch",
     "dev:test": "vitest watch",
-    "lint": "npx --node-options='--experimental-strip-types' eslint --flag unstable_native_nodejs_ts_config src index.ts",
+    "lint": "npx eslint src index.ts",
     "format": "prettier --write index.ts src/**/*.ts",
     "build": "npm run build:aot-template && npm run build:eslint && npm run build:vite-plugin",
     "build:eslint": "vite build --config vite.eslint.config.ts",

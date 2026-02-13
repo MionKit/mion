@@ -20,7 +20,7 @@
     "test:build-verification": "vitest run",
     "test:pure-functions": "cd packages/pure-functions-test && vitest run",
     "dev:test": "vitest watch",
-    "lint": "npx --node-options='--experimental-strip-types' eslint --flag unstable_native_nodejs_ts_config packages/modules/src",
+    "lint": "npx eslint packages/modules/src",
     "format": "prettier --write packages/modules/src/**/*.ts",
     "build": "tsc --project tsconfig.json",
     "clean": "rimraf .dist",
