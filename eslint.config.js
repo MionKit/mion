@@ -37,6 +37,7 @@ export default tseslint.config(
       '**/bun-preload.ts',
       '**/globalSetup.ts',
       'website/**',
+      'eslint.config.js',
     ],
   },
   eslint.configs.recommended,
@@ -47,6 +48,7 @@ export default tseslint.config(
     },
     languageOptions: {
       parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
         project: ['./packages/*/tsconfig.json'],
       },
     },
