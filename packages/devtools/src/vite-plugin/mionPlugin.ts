@@ -149,7 +149,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
 
         transform(code: string, fileName: string) {
             // Step 1: Extract pure functions BEFORE any transformation
-            if (pureFnOptions && code.includes('pureServerFn')) {
+            if (pureFnOptions) {
                 try {
                     const fns = extractPureFnsFromSource(code, fileName);
                     // Store extracted functions - they will be available via virtual module

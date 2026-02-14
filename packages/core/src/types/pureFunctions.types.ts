@@ -57,15 +57,11 @@ export interface PersistedPureFunction extends CompiledPureFunction {
     fn: undefined;
 } /** Reference object returned by pureServerFn() at runtime on the client */
 
-export interface PureServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> {
+export interface PureFnDef<F extends (...args: any[]) => any = (...args: any[]) => any> {
     /** The namespace this pure function belongs to */
-    readonly namespace: string;
+    readonly namespace?: string;
     /** The function name (optional, for debugging purposes only) */
     readonly fnName?: string;
-    /** Hash of the function body - used as the unique identifier */
-    readonly bodyHash: string;
-    /** The original function (available in dev, stripped in production) */
-    readonly fn?: F;
     /** Indicates if this is a factory function, function should be called with jitUtils as single argument:
      * ie:
      * const factory = pureServerFn((jitUtils) => {
@@ -75,7 +71,18 @@ export interface PureServerFnRef<F extends (...args: any[]) => any = (...args: a
      *   };
      * });
      */
-    isFactoryWithJitUtils?: boolean;
+    isFactory?: boolean;
+    /** The original function (available in dev, stripped in production) */
+    readonly pureFn: F;
+}
+
+export interface PureServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> extends Required<PureFnDef<F>> {
+    /** The namespace this pure function belongs to */
+    readonly namespace: string;
+    /** The function name (optional, for debugging purposes only) */
+    readonly fnName: string;
+    /** Hash of the function body - used as the unique identifier */
+    readonly bodyHash: string;
     /**
      * List of pure function dependencies id is equal to `namespace::fnName`
      * This is used so when a function is required by a client all the rest of dependencies are also sent to the client

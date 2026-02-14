@@ -5,24 +5,25 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PURE_SERVER_FN_NAMESPACE} from './pureFnUtils.ts';
 import {ExtractedPureFn, PureServerFnRegistry, PureServerFnRegistryEntry} from './types.ts';
 
 const REGISTRY_VERSION = '1.0.0';
 
-/** Serializes extracted pure functions into a registry structure (keyed by bodyHash) */
+/** Serializes extracted pure functions into a registry structure (keyed by namespace::fnName) */
 export function createRegistry(extractedFns: ExtractedPureFn[]): PureServerFnRegistry {
     const entries: Record<string, PureServerFnRegistryEntry> = {};
 
     for (const fn of extractedFns) {
-        // Use bodyHash as the key instead of fnName
-        entries[fn.bodyHash] = {
-            namespace: PURE_SERVER_FN_NAMESPACE,
-            fnName: fn.fnName, // Optional, for debugging
+        // Use namespace::fnName as the key
+        const key = `${fn.namespace}::${fn.fnName}`;
+        entries[key] = {
+            namespace: fn.namespace,
+            fnName: fn.fnName,
             paramNames: fn.paramNames,
             code: fn.code,
             bodyHash: fn.bodyHash,
             dependencies: fn.dependencies,
+            isFactory: fn.isFactory,
         };
     }
 

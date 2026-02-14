@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PURE_SERVER_FN_NAMESPACE} from './pureFnUtils.ts';
 import {ExtractedPureFn} from './types.ts';
 
 /** Generates the virtual module source code from extracted pure functions */
@@ -16,48 +15,74 @@ export function generateVirtualModule(extractedFns: ExtractedPureFn[]): string {
 // Do not edit manually
 
 export const pureFnsCache = {
-    ${JSON.stringify(PURE_SERVER_FN_NAMESPACE)}: {
 ${entries.join(',\n')}
-    },
 };
 `;
 }
 
-/** Generates the code for a single CompiledPureFunction entry (keyed by bodyHash) */
+/** Generates the code for a single CompiledPureFunction entry (keyed by namespace::fnName) */
 function generateEntryCode(fn: ExtractedPureFn): string {
     const depsArray = fn.dependencies.map((d) => JSON.stringify(d)).join(', ');
     const paramsArray = fn.paramNames.map((p) => JSON.stringify(p)).join(', ');
 
     // Generate the createJitFn closure that creates the actual function
-    // This mirrors how core pure functions work: the closure receives jitUtils and returns the pure function
-    const createJitFnCode = generateCreateJitFn(fn);
+    const createJitFnCode = fn.isFactory ? generateFactoryCreateJitFn(fn) : generateCreateJitFn(fn);
 
-    // Use bodyHash as the key instead of fnName
-    return `        ${JSON.stringify(fn.bodyHash)}: {
-            namespace: ${JSON.stringify(PURE_SERVER_FN_NAMESPACE)},
-            fnName: ${fn.fnName ? JSON.stringify(fn.fnName) : 'undefined'},
-            paramNames: [${paramsArray}],
-            code: ${JSON.stringify(fn.code)},
-            bodyHash: ${JSON.stringify(fn.bodyHash)},
-            dependencies: new Set([${depsArray}]),
-            createJitFn: ${createJitFnCode},
-            fn: undefined,
-        }`;
+    // Use namespace::fnName as the key
+    const cacheKey = `${fn.namespace}::${fn.fnName}`;
+
+    return `    ${JSON.stringify(cacheKey)}: {
+        namespace: ${JSON.stringify(fn.namespace)},
+        fnName: ${JSON.stringify(fn.fnName)},
+        paramNames: [${paramsArray}],
+        code: ${JSON.stringify(fn.code)},
+        bodyHash: ${JSON.stringify(fn.bodyHash)},
+        dependencies: new Set([${depsArray}]),
+        isFactory: ${fn.isFactory},
+        createJitFn: ${createJitFnCode},
+        fn: undefined,
+    }`;
 }
 
-/** Generates the createJitFn closure for a pure function */
+/** Generates the createJitFn closure for a regular pure function */
 function generateCreateJitFn(fn: ExtractedPureFn): string {
     const params = fn.paramNames.join(', ');
-    // Use fnName if available, otherwise use a generated name based on bodyHash
-    const outerFnName = fn.fnName || `pureFn_${fn.bodyHash}`;
-    const innerFnName = fn.fnName || 'anonymous';
+    // Use fnName for the outer function, and a safe inner name
+    const outerFnName = makeSafeFunctionName(fn.fnName);
+    const innerFnName = makeSafeFunctionName(fn.fnName);
 
     // The createJitFn receives jitUtils and returns the pure function
     // For pureServerFn functions, the function doesn't need jitUtils context
     // since they are standalone pure functions
     return `function ${outerFnName}(jitUtils) {
-            return function ${innerFnName}(${params}) {
-                ${fn.code}
-            };
-        }`;
+        return function ${innerFnName}(${params}) {
+            ${fn.code}
+        };
+    }`;
+}
+
+/** Generates the createJitFn closure for a factory function */
+function generateFactoryCreateJitFn(fn: ExtractedPureFn): string {
+    const params = fn.paramNames.join(', ');
+    const outerFnName = makeSafeFunctionName(fn.fnName);
+
+    // For factory functions, the code IS the factory body that receives jitUtils
+    // and returns the actual function. We need to wrap it properly.
+    return `function ${outerFnName}(jitUtils) {
+        // Factory function - the code receives jitUtils and returns the pure function
+        return (function factory(${params}) {
+            ${fn.code}
+        })(jitUtils);
+    }`;
+}
+
+/** Makes a function name safe for use as a JavaScript identifier */
+function makeSafeFunctionName(name: string): string {
+    // Replace any non-alphanumeric characters with underscores
+    const safe = name.replace(/[^a-zA-Z0-9_$]/g, '_');
+    // Ensure it starts with a letter or underscore
+    if (/^[0-9]/.test(safe)) {
+        return '_' + safe;
+    }
+    return safe || 'anonymous';
 }
