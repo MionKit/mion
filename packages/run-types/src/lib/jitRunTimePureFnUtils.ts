@@ -4,13 +4,10 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {MAX_UNKNOWN_KEYS} from '../constants.ts';
-import type {StrNumber, RunTypeError} from '../types/general.types.ts';
-import type {TypeFormatError} from '../types/formats/formats.types.ts';
-import {registerPureFnClosure} from './pureFn.ts';
+import type {TypeFormatError, StrNumber, RunTypeError} from '@mionkit/core';
+import {MAX_UNKNOWN_KEYS, pureServerFn} from '@mionkit/core';
 
 /** optimized function to convert an string into a json string wrapped in double quotes */
-/** @reflection never */
 export function asJSONString() {
     // eslint-disable-next-line no-control-regex
     const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
@@ -25,7 +22,6 @@ export function asJSONString() {
     };
 }
 
-/** @reflection never */
 export function getUnknownKeysFromArray() {
     return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
         const unknownKeys: StrNumber[] = [];
@@ -46,7 +42,6 @@ export function getUnknownKeysFromArray() {
     };
 }
 
-/** @reflection never */
 export function hasUnknownKeysFromArray() {
     return function _hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
         for (const prop in obj) {
@@ -69,7 +64,6 @@ export function hasUnknownKeysFromArray() {
  * Note that all paths are copied when creating the new RunTypeError
  * so they can't be modified after the error is created
  */
-/** @reflection never */
 export function err() {
     return function _err(
         pλth: readonly StrNumber[],
@@ -88,7 +82,6 @@ export function err() {
  * Note that all paths are copied when creating the new RunTypeError
  * so they can't be modified after the error is created
  */
-/** @reflection never */
 export function formatErr() {
     return function _formatErr(
         pλth: StrNumber[],
@@ -109,7 +102,6 @@ export function formatErr() {
     };
 }
 
-/** @reflection never */
 export function safeKey() {
     return function _safeKey(value: any): any {
         if (value === undefined) return null;
@@ -121,11 +113,14 @@ export function safeKey() {
 }
 
 /** Registers all code pure functions in the 'mion' namespace */
+let registered = false;
 export function registerCorePureUtils() {
-    registerPureFnClosure('mion', asJSONString);
-    registerPureFnClosure('mion', getUnknownKeysFromArray);
-    registerPureFnClosure('mion', hasUnknownKeysFromArray);
-    registerPureFnClosure('mion', err);
-    registerPureFnClosure('mion', formatErr);
-    registerPureFnClosure('mion', safeKey);
+    if (registered) return;
+    registered = true;
+    pureServerFn({namespace: 'mion', pureFn: asJSONString, isFactory: true});
+    pureServerFn({namespace: 'mion', pureFn: getUnknownKeysFromArray, isFactory: true});
+    pureServerFn({namespace: 'mion', pureFn: hasUnknownKeysFromArray, isFactory: true});
+    pureServerFn({namespace: 'mion', pureFn: err, isFactory: true});
+    pureServerFn({namespace: 'mion', pureFn: formatErr, isFactory: true});
+    pureServerFn({namespace: 'mion', pureFn: safeKey, isFactory: true});
 }

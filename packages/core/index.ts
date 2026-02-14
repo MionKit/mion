@@ -26,9 +26,3 @@ export * from './src/headers.ts';
 export * from './src/pureFns/pureFn.ts';
 export * from './src/pureFns/pureServerFn.ts';
 export * from './src/pureFns/quickHash.ts';
-export * from './src/pureFns/corePureUtils.ts';
-
-// pure function utils must be registered after all modules are loaded
-// register pure functions when this module is loaded
-import {registerCorePureUtils} from './src/pureFns/corePureUtils.ts';
-registerCorePureUtils();
