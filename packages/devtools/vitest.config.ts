@@ -1,16 +1,8 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
-import {deepkitType} from '@deepkit/vite';
 
 export default defineConfig({
-    plugins: [
-        deepkitType({
-            tsConfig: resolve(__dirname, 'tsconfig.reflection.json'),
-            compilerOptions: {
-                sourceMap: true,
-            },
-        }) as any,
-    ],
+    plugins: [],
     test: {
         globals: true,
         environment: 'node',

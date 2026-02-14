@@ -96,7 +96,22 @@ export function normalizePureFnBody(body: string): string {
 
 /** Extracts the function body from a function's toString() representation */
 export function extractFunctionBody(fnString: string): string {
-    // Handle arrow functions with expression body: (x) => x + 1
+    const trimmed = fnString.trim();
+
+    // Check if it's a regular function (starts with 'function' or 'async function')
+    const isRegularFunction = trimmed.startsWith('function') || trimmed.startsWith('async function');
+
+    if (isRegularFunction) {
+        // Handle regular function - extract body between first { and last }
+        const bodyStart = fnString.indexOf('{');
+        const bodyEnd = fnString.lastIndexOf('}');
+        if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) {
+            throw new Error("Invalid function, can't parse body");
+        }
+        return fnString.substring(bodyStart + 1, bodyEnd).trim();
+    }
+
+    // Handle arrow functions
     const arrowIndex = fnString.indexOf('=>');
     if (arrowIndex !== -1) {
         const afterArrow = fnString.substring(arrowIndex + 2).trim();
@@ -113,13 +128,7 @@ export function extractFunctionBody(fnString: string): string {
         return `return ${afterArrow}`;
     }
 
-    // Handle regular function
-    const bodyStart = fnString.indexOf('{');
-    const bodyEnd = fnString.lastIndexOf('}');
-    if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) {
-        throw new Error("Invalid function, can't parse body");
-    }
-    return fnString.substring(bodyStart + 1, bodyEnd).trim();
+    throw new Error("Invalid function, can't determine function type");
 }
 
 /** Computes the body hash for a pure function (includes fnName in hash for core pure functions) */

@@ -1,19 +1,21 @@
 /** Serializable registry entry for a single pure function */
 export interface PureServerFnRegistryEntry {
     readonly namespace: string;
-    /** The function name (optional, for debugging purposes only) */
-    readonly fnName?: string;
+    /** The function name (required for lookup) */
+    readonly fnName: string;
     readonly paramNames: string[];
     readonly code: string;
-    /** Hash of the function body - used as the unique identifier */
+    /** Hash of the function body - used for version validation */
     readonly bodyHash: string;
     readonly dependencies: string[];
+    /** Indicates if this is a factory function that receives jitUtils */
+    readonly isFactory: boolean;
 }
 
-/** The serializable registry shape written to disk (keyed by bodyHash) */
+/** The serializable registry shape written to disk (keyed by namespace::fnName) */
 export interface PureServerFnRegistry {
     readonly version: string;
-    /** Entries keyed by bodyHash */
+    /** Entries keyed by namespace::fnName */
     readonly entries: Record<string, PureServerFnRegistryEntry>;
 }
 
@@ -29,14 +31,19 @@ export interface PureFunctionsPluginOptions {
 
 /** Extracted function data from AST analysis */
 export interface ExtractedPureFn {
-    /** The function name (optional, for debugging purposes only) */
-    fnName?: string;
+    /** The namespace this pure function belongs to */
+    namespace: string;
+    /** The function name (required for lookup via namespace::fnName) */
+    fnName: string;
     paramNames: string[];
     code: string;
-    /** Hash of the function body - used as the unique identifier */
+    /** Hash of the function body - used for version validation */
     bodyHash: string;
+    /** Dependencies in format "namespace::fnName" */
     dependencies: string[];
     sourceFile: string;
+    /** Indicates if this is a factory function that receives jitUtils */
+    isFactory: boolean;
 }
 
 /** Reflection mode for deepkit type compiler */
