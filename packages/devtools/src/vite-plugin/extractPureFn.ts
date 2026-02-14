@@ -7,7 +7,7 @@
 
 import * as ts from 'typescript';
 import {ExtractedPureFn} from './types.ts';
-import {createUniqueHash, pureFnHashLength, normalizePureFnBody, PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
+import {createUniqueHash, pureFnHashLength, normalizePureFnBody, PURE_SERVER_FN_NAMESPACE} from './pureFnUtils.ts';
 import {ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS} from './constants.ts';
 
 /** Extracts all pureServerFn() calls from a source file using AST */

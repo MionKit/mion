@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
+import {PURE_SERVER_FN_NAMESPACE} from './pureFnUtils.ts';
 import {ExtractedPureFn, PureServerFnRegistry, PureServerFnRegistryEntry} from './types.ts';
 
 const REGISTRY_VERSION = '1.0.0';

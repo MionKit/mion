@@ -6,9 +6,5 @@
  * ######## */
 
 /** Vite plugin for mion (pure functions, virtual modules, etc.) */
-export {pureFunctionsPlugin} from './plugin.ts';
-export type {PureServerFnRegistry, PureServerFnRegistryEntry, PureFunctionsPluginOptions} from './types.ts';
-export {VIRTUAL_MODULE_ID, RESOLVED_VIRTUAL_MODULE_ID} from './constants.ts';
-export {extractPureFnsFromSource, PurityError} from './extractPureFn.ts';
-export {createRegistry} from './registry.ts';
-export {generateVirtualModule} from './virtualModule.ts';
+export {mionVitePlugin, mionVitePlugin as mionPlugin} from './mionPlugin.ts';
+export type {MionPluginOptions} from './mionPlugin.ts';

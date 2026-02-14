@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
+import {PURE_SERVER_FN_NAMESPACE} from './pureFnUtils.ts';
 import {ExtractedPureFn} from './types.ts';
 
 /** Generates the virtual module source code from extracted pure functions */

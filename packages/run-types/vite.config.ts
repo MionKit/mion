@@ -2,7 +2,7 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
-import {deepkitType} from '@deepkit/vite';
+import {mionPlugin} from '@mionkit/devtools/vite-plugin';
 
 // Get all TypeScript files from a directory (excluding spec/test files and excluded patterns)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
@@ -48,10 +48,9 @@ export default defineConfig({
     },
     plugins: [
         // Deepkit type transformer - enables runtime type information
-        deepkitType({
-            tsConfig: resolve(__dirname, 'tsconfig.json'),
-            compilerOptions: {
-                sourceMap: true,
+        mionPlugin({
+            deepkitType: {
+                tsConfig: resolve(__dirname, 'tsconfig.json'),
             },
         }),
         dts({

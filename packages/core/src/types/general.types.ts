@@ -8,7 +8,7 @@
 
 import {MIME_TYPES} from '../constants.ts';
 import {TypeFormatError} from './formats/formats.types.ts';
-import type {JITUtils} from '../jit/jitUtils.ts';
+import {JITUtils} from '../jit/jitUtils.ts';
 import {CompiledPureFunction, PersistedPureFunction, PureFunctionData} from './pureFunctions.types.ts';
 
 // ########################################## Serialization Modes ##########################################
