@@ -68,7 +68,7 @@
     "build:vite-plugin": "vite build --config vite.vite-plugin.config.ts",
     "build:aot-template": "cd mion-aot-template && npm run build",
     "build-ts-dts": "echo 'noop: devtools uses custom build'",
-    "clean": "rimraf build & rimraf .coverage",
+    "clean": "rimraf .dist & rimraf .coverage",
     "fresh-start": "npm run clean && rimraf node_modules"
   },
   "bugs": {

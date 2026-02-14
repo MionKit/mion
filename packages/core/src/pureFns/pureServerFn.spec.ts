@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {pureServerFn, pureServerFnGroup, extractDataFromPureFnDef, extractDataFromPureFnDefList} from './pureServerFn.ts';
+import {pureServerFn, pureServerFnGroup} from './pureServerFn.ts';
 import {resetHashes, pureFnHashLength} from '@mionkit/core';
 
 beforeAll(() => {
@@ -170,9 +170,9 @@ describe('pureServerFn', () => {
     });
 });
 
-describe('extractDataFromPureFnDef', () => {
+describe('pureServerFn', () => {
     it('should extract all data from a PureFnDef', () => {
-        const ref = extractDataFromPureFnDef({
+        const ref = pureServerFn({
             pureFn: function testFn(x: number) {
                 return x * 2;
             },
@@ -186,7 +186,7 @@ describe('extractDataFromPureFnDef', () => {
     });
 
     it('should use custom namespace when provided', () => {
-        const ref = extractDataFromPureFnDef({
+        const ref = pureServerFn({
             pureFn: function testFn(x: number) {
                 return x;
             },
@@ -197,7 +197,7 @@ describe('extractDataFromPureFnDef', () => {
     });
 
     it('should use custom fnName when provided', () => {
-        const ref = extractDataFromPureFnDef({
+        const ref = pureServerFn({
             pureFn: (x: number) => x,
             fnName: 'myFnName',
         });
@@ -206,9 +206,9 @@ describe('extractDataFromPureFnDef', () => {
     });
 });
 
-describe('extractDataFromPureFnDefList', () => {
+describe('pureServerFnGroup', () => {
     it('should extract data from a list of PureFnDef objects', () => {
-        const refs = extractDataFromPureFnDefList([
+        const refs = pureServerFnGroup([
             {
                 pureFn: function fnA(x: number) {
                     return x + 1;
@@ -227,7 +227,7 @@ describe('extractDataFromPureFnDefList', () => {
     });
 
     it('should add cross-dependencies to all functions', () => {
-        const refs = extractDataFromPureFnDefList([
+        const refs = pureServerFnGroup([
             {
                 pureFn: function fnA(x: number) {
                     return x + 1;

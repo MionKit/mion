@@ -6,7 +6,7 @@
  * ######## */
 
 import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, PureFunctionClosure} from '@mionkit/core';
-import {MAX_STACK_DEPTH, getJitUtils, quickHash, registerPureFnClosure, getPureFunctionKey, err, formatErr} from '@mionkit/core';
+import {MAX_STACK_DEPTH, getJitUtils, quickHash, registerPureFnClosure, getPureFunctionKey} from '@mionkit/core';
 import type {TypeFunction} from '@deepkit/type';
 import type {Mutable, JitFnID, StrNumber, JitCode, RunTypeOptions, JitCompilerOpts, RunTypeChildAccessor} from '../types.ts';
 import type {BaseRunType} from './baseRunTypes.ts';

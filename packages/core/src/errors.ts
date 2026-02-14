@@ -12,11 +12,11 @@ import type {
     DataOnly,
     RpcErrorParams,
     RunTypeError,
+    StrNumber,
 } from './types/general.types.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 import {randomUUID_V7} from './utils.ts';
 import {getJitUtils} from './jit/jitUtils.ts';
-import {hasUnknownKeysFromArray} from './pureFns/corePureUtils.ts';
 
 // ############# Validation Error Types #############
 
@@ -150,10 +150,19 @@ export class RpcError<ErrType extends string, ErrData = any>
 
 // #######  Error Type Guards #######
 
-let hasUnknownKeys: any = undefined;
-function getHasUnknownKeysFn() {
-    if (hasUnknownKeys === undefined) hasUnknownKeys = hasUnknownKeysFromArray();
-    return hasUnknownKeys;
+function hasUnknownKeys(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
+    for (const prop in obj) {
+        // iterates over the object keys and if not found prop adds to unknownKeys
+        let found = false;
+        for (let j = 0; j < keys.length; j++) {
+            if (keys[j] === prop) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) return true;
+    }
+    return false;
 }
 
 /** Returns true if the error is a TypedError or has the same structure. */
@@ -164,7 +173,7 @@ export function isTypedError(error: any): error is TypedError<any> {
         error &&
         error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        !getHasUnknownKeysFn()(error, ['mion@isΣrrθr', 'type', 'message'])
+        !hasUnknownKeys(error, ['mion@isΣrrθr', 'type', 'message'])
     );
 }
 
@@ -177,7 +186,7 @@ export function isRpcError(error: any): error is RpcError<string> {
         error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
         (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
-        !getHasUnknownKeysFn()(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type', 'statusCode'])
+        !hasUnknownKeys(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type', 'statusCode'])
     );
 }
 

@@ -5,10 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JITUtils} from '../jit/jitUtils.ts';
+import {describe, it, expect} from 'vitest';
 import type {CompiledPureFunction, GenericPureFunction} from '../types/pureFunctions.types.ts';
-import {registerPureFnClosure, registerPureFnClosuresGroup} from './pureFn.ts';
+import {JITUtils} from '../jit/jitUtils.ts';
+import {pureServerFn, pureServerFnGroup} from './pureServerFn.ts';
 import {getJitUtils} from '../jit/jitUtils.ts';
+import {registerPureFnClosure, registerPureFnClosuresGroup} from './pureFn.ts';
 
 const TEST_NAMESPACE = 'test';
 
@@ -167,5 +169,60 @@ describe('bodyHash generation', () => {
         const compiled = getCompiledPureFn(TEST_NAMESPACE, 'hashLengthTestFn');
         expect(compiled?.bodyHash).toBeDefined();
         expect(compiled?.bodyHash.length).toBe(8);
+    });
+});
+
+describe('pureServerFn with factory functions', () => {
+    it('should return a PureServerFnRef with correct metadata for factory functions', () => {
+        /** @reflection never */
+        function stringPureFn() {
+            const isNumericRegexp = /^[0-9]+$/;
+            return function is_s(s: string, p: {isLowercase?: boolean; isNumeric?: boolean}): boolean {
+                if (p.isLowercase && s !== s.toLowerCase()) return false;
+                if (p.isNumeric && !isNumericRegexp.test(s)) return false;
+                return true;
+            };
+        }
+        const ref = pureServerFn({namespace: TEST_NAMESPACE, pureFn: stringPureFn, isFactory: true});
+        expect(ref.namespace).toBe(TEST_NAMESPACE);
+        expect(ref.fnName).toBe('stringPureFn');
+        expect(ref.isFactory).toBe(true);
+        expect(ref.bodyHash).toBeDefined();
+        expect(ref.pureFn).toBe(stringPureFn);
+    });
+
+    it('pureServerFnGroup should return refs with cross-dependencies for factory functions', () => {
+        type Params = {
+            isA?: boolean;
+            isB?: boolean;
+        };
+        /** @reflection never */
+        function pureFunctionA() {
+            return function is_a(s: string, p: Params): boolean {
+                if (p.isA) return s.includes('a');
+                return true;
+            };
+        }
+        /** @reflection never */
+        function pureFunctionB() {
+            return function is_b(s: string, p: Params): boolean {
+                if (p.isB) return s.includes('b');
+                return true;
+            };
+        }
+        const refs = pureServerFnGroup([
+            {namespace: TEST_NAMESPACE, pureFn: pureFunctionA, isFactory: true},
+            {namespace: TEST_NAMESPACE, pureFn: pureFunctionB, isFactory: true},
+        ]);
+
+        expect(refs.length).toBe(2);
+        expect(refs[0].fnName).toBe('pureFunctionA');
+        expect(refs[1].fnName).toBe('pureFunctionB');
+        expect(refs[0].isFactory).toBe(true);
+        expect(refs[1].isFactory).toBe(true);
+
+        // Check cross-dependencies are set
+        expect(refs[0].dependencies).toContain(`${TEST_NAMESPACE}::pureFunctionB`);
+        expect(refs[1].dependencies).toContain(`${TEST_NAMESPACE}::pureFunctionA`);
     });
 });
