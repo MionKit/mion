@@ -51,6 +51,7 @@ export default defineConfig({
         emptyOutDir: true,
         sourcemap: true,
         minify: false,
+        ssr: true, // Build for Node.js environment
         rollupOptions: {
             output: [
                 {
@@ -68,7 +69,7 @@ export default defineConfig({
                     preserveModulesRoot: 'src/vite-plugin',
                 },
             ],
-            external: ['@mionkit/core', 'vite', /^[^./]/],
+            external: ['@deepkit/type-compiler', '@rollup/pluginutils', 'typescript', 'vite', 'fs', 'path', /^node:/],
         },
     },
 });
