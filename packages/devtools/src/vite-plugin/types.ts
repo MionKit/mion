@@ -7,7 +7,7 @@ export interface PureServerFnRegistryEntry {
     readonly code: string;
     /** Hash of the function body - used for version validation */
     readonly bodyHash: string;
-    readonly dependencies: string[];
+    readonly dependencies: Set<string>;
     /** Indicates if this is a factory function that receives jitUtils */
     readonly isFactory: boolean;
 }
@@ -40,7 +40,7 @@ export interface ExtractedPureFn {
     /** Hash of the function body - used for version validation */
     bodyHash: string;
     /** Dependencies in format "namespace::fnName" */
-    dependencies: string[];
+    dependencies: Set<string>;
     sourceFile: string;
     /** Indicates if this is a factory function that receives jitUtils */
     isFactory: boolean;

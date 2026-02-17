@@ -22,7 +22,7 @@ ${entries.join(',\n')}
 
 /** Generates the code for a single CompiledPureFunction entry (keyed by namespace::fnName) */
 function generateEntryCode(fn: ExtractedPureFn): string {
-    const depsArray = fn.dependencies.map((d) => JSON.stringify(d)).join(', ');
+    const depsArray = [...fn.dependencies].map((d) => JSON.stringify(d)).join(', ');
     const paramsArray = fn.paramNames.map((p) => JSON.stringify(p)).join(', ');
 
     // Generate the createJitFn closure that creates the actual function

@@ -38,10 +38,10 @@ export function pureServerFn<F extends (...args: any[]) => any>(def: PureFnDef<F
 /** Allows to register a group of pure functions and mark them as dependencies of each other */
 export function pureServerFnGroup<F extends (...args: any[]) => any>(defs: PureFnDef<F>[]): PureServerFnRef<F>[] {
     const refs = defs.map((def) => extractDataFromPureFnDef(def));
-    const allKeys = refs.map((ref) => `${ref.namespace}::${ref.fnName}`);
+    const allKeys = new Set(refs.map((ref) => `${ref.namespace}::${ref.fnName}`));
     for (const ref of refs) {
         const ownKey = `${ref.namespace}::${ref.fnName}`;
-        ref.dependencies = allKeys.filter((key) => key !== ownKey);
+        ref.dependencies = new Set([...allKeys].filter((key) => key !== ownKey));
     }
     return refs;
 }

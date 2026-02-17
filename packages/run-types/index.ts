@@ -67,6 +67,3 @@ export type * from './src/nodes/native/map.ts';
 export type * from './src/nodes/native/nonSerializable.ts';
 export type * from './src/nodes/native/promise.ts';
 export type * from './src/nodes/native/set.ts';
-
-import {registerCorePureUtils} from './src/lib/jitRunTimePureFnUtils.ts';
-registerCorePureUtils();

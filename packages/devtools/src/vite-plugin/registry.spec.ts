@@ -12,7 +12,7 @@ describe('createRegistry', () => {
                 paramNames: ['users'],
                 code: 'return users.map((u) => ({userId: u.id}));',
                 bodyHash: 'abc12345',
-                dependencies: [],
+                dependencies: new Set(),
                 sourceFile: 'test.ts',
                 isFactory: false,
             },
@@ -38,7 +38,7 @@ describe('createRegistry', () => {
                 paramNames: ['x'],
                 code: 'return x + 1;',
                 bodyHash: 'hash1',
-                dependencies: [],
+                dependencies: new Set(),
                 sourceFile: 'test.ts',
                 isFactory: false,
             },
@@ -48,7 +48,7 @@ describe('createRegistry', () => {
                 paramNames: ['x'],
                 code: 'return x * 2;',
                 bodyHash: 'hash2',
-                dependencies: [`${PURE_SERVER_FN_NAMESPACE}::fn1`],
+                dependencies: new Set([`${PURE_SERVER_FN_NAMESPACE}::fn1`]),
                 sourceFile: 'test.ts',
                 isFactory: false,
             },
@@ -58,7 +58,7 @@ describe('createRegistry', () => {
         expect(Object.keys(registry.entries)).toHaveLength(2);
         // Registry is now keyed by namespace::fnName
         const key2 = `${PURE_SERVER_FN_NAMESPACE}::fn2`;
-        expect(registry.entries[key2].dependencies).toEqual([`${PURE_SERVER_FN_NAMESPACE}::fn1`]);
+        expect(registry.entries[key2].dependencies).toEqual(new Set([`${PURE_SERVER_FN_NAMESPACE}::fn1`]));
     });
 
     it('should handle functions with bodyHash as fnName (anonymous functions)', () => {
@@ -69,7 +69,7 @@ describe('createRegistry', () => {
                 paramNames: ['x'],
                 code: 'return x + 1;',
                 bodyHash: 'anonHash',
-                dependencies: [],
+                dependencies: new Set(),
                 sourceFile: 'test.ts',
                 isFactory: false,
             },
@@ -90,7 +90,7 @@ describe('createRegistry', () => {
                 paramNames: ['jitUtils'],
                 code: 'return function inner(x) { return x + 1; };',
                 bodyHash: 'factoryHash',
-                dependencies: [],
+                dependencies: new Set(),
                 sourceFile: 'test.ts',
                 isFactory: true,
             },
@@ -112,7 +112,7 @@ describe('createRegistry', () => {
                 paramNames: ['x'],
                 code: 'return x + 1;',
                 bodyHash: 'hash1',
-                dependencies: [],
+                dependencies: new Set(),
                 sourceFile: 'test.ts',
                 isFactory: false,
             },
@@ -122,7 +122,7 @@ describe('createRegistry', () => {
                 paramNames: ['x'],
                 code: 'return x * 2;',
                 bodyHash: 'hash2',
-                dependencies: ['namespace1::fn1'],
+                dependencies: new Set(['namespace1::fn1']),
                 sourceFile: 'test.ts',
                 isFactory: false,
             },
@@ -133,6 +133,6 @@ describe('createRegistry', () => {
         expect(registry.entries['namespace2::fn2']).toBeDefined();
         expect(registry.entries['namespace1::fn1'].namespace).toBe('namespace1');
         expect(registry.entries['namespace2::fn2'].namespace).toBe('namespace2');
-        expect(registry.entries['namespace2::fn2'].dependencies).toEqual(['namespace1::fn1']);
+        expect(registry.entries['namespace2::fn2'].dependencies).toEqual(new Set(['namespace1::fn1']));
     });
 });

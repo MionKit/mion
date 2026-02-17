@@ -62,6 +62,7 @@ import {SetRunType} from './nodes/native/set.ts';
 import {SymbolRunType} from './nodes/atomic/symbol.ts';
 import {NonSerializableRunType} from './nodes/native/nonSerializable.ts';
 import {registerErrorDeserializers} from '@mionkit/core';
+import {registerCorePureUtils} from './lib/jitRunTimePureFnUtils.ts';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
     const start = Date.now();
@@ -321,3 +322,6 @@ function initClassRunType(src: TypeClass & {subKind?: number}): BaseRunType {
             return new ClassRunType();
     }
 }
+
+// need to register all pure functions utils so they are available to jit functions
+registerCorePureUtils();

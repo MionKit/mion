@@ -119,10 +119,10 @@ function extractDataFromPureFnDefListAST(
     }
 
     // Add cross-dependencies to all extracted functions
-    const allKeys = fns.map((fn) => `${fn.namespace}::${fn.fnName}`);
+    const allKeys = new Set(fns.map((fn) => `${fn.namespace}::${fn.fnName}`));
     for (const fn of fns) {
         const ownKey = `${fn.namespace}::${fn.fnName}`;
-        fn.dependencies = allKeys.filter((key) => key !== ownKey);
+        fn.dependencies = new Set([...allKeys].filter((key) => key !== ownKey));
     }
 
     return fns;
@@ -247,7 +247,7 @@ function extractPureFnDefFromObjectLiteral(
         paramNames,
         code: bodyText,
         bodyHash,
-        dependencies: [],
+        dependencies: new Set(),
         sourceFile: filePath,
         isFactory,
     };

@@ -84,8 +84,8 @@ export interface PureServerFnRef<F extends (...args: any[]) => any = (...args: a
     /** Hash of the function body - used as the unique identifier */
     readonly bodyHash: string;
     /**
-     * List of pure function dependencies id is equal to `namespace::fnName`
+     * Set of pure function dependencies id is equal to `namespace::fnName`
      * This is used so when a function is required by a client all the rest of dependencies are also sent to the client
      */
-    dependencies?: string[];
+    dependencies?: Set<string>;
 }
