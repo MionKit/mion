@@ -375,17 +375,17 @@ const [refA, refB, refC] = pureServerFnGroup([
         const fn2Result = result.find((f) => f.fnName === 'double')!;
         const fn3Result = result.find((f) => f.fnName === 'triple')!;
 
-        expect(fn1Result.dependencies).toContain(`${PURE_SERVER_FN_NAMESPACE}::double`);
-        expect(fn1Result.dependencies).toContain(`${PURE_SERVER_FN_NAMESPACE}::triple`);
-        expect(fn1Result.dependencies).not.toContain(`${PURE_SERVER_FN_NAMESPACE}::addOne`);
+        expect(fn1Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::double`)).toBe(true);
+        expect(fn1Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::triple`)).toBe(true);
+        expect(fn1Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::addOne`)).toBe(false);
 
-        expect(fn2Result.dependencies).toContain(`${PURE_SERVER_FN_NAMESPACE}::addOne`);
-        expect(fn2Result.dependencies).toContain(`${PURE_SERVER_FN_NAMESPACE}::triple`);
-        expect(fn2Result.dependencies).not.toContain(`${PURE_SERVER_FN_NAMESPACE}::double`);
+        expect(fn2Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::addOne`)).toBe(true);
+        expect(fn2Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::triple`)).toBe(true);
+        expect(fn2Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::double`)).toBe(false);
 
-        expect(fn3Result.dependencies).toContain(`${PURE_SERVER_FN_NAMESPACE}::addOne`);
-        expect(fn3Result.dependencies).toContain(`${PURE_SERVER_FN_NAMESPACE}::double`);
-        expect(fn3Result.dependencies).not.toContain(`${PURE_SERVER_FN_NAMESPACE}::triple`);
+        expect(fn3Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::addOne`)).toBe(true);
+        expect(fn3Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::double`)).toBe(true);
+        expect(fn3Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::triple`)).toBe(false);
     });
 
     it('should handle groups with custom namespaces', () => {
@@ -406,8 +406,8 @@ const [refA, refB] = pureServerFnGroup([
         expect(fn1Result.namespace).toBe('customNs');
         expect(fn2Result.namespace).toBe('customNs');
 
-        expect(fn1Result.dependencies).toContain('customNs::double');
-        expect(fn2Result.dependencies).toContain('customNs::addOne');
+        expect(fn1Result.dependencies.has('customNs::double')).toBe(true);
+        expect(fn2Result.dependencies.has('customNs::addOne')).toBe(true);
     });
 
     it('should handle groups with mixed namespaces', () => {
@@ -425,8 +425,8 @@ const [refA, refB] = pureServerFnGroup([
         const fn1Result = result.find((f) => f.fnName === 'addOne')!;
         const fn2Result = result.find((f) => f.fnName === 'double')!;
 
-        expect(fn1Result.dependencies).toContain('ns2::double');
-        expect(fn2Result.dependencies).toContain('ns1::addOne');
+        expect(fn1Result.dependencies.has('ns2::double')).toBe(true);
+        expect(fn2Result.dependencies.has('ns1::addOne')).toBe(true);
     });
 
     it('should throw when pureServerFnGroup argument is not an array literal', () => {
@@ -772,8 +772,8 @@ export const [refA, refB] = pureServerFnGroup([
         expect(astFnB.bodyHash).toBe(runtimeFnB.bodyHash);
 
         // Dependencies should also match
-        expect(astFnA.dependencies).toContain('pureServerFn::fnB');
-        expect(astFnB.dependencies).toContain('pureServerFn::fnA');
+        expect(astFnA.dependencies.has('pureServerFn::fnB')).toBe(true);
+        expect(astFnB.dependencies.has('pureServerFn::fnA')).toBe(true);
     });
 
     it('should produce same bodyHash with custom namespace', () => {
