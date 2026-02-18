@@ -24,6 +24,7 @@ import {emitToBinary} from '../jitCompilers/binary/toBinary.ts';
 import {emitFromBinary} from '../jitCompilers/binary/fromBinary.ts';
 import {emitToCode} from '../jitCompilers/json/toJsCode.ts';
 import {createJitFunction, getJITFnHash} from './createJitFunction.ts';
+import {err, formatErr} from './jitRunTimePureFnUtils.ts';
 
 const RB = CodeTypes.returnBlock;
 const S = CodeTypes.statement;
@@ -40,7 +41,6 @@ export type StackItem = {
 };
 
 export type JitCompilerLike = BaseFnCompiler | JitCompiledFnData;
-export type JitDependencies = Set<string>;
 
 /**
  * Program to compile a Jit function to be used at runtime.
@@ -100,8 +100,8 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
      */
     readonly isNoop?: boolean = false;
     /** The list of all jit functions that are used by this function and it's children. */
-    readonly dependenciesSet: JitDependencies = new Set();
-    readonly pureFnDependencies: Set<string> = new Set();
+    readonly jitDependencies: Array<string> = [];
+    readonly pureFnDependencies: Array<string> = [];
     /** The list of types being compiled.*/
     readonly stack: StackItem[] = [];
     popItem: StackItem | undefined;
@@ -221,7 +221,8 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
     }
     updateDependencies(childComp: JitCompiledFnData): void {
         if (childComp.isNoop) return; // noop functions are not added to dependencies as shouldn't be used inside jit code neither
-        this.dependenciesSet.add(childComp.jitFnHash);
+        if (this.jitDependencies.includes(childComp.jitFnHash)) return;
+        this.jitDependencies.push(childComp.jitFnHash);
     }
     removeFromJitCache(): void {
         getJitUtils().removeFromJitCache(this as JitCompiledFn);
@@ -570,7 +571,9 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
                 `Pure function with name ${fnName} can not be added as jit dependency in namespace ${namespace}, be sure to register the pure function first by calling getJitUtils().addPureFn()`
             );
         // Store as "namespace::fnHash" format (using :: to avoid conflicts with : in names)
-        this.pureFnDependencies.add(`${namespace}::${fnName}`);
+        const key = `${namespace}::${fnName}`;
+        if (this.pureFnDependencies.includes(key)) return;
+        this.pureFnDependencies.push(key);
     }
 }
 

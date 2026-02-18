@@ -27,7 +27,7 @@ import type {ArrayRunType} from '../../nodes/member/array.ts';
 import type {MemberRunType} from '../../lib/baseRunTypes.ts';
 import type {LiteralRunType} from '../../nodes/atomic/literal.ts';
 import type {IterableRunType} from '../../nodes/native/Iterable.ts';
-import {asJSONString} from '@mionkit/core';
+import {asJSONString} from '../../lib/jitRunTimePureFnUtils.ts';
 
 type Operation = typeof JitFunctions.stringifyJson.id | typeof JitFunctions.toJSCode.id;
 

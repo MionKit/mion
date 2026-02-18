@@ -136,10 +136,10 @@ export function serializePureDeps(namespacedDepHash: string, purFnDeps: PureFnsD
     if (purFnDeps[namespace][fnHash]) return;
     const pureDep = getJitUtils().getCompiledPureFn(namespace, fnHash);
     if (!pureDep) throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
-    const serializedPureDep: PureFunctionData = {...pureDep, dependencies: new Set(pureDep.dependencies)};
+    const serializedPureDep: PureFunctionData = {...pureDep, pureFnDependencies: [...pureDep.pureFnDependencies]};
     purFnDeps[namespace][fnHash] = serializedPureDep;
     // Dependencies within the same namespace are stored as just fnHash, not namespaced
-    pureDep.dependencies.forEach((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1));
+    pureDep.pureFnDependencies.forEach((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1));
 }
 
 export function serializeJitFn(
@@ -155,7 +155,7 @@ export function serializeJitFn(
     if (deps[jitFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies
     const serializedJitFn = getSerializableJitCompiler(jitFn);
     deps[jitFnHash] = serializedJitFn;
-    jitFn.dependenciesSet.forEach((h) => serializeJitFn(h, deps, purFnDeps, depth + 1));
+    jitFn.jitDependencies.forEach((h) => serializeJitFn(h, deps, purFnDeps, depth + 1));
     jitFn.pureFnDependencies.forEach((h) => serializePureDeps(h, purFnDeps));
 }
 
@@ -185,8 +185,8 @@ function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {
         isNoop: comp.isNoop,
         defaultParamValues: structuredClone(comp.defaultParamValues),
         code: comp.code,
-        dependenciesSet: new Set(comp.dependenciesSet),
-        pureFnDependencies: new Set(comp.pureFnDependencies),
+        jitDependencies: [...comp.jitDependencies],
+        pureFnDependencies: [...comp.pureFnDependencies],
         ...(comp.paramNames ? {paramNames: [...comp.paramNames]} : {}),
     };
 }

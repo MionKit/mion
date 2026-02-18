@@ -81,12 +81,7 @@ export function storeDependencies(deps: Record<string, JitCompiledFnData>, pureF
     Object.entries(deps).forEach(([hash, jitFnData]: [string, JitCompiledFnData]) => {
         const key = getJitCompiledFnKey(hash, options);
         try {
-            const serializableJitFnData = {
-                ...jitFnData,
-                dependenciesSet: Array.from(jitFnData.dependenciesSet),
-                pureFnDependencies: Array.from(jitFnData.pureFnDependencies),
-            };
-            localStorage.setItem(key, JSON.stringify(serializableJitFnData));
+            localStorage.setItem(key, JSON.stringify(jitFnData));
         } catch (error) {
             console.warn(`Failed to store JIT function dependency ${hash}:`, error);
         }
@@ -97,11 +92,7 @@ export function storeDependencies(deps: Record<string, JitCompiledFnData>, pureF
         Object.entries(nsPureFns).forEach(([fnHash, pureFnData]: [string, PureFunctionData]) => {
             const key = getJitPureFnKey(namespace, fnHash, options);
             try {
-                const serializablePureFnData = {
-                    ...pureFnData,
-                    dependencies: Array.from(pureFnData.dependencies),
-                };
-                localStorage.setItem(key, JSON.stringify(serializablePureFnData));
+                localStorage.setItem(key, JSON.stringify(pureFnData));
             } catch (error) {
                 console.warn(`Failed to store pure function dependency ${namespace}::${fnHash}:`, error);
             }
@@ -134,12 +125,7 @@ export function restoreAllDependencies(options: ClientOptions) {
                 const data = localStorage.getItem(key);
                 if (data) {
                     const parsedData = JSON.parse(data);
-                    const jitFnData: JitCompiledFnData = {
-                        ...parsedData,
-                        dependenciesSet: new Set(parsedData.dependenciesSet),
-                        pureFnDependencies: new Set(parsedData.pureFnDependencies),
-                    };
-                    deps[jitFnData.jitFnHash] = jitFnData;
+                    deps[parsedData.jitFnHash] = parsedData;
                 }
             } catch (error) {
                 console.warn(`Failed to restore JIT function from key ${key}:`, error);
@@ -154,15 +140,11 @@ export function restoreAllDependencies(options: ClientOptions) {
                 const data = localStorage.getItem(key);
                 if (data) {
                     const parsedData = JSON.parse(data);
-                    const pureFnData: PureFunctionData = {
-                        ...parsedData,
-                        dependencies: new Set(parsedData.dependencies),
-                    };
                     // Extract namespace from key: "mion:jit-pure-fn:baseURL:namespace:fnHash"
                     const keyParts = key.slice(pureFnKeyPrefix.length).split(':');
-                    const namespace = keyParts[0] || pureFnData.namespace;
+                    const namespace = keyParts[0] || parsedData.namespace;
                     if (!pureFnDeps[namespace]) pureFnDeps[namespace] = {};
-                    pureFnDeps[namespace][pureFnData.fnName] = pureFnData;
+                    pureFnDeps[namespace][parsedData.fnName] = parsedData;
                 }
             } catch (error) {
                 console.warn(`Failed to restore pure function from key ${key}:`, error);

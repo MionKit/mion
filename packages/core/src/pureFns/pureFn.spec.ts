@@ -71,10 +71,10 @@ it('register a group of pure functions so all declared as dependencies', async (
     expect(compiledIsB).toBeDefined();
     expect(compiledIsA?.fn).toBeDefined();
     expect(compiledIsB?.fn).toBeDefined();
-    expect(compiledIsA?.dependencies.has('pureFunctionB')).toBeTruthy();
-    expect(compiledIsB?.dependencies.has('pureFunctionA')).toBeTruthy();
-    expect(compiledIsA?.dependencies.has('pureFunctionA')).toBeFalsy();
-    expect(compiledIsB?.dependencies.has('pureFunctionB')).toBeFalsy();
+    expect(compiledIsA?.pureFnDependencies.has('pureFunctionB')).toBeTruthy();
+    expect(compiledIsB?.pureFnDependencies.has('pureFunctionA')).toBeTruthy();
+    expect(compiledIsA?.pureFnDependencies.has('pureFunctionA')).toBeFalsy();
+    expect(compiledIsB?.pureFnDependencies.has('pureFunctionB')).toBeFalsy();
     // Verify namespace is set correctly
     expect(compiledIsA?.namespace).toBe(TEST_NAMESPACE);
     expect(compiledIsB?.namespace).toBe(TEST_NAMESPACE);
@@ -222,7 +222,7 @@ describe('pureServerFn with factory functions', () => {
         expect(refs[1].isFactory).toBe(true);
 
         // Check cross-dependencies are set
-        expect(refs[0].dependencies).toContain(`${TEST_NAMESPACE}::pureFunctionB`);
-        expect(refs[1].dependencies).toContain(`${TEST_NAMESPACE}::pureFunctionA`);
+        expect(refs[0].pureFnDependencies).toContain(`${TEST_NAMESPACE}::pureFunctionB`);
+        expect(refs[1].pureFnDependencies).toContain(`${TEST_NAMESPACE}::pureFunctionA`);
     });
 });

@@ -20,7 +20,7 @@ export function registerPureFnClosuresGroup(namespace: string, fnsWithCtx: PureF
     compiledFns.forEach((cfn) => {
         compiledFns.forEach((cf) => {
             if (cfn.fnName === cf.fnName) return;
-            cf.dependencies.add(cfn.fnName);
+            cf.pureFnDependencies.add(cfn.fnName);
         });
     });
     return compiledFns;
@@ -37,7 +37,7 @@ export function registerPureFnClosure(
     const compiled = parsePureFunctionWithCtx(namespace, fnWithCtx);
     if (dependencies) {
         dependencies.forEach((d) => registerPureFnClosure(namespace, d));
-        dependencies.forEach((d) => compiled.dependencies.add(getPureFunctionKey(d)));
+        dependencies.forEach((d) => compiled.pureFnDependencies.add(getPureFunctionKey(d)));
     }
     getJitUtils().addPureFn(namespace, compiled);
     return compiled;
@@ -84,7 +84,7 @@ function parsePureFunctionWithCtx(namespace: string, createJitFn: PureFunctionCl
         bodyHash: createUniqueHash(namespace + createJitFn.name + body, pureFnHashLength),
         paramNames,
         code: body,
-        dependencies: new Set<string>(),
+        pureFnDependencies: new Set<string>(),
     };
     return compiled;
 }
