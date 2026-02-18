@@ -11,7 +11,7 @@ import {GenericMemberRunType} from '../member/genericMember.ts';
 import {IterableRunType} from './Iterable.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import type {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
-import {safeKey} from '@mionkit/core';
+import {safeKey} from '../../lib/jitRunTimePureFnUtils.ts';
 export class SetRunType extends IterableRunType {
     keyRT = new SetKeyRunType();
     children = [this.keyRT];

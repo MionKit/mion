@@ -339,7 +339,7 @@ describe('AOT Lazy Loading', () => {
             args: {vλl: 'value'},
             defaultParamValues: {vλl: ''},
             code: 'return value;',
-            dependenciesSet: new Set(),
+            jitDependencies: new Set(),
             pureFnDependencies: new Set(),
             createJitFn: () => (value: any) => value, // Simple pass-through function
             fn: undefined,

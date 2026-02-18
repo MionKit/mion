@@ -47,7 +47,7 @@ export interface PureFunctionData {
     /** Hash of the function body for version validation */
     readonly bodyHash: string;
     /** The list of all pure functions that are used by this function and it's children. */
-    readonly dependencies: Set<string>;
+    readonly pureFnDependencies: Array<string>;
 }
 export interface CompiledPureFunction extends PureFunctionData {
     createJitFn: PureFunctionClosure;
@@ -87,5 +87,5 @@ export interface PureServerFnRef<F extends (...args: any[]) => any = (...args: a
      * Set of pure function dependencies id is equal to `namespace::fnName`
      * This is used so when a function is required by a client all the rest of dependencies are also sent to the client
      */
-    dependencies?: Set<string>;
+    pureFnDependencies?: Array<string>;
 }

@@ -246,19 +246,19 @@ describe('pureServerFnGroup', () => {
         ]);
 
         // fnA should depend on fnB and fnC
-        expect(refs[0].dependencies).toContain('pureServerFn::fnB');
-        expect(refs[0].dependencies).toContain('pureServerFn::fnC');
-        expect(refs[0].dependencies).not.toContain('pureServerFn::fnA');
+        expect(refs[0].pureFnDependencies).toContain('pureServerFn::fnB');
+        expect(refs[0].pureFnDependencies).toContain('pureServerFn::fnC');
+        expect(refs[0].pureFnDependencies).not.toContain('pureServerFn::fnA');
 
         // fnB should depend on fnA and fnC
-        expect(refs[1].dependencies).toContain('pureServerFn::fnA');
-        expect(refs[1].dependencies).toContain('pureServerFn::fnC');
-        expect(refs[1].dependencies).not.toContain('pureServerFn::fnB');
+        expect(refs[1].pureFnDependencies).toContain('pureServerFn::fnA');
+        expect(refs[1].pureFnDependencies).toContain('pureServerFn::fnC');
+        expect(refs[1].pureFnDependencies).not.toContain('pureServerFn::fnB');
 
         // fnC should depend on fnA and fnB
-        expect(refs[2].dependencies).toContain('pureServerFn::fnA');
-        expect(refs[2].dependencies).toContain('pureServerFn::fnB');
-        expect(refs[2].dependencies).not.toContain('pureServerFn::fnC');
+        expect(refs[2].pureFnDependencies).toContain('pureServerFn::fnA');
+        expect(refs[2].pureFnDependencies).toContain('pureServerFn::fnB');
+        expect(refs[2].pureFnDependencies).not.toContain('pureServerFn::fnC');
     });
 });
 
@@ -281,12 +281,12 @@ describe('pureServerFnGroup', () => {
         expect(refB.fnName).toBe('fnB');
 
         // refA should depend on refB
-        expect(refA.dependencies).toContain('pureServerFn::fnB');
-        expect(refA.dependencies).not.toContain('pureServerFn::fnA');
+        expect(refA.pureFnDependencies).toContain('pureServerFn::fnB');
+        expect(refA.pureFnDependencies).not.toContain('pureServerFn::fnA');
 
         // refB should depend on refA
-        expect(refB.dependencies).toContain('pureServerFn::fnA');
-        expect(refB.dependencies).not.toContain('pureServerFn::fnB');
+        expect(refB.pureFnDependencies).toContain('pureServerFn::fnA');
+        expect(refB.pureFnDependencies).not.toContain('pureServerFn::fnB');
     });
 
     it('should use custom namespace for all functions', () => {
@@ -307,8 +307,8 @@ describe('pureServerFnGroup', () => {
 
         expect(refs[0].namespace).toBe('myNs');
         expect(refs[1].namespace).toBe('myNs');
-        expect(refs[0].dependencies).toContain('myNs::fnB');
-        expect(refs[1].dependencies).toContain('myNs::fnA');
+        expect(refs[0].pureFnDependencies).toContain('myNs::fnB');
+        expect(refs[1].pureFnDependencies).toContain('myNs::fnA');
     });
 
     it('should handle mixed namespaces', () => {
@@ -329,7 +329,7 @@ describe('pureServerFnGroup', () => {
 
         expect(refs[0].namespace).toBe('nsA');
         expect(refs[1].namespace).toBe('nsB');
-        expect(refs[0].dependencies).toContain('nsB::fnB');
-        expect(refs[1].dependencies).toContain('nsA::fnA');
+        expect(refs[0].pureFnDependencies).toContain('nsB::fnB');
+        expect(refs[1].pureFnDependencies).toContain('nsA::fnA');
     });
 });

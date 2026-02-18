@@ -16,7 +16,7 @@ import {MethodRunType} from '../member/method.ts';
 import {CallSignatureRunType} from '../member/callSignature.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import {isIndexSignatureRunType} from '../../lib/guards.ts';
-import {getUnknownKeysFromArray, hasUnknownKeysFromArray} from '@mionkit/core';
+import {getUnknownKeysFromArray, hasUnknownKeysFromArray} from '../../lib/jitRunTimePureFnUtils.ts';
 
 export type InterfaceMember =
     | PropertyRunType

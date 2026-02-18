@@ -72,7 +72,7 @@ describe('SerializableMethodsData JitCompiler', () => {
         const clone = mockData();
         const jsonString = JSON.stringify(prepareForJson(clone));
         const restored = restoreFromJson(JSON.parse(jsonString));
-        console.log(restored.deps.isType.dependenciesSet);
+        console.log(restored.deps.isType.jitDependencies);
         expect(restored).toEqual(restoredMethodsData);
     });
 
@@ -159,8 +159,8 @@ function mockData(): SerializableMethodsData {
         args: {vλl: 'v', θpts: 'opts', εrr: 'er'},
         defaultParamValues: {vλl: '', θpts: '{}', εrr: '[]'},
         code: 'function isType(v) {return typeof v === "string";} return isType;',
-        dependenciesSet: new Set<string>(),
-        pureFnDependencies: new Set<string>(),
+        jitDependencies: [],
+        pureFnDependencies: [],
     };
     const compiledFnData2: JitCompiledFnData = {
         typeName: 'string',
@@ -169,8 +169,8 @@ function mockData(): SerializableMethodsData {
         args: {vλl: 'v', θpts: 'opts', εrr: 'er', someOther: 'so'},
         defaultParamValues: {vλl: '', θpts: '{}', εrr: '[]', someOther: ''},
         code: 'function prepareForJson(v) {return v;} return prepareForJson;',
-        dependenciesSet: new Set<string>(),
-        pureFnDependencies: new Set<string>(['test::addNumbers']),
+        jitDependencies: [],
+        pureFnDependencies: ['test::addNumbers'],
     };
     const pureFunctionData1: PureFunctionData = {
         namespace: 'test',
@@ -178,7 +178,7 @@ function mockData(): SerializableMethodsData {
         code: 'function addNumbers(a, b) {return a + b;} return addNumbers;',
         fnName: 'addNumbers',
         bodyHash: 'addNumbers_hash',
-        dependencies: new Set<string>(),
+        pureFnDependencies: [],
     };
     const pureFunctionData2: PureFunctionData = {
         namespace: 'test',
@@ -186,7 +186,7 @@ function mockData(): SerializableMethodsData {
         code: 'function multiplyNumbers(a, b) {return a * b;} return multiplyNumbers;',
         fnName: 'multiplyNumbers',
         bodyHash: 'multiplyNumbers_hash',
-        dependencies: new Set<string>(['test::addNumbers']),
+        pureFnDependencies: ['test::addNumbers'],
     };
     const md: SerializableMethodsData = {
         methods: {

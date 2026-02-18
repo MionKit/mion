@@ -33,8 +33,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'return function test_hash(v){return typeof v === "string"}',
-                    dependenciesSet: new Set(),
-                    pureFnDependencies: new Set(),
+                    jitDependencies: [],
+                    pureFnDependencies: [],
                     createJitFn: function (utl) {
                         return function test_hash(v: any) {
                             return typeof v === 'string';
@@ -63,7 +63,7 @@ describe('restoreJitFns', () => {
                         code: 'return function addNumbers(a, b){return a + b}',
                         fnName: 'addNumbers',
                         bodyHash: 'addNumbers_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                         createJitFn: function (utl) {
                             return function addNumbers(a: number, b: number) {
                                 return a + b;
@@ -91,8 +91,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: `const helper = utl.getPureFn("${TEST_NS}", "helper"); return function test_with_pure(v){return helper(v)}`,
-                    dependenciesSet: new Set(),
-                    pureFnDependencies: new Set([`${TEST_NS}::helper`]),
+                    jitDependencies: [],
+                    pureFnDependencies: [`${TEST_NS}::helper`],
                     createJitFn: function (utl) {
                         const helper = utl.getPureFn(TEST_NS, 'helper')!;
                         return function test_with_pure(v: any) {
@@ -110,7 +110,7 @@ describe('restoreJitFns', () => {
                         code: 'return function helper(v){return typeof v === "number"}',
                         fnName: 'helper',
                         bodyHash: 'helper_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                         createJitFn: function (utl) {
                             return function helper(v: any) {
                                 return typeof v === 'number';
@@ -141,8 +141,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'return function dep_hash(v){return typeof v === "string"}',
-                    dependenciesSet: new Set(),
-                    pureFnDependencies: new Set(),
+                    jitDependencies: [],
+                    pureFnDependencies: [],
                     createJitFn: function (utl) {
                         return function dep_hash(v: any) {
                             return typeof v === 'string';
@@ -158,8 +158,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'const dep = utl.getJIT("dep_hash"); return function parent_hash(v){return dep.fn(v.name)}',
-                    dependenciesSet: new Set(['dep_hash']),
-                    pureFnDependencies: new Set(),
+                    jitDependencies: ['dep_hash'],
+                    pureFnDependencies: [],
                     createJitFn: function (utl) {
                         const dep = utl.getJIT('dep_hash')!;
                         return function parent_hash(v: any) {
@@ -191,7 +191,7 @@ describe('restoreJitFns', () => {
                         code: 'return function multiply(a, b){return a * b}',
                         fnName: 'multiply',
                         bodyHash: 'multiply_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                         createJitFn: function (utl) {
                             return function multiply(a: number, b: number) {
                                 return a * b;
@@ -205,7 +205,7 @@ describe('restoreJitFns', () => {
                         code: `const multiply = utl.getPureFn("${TEST_NS}", "multiply"); return function square(x){return multiply(x, x)}`,
                         fnName: 'square',
                         bodyHash: 'square_hash',
-                        dependencies: new Set(['multiply']),
+                        pureFnDependencies: ['multiply'],
                         createJitFn: function (utl) {
                             const multiply = utl.getPureFn(TEST_NS, 'multiply')!;
                             return function square(x: number) {
@@ -237,8 +237,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'return function already_restored(v){return true}',
-                    dependenciesSet: new Set(),
-                    pureFnDependencies: new Set(),
+                    jitDependencies: [],
+                    pureFnDependencies: [],
                     createJitFn: function (utl) {
                         return function already_restored(v: any) {
                             return false; // Different from existing
@@ -268,8 +268,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'return function serialized_hash(v){return typeof v === "boolean"}',
-                    dependenciesSet: new Set(),
-                    pureFnDependencies: new Set(),
+                    jitDependencies: [],
+                    pureFnDependencies: [],
                 },
             };
             const pureCache: PureFnsDataCache = {};
@@ -293,7 +293,7 @@ describe('restoreJitFns', () => {
                         code: 'return function subtract(a, b){return a - b}',
                         fnName: 'subtract',
                         bodyHash: 'subtract_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                 },
             };
@@ -315,8 +315,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: `const isArray = utl.getPureFn("${TEST_NS}", "isArray"); return function test_serialized(v){return isArray(v)}`,
-                    dependenciesSet: new Set(),
-                    pureFnDependencies: new Set([`${TEST_NS}::isArray`]),
+                    jitDependencies: [],
+                    pureFnDependencies: [`${TEST_NS}::isArray`],
                 },
             };
             const pureCache: PureFnsDataCache = {
@@ -327,7 +327,7 @@ describe('restoreJitFns', () => {
                         code: 'return function isArray(v){return Array.isArray(v)}',
                         fnName: 'isArray',
                         bodyHash: 'isArray_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                 },
             };
@@ -353,8 +353,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'return function dep_serialized(v){return typeof v === "number"}',
-                    dependenciesSet: new Set(),
-                    pureFnDependencies: new Set(),
+                    jitDependencies: [],
+                    pureFnDependencies: [],
                 },
                 parent_serialized: {
                     isNoop: false,
@@ -364,8 +364,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'const dep = utl.getJIT("dep_serialized"); return function parent_serialized(v){return dep.fn(v.age)}',
-                    dependenciesSet: new Set(['dep_serialized']),
-                    pureFnDependencies: new Set(),
+                    jitDependencies: ['dep_serialized'],
+                    pureFnDependencies: [],
                 },
             };
             const pureCache: PureFnsDataCache = {};
@@ -392,7 +392,7 @@ describe('restoreJitFns', () => {
                         code: 'return function divide(a, b){return a / b}',
                         fnName: 'divide',
                         bodyHash: 'divide_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                     half: {
                         namespace: TEST_NS,
@@ -400,7 +400,7 @@ describe('restoreJitFns', () => {
                         code: `const divide = utl.getPureFn("${TEST_NS}", "divide"); return function half(x){return divide(x, 2)}`,
                         fnName: 'half',
                         bodyHash: 'half_hash',
-                        dependencies: new Set(['divide']),
+                        pureFnDependencies: ['divide'],
                     },
                 },
             };
@@ -426,8 +426,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'const missing = utl.getJIT("missing"); return function parent(v){return missing.fn(v)}',
-                    dependenciesSet: new Set(['missing']), // missing dependency
-                    pureFnDependencies: new Set(),
+                    jitDependencies: ['missing'], // missing dependency
+                    pureFnDependencies: [],
                     createJitFn: function (utl) {
                         const missing = utl.getJIT('missing');
                         return function parent(v: any) {
@@ -452,7 +452,7 @@ describe('restoreJitFns', () => {
                         code: `const missing = utl.getPureFn("${TEST_NS}", "missing"); return function parent(x){return missing(x)}`,
                         fnName: 'parent',
                         bodyHash: 'parent_hash',
-                        dependencies: new Set(['missing']), // missing dependency
+                        pureFnDependencies: ['missing'], // missing dependency
                         createJitFn: function (utl) {
                             const missing = utl.getPureFn(TEST_NS, 'missing')!;
                             return function parent(x: any) {
@@ -479,8 +479,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'this is invalid javascript code!!!',
-                    dependenciesSet: new Set(),
-                    pureFnDependencies: new Set(),
+                    jitDependencies: [],
+                    pureFnDependencies: [],
                 },
             };
             const pureCache: PureFnsDataCache = {};
@@ -498,7 +498,7 @@ describe('restoreJitFns', () => {
                         code: 'this is also invalid!!!',
                         fnName: 'invalid',
                         bodyHash: 'invalid_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                 },
             };
@@ -519,8 +519,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'return function level1_persisted(v){return typeof v === "string"}',
-                    dependenciesSet: new Set(),
-                    pureFnDependencies: new Set(),
+                    jitDependencies: [],
+                    pureFnDependencies: [],
                     createJitFn: function (utl: any) {
                         return function level1_persisted(v: any) {
                             return typeof v === 'string';
@@ -536,8 +536,8 @@ describe('restoreJitFns', () => {
                     args: {vλl: 'v'},
                     defaultParamValues: {vλl: ''},
                     code: 'const level1 = utl.getJIT("level1_persisted"); return function level2_serialized(v){return level1.fn(v.name)}',
-                    dependenciesSet: new Set(['level1_persisted']),
-                    pureFnDependencies: new Set(),
+                    jitDependencies: ['level1_persisted'],
+                    pureFnDependencies: [],
                     // No createJitFn - serialized
                 },
             };
@@ -565,7 +565,7 @@ describe('restoreJitFns', () => {
                         code: 'return function base(x){return x + 1}',
                         fnName: 'base',
                         bodyHash: 'base_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                     level1: {
                         namespace: TEST_NS,
@@ -573,7 +573,7 @@ describe('restoreJitFns', () => {
                         code: `const base = utl.getPureFn("${TEST_NS}", "base"); return function level1(x){return base(x) * 2}`,
                         fnName: 'level1',
                         bodyHash: 'level1_hash',
-                        dependencies: new Set(['base']),
+                        pureFnDependencies: ['base'],
                     },
                     level2: {
                         namespace: TEST_NS,
@@ -581,7 +581,7 @@ describe('restoreJitFns', () => {
                         code: `const level1 = utl.getPureFn("${TEST_NS}", "level1"); return function level2(x){return level1(x) + 10}`,
                         fnName: 'level2',
                         bodyHash: 'level2_hash',
-                        dependencies: new Set(['level1']),
+                        pureFnDependencies: ['level1'],
                     },
                 },
             };
@@ -610,7 +610,7 @@ describe('restoreJitFns', () => {
                         code: 'return function versionedFn(x){return x * 2}',
                         fnName: 'versionedFn',
                         bodyHash: 'hash_v1',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                 },
             };
@@ -631,7 +631,7 @@ describe('restoreJitFns', () => {
                         code: 'return function versionedFn(x){return x * 3}',
                         fnName: 'versionedFn',
                         bodyHash: 'hash_v2', // Different hash
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                 },
             };
@@ -661,7 +661,7 @@ describe('restoreJitFns', () => {
                         code: 'return function stableFn(x){return x + 1}',
                         fnName: 'stableFn',
                         bodyHash: 'stable_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                 },
             };
@@ -682,7 +682,7 @@ describe('restoreJitFns', () => {
                         code: 'return function stableFn(x){return x + 1}',
                         fnName: 'stableFn',
                         bodyHash: 'stable_hash', // Same hash
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                 },
             };
@@ -711,7 +711,7 @@ describe('restoreJitFns', () => {
                         code: 'return function brandNewFn(x){return x * x}',
                         fnName: 'brandNewFn',
                         bodyHash: 'new_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                 },
             };
@@ -741,7 +741,7 @@ describe('restoreJitFns', () => {
                         code: 'return function legacyFn(x){return x - 1}',
                         fnName: 'legacyFn',
                         bodyHash: '', // Empty/missing bodyHash
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                 },
             };
@@ -757,7 +757,7 @@ describe('restoreJitFns', () => {
                         code: 'return function legacyFn(x){return x - 2}',
                         fnName: 'legacyFn',
                         bodyHash: 'new_hash',
-                        dependencies: new Set(),
+                        pureFnDependencies: [],
                     },
                 },
             };

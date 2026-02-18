@@ -11,7 +11,7 @@ import {ReflectionKind, TypeClass} from '@deepkit/type';
 import {IterableRunType} from './Iterable.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import type {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
-import {safeKey} from '@mionkit/core';
+import {safeKey} from '../../lib/jitRunTimePureFnUtils.ts';
 
 export class MapRunType extends IterableRunType {
     keyRT = new MapKeyRunType();
