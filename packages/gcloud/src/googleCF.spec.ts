@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {initRouter, registerRoutes, resetRouter, route, getRouteExecutionChain} from '@mionkit/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF.ts';
 import type {CallContext, Route} from '@mionkit/router';

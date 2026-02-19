@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
 import {workflow} from './workflow.ts';
 import {HSubRequest, RSubRequest} from './types.ts';
@@ -13,7 +14,7 @@ import {TestServerApi} from '@mionkit/test-server';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
 
 // Mock localStorage for method metadata storage
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const Storage = require('dom-storage');
 global.localStorage = new Storage(null, {strict: true});
 global.sessionStorage = new Storage(null, {strict: true});

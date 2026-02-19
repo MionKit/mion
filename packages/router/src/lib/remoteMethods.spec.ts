@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect, beforeEach} from 'vitest';
 import {getPublicApi} from './remoteMethods.ts';
 import {registerRoutes, initRouter, resetRouter} from '../router.ts';
 import {CallContext} from '../types/context.ts';

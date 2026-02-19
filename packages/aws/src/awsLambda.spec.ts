@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect, beforeAll} from 'vitest';
 import {initRouter, registerRoutes, resetRouter, route} from '@mionkit/router';
 import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambda.ts';
 import createEvent from '@serverless/event-mocks';

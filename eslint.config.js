@@ -24,7 +24,7 @@ export default tseslint.config(
       '**/build/**',
       '**/xyzSpec/**',
       '**/xyz-Template/**',
-      'packages/codegen/bin/**',
+      'packages/devtools/bin/**',
       'packages/examples/**',
       'packages/quick-start/**',
       'packages/run-types/microbenchs/**',

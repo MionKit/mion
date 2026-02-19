@@ -4,6 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import {it, expect} from 'vitest';
 import type {TypeFormatError, RunTypeError} from '@mionkit/core';
 import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
 import {StrFormat} from './stringFormat.runtype';

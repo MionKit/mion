@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect} from 'vitest';
 import {mapMySqlTable} from './mysql.ts';
 import {varchar, text, int} from 'drizzle-orm/mysql-core';
 // Note: Must use regular import (not `import type`) for reflection to work

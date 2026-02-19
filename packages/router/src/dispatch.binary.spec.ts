@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect, beforeEach} from 'vitest';
 import {registerRoutes, resetRouter, initRouter, getRouteExecutionChain} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {headersFromRecord} from './lib/headers.ts';

@@ -4,6 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {getPersistedMethods, initRouter, registerRoutes, route, resetRouter, getRouteExecutionChain} from '@mionkit/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp.ts';
 import type {CallContext, Route} from '@mionkit/router';

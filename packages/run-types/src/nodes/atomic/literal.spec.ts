@@ -4,6 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import {it, expect} from 'vitest';
 import {runType} from '../../createRunType.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import type {RunTypeOptions} from '../../types.ts';
@@ -13,11 +14,11 @@ const reg2 = /['"]\/ \\ \//; // regexp with characters that can be problematic i
 const sym = Symbol('hello');
 const rt2 = runType<2>();
 const rtA = runType<'a'>();
-const rtReg = runType<typeof reg>(); // eslint-disable-line @mionkit/no-typeof-runtype
-const rtReg2 = runType<typeof reg2>(); // eslint-disable-line @mionkit/no-typeof-runtype
+const rtReg = runType<typeof reg>();
+const rtReg2 = runType<typeof reg2>();
 const rtTrue = runType<true>();
 const rtBig = runType<1n>();
-const rtSym = runType<typeof sym>(); // eslint-disable-line @mionkit/no-typeof-runtype
+const rtSym = runType<typeof sym>();
 
 it('validate literal', () => {
     const validate2 = rt2.createJitFunction(JitFunctions.isType);

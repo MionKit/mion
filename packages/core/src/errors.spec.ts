@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect} from 'vitest';
 import {RpcError, TypedError, setErrorOptions, isTypedError, isRpcError} from './errors.ts';
 
 describe('Route errors should', () => {

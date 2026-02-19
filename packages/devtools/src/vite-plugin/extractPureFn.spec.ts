@@ -806,7 +806,7 @@ export const ref = pureServerFn({
         // Get runtime result - note: no type annotations to match AST extraction
         // (AST extraction strips types, so runtime must also not have them for hash to match)
         resetHashes();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         const runtimeRef = pureServerFn({
             pureFn: function processData(data) {
                 const filtered = data.filter((x) => x > 0);

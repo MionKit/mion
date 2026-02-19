@@ -4,6 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import {it, expect} from 'vitest';
 import {runType} from '../../createRunType.ts';
 import {InterfaceRunType} from './interface.ts';
 import {NeverRunType} from '../atomic/never.ts';

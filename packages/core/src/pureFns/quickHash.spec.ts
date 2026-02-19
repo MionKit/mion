@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {it, expect} from 'vitest';
 import {createUniqueHash} from './quickHash.ts';
 
 it('quick hash should generate unique hashes', () => {

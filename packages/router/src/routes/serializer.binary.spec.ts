@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect, beforeEach} from 'vitest';
 import {initMionRouter, resetRouter, getRouterOptions, getRouteExecutionChain} from '../router.ts';
 import {route, linkedFn} from '../lib/handlers.ts';
 import {Routes} from '../types/general.ts';

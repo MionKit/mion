@@ -8,6 +8,7 @@
 // RpcError is a class shared across most packages so we need to ensure jit functions work correctly
 // we test here as core does not have access to run-types
 
+import {it, expect} from 'vitest';
 import {RpcError} from '@mionkit/core';
 import {JitFunctions} from '../../constants.functions.ts';
 import {runType} from '../../createRunType.ts';

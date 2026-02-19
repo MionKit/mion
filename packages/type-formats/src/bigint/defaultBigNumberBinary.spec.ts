@@ -4,6 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import {describe, it, expect} from 'vitest';
 import {JitFunctions, type RunType, runType} from '@mionkit/run-types';
 import {BigNumInt64, BigNUmUInt64} from './defaultBigNumberFormats.ts';
 import {

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
@@ -6,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {it, expect} from 'vitest';
 import {JitFunctions} from '../constants.functions.ts';
 import type {BaseRunType, CollectionRunType} from './baseRunTypes.ts';
 import {JitFnCompiler} from './jitFnCompiler.ts';
