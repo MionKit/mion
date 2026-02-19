@@ -195,6 +195,7 @@ function addToCaches(serializableMethodsData: SerializableMethodsData) {
     addRoutesToCache(serializableMethodsData.methods);
 }
 
+/** Resets the client caches and reloads them from the AOT caches, mostly usefull for testing*/
 export function resetClientCaches() {
     resetRoutesCache();
     resetJitFnCaches();

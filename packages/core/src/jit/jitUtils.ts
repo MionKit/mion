@@ -269,7 +269,7 @@ export function getJitFnCaches() {
 }
 
 /**
- * Resets the jit and pure functions caches.
+ * Resets the jit and pure functions caches and reloads the AOT caches.
  * This is useful for testing purposes only.
  */
 export function resetJitFnCaches() {
@@ -278,6 +278,8 @@ export function resetJitFnCaches() {
     deserializeFnsRegistry.clear();
     serializableClassRegistry.clear();
     coreAOTCachesLoaded = false;
+    // Reload AOT caches to restore core pure functions (newRunTypeErr, formatErr, etc.)
+    coreAOTLoadJitCaches();
 }
 
 /** Helper function to ensure namespace exists in the cache */
