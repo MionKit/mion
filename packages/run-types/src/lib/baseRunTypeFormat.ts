@@ -241,7 +241,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     compilePureFunctionCall(
         comp: JitFnCompiler,
         rt: BaseRunType,
-        pureFn: PureFunctionClosure,
+        createPureFn: PureFunctionClosure,
         params?: TypeFormatValue,
         dependenciesParams?: Record<string, string | PureFunctionClosure>
     ): {callCode: string; fnName: string; paramsName: string; dependenciesName?: string} {
@@ -255,7 +255,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         const paramsName = paramsToLiteral(comp, params || this.getParams(rt), this.getIgnoredProps());
         const dependenciesName = dependenciesToLiteral(comp, dependenciesParams || {});
         const callParams = [val, paramsName, dependenciesName];
-        const fnName = comp.addPureFunction(this.namespace, pureFn);
+        const fnName = comp.addPureFunction(this.namespace, createPureFn);
         const callCode = `${fnName}(${callParams.join(',')})`;
         return {callCode, fnName, paramsName, dependenciesName};
     }

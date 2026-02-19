@@ -16,7 +16,7 @@ import {MethodRunType} from '../member/method.ts';
 import {CallSignatureRunType} from '../member/callSignature.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import {isIndexSignatureRunType} from '../../lib/guards.ts';
-import {getUnknownKeysFromArray, hasUnknownKeysFromArray} from '../../lib/jitRunTimePureFnUtils.ts';
+import {getUnknownKeysFromArray, hasUnknownKeysFromArray} from '../../run-types-pure-fns.ts';
 
 export type InterfaceMember =
     | PropertyRunType

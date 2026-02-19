@@ -24,7 +24,7 @@ import {emitToBinary} from '../jitCompilers/binary/toBinary.ts';
 import {emitFromBinary} from '../jitCompilers/binary/fromBinary.ts';
 import {emitToCode} from '../jitCompilers/json/toJsCode.ts';
 import {createJitFunction, getJITFnHash} from './createJitFunction.ts';
-import {err, formatErr} from './jitRunTimePureFnUtils.ts';
+import {err, formatErr} from '../run-types-pure-fns.ts';
 
 const RB = CodeTypes.returnBlock;
 const S = CodeTypes.statement;
@@ -553,24 +553,24 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
 
     // ################### Pure Functions Operations ###################
 
-    addPureFunction(namespace: string, pureFn: PureFunctionClosure): string {
-        const varName = quickHash(`${namespace}_${getPureFunctionKey(pureFn)}`, 8);
-        registerPureFnClosure(namespace, pureFn); // will throw if there is a different pure function with the same name
+    addPureFunction(namespace: string, createPureFn: PureFunctionClosure): string {
+        const varName = quickHash(getPureFunctionKey(createPureFn), 8);
+        registerPureFnClosure(namespace, createPureFn); // will throw if there is a different pure function with the same name
         if (this.hasContextItem(varName)) return varName;
-        this.addPureFnDependency(namespace, pureFn);
+        this.addPureFnDependency(namespace, createPureFn);
         // Add context code for the pure function and params
-        const pureFunctionCode = `const ${varName} = utl.getPureFn(${toLiteral(namespace)}, ${toLiteral(getPureFunctionKey(pureFn))})`;
+        const pureFunctionCode = `const ${varName} = utl.getPureFn(${toLiteral(namespace)}, ${toLiteral(getPureFunctionKey(createPureFn))})`;
         this.setContextItem(varName, pureFunctionCode);
         return varName;
     }
 
-    addPureFnDependency(namespace: string, pureFn: PureFunctionClosure): void {
-        const fnName = getPureFunctionKey(pureFn);
+    addPureFnDependency(namespace: string, createPureFn: PureFunctionClosure): void {
+        const fnName = getPureFunctionKey(createPureFn);
         if (!getJitUtils().hasPureFn(namespace, fnName))
             throw new Error(
                 `Pure function with name ${fnName} can not be added as jit dependency in namespace ${namespace}, be sure to register the pure function first by calling getJitUtils().addPureFn()`
             );
-        // Store as "namespace::fnHash" format (using :: to avoid conflicts with : in names)
+        // Store as "namespace::fnName" format (using :: to avoid conflicts with : in names)
         const key = `${namespace}::${fnName}`;
         if (this.pureFnDependencies.includes(key)) return;
         this.pureFnDependencies.push(key);
