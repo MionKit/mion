@@ -9,29 +9,26 @@ import type {CompiledPureFunction, PureFunctionFactory} from '../types/pureFunct
 import {getJitUtils, JITUtils} from '../jit/jitUtils.ts';
 import {createUniqueHash, pureFnHashLength} from './quickHash.ts';
 
-export function getPureFunctionKey(fn: PureFunctionFactory): string {
-    const name = fn.name;
-    if (!name) throw new Error('Pure Functions must have a name');
-    return name;
-}
-
-export function registerPureFnFactory(namespace: string, fnWithCtx: PureFunctionFactory): CompiledPureFunction {
-    const key = getPureFunctionKey(fnWithCtx);
-    const existing = getJitUtils().getCompiledPureFn(namespace, key);
+export function registerPureFnFactory(
+    namespace: string,
+    functionID: string,
+    createPureFn: PureFunctionFactory
+): CompiledPureFunction {
+    const existing = getJitUtils().getCompiledPureFn(namespace, functionID);
     if (existing) return existing;
-    const compiled = parsePureFactoryFunction(namespace, fnWithCtx);
+    const compiled = parsePureFactoryFunction(namespace, functionID, createPureFn);
 
     // Run the factory once with a tracking proxy to auto-detect dependencies
     const {proxy, getDependencies} = createDependencyTrackingProxy();
     try {
-        fnWithCtx(proxy);
+        createPureFn(proxy);
     } catch {
         // Factory may fail if dependencies aren't registered yet, that's ok
         // We still capture whatever was accessed before the error
     }
     const detectedDeps = getDependencies();
     for (const dep of detectedDeps) {
-        if (dep === key) continue;
+        if (dep === functionID) continue;
         if (!compiled.pureFnDependencies.includes(dep)) compiled.pureFnDependencies.push(dep);
     }
 
@@ -85,20 +82,37 @@ function createDependencyTrackingProxy(): {proxy: JITUtils; getDependencies: () 
  * Parses a pure function and returns it's data.
  * We are using toString() to get the function code, this might not work in all environments.
  */
-function parsePureFactoryFunction(namespace: string, createJitFn: PureFunctionFactory): CompiledPureFunction {
-    if (!createJitFn.name) throw new Error('Pure Functions must have a name');
-
+function parsePureFactoryFunction(namespace: string, functionID: string, createJitFn: PureFunctionFactory): CompiledPureFunction {
     const fnString = createJitFn.toString();
 
     // Extract parameters
-    const paramsStart = fnString.indexOf('(') + 1;
-    const paramsEnd = fnString.indexOf(')');
-    if (paramsStart === 0 || paramsEnd === -1 || paramsEnd < paramsStart) {
-        throw new Error("Invalid function, can't parse parameters");
+    const trimmed = fnString.trim();
+    let paramNames: string[] = [];
+
+    // Check if it's an arrow function without parentheses (single param, no parens)
+    // Pattern: "x => ..." or "async x => ..." (single identifier before =>)
+    const arrowIndex = trimmed.indexOf('=>');
+    if (arrowIndex !== -1) {
+        const beforeArrow = trimmed.substring(0, arrowIndex).trim();
+        // Check if beforeArrow is a single valid identifier (no parentheses)
+        const validIdentifier = /^[_$a-zA-Z][_$a-zA-Z0-9]*$/;
+        if (validIdentifier.test(beforeArrow)) {
+            // Arrow function without parentheses: x => { ... }
+            paramNames = [beforeArrow];
+        }
     }
 
-    const paramsString = fnString.substring(paramsStart, paramsEnd).trim();
-    const paramNames = paramsString.length > 0 ? paramsString.split(/\s*,\s*/) : [];
+    // Standard parsing for regular functions and arrow functions with parentheses
+    if (paramNames.length === 0) {
+        const paramsStart = fnString.indexOf('(') + 1;
+        const paramsEnd = fnString.indexOf(')');
+        if (paramsStart === 0 || paramsEnd === -1 || paramsEnd < paramsStart) {
+            throw new Error("Invalid function, can't parse parameters");
+        }
+
+        const paramsString = fnString.substring(paramsStart, paramsEnd).trim();
+        paramNames = paramsString.length > 0 ? paramsString.split(/\s*,\s*/) : [];
+    }
     if (paramNames.length > 1) throw new Error('Pure function with context must have max 1 parameter');
 
     // Validate parameters
@@ -116,8 +130,8 @@ function parsePureFactoryFunction(namespace: string, createJitFn: PureFunctionFa
         createJitFn: createJitFn,
         fn: null as any, // will be set later so all possible dependencies are resolved
         namespace,
-        fnName: createJitFn.name,
-        bodyHash: createUniqueHash(namespace + createJitFn.name + body, pureFnHashLength),
+        fnName: functionID,
+        bodyHash: createUniqueHash(namespace + functionID + body, pureFnHashLength),
         paramNames,
         code: body,
         pureFnDependencies: [],
