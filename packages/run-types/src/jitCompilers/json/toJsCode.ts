@@ -16,7 +16,7 @@ import {JitFunctions} from '../../constants.functions.ts';
 import {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
 import {isSafePropName} from '../../lib/utils.ts';
 import {createStringifyCompiler, createStringifyIterable} from './stringifyJson.ts';
-import {registerPureFnClosure} from '@mionkit/core';
+import {sanitizeCompiledFn} from '../../run-types-pure-fns.ts';
 
 export function createToCodeCompiler() {
     const fnID = JitFunctions.toJSCode.id;
@@ -131,19 +131,6 @@ export function createToCodeCompiler() {
 
     return compileToCode;
 }
-
-/** @reflection never */
-export function sanitizeCompiledFn() {
-    const anonymousRegex = /^\s*function\s+anonymous\s*\(/;
-    return function sanitizeCompiled(fnCode: string): string {
-        if (anonymousRegex.test(fnCode)) {
-            return fnCode.replace(anonymousRegex, 'function (');
-        }
-        return fnCode;
-    };
-}
-
-registerPureFnClosure('mion', sanitizeCompiledFn);
 
 // lazy loading as this function wont be used often just for (AOT)
 // TODO move to async code loading (but this would need a big refactor of the router)
