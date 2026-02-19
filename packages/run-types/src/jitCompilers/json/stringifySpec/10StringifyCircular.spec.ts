@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {it, expect, afterEach} from 'vitest';
 import {normalizeForComparison} from '../../equalsHelpers.ts';
 import {SERIALIZATION_SPEC} from '../../serialization-suite.ts';
 import {createSerializationFns, roundTrip} from './stringifyHelpers.ts';

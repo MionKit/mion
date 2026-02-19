@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect} from 'vitest';
 import {getJitFnCaches} from './jitUtils.ts';
 import {JitFunctionsCache, PureFunctionsCache} from '../types/general.types.ts';
 

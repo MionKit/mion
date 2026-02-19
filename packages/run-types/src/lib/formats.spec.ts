@@ -6,6 +6,7 @@
  * ######## */
 // ###################### Types FORMATS #####################
 
+import {it, expect} from 'vitest';
 import {ReflectionKind} from '@deepkit/type';
 import {runType} from '../createRunType.ts';
 import {BaseRunTypeFormat} from './baseRunTypeFormat.ts';

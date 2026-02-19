@@ -1,3 +1,5 @@
+import {CompilerOptions} from 'typescript';
+
 /** Serializable registry entry for a single pure function */
 export interface PureServerFnRegistryEntry {
     readonly namespace: string;
@@ -51,25 +53,19 @@ export type ReflectionMode = 'default' | 'explicit' | 'never';
 
 /** Options for deepkit type transformation */
 export interface DeepkitTypeOptions {
-    /**
-     * Glob patterns to include. Defaults to ['**\/*.tsx', '**\/*.ts']
-     */
+    /** Glob patterns to include. Defaults to ['**\/*.tsx', '**\/*.ts'] */
     include?: string | string[];
 
-    /**
-     * Glob patterns to exclude. Defaults to 'node_modules/**'
-     */
+    /**  Glob patterns to exclude. Defaults to 'node_modules/**' */
     exclude?: string | string[];
-
-    /**
-     * Path to tsconfig.json. If not provided, will search from project root.
-     */
+    /**  Path to tsconfig.json. If not provided, will search from project root. */
     tsConfig?: string;
-
     /**
      * Override reflection mode. If not set, uses tsconfig's reflection option.
      * Set to 'default' to enable reflection for all files regardless of tsconfig.
      * Useful for simple projects without explicit tsconfig reflection configuration.
      */
     reflection?: ReflectionMode;
+    /** Additional compiler options to merge with tsconfig.json */
+    compilerOptions?: CompilerOptions;
 }

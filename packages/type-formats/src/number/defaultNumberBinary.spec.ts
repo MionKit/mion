@@ -4,6 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import {it, expect} from 'vitest';
 import {JitFunctions, type RunType, runType} from '@mionkit/run-types';
 import {
     NumInteger,

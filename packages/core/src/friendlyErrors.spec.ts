@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect} from 'vitest';
 import {getFriendlyErrors, defaultErrorPrinter} from './friendlyErrors.ts';
 import type {RunTypeError} from './types/general.types.ts';
 import type {FriendlyErrors} from './types/formats/friendlyErrors.types.ts';

@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect} from 'vitest';
 import {DrizzleTypesPostgres, DrizzleTypesMySQL, DrizzleTypesSQLite} from './types/common.types.ts';
 
 // Import PostgreSQL column builder functions

@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect} from 'vitest';
 import {createTypeId} from './typeId.ts';
 import {runType} from '../createRunType.ts';
 import {ReflectionKind} from '@deepkit/type';
@@ -94,7 +95,7 @@ describe('getDeepkitTypeId', () => {
     it('should handle RegExp literal types', () => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const reg = /abc/i;
-        const rtReg = runType<typeof reg>(); // eslint-disable-line @mionkit/no-typeof-runtype
+        const rtReg = runType<typeof reg>();
 
         const id = createTypeId(rtReg.src);
         expect(id).toBe(rtReg.getTypeID());

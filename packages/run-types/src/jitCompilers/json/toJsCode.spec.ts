@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {it, expect} from 'vitest';
 import {runType} from '../../createRunType.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 

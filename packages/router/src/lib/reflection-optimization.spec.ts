@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {initRouter, registerRoutes, resetRouter, getRouteExecutable, getLinkedFnExecutable} from '../router.ts';
 import {route, linkedFn} from './handlers.ts';
 import {getHandlerReflection} from './reflection.ts';

@@ -4,6 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import {describe, it, expect} from 'vitest';
 import {runType} from '../../createRunType.ts';
 
 // TODO: ATM we can't correctly identify this types, the generated deepkit type does not have anything to indicate the type is a native type
@@ -32,23 +33,23 @@ describe.skip('native types that throw when trying to create a RunType', () => {
 
     it('should throw when creating RunType for Reflect', () => {
         // { kind: 30, types: [], annotations: {}, typeName: undefined}
-        expect(() => runType<typeof Reflect>()).toThrow(); // eslint-disable-line @mionkit/no-typeof-runtype
+        expect(() => runType<typeof Reflect>()).toThrow();
     });
 
     it('should throw when creating RunType for Proxy', () => {
-        expect(() => runType<typeof Proxy>()).toThrow(); // eslint-disable-line @mionkit/no-typeof-runtype
+        expect(() => runType<typeof Proxy>()).toThrow();
     });
 
     it('should throw when creating RunType for Intl', () => {
-        expect(() => runType<typeof Intl>()).toThrow(); // eslint-disable-line @mionkit/no-typeof-runtype
+        expect(() => runType<typeof Intl>()).toThrow();
     });
 
     it('should throw when creating RunType for Atomics', () => {
-        expect(() => runType<typeof Atomics>()).toThrow(); // eslint-disable-line @mionkit/no-typeof-runtype
+        expect(() => runType<typeof Atomics>()).toThrow();
     });
 
     it('should throw when creating RunType for WebAssembly', () => {
-        expect(() => runType<typeof WebAssembly>()).toThrow(); // eslint-disable-line @mionkit/no-typeof-runtype
+        expect(() => runType<typeof WebAssembly>()).toThrow();
     });
 
     it('should throw when creating RunType for WebAssembly.Module', () => {

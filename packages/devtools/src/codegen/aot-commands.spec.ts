@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect, beforeEach, afterEach, beforeAll, afterAll} from 'vitest';
 import {existsSync, rmSync, readFileSync, writeFileSync, mkdirSync} from 'fs';
 import {join, resolve} from 'path';
 import {initAOT} from './cli-init-aot.js';

@@ -11,6 +11,7 @@
     "check-format": "prettier --check packages/**/*.{ts,md}",
     "check-format-pre-commit": "prettier --check",
     "lint": "lerna run lint",
+    "lint:spec": "npx eslint --fix packages/**/*.spec.ts",
     "lint-pre-committ": "npx eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
     "build": "lerna run build",
     "build-ts-dts": "npm run clean && lerna run build-ts-dts",

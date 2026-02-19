@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect} from 'vitest';
 import {HandlerType, MethodWithOptions, MethodsCache, RpcError, SerializableMethodsData} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions.ts';
 import {runType} from '../createRunType.ts';

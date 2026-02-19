@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {it, expect, afterEach} from 'vitest';
 import {SERIALIZATION_SPEC} from '../../serialization-suite';
 import {JitFunctions} from '../../../constants.functions';
 import {roundTrip, createSerializationFns} from './xyzHelpers';

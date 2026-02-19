@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect, beforeEach} from 'vitest';
 import type {Mutable} from '@mionkit/core';
 import type {Routes} from '../types/general.ts';
 import type {MionResponse, RawRequestBody} from '../types/context.ts';
