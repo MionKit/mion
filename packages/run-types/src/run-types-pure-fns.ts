@@ -12,56 +12,50 @@ export function asJSONString() {
     // eslint-disable-next-line no-control-regex
     const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
     const MAX_SCAPE_TEST_LENGTH = 1000;
-    return {
-        pureFn: function _asJSONStringRegexOnly(str) {
-            // Always use regex test for strings >= 42 chars (no for loop)
-            if (str.length < MAX_SCAPE_TEST_LENGTH && STR_ESCAPE.test(str) === false) {
-                return '"' + str + '"';
-            } else {
-                return JSON.stringify(str);
-            }
-        },
+    return function _asJSONStringRegexOnly(str) {
+        // Always use regex test for strings >= 42 chars (no for loop)
+        if (str.length < MAX_SCAPE_TEST_LENGTH && STR_ESCAPE.test(str) === false) {
+            return '"' + str + '"';
+        } else {
+            return JSON.stringify(str);
+        }
     };
 }
 
 export function getUnknownKeysFromArray() {
-    return {
-        pureFn: function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
-            const unknownKeys: StrNumber[] = [];
-            for (const prop in obj) {
-                let found = false;
-                for (let j = 0; j < keys.length; j++) {
-                    if (keys[j] === prop) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    unknownKeys.push(prop as string);
-                    if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error('Too many unknown keys');
+    return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
+        const unknownKeys: StrNumber[] = [];
+        for (const prop in obj) {
+            let found = false;
+            for (let j = 0; j < keys.length; j++) {
+                if (keys[j] === prop) {
+                    found = true;
+                    break;
                 }
             }
-            return unknownKeys;
-        },
+            if (!found) {
+                unknownKeys.push(prop as string);
+                if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error('Too many unknown keys');
+            }
+        }
+        return unknownKeys;
     };
 }
 
 export function hasUnknownKeysFromArray() {
-    return {
-        pureFn: function _hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
-            for (const prop in obj) {
-                // iterates over the object keys and if not found prop adds to unknownKeys
-                let found = false;
-                for (let j = 0; j < keys.length; j++) {
-                    if (keys[j] === prop) {
-                        found = true;
-                        break;
-                    }
+    return function _hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
+        for (const prop in obj) {
+            // iterates over the object keys and if not found prop adds to unknownKeys
+            let found = false;
+            for (let j = 0; j < keys.length; j++) {
+                if (keys[j] === prop) {
+                    found = true;
+                    break;
                 }
-                if (!found) return true;
             }
-            return false;
-        },
+            if (!found) return true;
+        }
+        return false;
     };
 }
 
@@ -71,17 +65,15 @@ export function hasUnknownKeysFromArray() {
  * so they can't be modified after the error is created
  */
 export function err() {
-    return {
-        pureFn: function _err(
-            pλth: readonly StrNumber[],
-            εrr: RunTypeError[],
-            expected: string,
-            accessPath?: readonly StrNumber[]
-        ): void {
-            const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
-            const runTypeErr: RunTypeError = {expected, path};
-            εrr.push(runTypeErr);
-        },
+    return function _err(
+        pλth: readonly StrNumber[],
+        εrr: RunTypeError[],
+        expected: string,
+        accessPath?: readonly StrNumber[]
+    ): void {
+        const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
+        const runTypeErr: RunTypeError = {expected, path};
+        εrr.push(runTypeErr);
     };
 }
 
@@ -91,49 +83,43 @@ export function err() {
  * so they can't be modified after the error is created
  */
 export function formatErr() {
-    return {
-        pureFn: function _formatErr(
-            pλth: StrNumber[],
-            εrr: RunTypeError[],
-            expected: string,
-            fmtName: string,
-            paramName: string,
-            paramVal: string | number | boolean | bigint,
-            fmtPath: StrNumber[],
-            accessPath?: StrNumber[],
-            fmtAccessPath?: StrNumber[]
-        ): void {
-            const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
-            const formatPath = fmtAccessPath?.length ? [...fmtPath, ...fmtAccessPath, paramName] : [...fmtPath, paramName];
-            const format: TypeFormatError = {name: fmtName, formatPath: formatPath, val: paramVal};
-            const runTypeErr: Required<RunTypeError> = {expected, path, format};
-            εrr.push(runTypeErr);
-        },
+    return function _formatErr(
+        pλth: StrNumber[],
+        εrr: RunTypeError[],
+        expected: string,
+        fmtName: string,
+        paramName: string,
+        paramVal: string | number | boolean | bigint,
+        fmtPath: StrNumber[],
+        accessPath?: StrNumber[],
+        fmtAccessPath?: StrNumber[]
+    ): void {
+        const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
+        const formatPath = fmtAccessPath?.length ? [...fmtPath, ...fmtAccessPath, paramName] : [...fmtPath, paramName];
+        const format: TypeFormatError = {name: fmtName, formatPath: formatPath, val: paramVal};
+        const runTypeErr: Required<RunTypeError> = {expected, path, format};
+        εrr.push(runTypeErr);
     };
 }
 
 /** Returns a safe key for an iterable object (Map, Set, Array) */
 export function safeIterableKey() {
-    return {
-        pureFn: function _safeKey(value: any): any {
-            if (value === undefined) return null;
-            if (value === null) return null;
-            const type = typeof value;
-            if (type === 'number' || type === 'string' || type === 'boolean') return value;
-            return null;
-        },
+    return function _safeKey(value: any): any {
+        if (value === undefined) return null;
+        if (value === null) return null;
+        const type = typeof value;
+        if (type === 'number' || type === 'string' || type === 'boolean') return value;
+        return null;
     };
 }
 
 /** Sanitizes the compiled function code to remove the 'anonymous' keyword */
 export function sanitizeCompiledFn() {
     const anonymousRegex = /^\s*function\s+anonymous\s*\(/;
-    return {
-        pureFn: function sanitizeCompiled(fnCode: string): string {
-            if (anonymousRegex.test(fnCode)) {
-                return fnCode.replace(anonymousRegex, 'function (');
-            }
-            return fnCode;
-        },
+    return function sanitizeCompiled(fnCode: string): string {
+        if (anonymousRegex.test(fnCode)) {
+            return fnCode.replace(anonymousRegex, 'function (');
+        }
+        return fnCode;
     };
 }
