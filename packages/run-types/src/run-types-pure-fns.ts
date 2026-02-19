@@ -64,7 +64,7 @@ export const cpf_hasUnknownKeysFromArray = registerPureFnFactory('mion', 'hasUnk
 });
 
 /** @reflection never */
-export const cpf_err = registerPureFnFactory('mion', 'err', function () {
+export const cpf_newRunTypeErr = registerPureFnFactory('mion', 'newRunTypeErr', function () {
     return function _err(
         pλth: readonly StrNumber[],
         εrr: RunTypeError[],

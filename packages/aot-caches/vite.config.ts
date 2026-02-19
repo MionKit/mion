@@ -1,11 +1,16 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
-import {readdirSync, statSync} from 'fs';
+import {readdirSync, statSync, existsSync} from 'fs';
 import dts from 'vite-plugin-dts';
+import {deepkitType} from '@deepkit/vite';
+
+// Resolve workspace packages to source directories for vite-node
+const workspaceRoot = resolve(__dirname, '../..');
 
 // Get all TypeScript files from src directory (excluding spec/test files)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
     const entries: Record<string, string> = {};
+    if (!existsSync(dir)) return entries;
     const files = readdirSync(dir);
 
     for (const file of files) {
@@ -31,6 +36,13 @@ const entry: Record<string, string> = {
 
 export default defineConfig({
     plugins: [
+        // Deepkit type compiler for runtime type reflection (needed for vite-node)
+        deepkitType({
+            tsConfig: resolve(workspaceRoot, 'tsconfig.json'),
+            compilerOptions: {
+                sourceMap: true,
+            },
+        }) as any,
         dts({
             outDir: ['build/cjs/src', 'build/esm/src'],
             include: ['src'],
@@ -39,6 +51,23 @@ export default defineConfig({
             entryRoot: 'src',
         }),
     ],
+    // Resolve workspace packages to source directories (needed for vite-node during development)
+    resolve: {
+        alias: {
+            '@mionkit/core': resolve(workspaceRoot, 'packages/core'),
+            '@mionkit/run-types': resolve(workspaceRoot, 'packages/run-types'),
+            '@mionkit/type-formats': resolve(workspaceRoot, 'packages/type-formats'),
+            '@mionkit/router': resolve(workspaceRoot, 'packages/router'),
+            '@mionkit/node': resolve(workspaceRoot, 'packages/node'),
+            '@mionkit/client': resolve(workspaceRoot, 'packages/client'),
+            '@mionkit/test-server': resolve(workspaceRoot, 'packages/test-server'),
+            '@mionkit/http': resolve(workspaceRoot, 'packages/http'),
+            '@mionkit/aws': resolve(workspaceRoot, 'packages/aws'),
+            '@mionkit/gcloud': resolve(workspaceRoot, 'packages/gcloud'),
+            '@mionkit/devtools': resolve(workspaceRoot, 'packages/devtools'),
+            '@mionkit/bun': resolve(workspaceRoot, 'packages/bun'),
+        },
+    },
     build: {
         lib: {
             entry,
