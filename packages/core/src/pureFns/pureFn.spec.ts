@@ -10,7 +10,7 @@ import type {CompiledPureFunction, GenericPureFunction} from '../types/pureFunct
 import {JITUtils} from '../jit/jitUtils.ts';
 import {pureServerFn, pureServerFnGroup} from './pureServerFn.ts';
 import {getJitUtils} from '../jit/jitUtils.ts';
-import {registerPureFnClosure, registerPureFnClosuresGroup} from './pureFn.ts';
+import {registerPureFnFactory} from './pureFn.ts';
 
 const TEST_NAMESPACE = 'test';
 
@@ -33,7 +33,7 @@ it('register and get pure function', async () => {
             return true;
         };
     }
-    registerPureFnClosure(TEST_NAMESPACE, stringPureFn);
+    registerPureFnFactory(TEST_NAMESPACE, stringPureFn);
     const restoredFn = getJitUtils().getPureFn(TEST_NAMESPACE, 'stringPureFn') as ReturnType<typeof stringPureFn>;
     expect(restoredFn).toBeDefined();
     expect(restoredFn).toBeInstanceOf(Function);
@@ -41,7 +41,7 @@ it('register and get pure function', async () => {
     expect(restoredFn?.('A', {isLowercase: true})).toBe(false);
 });
 
-it('register a group of pure functions so all declared as dependencies', async () => {
+it('auto-detect dependencies via proxy when factory calls getPureFn', async () => {
     type Params = {
         isA?: boolean;
         isB?: boolean;
@@ -64,17 +64,19 @@ it('register a group of pure functions so all declared as dependencies', async (
             return isAResult;
         } as GenericPureFunction<Params>;
     }
-    registerPureFnClosuresGroup(TEST_NAMESPACE, [pureFunctionA, pureFunctionB]);
+    // Register A first, then B (B depends on A)
+    registerPureFnFactory(TEST_NAMESPACE, pureFunctionA);
+    registerPureFnFactory(TEST_NAMESPACE, pureFunctionB);
     const compiledIsA = getCompiledPureFn(TEST_NAMESPACE, 'pureFunctionA');
     const compiledIsB = getCompiledPureFn(TEST_NAMESPACE, 'pureFunctionB');
     expect(compiledIsA).toBeDefined();
     expect(compiledIsB).toBeDefined();
     expect(compiledIsA?.fn).toBeDefined();
     expect(compiledIsB?.fn).toBeDefined();
-    expect(compiledIsA?.pureFnDependencies.includes('pureFunctionB')).toBeTruthy();
+    // B depends on A (auto-detected via proxy)
     expect(compiledIsB?.pureFnDependencies.includes('pureFunctionA')).toBeTruthy();
-    expect(compiledIsA?.pureFnDependencies.includes('pureFunctionA')).toBeFalsy();
-    expect(compiledIsB?.pureFnDependencies.includes('pureFunctionB')).toBeFalsy();
+    // A has no dependencies (it doesn't call getPureFn)
+    expect(compiledIsA?.pureFnDependencies.length).toBe(0);
     // Verify namespace is set correctly
     expect(compiledIsA?.namespace).toBe(TEST_NAMESPACE);
     expect(compiledIsB?.namespace).toBe(TEST_NAMESPACE);
@@ -88,7 +90,7 @@ describe('bodyHash generation', () => {
                 return val.toUpperCase();
             };
         }
-        registerPureFnClosure(TEST_NAMESPACE, hashTestFn);
+        registerPureFnFactory(TEST_NAMESPACE, hashTestFn);
         const compiled = getCompiledPureFn(TEST_NAMESPACE, 'hashTestFn');
         expect(compiled).toBeDefined();
         expect(compiled?.bodyHash).toBeDefined();
@@ -109,8 +111,8 @@ describe('bodyHash generation', () => {
                 return val * 2;
             };
         }
-        registerPureFnClosure(TEST_NAMESPACE, sameBodyFn1);
-        registerPureFnClosure(TEST_NAMESPACE, sameBodyFn2);
+        registerPureFnFactory(TEST_NAMESPACE, sameBodyFn1);
+        registerPureFnFactory(TEST_NAMESPACE, sameBodyFn2);
         const compiled1 = getCompiledPureFn(TEST_NAMESPACE, 'sameBodyFn1');
         const compiled2 = getCompiledPureFn(TEST_NAMESPACE, 'sameBodyFn2');
         // Different inner function names result in different body hashes
@@ -130,8 +132,8 @@ describe('bodyHash generation', () => {
                 return val * 3;
             };
         }
-        registerPureFnClosure(TEST_NAMESPACE, diffBodyFn1);
-        registerPureFnClosure(TEST_NAMESPACE, diffBodyFn2);
+        registerPureFnFactory(TEST_NAMESPACE, diffBodyFn1);
+        registerPureFnFactory(TEST_NAMESPACE, diffBodyFn2);
         const compiled1 = getCompiledPureFn(TEST_NAMESPACE, 'diffBodyFn1');
         const compiled2 = getCompiledPureFn(TEST_NAMESPACE, 'diffBodyFn2');
         expect(compiled1?.bodyHash).not.toBe(compiled2?.bodyHash);
@@ -150,8 +152,8 @@ describe('bodyHash generation', () => {
                 return val.trim();
             };
         }
-        registerPureFnClosure(TEST_NAMESPACE, whitespaceTestFn1);
-        registerPureFnClosure(TEST_NAMESPACE, whitespaceTestFn2);
+        registerPureFnFactory(TEST_NAMESPACE, whitespaceTestFn1);
+        registerPureFnFactory(TEST_NAMESPACE, whitespaceTestFn2);
         const compiled1 = getCompiledPureFn(TEST_NAMESPACE, 'whitespaceTestFn1');
         const compiled2 = getCompiledPureFn(TEST_NAMESPACE, 'whitespaceTestFn2');
         // Hash is based on namespace + name + body, so different outer function names result in different hashes
@@ -165,7 +167,7 @@ describe('bodyHash generation', () => {
                 return val.toLowerCase();
             };
         }
-        registerPureFnClosure(TEST_NAMESPACE, hashLengthTestFn);
+        registerPureFnFactory(TEST_NAMESPACE, hashLengthTestFn);
         const compiled = getCompiledPureFn(TEST_NAMESPACE, 'hashLengthTestFn');
         expect(compiled?.bodyHash).toBeDefined();
         expect(compiled?.bodyHash.length).toBe(8);

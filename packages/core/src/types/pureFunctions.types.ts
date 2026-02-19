@@ -31,7 +31,7 @@ export type PureFunction = (...args: any[]) => any; /**
  * ie: if a string should be maxLength = 5 and that string is 6 characters long, the function should return {invalid:['maxLength']}
  */
 
-export type PureFunctionClosure = (
+export type PureFunctionFactory = (
     jitUtils: JITUtils
 ) => PureFunction; /** Data for a pure function that can be serialized and deserialized. */
 
@@ -50,7 +50,7 @@ export interface PureFunctionData {
     readonly pureFnDependencies: Array<string>;
 }
 export interface CompiledPureFunction extends PureFunctionData {
-    createJitFn: PureFunctionClosure;
+    createJitFn: PureFunctionFactory;
     fn?: PureFunction;
 }
 export interface PersistedPureFunction extends CompiledPureFunction {

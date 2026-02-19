@@ -27,7 +27,7 @@ import type {ArrayRunType} from '../../nodes/member/array.ts';
 import type {MemberRunType} from '../../lib/baseRunTypes.ts';
 import type {LiteralRunType} from '../../nodes/atomic/literal.ts';
 import type {IterableRunType} from '../../nodes/native/Iterable.ts';
-import {asJSONString} from '../../run-types-pure-fns.ts';
+import {cpf_asJSONString} from '../../run-types-pure-fns.ts';
 
 type Operation = typeof JitFunctions.stringifyJson.id | typeof JitFunctions.toJSCode.id;
 
@@ -153,7 +153,7 @@ export function createStringifyCompiler(fnID: Operation) {
                 const skipCode = rt.getSkipCode(comp, prop);
                 // asJSONString is more optimized for propNames than JSON.stringify
                 // in Node, bun is actually slower so we might consider removing this and use native JSON.stringify
-                const asJSONStringFn = comp.addPureFunction('mion', asJSONString);
+                const asJSONStringFn = comp.addPureFunction(cpf_asJSONString);
                 return {
                     code: `
                 const ${arrName} = [];

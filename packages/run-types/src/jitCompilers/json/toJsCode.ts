@@ -16,7 +16,7 @@ import {JitFunctions} from '../../constants.functions.ts';
 import {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
 import {isSafePropName} from '../../lib/utils.ts';
 import {createStringifyCompiler, createStringifyIterable} from './stringifyJson.ts';
-import {sanitizeCompiledFn} from '../../run-types-pure-fns.ts';
+import {cpf_sanitizeCompiledFn} from '../../run-types-pure-fns.ts';
 
 export function createToCodeCompiler() {
     const fnID = JitFunctions.toJSCode.id;
@@ -70,7 +70,7 @@ export function createToCodeCompiler() {
                         };
                     return {code: `'${safeName}:'+${paramsCode?.code}${sep}`, type: 'E'};
                 } else {
-                    const fnName = comp.addPureFunction('mion', sanitizeCompiledFn);
+                    const fnName = comp.addPureFunction(cpf_sanitizeCompiledFn);
                     const parent = srcMS.parent as any as TypePropertySignature;
 
                     // in some scenarios the parent is a propertySignature instead the Expected TypeObjectLiteral so we have to handle that

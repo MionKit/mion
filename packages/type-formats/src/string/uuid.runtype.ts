@@ -10,7 +10,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {randomUUID_V7} from '@mionkit/core';
 import {paramVal} from '../utils.ts';
 import {FormatParams_UUID} from '@mionkit/core';
-import {isUUID} from '../type-formats-pure-fns.ts';
+import {cpf_isUUID} from '../type-formats-pure-fns.ts';
 
 // UUID validator
 export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
@@ -20,7 +20,7 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
     emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
         // version must be set as a string to call pure function isUUID, this is so no transform is needed when comparing with uuid charat
-        return {code: this.compilePureFunctionCall(comp, rt, isUUID, params).callCode, type: 'E'};
+        return {code: this.compilePureFunctionCall(comp, rt, cpf_isUUID, params).callCode, type: 'E'};
     }
     emitIsTypeErrors(comp: JitErrorsFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);

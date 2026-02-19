@@ -16,7 +16,7 @@ import {MethodRunType} from '../member/method.ts';
 import {CallSignatureRunType} from '../member/callSignature.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import {isIndexSignatureRunType} from '../../lib/guards.ts';
-import {getUnknownKeysFromArray, hasUnknownKeysFromArray} from '../../run-types-pure-fns.ts';
+import {cpf_getUnknownKeysFromArray, cpf_hasUnknownKeysFromArray} from '../../run-types-pure-fns.ts';
 
 export type InterfaceMember =
     | PropertyRunType
@@ -270,8 +270,8 @@ function callCheckUnknownProperties(
         allChildrenRuntypes?.length && result.hasNonJitChildren
             ? `${optsVarName}.${checkPropName} ? ${result.allKeysName} : ${result.keysName}`
             : result.keysName;
-    const getUnknownKeysFn = comp.addPureFunction('mion', getUnknownKeysFromArray);
-    const hasUnknownKeysFn = comp.addPureFunction('mion', hasUnknownKeysFromArray);
+    const getUnknownKeysFn = comp.addPureFunction(cpf_getUnknownKeysFromArray);
+    const hasUnknownKeysFn = comp.addPureFunction(cpf_hasUnknownKeysFromArray);
     if (returnKeys) return `${getUnknownKeysFn}(${comp.vλl}, ${conditional})`;
     objectCheckCode.push(`${hasUnknownKeysFn}(${comp.vλl}, ${conditional})`);
     const filtered = objectCheckCode.filter(Boolean);

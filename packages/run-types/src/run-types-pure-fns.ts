@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {TypeFormatError, StrNumber, RunTypeError} from '@mionkit/core';
-import {MAX_UNKNOWN_KEYS} from '@mionkit/core';
+import {MAX_UNKNOWN_KEYS, registerPureFnFactory} from '@mionkit/core';
 
-/** optimized function to convert an string into a json string wrapped in double quotes */
-export function asJSONString() {
+/** @reflection never */
+export const cpf_asJSONString = registerPureFnFactory('mion', function asJSONString() {
     // eslint-disable-next-line no-control-regex
     const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
     const MAX_SCAPE_TEST_LENGTH = 1000;
@@ -20,9 +20,10 @@ export function asJSONString() {
             return JSON.stringify(str);
         }
     };
-}
+});
 
-export function getUnknownKeysFromArray() {
+/** @reflection never */
+export const cpf_getUnknownKeysFromArray = registerPureFnFactory('mion', function getUnknownKeysFromArray() {
     return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
         const unknownKeys: StrNumber[] = [];
         for (const prop in obj) {
@@ -40,9 +41,10 @@ export function getUnknownKeysFromArray() {
         }
         return unknownKeys;
     };
-}
+});
 
-export function hasUnknownKeysFromArray() {
+/** @reflection never */
+export const cpf_hasUnknownKeysFromArray = registerPureFnFactory('mion', function hasUnknownKeysFromArray() {
     return function _hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
         for (const prop in obj) {
             // iterates over the object keys and if not found prop adds to unknownKeys
@@ -57,14 +59,10 @@ export function hasUnknownKeysFromArray() {
         }
         return false;
     };
-}
+});
 
-/**
- * Creates an new RunTypeError and adds it to the errors array
- * Note that all paths are copied when creating the new RunTypeError
- * so they can't be modified after the error is created
- */
-export function err() {
+/** @reflection never */
+export const cpf_err = registerPureFnFactory('mion', function err() {
     return function _err(
         pλth: readonly StrNumber[],
         εrr: RunTypeError[],
@@ -75,14 +73,10 @@ export function err() {
         const runTypeErr: RunTypeError = {expected, path};
         εrr.push(runTypeErr);
     };
-}
+});
 
-/**
- * Creates an new RunTypeError with a TypeFormatError and adds it to the errors array
- * Note that all paths are copied when creating the new RunTypeError
- * so they can't be modified after the error is created
- */
-export function formatErr() {
+/** @reflection never */
+export const cpf_formatErr = registerPureFnFactory('mion', function formatErr() {
     return function _formatErr(
         pλth: StrNumber[],
         εrr: RunTypeError[],
@@ -100,10 +94,10 @@ export function formatErr() {
         const runTypeErr: Required<RunTypeError> = {expected, path, format};
         εrr.push(runTypeErr);
     };
-}
+});
 
-/** Returns a safe key for an iterable object (Map, Set, Array) */
-export function safeIterableKey() {
+/** @reflection never */
+export const cpf_safeIterableKey = registerPureFnFactory('mion', function safeIterableKey() {
     return function _safeKey(value: any): any {
         if (value === undefined) return null;
         if (value === null) return null;
@@ -111,10 +105,10 @@ export function safeIterableKey() {
         if (type === 'number' || type === 'string' || type === 'boolean') return value;
         return null;
     };
-}
+});
 
-/** Sanitizes the compiled function code to remove the 'anonymous' keyword */
-export function sanitizeCompiledFn() {
+/** @reflection never */
+export const cpf_sanitizeCompiledFn = registerPureFnFactory('mion', function sanitizeCompiledFn() {
     const anonymousRegex = /^\s*function\s+anonymous\s*\(/;
     return function sanitizeCompiled(fnCode: string): string {
         if (anonymousRegex.test(fnCode)) {
@@ -122,4 +116,4 @@ export function sanitizeCompiledFn() {
         }
         return fnCode;
     };
-}
+});

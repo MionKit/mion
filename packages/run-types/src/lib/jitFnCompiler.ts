@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, PureFunctionClosure} from '@mionkit/core';
-import {MAX_STACK_DEPTH, getJitUtils, quickHash, registerPureFnClosure, getPureFunctionKey} from '@mionkit/core';
+import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, CompiledPureFunction} from '@mionkit/core';
+import {MAX_STACK_DEPTH, getJitUtils, quickHash} from '@mionkit/core';
 import type {TypeFunction} from '@deepkit/type';
 import type {Mutable, JitFnID, StrNumber, JitCode, RunTypeOptions, JitCompilerOpts, RunTypeChildAccessor} from '../types.ts';
 import type {BaseRunType} from './baseRunTypes.ts';
@@ -24,7 +24,7 @@ import {emitToBinary} from '../jitCompilers/binary/toBinary.ts';
 import {emitFromBinary} from '../jitCompilers/binary/fromBinary.ts';
 import {emitToCode} from '../jitCompilers/json/toJsCode.ts';
 import {createJitFunction, getJITFnHash} from './createJitFunction.ts';
-import {err, formatErr} from '../run-types-pure-fns.ts';
+import {cpf_err, cpf_formatErr} from '../run-types-pure-fns.ts';
 
 const RB = CodeTypes.returnBlock;
 const S = CodeTypes.statement;
@@ -553,19 +553,19 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
 
     // ################### Pure Functions Operations ###################
 
-    addPureFunction(namespace: string, createPureFn: PureFunctionClosure): string {
-        const varName = quickHash(getPureFunctionKey(createPureFn), 8);
-        registerPureFnClosure(namespace, createPureFn); // will throw if there is a different pure function with the same name
+    addPureFunction(compiledPureFn: CompiledPureFunction): string {
+        const {namespace, fnName} = compiledPureFn;
+        const varName = quickHash(fnName, 8);
         if (this.hasContextItem(varName)) return varName;
-        this.addPureFnDependency(namespace, createPureFn);
+        this.addPureFnDependency(compiledPureFn);
         // Add context code for the pure function and params
-        const pureFunctionCode = `const ${varName} = utl.getPureFn(${toLiteral(namespace)}, ${toLiteral(getPureFunctionKey(createPureFn))})`;
+        const pureFunctionCode = `const ${varName} = utl.getPureFn(${toLiteral(namespace)}, ${toLiteral(fnName)})`;
         this.setContextItem(varName, pureFunctionCode);
         return varName;
     }
 
-    addPureFnDependency(namespace: string, createPureFn: PureFunctionClosure): void {
-        const fnName = getPureFunctionKey(createPureFn);
+    addPureFnDependency(compiledPureFn: CompiledPureFunction): void {
+        const {namespace, fnName} = compiledPureFn;
         if (!getJitUtils().hasPureFn(namespace, fnName))
             throw new Error(
                 `Pure function with name ${fnName} can not be added as jit dependency in namespace ${namespace}, be sure to register the pure function first by calling getJitUtils().addPureFn()`
@@ -622,7 +622,7 @@ export class JitErrorsFnCompiler<ID extends JitFnID = any> extends BaseFnCompile
         const args = this._getJitErrorArgs(exp);
         const accessPath = this.getAccessPathLiteral(extraPathLiteral);
         if (accessPath) args.push(accessPath);
-        const errFn = this.addPureFunction('mion', err);
+        const errFn = this.addPureFunction(cpf_err);
         return `${errFn}(${args.join(',')})`;
     }
     callJitFormatErr(
@@ -657,7 +657,7 @@ export class JitErrorsFnCompiler<ID extends JitFnID = any> extends BaseFnCompile
         if (!accessPath && formatAccessPath) optionalArgs.push('undefined');
         if (accessPath) optionalArgs.push(accessPath);
         if (formatAccessPath) optionalArgs.push(formatAccessPath);
-        const formatErrFn = this.addPureFunction('mion', formatErr);
+        const formatErrFn = this.addPureFunction(cpf_formatErr);
         return `${formatErrFn}(${[...typeErrArgs, ...formatArgs, ...optionalArgs].join(',')})`;
     }
 

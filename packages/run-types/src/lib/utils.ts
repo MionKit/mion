@@ -7,12 +7,12 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
-import type {PureFunctionClosure, TypeFormatValue} from '@mionkit/core';
+import type {CompiledPureFunction, TypeFormatValue} from '@mionkit/core';
 import type {AnyClass, JitFnID, RunType} from '../types.ts';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes.ts';
 import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler.ts';
 import type {PropertyRunType} from '../nodes/member/property.ts';
-import {getJitUtils, createHashLiteral} from '@mionkit/core';
+import {createHashLiteral} from '@mionkit/core';
 import {validPropertyNameRegExp} from '../constants.ts';
 import {ReflectionSubKind} from '../constants.kind.ts';
 import {getJitFnSettings} from './jitFnsRegistry.ts';
@@ -150,7 +150,7 @@ const maxStringLength = 10;
 export function toLiteralInContext(
     // if compiled is passed it is assumed that the params are dependencies and will be transformed into code
     comp: JitFnCompiler | JitErrorsFnCompiler,
-    params: TypeFormatValue | Record<string, string | PureFunctionClosure>,
+    params: TypeFormatValue | Record<string, string | CompiledPureFunction>,
     // TODO: somewhere the ignoreProps are not passed and we still outputting 'samples' and 'sampleChars' to jit code were is not needed
     ignoreProps: string[] = [],
     isDependencies = false
@@ -210,20 +210,24 @@ export function toLiteralInContext(
 }
 
 export function dependencyValueToLiteral(comp: JitFnCompiler | JitErrorsFnCompiler | undefined, propVal: any): string {
-    if (typeof propVal === 'function') {
+    if (
+        typeof propVal === 'object' &&
+        propVal !== null &&
+        'createJitFn' in propVal &&
+        'namespace' in propVal &&
+        'fnName' in propVal
+    ) {
+        // propVal is a CompiledPureFunction
         if (!comp) throw new Error('Dependencies must be pure functions or code');
-        // Find the pure function across all namespaces to get its namespace
-        const compiled = getJitUtils().findCompiledPureFn(propVal.name);
-        if (!compiled) throw new Error(`Pure function ${propVal.name} not found in any namespace`);
-        comp.addPureFnDependency(compiled.namespace, propVal);
-        return `utl.getPureFn(${toLiteral(compiled.namespace)}, ${toLiteral(propVal.name)})`;
+        comp.addPureFnDependency(propVal);
+        return `utl.getPureFn(${toLiteral(propVal.namespace)}, ${toLiteral(propVal.fnName)})`;
     }
     if (typeof propVal === 'string') return propVal;
-    throw new Error('Dependencies must be pure functions or code');
+    throw new Error('Dependencies must be CompiledPureFunction objects or code strings');
 }
 
 export function typeParamsToString(
-    params: TypeFormatValue | Record<string, string | PureFunctionClosure>,
+    params: TypeFormatValue | Record<string, string | CompiledPureFunction>,
     ignoreProps: string[]
 ): string {
     switch (true) {

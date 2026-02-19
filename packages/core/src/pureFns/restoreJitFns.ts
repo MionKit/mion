@@ -20,7 +20,7 @@ import {JITUtils} from '../jit/jitUtils.ts';
 import type {PersistedPureFunction} from '../types/pureFunctions.types.ts';
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 import type {PureFunctionData} from '../types/pureFunctions.types.ts';
-import type {PureFunctionClosure} from '../types/pureFunctions.types.ts';
+import type {PureFunctionFactory} from '../types/pureFunctions.types.ts';
 import {TypedError} from '../errors.ts';
 
 /**
@@ -157,7 +157,7 @@ function restorePureFunction(pureFnData: PureFunctionData, jUtil: JITUtils): Com
     const fnWithContext = pureFnData.code;
     try {
         // Create wrapper function that works as a factory and returns the actual pure function
-        const wrapperWithContext = new Function('utl', fnWithContext) as PureFunctionClosure;
+        const wrapperWithContext = new Function('utl', fnWithContext) as PureFunctionFactory;
         // Execute the wrapper with jitUtils to get the final function
         const fn = wrapperWithContext(jUtil);
         const pureFn = pureFnData as Mutable<CompiledPureFunction>;
