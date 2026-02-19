@@ -22,8 +22,33 @@ import {
 } from '@mionkit/core';
 import {BaseRunType, JitFunctions, runType} from '@mionkit/run-types';
 import {getPersistedMethods, headersFn, initRouter, registerRoutes, route, Routes} from '@mionkit/router';
+// Import pure functions to re-register them after resetJitFnCaches
+import {
+    cpf_asJSONString,
+    cpf_getUnknownKeysFromArray,
+    cpf_hasUnknownKeysFromArray,
+    cpf_newRunTypeErr,
+    cpf_formatErr,
+    cpf_safeIterableKey,
+    cpf_sanitizeCompiledFn,
+} from '@mionkit/run-types/src/run-types-pure-fns.ts';
 
-afterEach(() => resetJitFnCaches());
+/** Re-registers run-types pure functions after resetJitFnCaches() */
+function reRegisterRunTypesPureFns(): void {
+    const {addPureFn} = getJitUtils();
+    addPureFn('mion', cpf_asJSONString);
+    addPureFn('mion', cpf_getUnknownKeysFromArray);
+    addPureFn('mion', cpf_hasUnknownKeysFromArray);
+    addPureFn('mion', cpf_newRunTypeErr);
+    addPureFn('mion', cpf_formatErr);
+    addPureFn('mion', cpf_safeIterableKey);
+    addPureFn('mion', cpf_sanitizeCompiledFn);
+}
+
+afterEach(() => {
+    resetJitFnCaches();
+    reRegisterRunTypesPureFns();
+});
 
 it('should compile JIT functions cache to code', () => {
     // a real scenario would use compileAndWriteJitFunctions instead compileTypeToJs to persis to fileSystem
@@ -136,7 +161,7 @@ it('should compile pure functions cache to code', () => {
     }
 
     const TEST_NS = 'test';
-    const compiledPureFn = registerPureFnFactory(TEST_NS, pureFnWIthContext);
+    const compiledPureFn = registerPureFnFactory(TEST_NS, 'addNumbers', pureFnWIthContext);
     const mockCache = {[TEST_NS]: {addNumbers: compiledPureFn}};
     const {pureFnsCache} = getJitFnCaches();
 

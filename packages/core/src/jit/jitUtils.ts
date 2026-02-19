@@ -18,7 +18,7 @@ import type {
 } from '../types/general.types.ts';
 import {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 import {PureFunction} from '../types/pureFunctions.types.ts';
-import {initPureFunction} from '../utils.ts';
+import {initPureFunction, isTestEnv} from '../utils.ts';
 import {restoreCompiledJitFns} from '../pureFns/restoreJitFns.ts';
 import {jitFnsCache as aotJitFnsCache, pureFnsCache as aotPureFnsCache} from '@mionkit/aot-caches';
 
@@ -273,6 +273,7 @@ export function getJitFnCaches() {
  * This is useful for testing purposes only.
  */
 export function resetJitFnCaches() {
+    if (!isTestEnv()) throw new Error('resetJitFnCaches() can only be called fro testing purposes');
     for (const k in jitFnsCache) delete jitFnsCache[k];
     for (const k in pureFnsCache) delete pureFnsCache[k];
     deserializeFnsRegistry.clear();
