@@ -8,12 +8,14 @@ import type {TypeFormatError, StrNumber, RunTypeError} from '@mionkit/core';
 import {MAX_UNKNOWN_KEYS, registerPureFnFactory} from '@mionkit/core';
 
 /** @reflection never */
-export const cpf_asJSONString = registerPureFnFactory('mion', function asJSONString() {
+export const cpf_asJSONString = registerPureFnFactory('mion', 'asJSONString', function () {
+    // @ts-expect-error 2867
+    if (typeof Bun !== 'undefined') return JSON.stringify; // bun has a faster JSON.stringify
     // eslint-disable-next-line no-control-regex
     const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
     const MAX_SCAPE_TEST_LENGTH = 1000;
     return function _asJSONStringRegexOnly(str) {
-        // Always use regex test for strings >= 42 chars (no for loop)
+        // Always use regex test for strings >= 42 chars (n o for loop)
         if (str.length < MAX_SCAPE_TEST_LENGTH && STR_ESCAPE.test(str) === false) {
             return '"' + str + '"';
         } else {
@@ -23,7 +25,7 @@ export const cpf_asJSONString = registerPureFnFactory('mion', function asJSONStr
 });
 
 /** @reflection never */
-export const cpf_getUnknownKeysFromArray = registerPureFnFactory('mion', function getUnknownKeysFromArray() {
+export const cpf_getUnknownKeysFromArray = registerPureFnFactory('mion', 'getUnknownKeysFromArray', function () {
     return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
         const unknownKeys: StrNumber[] = [];
         for (const prop in obj) {
@@ -44,7 +46,7 @@ export const cpf_getUnknownKeysFromArray = registerPureFnFactory('mion', functio
 });
 
 /** @reflection never */
-export const cpf_hasUnknownKeysFromArray = registerPureFnFactory('mion', function hasUnknownKeysFromArray() {
+export const cpf_hasUnknownKeysFromArray = registerPureFnFactory('mion', 'hasUnknownKeysFromArray', function () {
     return function _hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
         for (const prop in obj) {
             // iterates over the object keys and if not found prop adds to unknownKeys
@@ -62,7 +64,7 @@ export const cpf_hasUnknownKeysFromArray = registerPureFnFactory('mion', functio
 });
 
 /** @reflection never */
-export const cpf_err = registerPureFnFactory('mion', function err() {
+export const cpf_err = registerPureFnFactory('mion', 'err', function () {
     return function _err(
         pλth: readonly StrNumber[],
         εrr: RunTypeError[],
@@ -76,7 +78,7 @@ export const cpf_err = registerPureFnFactory('mion', function err() {
 });
 
 /** @reflection never */
-export const cpf_formatErr = registerPureFnFactory('mion', function formatErr() {
+export const cpf_formatErr = registerPureFnFactory('mion', 'formatErr', function () {
     return function _formatErr(
         pλth: StrNumber[],
         εrr: RunTypeError[],
@@ -97,7 +99,7 @@ export const cpf_formatErr = registerPureFnFactory('mion', function formatErr() 
 });
 
 /** @reflection never */
-export const cpf_safeIterableKey = registerPureFnFactory('mion', function safeIterableKey() {
+export const cpf_safeIterableKey = registerPureFnFactory('mion', 'safeIterableKey', function () {
     return function _safeKey(value: any): any {
         if (value === undefined) return null;
         if (value === null) return null;
@@ -108,7 +110,7 @@ export const cpf_safeIterableKey = registerPureFnFactory('mion', function safeIt
 });
 
 /** @reflection never */
-export const cpf_sanitizeCompiledFn = registerPureFnFactory('mion', function sanitizeCompiledFn() {
+export const cpf_sanitizeCompiledFn = registerPureFnFactory('mion', 'sanitizeCompiledFn', function () {
     const anonymousRegex = /^\s*function\s+anonymous\s*\(/;
     return function sanitizeCompiled(fnCode: string): string {
         if (anonymousRegex.test(fnCode)) {
