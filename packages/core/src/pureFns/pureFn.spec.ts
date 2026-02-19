@@ -71,10 +71,10 @@ it('register a group of pure functions so all declared as dependencies', async (
     expect(compiledIsB).toBeDefined();
     expect(compiledIsA?.fn).toBeDefined();
     expect(compiledIsB?.fn).toBeDefined();
-    expect(compiledIsA?.pureFnDependencies.has('pureFunctionB')).toBeTruthy();
-    expect(compiledIsB?.pureFnDependencies.has('pureFunctionA')).toBeTruthy();
-    expect(compiledIsA?.pureFnDependencies.has('pureFunctionA')).toBeFalsy();
-    expect(compiledIsB?.pureFnDependencies.has('pureFunctionB')).toBeFalsy();
+    expect(compiledIsA?.pureFnDependencies.includes('pureFunctionB')).toBeTruthy();
+    expect(compiledIsB?.pureFnDependencies.includes('pureFunctionA')).toBeTruthy();
+    expect(compiledIsA?.pureFnDependencies.includes('pureFunctionA')).toBeFalsy();
+    expect(compiledIsB?.pureFnDependencies.includes('pureFunctionB')).toBeFalsy();
     // Verify namespace is set correctly
     expect(compiledIsA?.namespace).toBe(TEST_NAMESPACE);
     expect(compiledIsB?.namespace).toBe(TEST_NAMESPACE);
