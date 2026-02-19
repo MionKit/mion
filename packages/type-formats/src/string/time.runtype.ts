@@ -11,14 +11,14 @@ import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils.ts';
 import {FormatParams_Time} from '@mionkit/core';
 import {
-    isTimeString_ISO_TZ,
-    isTimeString_ISO,
-    isTimeString_HHmmss,
-    isTimeString_HHmm,
-    isTimeString_mmss,
-    isHours,
-    isMinutes,
-    isSeconds,
+    cpf_isTimeString_ISO_TZ,
+    cpf_isTimeString_ISO,
+    cpf_isTimeString_HHmmss,
+    cpf_isTimeString_HHmm,
+    cpf_isTimeString_mmss,
+    cpf_isHours,
+    cpf_isMinutes,
+    cpf_isSeconds,
 } from '../type-formats-pure-fns.ts';
 
 // Time validator
@@ -70,21 +70,21 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
         switch (format) {
             case 'ISO':
             case 'HH:mm:ss[.mmm]TZ':
-                return isTimeString_ISO_TZ;
+                return cpf_isTimeString_ISO_TZ;
             case 'HH:mm:ss[.mmm]':
-                return isTimeString_ISO;
+                return cpf_isTimeString_ISO;
             case 'HH:mm:ss':
-                return isTimeString_HHmmss;
+                return cpf_isTimeString_HHmmss;
             case 'HH:mm':
-                return isTimeString_HHmm;
+                return cpf_isTimeString_HHmm;
             case 'mm:ss':
-                return isTimeString_mmss;
+                return cpf_isTimeString_mmss;
             case 'HH':
-                return isHours;
+                return cpf_isHours;
             case 'mm':
-                return isMinutes;
+                return cpf_isMinutes;
             case 'ss':
-                return isSeconds;
+                return cpf_isSeconds;
             default:
                 throw new Error(`Invalid time format: ${format}`);
         }

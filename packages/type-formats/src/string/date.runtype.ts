@@ -10,12 +10,12 @@ import {BaseRunTypeFormat, registerFormatter, TypeFormat} from '@mionkit/run-typ
 import {paramVal} from '../utils.ts';
 import {DateFmt, FormatParams_Date} from '@mionkit/core';
 import {
-    isDateString_YMD,
-    isDateString_DMY,
-    isDateString_MDY,
-    isDateString_YM,
-    isDateString_MD,
-    isDateString_DM,
+    cpf_isDateString_YMD,
+    cpf_isDateString_DMY,
+    cpf_isDateString_MDY,
+    cpf_isDateString_YM,
+    cpf_isDateString_MD,
+    cpf_isDateString_DM,
 } from '../type-formats-pure-fns.ts';
 
 // Date validator
@@ -66,17 +66,17 @@ export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date
         switch (format) {
             case 'ISO':
             case 'YYYY-MM-DD':
-                return isDateString_YMD;
+                return cpf_isDateString_YMD;
             case 'DD-MM-YYYY':
-                return isDateString_DMY;
+                return cpf_isDateString_DMY;
             case 'MM-DD-YYYY':
-                return isDateString_MDY;
+                return cpf_isDateString_MDY;
             case 'YYYY-MM':
-                return isDateString_YM;
+                return cpf_isDateString_YM;
             case 'MM-DD':
-                return isDateString_MD;
+                return cpf_isDateString_MD;
             case 'DD-MM':
-                return isDateString_DM;
+                return cpf_isDateString_DM;
             default:
                 throw new Error(`Invalid date format: ${format}`);
         }

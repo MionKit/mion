@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PureFunctionClosure, TypeFormatParams, TypeFormatValue} from '@mionkit/core';
+import {CompiledPureFunction, TypeFormatParams, TypeFormatValue} from '@mionkit/core';
 import {ReflectionKindName} from '../constants.kind.ts';
 import type {FormatAnnotation} from '../types.ts';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
@@ -137,7 +137,7 @@ export function getToLiteralFn(comp: JitFnCompiler | JitErrorsFnCompiler, ignore
  */
 export function dependenciesToLiteral(
     comp: JitFnCompiler | JitErrorsFnCompiler,
-    params: Record<string, string | PureFunctionClosure>,
+    params: Record<string, string | CompiledPureFunction>,
     ignoreProps: string[] = []
 ) {
     return toLiteralInContext(comp, params, ignoreProps, true);

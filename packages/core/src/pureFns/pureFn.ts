@@ -5,57 +5,87 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CompiledPureFunction, PureFunctionClosure} from '../types/pureFunctions.types.ts';
-import {getJitUtils} from '../jit/jitUtils.ts';
+import type {CompiledPureFunction, PureFunctionFactory} from '../types/pureFunctions.types.ts';
+import {getJitUtils, JITUtils} from '../jit/jitUtils.ts';
 import {createUniqueHash, pureFnHashLength} from './quickHash.ts';
 
-export function getPureFunctionKey(fn: PureFunctionClosure): string {
+export function getPureFunctionKey(fn: PureFunctionFactory): string {
     const name = fn.name;
     if (!name) throw new Error('Pure Functions must have a name');
     return name;
 }
 
-export function registerPureFnClosuresGroup(namespace: string, fnsWithCtx: PureFunctionClosure[]): CompiledPureFunction[] {
-    const compiledFns = fnsWithCtx.map((fn) => registerPureFnClosure(namespace, fn));
-    compiledFns.forEach((cfn) => {
-        compiledFns.forEach((cf) => {
-            if (cfn.fnName === cf.fnName) return;
-            if (cf.pureFnDependencies.includes(cfn.fnName)) return;
-            cf.pureFnDependencies.push(cfn.fnName);
-        });
-    });
-    return compiledFns;
-}
-
-export function registerPureFnClosure(
-    namespace: string,
-    fnWithCtx: PureFunctionClosure,
-    dependencies?: PureFunctionClosure[]
-): CompiledPureFunction {
+export function registerPureFnFactory(namespace: string, fnWithCtx: PureFunctionFactory): CompiledPureFunction {
     const key = getPureFunctionKey(fnWithCtx);
     const existing = getJitUtils().getCompiledPureFn(namespace, key);
     if (existing) return existing;
-    const compiled = parsePureFunctionWithCtx(namespace, fnWithCtx);
-    if (dependencies) {
-        dependencies.forEach((d) => registerPureFnClosure(namespace, d));
-        dependencies.forEach((d) => {
-            const depKey = getPureFunctionKey(d);
-            if (depKey === key) return;
-            if (compiled.pureFnDependencies.includes(depKey)) return;
-            compiled.pureFnDependencies.push(depKey);
-        });
+    const compiled = parsePureFactoryFunction(namespace, fnWithCtx);
+
+    // Run the factory once with a tracking proxy to auto-detect dependencies
+    const {proxy, getDependencies} = createDependencyTrackingProxy();
+    try {
+        fnWithCtx(proxy);
+    } catch {
+        // Factory may fail if dependencies aren't registered yet, that's ok
+        // We still capture whatever was accessed before the error
     }
+    const detectedDeps = getDependencies();
+    for (const dep of detectedDeps) {
+        if (dep === key) continue;
+        if (!compiled.pureFnDependencies.includes(dep)) compiled.pureFnDependencies.push(dep);
+    }
+
     getJitUtils().addPureFn(namespace, compiled);
     return compiled;
+}
+
+/** Creates a proxy of jitUtils that records all pure function accesses (getPureFn, usePureFn, etc.) */
+function createDependencyTrackingProxy(): {proxy: JITUtils; getDependencies: () => Set<string>} {
+    const dependencies = new Set<string>();
+    const realUtils = getJitUtils();
+
+    const noopFn = () => () => {};
+
+    const proxy = new Proxy(realUtils, {
+        get(target, prop, receiver) {
+            if (prop === 'getPureFn' || prop === 'usePureFn') {
+                return (ns: string, fnName: string) => {
+                    dependencies.add(fnName);
+                    // Return a noop function so the factory can execute without errors
+                    const real = target.getPureFn(ns, fnName);
+                    return real ?? noopFn;
+                };
+            }
+            if (prop === 'getCompiledPureFn') {
+                return (ns: string, fnName: string) => {
+                    dependencies.add(fnName);
+                    return target.getCompiledPureFn(ns, fnName);
+                };
+            }
+            if (prop === 'hasPureFn') {
+                return (ns: string, fnName: string) => {
+                    dependencies.add(fnName);
+                    return target.hasPureFn(ns, fnName);
+                };
+            }
+            if (prop === 'findCompiledPureFn') {
+                return (fnName: string) => {
+                    dependencies.add(fnName);
+                    return target.findCompiledPureFn(fnName);
+                };
+            }
+            return Reflect.get(target, prop, receiver);
+        },
+    });
+
+    return {proxy, getDependencies: () => dependencies};
 }
 
 /**
  * Parses a pure function and returns it's data.
  * We are using toString() to get the function code, this might not work in all environments.
- * @param namespace - The namespace this pure function belongs to
- * @param createJitFn - The pure function closure
  */
-function parsePureFunctionWithCtx(namespace: string, createJitFn: PureFunctionClosure): CompiledPureFunction {
+function parsePureFactoryFunction(namespace: string, createJitFn: PureFunctionFactory): CompiledPureFunction {
     if (!createJitFn.name) throw new Error('Pure Functions must have a name');
 
     const fnString = createJitFn.toString();
@@ -90,7 +120,7 @@ function parsePureFunctionWithCtx(namespace: string, createJitFn: PureFunctionCl
         bodyHash: createUniqueHash(namespace + createJitFn.name + body, pureFnHashLength),
         paramNames,
         code: body,
-        pureFnDependencies: new Set<string>(),
+        pureFnDependencies: [],
     };
     return compiled;
 }

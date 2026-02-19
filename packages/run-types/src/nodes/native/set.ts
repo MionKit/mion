@@ -11,7 +11,7 @@ import {GenericMemberRunType} from '../member/genericMember.ts';
 import {IterableRunType} from './Iterable.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import type {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
-import {safeIterableKey} from '../../run-types-pure-fns.ts';
+import {cpf_safeIterableKey} from '../../run-types-pure-fns.ts';
 export class SetRunType extends IterableRunType {
     keyRT = new SetKeyRunType();
     children = [this.keyRT];
@@ -44,7 +44,7 @@ export class SetKeyRunType extends GenericMemberRunType<any> {
     getStaticPathLiteral(comp: JitFnCompiler): string {
         const parent = this.getParent()! as SetRunType;
         const custom = parent.getCustomVλl(comp)!;
-        const safeKeyFn = comp.addPureFunction('mion', safeIterableKey);
+        const safeKeyFn = comp.addPureFunction(cpf_safeIterableKey);
         return `{key:${safeKeyFn}(${custom.vλl}),index:${parent.getIndexVarName(comp)}}`;
     }
     getCustomVλl(comp: JitFnCompiler) {

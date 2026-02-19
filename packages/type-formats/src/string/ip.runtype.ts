@@ -10,7 +10,7 @@ import {BaseRunTypeFormat, TypeFormat, registerFormatter} from '@mionkit/run-typ
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils.ts';
 import {FormatParams_IP} from '@mionkit/core';
-import {isIPV4, isIPV6} from '../type-formats-pure-fns.ts';
+import {cpf_isIPV4, cpf_isIPV6} from '../type-formats-pure-fns.ts';
 
 // IP validator
 export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
@@ -19,10 +19,10 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
     name = IPRunTypeFormat.id;
     emitIsType(comp: JitFnCompiler, rt: BaseRunType): JitCode {
         const params = this.getParams(rt);
-        if (params.version === 4) return {code: this.compilePureFunctionCall(comp, rt, isIPV4).callCode, type: 'E'};
-        if (params.version === 6) return {code: this.compilePureFunctionCall(comp, rt, isIPV6).callCode, type: 'E'};
+        if (params.version === 4) return {code: this.compilePureFunctionCall(comp, rt, cpf_isIPV4).callCode, type: 'E'};
+        if (params.version === 6) return {code: this.compilePureFunctionCall(comp, rt, cpf_isIPV6).callCode, type: 'E'};
         return {
-            code: `${this.compilePureFunctionCall(comp, rt, isIPV4).callCode} || ${this.compilePureFunctionCall(comp, rt, isIPV6).callCode}`,
+            code: `${this.compilePureFunctionCall(comp, rt, cpf_isIPV4).callCode} || ${this.compilePureFunctionCall(comp, rt, cpf_isIPV6).callCode}`,
             type: 'E',
         };
     }

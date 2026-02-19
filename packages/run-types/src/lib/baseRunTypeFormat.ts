@@ -5,7 +5,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {TypeFormatParams, PureFunctionClosure, TypeFormatValue, JitCompiledFn} from '@mionkit/core';
+import type {TypeFormatParams, CompiledPureFunction, TypeFormatValue, JitCompiledFn} from '@mionkit/core';
 import type {BaseRunType} from './baseRunTypes.ts';
 import {createJitCompiler, type JitFnCompiler, type JitErrorsFnCompiler} from './jitFnCompiler.ts';
 import type {JitFnID, Mutable, StrNumber, JitCode, RunTypeOptions} from '../types.ts';
@@ -241,9 +241,9 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     compilePureFunctionCall(
         comp: JitFnCompiler,
         rt: BaseRunType,
-        createPureFn: PureFunctionClosure,
+        compiledPureFn: CompiledPureFunction,
         params?: TypeFormatValue,
-        dependenciesParams?: Record<string, string | PureFunctionClosure>
+        dependenciesParams?: Record<string, string | CompiledPureFunction>
     ): {callCode: string; fnName: string; paramsName: string; dependenciesName?: string} {
         // PureFunction arguments =>
 
@@ -255,7 +255,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         const paramsName = paramsToLiteral(comp, params || this.getParams(rt), this.getIgnoredProps());
         const dependenciesName = dependenciesToLiteral(comp, dependenciesParams || {});
         const callParams = [val, paramsName, dependenciesName];
-        const fnName = comp.addPureFunction(this.namespace, createPureFn);
+        const fnName = comp.addPureFunction(compiledPureFn);
         const callCode = `${fnName}(${callParams.join(',')})`;
         return {callCode, fnName, paramsName, dependenciesName};
     }
@@ -263,9 +263,9 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     compileErrorsPureFunctionCall(
         comp: JitErrorsFnCompiler,
         rt: BaseRunType,
-        pureFn: PureFunctionClosure,
+        compiledPureFn: CompiledPureFunction,
         params: TypeFormatValue,
-        dependenciesParams?: Record<string, string | PureFunctionClosure>,
+        dependenciesParams?: Record<string, string | CompiledPureFunction>,
         extraPathLiteral?: StrNumber // TODO: this might not be needed
     ): {callCode: string; fnName: string; paramsName: string; dependenciesName?: string} {
         // ErrorsPureFunction arguments =>
@@ -295,7 +295,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         const callParams = [val, path, err, expected, formatName, formatParams, formatPath, deps];
         if (accessPath) callParams.push(accessPath);
 
-        const fnName = comp.addPureFunction(this.namespace, pureFn);
+        const fnName = comp.addPureFunction(compiledPureFn);
         const callCode = `${fnName}(${callParams.join(',')})`;
         return {callCode, fnName, paramsName: formatParams, dependenciesName: deps};
     }
