@@ -38,7 +38,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "npx ts-node -r tsconfig-paths/register --project ../codegen/tsconfig.json ../codegen/src/run-build-aot.ts --dir . --start-server-script ./defaultRoutes.ts",
+    "build": "npx vite-node ../devtools/src/codegen/run-build-aot.ts --dir . --start-server-script ./defaultRoutes.ts",
     "build-ts-dts": "echo 'noop: aot-caches uses codegen build'"
   },
   "bugs": {

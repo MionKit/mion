@@ -24,7 +24,7 @@ import {emitToBinary} from '../jitCompilers/binary/toBinary.ts';
 import {emitFromBinary} from '../jitCompilers/binary/fromBinary.ts';
 import {emitToCode} from '../jitCompilers/json/toJsCode.ts';
 import {createJitFunction, getJITFnHash} from './createJitFunction.ts';
-import {cpf_err, cpf_formatErr} from '../run-types-pure-fns.ts';
+import {cpf_newRunTypeErr, cpf_formatErr} from '../run-types-pure-fns.ts';
 
 const RB = CodeTypes.returnBlock;
 const S = CodeTypes.statement;
@@ -622,7 +622,7 @@ export class JitErrorsFnCompiler<ID extends JitFnID = any> extends BaseFnCompile
         const args = this._getJitErrorArgs(exp);
         const accessPath = this.getAccessPathLiteral(extraPathLiteral);
         if (accessPath) args.push(accessPath);
-        const errFn = this.addPureFunction(cpf_err);
+        const errFn = this.addPureFunction(cpf_newRunTypeErr);
         return `${errFn}(${args.join(',')})`;
     }
     callJitFormatErr(
