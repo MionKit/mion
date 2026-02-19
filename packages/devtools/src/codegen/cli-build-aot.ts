@@ -8,8 +8,8 @@
 import {resolve, join} from 'path';
 import {existsSync} from 'fs';
 import {parseArgs} from 'util';
-import {compileAOT} from './aot-compile.js';
-import {isTest} from './constants.js';
+import {compileAOT} from './aot-compile.ts';
+import {isTest} from './constants.ts';
 
 // Default template directory relative to this file (used when not specified via CLI)
 const DEFAULT_TEMPLATE_DIR = join(__dirname, '..', '..', 'mion-aot-template');

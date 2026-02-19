@@ -11,7 +11,7 @@ import {dirname, join} from 'path';
 import {execSync} from 'child_process';
 import {JitFunctionsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
-import {AOTConfig, compiledCacheConfig} from './types.js';
+import {AOTConfig, compiledCacheConfig} from './types.ts';
 import {MethodsCache} from '@mionkit/core';
 
 /**

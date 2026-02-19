@@ -8,7 +8,7 @@
 import {resolve, join, basename} from 'path';
 import {existsSync, mkdirSync, cpSync, readFileSync, writeFileSync, rmSync} from 'fs';
 import {parseArgs} from 'util';
-import {isTest} from './constants.js';
+import {isTest} from './constants.ts';
 
 export interface InitAOTOptions {
     dir: string;

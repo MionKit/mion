@@ -6,7 +6,7 @@
  * ######## */
 
 import type {CompiledPureFunction, PureFunctionFactory} from '../types/pureFunctions.types.ts';
-import {getJitUtils, JITUtils} from '../jit/jitUtils.ts';
+import {getJitUtils, type JITUtils} from '../jit/jitUtils.ts';
 import {createUniqueHash, pureFnHashLength} from './quickHash.ts';
 
 export function registerPureFnFactory(

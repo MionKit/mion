@@ -27,14 +27,14 @@
       "require": "./build/eslint/cjs/index.js"
     },
     "./vite-plugin": {
-      "types": "./build/vite-plugin/src/vite-plugin/index.d.ts",
-      "import": "./build/vite-plugin/index.js",
-      "require": "./build/vite-plugin/index.cjs"
+      "types": "./build/vite-plugin/esm/src/vite-plugin/index.d.ts",
+      "import": "./build/vite-plugin/esm/index.js",
+      "require": "./build/vite-plugin/cjs/index.js"
     },
-    "./codegen/*": {
-      "types": "./src/codegen/*.ts",
-      "import": "./src/codegen/*.ts",
-      "require": "./src/codegen/*.ts"
+    "./codegen": {
+      "types": "./src/codegen/cli-build-aot.ts",
+      "import": "./build/codegen/esm/index.js",
+      "require": "./build/codegen/cjs/index.js"
     }
   },
   "directories": {
@@ -63,9 +63,10 @@
     "dev:test": "vitest watch",
     "lint": "npx eslint src index.ts",
     "format": "prettier --write index.ts src/**/*.ts",
-    "build": "npm run build:aot-template && npm run build:eslint && npm run build:vite-plugin",
+    "build": "npm run build:aot-template && npm run build:eslint && npm run build:vite-plugin && npm run build:codegen",
     "build:eslint": "vite build --config vite.eslint.config.ts",
     "build:vite-plugin": "vite build --config vite.vite-plugin.config.ts",
+    "build:codegen": "vite build --config vite.codegen.config.ts",
     "build:aot-template": "cd mion-aot-template && npm run build",
     "build-ts-dts": "echo 'noop: devtools uses custom build'",
     "clean": "rimraf .dist & rimraf .coverage",
