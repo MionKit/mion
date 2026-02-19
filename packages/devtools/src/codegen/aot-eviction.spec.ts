@@ -10,12 +10,34 @@ import {join, resolve} from 'path';
 import {compileAOT, resetCompileTracking} from './aot-compile.js';
 import {initAOT} from './cli-init-aot.js';
 import {resetRouter, loadCompiledMethods} from '@mionkit/router';
-import {resetJitFnCaches, addAOTCaches} from '@mionkit/core';
+import {resetJitFnCaches, addAOTCaches, getJitUtils} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
+// Import pure functions to re-register them after resetJitFnCaches
+import {
+    cpf_asJSONString,
+    cpf_getUnknownKeysFromArray,
+    cpf_hasUnknownKeysFromArray,
+    cpf_newRunTypeErr,
+    cpf_formatErr,
+    cpf_safeIterableKey,
+    cpf_sanitizeCompiledFn,
+} from '@mionkit/run-types/src/run-types-pure-fns.ts';
 
-const CODEGEN_ROOT = resolve(__dirname, '..');
-const TEST_ARTIFACTS_DIR = join(CODEGEN_ROOT, '.dist', 'test-artifacts-eviction');
-const TEMPLATE_DIR = join(CODEGEN_ROOT, 'mion-aot-template');
+/** Re-registers run-types pure functions after resetJitFnCaches() */
+function reRegisterRunTypesPureFns(): void {
+    const {addPureFn} = getJitUtils();
+    addPureFn('mion', cpf_asJSONString);
+    addPureFn('mion', cpf_getUnknownKeysFromArray);
+    addPureFn('mion', cpf_hasUnknownKeysFromArray);
+    addPureFn('mion', cpf_newRunTypeErr);
+    addPureFn('mion', cpf_formatErr);
+    addPureFn('mion', cpf_safeIterableKey);
+    addPureFn('mion', cpf_sanitizeCompiledFn);
+}
+
+const PACKAGE_ROOT = resolve(__dirname, '..', '..');
+const TEST_ARTIFACTS_DIR = join(PACKAGE_ROOT, '.dist', 'test-artifacts-eviction');
+const TEMPLATE_DIR = join(PACKAGE_ROOT, 'mion-aot-template');
 const TEST_ROUTER_PATH = join(__dirname, 'test', 'test-router.ts');
 const TEST_ROUTER_MODIFIED_PATH = join(__dirname, 'test', 'test-router-modified.ts');
 
@@ -30,6 +52,8 @@ describe('AOT Cache Eviction E2E', () => {
         if (!existsSync(TEST_ARTIFACTS_DIR)) {
             mkdirSync(TEST_ARTIFACTS_DIR, {recursive: true});
         }
+        // Ensure pure functions are registered
+        reRegisterRunTypesPureFns();
     });
 
     afterAll(() => {
@@ -96,6 +120,7 @@ describe('AOT Cache Eviction E2E', () => {
         // Step 2: Reset caches and load AOT caches from first compilation
         resetRouter();
         resetJitFnCaches();
+        reRegisterRunTypesPureFns();
 
         const aotPackagePath = join(evictionTestDir, 'build', 'esm', 'src', 'index.js');
         const aotPackage = await import(aotPackagePath);

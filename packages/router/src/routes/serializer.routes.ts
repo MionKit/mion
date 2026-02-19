@@ -5,10 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MionResponse, MionRequest, CallContext} from '../types/context.ts';
-import type {RouterOptions} from '../types/general.ts';
-import type {LinkedFnsCollection, MayReturnError} from '../types/publicMethods.ts';
-import type {ResponseBody} from '../types/context.ts';
+import {MionResponse, MionRequest, CallContext, ResponseBody} from '../types/context.ts';
+import {RouterOptions} from '../types/general.ts';
+import {LinkedFnsCollection, MayReturnError} from '../types/publicMethods.ts';
 import {
     AnyObject,
     Mutable,

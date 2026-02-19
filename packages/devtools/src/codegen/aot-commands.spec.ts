@@ -10,10 +10,10 @@ import {join, resolve} from 'path';
 import {initAOT} from './cli-init-aot.js';
 import {buildAOT} from './cli-build-aot.js';
 
-const CODEGEN_ROOT = resolve(__dirname, '..');
-const TEMPLATE_DIR = join(CODEGEN_ROOT, 'mion-aot-template');
+const PACKAGE_ROOT = resolve(__dirname, '..', '..');
+const TEMPLATE_DIR = join(PACKAGE_ROOT, 'mion-aot-template');
 // ensure artifact dirs is unique and not used by other tests
-const TEST_ARTIFACTS_DIR = join(CODEGEN_ROOT, '.dist', 'test-artifacts-commands');
+const TEST_ARTIFACTS_DIR = join(PACKAGE_ROOT, '.dist', 'test-artifacts-commands');
 
 describe('AOT Commands Integration Tests', () => {
     beforeAll(() => {

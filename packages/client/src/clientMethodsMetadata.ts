@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, isRpcError, addRoutesToCache, resetRoutesCache, resetJitFnCaches} from '@mionkit/core';
+import {RpcError, isRpcError, addRoutesToCache, resetRoutesCache, resetJitFnCaches, isTestEnv} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
 import {ClientOptions, RequestBody} from './types.ts';
 import type {
@@ -197,6 +197,7 @@ function addToCaches(serializableMethodsData: SerializableMethodsData) {
 
 /** Resets the client caches and reloads them from the AOT caches, mostly usefull for testing*/
 export function resetClientCaches() {
+    if (!isTestEnv()) throw new Error('resetClientCaches() can only be called fro testing purposes');
     resetRoutesCache();
     resetJitFnCaches();
     loadClientCaches();
