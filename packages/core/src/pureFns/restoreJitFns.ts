@@ -74,8 +74,8 @@ function restoreCompiledPureFn(
     // Dependencies are in the same namespace
     dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, namespace, depName, jUtil, visited));
     // persisted pure functions (AOT code caches) have the createJitFn but not the fn
-    if ((pureCompiled as PersistedPureFunction).createJitFn) {
-        (pureCompiled as any as Mutable<CompiledPureFunction>).fn = (pureCompiled as PersistedPureFunction).createJitFn(jUtil);
+    if ((pureCompiled as PersistedPureFunction).createPureFn) {
+        (pureCompiled as any as Mutable<CompiledPureFunction>).fn = (pureCompiled as PersistedPureFunction).createPureFn(jUtil);
         return;
     }
     // serialized pure functions (network sent) do not contains neither createJitFn nor fn
@@ -161,7 +161,7 @@ function restorePureFunction(pureFnData: PureFunctionData, jUtil: JITUtils): Com
         // Execute the wrapper with jitUtils to get the final function
         const fn = wrapperWithContext(jUtil);
         const pureFn = pureFnData as Mutable<CompiledPureFunction>;
-        pureFn.createJitFn = wrapperWithContext;
+        pureFn.createPureFn = wrapperWithContext;
         pureFn.fn = fn;
         return pureFn;
     } catch (e: any) {

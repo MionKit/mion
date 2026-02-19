@@ -58,7 +58,7 @@ export const cpf_isDateString = registerPureFnFactory('mionFormats', 'isDateStri
 
 /** @reflection never */
 export const cpf_isDateString_YMD = registerPureFnFactory('mionFormats', 'isDateString_YMD', function (jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createJitFn>;
+    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createPureFn>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[0], parts[1], parts[2]);
@@ -67,7 +67,7 @@ export const cpf_isDateString_YMD = registerPureFnFactory('mionFormats', 'isDate
 
 /** @reflection never */
 export const cpf_isDateString_DMY = registerPureFnFactory('mionFormats', 'isDateString_DMY', function (jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createJitFn>;
+    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createPureFn>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[2], parts[1], parts[0]);
@@ -76,7 +76,7 @@ export const cpf_isDateString_DMY = registerPureFnFactory('mionFormats', 'isDate
 
 /** @reflection never */
 export const cpf_isDateString_MDY = registerPureFnFactory('mionFormats', 'isDateString_MDY', function (jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createJitFn>;
+    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createPureFn>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[2], parts[0], parts[1]);
@@ -85,7 +85,7 @@ export const cpf_isDateString_MDY = registerPureFnFactory('mionFormats', 'isDate
 
 /** @reflection never */
 export const cpf_isDateString_YM = registerPureFnFactory('mionFormats', 'isDateString_YM', function (jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createJitFn>;
+    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createPureFn>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(parts[0], parts[1]);
@@ -94,7 +94,7 @@ export const cpf_isDateString_YM = registerPureFnFactory('mionFormats', 'isDateS
 
 /** @reflection never */
 export const cpf_isDateString_MD = registerPureFnFactory('mionFormats', 'isDateString_MD', function (jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createJitFn>;
+    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createPureFn>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(undefined, parts[0], parts[1]);
@@ -103,7 +103,7 @@ export const cpf_isDateString_MD = registerPureFnFactory('mionFormats', 'isDateS
 
 /** @reflection never */
 export const cpf_isDateString_DM = registerPureFnFactory('mionFormats', 'isDateString_DM', function (jUtil: JITUtils) {
-    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createJitFn>;
+    const isDate = jUtil.getPureFn('mionFormats', 'isDateString') as any as ReturnType<typeof cpf_isDateString.createPureFn>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(undefined, parts[1], parts[0]);
@@ -125,8 +125,8 @@ export const dateFunctions = [
 
 /** @reflection never */
 export const cpf_isTimeZone = registerPureFnFactory('mionFormats', 'isTimeZone', function (jUtil: JITUtils) {
-    const isH = jUtil.getPureFn('mionFormats', 'isHours') as ReturnType<typeof cpf_isHours.createJitFn>;
-    const isM = jUtil.getPureFn('mionFormats', 'isMinutes') as ReturnType<typeof cpf_isMinutes.createJitFn>;
+    const isH = jUtil.getPureFn('mionFormats', 'isHours') as ReturnType<typeof cpf_isHours.createPureFn>;
+    const isM = jUtil.getPureFn('mionFormats', 'isMinutes') as ReturnType<typeof cpf_isMinutes.createPureFn>;
     return function is_tz(timeZone: string): timeZone is 'TZ' {
         const isZ = timeZone === 'Z' || timeZone === 'z';
         if (isZ) return true;
@@ -170,7 +170,7 @@ export const cpf_isSeconds = registerPureFnFactory('mionFormats', 'isSeconds', f
 
 /** @reflection never */
 export const cpf_isSecondsWithMs = registerPureFnFactory('mionFormats', 'isSecondsWithMs', function (jUtil: JITUtils) {
-    const isS = jUtil.getPureFn('mionFormats', 'isSeconds') as ReturnType<typeof cpf_isSeconds.createJitFn>;
+    const isS = jUtil.getPureFn('mionFormats', 'isSeconds') as ReturnType<typeof cpf_isSeconds.createPureFn>;
     return function is_s_ms(secsAnsMls: string): secsAnsMls is 'ss.mmm' {
         const parts = secsAnsMls.split('.') as ['ss', 'mmm' | undefined];
         if (parts.length > 2) return false;
@@ -189,8 +189,8 @@ export const cpf_isSecondsWithMs = registerPureFnFactory('mionFormats', 'isSecon
 
 /** @reflection never */
 export const cpf_isTimeString_ISO_TZ = registerPureFnFactory('mionFormats', 'isTimeString_ISO_TZ', function (jUtil: JITUtils) {
-    const isTWms = jUtil.getPureFn('mionFormats', 'isTimeString_ISO') as ReturnType<typeof cpf_isTimeString_ISO.createJitFn>;
-    const isTZ = jUtil.getPureFn('mionFormats', 'isTimeZone') as ReturnType<typeof cpf_isTimeZone.createJitFn>;
+    const isTWms = jUtil.getPureFn('mionFormats', 'isTimeString_ISO') as ReturnType<typeof cpf_isTimeString_ISO.createPureFn>;
+    const isTZ = jUtil.getPureFn('mionFormats', 'isTimeZone') as ReturnType<typeof cpf_isTimeZone.createPureFn>;
     return function is_iso_time(value: string): boolean {
         // 'ISO' OR 'HH:mm:ss[.mmm]TZ'
         const isZ = value.endsWith('Z') || value.endsWith('z');
@@ -209,9 +209,9 @@ export const cpf_isTimeString_ISO_TZ = registerPureFnFactory('mionFormats', 'isT
 
 /** @reflection never */
 export const cpf_isTimeString_ISO = registerPureFnFactory('mionFormats', 'isTimeString_ISO', function (jUtil: JITUtils) {
-    const isH = jUtil.getPureFn('mionFormats', 'isHours') as ReturnType<typeof cpf_isHours.createJitFn>;
-    const isM = jUtil.getPureFn('mionFormats', 'isMinutes') as ReturnType<typeof cpf_isMinutes.createJitFn>;
-    const isSWithMls = jUtil.getPureFn('mionFormats', 'isSecondsWithMs') as ReturnType<typeof cpf_isSecondsWithMs.createJitFn>;
+    const isH = jUtil.getPureFn('mionFormats', 'isHours') as ReturnType<typeof cpf_isHours.createPureFn>;
+    const isM = jUtil.getPureFn('mionFormats', 'isMinutes') as ReturnType<typeof cpf_isMinutes.createPureFn>;
+    const isSWithMls = jUtil.getPureFn('mionFormats', 'isSecondsWithMs') as ReturnType<typeof cpf_isSecondsWithMs.createPureFn>;
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 3 && isH(parts[0]) && isM(parts[1]) && isSWithMls(parts[2]);
@@ -220,9 +220,9 @@ export const cpf_isTimeString_ISO = registerPureFnFactory('mionFormats', 'isTime
 
 /** @reflection never */
 export const cpf_isTimeString_HHmmss = registerPureFnFactory('mionFormats', 'isTimeString_HHmmss', function (jUtil: JITUtils) {
-    const isH = jUtil.getPureFn('mionFormats', 'isHours') as ReturnType<typeof cpf_isHours.createJitFn>;
-    const isM = jUtil.getPureFn('mionFormats', 'isMinutes') as ReturnType<typeof cpf_isMinutes.createJitFn>;
-    const isS = jUtil.getPureFn('mionFormats', 'isSeconds') as ReturnType<typeof cpf_isSeconds.createJitFn>;
+    const isH = jUtil.getPureFn('mionFormats', 'isHours') as ReturnType<typeof cpf_isHours.createPureFn>;
+    const isM = jUtil.getPureFn('mionFormats', 'isMinutes') as ReturnType<typeof cpf_isMinutes.createPureFn>;
+    const isS = jUtil.getPureFn('mionFormats', 'isSeconds') as ReturnType<typeof cpf_isSeconds.createPureFn>;
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 3 && isH(parts[0]) && isM(parts[1]) && isS(parts[2]);
@@ -231,8 +231,8 @@ export const cpf_isTimeString_HHmmss = registerPureFnFactory('mionFormats', 'isT
 
 /** @reflection never */
 export const cpf_isTimeString_HHmm = registerPureFnFactory('mionFormats', 'isTimeString_HHmm', function (jUtil: JITUtils) {
-    const isH = jUtil.getPureFn('mionFormats', 'isHours') as ReturnType<typeof cpf_isHours.createJitFn>;
-    const isM = jUtil.getPureFn('mionFormats', 'isMinutes') as ReturnType<typeof cpf_isMinutes.createJitFn>;
+    const isH = jUtil.getPureFn('mionFormats', 'isHours') as ReturnType<typeof cpf_isHours.createPureFn>;
+    const isM = jUtil.getPureFn('mionFormats', 'isMinutes') as ReturnType<typeof cpf_isMinutes.createPureFn>;
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 2 && isH(parts[0]) && isM(parts[1]);
@@ -241,8 +241,8 @@ export const cpf_isTimeString_HHmm = registerPureFnFactory('mionFormats', 'isTim
 
 /** @reflection never */
 export const cpf_isTimeString_mmss = registerPureFnFactory('mionFormats', 'isTimeString_mmss', function (jUtil: JITUtils) {
-    const isM = jUtil.getPureFn('mionFormats', 'isMinutes') as ReturnType<typeof cpf_isMinutes.createJitFn>;
-    const isS = jUtil.getPureFn('mionFormats', 'isSeconds') as ReturnType<typeof cpf_isSeconds.createJitFn>;
+    const isM = jUtil.getPureFn('mionFormats', 'isMinutes') as ReturnType<typeof cpf_isMinutes.createPureFn>;
+    const isS = jUtil.getPureFn('mionFormats', 'isSeconds') as ReturnType<typeof cpf_isSeconds.createPureFn>;
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 2 && isM(parts[0]) && isS(parts[1]);
@@ -298,7 +298,7 @@ export const cpf_isLocalHost = registerPureFnFactory('mionFormats', 'isLocalHost
 
 /** @reflection never */
 export const cpf_isIPV4 = registerPureFnFactory('mionFormats', 'isIPV4', function (utl: JITUtils) {
-    const is_Localhost = utl.getPureFn('mionFormats', 'isLocalHost') as ReturnType<typeof cpf_isLocalHost.createJitFn>;
+    const is_Localhost = utl.getPureFn('mionFormats', 'isLocalHost') as ReturnType<typeof cpf_isLocalHost.createPureFn>;
     function get_address(ip: string, p: FormatParams_IP): false | string {
         if (!p.allowPort) return ip;
         const parts = ip.split(':');
@@ -327,7 +327,7 @@ export const cpf_isIPV4 = registerPureFnFactory('mionFormats', 'isIPV4', functio
 
 /** @reflection never */
 export const cpf_isIPV6 = registerPureFnFactory('mionFormats', 'isIPV6', function (utl: JITUtils) {
-    const is_Localhost = utl.getPureFn('mionFormats', 'isLocalHost') as ReturnType<typeof cpf_isLocalHost.createJitFn>;
+    const is_Localhost = utl.getPureFn('mionFormats', 'isLocalHost') as ReturnType<typeof cpf_isLocalHost.createPureFn>;
     const ipv6PortRegexp = /^\[([^\]]+)\](?::(\d+))?$/;
     function get_address(ip: string, p: FormatParams_IP): false | string {
         if (!p.allowPort) return ip;
@@ -365,8 +365,8 @@ export const cpf_isIPV6 = registerPureFnFactory('mionFormats', 'isIPV6', functio
 
 /** @reflection never */
 export const cpf_mionGetIPErrors = registerPureFnFactory('mionFormats', 'mionGetIPErrors', function (utl: JITUtils) {
-    const is_ip_v4 = utl.getPureFn('mionFormats', 'isIPV4') as ReturnType<typeof cpf_isIPV4.createJitFn>;
-    const is_ip_v6 = utl.getPureFn('mionFormats', 'isIPV6') as ReturnType<typeof cpf_isIPV6.createJitFn>;
+    const is_ip_v4 = utl.getPureFn('mionFormats', 'isIPV4') as ReturnType<typeof cpf_isIPV4.createPureFn>;
+    const is_ip_v6 = utl.getPureFn('mionFormats', 'isIPV6') as ReturnType<typeof cpf_isIPV6.createPureFn>;
     const noopDeps = {};
     return function get_ip_errors(
         ip: string,

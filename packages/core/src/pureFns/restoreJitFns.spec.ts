@@ -64,7 +64,7 @@ describe('restoreJitFns', () => {
                         fnName: 'addNumbers',
                         bodyHash: 'addNumbers_hash',
                         pureFnDependencies: [],
-                        createJitFn: function (utl) {
+                        createPureFn: function (utl) {
                             return function addNumbers(a: number, b: number) {
                                 return a + b;
                             };
@@ -111,7 +111,7 @@ describe('restoreJitFns', () => {
                         fnName: 'helper',
                         bodyHash: 'helper_hash',
                         pureFnDependencies: [],
-                        createJitFn: function (utl) {
+                        createPureFn: function (utl) {
                             return function helper(v: any) {
                                 return typeof v === 'number';
                             };
@@ -192,7 +192,7 @@ describe('restoreJitFns', () => {
                         fnName: 'multiply',
                         bodyHash: 'multiply_hash',
                         pureFnDependencies: [],
-                        createJitFn: function (utl) {
+                        createPureFn: function (utl) {
                             return function multiply(a: number, b: number) {
                                 return a * b;
                             };
@@ -206,7 +206,7 @@ describe('restoreJitFns', () => {
                         fnName: 'square',
                         bodyHash: 'square_hash',
                         pureFnDependencies: ['multiply'],
-                        createJitFn: function (utl) {
+                        createPureFn: function (utl) {
                             const multiply = utl.getPureFn(TEST_NS, 'multiply')!;
                             return function square(x: number) {
                                 return multiply(x, x);
@@ -453,7 +453,7 @@ describe('restoreJitFns', () => {
                         fnName: 'parent',
                         bodyHash: 'parent_hash',
                         pureFnDependencies: ['missing'], // missing dependency
-                        createJitFn: function (utl) {
+                        createPureFn: function (utl) {
                             const missing = utl.getPureFn(TEST_NS, 'missing')!;
                             return function parent(x: any) {
                                 return missing(x);

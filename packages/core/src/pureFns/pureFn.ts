@@ -127,7 +127,7 @@ function parsePureFactoryFunction(namespace: string, functionID: string, createJ
     // Extract and normalize body using shared utility
     const body = normalizePureFnBody(extractFunctionBody(fnString));
     const compiled: CompiledPureFunction = {
-        createJitFn: createJitFn,
+        createPureFn: createJitFn,
         fn: null as any, // will be set later so all possible dependencies are resolved
         namespace,
         fnName: functionID,

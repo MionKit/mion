@@ -44,7 +44,7 @@ export function isTestEnv() {
  * */
 export function initPureFunction(compiled: CompiledPureFunction): asserts compiled is Required<CompiledPureFunction> {
     if (compiled.fn) return;
-    compiled.fn = compiled.createJitFn(getJitUtils());
+    compiled.fn = compiled.createPureFn(getJitUtils());
 }
 
 /**
