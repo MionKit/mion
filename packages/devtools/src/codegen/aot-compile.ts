@@ -7,10 +7,10 @@
 
 import {resolve, join, dirname} from 'path';
 import {existsSync, cpSync} from 'fs';
-import {compileAndWriteJitFunctions, compileAndWritePureFunctions, compileAndWriteRouterMethods} from './cacheCompiler.js';
+import {compileAndWriteJitFunctions, compileAndWritePureFunctions, compileAndWriteRouterMethods} from './cacheCompiler.ts';
 import {getJitFnCaches, getJitUtils, JitFunctionsCache, PureFunctionsCache, routesCache} from '@mionkit/core';
 import {getPersistedMethods} from '@mionkit/router';
-import {isTest} from './constants.js';
+import {isTest} from './constants.ts';
 import {JitFnID, JitFunctions} from '@mionkit/run-types';
 
 export interface CacheData {

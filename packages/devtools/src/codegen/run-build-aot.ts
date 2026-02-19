@@ -7,10 +7,10 @@
 
 // ### IMPORTANT: This file is intended to be used to build the mion-aot using ts-node
 
-import {mionBuildAot} from './cli-build-aot.js';
+import {mionBuildAot} from './cli-build-aot.ts';
 import {join} from 'path';
 
-const templateDir = join(__dirname, '..', 'mion-aot-template');
+const templateDir = join(__dirname, '..', '..', 'mion-aot-template');
 
 mionBuildAot(templateDir).catch((error) => {
     console.error('Error: Could not load mion-build-aot CLI.');

@@ -27,7 +27,7 @@ function getSourceFiles(dir: string, base = ''): Record<string, string> {
 const srcEntries = getSourceFiles(resolve(__dirname, 'src/vite-plugin'));
 const entry: Record<string, string> = {
     index: resolve(__dirname, 'src/vite-plugin/index.ts'),
-    ...Object.fromEntries(Object.entries(srcEntries).map(([name, path]) => [name, path])),
+    ...Object.fromEntries(Object.entries(srcEntries).map(([name, path]) => [`src/vite-plugin/${name}`, path])),
 };
 
 export default defineConfig({
@@ -36,7 +36,7 @@ export default defineConfig({
     },
     plugins: [
         dts({
-            outDir: 'build/vite-plugin',
+            outDir: ['build/vite-plugin/cjs', 'build/vite-plugin/esm'],
             include: ['src/vite-plugin/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
             pathsToAliases: false,
@@ -56,17 +56,17 @@ export default defineConfig({
             output: [
                 {
                     format: 'es',
-                    dir: 'build/vite-plugin',
+                    dir: 'build/vite-plugin/esm',
                     entryFileNames: '[name].js',
                     preserveModules: true,
-                    preserveModulesRoot: 'src/vite-plugin',
+                    preserveModulesRoot: '.',
                 },
                 {
                     format: 'cjs',
-                    dir: 'build/vite-plugin',
-                    entryFileNames: '[name].cjs',
+                    dir: 'build/vite-plugin/cjs',
+                    entryFileNames: '[name].js',
                     preserveModules: true,
-                    preserveModulesRoot: 'src/vite-plugin',
+                    preserveModulesRoot: '.',
                 },
             ],
             external: ['@deepkit/type-compiler', '@rollup/pluginutils', 'typescript', 'vite', 'fs', 'path', /^node:/],

@@ -8,7 +8,7 @@
 // ### IMPORTANT: This file is intended to be used to init the mion-aot using ts-node
 
 import {join} from 'path';
-import {mionInitAot} from './cli-init-aot.js';
+import {mionInitAot} from './cli-init-aot.ts';
 
 // Get template directory relative to this bin file
 const templateDir = join(__dirname, '..', 'mion-aot-template');

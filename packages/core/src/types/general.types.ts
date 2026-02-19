@@ -8,7 +8,7 @@
 
 import {MIME_TYPES} from '../constants.ts';
 import {TypeFormatError} from './formats/formats.types.ts';
-import {JITUtils} from '../jit/jitUtils.ts';
+import type {JITUtils} from '../jit/jitUtils.ts';
 import {CompiledPureFunction, PersistedPureFunction, PureFunctionData} from './pureFunctions.types.ts';
 
 // ########################################## Serialization Modes ##########################################
@@ -127,7 +127,7 @@ export interface RunTypeError {
 
 /**
  * The argument names of the function to be compiled. The order of properties is important as must the same as the function args.
- * ie: {vλl: 'val', arg1: 'arg1', error: 'err'} for the function (vλl, arg1, eArr) => any
+ * ie: {vλl: 'val', arg1: 'arg1', error: 'newRunTypeErr'} for the function (vλl, arg1, eArr) => any
  */
 export type JitFnArgs = {
     /** The name of the value of to be */

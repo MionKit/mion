@@ -1,0 +1,1 @@
+{"version":3,"file":"constants.js","sources":["../../../../../src/codegen/constants.ts"],"sourcesContent":["/* ########\n * 2025 mion\n * Author: Ma-jerez\n * License: MIT\n * The software is provided \"as is\", without warranty of any kind.\n * ######## */\n\nexport const isTest = process.env.NODE_ENV === 'test';\n"],"names":[],"mappings":";;AAOO,MAAM,SAAS,QAAQ,IAAI,aAAa;;"}
