@@ -50,7 +50,7 @@ export interface PureFunctionData {
     readonly pureFnDependencies: Array<string>;
 }
 export interface CompiledPureFunction extends PureFunctionData {
-    createJitFn: PureFunctionFactory;
+    createPureFn: PureFunctionFactory;
     fn?: PureFunction;
 }
 export interface PersistedPureFunction extends CompiledPureFunction {

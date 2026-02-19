@@ -76,7 +76,7 @@ describe('jitUtils', () => {
                     bodyHash: 'testPureFn_hash',
                     code: 'return (a, b) => a + b;',
                     pureFnDependencies: [],
-                    createJitFn: () => (a: number, b: number) => a + b,
+                    createPureFn: () => (a: number, b: number) => a + b,
                     fn: (a: number, b: number) => a + b,
                 },
             },
