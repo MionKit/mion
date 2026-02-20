@@ -11,6 +11,7 @@ import type {DataViewDeserializer, DataViewSerializer, StrictArrayBuffer} from '
 import type {InterfaceRunType} from '../../../nodes/collection/interface.ts';
 import type {RunType} from '../../../types.ts';
 import {createDataViewDeserializer, createDataViewSerializer, setSerializationOptions, getENV} from '@mionkit/core';
+import {afterAll, expect} from 'vitest';
 
 const DEBUG = getENV('DEBUG_JIT') === 'print';
 /** maps a binary serializer to json serializer */
