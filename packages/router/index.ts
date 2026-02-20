@@ -21,5 +21,8 @@ export * from './src/lib/headers.ts';
 export * from './src/lib/remoteMethods.ts';
 export * from './src/lib/handlers.ts';
 export * from './src/lib/methodsCache.ts';
+// Note: aotEmitter.ts is NOT exported here to avoid loading it in production.
+// It is dynamically imported only when MION_COMPILE=true.
+// For multi-step route registration, use: import('@mionkit/router/src/lib/aotEmitter.ts')
 export * from './src/routes/errors.routes.ts';
 export * from './src/routes/mion.routes.ts';

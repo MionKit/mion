@@ -30,7 +30,7 @@ import {
 import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv, resetRoutesCache} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection.ts';
 import {serializerLinkedFns} from './routes/serializer.routes.ts';
-import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionkit/core';
+import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache, importModule} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {
@@ -120,7 +120,16 @@ export const resetRouter = () => {
 // simpler router initialization
 export async function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): Promise<PublicApi<R>> {
     await initRouter(opts);
-    return registerRoutes(routes);
+    const api = await registerRoutes(routes);
+
+    // After all routes are registered, emit caches if in compile mode
+    // Dynamically import aotEmitter only when MION_COMPILE is true to avoid loading it in production
+    if (getENV('MION_COMPILE') === 'true') {
+        const aotEmitter = await importModule<typeof import('./lib/aotEmitter.ts')>('./lib/aotEmitter.ts', __dirname);
+        await aotEmitter.emitAOTCaches();
+    }
+
+    return api;
 }
 
 /**
