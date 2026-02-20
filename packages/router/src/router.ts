@@ -120,16 +120,7 @@ export const resetRouter = () => {
 // simpler router initialization
 export async function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): Promise<PublicApi<R>> {
     await initRouter(opts);
-    const api = await registerRoutes(routes);
-
-    // After all routes are registered, emit caches if in compile mode
-    // Dynamically import aotEmitter only when MION_COMPILE is true to avoid loading it in production
-    if (getENV('MION_COMPILE') === 'true') {
-        const aotEmitter = await importModule<typeof import('./lib/aotEmitter.ts')>('./lib/aotEmitter.ts', __dirname);
-        await aotEmitter.emitAOTCaches();
-    }
-
-    return api;
+    return registerRoutes(routes);
 }
 
 /**
@@ -161,7 +152,11 @@ export async function registerRoutes<R extends Routes>(routes: R): Promise<Publi
     endLinkedFns = await getExecutablesFromLinkedFnsCollection(endLinkedFnsDef);
     await recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
-    if (shouldFullGenerateSpec()) return getPublicApi(routes);
+    if (shouldFullGenerateSpec()) {
+        const publicApi = getPublicApi(routes);
+        await emitAOTCaches();
+        return publicApi;
+    }
     return {} as PublicApi<R>;
 }
 
@@ -219,7 +214,7 @@ export function getAllExecutablesIds(): string[] {
 
 // used by codegen
 export function shouldFullGenerateSpec(): boolean {
-    return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true';
+    return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true' || getENV('MION_COMPILE') === 'true';
 }
 
 export function getRouteExecutableFromPath(path: string): RouteMethod {
@@ -232,6 +227,12 @@ export function getRouteExecutableFromPath(path: string): RouteMethod {
 }
 
 // ############# PRIVATE METHODS #############
+
+async function emitAOTCaches() {
+    type AotEmitterModule = typeof import('./lib/aotEmitter.ts');
+    const aotEmitter = await importModule<AotEmitterModule>('./lib/aotEmitter.ts', __dirname);
+    return aotEmitter.emitAOTCaches();
+}
 
 /**
  * Optimized algorithm to flatten the routes object into a list of Executable objects.

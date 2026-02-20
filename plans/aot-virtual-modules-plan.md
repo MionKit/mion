@@ -9,6 +9,8 @@ Replace the `@mionkit/aot-caches` physical package with **3 Vite virtual modules
 - **On the client** — which has no router dependency, so it uses `startServerScript` to fork the router and collect caches
 - **On the server in production builds** — only when deploying to environments that prohibit `eval`/`new Function()`, the build step generates AOT caches and writes them to disk
 
+**Router cache emission is already implemented:** The router's [`aotEmitter.ts`](packages/router/src/lib/aotEmitter.ts) already has `emitAOTCaches()` which detects `MION_COMPILE=true`, collects caches, serializes them with `toJSCode`, and sends them via `process.send()` (IPC). This is called automatically from [`initMionRouter()`](packages/router/src/router.ts:156).
+
 ## Current Architecture (Problem)
 
 ```mermaid
@@ -47,9 +49,9 @@ graph TD
 ```mermaid
 graph TD
     subgraph "Vite Plugin - Cache Generation"
-        A[mionPlugin aotCaches config] -->|"Fork child process"| B[Child: MION_COMPILE=true]
-        B -->|"Run startServerScript"| C[Router populates caches]
-        C -->|"Serialize with toJSCode"| D[IPC: 3 serialized JS code strings]
+        A[mionPlugin aotCaches config] -->|"Spawn vite-node child process"| B["vite-node runs startServerScript<br/>using server's own vite.config"]
+        B -->|"Router auto-calls emitAOTCaches"| C["Router detects MION_COMPILE=true<br/>Collects + serializes caches"]
+        C -->|"process.send via IPC"| D[3 serialized JS code strings]
     end
 
     subgraph "3 Virtual Modules - each self-registers"
@@ -70,7 +72,12 @@ graph TD
     style VM3 fill:#4a4,stroke:#333,color:#fff
 ```
 
-**Key difference from previous design:** Core does NOT import from virtual modules. Each virtual module imports from core and pushes data in. Using 3 separate modules makes it easier to generate, invalidate, and reload each cache independently.
+**Key design decisions:**
+
+1. Core does NOT import from virtual modules. Each virtual module imports from core and pushes data in.
+2. Using 3 separate modules makes it easier to generate, invalidate, and reload each cache independently.
+3. The worker uses **vite-node** to run the server's start script with the server's own `vite.config.ts`, ensuring deepkit type metadata and all other Vite transformations are applied.
+4. The router's existing [`emitAOTCaches()`](packages/router/src/lib/aotEmitter.ts:79) handles cache collection, filtering, serialization, and IPC emission automatically.
 
 ## Detailed Design
 
@@ -220,8 +227,17 @@ export interface AOTCacheOptions {
   startServerScript?: string;
 
   /**
+   * Path to the server's vite.config.ts file.
+   * Used by vite-node to run the start script with proper transformations
+   * (deepkit type metadata, aliases, etc.).
+   * If not provided, vite-node will auto-discover the config from the
+   * startServerScript's directory.
+   */
+  serverViteConfig?: string;
+
+  /**
    * AOT mode:
-   * - 'client': Fork child process with startServerScript to generate caches (for client builds)
+   * - 'client': Spawn vite-node with startServerScript to generate caches (for client builds)
    * - 'server-build': Generate AOT caches during vite build (for production server)
    * - false: Disabled — virtual modules are no-ops (default for server dev/tests)
    *
@@ -271,7 +287,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
       if (!aotOpts.startServerScript) {
         throw new Error('aotCaches.startServerScript is required when mode is set');
       }
-      // Fork child process to run the server and collect caches
+      // Spawn vite-node to run the server and collect caches
       aotData = await generateAOTCaches(aotOpts);
     },
 
@@ -344,47 +360,136 @@ addRoutesToCache(routerCache);
 }
 ```
 
-### 5. Cache Generation (Child Process)
+### 5. Cache Generation via vite-node
 
-Reuse existing [`aot-compile.ts`](packages/devtools/src/codegen/aot-compile.ts) logic:
+The worker uses **vite-node** to run the server's start script. This is critical because:
 
-```ts
-// packages/devtools/src/vite-plugin/aotCacheWorker.ts
-// Runs in child process via fork()
-// 1. MION_COMPILE=true already set by parent
-// 2. Enables compile tracking (reuse enableCompileTracking from aot-compile.ts)
-// 3. Imports the start script
-// 4. Collects caches via getJitFnCaches() and getPersistedMethods()
-// 5. Filters used entries (reuse filterUsedJitFns, filterUsedPureFns, etc.)
-// 6. Serializes each cache to JS code using compileTypeToJs()
-// 7. Sends 3 code strings back via process.send()
+- The server needs **deepkit type compiler** transformations for runtime type reflection
+- The server's `vite.config.ts` has aliases, plugins, and other transformations
+- Using vite-node ensures the start script runs in the same environment as the actual server
+
+```mermaid
+sequenceDiagram
+    participant Plugin as Vite Plugin (buildStart)
+    participant ViteNode as vite-node child process
+    participant Script as User's startServerScript
+    participant Router as @mionkit/router
+    participant Emitter as aotEmitter.ts
+
+    Plugin->>ViteNode: spawn vite-node with MION_COMPILE=true
+    Note over ViteNode: Uses server's vite.config.ts<br/>for deepkit types, aliases, etc.
+    ViteNode->>Script: Execute start script
+    Script->>Router: initMionRouter(routes)
+    Router->>Router: Register routes, generate JIT
+    Router->>Emitter: emitAOTCaches() - auto-called
+    Emitter->>Emitter: Detect MION_COMPILE=true
+    Emitter->>Emitter: Collect + filter + serialize caches
+    Emitter->>ViteNode: process.send(AOTCacheMessage)
+    ViteNode-->>Plugin: IPC message with 3 code strings
+    Plugin->>Plugin: Store cache data for virtual modules
 ```
+
+#### Generator Implementation
 
 ```ts
 // packages/devtools/src/vite-plugin/aotCacheGenerator.ts
 import {fork} from 'child_process';
+import {resolve, dirname} from 'path';
 
 export interface AOTCacheData {
-  jitFnsCode: string; // JS code for jitFnsCache object
-  pureFnsCode: string; // JS code for pureFnsCache object
-  routerCacheCode: string; // JS code for routerCache object
+  jitFnsCode: string;
+  pureFnsCode: string;
+  routerCacheCode: string;
 }
 
+/**
+ * Generates AOT caches by spawning vite-node to run the server's start script.
+ *
+ * vite-node is used instead of plain node/ts-node because:
+ * 1. The server needs deepkit type compiler transformations
+ * 2. The server's vite.config.ts has aliases and plugins that must be applied
+ * 3. vite-node provides the same environment as the actual server build
+ *
+ * The router's emitAOTCaches() (called automatically from initMionRouter)
+ * detects MION_COMPILE=true and sends the serialized caches via IPC.
+ */
 export async function generateAOTCaches(options: AOTCacheOptions): Promise<AOTCacheData> {
+  const startScript = resolve(options.startServerScript!);
+
+  // Determine the vite config to use
+  // If serverViteConfig is provided, use it; otherwise let vite-node auto-discover
+  const viteConfigArgs = options.serverViteConfig ? ['--config', resolve(options.serverViteConfig)] : [];
+
   return new Promise((resolve, reject) => {
-    const child = fork(
-      require.resolve('./aotCacheWorker'),
-      [options.startServerScript!, JSON.stringify(options.excludedFns ?? []), JSON.stringify(options.excludedPureFns ?? [])],
-      {env: {...process.env, MION_COMPILE: 'true'}}
-    );
-    child.on('message', (data: AOTCacheData) => resolve(data));
-    child.on('error', reject);
-    child.on('exit', (code) => {
-      if (code !== 0) reject(new Error(`AOT cache worker exited with code ${code}`));
+    // Spawn vite-node as a child process with IPC channel
+    const child = fork(require.resolve('vite-node/bin/vite-node'), [...viteConfigArgs, startScript], {
+      env: {...process.env, MION_COMPILE: 'true'},
+      stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+      cwd: dirname(startScript),
     });
+
+    let resolved = false;
+
+    child.on('message', (msg: any) => {
+      if (msg?.type === 'mion-aot-caches') {
+        resolved = true;
+        resolve({
+          jitFnsCode: msg.jitFnsCode,
+          pureFnsCode: msg.pureFnsCode,
+          routerCacheCode: msg.routerCacheCode,
+        });
+        child.kill(); // Clean up after receiving caches
+      }
+    });
+
+    // Capture stderr for error reporting
+    let stderr = '';
+    child.stderr?.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    child.on('error', (err) => {
+      if (!resolved) reject(new Error(`vite-node failed to start: ${err.message}`));
+    });
+
+    child.on('exit', (code) => {
+      if (!resolved) {
+        reject(
+          new Error(
+            `vite-node exited with code ${code} before emitting AOT caches.\n` +
+              `Make sure the startServerScript calls initMionRouter() and the router ` +
+              `is fully initialized.\n` +
+              (stderr ? `stderr: ${stderr}` : '')
+          )
+        );
+      }
+    });
+
+    // Timeout safety
+    setTimeout(() => {
+      if (!resolved) {
+        child.kill();
+        reject(
+          new Error('AOT cache generation timed out (30s). ' + 'Make sure the server start script completes initialization.')
+        );
+      }
+    }, 30000);
   });
 }
 ```
+
+**Why vite-node instead of fork + ts-node:**
+
+- vite-node uses the server's own `vite.config.ts` which includes the deepkit type compiler plugin
+- No need to separately configure ts-node, tsconfig-paths, or the deepkit transformer
+- Consistent with how the server runs in development (via Vite)
+- Handles ESM/CJS module resolution correctly
+
+**Why not the Vite Node API (`createServer` + `ssrLoadModule`):**
+
+- We need process isolation (MION_COMPILE=true sets global state, compile tracking wraps jitUtils)
+- The child process must be separate to avoid polluting the plugin's Vite instance
+- vite-node CLI handles all the setup automatically
 
 ### 6. Two Distinct Scenarios
 
@@ -397,6 +502,7 @@ mionPlugin({
   aotCaches: {
     mode: 'client',
     startServerScript: '../server/src/init.ts',
+    serverViteConfig: '../server/vite.config.ts', // optional, auto-discovered if omitted
   },
 });
 ```
@@ -408,7 +514,7 @@ import 'virtual:mion-aot/router-cache'; // Registers route metadata
 import {initClient} from '@mionkit/client';
 ```
 
-The plugin forks a child process that runs `../server/src/init.ts`, collects all caches, and provides them through the 3 virtual modules.
+The plugin spawns vite-node with `../server/src/init.ts` using the server's vite config. The router initializes, auto-calls `emitAOTCaches()`, and sends caches via IPC.
 
 #### Scenario 2: Server — Development (no AOT needed)
 
@@ -453,7 +559,7 @@ const api = await initMionRouter(routes, {aot: true}); // AOT mode
 | Scenario                   | Setup                                                                 | Behavior                                                     |
 | -------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------ |
 | **Server unit tests**      | No `aotCaches` in plugin config                                       | Virtual modules are no-ops. Router generates JIT at runtime. |
-| **Client unit tests**      | `aotCaches: { mode: 'client', startServerScript: './test/setup.ts' }` | Plugin forks child, generates real caches.                   |
+| **Client unit tests**      | `aotCaches: { mode: 'client', startServerScript: './test/setup.ts' }` | Plugin spawns vite-node, generates real caches.              |
 | **AOT integration tests**  | `aotCaches: { mode: 'client', startServerScript: './test/setup.ts' }` | Same as client — tests verify AOT mode works.                |
 | **Existing test patterns** | `resetJitFnCaches()` / `resetClientCaches()`                          | Continue to work — they clear in-memory caches.              |
 
@@ -473,6 +579,16 @@ Currently [`methodsCache.ts:99`](packages/router/src/lib/methodsCache.ts:99) dyn
 - In AOT mode: virtual modules are imported at the entry point before router init
 
 **Change:** Remove `loadDefaultAOTCaches()`. In `initRouter()` when `aot: true`, add a validation check that the caches are populated. If not, throw a helpful error telling the user to import the virtual modules.
+
+#### `aotEmitter.ts` — Already Implemented ✅
+
+The router's [`aotEmitter.ts`](packages/router/src/lib/aotEmitter.ts) is already implemented with:
+
+- [`emitAOTCaches()`](packages/router/src/lib/aotEmitter.ts:79) — detects `MION_COMPILE=true` + `process.send`, collects/filters/serializes caches, sends via IPC
+- [`AOTCacheMessage`](packages/router/src/lib/aotEmitter.ts:41) interface — defines the IPC message format
+- Filtering logic for used entries, excluded JIT fns, and excluded pure fns
+- Dynamic import of `@mionkit/run-types` for `toJSCode` serialization
+- Auto-called from [`initMionRouter()`](packages/router/src/router.ts:156)
 
 ### 9. Client Package Changes
 
@@ -503,13 +619,12 @@ coreAOTLoadJitCaches();
 
 ### Phase 2: Vite Plugin — Add 3 AOT virtual modules
 
-- [ ] Add `AOTCacheOptions` to [`types.ts`](packages/devtools/src/vite-plugin/types.ts)
+- [ ] Add `AOTCacheOptions` to [`types.ts`](packages/devtools/src/vite-plugin/types.ts) (including `startServerScript` and `serverViteConfig`)
 - [ ] Add virtual module constants to [`constants.ts`](packages/devtools/src/vite-plugin/constants.ts) (3 module IDs + 3 resolved IDs)
-- [ ] Create `aotCacheWorker.ts` — child process that runs start script and collects caches
-- [ ] Create `aotCacheGenerator.ts` — forks worker, receives 3 serialized cache code strings
+- [ ] Create `aotCacheGenerator.ts` — spawns vite-node child process, listens for `mion-aot-caches` IPC message from router's `emitAOTCaches()`
 - [ ] Create module generators: `generateJitFnsModule()`, `generatePureFnsModule()`, `generateRouterCacheModule()`
 - [ ] Extend [`mionPlugin()`](packages/devtools/src/vite-plugin/mionPlugin.ts:121) with `resolveId`/`load` for all 3 virtual modules
-- [ ] Add `buildStart` hook for client/server-build modes (fork child process)
+- [ ] Add `buildStart` hook for client/server-build modes (spawn vite-node)
 - [ ] Add HMR support to regenerate and selectively invalidate virtual modules
 - [ ] Add TypeScript declaration file for all 3 virtual modules
 - [ ] Write tests for the virtual module generation
@@ -546,8 +661,10 @@ coreAOTLoadJitCaches();
    - **(B)** Merge them into `virtual:mion-aot/pure-fns` which handles both sources
    - **Recommendation:** Start with (A) to minimize changes. Merge later if it makes sense.
 
-2. **Server-build mode implementation:** For production server AOT, the plugin forks a child process with `startServerScript` (same as client mode). The generated virtual modules get bundled into the server build output.
+2. **Server-build mode implementation:** For production server AOT, the plugin spawns vite-node with `startServerScript` (same as client mode). The generated virtual modules get bundled into the server build output.
 
 3. **Monorepo internal vitest configs:** Each package that imports from core needs the plugin in its vitest config. For packages that don't need AOT data, `aotCaches` can be omitted (virtual modules return no-ops).
 
-4. **Build order:** With virtual modules, there's no build-order dependency between packages. The plugin generates caches on-the-fly from source. However, the child process needs the router source code to be importable (via ts-node or vite-node).
+4. **vite-node availability:** vite-node is included with Vite (it's part of the vitest ecosystem). Need to verify it's available as a dependency or add it explicitly.
+
+5. **Compile tracking / `_used` flag:** The old disk-based approach used `enableCompileTracking()` to mark cache entries with a `_used` flag to filter out stale entries from previous compilations. With virtual modules, caches are regenerated from scratch every time — there's no stale data to worry about. The `_used` flag filtering in [`aotEmitter.ts`](packages/router/src/lib/aotEmitter.ts:91) can be simplified or removed in a future cleanup, but it's harmless for now.
