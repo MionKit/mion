@@ -28,7 +28,6 @@ import {
     generatePureFnsModule,
     generateRouterCacheModule,
     generateNoopModule,
-    getDefaultRoutesScriptPath,
     AOTCacheData,
 } from './aotCacheGenerator.ts';
 
@@ -159,18 +158,9 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
         async buildStart() {
             // Generate AOT caches if enabled
             if (aotOptions && aotOptions.mode) {
-                // Determine which script to use for AOT generation
-                let startScriptOverride: string | undefined;
-                if (!aotOptions.startServerScript) {
-                    // Use default routes script from @mionkit/router
-                    // This provides internal mion routes only (for client builds without full server routes)
-                    startScriptOverride = await getDefaultRoutesScriptPath();
-                    console.log('[mion] No startServerScript provided, using default routes for internal mion routes only');
-                }
-
                 try {
                     console.log('[mion] Generating AOT caches...');
-                    aotGenerationPromise = generateAOTCaches(aotOptions, startScriptOverride);
+                    aotGenerationPromise = generateAOTCaches(aotOptions);
                     aotData = await aotGenerationPromise;
                     console.log('[mion] AOT caches generated successfully');
                 } catch (err) {
