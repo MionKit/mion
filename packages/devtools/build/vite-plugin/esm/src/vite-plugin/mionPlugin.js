@@ -3,8 +3,8 @@ import { resolve, join } from "path";
 import { transformWithDeepkit } from "./deepkit-type.js";
 import { extractPureFnsFromSource } from "./extractPureFn.js";
 import { generateVirtualModule } from "./virtualModule.js";
-import { RESOLVED_VIRTUAL_MODULE_ID, RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE, VIRTUAL_MODULE_ID, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE } from "./constants.js";
-import { generateAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule } from "./aotCacheGenerator.js";
+import { RESOLVED_VIRTUAL_MODULE_ID, RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE, RESOLVED_AOT_CACHES, VIRTUAL_MODULE_ID, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES } from "./constants.js";
+import { generateAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
 function scanClientSource(options) {
   const include = options.include || ["**/*.ts", "**/*.tsx"];
   const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
@@ -81,6 +81,7 @@ function mionVitePlugin(options) {
       if (id === VIRTUAL_AOT_JIT_FNS) return RESOLVED_AOT_JIT_FNS;
       if (id === VIRTUAL_AOT_PURE_FNS) return RESOLVED_AOT_PURE_FNS;
       if (id === VIRTUAL_AOT_ROUTER_CACHE) return RESOLVED_AOT_ROUTER_CACHE;
+      if (id === VIRTUAL_AOT_CACHES) return RESOLVED_AOT_CACHES;
       return null;
     },
     load(id) {
@@ -107,6 +108,12 @@ function mionVitePlugin(options) {
           return generateNoopModule("No-op: AOT router cache not generated");
         }
         return generateRouterCacheModule(aotData.routerCacheCode);
+      }
+      if (id === RESOLVED_AOT_CACHES) {
+        if (!aotData) {
+          return generateNoopCombinedModule();
+        }
+        return generateCombinedCachesModule();
       }
       return null;
     },

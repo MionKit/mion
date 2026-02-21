@@ -5,36 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/**
- * AOT Cache Emitter Module
- *
- * This module is NOT exported from the main @mionkit/router package to avoid
- * loading it in production. It is dynamically imported using `importModule` from
- * @mionkit/core only when MION_COMPILE=true.
- *
- * For multi-step route registration patterns, you can manually import and call emitAOTCaches:
- *
- * @example
- * ```ts
- * import { importModule } from '@mionkit/core';
- *
- * // Multi-step route registration pattern
- * await initRouter();
- * await registerRoutes(routes1);
- * await registerRoutes(routes2);
- *
- * // Manually emit caches if in compile mode
- * if (process.env.MION_COMPILE === 'true') {
- *   const aotEmitter = await importModule<typeof import('./lib/aotEmitter.ts')>(
- *     './lib/aotEmitter.ts',
- *     __dirname
- *   );
- *   await aotEmitter.emitAOTCaches();
- * }
- * ```
- */
-
-import {getJitFnCaches, getENV, JitFunctionsCache, PureFunctionsCache, MethodsCache} from '@mionkit/core';
+import {
+    getJitFnCaches,
+    getENV,
+    JitFunctionsCache,
+    PureFunctionsCache,
+    SrcCodeJITCompiledFnsCache,
+    PersistedPureFunctionsCache,
+    MethodsCache,
+} from '@mionkit/core';
 import {getPersistedMethods} from './methodsCache.ts';
 import {createToJavascriptFn} from '@mionkit/run-types';
 
@@ -53,11 +32,6 @@ export interface SerializedCaches {
     routerCacheCode: string;
 }
 
-/** Interface for cacheable items with _used tracking flag */
-interface Cacheable {
-    _used?: boolean;
-}
-
 /** JIT function IDs to exclude from AOT caches (toJSCode is only needed at compile time) */
 const EXCLUDED_JIT_FN_IDS = ['toJSCode'];
 
@@ -73,7 +47,7 @@ const EXCLUDED_PURE_FN_NAMES = ['sanitizeCompiledFn'];
  * 1. Checks if running in MION_COMPILE mode (env var)
  * 2. Checks if process.send is available (running as child process with IPC)
  * 3. Collects all caches from core (JIT functions, pure functions) and router (methods)
- * 4. Filters to only include used entries (marked with _used flag by compile tracking)
+ * 4. Applies exclusions (e.g., compile-time-only functions)
  * 5. Serializes caches to JS code using run-types toJSCode
  * 6. Sends the serialized caches to the parent process via IPC
  */
@@ -88,17 +62,13 @@ export async function emitAOTCaches(): Promise<void> {
     const {jitFnsCache, pureFnsCache} = getJitFnCaches();
     const routerCache = getPersistedMethods();
 
-    // Filter to only used entries
-    const filteredJitFns = filterUsedJitFns(jitFnsCache);
-    const filteredPureFns = filterUsedPureFns(pureFnsCache);
-    const filteredRouterCache = filterUsedRouterCache(routerCache);
-
     // Apply exclusions (router cache doesn't need exclusions)
-    const finalJitFns = filterExcludedJitFns(filteredJitFns, EXCLUDED_JIT_FN_IDS);
-    const finalPureFns = filterExcludedPureFns(filteredPureFns, EXCLUDED_PURE_FN_NAMES);
+    const finalJitFns = filterExcludedJitFns(jitFnsCache, EXCLUDED_JIT_FN_IDS);
+    const finalPureFns = filterExcludedPureFns(pureFnsCache, EXCLUDED_PURE_FN_NAMES);
 
     // Serialize caches to JS code
-    const serialized = await serializeCachesToCode(finalJitFns, finalPureFns, filteredRouterCache);
+    // Using Persisted types so fn is serialized as undefined (recreated from createJitFn/createPureFn at restore time)
+    const serialized = await serializeCachesToCode(finalJitFns, finalPureFns, routerCache);
 
     // Send to parent process
     const message: AOTCacheMessage = {
@@ -109,66 +79,23 @@ export async function emitAOTCaches(): Promise<void> {
     process.send(message);
 }
 
-/**
- * Serializes the caches to JavaScript code strings using run-types toJSCode.
- * This dynamically imports @mionkit/run-types to avoid loading it when not needed.
- */
+/** Serializes the caches to JavaScript code strings using run-types toJSCode. */
 async function serializeCachesToCode(
     jitFnsCache: JitFunctionsCache,
     pureFnsCache: PureFunctionsCache,
     routerCache: MethodsCache
 ): Promise<SerializedCaches> {
-    // Create toJSCode functions for each cache type
-    const jitToJSCode = createToJavascriptFn<JitFunctionsCache>();
-    const pureToJSCode = createToJavascriptFn<PureFunctionsCache>();
+    // Persisted types have fn:undefined so the serializer won't try to serialize runtime functions
+    // isJitFnCode/isPureFnCode tell the serializer to generate createJitFn/createPureFn closures from the code property
+    const jitToJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>({isJitFnCode: true});
+    const pureToJSCode = createToJavascriptFn<PersistedPureFunctionsCache>({isPureFnCode: true});
     const routerToJSCode = createToJavascriptFn<MethodsCache>();
 
     return {
-        jitFnsCode: jitToJSCode(jitFnsCache),
-        pureFnsCode: pureToJSCode(pureFnsCache),
+        jitFnsCode: jitToJSCode(jitFnsCache as unknown as SrcCodeJITCompiledFnsCache),
+        pureFnsCode: pureToJSCode(pureFnsCache as unknown as PersistedPureFunctionsCache),
         routerCacheCode: routerToJSCode(routerCache),
     };
-}
-
-/**
- * Filters JIT functions cache to only include entries marked as used.
- * Removes the _used flag from the output.
- */
-function filterUsedJitFns(jitFnsCache: Readonly<JitFunctionsCache>): JitFunctionsCache {
-    return Object.fromEntries(
-        Object.entries(jitFnsCache)
-            .filter(([, value]) => (value as Cacheable)._used === true)
-            .map(([key, value]) => [key, {...value, _used: undefined}])
-    ) as JitFunctionsCache;
-}
-
-/**
- * Filters pure functions cache to only include entries marked as used.
- * Removes the _used flag from the output.
- */
-function filterUsedPureFns(pureFnsCache: Readonly<PureFunctionsCache>): PureFunctionsCache {
-    return Object.fromEntries(
-        Object.entries(pureFnsCache).map(([namespace, nsCache]) => [
-            namespace,
-            Object.fromEntries(
-                Object.entries(nsCache)
-                    .filter(([, value]) => (value as Cacheable)._used === true)
-                    .map(([key, value]) => [key, {...value, _used: undefined}])
-            ),
-        ])
-    ) as PureFunctionsCache;
-}
-
-/**
- * Filters router cache to only include entries marked as used.
- * Removes the _used flag from the output.
- */
-function filterUsedRouterCache(routerCache: Readonly<MethodsCache>): MethodsCache {
-    return Object.fromEntries(
-        Object.entries(routerCache)
-            .filter(([, value]) => (value as Cacheable)?._used === true)
-            .map(([key, value]) => [key, {...value, _used: undefined}])
-    ) as MethodsCache;
 }
 
 /**

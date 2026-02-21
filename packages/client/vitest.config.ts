@@ -11,11 +11,10 @@ export default defineConfig({
                     sourceMap: true,
                 },
             },
-            // Use the test server to generate AOT caches for client tests
             aotCaches: {
                 mode: 'client',
-                startServerScript: resolve(__dirname, '../test-server/src/test-server-json.ts'),
-                serverViteConfig: resolve(__dirname, '../test-server/vite.config.ts'),
+                startServerScript: resolve(__dirname, '../router/src/defaultRoutes.ts'),
+                serverViteConfig: resolve(__dirname, '../router/vite.config.ts'),
             },
         }) as any,
     ],

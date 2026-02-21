@@ -6,5 +6,7 @@ export declare const VIRTUAL_AOT_ROUTER_CACHE = "virtual:mion-aot/router-cache";
 export declare const RESOLVED_AOT_JIT_FNS: string;
 export declare const RESOLVED_AOT_PURE_FNS: string;
 export declare const RESOLVED_AOT_ROUTER_CACHE: string;
+export declare const VIRTUAL_AOT_CACHES = "virtual:mion-aot/caches";
+export declare const RESOLVED_AOT_CACHES: string;
 export declare const ALLOWED_GLOBALS: Set<string>;
 export declare const FORBIDDEN_IDENTIFIERS: Set<string>;

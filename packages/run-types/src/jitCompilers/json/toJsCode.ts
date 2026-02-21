@@ -57,7 +57,7 @@ export function createToCodeCompiler() {
                     return {code: `'undefined'`, type: 'E'};
                 } else if (isCompilingClosureJitFn(rt, comp)) {
                     // This is an special case for JitFunctions where we want to generate the fn from the JitCompiledFnData instead of fn.toString();
-                    const fnName = comp.opts.isPureFnCode ? `${comp.vλl}.pureFnHash` : `${comp.vλl}.jitFnHash`;
+                    const fnName = comp.opts.isPureFnCode ? `${comp.vλl}.fnName` : `${comp.vλl}.jitFnHash`;
                     const fnCode = `${comp.vλl}.code`;
                     const closureCode = `'function get_'+${fnName}+'(utl){'+${fnCode}+'}'`;
                     return {code: `'${safeName}:'+${closureCode}${sep}`, type: 'E'};
@@ -119,8 +119,8 @@ export function createToCodeCompiler() {
 
     function isCompilingClosureJitFn(runType: MethodSignatureRunType, comp: JitFnCompiler) {
         if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
-        const isClosure = runType.getChildVarName(comp) === 'createJitFn';
-        return isClosure;
+        const childName = runType.getChildVarName(comp);
+        return childName === 'createJitFn' || childName === 'createPureFn';
     }
 
     function isCompilingJitFn(runType: MethodSignatureRunType, comp: JitFnCompiler) {

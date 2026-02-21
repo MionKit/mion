@@ -5,49 +5,33 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/**
- * TypeScript declarations for mion AOT virtual modules.
- *
- * These modules are self-registering - they call the appropriate registration
- * functions from @mionkit/core when imported. No exports are provided.
- *
- * Usage:
- * ```ts
- * // In your client entry point
- * import 'virtual:mion-aot/jit-fns';
- * import 'virtual:mion-aot/router-cache';
- * ```
- */
-
-/**
- * Self-registering module for JIT functions and pure functions cache.
- * Calls addAOTCaches() from @mionkit/core on import.
- */
+/** Exports JIT functions cache data. */
 declare module 'virtual:mion-aot/jit-fns' {
-    // Self-registering module — no exports
+    export const jitFnsCache: Record<string, any>;
 }
 
-/**
- * Self-registering module for pure functions cache (standalone).
- * Calls addAOTCaches() from @mionkit/core on import.
- */
+/** Exports pure functions cache data. */
 declare module 'virtual:mion-aot/pure-fns' {
-    // Self-registering module — no exports
+    export const pureFnsCache: Record<string, Record<string, any>>;
 }
 
-/**
- * Self-registering module for router methods cache.
- * Calls addRoutesToCache() from @mionkit/core on import.
- */
+/** Exports router methods cache data. */
 declare module 'virtual:mion-aot/router-cache' {
-    // Self-registering module — no exports
+    export const routerCache: Record<string, any>;
 }
 
 /**
- * Virtual module for client-extracted pure functions.
- * This module exports pure functions extracted from client source code
- * via AST analysis of pureServerFn() calls.
+ * Combined AOT caches module.
+ * Imports all 3 cache modules, registers them via addAOTCaches() and addRoutesToCache(),
+ * and re-exports the cache data for manual re-registration (e.g. after resetClientCaches in tests).
  */
+declare module 'virtual:mion-aot/caches' {
+    export const jitFnsCache: Record<string, any>;
+    export const pureFnsCache: Record<string, Record<string, any>>;
+    export const routerCache: Record<string, any>;
+}
+
+/** Virtual module for client-extracted pure functions. */
 declare module 'virtual:mion-pure-functions' {
     // Self-registering module — no exports
 }

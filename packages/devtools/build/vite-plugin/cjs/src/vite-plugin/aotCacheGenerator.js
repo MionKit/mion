@@ -2,7 +2,7 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const child_process = require("child_process");
 const path = require("path");
-const core = require("@mionkit/core");
+const src_vitePlugin_resolveModule = require("./resolveModule.js");
 const DEFAULT_TIMEOUT = 3e4;
 async function generateAOTCaches(options, startScriptOverride) {
   const startScript = path.resolve(startScriptOverride ?? options.startServerScript);
@@ -10,7 +10,7 @@ async function generateAOTCaches(options, startScriptOverride) {
   const viteConfigArgs = options.serverViteConfig ? ["--config", path.resolve(options.serverViteConfig)] : [];
   let viteNodePath;
   try {
-    viteNodePath = await core.resolveModule("vite-node/vite-node.mjs", scriptDir);
+    viteNodePath = await src_vitePlugin_resolveModule.resolveModule("vite-node/vite-node.mjs", scriptDir);
   } catch (err) {
     throw new Error(
       `Failed to resolve vite-node. Make sure vite-node is installed.
@@ -89,37 +89,47 @@ Make sure the startServerScript calls initMionRouter() and the router is fully i
 }
 function generateJitFnsModule(jitFnsCode) {
   return `/* Auto-generated AOT JIT functions cache - do not edit */
-import { addAOTCaches } from '@mionkit/core';
-
-const jitFnsCache = ${jitFnsCode};
-
-addAOTCaches(jitFnsCache, {});
+export const jitFnsCache = ${jitFnsCode};
 `;
 }
 function generatePureFnsModule(pureFnsCode) {
   return `/* Auto-generated AOT pure functions cache - do not edit */
-import { addAOTCaches } from '@mionkit/core';
-
-const pureFnsCache = ${pureFnsCode};
-
-addAOTCaches({}, pureFnsCache);
+export const pureFnsCache = ${pureFnsCode};
 `;
 }
 function generateRouterCacheModule(routerCacheCode) {
   return `/* Auto-generated AOT router cache - do not edit */
-import { addRoutesToCache } from '@mionkit/core';
+export const routerCache = ${routerCacheCode};
+`;
+}
+function generateCombinedCachesModule() {
+  return `/* Auto-generated combined AOT caches - do not edit */
+import { addAOTCaches, addRoutesToCache } from '@mionkit/core';
+import { pureFnsCache } from 'virtual:mion-aot/pure-fns';
+import { jitFnsCache } from 'virtual:mion-aot/jit-fns';
+import { routerCache } from 'virtual:mion-aot/router-cache';
 
-const routerCache = ${routerCacheCode};
-
+addAOTCaches(jitFnsCache, pureFnsCache);
 addRoutesToCache(routerCache);
+
+export { jitFnsCache, pureFnsCache, routerCache };
 `;
 }
 function generateNoopModule(comment) {
   return `/* ${comment} */
 `;
 }
+function generateNoopCombinedModule() {
+  return `/* No-op: AOT caches not generated */
+export const jitFnsCache = {};
+export const pureFnsCache = {};
+export const routerCache = {};
+`;
+}
 exports.generateAOTCaches = generateAOTCaches;
+exports.generateCombinedCachesModule = generateCombinedCachesModule;
 exports.generateJitFnsModule = generateJitFnsModule;
+exports.generateNoopCombinedModule = generateNoopCombinedModule;
 exports.generateNoopModule = generateNoopModule;
 exports.generatePureFnsModule = generatePureFnsModule;
 exports.generateRouterCacheModule = generateRouterCacheModule;

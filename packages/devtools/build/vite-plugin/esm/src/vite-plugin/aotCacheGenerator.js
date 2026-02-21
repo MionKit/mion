@@ -1,6 +1,6 @@
 import { fork } from "child_process";
 import { resolve, dirname } from "path";
-import { resolveModule } from "@mionkit/core";
+import { resolveModule } from "./resolveModule.js";
 const DEFAULT_TIMEOUT = 3e4;
 async function generateAOTCaches(options, startScriptOverride) {
   const startScript = resolve(startScriptOverride ?? options.startServerScript);
@@ -87,38 +87,48 @@ Make sure the startServerScript calls initMionRouter() and the router is fully i
 }
 function generateJitFnsModule(jitFnsCode) {
   return `/* Auto-generated AOT JIT functions cache - do not edit */
-import { addAOTCaches } from '@mionkit/core';
-
-const jitFnsCache = ${jitFnsCode};
-
-addAOTCaches(jitFnsCache, {});
+export const jitFnsCache = ${jitFnsCode};
 `;
 }
 function generatePureFnsModule(pureFnsCode) {
   return `/* Auto-generated AOT pure functions cache - do not edit */
-import { addAOTCaches } from '@mionkit/core';
-
-const pureFnsCache = ${pureFnsCode};
-
-addAOTCaches({}, pureFnsCache);
+export const pureFnsCache = ${pureFnsCode};
 `;
 }
 function generateRouterCacheModule(routerCacheCode) {
   return `/* Auto-generated AOT router cache - do not edit */
-import { addRoutesToCache } from '@mionkit/core';
+export const routerCache = ${routerCacheCode};
+`;
+}
+function generateCombinedCachesModule() {
+  return `/* Auto-generated combined AOT caches - do not edit */
+import { addAOTCaches, addRoutesToCache } from '@mionkit/core';
+import { pureFnsCache } from 'virtual:mion-aot/pure-fns';
+import { jitFnsCache } from 'virtual:mion-aot/jit-fns';
+import { routerCache } from 'virtual:mion-aot/router-cache';
 
-const routerCache = ${routerCacheCode};
-
+addAOTCaches(jitFnsCache, pureFnsCache);
 addRoutesToCache(routerCache);
+
+export { jitFnsCache, pureFnsCache, routerCache };
 `;
 }
 function generateNoopModule(comment) {
   return `/* ${comment} */
 `;
 }
+function generateNoopCombinedModule() {
+  return `/* No-op: AOT caches not generated */
+export const jitFnsCache = {};
+export const pureFnsCache = {};
+export const routerCache = {};
+`;
+}
 export {
   generateAOTCaches,
+  generateCombinedCachesModule,
   generateJitFnsModule,
+  generateNoopCombinedModule,
   generateNoopModule,
   generatePureFnsModule,
   generateRouterCacheModule

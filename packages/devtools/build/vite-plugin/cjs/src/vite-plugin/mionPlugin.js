@@ -83,6 +83,7 @@ function mionVitePlugin(options) {
       if (id === src_vitePlugin_constants.VIRTUAL_AOT_JIT_FNS) return src_vitePlugin_constants.RESOLVED_AOT_JIT_FNS;
       if (id === src_vitePlugin_constants.VIRTUAL_AOT_PURE_FNS) return src_vitePlugin_constants.RESOLVED_AOT_PURE_FNS;
       if (id === src_vitePlugin_constants.VIRTUAL_AOT_ROUTER_CACHE) return src_vitePlugin_constants.RESOLVED_AOT_ROUTER_CACHE;
+      if (id === src_vitePlugin_constants.VIRTUAL_AOT_CACHES) return src_vitePlugin_constants.RESOLVED_AOT_CACHES;
       return null;
     },
     load(id) {
@@ -109,6 +110,12 @@ function mionVitePlugin(options) {
           return src_vitePlugin_aotCacheGenerator.generateNoopModule("No-op: AOT router cache not generated");
         }
         return src_vitePlugin_aotCacheGenerator.generateRouterCacheModule(aotData.routerCacheCode);
+      }
+      if (id === src_vitePlugin_constants.RESOLVED_AOT_CACHES) {
+        if (!aotData) {
+          return src_vitePlugin_aotCacheGenerator.generateNoopCombinedModule();
+        }
+        return src_vitePlugin_aotCacheGenerator.generateCombinedCachesModule();
       }
       return null;
     },
