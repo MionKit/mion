@@ -26,6 +26,7 @@ import {
 } from './constants.ts';
 import {
     generateAOTCaches,
+    logAOTCaches,
     generateJitFnsModule,
     generatePureFnsModule,
     generateRouterCacheModule,
@@ -167,6 +168,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                     aotGenerationPromise = generateAOTCaches(aotOptions);
                     aotData = await aotGenerationPromise;
                     console.log('[mion] AOT caches generated successfully');
+                    logAOTCaches(aotData);
                 } catch (err) {
                     const message = err instanceof Error ? err.message : String(err);
                     throw new Error(`[mion] Failed to generate AOT caches: ${message}`);
@@ -288,6 +290,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                     generateAOTCaches(aotOptions)
                         .then((data) => {
                             aotData = data;
+                            logAOTCaches(data);
                             // Invalidate all 3 AOT virtual modules
                             const modulesToInvalidate = [RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE];
                             const invalidatedMods: any[] = [];

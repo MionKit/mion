@@ -51,6 +51,14 @@ export default defineConfig({
             tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
         }),
     ],
+    resolve: {
+        alias: {
+            '@mionkit/router': resolve(__dirname, '.'),
+            '@mionkit/core': resolve(__dirname, '../core'),
+            '@mionkit/run-types': resolve(__dirname, '../run-types'),
+            '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
+        },
+    },
     build: {
         lib: {
             entry,

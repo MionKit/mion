@@ -70,6 +70,7 @@ function mionVitePlugin(options) {
           aotGenerationPromise = src_vitePlugin_aotCacheGenerator.generateAOTCaches(aotOptions);
           aotData = await aotGenerationPromise;
           console.log("[mion] AOT caches generated successfully");
+          src_vitePlugin_aotCacheGenerator.logAOTCaches(aotData);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw new Error(`[mion] Failed to generate AOT caches: ${message}`);
@@ -155,6 +156,7 @@ function mionVitePlugin(options) {
         if (file.startsWith(serverDir)) {
           src_vitePlugin_aotCacheGenerator.generateAOTCaches(aotOptions).then((data) => {
             aotData = data;
+            src_vitePlugin_aotCacheGenerator.logAOTCaches(data);
             const modulesToInvalidate = [src_vitePlugin_constants.RESOLVED_AOT_JIT_FNS, src_vitePlugin_constants.RESOLVED_AOT_PURE_FNS, src_vitePlugin_constants.RESOLVED_AOT_ROUTER_CACHE];
             const invalidatedMods = [];
             for (const vmId of modulesToInvalidate) {

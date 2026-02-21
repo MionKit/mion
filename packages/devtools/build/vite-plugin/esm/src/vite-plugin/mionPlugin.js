@@ -4,7 +4,7 @@ import { transformWithDeepkit } from "./deepkit-type.js";
 import { extractPureFnsFromSource } from "./extractPureFn.js";
 import { generateVirtualModule } from "./virtualModule.js";
 import { RESOLVED_VIRTUAL_MODULE_ID, RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE, RESOLVED_AOT_CACHES, VIRTUAL_MODULE_ID, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES } from "./constants.js";
-import { generateAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
+import { generateAOTCaches, logAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
 function scanClientSource(options) {
   const include = options.include || ["**/*.ts", "**/*.tsx"];
   const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
@@ -68,6 +68,7 @@ function mionVitePlugin(options) {
           aotGenerationPromise = generateAOTCaches(aotOptions);
           aotData = await aotGenerationPromise;
           console.log("[mion] AOT caches generated successfully");
+          logAOTCaches(aotData);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw new Error(`[mion] Failed to generate AOT caches: ${message}`);
@@ -153,6 +154,7 @@ function mionVitePlugin(options) {
         if (file.startsWith(serverDir)) {
           generateAOTCaches(aotOptions).then((data) => {
             aotData = data;
+            logAOTCaches(data);
             const modulesToInvalidate = [RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE];
             const invalidatedMods = [];
             for (const vmId of modulesToInvalidate) {
