@@ -139,7 +139,6 @@ function matchGlob(filePath: string, pattern: string): boolean {
  *         clientSrcPath: '../client/src',
  *       },
  *       aotCaches: {
- *         mode: 'client',
  *         startServerScript: '../server/src/init.ts',
  *       },
  *     }),
@@ -166,14 +165,14 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
         enforce: 'pre',
 
         configResolved(config) {
-            if (aotOptions && aotOptions.mode) {
+            if (aotOptions) {
                 aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
             }
         },
 
         async buildStart() {
             // Generate AOT caches if enabled
-            if (aotOptions && aotOptions.mode) {
+            if (aotOptions) {
                 try {
                     console.log('[mion] Generating AOT caches...');
                     aotGenerationPromise = getOrGenerateAOTCaches(aotOptions, aotCacheDir);
@@ -293,7 +292,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
 
             // In dev mode, regenerate AOT caches when server source changes
             // Only if a custom startServerScript is provided (default routes don't change)
-            if (aotOptions && aotOptions.mode && aotOptions.startServerScript) {
+            if (aotOptions && aotOptions.startServerScript) {
                 // Check if the changed file is in the server directory
                 const serverDir = resolve(aotOptions.startServerScript, '..');
                 if (file.startsWith(serverDir)) {

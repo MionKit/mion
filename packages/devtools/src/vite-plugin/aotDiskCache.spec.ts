@@ -38,7 +38,6 @@ afterEach(() => {
 describe('computeSourceHash', () => {
     it('should produce a deterministic hash for the same directory', () => {
         const options: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
         };
         const hash1 = computeSourceHash(options);
@@ -49,7 +48,6 @@ describe('computeSourceHash', () => {
 
     it('should produce a different hash when excludedFns differ', () => {
         const base: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
         };
         const withExclusions: AOTCacheOptions = {
@@ -63,7 +61,6 @@ describe('computeSourceHash', () => {
 
     it('should produce a different hash when excludedPureFns differ', () => {
         const base: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
         };
         const withExclusions: AOTCacheOptions = {
@@ -77,7 +74,6 @@ describe('computeSourceHash', () => {
 
     it('should produce a different hash when a file is added', () => {
         const options: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
         };
         const hash1 = computeSourceHash(options);
@@ -88,7 +84,6 @@ describe('computeSourceHash', () => {
 
     it('should skip node_modules and test files', () => {
         const options: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
         };
         const hash1 = computeSourceHash(options);
@@ -105,21 +100,21 @@ describe('computeSourceHash', () => {
 
 describe('resolveCacheDir', () => {
     it('should return empty string when cache is false', () => {
-        expect(resolveCacheDir({mode: 'client', cache: false})).toBe('');
+        expect(resolveCacheDir({cache: false})).toBe('');
     });
 
     it('should use custom path when cache is a string', () => {
-        const result = resolveCacheDir({mode: 'client', cache: '/custom/path'});
+        const result = resolveCacheDir({cache: '/custom/path'});
         expect(result).toBe('/custom/path');
     });
 
     it('should use viteCacheDir when cache is true', () => {
-        const result = resolveCacheDir({mode: 'client', cache: true}, '/vite/cache');
+        const result = resolveCacheDir({cache: true}, '/vite/cache');
         expect(result).toBe('/vite/cache');
     });
 
     it('should fall back to node_modules/.vite when no viteCacheDir provided', () => {
-        const result = resolveCacheDir({mode: 'client'});
+        const result = resolveCacheDir({});
         expect(result).toContain('node_modules/.vite');
     });
 });
@@ -135,7 +130,6 @@ describe('getOrGenerateAOTCaches', () => {
         mockedGenerateAOTCaches.mockResolvedValue(mockData);
 
         const options: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
         };
 
@@ -148,7 +142,6 @@ describe('getOrGenerateAOTCaches', () => {
         mockedGenerateAOTCaches.mockResolvedValue(mockData);
 
         const options: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
         };
 
@@ -166,7 +159,6 @@ describe('getOrGenerateAOTCaches', () => {
         mockedGenerateAOTCaches.mockResolvedValue(mockData);
 
         const options: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
         };
 
@@ -187,7 +179,6 @@ describe('getOrGenerateAOTCaches', () => {
         mockedGenerateAOTCaches.mockResolvedValue(mockData);
 
         const options: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
         };
 
@@ -207,7 +198,6 @@ describe('getOrGenerateAOTCaches', () => {
         mockedGenerateAOTCaches.mockResolvedValue(mockData);
 
         const options: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
             cache: false,
         };
@@ -231,7 +221,6 @@ describe('updateDiskCache', () => {
         mockedGenerateAOTCaches.mockResolvedValue(mockData);
 
         const options: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
         };
 
@@ -246,7 +235,6 @@ describe('updateDiskCache', () => {
 
     it('should be a no-op when cache is disabled', () => {
         const options: AOTCacheOptions = {
-            mode: 'client',
             startServerScript: join(serverDir, 'init.ts'),
             cache: false,
         };
