@@ -1,5 +1,5 @@
 import { DeepkitTypeOptions } from './types.ts';
-export declare function transformWithDeepkit(code: string, fileName: string, options?: DeepkitTypeOptions): {
+export declare function createDeepkitTransform(options?: DeepkitTypeOptions): (code: string, fileName: string) => {
     code: string;
-    map: null;
+    map: string | undefined;
 } | null;

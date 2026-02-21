@@ -8,7 +8,7 @@
 import type {Plugin} from 'vite';
 import {readFileSync, readdirSync, statSync} from 'fs';
 import {join, resolve} from 'path';
-import {transformWithDeepkit} from './deepkit-type.ts';
+import {createDeepkitTransform} from './deepkit-type.ts';
 import {PureFunctionsPluginOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
 import {extractPureFnsFromSource} from './extractPureFn.ts';
 import {generateVirtualModule} from './virtualModule.ts';
@@ -152,6 +152,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
     const pureFnOptions = options.pureFunctions;
     const deepkitOptions = options.deepkitType;
     const aotOptions = options.aotCaches;
+    const deepkitTransform = deepkitOptions ? createDeepkitTransform(deepkitOptions) : null;
 
     // AOT cache data - populated during buildStart if AOT is enabled
     let aotData: AOTCacheData | null = null;
@@ -264,8 +265,8 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             }
 
             // Step 2: Apply deepkit transformation
-            if (deepkitOptions) {
-                return transformWithDeepkit(code, fileName, deepkitOptions);
+            if (deepkitTransform) {
+                return deepkitTransform(code, fileName);
             }
 
             return null;

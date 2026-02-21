@@ -1,8 +1,8 @@
 import { Plugin } from 'vite';
-import { PureFunctionsPluginOptions, DeepkitTypeOptions, AOTCacheOptions } from './types.ts';
+import { PureFunctionsPluginOptions, RunTypeOptions, AOTCacheOptions } from './types.ts';
 export interface MionPluginOptions {
     pureFunctions?: PureFunctionsPluginOptions;
-    deepkitType?: DeepkitTypeOptions;
+    deepkitType?: RunTypeOptions;
     aotCaches?: AOTCacheOptions;
 }
 export declare function mionVitePlugin(options: MionPluginOptions): Plugin;

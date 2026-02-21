@@ -59,6 +59,7 @@ function mionVitePlugin(options) {
   const pureFnOptions = options.pureFunctions;
   const deepkitOptions = options.deepkitType;
   const aotOptions = options.aotCaches;
+  const deepkitTransform = deepkitOptions ? src_vitePlugin_deepkitType.createDeepkitTransform(deepkitOptions) : null;
   let aotData = null;
   let aotGenerationPromise = null;
   let aotCacheDir = "";
@@ -137,8 +138,8 @@ function mionVitePlugin(options) {
           console.warn(`[mion] Warning: Could not extract pure functions from ${fileName}: ${err}`);
         }
       }
-      if (deepkitOptions) {
-        return src_vitePlugin_deepkitType.transformWithDeepkit(code, fileName, deepkitOptions);
+      if (deepkitTransform) {
+        return deepkitTransform(code, fileName);
       }
       return null;
     },
