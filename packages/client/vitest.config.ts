@@ -12,7 +12,6 @@ export default defineConfig({
                 },
             },
             aotCaches: {
-                mode: 'client',
                 startServerScript: resolve(__dirname, '../router/src/defaultRoutes.ts'),
                 serverViteConfig: resolve(__dirname, '../router/vite.config.ts'),
             },

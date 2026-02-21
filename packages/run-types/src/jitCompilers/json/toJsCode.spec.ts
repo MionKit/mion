@@ -316,7 +316,7 @@ it('toJSCode with isPureFnCode should emit fn as undefined and generate closure 
     // Cast to SrcCode type like the real aotEmitter does
     const code = toJSCode(runtimeCache as unknown as SrcCodePureFunctionsCache);
 
-    // createJitFn should be a closure using fnName (not jitFnHash) as the function name
+    // createPureFn should be a closure using fnName (not jitFnHash) as the function name
     expect(code).toContain('function get_myPureFn(utl)');
     // The closure body should use the code property
     expect(code).toContain('return function(val){return val*2}');
@@ -337,9 +337,9 @@ it('toJSCode with isPureFnCode should emit fn as undefined and generate closure 
     expect(entry.code).toBe('return function(val){return val*2}');
     expect(entry.pureFnDependencies).toEqual([]);
     expect(entry.fn).toBeUndefined();
-    expect(typeof entry.createJitFn).toBe('function');
+    expect(typeof entry.createPureFn).toBe('function');
     // The closure should recreate a working function from the code property
-    const createdFn = entry.createJitFn({});
+    const createdFn = entry.createPureFn({});
     expect(typeof createdFn).toBe('function');
     expect(createdFn(5)).toBe(10);
 });
@@ -435,15 +435,15 @@ it('toJSCode with isPureFnCode should handle multiple namespaces and functions',
     // Verify nested namespace structure
     expect(parsed.nsA.fnOne.namespace).toBe('nsA');
     expect(parsed.nsA.fnOne.fnName).toBe('fnOne');
-    expect(typeof parsed.nsA.fnOne.createJitFn).toBe('function');
+    expect(typeof parsed.nsA.fnOne.createPureFn).toBe('function');
     expect(parsed.nsA.fnOne.fn).toBeUndefined();
 
     expect(parsed.nsA.fnTwo.fnName).toBe('fnTwo');
     expect(parsed.nsA.fnTwo.pureFnDependencies).toEqual(['nsA::fnOne']);
-    expect(typeof parsed.nsA.fnTwo.createJitFn).toBe('function');
+    expect(typeof parsed.nsA.fnTwo.createPureFn).toBe('function');
 
     expect(parsed.nsB.fnThree.namespace).toBe('nsB');
     expect(parsed.nsB.fnThree.bodyHash).toBe('hashB1');
-    expect(typeof parsed.nsB.fnThree.createJitFn).toBe('function');
+    expect(typeof parsed.nsB.fnThree.createPureFn).toBe('function');
     expect(parsed.nsB.fnThree.fn).toBeUndefined();
 });
