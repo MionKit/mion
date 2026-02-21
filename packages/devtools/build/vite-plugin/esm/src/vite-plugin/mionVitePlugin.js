@@ -5,6 +5,7 @@ import { extractPureFnsFromSource } from "./extractPureFn.js";
 import { generateVirtualModule } from "./virtualModule.js";
 import { RESOLVED_VIRTUAL_MODULE_ID, RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE, RESOLVED_AOT_CACHES, VIRTUAL_MODULE_ID, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES } from "./constants.js";
 import { generateAOTCaches, logAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
+import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
 function scanClientSource(options) {
   const include = options.include || ["**/*.ts", "**/*.tsx"];
   const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
@@ -58,14 +59,20 @@ function mionVitePlugin(options) {
   const aotOptions = options.aotCaches;
   let aotData = null;
   let aotGenerationPromise = null;
+  let aotCacheDir = "";
   return {
     name: "mion",
     enforce: "pre",
+    configResolved(config) {
+      if (aotOptions && aotOptions.mode) {
+        aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
+      }
+    },
     async buildStart() {
       if (aotOptions && aotOptions.mode) {
         try {
           console.log("[mion] Generating AOT caches...");
-          aotGenerationPromise = generateAOTCaches(aotOptions);
+          aotGenerationPromise = getOrGenerateAOTCaches(aotOptions, aotCacheDir);
           aotData = await aotGenerationPromise;
           console.log("[mion] AOT caches generated successfully");
           logAOTCaches(aotData);
@@ -155,6 +162,7 @@ function mionVitePlugin(options) {
           generateAOTCaches(aotOptions).then((data) => {
             aotData = data;
             logAOTCaches(data);
+            updateDiskCache(aotOptions, data, aotCacheDir);
             const modulesToInvalidate = [RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE];
             const invalidatedMods = [];
             for (const vmId of modulesToInvalidate) {
@@ -179,4 +187,4 @@ function mionVitePlugin(options) {
 export {
   mionVitePlugin
 };
-//# sourceMappingURL=mionPlugin.js.map
+//# sourceMappingURL=mionVitePlugin.js.map

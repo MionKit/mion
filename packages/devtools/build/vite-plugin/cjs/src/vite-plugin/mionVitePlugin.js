@@ -7,6 +7,7 @@ const src_vitePlugin_extractPureFn = require("./extractPureFn.js");
 const src_vitePlugin_virtualModule = require("./virtualModule.js");
 const src_vitePlugin_constants = require("./constants.js");
 const src_vitePlugin_aotCacheGenerator = require("./aotCacheGenerator.js");
+const src_vitePlugin_aotDiskCache = require("./aotDiskCache.js");
 function scanClientSource(options) {
   const include = options.include || ["**/*.ts", "**/*.tsx"];
   const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
@@ -60,14 +61,20 @@ function mionVitePlugin(options) {
   const aotOptions = options.aotCaches;
   let aotData = null;
   let aotGenerationPromise = null;
+  let aotCacheDir = "";
   return {
     name: "mion",
     enforce: "pre",
+    configResolved(config) {
+      if (aotOptions && aotOptions.mode) {
+        aotCacheDir = src_vitePlugin_aotDiskCache.resolveCacheDir(aotOptions, config.cacheDir);
+      }
+    },
     async buildStart() {
       if (aotOptions && aotOptions.mode) {
         try {
           console.log("[mion] Generating AOT caches...");
-          aotGenerationPromise = src_vitePlugin_aotCacheGenerator.generateAOTCaches(aotOptions);
+          aotGenerationPromise = src_vitePlugin_aotDiskCache.getOrGenerateAOTCaches(aotOptions, aotCacheDir);
           aotData = await aotGenerationPromise;
           console.log("[mion] AOT caches generated successfully");
           src_vitePlugin_aotCacheGenerator.logAOTCaches(aotData);
@@ -157,6 +164,7 @@ function mionVitePlugin(options) {
           src_vitePlugin_aotCacheGenerator.generateAOTCaches(aotOptions).then((data) => {
             aotData = data;
             src_vitePlugin_aotCacheGenerator.logAOTCaches(data);
+            src_vitePlugin_aotDiskCache.updateDiskCache(aotOptions, data, aotCacheDir);
             const modulesToInvalidate = [src_vitePlugin_constants.RESOLVED_AOT_JIT_FNS, src_vitePlugin_constants.RESOLVED_AOT_PURE_FNS, src_vitePlugin_constants.RESOLVED_AOT_ROUTER_CACHE];
             const invalidatedMods = [];
             for (const vmId of modulesToInvalidate) {
@@ -179,4 +187,4 @@ function mionVitePlugin(options) {
   };
 }
 exports.mionVitePlugin = mionVitePlugin;
-//# sourceMappingURL=mionPlugin.js.map
+//# sourceMappingURL=mionVitePlugin.js.map

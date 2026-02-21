@@ -40,6 +40,18 @@ export interface AOTCacheOptions {
 
     /** Excluded pure function names */
     excludedPureFns?: string[];
+
+    /**
+     * Disk caching for AOT compilation results.
+     * Caches the compiled output so subsequent builds skip the expensive vite-node compile step
+     * when server source hasn't changed.
+     * - true (default): Cache in Vite's cacheDir (node_modules/.vite/)
+     * - string: Custom cache directory path
+     * - false: Disable disk caching
+     *
+     * Set env MION_AOT_FORCE=true to force regeneration regardless of this setting.
+     */
+    cache?: boolean | string;
 }
 
 /** Serializable registry entry for a single pure function */
