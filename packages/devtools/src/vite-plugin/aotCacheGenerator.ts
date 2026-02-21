@@ -8,7 +8,7 @@
 import {fork, ChildProcess} from 'child_process';
 import {resolve, dirname} from 'path';
 import {AOTCacheOptions} from './types.ts';
-import {resolveModule} from '@mionkit/core';
+import {resolveModule} from './resolveModule.ts';
 
 /** AOT cache data returned from the generator */
 export interface AOTCacheData {

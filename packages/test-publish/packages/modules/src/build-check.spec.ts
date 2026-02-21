@@ -17,7 +17,7 @@ describe('Build Verification', () => {
     const packagesDir = resolve(__dirname, '../../../../');
 
     /** List of packages that must be built before running test-publish tests */
-    const requiredPackages = ['core', 'run-types', 'router', 'node', 'client', 'aws', 'gcloud', 'codegen', 'bun'];
+    const requiredPackages = ['core', 'run-types', 'router', 'node', 'client', 'aws', 'gcloud', 'bun'];
 
     it('should verify all required packages are built', () => {
         const missingBuilds: string[] = [];

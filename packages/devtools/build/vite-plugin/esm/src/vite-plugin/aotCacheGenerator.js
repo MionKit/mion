@@ -1,24 +1,28 @@
 import { fork } from "child_process";
 import { resolve, dirname } from "path";
-import { createRequire } from "module";
-const require$1 = createRequire(import.meta.url);
+import { resolveModule } from "@mionkit/core";
 const DEFAULT_TIMEOUT = 3e4;
-function getDefaultRoutesScriptPath() {
-  const routerPath = require$1.resolve("@mionkit/router");
-  const routerDir = dirname(routerPath);
-  return resolve(routerDir, "defaultRoutes.ts");
-}
 async function generateAOTCaches(options, startScriptOverride) {
   const startScript = resolve(startScriptOverride ?? options.startServerScript);
   const scriptDir = dirname(startScript);
   const viteConfigArgs = options.serverViteConfig ? ["--config", resolve(options.serverViteConfig)] : [];
+  let viteNodePath;
+  try {
+    viteNodePath = await resolveModule("vite-node/vite-node.mjs", scriptDir);
+  } catch (err) {
+    throw new Error(
+      `Failed to resolve vite-node. Make sure vite-node is installed.
+You can install it with: npm install -D vite-node
+Original error: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
   return new Promise((resolvePromise, reject) => {
     var _a, _b;
     let child;
     let resolved = false;
     let stderr = "";
     try {
-      child = fork(require$1.resolve("vite-node/vite-node.mjs"), [...viteConfigArgs, startScript], {
+      child = fork(viteNodePath, [...viteConfigArgs, startScript], {
         env: { ...process.env, MION_COMPILE: "true" },
         stdio: ["pipe", "pipe", "pipe", "ipc"],
         cwd: scriptDir
@@ -117,7 +121,6 @@ export {
   generateJitFnsModule,
   generateNoopModule,
   generatePureFnsModule,
-  generateRouterCacheModule,
-  getDefaultRoutesScriptPath
+  generateRouterCacheModule
 };
 //# sourceMappingURL=aotCacheGenerator.js.map

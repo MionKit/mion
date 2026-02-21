@@ -2,7 +2,7 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
-import {deepkitType} from '@deepkit/vite';
+import {mionPlugin} from '@mionkit/devtools/vite-plugin';
 
 // Get all TypeScript files from a directory (excluding spec/test files)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
@@ -36,10 +36,12 @@ export default defineConfig({
         legalComments: 'none',
     },
     plugins: [
-        deepkitType({
-            tsConfig: resolve(__dirname, 'tsconfig.json'),
-            compilerOptions: {sourceMap: true},
-            exclude: '**/{dispatch,headers,methodsCache,dispatchError,constants,callContext,workflows}.ts',
+        mionPlugin({
+            deepkitType: {
+                tsConfig: resolve(__dirname, 'tsconfig.json'),
+                compilerOptions: {sourceMap: true},
+                exclude: '**/{dispatch,headers,methodsCache,dispatchError,constants,callContext,workflows}.ts',
+            },
         }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],

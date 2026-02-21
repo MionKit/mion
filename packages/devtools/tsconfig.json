@@ -5,8 +5,8 @@
     "composite": true,
     "rootDir": "."
   },
-  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../router"}],
+  "references": [],
   "reflection": false,
   "include": ["."],
-  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts", "mion-aot-template", "bin"]
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts"]
 }

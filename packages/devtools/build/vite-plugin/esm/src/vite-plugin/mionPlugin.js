@@ -4,7 +4,7 @@ import { transformWithDeepkit } from "./deepkit-type.js";
 import { extractPureFnsFromSource } from "./extractPureFn.js";
 import { generateVirtualModule } from "./virtualModule.js";
 import { RESOLVED_VIRTUAL_MODULE_ID, RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE, VIRTUAL_MODULE_ID, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE } from "./constants.js";
-import { generateAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, getDefaultRoutesScriptPath } from "./aotCacheGenerator.js";
+import { generateAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule } from "./aotCacheGenerator.js";
 function scanClientSource(options) {
   const include = options.include || ["**/*.ts", "**/*.tsx"];
   const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
@@ -63,14 +63,9 @@ function mionVitePlugin(options) {
     enforce: "pre",
     async buildStart() {
       if (aotOptions && aotOptions.mode) {
-        let startScriptOverride;
-        if (!aotOptions.startServerScript) {
-          startScriptOverride = getDefaultRoutesScriptPath();
-          console.log("[mion] No startServerScript provided, using default routes for internal mion routes only");
-        }
         try {
           console.log("[mion] Generating AOT caches...");
-          aotGenerationPromise = generateAOTCaches(aotOptions, startScriptOverride);
+          aotGenerationPromise = generateAOTCaches(aotOptions);
           aotData = await aotGenerationPromise;
           console.log("[mion] AOT caches generated successfully");
         } catch (err) {

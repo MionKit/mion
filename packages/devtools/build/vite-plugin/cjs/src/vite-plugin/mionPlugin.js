@@ -65,14 +65,9 @@ function mionVitePlugin(options) {
     enforce: "pre",
     async buildStart() {
       if (aotOptions && aotOptions.mode) {
-        let startScriptOverride;
-        if (!aotOptions.startServerScript) {
-          startScriptOverride = src_vitePlugin_aotCacheGenerator.getDefaultRoutesScriptPath();
-          console.log("[mion] No startServerScript provided, using default routes for internal mion routes only");
-        }
         try {
           console.log("[mion] Generating AOT caches...");
-          aotGenerationPromise = src_vitePlugin_aotCacheGenerator.generateAOTCaches(aotOptions, startScriptOverride);
+          aotGenerationPromise = src_vitePlugin_aotCacheGenerator.generateAOTCaches(aotOptions);
           aotData = await aotGenerationPromise;
           console.log("[mion] AOT caches generated successfully");
         } catch (err) {
