@@ -27,12 +27,7 @@ export default defineConfig({
             MION_TEST_SERVER_AUTO_START: 'false',
         },
         // Run tests sequentially to avoid conflicts with shared server
-        pool: 'forks',
-        poolOptions: {
-            forks: {
-                singleFork: true,
-            },
-        },
+        maxWorkers: 1,
         coverage: {
             provider: 'v8',
             reporter: ['text', 'html'],

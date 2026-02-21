@@ -16,12 +16,7 @@ export default defineConfig({
         // Longer timeouts for build tests since they test actual server/client interactions
         testTimeout: 30000,
         // Run tests sequentially to avoid port conflicts
-        pool: 'forks',
-        poolOptions: {
-            forks: {
-                singleFork: true,
-            },
-        },
+        maxWorkers: 1,
         // Global setup/teardown for test servers
         globalSetup: ['./globalSetup.ts'],
     },
