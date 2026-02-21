@@ -62,7 +62,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@deepkit/type-compiler": "^1.0.1-alpha.157",
+"@deepkit/type-compiler": "^1.0.1-alpha.157",
     "@rollup/pluginutils": "^5.1.0",
     "@typescript-eslint/utils": "^8.17.0",
     "vite-node": "^3.2.0"
@@ -80,8 +80,6 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.8",
-    "@typescript-eslint/rule-tester": "^8.17.0",
-    "typescript": "^5.0.0"
+    "@typescript-eslint/rule-tester": "^8.17.0"
   }
 }

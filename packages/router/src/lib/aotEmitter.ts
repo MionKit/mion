@@ -10,9 +10,9 @@ import {
     getENV,
     JitFunctionsCache,
     PureFunctionsCache,
-    SrcCodeJITCompiledFnsCache,
-    PersistedPureFunctionsCache,
     MethodsCache,
+    SrcCodeJITCompiledFnsCache,
+    SrcCodePureFunctionsCache,
 } from '@mionkit/core';
 import {getPersistedMethods} from './methodsCache.ts';
 import {createToJavascriptFn} from '@mionkit/run-types';
@@ -88,12 +88,12 @@ async function serializeCachesToCode(
     // Persisted types have fn:undefined so the serializer won't try to serialize runtime functions
     // isJitFnCode/isPureFnCode tell the serializer to generate createJitFn/createPureFn closures from the code property
     const jitToJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>({isJitFnCode: true});
-    const pureToJSCode = createToJavascriptFn<PersistedPureFunctionsCache>({isPureFnCode: true});
+    const pureToJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>({isPureFnCode: true});
     const routerToJSCode = createToJavascriptFn<MethodsCache>();
 
     return {
         jitFnsCode: jitToJSCode(jitFnsCache as unknown as SrcCodeJITCompiledFnsCache),
-        pureFnsCode: pureToJSCode(pureFnsCache as unknown as PersistedPureFunctionsCache),
+        pureFnsCode: pureToJSCode(pureFnsCache as unknown as SrcCodePureFunctionsCache),
         routerCacheCode: routerToJSCode(routerCache),
     };
 }

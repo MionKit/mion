@@ -252,8 +252,8 @@ export interface SrcCodeJitCompiledFn extends JitCompiledFnData {
     readonly fn: undefined;
 }
 export interface SrcCodeCompiledPureFunction extends PureFunctionData {
-    /** The closure function that contains the jit function, this one contains the context code */
-    readonly createJitFn: (utl: JITUtils) => AnyFn;
+    /** The closure function that contains the pure function, this one contains the context code */
+    readonly createPureFn: (utl: JITUtils) => AnyFn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }

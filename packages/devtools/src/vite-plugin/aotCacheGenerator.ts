@@ -86,16 +86,23 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
             return;
         }
 
+        /** Cleanup child process: disconnect IPC, kill, and clear timeout */
+        const cleanup = () => {
+            clearTimeout(timeoutId);
+            if (child.connected) child.disconnect();
+            child.kill();
+        };
+
         child.on('message', (msg: unknown) => {
             const message = msg as AOTCacheMessage;
             if (message?.type === 'mion-aot-caches') {
                 resolved = true;
+                cleanup();
                 resolvePromise({
                     jitFnsCode: message.jitFnsCode,
                     pureFnsCode: message.pureFnsCode,
                     routerCacheCode: message.routerCacheCode,
                 });
-                child.kill(); // Clean up after receiving caches
             }
         });
 
@@ -114,12 +121,14 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
 
         child.on('error', (err) => {
             if (!resolved) {
+                cleanup();
                 reject(new Error(`vite-node failed to start: ${err.message}`));
             }
         });
 
         child.on('exit', (code) => {
             if (!resolved) {
+                cleanup();
                 reject(
                     new Error(
                         `vite-node exited with code ${code} before emitting AOT caches.\n` +
@@ -132,9 +141,9 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
         });
 
         // Timeout safety
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
             if (!resolved) {
-                child.kill();
+                cleanup();
                 reject(
                     new Error(
                         `AOT cache generation timed out (${DEFAULT_TIMEOUT / 1000}s). ` +
@@ -144,6 +153,31 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
             }
         }, DEFAULT_TIMEOUT);
     });
+}
+
+// ============ Logging ============
+
+/** Formats byte size to human-readable string */
+function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    const mb = kb / 1024;
+    return `${mb.toFixed(1)} MB`;
+}
+
+/** Logs AOT cache sizes and optionally full contents in verbose mode (DEBUG_AOT) */
+export function logAOTCaches(data: AOTCacheData): void {
+    const jitSize = formatBytes(Buffer.byteLength(data.jitFnsCode, 'utf-8'));
+    const pureSize = formatBytes(Buffer.byteLength(data.pureFnsCode, 'utf-8'));
+    const routerSize = formatBytes(Buffer.byteLength(data.routerCacheCode, 'utf-8'));
+    console.log(`[mion]   jitFns: ${jitSize}, pureFns: ${pureSize}, routerCache: ${routerSize}`);
+
+    if (process.env.DEBUG_AOT) {
+        console.log('[mion] AOT jitFns cache:\n', data.jitFnsCode);
+        console.log('[mion] AOT pureFns cache:\n', data.pureFnsCode);
+        console.log('[mion] AOT routerCache:\n', data.routerCacheCode);
+    }
 }
 
 // ============ Module Generators ============
