@@ -37,7 +37,7 @@ export default defineConfig({
     },
     plugins: [
         mionPlugin({
-            deepkitType: {
+            runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
                 compilerOptions: {sourceMap: true},
                 exclude: '**/{dispatch,headers,methodsCache,dispatchError,constants,callContext,workflows}.ts',

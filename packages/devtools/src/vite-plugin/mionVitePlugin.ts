@@ -41,7 +41,7 @@ export interface MionPluginOptions {
     /** Options for pure function extraction - omit to disable */
     pureFunctions?: PureFunctionsPluginOptions;
     /** Options for deepkit type transformation - omit to disable */
-    deepkitType?: DeepkitTypeOptions;
+    runTypes?: DeepkitTypeOptions;
     /** Options for AOT cache generation - omit to disable */
     aotCaches?: AOTCacheOptions;
 }
@@ -132,7 +132,7 @@ function matchGlob(filePath: string, pattern: string): boolean {
  * export default defineConfig({
  *   plugins: [
  *     mionPlugin({
- *       deepkitType: {
+ *       runTypes: {
  *         tsConfig: './tsconfig.json',
  *       },
  *       pureFunctions: {
@@ -150,7 +150,7 @@ function matchGlob(filePath: string, pattern: string): boolean {
 export function mionVitePlugin(options: MionPluginOptions): Plugin {
     let extractedFns: ExtractedPureFn[] | null = null;
     const pureFnOptions = options.pureFunctions;
-    const deepkitOptions = options.deepkitType;
+    const deepkitOptions = options.runTypes;
     const aotOptions = options.aotCaches;
     const deepkitTransform = deepkitOptions ? createDeepkitTransform(deepkitOptions) : null;
 

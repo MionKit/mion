@@ -49,7 +49,7 @@ export default defineConfig({
     plugins: [
         // Deepkit type transformer - enables runtime type information
         mionPlugin({
-            deepkitType: {
+            runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
             },
         }),
