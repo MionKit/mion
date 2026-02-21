@@ -1,6 +1,6 @@
 import { readdirSync, statSync, readFileSync } from "fs";
 import { resolve, join } from "path";
-import { transformWithDeepkit } from "./deepkit-type.js";
+import { createDeepkitTransform } from "./deepkit-type.js";
 import { extractPureFnsFromSource } from "./extractPureFn.js";
 import { generateVirtualModule } from "./virtualModule.js";
 import { RESOLVED_VIRTUAL_MODULE_ID, RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE, RESOLVED_AOT_CACHES, VIRTUAL_MODULE_ID, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES } from "./constants.js";
@@ -57,6 +57,7 @@ function mionVitePlugin(options) {
   const pureFnOptions = options.pureFunctions;
   const deepkitOptions = options.deepkitType;
   const aotOptions = options.aotCaches;
+  const deepkitTransform = deepkitOptions ? createDeepkitTransform(deepkitOptions) : null;
   let aotData = null;
   let aotGenerationPromise = null;
   let aotCacheDir = "";
@@ -135,8 +136,8 @@ function mionVitePlugin(options) {
           console.warn(`[mion] Warning: Could not extract pure functions from ${fileName}: ${err}`);
         }
       }
-      if (deepkitOptions) {
-        return transformWithDeepkit(code, fileName, deepkitOptions);
+      if (deepkitTransform) {
+        return deepkitTransform(code, fileName);
       }
       return null;
     },

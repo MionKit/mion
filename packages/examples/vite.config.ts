@@ -1,11 +1,13 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
-import {deepkitType} from '@deepkit/vite';
+import {mionPlugin} from '@mionkit/devtools/vite-plugin';
 
 export default defineConfig({
     plugins: [
-        deepkitType({
-            tsConfig: resolve(__dirname, 'tsconfig.json'),
+        mionPlugin({
+            deepkitType: {
+                tsConfig: resolve(__dirname, 'tsconfig.json'),
+            },
         }),
     ],
     build: {

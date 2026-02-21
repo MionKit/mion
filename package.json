@@ -58,7 +58,6 @@
   "devDependencies": {
     "@deepkit/core": "1.0.19",
     "@deepkit/type-compiler": "1.0.19",
-    "@deepkit/vite": "^1.0.19",
     "@playwright/mcp": "^0.0.56",
     "@types/aws-lambda": "^8.10.108",
     "@types/node": "^18.17.0",

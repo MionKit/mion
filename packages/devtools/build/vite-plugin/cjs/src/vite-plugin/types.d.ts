@@ -36,7 +36,7 @@ export interface ExtractedPureFn {
     isFactory: boolean;
 }
 export type ReflectionMode = 'default' | 'explicit' | 'never';
-export interface DeepkitTypeOptions {
+export interface RunTypeOptions {
     include?: string | string[];
     exclude?: string | string[];
     tsConfig?: string;
