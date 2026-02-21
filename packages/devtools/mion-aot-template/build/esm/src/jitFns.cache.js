@@ -1,4 +1,0 @@
-const jitFnsCache = {};
-export {
-  jitFnsCache
-};
