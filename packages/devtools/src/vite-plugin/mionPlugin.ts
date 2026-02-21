@@ -9,16 +9,36 @@ import type {Plugin} from 'vite';
 import {readFileSync, readdirSync, statSync} from 'fs';
 import {join, resolve} from 'path';
 import {transformWithDeepkit} from './deepkit-type.ts';
-import {PureFunctionsPluginOptions, ExtractedPureFn, DeepkitTypeOptions} from './types.ts';
+import {PureFunctionsPluginOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
 import {extractPureFnsFromSource} from './extractPureFn.ts';
 import {generateVirtualModule} from './virtualModule.ts';
-import {VIRTUAL_MODULE_ID, RESOLVED_VIRTUAL_MODULE_ID} from './constants.ts';
+import {
+    VIRTUAL_MODULE_ID,
+    RESOLVED_VIRTUAL_MODULE_ID,
+    VIRTUAL_AOT_JIT_FNS,
+    VIRTUAL_AOT_PURE_FNS,
+    VIRTUAL_AOT_ROUTER_CACHE,
+    RESOLVED_AOT_JIT_FNS,
+    RESOLVED_AOT_PURE_FNS,
+    RESOLVED_AOT_ROUTER_CACHE,
+} from './constants.ts';
+import {
+    generateAOTCaches,
+    generateJitFnsModule,
+    generatePureFnsModule,
+    generateRouterCacheModule,
+    generateNoopModule,
+    getDefaultRoutesScriptPath,
+    AOTCacheData,
+} from './aotCacheGenerator.ts';
 
 export interface MionPluginOptions {
     /** Options for pure function extraction - omit to disable */
     pureFunctions?: PureFunctionsPluginOptions;
     /** Options for deepkit type transformation - omit to disable */
     deepkitType?: DeepkitTypeOptions;
+    /** Options for AOT cache generation - omit to disable */
+    aotCaches?: AOTCacheOptions;
 }
 
 /** Scans the client source directory and extracts all pure functions */
@@ -90,8 +110,8 @@ function matchGlob(filePath: string, pattern: string): boolean {
 
 /**
  * Creates the unified mion Vite plugin.
- * This plugin combines pure function extraction and deepkit type transformation
- * in a single plugin with correct execution order.
+ * This plugin combines pure function extraction, deepkit type transformation,
+ * and AOT cache generation in a single plugin with correct execution order.
  *
  * Execution order:
  * 1. Extract pure functions from original TypeScript source
@@ -113,6 +133,10 @@ function matchGlob(filePath: string, pattern: string): boolean {
  *       pureFunctions: {
  *         clientSrcPath: '../client/src',
  *       },
+ *       aotCaches: {
+ *         mode: 'client',
+ *         startServerScript: '../server/src/init.ts',
+ *       },
  *     }),
  *   ],
  * });
@@ -122,28 +146,88 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
     let extractedFns: ExtractedPureFn[] | null = null;
     const pureFnOptions = options.pureFunctions;
     const deepkitOptions = options.deepkitType;
+    const aotOptions = options.aotCaches;
+
+    // AOT cache data - populated during buildStart if AOT is enabled
+    let aotData: AOTCacheData | null = null;
+    let aotGenerationPromise: Promise<AOTCacheData> | null = null;
 
     return {
         name: 'mion',
         enforce: 'pre',
 
+        async buildStart() {
+            // Generate AOT caches if enabled
+            if (aotOptions && aotOptions.mode) {
+                // Determine which script to use for AOT generation
+                let startScriptOverride: string | undefined;
+                if (!aotOptions.startServerScript) {
+                    // Use default routes script from @mionkit/router
+                    // This provides internal mion routes only (for client builds without full server routes)
+                    startScriptOverride = await getDefaultRoutesScriptPath();
+                    console.log('[mion] No startServerScript provided, using default routes for internal mion routes only');
+                }
+
+                try {
+                    console.log('[mion] Generating AOT caches...');
+                    aotGenerationPromise = generateAOTCaches(aotOptions, startScriptOverride);
+                    aotData = await aotGenerationPromise;
+                    console.log('[mion] AOT caches generated successfully');
+                } catch (err) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    throw new Error(`[mion] Failed to generate AOT caches: ${message}`);
+                }
+            }
+        },
+
         resolveId(id) {
-            if (!pureFnOptions) return null;
-            if (id === VIRTUAL_MODULE_ID) {
+            // Pure functions virtual module
+            if (pureFnOptions && id === VIRTUAL_MODULE_ID) {
                 return RESOLVED_VIRTUAL_MODULE_ID;
             }
+
+            // AOT virtual modules
+            if (id === VIRTUAL_AOT_JIT_FNS) return RESOLVED_AOT_JIT_FNS;
+            if (id === VIRTUAL_AOT_PURE_FNS) return RESOLVED_AOT_PURE_FNS;
+            if (id === VIRTUAL_AOT_ROUTER_CACHE) return RESOLVED_AOT_ROUTER_CACHE;
+
             return null;
         },
 
         load(id) {
-            if (!pureFnOptions) return null;
-            if (id === RESOLVED_VIRTUAL_MODULE_ID) {
+            // Pure functions virtual module
+            if (pureFnOptions && id === RESOLVED_VIRTUAL_MODULE_ID) {
                 // Lazily scan client source on first load
                 if (!extractedFns) {
                     extractedFns = scanClientSource(pureFnOptions);
                 }
                 return generateVirtualModule(extractedFns);
             }
+
+            // AOT JIT functions + pure functions module
+            if (id === RESOLVED_AOT_JIT_FNS) {
+                if (!aotData) {
+                    return generateNoopModule('No-op: AOT JIT caches not generated');
+                }
+                return generateJitFnsModule(aotData.jitFnsCode);
+            }
+
+            // AOT pure functions module (standalone)
+            if (id === RESOLVED_AOT_PURE_FNS) {
+                if (!aotData) {
+                    return generateNoopModule('No-op: AOT pure fns not generated');
+                }
+                return generatePureFnsModule(aotData.pureFnsCode);
+            }
+
+            // AOT router cache module
+            if (id === RESOLVED_AOT_ROUTER_CACHE) {
+                if (!aotData) {
+                    return generateNoopModule('No-op: AOT router cache not generated');
+                }
+                return generateRouterCacheModule(aotData.routerCacheCode);
+            }
+
             return null;
         },
 
@@ -173,22 +257,55 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
         },
 
         handleHotUpdate({file, server}) {
-            // In dev mode, re-scan when client source changes
-            if (!pureFnOptions) return;
-            const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
-            if (!file.startsWith(clientSrcPath)) return;
-
-            const include = pureFnOptions.include || ['**/*.ts', '**/*.tsx'];
-            const exclude = pureFnOptions.exclude || ['**/node_modules/**', '**/.dist/**', '**/dist/**'];
-            if (!isIncluded(file, include, exclude)) return;
-
-            // Clear cache and invalidate virtual module
-            extractedFns = null;
-            const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
-            if (mod) {
-                server.moduleGraph.invalidateModule(mod);
-                return [mod];
+            // In dev mode, re-scan when client source changes (for pure functions)
+            if (pureFnOptions) {
+                const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
+                if (file.startsWith(clientSrcPath)) {
+                    const include = pureFnOptions.include || ['**/*.ts', '**/*.tsx'];
+                    const exclude = pureFnOptions.exclude || ['**/node_modules/**', '**/.dist/**', '**/dist/**'];
+                    if (isIncluded(file, include, exclude)) {
+                        // Clear cache and invalidate virtual module
+                        extractedFns = null;
+                        const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
+                        if (mod) {
+                            server.moduleGraph.invalidateModule(mod);
+                            return [mod];
+                        }
+                    }
+                }
             }
+
+            // In dev mode, regenerate AOT caches when server source changes
+            // Only if a custom startServerScript is provided (default routes don't change)
+            if (aotOptions && aotOptions.mode && aotOptions.startServerScript) {
+                // Check if the changed file is in the server directory
+                const serverDir = resolve(aotOptions.startServerScript, '..');
+                if (file.startsWith(serverDir)) {
+                    // Regenerate AOT caches asynchronously
+                    generateAOTCaches(aotOptions)
+                        .then((data) => {
+                            aotData = data;
+                            // Invalidate all 3 AOT virtual modules
+                            const modulesToInvalidate = [RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE];
+                            const invalidatedMods: any[] = [];
+                            for (const vmId of modulesToInvalidate) {
+                                const mod = server.moduleGraph.getModuleById(vmId);
+                                if (mod) {
+                                    server.moduleGraph.invalidateModule(mod);
+                                    invalidatedMods.push(mod);
+                                }
+                            }
+                            if (invalidatedMods.length > 0) {
+                                console.log('[mion] AOT caches regenerated, invalidating virtual modules');
+                            }
+                        })
+                        .catch((err) => {
+                            console.error('[mion] Failed to regenerate AOT caches:', err.message);
+                        });
+                }
+            }
+
+            return undefined;
         },
     };
 }

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicApi, Routes, initRouter, registerRoutes, route, headersFn, linkedFn} from '@mionkit/router';
+import {PublicApi, Routes, initMionRouter, route, headersFn, linkedFn} from '@mionkit/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/node';
 import {RpcError, HeadersSubset} from '@mionkit/core';
 // Import format types (regular import to ensure JIT functions are created)
@@ -126,11 +126,9 @@ const port = process.argv[2] ? parseInt(process.argv[2], 10) : 8076;
 
 async function startServer() {
     try {
-        // Initialize router
-        initRouter({contextDataFactory: () => ({user: null}), skipClientRoutes: false});
-
-        // Register routes
-        registerRoutes(routes);
+        // Initialize router with routes using initMionRouter
+        // This automatically registers internal mion routes (methodsMetadataById, etc.)
+        await initMionRouter(routes, {contextDataFactory: () => ({user: null}), skipClientRoutes: false});
 
         // Set HTTP options
         setNodeHttpOpts({port});

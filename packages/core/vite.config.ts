@@ -85,7 +85,6 @@ export default defineConfig({
                 },
             ],
             external: [
-                '@mionkit/aot-caches',
                 // Mark all node_modules as external
                 /^[^./]/,
             ],

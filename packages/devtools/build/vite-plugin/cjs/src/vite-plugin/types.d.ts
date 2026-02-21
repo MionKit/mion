@@ -1,3 +1,11 @@
+import { CompilerOptions } from 'typescript';
+export interface AOTCacheOptions {
+    startServerScript?: string;
+    serverViteConfig?: string;
+    mode?: 'client' | 'server-build' | false;
+    excludedFns?: string[];
+    excludedPureFns?: string[];
+}
 export interface PureServerFnRegistryEntry {
     readonly namespace: string;
     readonly fnName: string;
@@ -32,4 +40,5 @@ export interface DeepkitTypeOptions {
     exclude?: string | string[];
     tsConfig?: string;
     reflection?: ReflectionMode;
+    compilerOptions?: CompilerOptions;
 }

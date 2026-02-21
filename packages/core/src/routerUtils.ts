@@ -6,17 +6,12 @@
  * ######## */
 
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants.ts';
-import {routerCache as aotRouterCacheRaw} from '@mionkit/aot-caches';
 import type {RemoteMethodOpts, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
 import type {JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
 import {getJitUtils} from './jit/jitUtils.ts';
 
-// Cast the imported cache to the proper type (aot-caches uses generic Record to avoid circular dependency)
-const aotRouterCache = aotRouterCacheRaw as MethodsCache;
-
 const methodsCache: MethodsCache = {};
 const methodsOptionsCache: Record<string, RemoteMethodOpts> = {};
-let routesCacheLoaded = false;
 
 // Cache for JitCompiledFunctions objects keyed by jitHash
 const jitFunctionsCache = new Map<string, JitCompiledFunctions>();
@@ -24,23 +19,16 @@ const headerJitFunctionsCache = new Map<string, Pick<JitCompiledFunctions, 'isTy
 
 /**
  * Utilities for accessing and modifying the router cache.
- * The router cache stores method metadata for both AOT-compiled routes and dynamically fetched routes.
+ * The router cache stores method metadata for routes registered via addRoutesToCache() or virtual modules.
  */
 export const routesCache = {
     /**
      * Get method metadata from the router cache by id.
-     * First checks the local cache, then falls back to the AOT cache.
      * @param id - The method id
      * @returns The method metadata or undefined if not found
      */
     getMetadata(id: string): MethodWithOptions | undefined {
-        if (id in methodsCache) {
-            return methodsCache[id] as MethodWithOptions | undefined;
-        }
-        if (id in aotRouterCache) {
-            return aotRouterCache[id] as MethodWithOptions | undefined;
-        }
-        return undefined;
+        return methodsCache[id] as MethodWithOptions | undefined;
     },
 
     /**
@@ -54,12 +42,11 @@ export const routesCache = {
 
     /**
      * Check if the router cache contains a method by id.
-     * Checks both local cache and AOT cache.
      * @param id - The method id
-     * @returns True if the method exists in either cache
+     * @returns True if the method exists in the cache
      */
     hasMetadata(id: string): boolean {
-        return id in methodsCache || id in aotRouterCache;
+        return id in methodsCache;
     },
 
     /**
@@ -142,24 +129,8 @@ export const methodOptsCache = {
 };
 
 /**
- * Loads the router cache from @mionkit/aot-caches.
- * This function should be called by the client package on initialization.
- * The router package generates routes at runtime so it does not need to call this function.
- * This function is idempotent - it will only load the cache once.
- */
-export function coreAOTLoadRoutesMetadataCache(): void {
-    if (routesCacheLoaded) return;
-    routesCacheLoaded = true;
-    for (const key in aotRouterCache) {
-        if (!(key in methodsCache)) {
-            // Clone the cache entry to avoid mutating the original
-            methodsCache[key] = {...aotRouterCache[key]} as MethodWithOptions;
-        }
-    }
-}
-
-/**
- * Adds new routes to the router cache
+ * Adds new routes to the router cache.
+ * This is the public API for registering routes - called by virtual modules or directly.
  * @param newCache
  */
 export function addRoutesToCache(newCache: MethodsCache) {
@@ -267,7 +238,6 @@ export function getRoutePath(pathPointer: string[], routerOptions: {prefix: stri
 
 export function resetRoutesCache() {
     for (const k in methodsCache) delete methodsCache[k];
-    routesCacheLoaded = false;
 }
 
 /** Resets the JIT functions cache. Useful for testing purposes only. */

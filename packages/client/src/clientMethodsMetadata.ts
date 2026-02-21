@@ -16,7 +16,7 @@ import type {
     SerializableMethodsData,
     PureFnsDataCache,
 } from '@mionkit/core';
-import {routesCache, coreAOTLoadJitCaches, coreAOTLoadRoutesMetadataCache, addSerializedJitCaches} from '@mionkit/core';
+import {routesCache, addSerializedJitCaches} from '@mionkit/core';
 import {STORAGE_KEY} from './constants.ts';
 import {deserializeResponseBody} from './serializer.ts';
 import type {MionRoutes} from '@mionkit/router';
@@ -195,26 +195,39 @@ function addToCaches(serializableMethodsData: SerializableMethodsData) {
     addRoutesToCache(serializableMethodsData.methods);
 }
 
-/** Resets the client caches and reloads them from the AOT caches, mostly usefull for testing*/
+/**
+ * Resets the client caches. Mostly useful for testing.
+ * Note: After calling this, AOT caches must be re-registered via virtual modules.
+ */
 export function resetClientCaches() {
     if (!isTestEnv()) throw new Error('resetClientCaches() can only be called fro testing purposes');
     resetRoutesCache();
     resetJitFnCaches();
-    loadClientCaches();
 }
 
-function loadClientCaches() {
-    coreAOTLoadRoutesMetadataCache();
-    coreAOTLoadJitCaches();
+/**
+ * Validates that required MION_ROUTES are loaded in the cache.
+ * This is called automatically on module load to ensure AOT caches are properly registered.
+ * AOT caches should be loaded via virtual modules before this module is imported:
+ *   import 'virtual:mion-aot/jit-fns';
+ *   import 'virtual:mion-aot/router-cache';
+ *
+ * Skipped in test environments where AOT caches are not available.
+ */
+function validateClientCaches() {
+    // Skip validation in test environments - tests use mocks or direct cache manipulation
+    if (isTestEnv()) return;
 
     const requiredRoutes = Object.values(MION_ROUTES);
     const missingRoutes = requiredRoutes.filter((routeId) => !routesCache.hasMetadata(routeId));
     if (missingRoutes.length > 0) {
         throw new Error(
             `AOT cache not loaded: Required MION_ROUTES not found in router cache: ${missingRoutes.join(', ')}. ` +
-                `Make sure the AOT caches are properly generated and loaded.`
+                `Make sure to import the AOT virtual modules before using the client:\n` +
+                `  import 'virtual:mion-aot/jit-fns';\n` +
+                `  import 'virtual:mion-aot/router-cache';`
         );
     }
 }
 
-loadClientCaches();
+validateClientCaches();
