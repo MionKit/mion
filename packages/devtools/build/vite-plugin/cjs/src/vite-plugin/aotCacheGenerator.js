@@ -2,26 +2,29 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const child_process = require("child_process");
 const path = require("path");
-const module$1 = require("module");
-var _documentCurrentScript = typeof document !== "undefined" ? document.currentScript : null;
-const require$1 = module$1.createRequire(typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("src/vite-plugin/aotCacheGenerator.js", document.baseURI).href);
+const core = require("@mionkit/core");
 const DEFAULT_TIMEOUT = 3e4;
-function getDefaultRoutesScriptPath() {
-  const routerPath = require$1.resolve("@mionkit/router");
-  const routerDir = path.dirname(routerPath);
-  return path.resolve(routerDir, "defaultRoutes.ts");
-}
 async function generateAOTCaches(options, startScriptOverride) {
   const startScript = path.resolve(startScriptOverride ?? options.startServerScript);
   const scriptDir = path.dirname(startScript);
   const viteConfigArgs = options.serverViteConfig ? ["--config", path.resolve(options.serverViteConfig)] : [];
+  let viteNodePath;
+  try {
+    viteNodePath = await core.resolveModule("vite-node/vite-node.mjs", scriptDir);
+  } catch (err) {
+    throw new Error(
+      `Failed to resolve vite-node. Make sure vite-node is installed.
+You can install it with: npm install -D vite-node
+Original error: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
   return new Promise((resolvePromise, reject) => {
     var _a, _b;
     let child;
     let resolved = false;
     let stderr = "";
     try {
-      child = child_process.fork(require$1.resolve("vite-node/vite-node.mjs"), [...viteConfigArgs, startScript], {
+      child = child_process.fork(viteNodePath, [...viteConfigArgs, startScript], {
         env: { ...process.env, MION_COMPILE: "true" },
         stdio: ["pipe", "pipe", "pipe", "ipc"],
         cwd: scriptDir
@@ -120,5 +123,4 @@ exports.generateJitFnsModule = generateJitFnsModule;
 exports.generateNoopModule = generateNoopModule;
 exports.generatePureFnsModule = generatePureFnsModule;
 exports.generateRouterCacheModule = generateRouterCacheModule;
-exports.getDefaultRoutesScriptPath = getDefaultRoutesScriptPath;
 //# sourceMappingURL=aotCacheGenerator.js.map

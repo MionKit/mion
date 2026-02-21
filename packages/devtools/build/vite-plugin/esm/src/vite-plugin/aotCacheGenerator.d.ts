@@ -4,7 +4,6 @@ export interface AOTCacheData {
     pureFnsCode: string;
     routerCacheCode: string;
 }
-export declare function getDefaultRoutesScriptPath(): string;
 export declare function generateAOTCaches(options: AOTCacheOptions, startScriptOverride?: string): Promise<AOTCacheData>;
 export declare function generateJitFnsModule(jitFnsCode: string): string;
 export declare function generatePureFnsModule(pureFnsCode: string): string;
