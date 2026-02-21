@@ -1,4 +1,4 @@
-import { mionVitePlugin, mionVitePlugin as mionVitePlugin2 } from "./mionPlugin.js";
+import { mionVitePlugin, mionVitePlugin as mionVitePlugin2 } from "./mionVitePlugin.js";
 import { VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_MODULE_ID } from "./constants.js";
 export {
   VIRTUAL_AOT_JIT_FNS,

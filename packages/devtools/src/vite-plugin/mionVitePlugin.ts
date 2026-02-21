@@ -35,6 +35,7 @@ import {
     generateNoopCombinedModule,
     AOTCacheData,
 } from './aotCacheGenerator.ts';
+import {getOrGenerateAOTCaches, updateDiskCache, resolveCacheDir} from './aotDiskCache.ts';
 
 export interface MionPluginOptions {
     /** Options for pure function extraction - omit to disable */
@@ -156,16 +157,25 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
     let aotData: AOTCacheData | null = null;
     let aotGenerationPromise: Promise<AOTCacheData> | null = null;
 
+    // Resolved cache directory from Vite's config — set in configResolved
+    let aotCacheDir = '';
+
     return {
         name: 'mion',
         enforce: 'pre',
+
+        configResolved(config) {
+            if (aotOptions && aotOptions.mode) {
+                aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
+            }
+        },
 
         async buildStart() {
             // Generate AOT caches if enabled
             if (aotOptions && aotOptions.mode) {
                 try {
                     console.log('[mion] Generating AOT caches...');
-                    aotGenerationPromise = generateAOTCaches(aotOptions);
+                    aotGenerationPromise = getOrGenerateAOTCaches(aotOptions, aotCacheDir);
                     aotData = await aotGenerationPromise;
                     console.log('[mion] AOT caches generated successfully');
                     logAOTCaches(aotData);
@@ -286,11 +296,12 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                 // Check if the changed file is in the server directory
                 const serverDir = resolve(aotOptions.startServerScript, '..');
                 if (file.startsWith(serverDir)) {
-                    // Regenerate AOT caches asynchronously
+                    // Regenerate AOT caches asynchronously (always fresh, then update disk cache)
                     generateAOTCaches(aotOptions)
                         .then((data) => {
                             aotData = data;
                             logAOTCaches(data);
+                            updateDiskCache(aotOptions, data, aotCacheDir);
                             // Invalidate all 3 AOT virtual modules
                             const modulesToInvalidate = [RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE];
                             const invalidatedMods: any[] = [];

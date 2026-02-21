@@ -30,13 +30,17 @@
       "types": "./build/vite-plugin/esm/src/vite-plugin/index.d.ts",
       "import": "./build/vite-plugin/esm/index.js",
       "require": "./build/vite-plugin/cjs/index.js"
+    },
+    "./virtual-modules": {
+      "types": "./src/vite-plugin/virtual-modules.d.ts"
     }
   },
   "directories": {
     "lib": "build"
   },
   "files": [
-    "build"
+    "build",
+    "src/vite-plugin/virtual-modules.d.ts"
   ],
   "repository": {
     "type": "git",

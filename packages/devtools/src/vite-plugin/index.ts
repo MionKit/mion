@@ -6,8 +6,8 @@
  * ######## */
 
 /** Vite plugin for mion (pure functions, virtual modules, AOT caches, etc.) */
-export {mionVitePlugin, mionVitePlugin as mionPlugin} from './mionPlugin.ts';
-export type {MionPluginOptions} from './mionPlugin.ts';
+export {mionVitePlugin, mionVitePlugin as mionPlugin} from './mionVitePlugin.ts';
+export type {MionPluginOptions} from './mionVitePlugin.ts';
 export type {AOTCacheOptions, PureFunctionsPluginOptions, DeepkitTypeOptions} from './types.ts';
 
 // Re-export virtual module constants for advanced usage

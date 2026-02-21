@@ -4,7 +4,8 @@
     "outDir": ".dist/esm",
     "lib": ["es6", "ES2023", "DOM"],
     "composite": true,
-    "rootDir": "."
+    "rootDir": ".",
+    "types": ["@mionkit/devtools/virtual-modules"]
   },
   "references": [
     {"path": "../core"},

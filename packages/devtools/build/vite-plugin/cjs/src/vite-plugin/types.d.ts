@@ -5,6 +5,7 @@ export interface AOTCacheOptions {
     mode?: 'client' | 'server-build' | false;
     excludedFns?: string[];
     excludedPureFns?: string[];
+    cache?: boolean | string;
 }
 export interface PureServerFnRegistryEntry {
     readonly namespace: string;
