@@ -5,7 +5,7 @@ import {mionPlugin} from '@mionkit/devtools/vite-plugin';
 export default defineConfig({
     plugins: [
         mionPlugin({
-            deepkitType: {
+            runTypes: {
                 tsConfig: resolve(__dirname, '../../tsconfig.json'),
                 compilerOptions: {
                     sourceMap: true,
