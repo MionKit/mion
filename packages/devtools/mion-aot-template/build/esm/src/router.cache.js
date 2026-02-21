@@ -1,4 +1,0 @@
-const routerCache = {};
-export {
-  routerCache
-};

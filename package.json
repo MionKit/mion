@@ -76,7 +76,6 @@
     "vitest": "^2.1.9"
   },
   "workspaces": [
-    "packages/aot-caches",
     "packages/aws",
     "packages/test-publish",
     "packages/bun",
