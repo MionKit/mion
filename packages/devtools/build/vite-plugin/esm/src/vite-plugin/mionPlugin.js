@@ -3,7 +3,8 @@ import { resolve, join } from "path";
 import { transformWithDeepkit } from "./deepkit-type.js";
 import { extractPureFnsFromSource } from "./extractPureFn.js";
 import { generateVirtualModule } from "./virtualModule.js";
-import { RESOLVED_VIRTUAL_MODULE_ID, VIRTUAL_MODULE_ID } from "./constants.js";
+import { RESOLVED_VIRTUAL_MODULE_ID, RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE, VIRTUAL_MODULE_ID, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE } from "./constants.js";
+import { generateAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, getDefaultRoutesScriptPath } from "./aotCacheGenerator.js";
 function scanClientSource(options) {
   const include = options.include || ["**/*.ts", "**/*.tsx"];
   const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
@@ -54,23 +55,63 @@ function mionVitePlugin(options) {
   let extractedFns = null;
   const pureFnOptions = options.pureFunctions;
   const deepkitOptions = options.deepkitType;
+  const aotOptions = options.aotCaches;
+  let aotData = null;
+  let aotGenerationPromise = null;
   return {
     name: "mion",
     enforce: "pre",
+    async buildStart() {
+      if (aotOptions && aotOptions.mode) {
+        let startScriptOverride;
+        if (!aotOptions.startServerScript) {
+          startScriptOverride = getDefaultRoutesScriptPath();
+          console.log("[mion] No startServerScript provided, using default routes for internal mion routes only");
+        }
+        try {
+          console.log("[mion] Generating AOT caches...");
+          aotGenerationPromise = generateAOTCaches(aotOptions, startScriptOverride);
+          aotData = await aotGenerationPromise;
+          console.log("[mion] AOT caches generated successfully");
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(`[mion] Failed to generate AOT caches: ${message}`);
+        }
+      }
+    },
     resolveId(id) {
-      if (!pureFnOptions) return null;
-      if (id === VIRTUAL_MODULE_ID) {
+      if (pureFnOptions && id === VIRTUAL_MODULE_ID) {
         return RESOLVED_VIRTUAL_MODULE_ID;
       }
+      if (id === VIRTUAL_AOT_JIT_FNS) return RESOLVED_AOT_JIT_FNS;
+      if (id === VIRTUAL_AOT_PURE_FNS) return RESOLVED_AOT_PURE_FNS;
+      if (id === VIRTUAL_AOT_ROUTER_CACHE) return RESOLVED_AOT_ROUTER_CACHE;
       return null;
     },
     load(id) {
-      if (!pureFnOptions) return null;
-      if (id === RESOLVED_VIRTUAL_MODULE_ID) {
+      if (pureFnOptions && id === RESOLVED_VIRTUAL_MODULE_ID) {
         if (!extractedFns) {
           extractedFns = scanClientSource(pureFnOptions);
         }
         return generateVirtualModule(extractedFns);
+      }
+      if (id === RESOLVED_AOT_JIT_FNS) {
+        if (!aotData) {
+          return generateNoopModule("No-op: AOT JIT caches not generated");
+        }
+        return generateJitFnsModule(aotData.jitFnsCode);
+      }
+      if (id === RESOLVED_AOT_PURE_FNS) {
+        if (!aotData) {
+          return generateNoopModule("No-op: AOT pure fns not generated");
+        }
+        return generatePureFnsModule(aotData.pureFnsCode);
+      }
+      if (id === RESOLVED_AOT_ROUTER_CACHE) {
+        if (!aotData) {
+          return generateNoopModule("No-op: AOT router cache not generated");
+        }
+        return generateRouterCacheModule(aotData.routerCacheCode);
       }
       return null;
     },
@@ -90,18 +131,44 @@ function mionVitePlugin(options) {
       return null;
     },
     handleHotUpdate({ file, server }) {
-      if (!pureFnOptions) return;
-      const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
-      if (!file.startsWith(clientSrcPath)) return;
-      const include = pureFnOptions.include || ["**/*.ts", "**/*.tsx"];
-      const exclude = pureFnOptions.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
-      if (!isIncluded(file, include, exclude)) return;
-      extractedFns = null;
-      const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
-      if (mod) {
-        server.moduleGraph.invalidateModule(mod);
-        return [mod];
+      if (pureFnOptions) {
+        const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
+        if (file.startsWith(clientSrcPath)) {
+          const include = pureFnOptions.include || ["**/*.ts", "**/*.tsx"];
+          const exclude = pureFnOptions.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
+          if (isIncluded(file, include, exclude)) {
+            extractedFns = null;
+            const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
+            if (mod) {
+              server.moduleGraph.invalidateModule(mod);
+              return [mod];
+            }
+          }
+        }
       }
+      if (aotOptions && aotOptions.mode && aotOptions.startServerScript) {
+        const serverDir = resolve(aotOptions.startServerScript, "..");
+        if (file.startsWith(serverDir)) {
+          generateAOTCaches(aotOptions).then((data) => {
+            aotData = data;
+            const modulesToInvalidate = [RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE];
+            const invalidatedMods = [];
+            for (const vmId of modulesToInvalidate) {
+              const mod = server.moduleGraph.getModuleById(vmId);
+              if (mod) {
+                server.moduleGraph.invalidateModule(mod);
+                invalidatedMods.push(mod);
+              }
+            }
+            if (invalidatedMods.length > 0) {
+              console.log("[mion] AOT caches regenerated, invalidating virtual modules");
+            }
+          }).catch((err) => {
+            console.error("[mion] Failed to regenerate AOT caches:", err.message);
+          });
+        }
+      }
+      return void 0;
     }
   };
 }

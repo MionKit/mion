@@ -34,8 +34,9 @@
  * ```
  */
 
-import {getJitFnCaches, getENV, JitFunctionsCache, PureFunctionsCache, MethodsCache, importModule} from '@mionkit/core';
+import {getJitFnCaches, getENV, JitFunctionsCache, PureFunctionsCache, MethodsCache} from '@mionkit/core';
 import {getPersistedMethods} from './methodsCache.ts';
+import {createToJavascriptFn} from '@mionkit/run-types';
 
 /** IPC message type for AOT cache emission */
 export interface AOTCacheMessage {
@@ -117,17 +118,10 @@ async function serializeCachesToCode(
     pureFnsCache: PureFunctionsCache,
     routerCache: MethodsCache
 ): Promise<SerializedCaches> {
-    // Dynamically import run-types using importModule for ESM/CJS compatibility
-    const {runType, JitFunctions} = await importModule<typeof import('@mionkit/run-types')>('@mionkit/run-types');
-
     // Create toJSCode functions for each cache type
-    const jitRt = runType<typeof jitFnsCache>();
-    const pureRt = runType<typeof pureFnsCache>();
-    const routerRt = runType<typeof routerCache>();
-
-    const jitToJSCode = jitRt.createJitFunction(JitFunctions.toJSCode);
-    const pureToJSCode = pureRt.createJitFunction(JitFunctions.toJSCode);
-    const routerToJSCode = routerRt.createJitFunction(JitFunctions.toJSCode);
+    const jitToJSCode = createToJavascriptFn<JitFunctionsCache>();
+    const pureToJSCode = createToJavascriptFn<PureFunctionsCache>();
+    const routerToJSCode = createToJavascriptFn<MethodsCache>();
 
     return {
         jitFnsCode: jitToJSCode(jitFnsCache),

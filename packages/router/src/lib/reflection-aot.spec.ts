@@ -10,18 +10,115 @@ import {resetRouter, initRouter, registerRoutes, getRouteExecutable, getLinkedFn
 import {route, linkedFn, rawLinkedFn} from './handlers.ts';
 import {setPersistedMethods, resetPersistedMethods, loadCompiledMethods} from './methodsCache.ts';
 import {AOTCacheError, resetRunTypesCache} from './reflection.ts';
-import {HandlerType, EMPTY_HASH, resetJitFnCaches, addAOTCaches, getJitFunctionsFromHash} from '@mionkit/core';
+import {
+    HandlerType,
+    EMPTY_HASH,
+    resetJitFnCaches,
+    addAOTCaches,
+    getJitFunctionsFromHash,
+    addRoutesToCache,
+    getJitUtils,
+} from '@mionkit/core';
 import type {Routes} from '../types/general.ts';
 import type {MethodsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache} from '@mionkit/core';
-// Import the default router cache from aot-caches package for testing
-// IMPORTANT!!! if any of the mion routes/linkedFns are changed we might need to recompile caches or this tests might fails
-import {routerCache as aotRouterCache} from '@mionkit/aot-caches';
+import {
+    cpf_asJSONString,
+    cpf_getUnknownKeysFromArray,
+    cpf_hasUnknownKeysFromArray,
+    cpf_newRunTypeErr,
+    cpf_formatErr,
+    cpf_safeIterableKey,
+    cpf_sanitizeCompiledFn,
+} from '@mionkit/run-types/src/run-types-pure-fns.ts';
 
-// Default routes cache from the AOT caches package (contains error routes and client routes)
-// Note: Raw linkedFns (mionDeserializeRequest, mionSerializeResponse) don't need to be in the AOT cache
-// because they don't use JIT functions - they always use nullJitFns and are handled specially
+/** Re-registers run-types pure functions after resetJitFnCaches() */
+function reRegisterRunTypesPureFns(): void {
+    const {addPureFn} = getJitUtils();
+    addPureFn('mion', cpf_asJSONString);
+    addPureFn('mion', cpf_getUnknownKeysFromArray);
+    addPureFn('mion', cpf_hasUnknownKeysFromArray);
+    addPureFn('mion', cpf_newRunTypeErr);
+    addPureFn('mion', cpf_formatErr);
+    addPureFn('mion', cpf_safeIterableKey);
+    addPureFn('mion', cpf_sanitizeCompiledFn);
+}
+
+// Mock default routes cache for testing (simulates what virtual:mion-aot/router-cache would provide)
+// Note: Using EMPTY_HASH for all JIT hashes since we don't have actual JIT functions in tests
+// In production, these would be populated by the AOT cache generation process
 const defaultRoutesCache: MethodsCache = {
-    ...aotRouterCache,
+    '@thrownErrors': {
+        paramNames: [],
+        type: HandlerType.route,
+        id: '@thrownErrors',
+        isAsync: false,
+        hasReturnData: true,
+        paramsJitHash: EMPTY_HASH,
+        returnJitHash: EMPTY_HASH, // Using EMPTY_HASH for tests
+        pointer: ['@thrownErrors'],
+        nestLevel: 0,
+        options: {runOnError: false, validateParams: true, validateReturn: false},
+    },
+    'mion@notFound': {
+        paramNames: [],
+        type: HandlerType.route,
+        id: 'mion@notFound',
+        isAsync: false,
+        hasReturnData: true,
+        paramsJitHash: EMPTY_HASH,
+        returnJitHash: EMPTY_HASH,
+        pointer: ['mion@notFound'],
+        nestLevel: 0,
+        options: {runOnError: false, validateParams: true, validateReturn: false},
+    },
+    'mion@platformError': {
+        paramNames: [],
+        type: HandlerType.route,
+        id: 'mion@platformError',
+        isAsync: false,
+        hasReturnData: true,
+        paramsJitHash: EMPTY_HASH,
+        returnJitHash: EMPTY_HASH,
+        pointer: ['mion@platformError'],
+        nestLevel: 0,
+        options: {runOnError: false, validateParams: true, validateReturn: false},
+    },
+    'mion@methodsMetadataById': {
+        paramNames: ['methodsIds', 'getAllRemoteMethods'],
+        type: HandlerType.route,
+        id: 'mion@methodsMetadataById',
+        isAsync: false,
+        hasReturnData: true,
+        paramsJitHash: EMPTY_HASH,
+        returnJitHash: EMPTY_HASH,
+        pointer: ['mion@methodsMetadataById'],
+        nestLevel: 0,
+        options: {runOnError: false, validateParams: true, validateReturn: false},
+    },
+    'mion@methodsMetadataByPath': {
+        paramNames: ['path', 'getAllRemoteMethods'],
+        type: HandlerType.route,
+        id: 'mion@methodsMetadataByPath',
+        isAsync: false,
+        hasReturnData: true,
+        paramsJitHash: EMPTY_HASH,
+        returnJitHash: EMPTY_HASH,
+        pointer: ['mion@methodsMetadataByPath'],
+        nestLevel: 0,
+        options: {runOnError: false, validateParams: true, validateReturn: false},
+    },
+    'mion@mionEmptyLinkedFn': {
+        paramNames: [],
+        type: HandlerType.linkedFn,
+        id: 'mion@mionEmptyLinkedFn',
+        isAsync: false,
+        hasReturnData: false,
+        paramsJitHash: EMPTY_HASH,
+        returnJitHash: EMPTY_HASH,
+        pointer: ['mion@mionEmptyLinkedFn'],
+        nestLevel: 0,
+        options: {runOnError: false, validateParams: true, validateReturn: false},
+    },
 };
 
 describe('AOT Lazy Loading', () => {
@@ -30,13 +127,15 @@ describe('AOT Lazy Loading', () => {
         resetPersistedMethods();
         resetRunTypesCache();
         resetJitFnCaches();
+        reRegisterRunTypesPureFns(); // Re-register pure functions needed for JIT generation
     });
 
     describe('AOT mode enabled', () => {
         it('should use cached data when route is in AOT cache', async () => {
-            // Setup: Pre-populate cache with custom route data BEFORE initRouter
+            // Setup: Pre-populate cache with default routes AND custom route data BEFORE initRouter
             // This simulates having a complete AOT cache with user routes
             const customRouteCache: MethodsCache = {
+                ...defaultRoutesCache, // Include default routes for error handling
                 sayHello: {
                     type: HandlerType.route,
                     id: 'sayHello',
@@ -53,7 +152,6 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods(customRouteCache);
 
             // Initialize router in AOT mode
-            // This will load default AOT caches, but won't overwrite our custom route
             await initRouter({aot: true});
 
             // Register routes - should use cached data
@@ -183,14 +281,19 @@ describe('AOT Lazy Loading', () => {
             expect(getRouteExecutable('myRoute')?.paramNames).toEqual(['data']);
         });
 
-        it('should automatically load default AOT caches when aot mode is enabled', async () => {
-            // Don't pre-populate any cache - let initRouter load the default caches
-            // Initialize router in AOT mode - this should automatically load @mionkit/aot-caches
+        it('should require AOT caches to be pre-loaded via virtual modules before initRouter', async () => {
+            // With the new virtual module approach, AOT caches must be loaded BEFORE initRouter
+            // This simulates what happens when you import 'virtual:mion-aot/router-cache'
+            // which calls addRoutesToCache() to register the caches
+
+            // Pre-load the default routes cache (simulating virtual:mion-aot/router-cache import)
+            addRoutesToCache(defaultRoutesCache);
+            setPersistedMethods(defaultRoutesCache);
+
+            // Initialize router in AOT mode
             await initRouter({aot: true, skipClientRoutes: true});
 
-            // The default error routes should be available from the automatically loaded cache
-            // We can verify this by checking that the router initialized successfully
-            // (if the default caches weren't loaded, it would throw AOTCacheError for error routes)
+            // The default error routes should be available from the pre-loaded cache
             expect(getRouteExecutable('@thrownErrors')).toBeDefined();
             expect(getRouteExecutable('mion@notFound')).toBeDefined();
             expect(getRouteExecutable('mion@platformError')).toBeDefined();
@@ -220,8 +323,9 @@ describe('AOT Lazy Loading', () => {
         });
 
         it('should use cached data when available even in non-AOT mode', async () => {
-            // Setup: Create mock cache
+            // Setup: Create mock cache with default routes (needed for error handling)
             const mockCache: MethodsCache = {
+                ...defaultRoutesCache, // Include default routes
                 cachedRoute: {
                     type: HandlerType.route,
                     id: 'cachedRoute',
@@ -255,8 +359,8 @@ describe('AOT Lazy Loading', () => {
         });
 
         it('should generate reflection for linkedFns not in cache', async () => {
-            // Setup: Empty cache
-            setPersistedMethods({});
+            // Setup: Include default routes cache (needed for error handling)
+            setPersistedMethods({...defaultRoutesCache});
 
             // Initialize router in non-AOT mode
             await initRouter({aot: false});
@@ -303,8 +407,8 @@ describe('AOT Lazy Loading', () => {
 
     describe('Run-types module caching', () => {
         it('should only load run-types once for multiple routes', async () => {
-            // Setup: Empty cache
-            setPersistedMethods({});
+            // Setup: Include default routes cache (needed for error handling)
+            setPersistedMethods({...defaultRoutesCache});
 
             // Initialize router in non-AOT mode
             await initRouter({aot: false});

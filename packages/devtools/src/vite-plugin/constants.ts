@@ -5,11 +5,31 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/** Virtual module ID for the pure functions registry */
+/** Virtual module ID for the pure functions registry (client-extracted pure functions) */
 export const VIRTUAL_MODULE_ID = 'virtual:mion-pure-functions';
 
 /** Resolved virtual module ID (with \0 prefix per Vite convention, .ts extension for TypeScript) */
 export const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID + '.ts';
+
+// ============ AOT Virtual Modules ============
+
+/** Virtual module ID for JIT functions + pure functions cache (from running the router) */
+export const VIRTUAL_AOT_JIT_FNS = 'virtual:mion-aot/jit-fns';
+
+/** Virtual module ID for pure functions cache (standalone, from client AST extraction) */
+export const VIRTUAL_AOT_PURE_FNS = 'virtual:mion-aot/pure-fns';
+
+/** Virtual module ID for router methods cache */
+export const VIRTUAL_AOT_ROUTER_CACHE = 'virtual:mion-aot/router-cache';
+
+/** Resolved virtual module ID for JIT functions */
+export const RESOLVED_AOT_JIT_FNS = '\0' + VIRTUAL_AOT_JIT_FNS + '.ts';
+
+/** Resolved virtual module ID for pure functions */
+export const RESOLVED_AOT_PURE_FNS = '\0' + VIRTUAL_AOT_PURE_FNS + '.ts';
+
+/** Resolved virtual module ID for router cache */
+export const RESOLVED_AOT_ROUTER_CACHE = '\0' + VIRTUAL_AOT_ROUTER_CACHE + '.ts';
 
 /** Globals and built-ins that are allowed inside pure functions */
 export const ALLOWED_GLOBALS = new Set([

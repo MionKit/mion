@@ -1,5 +1,47 @@
 import {CompilerOptions} from 'typescript';
 
+/** AOT cache generation options for the Vite plugin */
+export interface AOTCacheOptions {
+    /**
+     * Path to the server start script that initializes the router.
+     *
+     * If provided, the plugin will run this script to generate AOT caches for ALL routes
+     * (internal mion routes + your custom routes).
+     *
+     * If NOT provided (and mode is 'client'), the plugin will automatically use the built-in
+     * defaultRoutes.ts from @mionkit/router to generate caches for internal mion routes only.
+     * Your custom routes will be fetched at runtime via fetchRemoteMethodsMetadata().
+     *
+     * For best performance, provide your server's start script to pre-cache all routes.
+     */
+    startServerScript?: string;
+
+    /**
+     * Path to the server's vite.config.ts file.
+     * Used by vite-node to run the start script with proper transformations
+     * (deepkit type metadata, aliases, etc.).
+     * If not provided, vite-node will auto-discover the config from the
+     * startServerScript's directory.
+     */
+    serverViteConfig?: string;
+
+    /**
+     * AOT mode:
+     * - 'client': Spawn vite-node with startServerScript to generate caches (for client builds)
+     * - 'server-build': Generate AOT caches during vite build (for production server)
+     * - false: Disabled — virtual modules are no-ops (default for server dev/tests)
+     *
+     * Defaults to false.
+     */
+    mode?: 'client' | 'server-build' | false;
+
+    /** Excluded JIT function IDs */
+    excludedFns?: string[];
+
+    /** Excluded pure function names */
+    excludedPureFns?: string[];
+}
+
 /** Serializable registry entry for a single pure function */
 export interface PureServerFnRegistryEntry {
     readonly namespace: string;

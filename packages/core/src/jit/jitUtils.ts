@@ -20,13 +20,11 @@ import {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 import {PureFunction} from '../types/pureFunctions.types.ts';
 import {initPureFunction, isTestEnv} from '../utils.ts';
 import {restoreCompiledJitFns} from '../pureFns/restoreJitFns.ts';
-import {jitFnsCache as aotJitFnsCache, pureFnsCache as aotPureFnsCache} from '@mionkit/aot-caches';
 
-// Local caches - can be populated from AOT caches via loadJitCaches()
+// Local caches - can be populated from AOT caches via addAOTCaches()
 const jitFnsCache: JitFunctionsCache = {};
 /** Namespaced pure functions cache: { namespace: { fnHash: CompiledPureFunction } } */
 const pureFnsCache: PureFunctionsCache = {};
-let coreAOTCachesLoaded = false;
 
 // serializable classes registry, serializable classes can be automatically deserialized if they are registered here
 const deserializeFnsRegistry = new Map<string, DeserializeClassFn<any>>();
@@ -200,18 +198,6 @@ export function addSerializedJitCaches(jitDataFnsCache: FnsDataCache, pureFnsDat
     restoreCaches(jitDataFnsCache, pureFnsDataCache);
 }
 
-/**
- * Loads the JIT and pure function caches from @mionkit/aot-caches.
- * This function should be called by the client package on initialization.
- * The router package generates these caches at runtime so it does not need to call this function.
- * If items are already in the cache, they are not overwritten.
- */
-export function coreAOTLoadJitCaches(): void {
-    if (coreAOTCachesLoaded) return;
-    coreAOTCachesLoaded = true;
-    restoreCaches(aotJitFnsCache as PersistedJitFunctionsCache, aotPureFnsCache as PersistedPureFunctionsCache);
-}
-
 function restoreCaches(
     fnsCache: PersistedJitFunctionsCache | FnsDataCache,
     pureCache: PersistedPureFunctionsCache | PureFnsDataCache
@@ -269,8 +255,9 @@ export function getJitFnCaches() {
 }
 
 /**
- * Resets the jit and pure functions caches and reloads the AOT caches.
+ * Resets the jit and pure functions caches.
  * This is useful for testing purposes only.
+ * Note: After calling this, AOT caches must be re-registered via virtual modules or addAOTCaches().
  */
 export function resetJitFnCaches() {
     if (!isTestEnv()) throw new Error('resetJitFnCaches() can only be called fro testing purposes');
@@ -278,9 +265,6 @@ export function resetJitFnCaches() {
     for (const k in pureFnsCache) delete pureFnsCache[k];
     deserializeFnsRegistry.clear();
     serializableClassRegistry.clear();
-    coreAOTCachesLoaded = false;
-    // Reload AOT caches to restore core pure functions (newRunTypeErr, formatErr, etc.)
-    coreAOTLoadJitCaches();
 }
 
 /** Helper function to ensure namespace exists in the cache */

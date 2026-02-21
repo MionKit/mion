@@ -5,16 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    MethodsCache,
-    MethodMetadata,
-    getENV,
-    getJitFunctionsFromHash,
-    importModule,
-    addAOTCaches,
-    PersistedJitFunctionsCache,
-    PersistedPureFunctionsCache,
-} from '@mionkit/core';
+import {MethodsCache, MethodMetadata, getENV, getJitFunctionsFromHash} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {AnyHandler} from '../types/handlers.ts';
 import {IS_TEST_ENV} from '../constants.ts';
@@ -78,64 +69,4 @@ export function loadCompiledMethods(compiledMethods: MethodsCache) {
             persistedMethods[key] = value;
         }
     }
-}
-
-// ############# AOT CACHE LOADING #############
-
-// Cached state to avoid loading default AOT caches multiple times
-let defaultAOTCachesLoaded = false;
-let defaultAOTCachesLoadPromise: Promise<void> | null = null;
-
-/**
- * Dynamically loads the default AOT caches from @mionkit/aot-caches.
- * This includes the router cache (default routes metadata) and JIT function caches.
- * The caches are loaded only once and cached for subsequent calls.
- *
- * Note: Raw linkedFns (like mionDeserializeRequest and mionSerializeResponse) don't need
- * to be in the AOT cache because they don't use JIT functions - they always use NoopJitFns.
- *
- * @returns Promise that resolves when caches are loaded
- */
-export async function loadDefaultAOTCaches(): Promise<void> {
-    // Return immediately if already loaded
-    if (defaultAOTCachesLoaded) return;
-
-    // Return existing promise if load is in progress
-    if (defaultAOTCachesLoadPromise) return defaultAOTCachesLoadPromise;
-
-    // Start loading the caches
-    defaultAOTCachesLoadPromise = (async () => {
-        try {
-            // Dynamically import the aot-caches package
-            const aotCaches = await importModule<typeof import('@mionkit/aot-caches')>('@mionkit/aot-caches');
-            addAOTCaches(
-                aotCaches.jitFnsCache as PersistedJitFunctionsCache,
-                aotCaches.pureFnsCache as PersistedPureFunctionsCache
-            );
-
-            // Load router cache (default routes metadata)
-            loadCompiledMethods(aotCaches.routerCache as MethodsCache);
-
-            defaultAOTCachesLoaded = true;
-        } catch (error) {
-            // Reset promise so it can be retried
-            defaultAOTCachesLoadPromise = null;
-            throw new Error(
-                `Failed to load default AOT caches from @mionkit/aot-caches. ` +
-                    `Make sure the package is installed and built. ` +
-                    `Original error: ${error instanceof Error ? error.message : String(error)}`
-            );
-        }
-    })();
-
-    return defaultAOTCachesLoadPromise;
-}
-
-/**
- * Resets the default AOT caches loaded state.
- * This is useful for testing purposes only.
- */
-export function resetDefaultAOTCachesState(): void {
-    defaultAOTCachesLoaded = false;
-    defaultAOTCachesLoadPromise = null;
 }

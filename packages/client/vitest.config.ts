@@ -1,13 +1,21 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
-import {deepkitType} from '@deepkit/vite';
+import {mionVitePlugin} from '@mionkit/devtools/vite-plugin';
 
 export default defineConfig({
     plugins: [
-        deepkitType({
-            tsConfig: resolve(__dirname, 'tsconfig.json'),
-            compilerOptions: {
-                sourceMap: true,
+        mionVitePlugin({
+            deepkitType: {
+                tsConfig: resolve(__dirname, 'tsconfig.json'),
+                compilerOptions: {
+                    sourceMap: true,
+                },
+            },
+            // Use the test server to generate AOT caches for client tests
+            aotCaches: {
+                mode: 'client',
+                startServerScript: resolve(__dirname, '../test-server/src/test-server-json.ts'),
+                serverViteConfig: resolve(__dirname, '../test-server/vite.config.ts'),
             },
         }) as any,
     ],

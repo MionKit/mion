@@ -33,13 +33,7 @@ import {serializerLinkedFns} from './routes/serializer.routes.ts';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache, importModule} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
-import {
-    addToPersistedMethods,
-    getPersistedMethod,
-    resetPersistedMethods,
-    loadDefaultAOTCaches,
-    resetDefaultAOTCachesState,
-} from './lib/methodsCache.ts';
+import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache.ts';
 import {mionClientRoutes} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
 import {clearWorkflowCache} from './workflows.ts';
@@ -105,7 +99,6 @@ export const resetRouter = () => {
     allExecutablesIds = undefined;
     resetRemoteMethodsMetadata();
     resetPersistedMethods();
-    resetDefaultAOTCachesState();
     resetRoutesCache();
     clearContextPool();
     clearWorkflowCache();
@@ -136,9 +129,9 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
     validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
-    // In AOT mode, load the default AOT caches (router cache + JIT functions)
-    // This must happen before registering any routes
-    if (routerOptions.aot) await loadDefaultAOTCaches();
+    // In AOT mode, caches should be pre-loaded via virtual modules before calling initRouter
+    // The virtual modules (virtual:mion-aot/jit-fns, virtual:mion-aot/router-cache) self-register
+    // by calling addAOTCaches() and addRoutesToCache() from @mionkit/core
     isRouterInitialized = true;
     await registerRoutes({...mionErrorsRoutes});
     if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});

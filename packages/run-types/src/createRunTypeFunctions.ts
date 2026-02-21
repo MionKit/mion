@@ -79,7 +79,7 @@ export async function createFromBinaryFn<T>(opts?: RunTypeOptions, type?: Receiv
     return rt.createJitFunction(JitFunctions.fromBinary, opts);
 }
 
-/** Returns a function that mocks a value of the specified type. */
+/** Returns a function that converts a value to javascript code, including set etc */
 export function createToJavascriptFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): ToCodeFn {
     const rt = runType(type);
     return rt.createJitFunction(JitFunctions.toJSCode, opts);
