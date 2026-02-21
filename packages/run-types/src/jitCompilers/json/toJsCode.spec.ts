@@ -8,6 +8,8 @@
 import {it, expect} from 'vitest';
 import {runType} from '../../createRunType.ts';
 import {JitFunctions} from '../../constants.functions.ts';
+import {createToJavascriptFn} from '../../createRunTypeFunctions.ts';
+import {SrcCodeJITCompiledFnsCache, SrcCodePureFunctionsCache, JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 
 it('toJSCode should transform functions to code using toString()', () => {
     // Create a type with a function
@@ -234,4 +236,214 @@ it('toJSCode should throw when trying to handle classes', () => {
     const rt = runType<TestType>();
     // throw when trying to compile toJSCode
     expect(() => rt.createJitFunction(JitFunctions.toJSCode)).toThrow(`Can not generate code for classes. Class: TestClass`);
+});
+
+// ################### AOT SrcCode Cache tests ###################
+// These tests mirror the real aotEmitter scenario: createToJavascriptFn is created with
+// SrcCode type parameters, but the actual values passed are runtime JitFunctionsCache/PureFunctionsCache
+// (which have real fn and createJitFn/createPureFn). This ensures changes to those types are caught early.
+
+it('toJSCode with isJitFnCode should emit fn as undefined and generate closure from code property', () => {
+    // SrcCode type parameter tells the serializer how to handle fn and createJitFn
+    const toJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>({isJitFnCode: true});
+
+    // Runtime JitFunctionsCache has real fn and createJitFn (like the aotEmitter receives)
+    const runtimeCache: JitFunctionsCache = {
+        hash_abc123: {
+            typeName: 'MyTestType',
+            fnID: 'isType',
+            jitFnHash: 'hash_abc123',
+            args: {vλl: 'val'},
+            defaultParamValues: {vλl: 'val'},
+            code: 'return function(val){return val}',
+            jitDependencies: [],
+            pureFnDependencies: ['ns::pureFn1'],
+            createJitFn: () => (val: any) => 'SHOULD_NOT_APPEAR_IN_OUTPUT',
+            fn: (val: any) => 'SHOULD_NOT_APPEAR_IN_OUTPUT',
+        },
+    };
+
+    // Cast to SrcCode type like the real aotEmitter does
+    const code = toJSCode(runtimeCache as unknown as SrcCodeJITCompiledFnsCache);
+
+    // createJitFn should be a closure using jitFnHash as the function name
+    expect(code).toContain('function get_hash_abc123(utl)');
+    // The closure body should use the code property, not createJitFn.toString()
+    expect(code).toContain('return function(val){return val}');
+    expect(code).not.toContain('SHOULD_NOT_APPEAR_IN_OUTPUT');
+    // fn should be emitted as undefined despite having a real function at runtime
+    expect(code).toContain('fn:undefined');
+    // Data properties should be preserved
+    expect(code).toContain('MyTestType');
+    expect(code).toContain('isType');
+
+    // Generated code should be valid JS that can be evaluated
+    const parsed = eval(`(${code})`);
+    const entry = parsed['hash_abc123'];
+    expect(entry.typeName).toBe('MyTestType');
+    expect(entry.fnID).toBe('isType');
+    expect(entry.jitFnHash).toBe('hash_abc123');
+    expect(entry.code).toBe('return function(val){return val}');
+    expect(entry.jitDependencies).toEqual([]);
+    expect(entry.pureFnDependencies).toEqual(['ns::pureFn1']);
+    expect(entry.fn).toBeUndefined();
+    expect(typeof entry.createJitFn).toBe('function');
+    // The closure should recreate a working function from the code property
+    const createdFn = entry.createJitFn({});
+    expect(typeof createdFn).toBe('function');
+});
+
+it('toJSCode with isPureFnCode should emit fn as undefined and generate closure from code property', () => {
+    // SrcCode type parameter tells the serializer how to handle fn and createJitFn
+    const toJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>({isPureFnCode: true});
+
+    // Runtime PureFunctionsCache has createPureFn (not createJitFn) and fn
+    const runtimeCache: PureFunctionsCache = {
+        testNamespace: {
+            myPureFn: {
+                namespace: 'testNamespace',
+                paramNames: ['val'],
+                code: 'return function(val){return val*2}',
+                fnName: 'myPureFn',
+                bodyHash: 'bodyHash456',
+                pureFnDependencies: [],
+                createPureFn: () => (val: any) => 'SHOULD_NOT_APPEAR_IN_OUTPUT',
+                fn: (val: any) => 'SHOULD_NOT_APPEAR_IN_OUTPUT',
+            },
+        },
+    };
+
+    // Cast to SrcCode type like the real aotEmitter does
+    const code = toJSCode(runtimeCache as unknown as SrcCodePureFunctionsCache);
+
+    // createJitFn should be a closure using fnName (not jitFnHash) as the function name
+    expect(code).toContain('function get_myPureFn(utl)');
+    // The closure body should use the code property
+    expect(code).toContain('return function(val){return val*2}');
+    expect(code).not.toContain('SHOULD_NOT_APPEAR_IN_OUTPUT');
+    // fn should be emitted as undefined despite having a real function at runtime
+    expect(code).toContain('fn:undefined');
+    // Data properties should be preserved
+    expect(code).toContain('testNamespace');
+    expect(code).toContain('bodyHash456');
+
+    // Generated code should be valid JS that can be evaluated
+    const parsed = eval(`(${code})`);
+    const entry = parsed['testNamespace']['myPureFn'];
+    expect(entry.namespace).toBe('testNamespace');
+    expect(entry.fnName).toBe('myPureFn');
+    expect(entry.bodyHash).toBe('bodyHash456');
+    expect(entry.paramNames).toEqual(['val']);
+    expect(entry.code).toBe('return function(val){return val*2}');
+    expect(entry.pureFnDependencies).toEqual([]);
+    expect(entry.fn).toBeUndefined();
+    expect(typeof entry.createJitFn).toBe('function');
+    // The closure should recreate a working function from the code property
+    const createdFn = entry.createJitFn({});
+    expect(typeof createdFn).toBe('function');
+    expect(createdFn(5)).toBe(10);
+});
+
+it('toJSCode with isJitFnCode should handle multiple cache entries', () => {
+    const toJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>({isJitFnCode: true});
+
+    const runtimeCache: JitFunctionsCache = {
+        hash_first: {
+            typeName: 'TypeA',
+            fnID: 'isType',
+            jitFnHash: 'hash_first',
+            args: {vλl: 'val'},
+            defaultParamValues: {vλl: 'val'},
+            code: 'return function(v){return true}',
+            jitDependencies: ['hash_second'],
+            pureFnDependencies: [],
+            createJitFn: () => () => true,
+            fn: () => true,
+        },
+        hash_second: {
+            typeName: 'TypeB',
+            fnID: 'typeErrors',
+            jitFnHash: 'hash_second',
+            args: {vλl: 'val'},
+            defaultParamValues: {vλl: 'val'},
+            code: 'return function(v){return []}',
+            jitDependencies: [],
+            pureFnDependencies: [],
+            createJitFn: () => () => [],
+            fn: () => [],
+        },
+    };
+
+    const code = toJSCode(runtimeCache as unknown as SrcCodeJITCompiledFnsCache);
+    const parsed = eval(`(${code})`);
+
+    // Both entries should be present with correct data
+    expect(parsed['hash_first'].typeName).toBe('TypeA');
+    expect(parsed['hash_first'].jitDependencies).toEqual(['hash_second']);
+    expect(typeof parsed['hash_first'].createJitFn).toBe('function');
+    expect(parsed['hash_first'].fn).toBeUndefined();
+
+    expect(parsed['hash_second'].typeName).toBe('TypeB');
+    expect(parsed['hash_second'].fnID).toBe('typeErrors');
+    expect(typeof parsed['hash_second'].createJitFn).toBe('function');
+    expect(parsed['hash_second'].fn).toBeUndefined();
+});
+
+it('toJSCode with isPureFnCode should handle multiple namespaces and functions', () => {
+    const toJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>({isPureFnCode: true});
+
+    const runtimeCache: PureFunctionsCache = {
+        nsA: {
+            fnOne: {
+                namespace: 'nsA',
+                paramNames: ['a'],
+                code: 'return function(a){return a}',
+                fnName: 'fnOne',
+                bodyHash: 'hashA1',
+                pureFnDependencies: [],
+                createPureFn: () => (a: any) => a,
+                fn: (a: any) => a,
+            },
+            fnTwo: {
+                namespace: 'nsA',
+                paramNames: ['a', 'b'],
+                code: 'return function(a,b){return a+b}',
+                fnName: 'fnTwo',
+                bodyHash: 'hashA2',
+                pureFnDependencies: ['nsA::fnOne'],
+                createPureFn: () => (a: any, b: any) => a + b,
+                fn: (a: any, b: any) => a + b,
+            },
+        },
+        nsB: {
+            fnThree: {
+                namespace: 'nsB',
+                paramNames: [],
+                code: 'return function(){return 42}',
+                fnName: 'fnThree',
+                bodyHash: 'hashB1',
+                pureFnDependencies: [],
+                createPureFn: () => () => 42,
+                fn: () => 42,
+            },
+        },
+    };
+
+    const code = toJSCode(runtimeCache as unknown as SrcCodePureFunctionsCache);
+    const parsed = eval(`(${code})`);
+
+    // Verify nested namespace structure
+    expect(parsed.nsA.fnOne.namespace).toBe('nsA');
+    expect(parsed.nsA.fnOne.fnName).toBe('fnOne');
+    expect(typeof parsed.nsA.fnOne.createJitFn).toBe('function');
+    expect(parsed.nsA.fnOne.fn).toBeUndefined();
+
+    expect(parsed.nsA.fnTwo.fnName).toBe('fnTwo');
+    expect(parsed.nsA.fnTwo.pureFnDependencies).toEqual(['nsA::fnOne']);
+    expect(typeof parsed.nsA.fnTwo.createJitFn).toBe('function');
+
+    expect(parsed.nsB.fnThree.namespace).toBe('nsB');
+    expect(parsed.nsB.fnThree.bodyHash).toBe('hashB1');
+    expect(typeof parsed.nsB.fnThree.createJitFn).toBe('function');
+    expect(parsed.nsB.fnThree.fn).toBeUndefined();
 });
