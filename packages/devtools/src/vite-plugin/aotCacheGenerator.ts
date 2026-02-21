@@ -148,51 +148,52 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
 
 // ============ Module Generators ============
 
-/**
- * Generates the virtual module code for JIT functions + pure functions cache.
- * This module self-registers by calling addAOTCaches() on import.
- */
+/** Generates the virtual module code for JIT functions cache (exports only). */
 export function generateJitFnsModule(jitFnsCode: string): string {
     return `/* Auto-generated AOT JIT functions cache - do not edit */
-import { addAOTCaches } from '@mionkit/core';
-
-const jitFnsCache = ${jitFnsCode};
-
-addAOTCaches(jitFnsCache, {});
+export const jitFnsCache = ${jitFnsCode};
 `;
 }
 
-/**
- * Generates the virtual module code for pure functions cache (standalone).
- * This module self-registers by calling addAOTCaches() on import.
- */
+/** Generates the virtual module code for pure functions cache (exports only). */
 export function generatePureFnsModule(pureFnsCode: string): string {
     return `/* Auto-generated AOT pure functions cache - do not edit */
-import { addAOTCaches } from '@mionkit/core';
-
-const pureFnsCache = ${pureFnsCode};
-
-addAOTCaches({}, pureFnsCache);
+export const pureFnsCache = ${pureFnsCode};
 `;
 }
 
-/**
- * Generates the virtual module code for router methods cache.
- * This module self-registers by calling addRoutesToCache() on import.
- */
+/** Generates the virtual module code for router methods cache (exports only). */
 export function generateRouterCacheModule(routerCacheCode: string): string {
     return `/* Auto-generated AOT router cache - do not edit */
-import { addRoutesToCache } from '@mionkit/core';
-
-const routerCache = ${routerCacheCode};
-
-addRoutesToCache(routerCache);
+export const routerCache = ${routerCacheCode};
 `;
 }
 
-/**
- * Generates a no-op module for when AOT caches are disabled.
- */
+/** Generates the combined virtual module that imports all 3 caches, registers them, and re-exports. */
+export function generateCombinedCachesModule(): string {
+    return `/* Auto-generated combined AOT caches - do not edit */
+import { addAOTCaches, addRoutesToCache } from '@mionkit/core';
+import { pureFnsCache } from 'virtual:mion-aot/pure-fns';
+import { jitFnsCache } from 'virtual:mion-aot/jit-fns';
+import { routerCache } from 'virtual:mion-aot/router-cache';
+
+addAOTCaches(jitFnsCache, pureFnsCache);
+addRoutesToCache(routerCache);
+
+export { jitFnsCache, pureFnsCache, routerCache };
+`;
+}
+
+/** Generates a no-op module for when AOT caches are disabled. */
 export function generateNoopModule(comment: string): string {
     return `/* ${comment} */\n`;
+}
+
+/** Generates a no-op combined module that exports empty caches. */
+export function generateNoopCombinedModule(): string {
+    return `/* No-op: AOT caches not generated */
+export const jitFnsCache = {};
+export const pureFnsCache = {};
+export const routerCache = {};
+`;
 }

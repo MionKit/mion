@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, isRpcError, addRoutesToCache, resetRoutesCache, resetJitFnCaches, isTestEnv} from '@mionkit/core';
+import {jitFnsCache, pureFnsCache, routerCache} from 'virtual:mion-aot/caches';
+import {RpcError, isRpcError, addAOTCaches, addRoutesToCache, resetRoutesCache, resetJitFnCaches, isTestEnv} from '@mionkit/core';
 import {MION_ROUTES} from '@mionkit/core';
 import {ClientOptions, RequestBody} from './types.ts';
 import type {
@@ -196,26 +197,29 @@ function addToCaches(serializableMethodsData: SerializableMethodsData) {
 }
 
 /**
- * Resets the client caches. Mostly useful for testing.
- * Note: After calling this, AOT caches must be re-registered via virtual modules.
+ * Resets the client caches and re-registers AOT caches.
+ * Mostly useful for testing to simulate app restart.
  */
 export function resetClientCaches() {
     if (!isTestEnv()) throw new Error('resetClientCaches() can only be called fro testing purposes');
     resetRoutesCache();
     resetJitFnCaches();
+    // Re-register AOT caches (virtual module imports only execute once, so we re-register from the saved data)
+    registerAOTCaches();
 }
 
-/**
- * Validates that required MION_ROUTES are loaded in the cache.
- * This is called automatically on module load to ensure AOT caches are properly registered.
- * AOT caches should be loaded via virtual modules before this module is imported:
- *   import 'virtual:mion-aot/jit-fns';
- *   import 'virtual:mion-aot/router-cache';
- *
- * Skipped in test environments where AOT caches are not available.
- */
+/** Registers AOT caches from the virtual module data. */
+function registerAOTCaches() {
+    if (Object.keys(jitFnsCache).length > 0 || Object.keys(pureFnsCache).length > 0) {
+        addAOTCaches(jitFnsCache, pureFnsCache);
+    }
+    if (Object.keys(routerCache).length > 0) {
+        addRoutesToCache(routerCache);
+    }
+}
+
+/** Validates that required MION_ROUTES are loaded in the cache. Skipped in test environments. */
 function validateClientCaches() {
-    // Skip validation in test environments - tests use mocks or direct cache manipulation
     if (isTestEnv()) return;
 
     const requiredRoutes = Object.values(MION_ROUTES);
@@ -223,9 +227,7 @@ function validateClientCaches() {
     if (missingRoutes.length > 0) {
         throw new Error(
             `AOT cache not loaded: Required MION_ROUTES not found in router cache: ${missingRoutes.join(', ')}. ` +
-                `Make sure to import the AOT virtual modules before using the client:\n` +
-                `  import 'virtual:mion-aot/jit-fns';\n` +
-                `  import 'virtual:mion-aot/router-cache';`
+                `Make sure to import 'virtual:mion-aot/caches' before using the client.`
         );
     }
 }

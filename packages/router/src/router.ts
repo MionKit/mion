@@ -113,7 +113,10 @@ export const resetRouter = () => {
 // simpler router initialization
 export async function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): Promise<PublicApi<R>> {
     await initRouter(opts);
-    return registerRoutes(routes);
+    const publicApi = await registerRoutes(routes);
+    // Emit AOT caches once after ALL routes (error, client, user) are registered
+    await emitAOTCaches();
+    return publicApi;
 }
 
 /**
@@ -144,11 +147,8 @@ export async function registerRoutes<R extends Routes>(routes: R): Promise<Publi
     startLinkedFns = await getExecutablesFromLinkedFnsCollection(startLinkedFnsDef);
     endLinkedFns = await getExecutablesFromLinkedFnsCollection(endLinkedFnsDef);
     await recursiveFlatRoutes(routes);
-    // we only want to get information about the routes when creating api spec
     if (shouldFullGenerateSpec()) {
-        const publicApi = getPublicApi(routes);
-        await emitAOTCaches();
-        return publicApi;
+        return getPublicApi(routes);
     }
     return {} as PublicApi<R>;
 }

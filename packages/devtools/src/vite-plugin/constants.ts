@@ -31,6 +31,12 @@ export const RESOLVED_AOT_PURE_FNS = '\0' + VIRTUAL_AOT_PURE_FNS + '.ts';
 /** Resolved virtual module ID for router cache */
 export const RESOLVED_AOT_ROUTER_CACHE = '\0' + VIRTUAL_AOT_ROUTER_CACHE + '.ts';
 
+/** Virtual module ID for combined AOT caches (re-exports all 3 cache modules) */
+export const VIRTUAL_AOT_CACHES = 'virtual:mion-aot/caches';
+
+/** Resolved virtual module ID for combined AOT caches */
+export const RESOLVED_AOT_CACHES = '\0' + VIRTUAL_AOT_CACHES + '.ts';
+
 /** Globals and built-ins that are allowed inside pure functions */
 export const ALLOWED_GLOBALS = new Set([
     // Value types

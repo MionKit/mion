@@ -18,16 +18,20 @@ import {
     VIRTUAL_AOT_JIT_FNS,
     VIRTUAL_AOT_PURE_FNS,
     VIRTUAL_AOT_ROUTER_CACHE,
+    VIRTUAL_AOT_CACHES,
     RESOLVED_AOT_JIT_FNS,
     RESOLVED_AOT_PURE_FNS,
     RESOLVED_AOT_ROUTER_CACHE,
+    RESOLVED_AOT_CACHES,
 } from './constants.ts';
 import {
     generateAOTCaches,
     generateJitFnsModule,
     generatePureFnsModule,
     generateRouterCacheModule,
+    generateCombinedCachesModule,
     generateNoopModule,
+    generateNoopCombinedModule,
     AOTCacheData,
 } from './aotCacheGenerator.ts';
 
@@ -180,6 +184,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             if (id === VIRTUAL_AOT_JIT_FNS) return RESOLVED_AOT_JIT_FNS;
             if (id === VIRTUAL_AOT_PURE_FNS) return RESOLVED_AOT_PURE_FNS;
             if (id === VIRTUAL_AOT_ROUTER_CACHE) return RESOLVED_AOT_ROUTER_CACHE;
+            if (id === VIRTUAL_AOT_CACHES) return RESOLVED_AOT_CACHES;
 
             return null;
         },
@@ -216,6 +221,14 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                     return generateNoopModule('No-op: AOT router cache not generated');
                 }
                 return generateRouterCacheModule(aotData.routerCacheCode);
+            }
+
+            // Combined AOT caches module (imports all 3 above, registers and re-exports)
+            if (id === RESOLVED_AOT_CACHES) {
+                if (!aotData) {
+                    return generateNoopCombinedModule();
+                }
+                return generateCombinedCachesModule();
             }
 
             return null;

@@ -32,5 +32,6 @@ const routes = {
 } satisfies Routes;
 
 // Initialize the router — this registers all internal routes and emits AOT caches
-export const defaultApi = initMionRouter(routes);
+// skipClientRoutes must be false to ensure metadata routes are included in AOT caches
+export const defaultApi = initMionRouter(routes, {skipClientRoutes: false});
 export type DefaultApi = typeof defaultApi;
