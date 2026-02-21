@@ -6,6 +6,7 @@
  * ############### */
 
 import {resolve} from 'path/posix';
+import {fileURLToPath} from 'url';
 import {getJitUtils} from './jit/jitUtils.ts';
 import type {CompiledPureFunction} from './types/pureFunctions.types.ts';
 
@@ -61,4 +62,40 @@ export async function importModule<T>(moduleName: string, callerDir?: string): P
     // Always use dynamic import() for ESM compatibility
     // This works in both ESM and CJS environments when the package uses dual module output
     return import(resolvedPath) as Promise<T>;
+}
+
+/** Resolves a module path in both CJS and ESM environments. */
+export async function resolveModule(moduleName: string, callerDir?: string): Promise<string> {
+    const resolvedPath = moduleName.startsWith('.') && callerDir ? resolve(callerDir, moduleName) : moduleName;
+    const metaResolve = getImportMetaResolve();
+    if (metaResolve) {
+        const resolved = await metaResolve(resolvedPath);
+        if (resolved) return resolved.startsWith('file:') ? fileURLToPath(resolved) : resolved;
+    }
+
+    try {
+        if (typeof require !== 'undefined' && typeof require.resolve === 'function') return require.resolve(resolvedPath);
+    } catch {
+        // Ignore and fall back to createRequire
+    }
+
+    try {
+        const {createRequire} = await import('module');
+        const basePath = callerDir ? resolve(callerDir, 'noop.js') : resolve(process.cwd(), 'noop.js');
+        const requireFn = createRequire(basePath);
+        return requireFn.resolve(resolvedPath);
+    } catch (err) {
+        throw new Error(`Failed to resolve module "${moduleName}": ${err instanceof Error ? err.message : String(err)}`);
+    }
+}
+
+function getImportMetaResolve(): ((specifier: string) => string | Promise<string> | undefined) | undefined {
+    try {
+        // eslint-disable-next-line no-new-func
+        return new Function('specifier', 'return import.meta.resolve?.(specifier);') as (
+            specifier: string
+        ) => string | Promise<string> | undefined;
+    } catch {
+        return undefined;
+    }
 }

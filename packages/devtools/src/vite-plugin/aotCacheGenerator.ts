@@ -7,8 +7,8 @@
 
 import {fork, ChildProcess} from 'child_process';
 import {resolve, dirname} from 'path';
-import {fileURLToPath} from 'url';
 import {AOTCacheOptions} from './types.ts';
+import {resolveModule} from '@mionkit/core';
 
 /** AOT cache data returned from the generator */
 export interface AOTCacheData {
@@ -27,20 +27,6 @@ interface AOTCacheMessage {
 
 /** Default timeout for AOT cache generation (30 seconds) */
 const DEFAULT_TIMEOUT = 30000;
-
-/**
- * Gets the path to the default routes script from @mionkit/router.
- * This script initializes the router with only internal mion routes.
- */
-export async function getDefaultRoutesScriptPath(): Promise<string> {
-    // Resolve the path to @mionkit/router's defaultRoutes.ts
-    // This works because devtools has @mionkit/router as a dependency
-    const routerUrl = await import.meta.resolve?.('@mionkit/router');
-    if (!routerUrl) throw new Error('import.meta.resolve is not available');
-    const routerPath = fileURLToPath(routerUrl);
-    const routerDir = dirname(routerPath);
-    return resolve(routerDir, 'defaultRoutes.ts');
-}
 
 /**
  * Generates AOT caches by spawning vite-node to run the server's start script.
@@ -64,27 +50,22 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
     // If serverViteConfig is provided, use it; otherwise let vite-node auto-discover
     const viteConfigArgs = options.serverViteConfig ? ['--config', resolve(options.serverViteConfig)] : [];
 
+    // Resolve vite-node path in both CJS and ESM environments
+    let viteNodePath: string;
+    try {
+        viteNodePath = await resolveModule('vite-node/vite-node.mjs', scriptDir);
+    } catch (err) {
+        throw new Error(
+            `Failed to resolve vite-node. Make sure vite-node is installed.\n` +
+                `You can install it with: npm install -D vite-node\n` +
+                `Original error: ${err instanceof Error ? err.message : String(err)}`
+        );
+    }
+
     return new Promise((resolvePromise, reject) => {
         let child: ChildProcess;
         let resolved = false;
         let stderr = '';
-
-        // Resolve vite-node path using ESM import.meta.resolve
-        let viteNodePath: string;
-        try {
-            const viteNodeUrl = await import.meta.resolve?.('vite-node/vite-node.mjs');
-            if (!viteNodeUrl) throw new Error('import.meta.resolve is not available');
-            viteNodePath = fileURLToPath(viteNodeUrl);
-        } catch (err) {
-            reject(
-                new Error(
-                    `Failed to resolve vite-node. Make sure vite-node is installed.\n` +
-                        `You can install it with: npm install -D vite-node\n` +
-                        `Original error: ${err instanceof Error ? err.message : String(err)}`
-                )
-            );
-            return;
-        }
 
         try {
             // Spawn vite-node as a child process with IPC channel
