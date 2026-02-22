@@ -12,6 +12,7 @@ import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMeta
 import {ClientOptions} from './types.ts';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
 import Storage from 'dom-storage';
+import {greetingPureFn} from './testPureFns.ts';
 
 // Setup real localStorage for testing (same pattern as other client tests)
 global.localStorage = new Storage(null, {strict: true});
@@ -148,5 +149,57 @@ describe('mion vite plugin: e2e with real server', () => {
         expect(methodJitFns).toBeDefined();
         expect(methodJitFns!.paramsJitFns.isType.fn([1990])).toBe(true);
         expect(methodJitFns!.paramsJitFns.isType.fn(['not-a-number'])).toBe(false);
+    });
+});
+
+// ============================================================
+// E. Server Pure Functions E2E
+// Tests the full pipeline: client defines pureServerFn → vite plugin
+// extracts it at build time → server imports virtual module →
+// route invokes the function → client verifies result matches
+// ============================================================
+describe('mion vite plugin: pureServerFn e2e', () => {
+    const baseURL = TEST_SERVER_BASE_URL_JSON;
+
+    it('should have valid client-side pureServerFn reference', () => {
+        expect(greetingPureFn).toBeDefined();
+        expect(greetingPureFn.bodyHash).toBeTruthy();
+        expect(greetingPureFn.namespace).toBe('pureServerFn');
+        expect(greetingPureFn.fnName).toBe('greeting');
+        // The pure function should return the expected value when called client-side
+        expect(greetingPureFn.pureFn()).toBe('hello from pure function');
+    });
+
+    it('should execute client-defined pureServerFn on server via virtual module', async () => {
+        // Call the route that invokes the extracted pure function on the server
+        const url = new URL('getPureFnResult', baseURL);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({getPureFnResult: []}),
+        });
+        expect(response.ok).toBe(true);
+
+        const data = await response.json();
+        // The server route calls the pure function that was extracted from client
+        // source at build time via virtual:mion-pure-functions
+        expect(data.getPureFnResult).toBe('hello from pure function');
+    });
+
+    it('should return same value from server as client-side pure function', async () => {
+        // Get the client-side result
+        const clientResult = greetingPureFn.pureFn();
+
+        // Get the server-side result
+        const url = new URL('getPureFnResult', baseURL);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({getPureFnResult: []}),
+        });
+        const data = await response.json();
+
+        // Both should produce the same value
+        expect(data.getPureFnResult).toBe(clientResult);
     });
 });
