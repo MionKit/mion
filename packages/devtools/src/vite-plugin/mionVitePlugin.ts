@@ -9,7 +9,7 @@ import type {Plugin} from 'vite';
 import {readFileSync, readdirSync, statSync} from 'fs';
 import {join, resolve} from 'path';
 import {createDeepkitTransform} from './deepkit-type.ts';
-import {PureFunctionsPluginOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
+import {ServerPureFunctionsPluginOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
 import {extractPureFnsFromSource} from './extractPureFn.ts';
 import {generateVirtualModule} from './virtualModule.ts';
 import {
@@ -39,7 +39,7 @@ import {getOrGenerateAOTCaches, updateDiskCache, resolveCacheDir} from './aotDis
 
 export interface MionPluginOptions {
     /** Options for pure function extraction - omit to disable */
-    pureFunctions?: PureFunctionsPluginOptions;
+    serverPureFunctions?: ServerPureFunctionsPluginOptions;
     /** Options for deepkit type transformation - omit to disable */
     runTypes?: DeepkitTypeOptions;
     /** Options for AOT cache generation - omit to disable */
@@ -47,7 +47,7 @@ export interface MionPluginOptions {
 }
 
 /** Scans the client source directory and extracts all pure functions */
-function scanClientSource(options: PureFunctionsPluginOptions): ExtractedPureFn[] {
+function scanClientSource(options: ServerPureFunctionsPluginOptions): ExtractedPureFn[] {
     const include = options.include || ['**/*.ts', '**/*.tsx'];
     const exclude = options.exclude || ['**/node_modules/**', '**/.dist/**', '**/dist/**'];
     const clientSrcPath = resolve(options.clientSrcPath);
@@ -148,7 +148,7 @@ function matchGlob(filePath: string, pattern: string): boolean {
  */
 export function mionVitePlugin(options: MionPluginOptions): Plugin {
     let extractedFns: ExtractedPureFn[] | null = null;
-    const pureFnOptions = options.pureFunctions;
+    const pureFnOptions = options.serverPureFunctions;
     const deepkitOptions = options.runTypes;
     const aotOptions = options.aotCaches;
     const deepkitTransform = deepkitOptions ? createDeepkitTransform(deepkitOptions) : null;

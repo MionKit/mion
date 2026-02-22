@@ -19,7 +19,7 @@ export interface PureServerFnRegistry {
     readonly version: string;
     readonly entries: Record<string, PureServerFnRegistryEntry>;
 }
-export interface PureFunctionsPluginOptions {
+export interface ServerPureFunctionsPluginOptions {
     clientSrcPath: string;
     include?: string[];
     exclude?: string[];
