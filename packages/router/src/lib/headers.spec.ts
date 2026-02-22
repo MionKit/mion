@@ -11,7 +11,7 @@ import {dispatchRoute} from '../dispatch.ts';
 import {route, headersFn, linkedFn} from './handlers.ts';
 import {headersFromRecord} from './headers.ts';
 import {MionHeaders} from '../types/context.ts';
-import {HeadersSubset, RpcError} from '@mionkit/core';
+import {HeadersSubset, RpcError, StatusCodes} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
 
 type RawRequest = {
@@ -132,6 +132,7 @@ describe('Request and Response Headers', () => {
             expect(response.hasErrors).toBeTruthy();
             const error = response.body['@thrownErrors']?.auth;
             const expected = new RpcError({
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'validation-error',
                 publicMessage: `Invalid params in 'auth', validation failed.`,
                 errorData: expect.anything(),
@@ -421,6 +422,7 @@ describe('Request and Response Headers', () => {
             expect(response.hasErrors).toBeTruthy();
             const error = response.body['@thrownErrors']?.auth;
             const expected = new RpcError({
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'validation-error',
                 publicMessage: `Invalid params in 'auth', validation failed.`,
                 errorData: expect.anything(),
