@@ -47,7 +47,11 @@ export function extractPureFnsFromSource(source: string, filePath: string): Extr
 
 /** Strips TypeScript type annotations from code, returning pure JavaScript */
 export function stripTypes(code: string): string {
-    const result = ts.transpileModule(code, {
+    // Insert /** @reflection never */ before pureServerFn/pureServerFnGroup declarations
+    // to prevent deepkit type compiler from emitting __assignType artifacts on child nodes.
+    const preprocessed = suppressDeepkitReflection(code);
+
+    const result = ts.transpileModule(preprocessed, {
         compilerOptions: {
             target: ts.ScriptTarget.ESNext,
             module: ts.ModuleKind.ESNext,
@@ -55,10 +59,59 @@ export function stripTypes(code: string): string {
             importHelpers: false,
             newLine: ts.NewLineKind.LineFeed,
         },
-        // Disable deepkit type compiler transformations
         transformers: {},
     });
-    return result.outputText.trim();
+    let output = result.outputText.trim();
+    // Safety net: if deepkit still emitted artifacts (e.g. on nodes outside pureServerFn),
+    // strip them via AST transform.
+    if (output.includes('__assignType')) {
+        output = stripDeepkitArtifacts(output);
+    }
+    return output;
+}
+
+/** Inserts @reflection never JSDoc before pureServerFn/pureServerFnGroup variable declarations */
+function suppressDeepkitReflection(code: string): string {
+    // Match variable declarations containing pureServerFn( or pureServerFnGroup(
+    // e.g. "export const x = pureServerFn({" or "const [a, b] = pureServerFnGroup(["
+    return code.replace(
+        /((?:export\s+)?(?:const|let|var)\s+(?:\w+|\[[\w\s,]*\])\s*=\s*(?:pureServerFn|pureServerFnGroup)\s*\()/g,
+        '/** @reflection never */\n$1'
+    );
+}
+
+/** Removes deepkit type compiler artifacts (__assignType, __Ω* vars) via AST transform */
+function stripDeepkitArtifacts(code: string): string {
+    const sourceFile = ts.createSourceFile('__strip.js', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
+        const visit: ts.Visitor = (node) => {
+            // Remove __assignType function declaration
+            if (ts.isFunctionDeclaration(node) && node.name?.text === '__assignType') {
+                return undefined;
+            }
+            // Remove __Ω* variable declarations (deepkit type metadata)
+            if (ts.isVariableStatement(node)) {
+                const decls = node.declarationList.declarations;
+                if (decls.length === 1 && ts.isIdentifier(decls[0].name) && decls[0].name.text.startsWith('__Ω')) {
+                    return undefined;
+                }
+            }
+            // Unwrap __assignType(expr, args) -> expr
+            if (
+                ts.isCallExpression(node) &&
+                ts.isIdentifier(node.expression) &&
+                node.expression.text === '__assignType' &&
+                node.arguments.length >= 1
+            ) {
+                return ts.visitNode(node.arguments[0], visit);
+            }
+            return ts.visitEachChild(node, visit, context);
+        };
+        return (sf) => ts.visitNode(sf, visit) as ts.SourceFile;
+    };
+    const result = ts.transform(sourceFile, [transformer]);
+    const printer = ts.createPrinter({newLine: ts.NewLineKind.LineFeed});
+    return printer.printFile(result.transformed[0]).trim();
 }
 
 /** Extracts a single PureFnDef from a pureServerFn() call expression */
