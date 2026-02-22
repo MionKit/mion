@@ -259,7 +259,7 @@ describe('Dispatch routes', () => {
             // Not-found errors are returned by the not-found route and stored in thrownErrors
             const error = response.body[MION_ROUTES.thrownErrors]?.[MION_ROUTES.notFound];
             const expected = new RpcError({
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
+                statusCode: StatusCodes.NOT_FOUND,
                 type: 'route-not-found',
                 publicMessage: 'Route not found',
             });
@@ -358,7 +358,7 @@ describe('Dispatch routes', () => {
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: `validation-error`,
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
-                errorData: [{expected: 'object', path: [0]}],
+                errorData: {typeErrors: [{expected: 'object', path: [0]}]},
             });
             expect(error).toEqual(expected);
         });
@@ -406,7 +406,7 @@ describe('Dispatch routes', () => {
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'validation-error',
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
-                errorData: [{expected: 'string', path: [0, 'name']}],
+                errorData: {typeErrors: [{expected: 'string', path: [0, 'name']}]},
             });
             // Validation errors are unexpected errors (not part of return type union)
             const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
@@ -428,12 +428,15 @@ describe('Dispatch routes', () => {
                 {}
             );
             const expected = new RpcError({
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'validation-error',
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
-                errorData: [
-                    {expected: 'string', path: [0, 'name']},
-                    {expected: 'string', path: [0, 'surname']},
-                ],
+                errorData: {
+                    typeErrors: [
+                        {expected: 'string', path: [0, 'name']},
+                        {expected: 'string', path: [0, 'surname']},
+                    ],
+                },
             });
             // Validation errors are unexpected errors (not part of return type union)
             const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
