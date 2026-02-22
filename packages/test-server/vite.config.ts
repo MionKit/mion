@@ -12,6 +12,8 @@ export default defineConfig({
                     sourceMap: true,
                 },
             },
+            // required so any serverPureFunction defined in the client package
+            // will be bundled into this server (check getPureFnResult route)
             serverPureFunctions: {
                 clientSrcPath: resolve(__dirname, '../client/src'),
             },

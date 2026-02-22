@@ -1,15 +1,15 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const VIRTUAL_MODULE_ID = "virtual:mion-pure-functions";
-const RESOLVED_VIRTUAL_MODULE_ID = "\0" + VIRTUAL_MODULE_ID + ".ts";
+const BODY_HASH_LENGTH = 14;
+const VIRTUAL_SERVER_PURE_FNS = "virtual:mion-server-pure-fns";
 const VIRTUAL_AOT_JIT_FNS = "virtual:mion-aot/jit-fns";
 const VIRTUAL_AOT_PURE_FNS = "virtual:mion-aot/pure-fns";
 const VIRTUAL_AOT_ROUTER_CACHE = "virtual:mion-aot/router-cache";
-const RESOLVED_AOT_JIT_FNS = "\0" + VIRTUAL_AOT_JIT_FNS + ".ts";
-const RESOLVED_AOT_PURE_FNS = "\0" + VIRTUAL_AOT_PURE_FNS + ".ts";
-const RESOLVED_AOT_ROUTER_CACHE = "\0" + VIRTUAL_AOT_ROUTER_CACHE + ".ts";
 const VIRTUAL_AOT_CACHES = "virtual:mion-aot/caches";
-const RESOLVED_AOT_CACHES = "\0" + VIRTUAL_AOT_CACHES + ".ts";
+const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
+function resolveVirtualId(id) {
+  return "\0" + id + ".ts";
+}
 const ALLOWED_GLOBALS = /* @__PURE__ */ new Set([
   // Value types
   "undefined",
@@ -70,15 +70,13 @@ const FORBIDDEN_IDENTIFIERS = /* @__PURE__ */ new Set([
   "indexedDB"
 ]);
 exports.ALLOWED_GLOBALS = ALLOWED_GLOBALS;
+exports.BODY_HASH_LENGTH = BODY_HASH_LENGTH;
 exports.FORBIDDEN_IDENTIFIERS = FORBIDDEN_IDENTIFIERS;
-exports.RESOLVED_AOT_CACHES = RESOLVED_AOT_CACHES;
-exports.RESOLVED_AOT_JIT_FNS = RESOLVED_AOT_JIT_FNS;
-exports.RESOLVED_AOT_PURE_FNS = RESOLVED_AOT_PURE_FNS;
-exports.RESOLVED_AOT_ROUTER_CACHE = RESOLVED_AOT_ROUTER_CACHE;
-exports.RESOLVED_VIRTUAL_MODULE_ID = RESOLVED_VIRTUAL_MODULE_ID;
+exports.PURE_SERVER_FN_NAMESPACE = PURE_SERVER_FN_NAMESPACE;
 exports.VIRTUAL_AOT_CACHES = VIRTUAL_AOT_CACHES;
 exports.VIRTUAL_AOT_JIT_FNS = VIRTUAL_AOT_JIT_FNS;
 exports.VIRTUAL_AOT_PURE_FNS = VIRTUAL_AOT_PURE_FNS;
 exports.VIRTUAL_AOT_ROUTER_CACHE = VIRTUAL_AOT_ROUTER_CACHE;
-exports.VIRTUAL_MODULE_ID = VIRTUAL_MODULE_ID;
+exports.VIRTUAL_SERVER_PURE_FNS = VIRTUAL_SERVER_PURE_FNS;
+exports.resolveVirtualId = resolveVirtualId;
 //# sourceMappingURL=constants.js.map

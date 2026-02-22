@@ -3,7 +3,7 @@ import {resetHashes, resetJitFnCaches, addAOTCaches, getJitUtils} from '@mionkit
 import {PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
 
 // Import the virtual module - Vite plugin automatically scans test-client/src
-import {pureFnsCache} from 'virtual:mion-pure-functions';
+import {pureFnsCache} from 'virtual:mion-server-pure-fns';
 
 beforeAll(() => {
     resetHashes();

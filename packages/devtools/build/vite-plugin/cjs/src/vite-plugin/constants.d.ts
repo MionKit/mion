@@ -1,12 +1,10 @@
-export declare const VIRTUAL_MODULE_ID = "virtual:mion-pure-functions";
-export declare const RESOLVED_VIRTUAL_MODULE_ID: string;
+export declare const BODY_HASH_LENGTH = 14;
+export declare const VIRTUAL_SERVER_PURE_FNS = "virtual:mion-server-pure-fns";
 export declare const VIRTUAL_AOT_JIT_FNS = "virtual:mion-aot/jit-fns";
 export declare const VIRTUAL_AOT_PURE_FNS = "virtual:mion-aot/pure-fns";
 export declare const VIRTUAL_AOT_ROUTER_CACHE = "virtual:mion-aot/router-cache";
-export declare const RESOLVED_AOT_JIT_FNS: string;
-export declare const RESOLVED_AOT_PURE_FNS: string;
-export declare const RESOLVED_AOT_ROUTER_CACHE: string;
 export declare const VIRTUAL_AOT_CACHES = "virtual:mion-aot/caches";
-export declare const RESOLVED_AOT_CACHES: string;
+export declare const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
+export declare function resolveVirtualId(id: string): string;
 export declare const ALLOWED_GLOBALS: Set<string>;
 export declare const FORBIDDEN_IDENTIFIERS: Set<string>;

@@ -5,11 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/** Virtual module ID for the pure functions registry (client-extracted pure functions) */
-export const VIRTUAL_MODULE_ID = 'virtual:mion-pure-functions';
+export const BODY_HASH_LENGTH = 14;
 
-/** Resolved virtual module ID (with \0 prefix per Vite convention, .ts extension for TypeScript) */
-export const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID + '.ts';
+/** Virtual module ID for the pure functions registry (client-extracted pure functions) */
+export const VIRTUAL_SERVER_PURE_FNS = 'virtual:mion-server-pure-fns';
 
 // ============ AOT Virtual Modules ============
 
@@ -22,20 +21,16 @@ export const VIRTUAL_AOT_PURE_FNS = 'virtual:mion-aot/pure-fns';
 /** Virtual module ID for router methods cache */
 export const VIRTUAL_AOT_ROUTER_CACHE = 'virtual:mion-aot/router-cache';
 
-/** Resolved virtual module ID for JIT functions */
-export const RESOLVED_AOT_JIT_FNS = '\0' + VIRTUAL_AOT_JIT_FNS + '.ts';
-
-/** Resolved virtual module ID for pure functions */
-export const RESOLVED_AOT_PURE_FNS = '\0' + VIRTUAL_AOT_PURE_FNS + '.ts';
-
-/** Resolved virtual module ID for router cache */
-export const RESOLVED_AOT_ROUTER_CACHE = '\0' + VIRTUAL_AOT_ROUTER_CACHE + '.ts';
-
 /** Virtual module ID for combined AOT caches (re-exports all 3 cache modules) */
 export const VIRTUAL_AOT_CACHES = 'virtual:mion-aot/caches';
 
-/** Resolved virtual module ID for combined AOT caches */
-export const RESOLVED_AOT_CACHES = '\0' + VIRTUAL_AOT_CACHES + '.ts';
+/** The namespace used for all pureServerFn functions */
+export const PURE_SERVER_FN_NAMESPACE = 'pureServerFn';
+
+/** Resolves a virtual module ID to its internal Vite ID (\0 prefix + .ts extension) */
+export function resolveVirtualId(id: string): string {
+    return '\0' + id + '.ts';
+}
 
 /** Globals and built-ins that are allowed inside pure functions */
 export const ALLOWED_GLOBALS = new Set([

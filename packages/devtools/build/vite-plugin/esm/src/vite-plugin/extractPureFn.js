@@ -1,22 +1,50 @@
 import * as ts from "typescript";
-import { normalizePureFnBody, createUniqueHash, pureFnHashLength, PURE_SERVER_FN_NAMESPACE } from "./pureFnUtils.js";
-import { ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS } from "./constants.js";
+import { createHash } from "crypto";
+import { transformSync } from "esbuild";
+import { BODY_HASH_LENGTH, PURE_SERVER_FN_NAMESPACE, ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS } from "./constants.js";
+import { readdirSync, statSync, readFileSync } from "fs";
+import { resolve, join } from "path/posix";
+import { isIncluded } from "./mionVitePlugin.js";
+function scanClientSource(options) {
+  const include = options.include || ["**/*.ts", "**/*.tsx"];
+  const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
+  const clientSrcPath = resolve(options.clientSrcPath);
+  const fns = [];
+  function scanDir(dir) {
+    const entries = readdirSync(dir);
+    for (const entry of entries) {
+      const fullPath = join(dir, entry);
+      const stat = statSync(fullPath);
+      if (stat.isDirectory()) {
+        if (!isIncluded(fullPath + "/", include, exclude)) continue;
+        scanDir(fullPath);
+      } else if (stat.isFile()) {
+        if (!isIncluded(fullPath, include, exclude)) continue;
+        try {
+          const code = readFileSync(fullPath, "utf-8");
+          if (!code.includes("pureServerFn")) continue;
+          const extracted = extractPureFnsFromSource(code, fullPath);
+          fns.push(...extracted);
+        } catch (err) {
+          console.warn(`[mion-pure-functions] Warning: Could not parse ${fullPath}: ${err.message}`);
+        }
+      }
+    }
+  }
+  scanDir(clientSrcPath);
+  return fns;
+}
 function extractPureFnsFromSource(source, filePath) {
   const results = [];
-  if (!source.includes("pureServerFn") && !source.includes("pureServerFnGroup")) return results;
+  if (!source.includes("pureServerFn")) return results;
   const jsSource = stripTypes(source);
   const sourceFile = ts.createSourceFile(filePath, jsSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   function visit(node) {
     if (ts.isCallExpression(node)) {
       const callee = node.expression;
-      if (ts.isIdentifier(callee)) {
-        if (callee.text === "pureServerFn") {
-          const extracted = extractDataFromPureFnDefAST(node, sourceFile, filePath);
-          results.push(extracted);
-        } else if (callee.text === "pureServerFnGroup") {
-          const extracted = extractDataFromPureFnDefListAST(node, sourceFile, filePath);
-          results.push(...extracted);
-        }
+      if (ts.isIdentifier(callee) && callee.text === "pureServerFn") {
+        const extracted = extractDataFromPureFnDefAST(node, sourceFile, filePath);
+        results.push(extracted);
       }
     }
     ts.forEachChild(node, visit);
@@ -25,70 +53,162 @@ function extractPureFnsFromSource(source, filePath) {
   return results;
 }
 function stripTypes(code) {
-  const result = ts.transpileModule(code, {
-    compilerOptions: {
-      target: ts.ScriptTarget.ESNext,
-      module: ts.ModuleKind.ESNext,
-      removeComments: true,
-      importHelpers: false,
-      newLine: ts.NewLineKind.LineFeed
-    },
-    // Disable deepkit type compiler transformations
-    transformers: {}
-  });
-  return result.outputText.trim();
+  try {
+    const result = transformSync(code, {
+      loader: "ts",
+      target: "esnext",
+      minify: false
+    });
+    return result.code.trim();
+  } catch (err) {
+    throw new PurityError(err.message || String(err), "<esbuild>", 0);
+  }
 }
 function extractDataFromPureFnDefAST(call, sourceFile, filePath) {
-  if (call.arguments.length !== 1) {
+  if (call.arguments.length < 1 || call.arguments.length > 2) {
     throw new PurityError(
-      "pureServerFn() requires exactly 1 argument: a PureFnDef object",
+      "pureServerFn() requires 1 or 2 arguments: a PureFnDef object and an optional bodyHash string",
       filePath,
       call.getStart(sourceFile)
     );
   }
-  const objArg = call.arguments[0];
+  let objArg = call.arguments[0];
+  if (ts.isIdentifier(objArg)) {
+    const resolved = resolveVariableInitializer(objArg.text, sourceFile);
+    if (!resolved) {
+      throw new PurityError(
+        `pureServerFn() argument "${objArg.text}" could not be resolved to a variable declaration in this file`,
+        filePath,
+        objArg.getStart(sourceFile)
+      );
+    }
+    objArg = resolved;
+  }
   if (!ts.isObjectLiteralExpression(objArg)) {
     throw new PurityError(
-      "pureServerFn() argument must be an object literal (PureFnDef)",
+      "pureServerFn() first argument must be an object literal (PureFnDef) or a variable referencing one",
       filePath,
-      objArg.getStart(sourceFile)
+      call.arguments[0].getStart(sourceFile)
     );
   }
   return extractPureFnDefFromObjectLiteral(objArg, sourceFile, filePath);
 }
-function extractDataFromPureFnDefListAST(call, sourceFile, filePath) {
-  if (call.arguments.length !== 1) {
-    throw new PurityError(
-      "pureServerFnGroup() requires exactly 1 argument: an array of PureFnDef objects",
-      filePath,
-      call.getStart(sourceFile)
-    );
-  }
-  const arrayArg = call.arguments[0];
-  if (!ts.isArrayLiteralExpression(arrayArg)) {
-    throw new PurityError(
-      "pureServerFnGroup() argument must be an array literal (tuple), not a dynamic array",
-      filePath,
-      arrayArg.getStart(sourceFile)
-    );
-  }
-  const fns = [];
-  for (const element of arrayArg.elements) {
-    if (!ts.isObjectLiteralExpression(element)) {
-      throw new PurityError(
-        "pureServerFnGroup() array elements must be object literals (PureFnDef)",
-        filePath,
-        element.getStart(sourceFile)
-      );
+function resolveVariableInitializer(name, sourceFile) {
+  let result;
+  function visit(node) {
+    if (result) return;
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer) {
+      result = node.initializer;
+      return;
     }
-    fns.push(extractPureFnDefFromObjectLiteral(element, sourceFile, filePath));
+    ts.forEachChild(node, visit);
   }
-  const allKeys = new Set(fns.map((fn) => `${fn.namespace}::${fn.fnName}`));
-  for (const fn of fns) {
-    const ownKey = `${fn.namespace}::${fn.fnName}`;
-    fn.dependencies = new Set([...allKeys].filter((key) => key !== ownKey));
+  visit(sourceFile);
+  return result;
+}
+function transformPureServerFnCalls(source, filePath) {
+  const extractedFns = extractPureFnsFromSource(source, filePath);
+  if (extractedFns.length === 0) return null;
+  const callPattern = new RegExp("(?<![a-zA-Z0-9_$])pureServerFn\\s*\\(", "g");
+  const callPositions = [];
+  let match;
+  while ((match = callPattern.exec(source)) !== null) {
+    const parenPos = source.indexOf("(", match.index + "pureServerFn".length);
+    callPositions.push(parenPos);
   }
-  return fns;
+  const untransformedCalls = [];
+  let fnIndex = 0;
+  for (const openParen of callPositions) {
+    const closeParen = findMatchingParen(source, openParen);
+    if (closeParen === -1) continue;
+    const innerContent = source.substring(openParen + 1, closeParen);
+    const alreadyHasHash = /,\s*['"][a-zA-Z0-9_-]+['"]\s*$/.test(innerContent.trimEnd());
+    if (alreadyHasHash) {
+      fnIndex++;
+      continue;
+    }
+    if (fnIndex < extractedFns.length) {
+      untransformedCalls.push({ openParen, closeParen, fnIndex });
+    }
+    fnIndex++;
+  }
+  if (untransformedCalls.length === 0) return null;
+  let result = source;
+  for (let i = untransformedCalls.length - 1; i >= 0; i--) {
+    const { closeParen, fnIndex: idx } = untransformedCalls[i];
+    const hash = extractedFns[idx].bodyHash;
+    result = result.substring(0, closeParen) + `, '${hash}'` + result.substring(closeParen);
+  }
+  return { code: result, extractedFns };
+}
+function findMatchingParen(source, openPos) {
+  let depth = 1;
+  let pos = openPos + 1;
+  while (pos < source.length && depth > 0) {
+    const ch = source[pos];
+    if (ch === "'" || ch === '"') {
+      pos = skipStringLiteral(source, pos);
+      continue;
+    }
+    if (ch === "`") {
+      pos = skipTemplateLiteral(source, pos);
+      continue;
+    }
+    if (ch === "/" && pos + 1 < source.length && source[pos + 1] === "/") {
+      pos = source.indexOf("\n", pos);
+      if (pos === -1) return -1;
+      pos++;
+      continue;
+    }
+    if (ch === "/" && pos + 1 < source.length && source[pos + 1] === "*") {
+      pos = source.indexOf("*/", pos + 2);
+      if (pos === -1) return -1;
+      pos += 2;
+      continue;
+    }
+    if (ch === "(" || ch === "{" || ch === "[") depth++;
+    else if (ch === ")" || ch === "}" || ch === "]") depth--;
+    if (depth === 0) return pos;
+    pos++;
+  }
+  return -1;
+}
+function skipStringLiteral(source, startPos) {
+  const quote = source[startPos];
+  let pos = startPos + 1;
+  while (pos < source.length) {
+    if (source[pos] === "\\") {
+      pos += 2;
+      continue;
+    }
+    if (source[pos] === quote) return pos + 1;
+    pos++;
+  }
+  return pos;
+}
+function skipTemplateLiteral(source, startPos) {
+  let pos = startPos + 1;
+  while (pos < source.length) {
+    if (source[pos] === "\\") {
+      pos += 2;
+      continue;
+    }
+    if (source[pos] === "`") return pos + 1;
+    if (source[pos] === "$" && pos + 1 < source.length && source[pos + 1] === "{") {
+      pos += 2;
+      let depth = 1;
+      while (pos < source.length && depth > 0) {
+        const ch = source[pos];
+        if (ch === "{") depth++;
+        else if (ch === "}") depth--;
+        if (depth > 0) pos++;
+      }
+      if (pos < source.length) pos++;
+      continue;
+    }
+    pos++;
+  }
+  return pos;
 }
 function extractPureFnDefFromObjectLiteral(objLiteral, sourceFile, filePath) {
   let pureFn;
@@ -170,8 +290,8 @@ function extractPureFnDefFromObjectLiteral(objLiteral, sourceFile, filePath) {
     validateFactoryPurity(bodyNode, new Set(paramNames), fnName, sourceFile, filePath);
   }
   const bodyText = getBodyText(bodyNode, sourceFile);
-  const normalizedBody = normalizePureFnBody(bodyText);
-  const bodyHash = createUniqueHash(namespace + normalizedBody, pureFnHashLength);
+  const normalizedBody = bodyText.replace(/[ \t]+/g, " ").trim();
+  const bodyHash = createHash("sha256").update(namespace + normalizedBody).digest("base64url").slice(0, BODY_HASH_LENGTH);
   if (!fnName) {
     if (ts.isFunctionExpression(pureFn) && pureFn.name) {
       fnName = pureFn.name.text;
@@ -343,6 +463,9 @@ class PurityError extends Error {
 export {
   PurityError,
   extractPureFnsFromSource,
-  stripTypes
+  findMatchingParen,
+  scanClientSource,
+  stripTypes,
+  transformPureServerFnCalls
 };
 //# sourceMappingURL=extractPureFn.js.map

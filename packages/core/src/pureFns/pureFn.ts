@@ -220,17 +220,3 @@ export function extractFunctionBody(fnString: string): string {
 
     throw new Error("Invalid function, can't determine function type");
 }
-
-/** Computes the body hash for a pure function (includes fnName in hash for core pure functions) */
-export function computePureFnBodyHash(namespace: string, fnName: string, fnString: string): string {
-    const body = extractFunctionBody(fnString);
-    const normalizedBody = normalizePureFnBody(body);
-    return createUniqueHash(namespace + fnName + normalizedBody, pureFnHashLength);
-}
-
-/** Computes the body hash for a pure server function (body-only hash, no fnName) */
-export function computePureServerFnBodyHash(namespace: string, fnString: string): string {
-    const body = extractFunctionBody(fnString);
-    const normalizedBody = normalizePureFnBody(body);
-    return createUniqueHash(namespace + normalizedBody, pureFnHashLength);
-}

@@ -13,10 +13,7 @@ export function createDeepkitTransform(options: DeepkitTypeOptions = {}) {
         after: [declarationTransformer],
     };
 
-    return function transformWithDeepkit(
-        code: string,
-        fileName: string
-    ): {code: string; map: string | undefined} | null {
+    return function transformWithDeepkit(code: string, fileName: string): {code: string; map: string | undefined} | null {
         if (!filter(fileName)) return null;
 
         const transformed = ts.transpileModule(code, {
@@ -29,7 +26,6 @@ export function createDeepkitTransform(options: DeepkitTypeOptions = {}) {
                 options.compilerOptions || {}
             ),
             fileName,
-            // @ts-ignore - transformers type mismatch between ts versions
             transformers,
         });
 

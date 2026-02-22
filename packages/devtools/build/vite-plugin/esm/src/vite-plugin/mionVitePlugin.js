@@ -1,40 +1,10 @@
-import { readdirSync, statSync, readFileSync } from "fs";
-import { resolve, join } from "path";
+import { resolve } from "path";
 import { createDeepkitTransform } from "./deepkit-type.js";
-import { extractPureFnsFromSource } from "./extractPureFn.js";
+import { transformPureServerFnCalls, scanClientSource } from "./extractPureFn.js";
 import { generateVirtualModule } from "./virtualModule.js";
-import { RESOLVED_VIRTUAL_MODULE_ID, RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE, RESOLVED_AOT_CACHES, VIRTUAL_MODULE_ID, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES } from "./constants.js";
+import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES } from "./constants.js";
 import { generateAOTCaches, logAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
-function scanClientSource(options) {
-  const include = options.include || ["**/*.ts", "**/*.tsx"];
-  const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
-  const clientSrcPath = resolve(options.clientSrcPath);
-  const fns = [];
-  function scanDir(dir) {
-    const entries = readdirSync(dir);
-    for (const entry of entries) {
-      const fullPath = join(dir, entry);
-      const stat = statSync(fullPath);
-      if (stat.isDirectory()) {
-        if (!isIncluded(fullPath + "/", include, exclude)) continue;
-        scanDir(fullPath);
-      } else if (stat.isFile()) {
-        if (!isIncluded(fullPath, include, exclude)) continue;
-        try {
-          const code = readFileSync(fullPath, "utf-8");
-          if (!code.includes("pureServerFn")) continue;
-          const extracted = extractPureFnsFromSource(code, fullPath);
-          fns.push(...extracted);
-        } catch (err) {
-          console.warn(`[mion-pure-functions] Warning: Could not parse ${fullPath}: ${err.message}`);
-        }
-      }
-    }
-  }
-  scanDir(clientSrcPath);
-  return fns;
-}
 function isIncluded(filePath, include, exclude) {
   const isTs = /\.(ts|tsx|js|jsx)$/.test(filePath);
   const isDir = filePath.endsWith("/");
@@ -84,41 +54,42 @@ function mionVitePlugin(options) {
       }
     },
     resolveId(id) {
-      if (pureFnOptions && id === VIRTUAL_MODULE_ID) {
-        return RESOLVED_VIRTUAL_MODULE_ID;
-      }
-      if (id === VIRTUAL_AOT_JIT_FNS) return RESOLVED_AOT_JIT_FNS;
-      if (id === VIRTUAL_AOT_PURE_FNS) return RESOLVED_AOT_PURE_FNS;
-      if (id === VIRTUAL_AOT_ROUTER_CACHE) return RESOLVED_AOT_ROUTER_CACHE;
-      if (id === VIRTUAL_AOT_CACHES) return RESOLVED_AOT_CACHES;
+      if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
+      if (id === VIRTUAL_AOT_JIT_FNS) return resolveVirtualId(id);
+      if (id === VIRTUAL_AOT_PURE_FNS) return resolveVirtualId(id);
+      if (id === VIRTUAL_AOT_ROUTER_CACHE) return resolveVirtualId(id);
+      if (id === VIRTUAL_AOT_CACHES) return resolveVirtualId(id);
       return null;
     },
     load(id) {
-      if (pureFnOptions && id === RESOLVED_VIRTUAL_MODULE_ID) {
+      if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
+        if (!pureFnOptions) {
+          return generateVirtualModule([]);
+        }
         if (!extractedFns) {
           extractedFns = scanClientSource(pureFnOptions);
         }
         return generateVirtualModule(extractedFns);
       }
-      if (id === RESOLVED_AOT_JIT_FNS) {
+      if (id === resolveVirtualId(VIRTUAL_AOT_JIT_FNS)) {
         if (!aotData) {
           return generateNoopModule("No-op: AOT JIT caches not generated");
         }
         return generateJitFnsModule(aotData.jitFnsCode);
       }
-      if (id === RESOLVED_AOT_PURE_FNS) {
+      if (id === resolveVirtualId(VIRTUAL_AOT_PURE_FNS)) {
         if (!aotData) {
           return generateNoopModule("No-op: AOT pure fns not generated");
         }
         return generatePureFnsModule(aotData.pureFnsCode);
       }
-      if (id === RESOLVED_AOT_ROUTER_CACHE) {
+      if (id === resolveVirtualId(VIRTUAL_AOT_ROUTER_CACHE)) {
         if (!aotData) {
           return generateNoopModule("No-op: AOT router cache not generated");
         }
         return generateRouterCacheModule(aotData.routerCacheCode);
       }
-      if (id === RESOLVED_AOT_CACHES) {
+      if (id === resolveVirtualId(VIRTUAL_AOT_CACHES)) {
         if (!aotData) {
           return generateNoopCombinedModule();
         }
@@ -127,19 +98,22 @@ function mionVitePlugin(options) {
       return null;
     },
     transform(code, fileName) {
-      if (pureFnOptions) {
+      let currentCode = code;
+      if (code.includes("pureServerFn")) {
         try {
-          const fns = extractPureFnsFromSource(code, fileName);
-          if (fns.length > 0) {
+          const result = transformPureServerFnCalls(currentCode, fileName);
+          if (result) {
+            currentCode = result.code;
           }
         } catch (err) {
-          console.warn(`[mion] Warning: Could not extract pure functions from ${fileName}: ${err}`);
+          console.warn(`[mion] Warning: Could not transform pureServerFn calls in ${fileName}: ${err}`);
         }
       }
       if (deepkitTransform) {
-        return deepkitTransform(code, fileName);
+        const deepkitResult = deepkitTransform(currentCode, fileName);
+        if (deepkitResult) return deepkitResult;
       }
-      return null;
+      return currentCode !== code ? currentCode : null;
     },
     handleHotUpdate({ file, server }) {
       if (pureFnOptions) {
@@ -149,7 +123,7 @@ function mionVitePlugin(options) {
           const exclude = pureFnOptions.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
           if (isIncluded(file, include, exclude)) {
             extractedFns = null;
-            const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
+            const mod = server.moduleGraph.getModuleById(resolveVirtualId(VIRTUAL_SERVER_PURE_FNS));
             if (mod) {
               server.moduleGraph.invalidateModule(mod);
               return [mod];
@@ -164,7 +138,9 @@ function mionVitePlugin(options) {
             aotData = data;
             logAOTCaches(data);
             updateDiskCache(aotOptions, data, aotCacheDir);
-            const modulesToInvalidate = [RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE];
+            const modulesToInvalidate = [VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE].map(
+              resolveVirtualId
+            );
             const invalidatedMods = [];
             for (const vmId of modulesToInvalidate) {
               const mod = server.moduleGraph.getModuleById(vmId);
@@ -186,6 +162,7 @@ function mionVitePlugin(options) {
   };
 }
 export {
+  isIncluded,
   mionVitePlugin
 };
 //# sourceMappingURL=mionVitePlugin.js.map

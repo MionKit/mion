@@ -1,6 +1,5 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const fs = require("fs");
 const path = require("path");
 const src_vitePlugin_deepkitType = require("./deepkit-type.js");
 const src_vitePlugin_extractPureFn = require("./extractPureFn.js");
@@ -8,35 +7,6 @@ const src_vitePlugin_virtualModule = require("./virtualModule.js");
 const src_vitePlugin_constants = require("./constants.js");
 const src_vitePlugin_aotCacheGenerator = require("./aotCacheGenerator.js");
 const src_vitePlugin_aotDiskCache = require("./aotDiskCache.js");
-function scanClientSource(options) {
-  const include = options.include || ["**/*.ts", "**/*.tsx"];
-  const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
-  const clientSrcPath = path.resolve(options.clientSrcPath);
-  const fns = [];
-  function scanDir(dir) {
-    const entries = fs.readdirSync(dir);
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry);
-      const stat = fs.statSync(fullPath);
-      if (stat.isDirectory()) {
-        if (!isIncluded(fullPath + "/", include, exclude)) continue;
-        scanDir(fullPath);
-      } else if (stat.isFile()) {
-        if (!isIncluded(fullPath, include, exclude)) continue;
-        try {
-          const code = fs.readFileSync(fullPath, "utf-8");
-          if (!code.includes("pureServerFn")) continue;
-          const extracted = src_vitePlugin_extractPureFn.extractPureFnsFromSource(code, fullPath);
-          fns.push(...extracted);
-        } catch (err) {
-          console.warn(`[mion-pure-functions] Warning: Could not parse ${fullPath}: ${err.message}`);
-        }
-      }
-    }
-  }
-  scanDir(clientSrcPath);
-  return fns;
-}
 function isIncluded(filePath, include, exclude) {
   const isTs = /\.(ts|tsx|js|jsx)$/.test(filePath);
   const isDir = filePath.endsWith("/");
@@ -86,41 +56,42 @@ function mionVitePlugin(options) {
       }
     },
     resolveId(id) {
-      if (pureFnOptions && id === src_vitePlugin_constants.VIRTUAL_MODULE_ID) {
-        return src_vitePlugin_constants.RESOLVED_VIRTUAL_MODULE_ID;
-      }
-      if (id === src_vitePlugin_constants.VIRTUAL_AOT_JIT_FNS) return src_vitePlugin_constants.RESOLVED_AOT_JIT_FNS;
-      if (id === src_vitePlugin_constants.VIRTUAL_AOT_PURE_FNS) return src_vitePlugin_constants.RESOLVED_AOT_PURE_FNS;
-      if (id === src_vitePlugin_constants.VIRTUAL_AOT_ROUTER_CACHE) return src_vitePlugin_constants.RESOLVED_AOT_ROUTER_CACHE;
-      if (id === src_vitePlugin_constants.VIRTUAL_AOT_CACHES) return src_vitePlugin_constants.RESOLVED_AOT_CACHES;
+      if (id === src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS) return src_vitePlugin_constants.resolveVirtualId(id);
+      if (id === src_vitePlugin_constants.VIRTUAL_AOT_JIT_FNS) return src_vitePlugin_constants.resolveVirtualId(id);
+      if (id === src_vitePlugin_constants.VIRTUAL_AOT_PURE_FNS) return src_vitePlugin_constants.resolveVirtualId(id);
+      if (id === src_vitePlugin_constants.VIRTUAL_AOT_ROUTER_CACHE) return src_vitePlugin_constants.resolveVirtualId(id);
+      if (id === src_vitePlugin_constants.VIRTUAL_AOT_CACHES) return src_vitePlugin_constants.resolveVirtualId(id);
       return null;
     },
     load(id) {
-      if (pureFnOptions && id === src_vitePlugin_constants.RESOLVED_VIRTUAL_MODULE_ID) {
+      if (id === src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS)) {
+        if (!pureFnOptions) {
+          return src_vitePlugin_virtualModule.generateVirtualModule([]);
+        }
         if (!extractedFns) {
-          extractedFns = scanClientSource(pureFnOptions);
+          extractedFns = src_vitePlugin_extractPureFn.scanClientSource(pureFnOptions);
         }
         return src_vitePlugin_virtualModule.generateVirtualModule(extractedFns);
       }
-      if (id === src_vitePlugin_constants.RESOLVED_AOT_JIT_FNS) {
+      if (id === src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_JIT_FNS)) {
         if (!aotData) {
           return src_vitePlugin_aotCacheGenerator.generateNoopModule("No-op: AOT JIT caches not generated");
         }
         return src_vitePlugin_aotCacheGenerator.generateJitFnsModule(aotData.jitFnsCode);
       }
-      if (id === src_vitePlugin_constants.RESOLVED_AOT_PURE_FNS) {
+      if (id === src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_PURE_FNS)) {
         if (!aotData) {
           return src_vitePlugin_aotCacheGenerator.generateNoopModule("No-op: AOT pure fns not generated");
         }
         return src_vitePlugin_aotCacheGenerator.generatePureFnsModule(aotData.pureFnsCode);
       }
-      if (id === src_vitePlugin_constants.RESOLVED_AOT_ROUTER_CACHE) {
+      if (id === src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_ROUTER_CACHE)) {
         if (!aotData) {
           return src_vitePlugin_aotCacheGenerator.generateNoopModule("No-op: AOT router cache not generated");
         }
         return src_vitePlugin_aotCacheGenerator.generateRouterCacheModule(aotData.routerCacheCode);
       }
-      if (id === src_vitePlugin_constants.RESOLVED_AOT_CACHES) {
+      if (id === src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES)) {
         if (!aotData) {
           return src_vitePlugin_aotCacheGenerator.generateNoopCombinedModule();
         }
@@ -129,19 +100,22 @@ function mionVitePlugin(options) {
       return null;
     },
     transform(code, fileName) {
-      if (pureFnOptions) {
+      let currentCode = code;
+      if (code.includes("pureServerFn")) {
         try {
-          const fns = src_vitePlugin_extractPureFn.extractPureFnsFromSource(code, fileName);
-          if (fns.length > 0) {
+          const result = src_vitePlugin_extractPureFn.transformPureServerFnCalls(currentCode, fileName);
+          if (result) {
+            currentCode = result.code;
           }
         } catch (err) {
-          console.warn(`[mion] Warning: Could not extract pure functions from ${fileName}: ${err}`);
+          console.warn(`[mion] Warning: Could not transform pureServerFn calls in ${fileName}: ${err}`);
         }
       }
       if (deepkitTransform) {
-        return deepkitTransform(code, fileName);
+        const deepkitResult = deepkitTransform(currentCode, fileName);
+        if (deepkitResult) return deepkitResult;
       }
-      return null;
+      return currentCode !== code ? currentCode : null;
     },
     handleHotUpdate({ file, server }) {
       if (pureFnOptions) {
@@ -151,7 +125,7 @@ function mionVitePlugin(options) {
           const exclude = pureFnOptions.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
           if (isIncluded(file, include, exclude)) {
             extractedFns = null;
-            const mod = server.moduleGraph.getModuleById(src_vitePlugin_constants.RESOLVED_VIRTUAL_MODULE_ID);
+            const mod = server.moduleGraph.getModuleById(src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS));
             if (mod) {
               server.moduleGraph.invalidateModule(mod);
               return [mod];
@@ -166,7 +140,9 @@ function mionVitePlugin(options) {
             aotData = data;
             src_vitePlugin_aotCacheGenerator.logAOTCaches(data);
             src_vitePlugin_aotDiskCache.updateDiskCache(aotOptions, data, aotCacheDir);
-            const modulesToInvalidate = [src_vitePlugin_constants.RESOLVED_AOT_JIT_FNS, src_vitePlugin_constants.RESOLVED_AOT_PURE_FNS, src_vitePlugin_constants.RESOLVED_AOT_ROUTER_CACHE];
+            const modulesToInvalidate = [src_vitePlugin_constants.VIRTUAL_AOT_JIT_FNS, src_vitePlugin_constants.VIRTUAL_AOT_PURE_FNS, src_vitePlugin_constants.VIRTUAL_AOT_ROUTER_CACHE].map(
+              src_vitePlugin_constants.resolveVirtualId
+            );
             const invalidatedMods = [];
             for (const vmId of modulesToInvalidate) {
               const mod = server.moduleGraph.getModuleById(vmId);
@@ -187,5 +163,6 @@ function mionVitePlugin(options) {
     }
   };
 }
+exports.isIncluded = isIncluded;
 exports.mionVitePlugin = mionVitePlugin;
 //# sourceMappingURL=mionVitePlugin.js.map

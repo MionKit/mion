@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vitest';
 import {generateVirtualModule} from './virtualModule.ts';
 import {ExtractedPureFn} from './types.ts';
-import {PURE_SERVER_FN_NAMESPACE} from './pureFnUtils.ts';
+import {PURE_SERVER_FN_NAMESPACE} from './constants.ts';
 
 describe('generateVirtualModule', () => {
     it('should generate a valid module with one function nested by namespace', () => {

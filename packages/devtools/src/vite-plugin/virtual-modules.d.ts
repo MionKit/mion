@@ -32,7 +32,7 @@ declare module 'virtual:mion-aot/caches' {
 }
 
 /** Virtual module for server pure functions extracted from client source at build time. */
-declare module 'virtual:mion-pure-functions' {
+declare module 'virtual:mion-server-pure-fns' {
     interface ServerPureFnEntry {
         namespace: string;
         fnName: string;
