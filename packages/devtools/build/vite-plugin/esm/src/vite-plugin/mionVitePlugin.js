@@ -1,7 +1,8 @@
 import { resolve } from "path";
-import { createDeepkitTransform } from "./deepkit-type.js";
-import { transformPureFnCalls, scanClientSource } from "./extractPureFn.js";
-import { generateVirtualModule } from "./virtualModule.js";
+import * as ts from "typescript";
+import { createDeepkitConfig, createPureFnTransformerFactory } from "./transformers.js";
+import { scanClientSource } from "./extractPureFn.js";
+import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES } from "./constants.js";
 import { generateAOTCaches, logAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
@@ -27,7 +28,14 @@ function mionVitePlugin(options) {
   const pureFnOptions = options.serverPureFunctions;
   const deepkitOptions = options.runTypes;
   const aotOptions = options.aotCaches;
-  const deepkitTransform = deepkitOptions ? createDeepkitTransform(deepkitOptions) : null;
+  const deepkitConfig = deepkitOptions ? createDeepkitConfig(deepkitOptions) : null;
+  const defaultCompilerOptions = {
+    target: ts.ScriptTarget.ESNext,
+    module: ts.ModuleKind.ESNext
+  };
+  let pureServerFnCount = 0;
+  let registerPureFnFactoryCount = 0;
+  let pureFnFilesCount = 0;
   let aotData = null;
   let aotGenerationPromise = null;
   let aotCacheDir = "";
@@ -64,12 +72,12 @@ function mionVitePlugin(options) {
     load(id) {
       if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
         if (!pureFnOptions) {
-          return generateVirtualModule([]);
+          return generateServerPureFnsVirtualModule([]);
         }
         if (!extractedFns) {
           extractedFns = scanClientSource(pureFnOptions);
         }
-        return generateVirtualModule(extractedFns);
+        return generateServerPureFnsVirtualModule(extractedFns);
       }
       if (id === resolveVirtualId(VIRTUAL_AOT_JIT_FNS)) {
         if (!aotData) {
@@ -98,34 +106,43 @@ function mionVitePlugin(options) {
       return null;
     },
     transform(code, fileName) {
-      let currentCode = code;
-      if (code.includes("pureServerFn")) {
-        try {
-          const result = transformPureFnCalls(currentCode, fileName, "pureServerFn", "hash");
-          if (result) {
-            currentCode = result.code;
-          }
-        } catch (err) {
-          console.warn(`[mion] Warning: Could not transform pureServerFn calls in ${fileName}: ${err}`);
+      const hasPureFns = code.includes("pureServerFn") || code.includes("registerPureFnFactory");
+      const needsDeepkit = deepkitConfig ? deepkitConfig.filter(fileName) : false;
+      if (!hasPureFns && !needsDeepkit) return null;
+      const before = [];
+      const after = [];
+      const collected = hasPureFns ? [] : void 0;
+      if (hasPureFns) {
+        before.push(createPureFnTransformerFactory(code, fileName, collected));
+      }
+      if (needsDeepkit) {
+        before.push(...deepkitConfig.beforeTransformers);
+        after.push(...deepkitConfig.afterTransformers);
+      }
+      const compilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
+      const result = ts.transpileModule(code, {
+        compilerOptions,
+        fileName,
+        transformers: { before, after }
+      });
+      if (collected && collected.length > 0) {
+        pureFnFilesCount++;
+        for (const fn of collected) {
+          if (fn.isFactory) registerPureFnFactoryCount++;
+          else pureServerFnCount++;
         }
       }
-      if (currentCode.includes("registerPureFnFactory")) {
-        try {
-          const result = transformPureFnCalls(currentCode, fileName, "registerPureFnFactory", "parsedFactoryFn");
-          if (result) {
-            currentCode = result.code;
-          }
-        } catch (err) {
-          console.warn(
-            `[mion] Warning: Could not transform registerPureFnFactory calls in ${fileName}: ${err}`
-          );
-        }
+      return { code: result.outputText, map: result.sourceMapText };
+    },
+    buildEnd() {
+      if (pureServerFnCount > 0 || registerPureFnFactoryCount > 0) {
+        const total = pureServerFnCount + registerPureFnFactoryCount;
+        const parts = [
+          pureServerFnCount > 0 ? `${pureServerFnCount} pureServerFn` : "",
+          registerPureFnFactoryCount > 0 ? `${registerPureFnFactoryCount} registerPureFnFactory` : ""
+        ].filter(Boolean);
+        console.log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(", ")})`);
       }
-      if (deepkitTransform) {
-        const deepkitResult = deepkitTransform(currentCode, fileName);
-        if (deepkitResult) return deepkitResult;
-      }
-      return currentCode !== code ? currentCode : null;
     },
     handleHotUpdate({ file, server }) {
       if (pureFnOptions) {

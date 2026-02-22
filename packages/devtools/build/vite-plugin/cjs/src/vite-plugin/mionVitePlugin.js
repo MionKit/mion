@@ -1,12 +1,30 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const path = require("path");
-const src_vitePlugin_deepkitType = require("./deepkit-type.js");
+const ts = require("typescript");
+const src_vitePlugin_transformers = require("./transformers.js");
 const src_vitePlugin_extractPureFn = require("./extractPureFn.js");
 const src_vitePlugin_virtualModule = require("./virtualModule.js");
 const src_vitePlugin_constants = require("./constants.js");
 const src_vitePlugin_aotCacheGenerator = require("./aotCacheGenerator.js");
 const src_vitePlugin_aotDiskCache = require("./aotDiskCache.js");
+function _interopNamespaceDefault(e) {
+  const n = Object.create(null, { [Symbol.toStringTag]: { value: "Module" } });
+  if (e) {
+    for (const k in e) {
+      if (k !== "default") {
+        const d = Object.getOwnPropertyDescriptor(e, k);
+        Object.defineProperty(n, k, d.get ? d : {
+          enumerable: true,
+          get: () => e[k]
+        });
+      }
+    }
+  }
+  n.default = e;
+  return Object.freeze(n);
+}
+const ts__namespace = /* @__PURE__ */ _interopNamespaceDefault(ts);
 function isIncluded(filePath, include, exclude) {
   const isTs = /\.(ts|tsx|js|jsx)$/.test(filePath);
   const isDir = filePath.endsWith("/");
@@ -29,7 +47,14 @@ function mionVitePlugin(options) {
   const pureFnOptions = options.serverPureFunctions;
   const deepkitOptions = options.runTypes;
   const aotOptions = options.aotCaches;
-  const deepkitTransform = deepkitOptions ? src_vitePlugin_deepkitType.createDeepkitTransform(deepkitOptions) : null;
+  const deepkitConfig = deepkitOptions ? src_vitePlugin_transformers.createDeepkitConfig(deepkitOptions) : null;
+  const defaultCompilerOptions = {
+    target: ts__namespace.ScriptTarget.ESNext,
+    module: ts__namespace.ModuleKind.ESNext
+  };
+  let pureServerFnCount = 0;
+  let registerPureFnFactoryCount = 0;
+  let pureFnFilesCount = 0;
   let aotData = null;
   let aotGenerationPromise = null;
   let aotCacheDir = "";
@@ -66,12 +91,12 @@ function mionVitePlugin(options) {
     load(id) {
       if (id === src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS)) {
         if (!pureFnOptions) {
-          return src_vitePlugin_virtualModule.generateVirtualModule([]);
+          return src_vitePlugin_virtualModule.generateServerPureFnsVirtualModule([]);
         }
         if (!extractedFns) {
           extractedFns = src_vitePlugin_extractPureFn.scanClientSource(pureFnOptions);
         }
-        return src_vitePlugin_virtualModule.generateVirtualModule(extractedFns);
+        return src_vitePlugin_virtualModule.generateServerPureFnsVirtualModule(extractedFns);
       }
       if (id === src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_JIT_FNS)) {
         if (!aotData) {
@@ -100,34 +125,43 @@ function mionVitePlugin(options) {
       return null;
     },
     transform(code, fileName) {
-      let currentCode = code;
-      if (code.includes("pureServerFn")) {
-        try {
-          const result = src_vitePlugin_extractPureFn.transformPureFnCalls(currentCode, fileName, "pureServerFn", "hash");
-          if (result) {
-            currentCode = result.code;
-          }
-        } catch (err) {
-          console.warn(`[mion] Warning: Could not transform pureServerFn calls in ${fileName}: ${err}`);
+      const hasPureFns = code.includes("pureServerFn") || code.includes("registerPureFnFactory");
+      const needsDeepkit = deepkitConfig ? deepkitConfig.filter(fileName) : false;
+      if (!hasPureFns && !needsDeepkit) return null;
+      const before = [];
+      const after = [];
+      const collected = hasPureFns ? [] : void 0;
+      if (hasPureFns) {
+        before.push(src_vitePlugin_transformers.createPureFnTransformerFactory(code, fileName, collected));
+      }
+      if (needsDeepkit) {
+        before.push(...deepkitConfig.beforeTransformers);
+        after.push(...deepkitConfig.afterTransformers);
+      }
+      const compilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
+      const result = ts__namespace.transpileModule(code, {
+        compilerOptions,
+        fileName,
+        transformers: { before, after }
+      });
+      if (collected && collected.length > 0) {
+        pureFnFilesCount++;
+        for (const fn of collected) {
+          if (fn.isFactory) registerPureFnFactoryCount++;
+          else pureServerFnCount++;
         }
       }
-      if (currentCode.includes("registerPureFnFactory")) {
-        try {
-          const result = src_vitePlugin_extractPureFn.transformPureFnCalls(currentCode, fileName, "registerPureFnFactory", "parsedFactoryFn");
-          if (result) {
-            currentCode = result.code;
-          }
-        } catch (err) {
-          console.warn(
-            `[mion] Warning: Could not transform registerPureFnFactory calls in ${fileName}: ${err}`
-          );
-        }
+      return { code: result.outputText, map: result.sourceMapText };
+    },
+    buildEnd() {
+      if (pureServerFnCount > 0 || registerPureFnFactoryCount > 0) {
+        const total = pureServerFnCount + registerPureFnFactoryCount;
+        const parts = [
+          pureServerFnCount > 0 ? `${pureServerFnCount} pureServerFn` : "",
+          registerPureFnFactoryCount > 0 ? `${registerPureFnFactoryCount} registerPureFnFactory` : ""
+        ].filter(Boolean);
+        console.log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(", ")})`);
       }
-      if (deepkitTransform) {
-        const deepkitResult = deepkitTransform(currentCode, fileName);
-        if (deepkitResult) return deepkitResult;
-      }
-      return currentCode !== code ? currentCode : null;
     },
     handleHotUpdate({ file, server }) {
       if (pureFnOptions) {

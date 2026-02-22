@@ -21,7 +21,7 @@ interface AOTDiskCacheFile {
 }
 
 /** Bump when mion internals change in a way that invalidates cached output */
-const AOT_DISK_CACHE_VERSION = '1';
+const AOT_DISK_CACHE_VERSION = '2';
 
 /** Cache file name */
 const CACHE_FILENAME = 'mion-aot-cache.json';

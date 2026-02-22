@@ -7,10 +7,11 @@
 
 import type {Plugin} from 'vite';
 import {resolve} from 'path';
-import {createDeepkitTransform} from './deepkit-type.ts';
+import * as ts from 'typescript';
+import {createDeepkitConfig, DeepkitConfig, createPureFnTransformerFactory} from './transformers.ts';
 import {ServerPureFunctionsOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
-import {scanClientSource, transformPureFnCalls} from './extractPureFn.ts';
-import {generateVirtualModule} from './virtualModule.ts';
+import {scanClientSource} from './extractPureFn.ts';
+import {generateServerPureFnsVirtualModule} from './virtualModule.ts';
 import {
     VIRTUAL_SERVER_PURE_FNS,
     VIRTUAL_AOT_JIT_FNS,
@@ -106,7 +107,18 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
     const pureFnOptions = options.serverPureFunctions;
     const deepkitOptions = options.runTypes;
     const aotOptions = options.aotCaches;
-    const deepkitTransform = deepkitOptions ? createDeepkitTransform(deepkitOptions) : null;
+    const deepkitConfig: DeepkitConfig | null = deepkitOptions ? createDeepkitConfig(deepkitOptions) : null;
+
+    // Default compiler options for when deepkit is disabled
+    const defaultCompilerOptions: ts.CompilerOptions = {
+        target: ts.ScriptTarget.ESNext,
+        module: ts.ModuleKind.ESNext,
+    };
+
+    // Pure function injection counters — accumulated during transform, logged in buildEnd
+    let pureServerFnCount = 0;
+    let registerPureFnFactoryCount = 0;
+    let pureFnFilesCount = 0;
 
     // AOT cache data - populated during buildStart if AOT is enabled
     let aotData: AOTCacheData | null = null;
@@ -159,13 +171,13 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
                 if (!pureFnOptions) {
                     // No serverPureFunctions configured — return empty cache
-                    return generateVirtualModule([]);
+                    return generateServerPureFnsVirtualModule([]);
                 }
                 // Lazily scan client source on first load
                 if (!extractedFns) {
                     extractedFns = scanClientSource(pureFnOptions);
                 }
-                return generateVirtualModule(extractedFns);
+                return generateServerPureFnsVirtualModule(extractedFns);
             }
 
             // AOT JIT functions + pure functions module
@@ -204,39 +216,55 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
         },
 
         transform(code: string, fileName: string) {
-            let currentCode = code;
+            const hasPureFns = code.includes('pureServerFn') || code.includes('registerPureFnFactory');
+            const needsDeepkit = deepkitConfig ? deepkitConfig.filter(fileName) : false;
 
-            // Step 1: Transform pureServerFn() calls — inject bodyHash
-            if (code.includes('pureServerFn')) {
-                try {
-                    const result = transformPureFnCalls(currentCode, fileName, 'pureServerFn', 'hash');
-                    if (result) {
-                        currentCode = result.code;
-                    }
-                } catch (err) {
-                    console.warn(`[mion] Warning: Could not transform pureServerFn calls in ${fileName}: ${err}`);
+            if (!hasPureFns && !needsDeepkit) return null;
+
+            const before: ts.CustomTransformerFactory[] = [];
+            const after: ts.CustomTransformerFactory[] = [];
+
+            // Pure function transformer (runs first — sees clean AST)
+            const collected: ExtractedPureFn[] | undefined = hasPureFns ? [] : undefined;
+            if (hasPureFns) {
+                before.push(createPureFnTransformerFactory(code, fileName, collected));
+            }
+
+            // Deepkit transformers (run after ours)
+            if (needsDeepkit) {
+                before.push(...deepkitConfig!.beforeTransformers);
+                after.push(...deepkitConfig!.afterTransformers);
+            }
+
+            const compilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
+
+            const result = ts.transpileModule(code, {
+                compilerOptions,
+                fileName,
+                transformers: {before, after},
+            });
+
+            // Count injected pure functions (collector is populated synchronously by transpileModule)
+            if (collected && collected.length > 0) {
+                pureFnFilesCount++;
+                for (const fn of collected) {
+                    if (fn.isFactory) registerPureFnFactoryCount++;
+                    else pureServerFnCount++;
                 }
             }
 
-            // Step 2: Transform registerPureFnFactory() calls — inject ParsedFactoryFn
-            if (currentCode.includes('registerPureFnFactory')) {
-                try {
-                    const result = transformPureFnCalls(currentCode, fileName, 'registerPureFnFactory', 'parsedFactoryFn');
-                    if (result) {
-                        currentCode = result.code;
-                    }
-                } catch (err) {
-                    console.warn(`[mion] Warning: Could not transform registerPureFnFactory calls in ${fileName}: ${err}`);
-                }
-            }
+            return {code: result.outputText, map: result.sourceMapText};
+        },
 
-            // Step 3: Apply deepkit transformation
-            if (deepkitTransform) {
-                const deepkitResult = deepkitTransform(currentCode, fileName);
-                if (deepkitResult) return deepkitResult;
+        buildEnd() {
+            if (pureServerFnCount > 0 || registerPureFnFactoryCount > 0) {
+                const total = pureServerFnCount + registerPureFnFactoryCount;
+                const parts = [
+                    pureServerFnCount > 0 ? `${pureServerFnCount} pureServerFn` : '',
+                    registerPureFnFactoryCount > 0 ? `${registerPureFnFactoryCount} registerPureFnFactory` : '',
+                ].filter(Boolean);
+                console.log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(', ')})`);
             }
-
-            return currentCode !== code ? currentCode : null;
         },
 
         handleHotUpdate({file, server}) {
