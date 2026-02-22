@@ -31,7 +31,18 @@ declare module 'virtual:mion-aot/caches' {
     export const routerCache: Record<string, any>;
 }
 
-/** Virtual module for client-extracted pure functions. */
+/** Virtual module for server pure functions extracted from client source at build time. */
 declare module 'virtual:mion-pure-functions' {
-    // Self-registering module — no exports
+    interface ServerPureFnEntry {
+        namespace: string;
+        fnName: string;
+        paramNames: string[];
+        code: string;
+        bodyHash: string;
+        pureFnDependencies: string[];
+        isFactory: boolean;
+        fn: ((...args: any[]) => any) | undefined;
+        createFn?: (jitUtils: any) => (...args: any[]) => any;
+    }
+    export const serverPureFnsCache: Record<string, Record<string, ServerPureFnEntry>>;
 }
