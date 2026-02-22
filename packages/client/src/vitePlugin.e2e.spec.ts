@@ -175,7 +175,7 @@ describe('mion vite plugin: pureServerFn e2e', () => {
         const url = new URL('getPureFnResult', baseURL);
         const response = await fetch(url, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', Authorization: 'test-token'},
             body: JSON.stringify({getPureFnResult: []}),
         });
         expect(response.ok).toBe(true);
@@ -194,7 +194,7 @@ describe('mion vite plugin: pureServerFn e2e', () => {
         const url = new URL('getPureFnResult', baseURL);
         const response = await fetch(url, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', Authorization: 'test-token'},
             body: JSON.stringify({getPureFnResult: []}),
         });
         const data = await response.json();
