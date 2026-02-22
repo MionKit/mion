@@ -1,6 +1,7 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
-import {mionPlugin} from '@mionkit/devtools/vite-plugin';
+// Import from source to ensure we use the latest code during development (not stale build artifacts)
+import {mionPlugin} from '../devtools/src/vite-plugin/index.ts';
 
 export default defineConfig({
     plugins: [
