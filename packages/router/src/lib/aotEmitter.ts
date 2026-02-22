@@ -13,6 +13,7 @@ import {
     MethodsCache,
     SrcCodeJITCompiledFnsCache,
     SrcCodePureFunctionsCache,
+    JIT_FUNCTION_IDS,
 } from '@mionkit/core';
 import {getPersistedMethods} from './methodsCache.ts';
 import {createToJavascriptFn} from '@mionkit/run-types';
@@ -33,7 +34,7 @@ export interface SerializedCaches {
 }
 
 /** JIT function IDs to exclude from AOT caches (toJSCode is only needed at compile time) */
-const EXCLUDED_JIT_FN_IDS = ['toJSCode'];
+const EXCLUDED_JIT_FN_IDS = [JIT_FUNCTION_IDS.toJSCode];
 
 /** Pure function names to exclude from AOT caches */
 const EXCLUDED_PURE_FN_NAMES = ['sanitizeCompiledFn'];
@@ -42,14 +43,6 @@ const EXCLUDED_PURE_FN_NAMES = ['sanitizeCompiledFn'];
  * Emits AOT caches to the parent process via IPC when running in MION_COMPILE mode.
  * This function is called automatically at the end of initMionRouter() and can also
  * be called manually for multi-step route registration patterns.
- *
- * The function:
- * 1. Checks if running in MION_COMPILE mode (env var)
- * 2. Checks if process.send is available (running as child process with IPC)
- * 3. Collects all caches from core (JIT functions, pure functions) and router (methods)
- * 4. Applies exclusions (e.g., compile-time-only functions)
- * 5. Serializes caches to JS code using run-types toJSCode
- * 6. Sends the serialized caches to the parent process via IPC
  */
 export async function emitAOTCaches(): Promise<void> {
     // Only emit in compile mode
@@ -62,13 +55,8 @@ export async function emitAOTCaches(): Promise<void> {
     const {jitFnsCache, pureFnsCache} = getJitFnCaches();
     const routerCache = getPersistedMethods();
 
-    // Apply exclusions (router cache doesn't need exclusions)
-    const finalJitFns = filterExcludedJitFns(jitFnsCache, EXCLUDED_JIT_FN_IDS);
-    const finalPureFns = filterExcludedPureFns(pureFnsCache, EXCLUDED_PURE_FN_NAMES);
-
-    // Serialize caches to JS code
-    // Using Persisted types so fn is serialized as undefined (recreated from createJitFn/createPureFn at restore time)
-    const serialized = await serializeCachesToCode(finalJitFns, finalPureFns, routerCache);
+    // Serialize caches to JS code (filtering happens inside, after createToJavascriptFn)
+    const serialized = await serializeCachesToCode(jitFnsCache, pureFnsCache, routerCache);
 
     // Send to parent process
     const message: AOTCacheMessage = {
@@ -79,21 +67,25 @@ export async function emitAOTCaches(): Promise<void> {
     process.send(message);
 }
 
-/** Serializes the caches to JavaScript code strings using run-types toJSCode. */
-async function serializeCachesToCode(
+/**
+ * Serializes the caches to JavaScript code strings using run-types toJSCode.
+ * Filtering is done AFTER createToJavascriptFn because it adds compile-time-only JIT functions
+ * to the global caches that should be excluded from the serialized output.
+ */
+export async function serializeCachesToCode(
     jitFnsCache: JitFunctionsCache,
     pureFnsCache: PureFunctionsCache,
     routerCache: MethodsCache
 ): Promise<SerializedCaches> {
-    // Persisted types have fn:undefined so the serializer won't try to serialize runtime functions
-    // isJitFnCode/isPureFnCode tell the serializer to generate createJitFn/createPureFn closures from the code property
     const jitToJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>({isJitFnCode: true});
     const pureToJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>({isPureFnCode: true});
     const routerToJSCode = createToJavascriptFn<MethodsCache>();
-
+    // Filter AFTER createToJavascriptFn to exclude compile-time-only items (including those just added)
+    const finalJitFns = filterExcludedJitFns(jitFnsCache, EXCLUDED_JIT_FN_IDS);
+    const finalPureFns = filterExcludedPureFns(pureFnsCache, EXCLUDED_PURE_FN_NAMES);
     return {
-        jitFnsCode: jitToJSCode(jitFnsCache as unknown as SrcCodeJITCompiledFnsCache),
-        pureFnsCode: pureToJSCode(pureFnsCache as unknown as SrcCodePureFunctionsCache),
+        jitFnsCode: jitToJSCode(finalJitFns as unknown as SrcCodeJITCompiledFnsCache),
+        pureFnsCode: pureToJSCode(finalPureFns as unknown as SrcCodePureFunctionsCache),
         routerCacheCode: routerToJSCode(routerCache),
     };
 }

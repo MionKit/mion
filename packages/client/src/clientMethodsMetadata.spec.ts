@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {vi} from 'vitest';
+import {vi, describe, beforeEach, afterEach, it, expect} from 'vitest';
 import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata.ts';
 import {ClientOptions} from './types.ts';
 import {routesCache} from '@mionkit/core';
