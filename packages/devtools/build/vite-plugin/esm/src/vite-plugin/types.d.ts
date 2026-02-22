@@ -2,7 +2,6 @@ import { CompilerOptions } from 'typescript';
 export interface AOTCacheOptions {
     startServerScript?: string;
     serverViteConfig?: string;
-    mode?: 'client' | 'server-build' | false;
     excludedFns?: string[];
     excludedPureFns?: string[];
     cache?: boolean | string;

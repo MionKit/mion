@@ -52,7 +52,7 @@ const rule = {
       CallExpression(node) {
         if (isRunTypeFromMionKit(node, context)) {
           const typeArguments = node.typeArguments || node.typeParameters;
-          if (typeArguments == null ? void 0 : typeArguments.params.some(containsTypeof)) {
+          if (typeArguments?.params.some(containsTypeof)) {
             const functionName = node.callee.name;
             context.report({
               node,

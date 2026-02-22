@@ -54,7 +54,7 @@ function getTypeDescription(node) {
 }
 function getRouterFunctionName(func, context) {
   const parent = func.parent;
-  if ((parent == null ? void 0 : parent.type) === AST_NODE_TYPES.CallExpression) {
+  if (parent?.type === AST_NODE_TYPES.CallExpression) {
     if (parent.callee.type === AST_NODE_TYPES.Identifier) {
       const functionName = parent.callee.name;
       if (["route", "linkedFn", "headersFn"].includes(functionName) && isImportedFromMionRouter(functionName, context)) {
@@ -84,13 +84,12 @@ function isInCheckableParameter(node, func, routerFunctionName) {
   return false;
 }
 function isRouterUnionType(node, context) {
-  var _a, _b;
   let current = node.parent;
   while (current) {
     if (current.type === AST_NODE_TYPES.ArrowFunctionExpression || current.type === AST_NODE_TYPES.FunctionExpression || current.type === AST_NODE_TYPES.FunctionDeclaration) {
       const routerFunctionName = getRouterFunctionName(current, context);
       if (routerFunctionName) {
-        if (((_a = current.returnType) == null ? void 0 : _a.typeAnnotation) === node || isDescendantOf(node, (_b = current.returnType) == null ? void 0 : _b.typeAnnotation)) {
+        if (current.returnType?.typeAnnotation === node || isDescendantOf(node, current.returnType?.typeAnnotation)) {
           return true;
         }
         if (isInCheckableParameter(node, current, routerFunctionName)) {
@@ -100,9 +99,9 @@ function isRouterUnionType(node, context) {
     }
     if (current.type === AST_NODE_TYPES.TSTypeAnnotation) {
       const typeAnnotationParent = current.parent;
-      if ((typeAnnotationParent == null ? void 0 : typeAnnotationParent.type) === AST_NODE_TYPES.Identifier) {
+      if (typeAnnotationParent?.type === AST_NODE_TYPES.Identifier) {
         const declarator = typeAnnotationParent.parent;
-        if ((declarator == null ? void 0 : declarator.type) === AST_NODE_TYPES.VariableDeclarator) {
+        if (declarator?.type === AST_NODE_TYPES.VariableDeclarator) {
           if (current.typeAnnotation.type === AST_NODE_TYPES.TSTypeReference) {
             const typeName = current.typeAnnotation.typeName;
             if (typeName.type === AST_NODE_TYPES.Identifier) {

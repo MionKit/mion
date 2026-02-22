@@ -36,16 +36,15 @@ function getRouterFunctionName(node, importCache) {
   return null;
 }
 function buildFunctionCache(program) {
-  var _a, _b, _c;
   const cache = /* @__PURE__ */ new Map();
   for (const statement of program.body) {
-    if (statement.type === utils.AST_NODE_TYPES.FunctionDeclaration && ((_a = statement.id) == null ? void 0 : _a.name)) {
+    if (statement.type === utils.AST_NODE_TYPES.FunctionDeclaration && statement.id?.name) {
       cache.set(statement.id.name, statement);
     }
     if (statement.type === utils.AST_NODE_TYPES.VariableDeclaration) {
       for (const declarator of statement.declarations) {
         if (declarator.id.type === utils.AST_NODE_TYPES.Identifier) {
-          if (((_b = declarator.init) == null ? void 0 : _b.type) === utils.AST_NODE_TYPES.ArrowFunctionExpression || ((_c = declarator.init) == null ? void 0 : _c.type) === utils.AST_NODE_TYPES.FunctionExpression) {
+          if (declarator.init?.type === utils.AST_NODE_TYPES.ArrowFunctionExpression || declarator.init?.type === utils.AST_NODE_TYPES.FunctionExpression) {
             cache.set(declarator.id.name, declarator.init);
           }
         }
@@ -252,17 +251,16 @@ const rule = {
       },
       // Check variable declarations with type annotations or JSDoc tags
       VariableDeclarator(node) {
-        var _a, _b, _c;
         if (!importCache) return;
         if (node.id.type === utils.AST_NODE_TYPES.Identifier) {
           let handlerType = null;
           if (node.id.typeAnnotation) {
             handlerType = getHandlerTypeFromAnnotation(node.id.typeAnnotation, importCache);
           }
-          if (!handlerType && ((_a = node.parent) == null ? void 0 : _a.type) === utils.AST_NODE_TYPES.VariableDeclaration) {
+          if (!handlerType && node.parent?.type === utils.AST_NODE_TYPES.VariableDeclaration) {
             handlerType = getHandlerTypeFromJSDoc(node.parent, context);
           }
-          if (handlerType && (((_b = node.init) == null ? void 0 : _b.type) === utils.AST_NODE_TYPES.ArrowFunctionExpression || ((_c = node.init) == null ? void 0 : _c.type) === utils.AST_NODE_TYPES.FunctionExpression)) {
+          if (handlerType && (node.init?.type === utils.AST_NODE_TYPES.ArrowFunctionExpression || node.init?.type === utils.AST_NODE_TYPES.FunctionExpression)) {
             checkHandlerFunction(node.init, handlerType, context);
           }
         }
