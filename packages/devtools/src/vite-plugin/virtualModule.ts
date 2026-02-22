@@ -8,7 +8,7 @@
 import {ExtractedPureFn} from './types.ts';
 
 /** Generates the virtual module source code from extracted server pure functions */
-export function generateVirtualModule(extractedFns: ExtractedPureFn[]): string {
+export function generateServerPureFnsVirtualModule(extractedFns: ExtractedPureFn[]): string {
     // Group functions by namespace
     const byNamespace = new Map<string, ExtractedPureFn[]>();
     for (const fn of extractedFns) {

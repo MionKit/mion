@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const src_vitePlugin_aotCacheGenerator = require("./aotCacheGenerator.js");
 var _documentCurrentScript = typeof document !== "undefined" ? document.currentScript : null;
-const AOT_DISK_CACHE_VERSION = "1";
+const AOT_DISK_CACHE_VERSION = "2";
 const CACHE_FILENAME = "mion-aot-cache.json";
 const SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", ".dist", "dist", ".git", ".vite", "build", "coverage", ".coverage"]);
 const SOURCE_EXTENSIONS = /\.(ts|tsx)$/;

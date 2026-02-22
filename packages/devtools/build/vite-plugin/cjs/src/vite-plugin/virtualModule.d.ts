@@ -1,2 +1,2 @@
 import { ExtractedPureFn } from './types.ts';
-export declare function generateVirtualModule(extractedFns: ExtractedPureFn[]): string;
+export declare function generateServerPureFnsVirtualModule(extractedFns: ExtractedPureFn[]): string;

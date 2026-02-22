@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest';
-import {generateVirtualModule} from './virtualModule.ts';
+import {generateServerPureFnsVirtualModule} from './virtualModule.ts';
 import {ExtractedPureFn} from './types.ts';
 import {PURE_SERVER_FN_NAMESPACE} from './constants.ts';
 
@@ -18,7 +18,7 @@ describe('generateVirtualModule', () => {
             },
         ];
 
-        const result = generateVirtualModule(fns);
+        const result = generateServerPureFnsVirtualModule(fns);
         expect(result).toContain('serverPureFnsCache');
         // Namespace level key
         expect(result).toContain(`"${PURE_SERVER_FN_NAMESPACE}"`);
@@ -56,7 +56,7 @@ describe('generateVirtualModule', () => {
             },
         ];
 
-        const result = generateVirtualModule(fns);
+        const result = generateServerPureFnsVirtualModule(fns);
         expect(result).toContain('"fn1"');
         expect(result).toContain('"fn2"');
         expect(result).toContain('"hash1111"');
@@ -66,7 +66,7 @@ describe('generateVirtualModule', () => {
     });
 
     it('should generate an empty module when no functions', () => {
-        const result = generateVirtualModule([]);
+        const result = generateServerPureFnsVirtualModule([]);
         expect(result).toContain('serverPureFnsCache');
         expect(result).toContain('serverPureFnsCache = {');
     });
@@ -85,7 +85,7 @@ describe('generateVirtualModule', () => {
             },
         ];
 
-        const result = generateVirtualModule(fns);
+        const result = generateServerPureFnsVirtualModule(fns);
         // Regular functions should have a direct fn property
         expect(result).toContain('fn: function addOne(x)');
         // Should NOT have createFn for non-factory functions
@@ -109,7 +109,7 @@ return function inner(x) {
             },
         ];
 
-        const result = generateVirtualModule(fns);
+        const result = generateServerPureFnsVirtualModule(fns);
         expect(result).toContain('"myNamespace"');
         expect(result).toContain('"myFactory"');
         expect(result).toContain('isFactory: true');
@@ -143,7 +143,7 @@ return function inner(x) {
             },
         ];
 
-        const result = generateVirtualModule(fns);
+        const result = generateServerPureFnsVirtualModule(fns);
         expect(result).toContain('"namespace1"');
         expect(result).toContain('"namespace2"');
         expect(result).toContain('namespace: "namespace1"');
@@ -166,7 +166,7 @@ return function inner(x) {
             },
         ];
 
-        const result = generateVirtualModule(fns);
+        const result = generateServerPureFnsVirtualModule(fns);
         expect(result).toContain(`"${PURE_SERVER_FN_NAMESPACE}"`);
         expect(result).toContain('"abc12345"');
         // Function name should be safe for JS
@@ -187,7 +187,7 @@ return function inner(x) {
             },
         ];
 
-        const result = generateVirtualModule(fns);
+        const result = generateServerPureFnsVirtualModule(fns);
         // Evaluate the generated module code (strip 'export' for new Function)
         const evalCode = result.replace(/^export /gm, '') + '\nreturn serverPureFnsCache;';
         const fn = new Function(evalCode);

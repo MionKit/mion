@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import { readdirSync, statSync, readFileSync, mkdirSync, writeFileSync } from "fs";
 import { dirname, resolve, join, relative } from "path";
 import { generateAOTCaches } from "./aotCacheGenerator.js";
-const AOT_DISK_CACHE_VERSION = "1";
+const AOT_DISK_CACHE_VERSION = "2";
 const CACHE_FILENAME = "mion-aot-cache.json";
 const SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", ".dist", "dist", ".git", ".vite", "build", "coverage", ".coverage"]);
 const SOURCE_EXTENSIONS = /\.(ts|tsx)$/;

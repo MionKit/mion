@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-function generateVirtualModule(extractedFns) {
+function generateServerPureFnsVirtualModule(extractedFns) {
   const byNamespace = /* @__PURE__ */ new Map();
   for (const fn of extractedFns) {
     const list = byNamespace.get(fn.namespace) || [];
@@ -64,5 +64,5 @@ function makeSafeFunctionName(name) {
   }
   return safe || "anonymous";
 }
-exports.generateVirtualModule = generateVirtualModule;
+exports.generateServerPureFnsVirtualModule = generateServerPureFnsVirtualModule;
 //# sourceMappingURL=virtualModule.js.map

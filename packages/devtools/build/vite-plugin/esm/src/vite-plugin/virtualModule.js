@@ -1,4 +1,4 @@
-function generateVirtualModule(extractedFns) {
+function generateServerPureFnsVirtualModule(extractedFns) {
   const byNamespace = /* @__PURE__ */ new Map();
   for (const fn of extractedFns) {
     const list = byNamespace.get(fn.namespace) || [];
@@ -63,6 +63,6 @@ function makeSafeFunctionName(name) {
   return safe || "anonymous";
 }
 export {
-  generateVirtualModule
+  generateServerPureFnsVirtualModule
 };
 //# sourceMappingURL=virtualModule.js.map
