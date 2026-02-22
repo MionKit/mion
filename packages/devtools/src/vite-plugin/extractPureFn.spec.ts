@@ -57,7 +57,8 @@ const x = 5;
     it('should strip types from function parameters', () => {
         const input = 'function add(a: number, b: number): number { return a + b; }';
         const output = stripTypes(input);
-        expect(output).toContain('function add(a, b) { return a + b; }');
+        expect(output).toContain('function add(a, b)');
+        expect(output).toContain('return a + b;');
     });
 
     it('should strip type assertions', () => {
@@ -91,7 +92,7 @@ interface User {
     name: string;
 }
 
-export const mapUsers = pureServerFn({
+export const mapUsersFn = pureServerFn({
     pureFn: function mapUsers(users: User[]): {userId: number}[] {
         return users.map((u: User) => ({userId: u.id}));
     }

@@ -187,8 +187,8 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
         },
 
         resolveId(id) {
-            // Pure functions virtual module
-            if (pureFnOptions && id === VIRTUAL_MODULE_ID) {
+            // Pure functions virtual module — always resolve, returns empty cache if not configured
+            if (id === VIRTUAL_MODULE_ID) {
                 return RESOLVED_VIRTUAL_MODULE_ID;
             }
 
@@ -203,7 +203,11 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
 
         load(id) {
             // Pure functions virtual module
-            if (pureFnOptions && id === RESOLVED_VIRTUAL_MODULE_ID) {
+            if (id === RESOLVED_VIRTUAL_MODULE_ID) {
+                if (!pureFnOptions) {
+                    // No serverPureFunctions configured — return empty cache
+                    return generateVirtualModule([]);
+                }
                 // Lazily scan client source on first load
                 if (!extractedFns) {
                     extractedFns = scanClientSource(pureFnOptions);
