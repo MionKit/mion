@@ -1,5 +1,5 @@
-import { RunTypeOptions } from './types.ts';
-export declare function createDeepkitTransform(options?: RunTypeOptions): (code: string, fileName: string) => {
+import { DeepkitTypeOptions } from './types.ts';
+export declare function createDeepkitTransform(options?: DeepkitTypeOptions): (code: string, fileName: string) => {
     code: string;
     map: string | undefined;
 } | null;

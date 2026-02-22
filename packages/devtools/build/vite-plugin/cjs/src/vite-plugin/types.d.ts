@@ -2,7 +2,6 @@ import { CompilerOptions } from 'typescript';
 export interface AOTCacheOptions {
     startServerScript?: string;
     serverViteConfig?: string;
-    mode?: 'client' | 'server-build' | false;
     excludedFns?: string[];
     excludedPureFns?: string[];
     cache?: boolean | string;
@@ -36,7 +35,7 @@ export interface ExtractedPureFn {
     isFactory: boolean;
 }
 export type ReflectionMode = 'default' | 'explicit' | 'never';
-export interface RunTypeOptions {
+export interface DeepkitTypeOptions {
     include?: string | string[];
     exclude?: string | string[];
     tsConfig?: string;

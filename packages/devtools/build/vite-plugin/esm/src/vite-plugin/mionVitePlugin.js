@@ -65,12 +65,12 @@ function mionVitePlugin(options) {
     name: "mion",
     enforce: "pre",
     configResolved(config) {
-      if (aotOptions && aotOptions.mode) {
+      if (aotOptions) {
         aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
       }
     },
     async buildStart() {
-      if (aotOptions && aotOptions.mode) {
+      if (aotOptions) {
         try {
           console.log("[mion] Generating AOT caches...");
           aotGenerationPromise = getOrGenerateAOTCaches(aotOptions, aotCacheDir);
@@ -157,7 +157,7 @@ function mionVitePlugin(options) {
           }
         }
       }
-      if (aotOptions && aotOptions.mode && aotOptions.startServerScript) {
+      if (aotOptions && aotOptions.startServerScript) {
         const serverDir = resolve(aotOptions.startServerScript, "..");
         if (file.startsWith(serverDir)) {
           generateAOTCaches(aotOptions).then((data) => {

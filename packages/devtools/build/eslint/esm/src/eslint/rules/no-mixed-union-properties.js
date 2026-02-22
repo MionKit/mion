@@ -81,8 +81,7 @@ function resolveTypeReference(node, context) {
   return null;
 }
 function getReturnTypeAnnotation(func, context) {
-  var _a;
-  const returnType = (_a = func.returnType) == null ? void 0 : _a.typeAnnotation;
+  const returnType = func.returnType?.typeAnnotation;
   if (!returnType) {
     return null;
   }
@@ -106,7 +105,6 @@ function findReturnStatements(func) {
   return returns;
 }
 function findReturnsInBlock(block, returns) {
-  var _a, _b;
   for (const statement of block.body) {
     if (statement.type === AST_NODE_TYPES.ReturnStatement && statement.argument) {
       returns.push(statement.argument);
@@ -116,9 +114,9 @@ function findReturnsInBlock(block, returns) {
       } else if (statement.consequent.type === AST_NODE_TYPES.ReturnStatement && statement.consequent.argument) {
         returns.push(statement.consequent.argument);
       }
-      if (((_a = statement.alternate) == null ? void 0 : _a.type) === AST_NODE_TYPES.BlockStatement) {
+      if (statement.alternate?.type === AST_NODE_TYPES.BlockStatement) {
         findReturnsInBlock(statement.alternate, returns);
-      } else if (((_b = statement.alternate) == null ? void 0 : _b.type) === AST_NODE_TYPES.ReturnStatement && statement.alternate.argument) {
+      } else if (statement.alternate?.type === AST_NODE_TYPES.ReturnStatement && statement.alternate.argument) {
         returns.push(statement.alternate.argument);
       }
     }

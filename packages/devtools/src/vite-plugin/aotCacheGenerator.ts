@@ -53,7 +53,7 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
     // Resolve vite-node path in both CJS and ESM environments
     let viteNodePath: string;
     try {
-        viteNodePath = await resolveModule('vite-node/vite-node.mjs', scriptDir);
+        viteNodePath = await resolveModule('vite-node/cli', scriptDir);
     } catch (err) {
         throw new Error(
             `Failed to resolve vite-node. Make sure vite-node is installed.\n` +

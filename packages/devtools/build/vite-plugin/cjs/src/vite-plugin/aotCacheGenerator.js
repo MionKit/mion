@@ -10,7 +10,7 @@ async function generateAOTCaches(options, startScriptOverride) {
   const viteConfigArgs = options.serverViteConfig ? ["--config", path.resolve(options.serverViteConfig)] : [];
   let viteNodePath;
   try {
-    viteNodePath = await src_vitePlugin_resolveModule.resolveModule("vite-node/vite-node.mjs", scriptDir);
+    viteNodePath = await src_vitePlugin_resolveModule.resolveModule("vite-node/cli", scriptDir);
   } catch (err) {
     throw new Error(
       `Failed to resolve vite-node. Make sure vite-node is installed.
@@ -19,7 +19,6 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
     );
   }
   return new Promise((resolvePromise, reject) => {
-    var _a, _b;
     let child;
     let resolved = false;
     let stderr = "";
@@ -46,7 +45,7 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
     };
     child.on("message", (msg) => {
       const message = msg;
-      if ((message == null ? void 0 : message.type) === "mion-aot-caches") {
+      if (message?.type === "mion-aot-caches") {
         resolved = true;
         cleanup();
         resolvePromise({
@@ -56,10 +55,10 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
         });
       }
     });
-    (_a = child.stderr) == null ? void 0 : _a.on("data", (data) => {
+    child.stderr?.on("data", (data) => {
       stderr += data.toString();
     });
-    (_b = child.stdout) == null ? void 0 : _b.on("data", (data) => {
+    child.stdout?.on("data", (data) => {
       if (process.env.DEBUG_AOT) {
         console.log("[mion-aot] stdout:", data.toString());
       }
