@@ -6,9 +6,12 @@
  * ######## */
 
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
-import {AOTCacheMessage} from './aotEmitter.ts';
-import {resetRouter} from '../router.ts';
-import {resetJitFnCaches, getJitUtils} from '@mionkit/core';
+import {AOTCacheMessage, serializeCachesToCode} from './aotEmitter.ts';
+import {resetRouter, initRouter, registerRoutes} from '../router.ts';
+import {resetJitFnCaches, getJitUtils, getJitFnCaches, PureFunctionsCache} from '@mionkit/core';
+import {getPersistedMethods} from './methodsCache.ts';
+import {route} from './handlers.ts';
+import {Routes} from '../types/general.ts';
 import {
     cpf_asJSONString,
     cpf_getUnknownKeysFromArray,
@@ -79,6 +82,68 @@ describe('emitAOTCaches', () => {
             delete process.env.MION_COMPILE;
         }
         (process as any).send = originalSend;
+    });
+});
+
+/** Counts total pure function entries across all namespaces */
+function countPureFnEntries(cache: Record<string, Record<string, unknown>>): number {
+    return Object.values(cache).reduce((sum, ns) => sum + Object.keys(ns).length, 0);
+}
+
+/** Parses JS code string back to an object using new Function */
+function parseJsCode(code: string): Record<string, unknown> {
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    return new Function(`return (${code})`)() as Record<string, unknown>;
+}
+
+describe('serializeCachesToCode', () => {
+    beforeEach(() => {
+        resetRouter();
+        resetJitFnCaches();
+        reRegisterRunTypesPureFns();
+    });
+
+    afterEach(() => {
+        resetRouter();
+        resetJitFnCaches();
+    });
+
+    it('serialized output should have the same number of items as caches before serialization', async () => {
+        // Initialize router with routes to populate JIT and pure function caches
+        await initRouter();
+        const routes = {
+            users: {
+                getUser: route((ctx, id: string): {id: string; name: string} => ({id, name: 'Test User'})),
+                createUser: route((ctx, user: {id: string; name: string}): string => `Created ${user.name}`),
+            },
+            utils: {
+                sum: route((ctx, a: number, b: number): number => a + b),
+            },
+        } satisfies Routes;
+        await registerRoutes(routes);
+
+        const {jitFnsCache, pureFnsCache} = getJitFnCaches();
+        const routerCache = getPersistedMethods();
+
+        // Count items before serialization (no toJSCode entries exist yet, those are added by createToJavascriptFn)
+        const jitCountBefore = Object.keys(jitFnsCache).length;
+        const pureCountBefore = countPureFnEntries(pureFnsCache);
+        const routerCountBefore = Object.keys(routerCache).length;
+
+        // Serialize caches to JS code (createToJavascriptFn adds compile-time items, filtering excludes them)
+        const serialized = await serializeCachesToCode(jitFnsCache, pureFnsCache, routerCache);
+
+        // Restore caches from serialized JS code
+        const restoredJitFns = parseJsCode(serialized.jitFnsCode);
+        const restoredPureFns = parseJsCode(serialized.pureFnsCode) as Record<string, Record<string, unknown>>;
+        const restoredRouterCache = parseJsCode(serialized.routerCacheCode);
+
+        // Restored caches should have the same number of items as the originals
+        // jitFns and routerCache: exact match (toJSCode entries added during serialization are filtered out)
+        // pureFns: minus 1 for sanitizeCompiledFn which is a pre-existing compile-time-only function excluded from AOT output
+        expect(Object.keys(restoredJitFns).length).toBe(jitCountBefore);
+        expect(countPureFnEntries(restoredPureFns)).toBe(pureCountBefore - 1);
+        expect(Object.keys(restoredRouterCache).length).toBe(routerCountBefore);
     });
 });
 
