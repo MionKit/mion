@@ -11,6 +11,9 @@ export default defineConfig({
                     sourceMap: true,
                 },
             },
+            serverPureFunctions: {
+                clientSrcPath: resolve(__dirname, '../client/src'),
+            },
         }) as any,
     ],
     resolve: {

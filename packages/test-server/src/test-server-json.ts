@@ -11,6 +11,8 @@ import {RpcError, HeadersSubset} from '@mionkit/core';
 // Import format types (regular import to ensure JIT functions are created)
 import {StrFormat, StrEmail, StrUUIDv4} from '@mionkit/type-formats/FormatsString';
 import {NumFormat} from '@mionkit/type-formats/FormatsNumber';
+// Import server pure functions extracted from client source at build time
+import {serverPureFnsCache} from 'virtual:mion-pure-functions';
 
 // Define routes for testing different validation scenarios
 type User = {name: string; surname: string};
@@ -118,6 +120,14 @@ const routes = {
     addToSet: route((_ctx, set: Set<string>, item: string): Set<string> => {
         set.add(item);
         return set;
+    }),
+
+    // Route that invokes a server pure function extracted from client source at build time
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    getPureFnResult: route((_ctx): string => {
+        const pureFn = serverPureFnsCache['pureServerFn']?.['greeting'];
+        if (!pureFn?.fn) throw new RpcError({publicMessage: 'Pure function greeting not found', type: 'pure-fn-not-found'});
+        return pureFn.fn();
     }),
 } satisfies Routes;
 
