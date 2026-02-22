@@ -76,6 +76,16 @@ export interface PureFnDef<F extends (...args: any[]) => any = (...args: any[]) 
     readonly pureFn: F;
 }
 
+/** Pre-parsed factory function data injected at build time by the mion vite plugin */
+export interface ParsedFactoryFn {
+    /** Hash of the function body */
+    readonly bodyHash: string;
+    /** The names of the factory function parameters */
+    readonly paramNames: string[];
+    /** The normalized function body code */
+    readonly code: string;
+}
+
 export interface PureServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> extends Required<PureFnDef<F>> {
     /** The namespace this pure function belongs to */
     readonly namespace: string;

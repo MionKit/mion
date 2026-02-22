@@ -82,7 +82,8 @@ export interface ExtractedPureFn {
     /** The function name (required for lookup via namespace::fnName) */
     fnName: string;
     paramNames: string[];
-    code: string;
+    /** The normalized function body code */
+    fnBody: string;
     /** Hash of the function body - used for version validation */
     bodyHash: string;
     /** Dependencies in format "namespace::fnName" */
@@ -90,6 +91,16 @@ export interface ExtractedPureFn {
     sourceFile: string;
     /** Indicates if this is a factory function that receives jitUtils */
     isFactory: boolean;
+}
+
+/** Pre-parsed factory function data injected at build time by the mion vite plugin (duplicated from core, can't share types) */
+export interface ParsedFactoryFn {
+    /** Hash of the function body */
+    readonly bodyHash: string;
+    /** The names of the factory function parameters */
+    readonly paramNames: string[];
+    /** The normalized function body code */
+    readonly code: string;
 }
 
 /** Reflection mode for deepkit type compiler */

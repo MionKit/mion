@@ -53,17 +53,22 @@ function scanClientSource(options) {
   scanDir(clientSrcPath);
   return fns;
 }
-function extractPureFnsFromSource(source, filePath) {
+function extractPureFnsFromSource(source, filePath, fnName = "pureServerFn") {
   const results = [];
-  if (!source.includes("pureServerFn")) return results;
+  if (!source.includes(fnName)) return results;
   const jsSource = stripTypes(source);
   const sourceFile = ts__namespace.createSourceFile(filePath, jsSource, ts__namespace.ScriptTarget.Latest, true, ts__namespace.ScriptKind.JS);
   function visit(node) {
     if (ts__namespace.isCallExpression(node)) {
       const callee = node.expression;
-      if (ts__namespace.isIdentifier(callee) && callee.text === "pureServerFn") {
-        const extracted = extractDataFromPureFnDefAST(node, sourceFile, filePath);
-        results.push(extracted);
+      if (ts__namespace.isIdentifier(callee) && callee.text === fnName) {
+        if (fnName === "registerPureFnFactory") {
+          const extracted = extractDataFromRegisterPureFnFactoryAST(node, sourceFile, filePath);
+          results.push(extracted);
+        } else {
+          const extracted = extractDataFromPureFnDefAST(node, sourceFile, filePath);
+          results.push(extracted);
+        }
       }
     }
     ts__namespace.forEachChild(node, visit);
@@ -112,6 +117,66 @@ function extractDataFromPureFnDefAST(call, sourceFile, filePath) {
   }
   return extractPureFnDefFromObjectLiteral(objArg, sourceFile, filePath);
 }
+function extractDataFromRegisterPureFnFactoryAST(call, sourceFile, filePath) {
+  if (call.arguments.length < 3 || call.arguments.length > 4) {
+    throw new PurityError(
+      "registerPureFnFactory() requires 3 or 4 arguments: namespace, functionID, factoryFn, and optional parsedFn",
+      filePath,
+      call.getStart(sourceFile)
+    );
+  }
+  const nsArg = call.arguments[0];
+  if (!ts__namespace.isStringLiteral(nsArg)) {
+    throw new PurityError(
+      "registerPureFnFactory() first argument (namespace) must be a string literal",
+      filePath,
+      nsArg.getStart(sourceFile)
+    );
+  }
+  const namespace = nsArg.text;
+  const idArg = call.arguments[1];
+  if (!ts__namespace.isStringLiteral(idArg)) {
+    throw new PurityError(
+      "registerPureFnFactory() second argument (functionID) must be a string literal",
+      filePath,
+      idArg.getStart(sourceFile)
+    );
+  }
+  const fnName = idArg.text;
+  const fnArg = call.arguments[2];
+  if (!ts__namespace.isFunctionExpression(fnArg) && !ts__namespace.isArrowFunction(fnArg)) {
+    throw new PurityError(
+      "registerPureFnFactory() third argument (factoryFn) must be a function expression or arrow function",
+      filePath,
+      fnArg.getStart(sourceFile)
+    );
+  }
+  const paramNames = fnArg.parameters.map((param) => {
+    if (!ts__namespace.isIdentifier(param.name)) {
+      throw new PurityError(
+        "Factory function parameters must be simple identifiers (no destructuring)",
+        filePath,
+        param.getStart(sourceFile)
+      );
+    }
+    return param.name.text;
+  });
+  const bodyNode = fnArg.body;
+  const bodyText = getBodyText(bodyNode, sourceFile);
+  const normalizedBody = bodyText.replace(/[ \t]+/g, " ").trim();
+  const bodyHash = crypto.createHash("sha256").update(namespace + fnName + normalizedBody).digest("base64url").slice(0, src_vitePlugin_constants.BODY_HASH_LENGTH);
+  return {
+    namespace,
+    fnName,
+    paramNames,
+    fnBody: bodyText,
+    bodyHash,
+    dependencies: /* @__PURE__ */ new Set(),
+    sourceFile: filePath,
+    isFactory: true
+    // registerPureFnFactory always registers factory functions
+  };
+}
 function resolveVariableInitializer(name, sourceFile) {
   let result;
   function visit(node) {
@@ -125,14 +190,15 @@ function resolveVariableInitializer(name, sourceFile) {
   visit(sourceFile);
   return result;
 }
-function transformPureServerFnCalls(source, filePath) {
-  const extractedFns = extractPureFnsFromSource(source, filePath);
+function transformPureFnCalls(source, filePath, fnName = "pureServerFn", injectionMode = "hash", preExtracted) {
+  const extractedFns = preExtracted ?? extractPureFnsFromSource(source, filePath, fnName);
   if (extractedFns.length === 0) return null;
-  const callPattern = new RegExp("(?<![a-zA-Z0-9_$])pureServerFn\\s*\\(", "g");
+  const escapedFnName = fnName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const callPattern = new RegExp(`(?<![a-zA-Z0-9_$])${escapedFnName}\\s*\\(`, "g");
   const callPositions = [];
   let match;
   while ((match = callPattern.exec(source)) !== null) {
-    const parenPos = source.indexOf("(", match.index + "pureServerFn".length);
+    const parenPos = source.indexOf("(", match.index + fnName.length);
     callPositions.push(parenPos);
   }
   const untransformedCalls = [];
@@ -141,8 +207,8 @@ function transformPureServerFnCalls(source, filePath) {
     const closeParen = findMatchingParen(source, openParen);
     if (closeParen === -1) continue;
     const innerContent = source.substring(openParen + 1, closeParen);
-    const alreadyHasHash = /,\s*['"][a-zA-Z0-9_-]+['"]\s*$/.test(innerContent.trimEnd());
-    if (alreadyHasHash) {
+    const alreadyTransformed = injectionMode === "hash" ? /,\s*['"][a-zA-Z0-9_-]+['"]\s*$/.test(innerContent.trimEnd()) : /,\s*\{bodyHash:/.test(innerContent);
+    if (alreadyTransformed) {
       fnIndex++;
       continue;
     }
@@ -155,10 +221,19 @@ function transformPureServerFnCalls(source, filePath) {
   let result = source;
   for (let i = untransformedCalls.length - 1; i >= 0; i--) {
     const { closeParen, fnIndex: idx } = untransformedCalls[i];
-    const hash = extractedFns[idx].bodyHash;
-    result = result.substring(0, closeParen) + `, '${hash}'` + result.substring(closeParen);
+    const extracted = extractedFns[idx];
+    let injection;
+    if (injectionMode === "hash") {
+      injection = `, '${extracted.bodyHash}'`;
+    } else {
+      injection = `, {bodyHash: ${JSON.stringify(extracted.bodyHash)}, paramNames: ${JSON.stringify(extracted.paramNames)}, code: ${JSON.stringify(extracted.fnBody)}}`;
+    }
+    result = result.substring(0, closeParen) + injection + result.substring(closeParen);
   }
   return { code: result, extractedFns };
+}
+function transformPureServerFnCalls(source, filePath) {
+  return transformPureFnCalls(source, filePath, "pureServerFn", "hash");
 }
 function findMatchingParen(source, openPos) {
   let depth = 1;
@@ -183,6 +258,10 @@ function findMatchingParen(source, openPos) {
       pos = source.indexOf("*/", pos + 2);
       if (pos === -1) return -1;
       pos += 2;
+      continue;
+    }
+    if (ch === "/" && isRegexStart(source, pos)) {
+      pos = skipRegexLiteral(source, pos);
       continue;
     }
     if (ch === "(" || ch === "{" || ch === "[") depth++;
@@ -224,6 +303,47 @@ function skipTemplateLiteral(source, startPos) {
       }
       if (pos < source.length) pos++;
       continue;
+    }
+    pos++;
+  }
+  return pos;
+}
+function isRegexStart(source, pos) {
+  let i = pos - 1;
+  while (i >= 0 && (source[i] === " " || source[i] === "	" || source[i] === "\n" || source[i] === "\r")) {
+    i--;
+  }
+  if (i < 0) return true;
+  const ch = source[i];
+  if ("=({[,;:!&|?^~+-*%<>".includes(ch)) return true;
+  if (/[a-zA-Z]/.test(ch)) {
+    const end = i;
+    while (i >= 0 && /[a-zA-Z]/.test(source[i])) i--;
+    const word = source.substring(i + 1, end + 1);
+    return ["return", "typeof", "instanceof", "in", "delete", "void", "throw", "new", "case"].includes(word);
+  }
+  return false;
+}
+function skipRegexLiteral(source, startPos) {
+  let pos = startPos + 1;
+  while (pos < source.length) {
+    if (source[pos] === "\\") {
+      pos += 2;
+      continue;
+    }
+    if (source[pos] === "[") {
+      pos++;
+      while (pos < source.length && source[pos] !== "]") {
+        if (source[pos] === "\\") pos++;
+        pos++;
+      }
+      if (pos < source.length) pos++;
+      continue;
+    }
+    if (source[pos] === "/") {
+      pos++;
+      while (pos < source.length && /[gimsuyda]/.test(source[pos])) pos++;
+      return pos;
     }
     pos++;
   }
@@ -322,7 +442,7 @@ function extractPureFnDefFromObjectLiteral(objLiteral, sourceFile, filePath) {
     namespace,
     fnName,
     paramNames,
-    code: bodyText,
+    fnBody: bodyText,
     bodyHash,
     dependencies: /* @__PURE__ */ new Set(),
     sourceFile: filePath,
@@ -484,5 +604,6 @@ exports.extractPureFnsFromSource = extractPureFnsFromSource;
 exports.findMatchingParen = findMatchingParen;
 exports.scanClientSource = scanClientSource;
 exports.stripTypes = stripTypes;
+exports.transformPureFnCalls = transformPureFnCalls;
 exports.transformPureServerFnCalls = transformPureServerFnCalls;
 //# sourceMappingURL=extractPureFn.js.map

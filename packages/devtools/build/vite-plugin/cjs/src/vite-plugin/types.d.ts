@@ -28,11 +28,16 @@ export interface ExtractedPureFn {
     namespace: string;
     fnName: string;
     paramNames: string[];
-    code: string;
+    fnBody: string;
     bodyHash: string;
     dependencies: Set<string>;
     sourceFile: string;
     isFactory: boolean;
+}
+export interface ParsedFactoryFn {
+    readonly bodyHash: string;
+    readonly paramNames: string[];
+    readonly code: string;
 }
 export type ReflectionMode = 'default' | 'explicit' | 'never';
 export interface DeepkitTypeOptions {

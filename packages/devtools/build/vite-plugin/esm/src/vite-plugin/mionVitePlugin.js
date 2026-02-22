@@ -1,6 +1,6 @@
 import { resolve } from "path";
 import { createDeepkitTransform } from "./deepkit-type.js";
-import { transformPureServerFnCalls, scanClientSource } from "./extractPureFn.js";
+import { transformPureFnCalls, scanClientSource } from "./extractPureFn.js";
 import { generateVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES } from "./constants.js";
 import { generateAOTCaches, logAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
@@ -101,12 +101,24 @@ function mionVitePlugin(options) {
       let currentCode = code;
       if (code.includes("pureServerFn")) {
         try {
-          const result = transformPureServerFnCalls(currentCode, fileName);
+          const result = transformPureFnCalls(currentCode, fileName, "pureServerFn", "hash");
           if (result) {
             currentCode = result.code;
           }
         } catch (err) {
           console.warn(`[mion] Warning: Could not transform pureServerFn calls in ${fileName}: ${err}`);
+        }
+      }
+      if (currentCode.includes("registerPureFnFactory")) {
+        try {
+          const result = transformPureFnCalls(currentCode, fileName, "registerPureFnFactory", "parsedFactoryFn");
+          if (result) {
+            currentCode = result.code;
+          }
+        } catch (err) {
+          console.warn(
+            `[mion] Warning: Could not transform registerPureFnFactory calls in ${fileName}: ${err}`
+          );
         }
       }
       if (deepkitTransform) {

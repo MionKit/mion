@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import type {CompiledPureFunction, GenericPureFunction} from '../types/pureFunctions.types.ts';
+import type {CompiledPureFunction, GenericPureFunction, ParsedFactoryFn} from '../types/pureFunctions.types.ts';
 import {JITUtils} from '../jit/jitUtils.ts';
 import {pureServerFn} from './pureServerFn.ts';
 import {getJitUtils} from '../jit/jitUtils.ts';
@@ -18,12 +18,11 @@ function getCompiledPureFn(namespace: string, fnName: string): CompiledPureFunct
     return getJitUtils().getCompiledPureFn(namespace, fnName);
 }
 
-it('register and get pure function', async () => {
+it('register and get pure function with pre-parsed data', async () => {
     type StringParams = {
         isLowercase?: boolean;
         isNumeric?: boolean;
     };
-    // reflection never tag is required so pure function do not include any artifacts from @deepkit/compiler
     /** @reflection never */
     function stringPureFn() {
         const isNumericRegexp = /^[0-9]+$/;
@@ -33,7 +32,12 @@ it('register and get pure function', async () => {
             return true;
         };
     }
-    registerPureFnFactory(TEST_NAMESPACE, 'stringPureFn', stringPureFn);
+    const parsedFn: ParsedFactoryFn = {
+        bodyHash: 'stringPureFnHash',
+        paramNames: [],
+        code: 'const isNumericRegexp = /^[0-9]+$/;\nreturn function is_s(s, p) {\nif (p.isLowercase && s !== s.toLowerCase()) return false;\nif (p.isNumeric && !isNumericRegexp.test(s)) return false;\nreturn true;\n};',
+    };
+    registerPureFnFactory(TEST_NAMESPACE, 'stringPureFn', stringPureFn, parsedFn);
     const restoredFn = getJitUtils().getPureFn(TEST_NAMESPACE, 'stringPureFn') as ReturnType<typeof stringPureFn>;
     expect(restoredFn).toBeDefined();
     expect(restoredFn).toBeInstanceOf(Function);
@@ -41,12 +45,43 @@ it('register and get pure function', async () => {
     expect(restoredFn?.('A', {isLowercase: true})).toBe(false);
 });
 
+it('throws when parsedFn is not provided', () => {
+    /** @reflection never */
+    function missingParsedFn() {
+        return function noop() {};
+    }
+    expect(() => (registerPureFnFactory as any)(TEST_NAMESPACE, 'missingParsedFn', missingParsedFn)).toThrow(
+        'registerPureFnFactory requires mion vite plugin transform to inject parsedFn'
+    );
+});
+
+it('uses pre-parsed bodyHash, paramNames, and code from parsedFn', () => {
+    /** @reflection never */
+    function metadataTestFn() {
+        return function test_fn(val: string): string {
+            return val.toUpperCase();
+        };
+    }
+    const parsedFn: ParsedFactoryFn = {
+        bodyHash: 'myCustomHash123',
+        paramNames: [],
+        code: 'return function test_fn(val) { return val.toUpperCase(); };',
+    };
+    registerPureFnFactory(TEST_NAMESPACE, 'metadataTestFn', metadataTestFn, parsedFn);
+    const compiled = getCompiledPureFn(TEST_NAMESPACE, 'metadataTestFn');
+    expect(compiled).toBeDefined();
+    expect(compiled?.bodyHash).toBe('myCustomHash123');
+    expect(compiled?.paramNames).toEqual([]);
+    expect(compiled?.code).toBe('return function test_fn(val) { return val.toUpperCase(); };');
+    expect(compiled?.fnName).toBe('metadataTestFn');
+    expect(compiled?.namespace).toBe(TEST_NAMESPACE);
+});
+
 it('auto-detect dependencies via proxy when factory calls getPureFn', async () => {
     type Params = {
         isA?: boolean;
         isB?: boolean;
     };
-    // reflection never tag is required so pure function do not include any artifacts from @deepkit/compiler
     /** @reflection never */
     function pureFunctionA(jUtils: JITUtils) {
         return function is_a(s: string, p: Params): boolean {
@@ -54,7 +89,6 @@ it('auto-detect dependencies via proxy when factory calls getPureFn', async () =
             return true;
         };
     }
-    // reflection never tag is required so pure function do not include any artifacts from @deepkit/compiler
     /** @reflection never */
     function pureFunctionB(jUtils: JITUtils) {
         const isA = jUtils.getPureFn(TEST_NAMESPACE, 'pureFunctionA') as ReturnType<typeof pureFunctionA>;
@@ -64,9 +98,19 @@ it('auto-detect dependencies via proxy when factory calls getPureFn', async () =
             return isAResult;
         } as GenericPureFunction<Params>;
     }
+    const parsedA: ParsedFactoryFn = {
+        bodyHash: 'pureFnAHash',
+        paramNames: ['jUtils'],
+        code: 'return function is_a(s, p) { if (p.isA) return s.includes("a"); return true; };',
+    };
+    const parsedB: ParsedFactoryFn = {
+        bodyHash: 'pureFnBHash',
+        paramNames: ['jUtils'],
+        code: 'const isA = jUtils.getPureFn("test", "pureFunctionA"); return function is_b(s, p) { const isAResult = isA(s, p); if (p.isB) return isAResult && s.includes("b"); return isAResult; };',
+    };
     // Register A first, then B (B depends on A)
-    registerPureFnFactory(TEST_NAMESPACE, 'pureFunctionA', pureFunctionA);
-    registerPureFnFactory(TEST_NAMESPACE, 'pureFunctionB', pureFunctionB);
+    registerPureFnFactory(TEST_NAMESPACE, 'pureFunctionA', pureFunctionA, parsedA);
+    registerPureFnFactory(TEST_NAMESPACE, 'pureFunctionB', pureFunctionB, parsedB);
     const compiledIsA = getCompiledPureFn(TEST_NAMESPACE, 'pureFunctionA');
     const compiledIsB = getCompiledPureFn(TEST_NAMESPACE, 'pureFunctionB');
     expect(compiledIsA).toBeDefined();
@@ -80,98 +124,6 @@ it('auto-detect dependencies via proxy when factory calls getPureFn', async () =
     // Verify namespace is set correctly
     expect(compiledIsA?.namespace).toBe(TEST_NAMESPACE);
     expect(compiledIsB?.namespace).toBe(TEST_NAMESPACE);
-});
-
-describe('bodyHash generation', () => {
-    it('should generate bodyHash when registering a pure function', () => {
-        /** @reflection never */
-        function hashTestFn() {
-            return function hash_test(val: string): string {
-                return val.toUpperCase();
-            };
-        }
-        registerPureFnFactory(TEST_NAMESPACE, 'hashTestFn', hashTestFn);
-        const compiled = getCompiledPureFn(TEST_NAMESPACE, 'hashTestFn');
-        expect(compiled).toBeDefined();
-        expect(compiled?.bodyHash).toBeDefined();
-        expect(typeof compiled?.bodyHash).toBe('string');
-        expect(compiled?.bodyHash.length).toBeGreaterThan(0);
-    });
-
-    it('should generate different bodyHash for functions with different inner function names', () => {
-        /** @reflection never */
-        function sameBodyFn1() {
-            return function same_body_1(val: number): number {
-                return val * 2;
-            };
-        }
-        /** @reflection never */
-        function sameBodyFn2() {
-            return function same_body_2(val: number): number {
-                return val * 2;
-            };
-        }
-        registerPureFnFactory(TEST_NAMESPACE, 'sameBodyFn1', sameBodyFn1);
-        registerPureFnFactory(TEST_NAMESPACE, 'sameBodyFn2', sameBodyFn2);
-        const compiled1 = getCompiledPureFn(TEST_NAMESPACE, 'sameBodyFn1');
-        const compiled2 = getCompiledPureFn(TEST_NAMESPACE, 'sameBodyFn2');
-        // Different inner function names result in different body hashes
-        expect(compiled1?.bodyHash).not.toBe(compiled2?.bodyHash);
-    });
-
-    it('should generate different bodyHash for different function bodies', () => {
-        /** @reflection never */
-        function diffBodyFn1() {
-            return function diff_body_1(val: number): number {
-                return val * 2;
-            };
-        }
-        /** @reflection never */
-        function diffBodyFn2() {
-            return function diff_body_2(val: number): number {
-                return val * 3;
-            };
-        }
-        registerPureFnFactory(TEST_NAMESPACE, 'diffBodyFn1', diffBodyFn1);
-        registerPureFnFactory(TEST_NAMESPACE, 'diffBodyFn2', diffBodyFn2);
-        const compiled1 = getCompiledPureFn(TEST_NAMESPACE, 'diffBodyFn1');
-        const compiled2 = getCompiledPureFn(TEST_NAMESPACE, 'diffBodyFn2');
-        expect(compiled1?.bodyHash).not.toBe(compiled2?.bodyHash);
-    });
-
-    it('should generate different bodyHash for functions with different outer names even if body is same', () => {
-        /** @reflection never */
-        function whitespaceTestFn1() {
-            return function ws_test(val: string): string {
-                return val.trim();
-            };
-        }
-        /** @reflection never */
-        function whitespaceTestFn2() {
-            return function ws_test(val: string): string {
-                return val.trim();
-            };
-        }
-        registerPureFnFactory(TEST_NAMESPACE, 'whitespaceTestFn1', whitespaceTestFn1);
-        registerPureFnFactory(TEST_NAMESPACE, 'whitespaceTestFn2', whitespaceTestFn2);
-        const compiled1 = getCompiledPureFn(TEST_NAMESPACE, 'whitespaceTestFn1');
-        const compiled2 = getCompiledPureFn(TEST_NAMESPACE, 'whitespaceTestFn2');
-        // Hash is based on namespace + name + body, so different outer function names result in different hashes
-        expect(compiled1?.bodyHash).not.toBe(compiled2?.bodyHash);
-    });
-
-    it('should generate bodyHash of length 12', () => {
-        /** @reflection never */
-        function hashLengthTestFn() {
-            return function hash_length_test(val: string): string {
-                return val.toLowerCase();
-            };
-        }
-        registerPureFnFactory(TEST_NAMESPACE, 'hashLengthTestFn', hashLengthTestFn);
-        const compiled = getCompiledPureFn(TEST_NAMESPACE, 'hashLengthTestFn');
-        expect(compiled?.bodyHash).toBeDefined();
-        expect(compiled?.bodyHash.length).toBe(8);
-    });
 });
 
 describe('pureServerFn with factory functions', () => {
@@ -206,7 +158,12 @@ describe('arrow function factory functions', () => {
                 return true;
             };
         };
-        registerPureFnFactory(TEST_NAMESPACE, 'arrowWithParens', arrowWithParens);
+        const parsedFn: ParsedFactoryFn = {
+            bodyHash: 'arrowParensHash',
+            paramNames: ['jUtils'],
+            code: 'return function is_s(s, p) { if (p.isLowercase) return s === s.toLowerCase(); return true; };',
+        };
+        registerPureFnFactory(TEST_NAMESPACE, 'arrowWithParens', arrowWithParens, parsedFn);
         const restoredFn = getJitUtils().getPureFn(TEST_NAMESPACE, 'arrowWithParens') as ReturnType<typeof arrowWithParens>;
         expect(restoredFn).toBeDefined();
         expect(restoredFn).toBeInstanceOf(Function);
@@ -225,7 +182,12 @@ describe('arrow function factory functions', () => {
                 return true;
             };
         };
-        registerPureFnFactory(TEST_NAMESPACE, 'arrowNoParens', arrowNoParens);
+        const parsedFn: ParsedFactoryFn = {
+            bodyHash: 'arrowNoParensHash',
+            paramNames: ['x'],
+            code: 'return function is_upper(s, p) { if (p.isUppercase) return s === s.toUpperCase(); return true; };',
+        };
+        registerPureFnFactory(TEST_NAMESPACE, 'arrowNoParens', arrowNoParens, parsedFn);
         const restoredFn = getJitUtils().getPureFn(TEST_NAMESPACE, 'arrowNoParens') as ReturnType<typeof arrowNoParens>;
         expect(restoredFn).toBeDefined();
         expect(restoredFn).toBeInstanceOf(Function);
@@ -242,7 +204,12 @@ describe('arrow function factory functions', () => {
             function multiply(n: number, p: NumParams): number {
                 return n * (p.multiplier ?? 1);
             };
-        registerPureFnFactory(TEST_NAMESPACE, 'arrowExpression', arrowExpression);
+        const parsedFn: ParsedFactoryFn = {
+            bodyHash: 'arrowExprHash',
+            paramNames: ['jUtils'],
+            code: 'return function multiply(n, p) { return n * (p.multiplier ?? 1); };',
+        };
+        registerPureFnFactory(TEST_NAMESPACE, 'arrowExpression', arrowExpression, parsedFn);
         const restoredFn = getJitUtils().getPureFn(TEST_NAMESPACE, 'arrowExpression') as ReturnType<typeof arrowExpression>;
         expect(restoredFn).toBeDefined();
         expect(restoredFn).toBeInstanceOf(Function);
@@ -271,8 +238,18 @@ describe('arrow function factory functions', () => {
                 return isAResult;
             };
         };
-        registerPureFnFactory(TEST_NAMESPACE, 'arrowFnA', arrowFnA);
-        registerPureFnFactory(TEST_NAMESPACE, 'arrowFnB', arrowFnB);
+        const parsedA: ParsedFactoryFn = {
+            bodyHash: 'arrowFnAHash',
+            paramNames: ['jUtils'],
+            code: 'return function is_a(s, p) { if (p.isA) return s.includes("a"); return true; };',
+        };
+        const parsedB: ParsedFactoryFn = {
+            bodyHash: 'arrowFnBHash',
+            paramNames: ['jUtils'],
+            code: 'const isA = jUtils.getPureFn("test", "arrowFnA"); return function is_b(s, p) { const isAResult = isA(s, p); if (p.isB) return isAResult && s.includes("b"); return isAResult; };',
+        };
+        registerPureFnFactory(TEST_NAMESPACE, 'arrowFnA', arrowFnA, parsedA);
+        registerPureFnFactory(TEST_NAMESPACE, 'arrowFnB', arrowFnB, parsedB);
         const compiledA = getCompiledPureFn(TEST_NAMESPACE, 'arrowFnA');
         const compiledB = getCompiledPureFn(TEST_NAMESPACE, 'arrowFnB');
         expect(compiledA).toBeDefined();
@@ -281,20 +258,5 @@ describe('arrow function factory functions', () => {
         expect(compiledB?.pureFnDependencies.includes('arrowFnA')).toBeTruthy();
         // A has no dependencies
         expect(compiledA?.pureFnDependencies.length).toBe(0);
-    });
-
-    it('should generate correct bodyHash for arrow functions', () => {
-        /** @reflection never */
-        const arrowHashTest = (jUtils: JITUtils) => {
-            return function hash_test(val: string): string {
-                return val.toUpperCase();
-            };
-        };
-        registerPureFnFactory(TEST_NAMESPACE, 'arrowHashTest', arrowHashTest);
-        const compiled = getCompiledPureFn(TEST_NAMESPACE, 'arrowHashTest');
-        expect(compiled).toBeDefined();
-        expect(compiled?.bodyHash).toBeDefined();
-        expect(typeof compiled?.bodyHash).toBe('string');
-        expect(compiled?.bodyHash.length).toBeGreaterThan(0);
     });
 });
