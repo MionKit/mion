@@ -8,7 +8,7 @@
 import {describe, it, expect} from 'vitest';
 import type {CompiledPureFunction, GenericPureFunction} from '../types/pureFunctions.types.ts';
 import {JITUtils} from '../jit/jitUtils.ts';
-import {pureServerFn, pureServerFnGroup} from './pureServerFn.ts';
+import {pureServerFn} from './pureServerFn.ts';
 import {getJitUtils} from '../jit/jitUtils.ts';
 import {registerPureFnFactory} from './pureFn.ts';
 
@@ -191,41 +191,6 @@ describe('pureServerFn with factory functions', () => {
         expect(ref.isFactory).toBe(true);
         expect(ref.bodyHash).toBeDefined();
         expect(ref.pureFn).toBe(stringPureFn);
-    });
-
-    it('pureServerFnGroup should return refs with cross-dependencies for factory functions', () => {
-        type Params = {
-            isA?: boolean;
-            isB?: boolean;
-        };
-        /** @reflection never */
-        function pureFunctionA() {
-            return function is_a(s: string, p: Params): boolean {
-                if (p.isA) return s.includes('a');
-                return true;
-            };
-        }
-        /** @reflection never */
-        function pureFunctionB() {
-            return function is_b(s: string, p: Params): boolean {
-                if (p.isB) return s.includes('b');
-                return true;
-            };
-        }
-        const refs = pureServerFnGroup([
-            {namespace: TEST_NAMESPACE, pureFn: pureFunctionA, isFactory: true},
-            {namespace: TEST_NAMESPACE, pureFn: pureFunctionB, isFactory: true},
-        ]);
-
-        expect(refs.length).toBe(2);
-        expect(refs[0].fnName).toBe('pureFunctionA');
-        expect(refs[1].fnName).toBe('pureFunctionB');
-        expect(refs[0].isFactory).toBe(true);
-        expect(refs[1].isFactory).toBe(true);
-
-        // Check cross-dependencies are set
-        expect(refs[0].pureFnDependencies).toContain(`${TEST_NAMESPACE}::pureFunctionB`);
-        expect(refs[1].pureFnDependencies).toContain(`${TEST_NAMESPACE}::pureFunctionA`);
     });
 });
 
