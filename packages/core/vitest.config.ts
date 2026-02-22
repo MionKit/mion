@@ -3,6 +3,7 @@ import {resolve} from 'path';
 
 export default defineConfig({
     test: {
+        name: 'core',
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],

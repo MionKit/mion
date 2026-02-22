@@ -1,45 +1,23 @@
 import {defineConfig} from 'vitest/config';
-import {resolve} from 'path';
-import {mionPlugin} from '@mionkit/devtools/vite-plugin';
 
 export default defineConfig({
-    esbuild: {
-        format: 'esm',
-    },
-    plugins: [
-        mionPlugin({
-            runTypes: {
-                tsConfig: resolve(__dirname, 'tsconfig.json'),
-                compilerOptions: {
-                    sourceMap: true,
-                },
-            },
-        }) as any,
-    ],
     test: {
-        globals: true,
-        environment: 'node',
-        include: ['packages/*/src/**/*.spec.ts'],
+        projects: [
+            'packages/core/vitest.config.ts',
+            'packages/run-types/vitest.config.ts',
+            'packages/type-formats/vitest.config.ts',
+            'packages/router/vitest.config.ts',
+            'packages/client/vitest.config.ts',
+            'packages/aws/vitest.config.ts',
+            'packages/gcloud/vitest.config.ts',
+            'packages/node/vitest.config.ts',
+            'packages/devtools/vitest.config.ts',
+            'packages/drizze/vitest.config.ts',
+        ],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'html'],
             include: ['packages/*/src/**'],
-        },
-    },
-    resolve: {
-        alias: {
-            '@mionkit/core': resolve(__dirname, 'packages/core'),
-            '@mionkit/run-types': resolve(__dirname, 'packages/run-types'),
-            '@mionkit/type-formats': resolve(__dirname, 'packages/type-formats'),
-            '@mionkit/router': resolve(__dirname, 'packages/router'),
-            '@mionkit/node': resolve(__dirname, 'packages/node'),
-            '@mionkit/client': resolve(__dirname, 'packages/client'),
-            '@mionkit/test-server': resolve(__dirname, 'packages/test-server'),
-            '@mionkit/http': resolve(__dirname, 'packages/http'),
-            '@mionkit/aws': resolve(__dirname, 'packages/aws'),
-            '@mionkit/gcloud': resolve(__dirname, 'packages/gcloud'),
-            '@mionkit/devtools': resolve(__dirname, 'packages/devtools'),
-            '@mionkit/bun': resolve(__dirname, 'packages/bun'),
         },
     },
 });

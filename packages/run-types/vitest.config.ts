@@ -14,6 +14,7 @@ export default defineConfig({
         }) as any,
     ],
     test: {
+        name: 'run-types',
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],
