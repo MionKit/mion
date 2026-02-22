@@ -14,6 +14,7 @@ export default defineConfig({
         }),
     ],
     test: {
+        name: 'node',
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],

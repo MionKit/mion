@@ -18,6 +18,7 @@ export default defineConfig({
         }) as any,
     ],
     test: {
+        name: 'client',
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],

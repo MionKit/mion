@@ -19,10 +19,14 @@
 - all devDependencies should be installed root level not in the packages
 
 ## Testing
-- Uses Vitest as testing framework
+- Uses Vitest as testing framework with [projects/workspace](https://vitest.dev/guide/projects) configured in root `vitest.config.ts`
 - Test files use `.spec.ts` suffix
-- Run tests on single file: `npx jest <file-pattern>` (preferred for faster feedback)
-- Run all tests in package: `npm run test`
+- Each package has its own `vitest.config.ts` with a `test.name` matching the package directory name
+- Run a single test file from root: `npx vitest run <file-path-or-pattern>`
+- Run all tests in a specific project: `npx vitest run --project <name>` (e.g. `--project router`)
+- Run all tests across all packages: `npm run test`
+- Available project names: `core`, `run-types`, `type-formats`, `router`, `client`, `aws`, `gcloud`, `node`, `devtools`, `drizze`
+- `test-publish` package is excluded from the workspace (it tests built artifacts, run separately)
 - Never run `npm run build` during development (only for publishing)
 
 ## Publishing Modules
