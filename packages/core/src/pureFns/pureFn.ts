@@ -139,9 +139,49 @@ function parsePureFactoryFunction(namespace: string, functionID: string, createJ
     return compiled;
 }
 
-/** Normalizes a pure function body for consistent hashing (collapses whitespace) */
+/** Normalizes a pure function body for consistent hashing (collapses whitespace, strips deepkit artifacts) */
 export function normalizePureFnBody(body: string): string {
-    return body.replace(/[ \t]+/g, ' ').trim();
+    let result = body;
+    // Strip deepkit type compiler artifacts (__assignType wrappers) if present.
+    // At runtime fn.toString() may contain __assignType(expr, [...]) calls injected by deepkit.
+    // AST extraction also strips them. Both sides must produce the same normalized body for hash consistency.
+    if (result.includes('__assignType')) result = stripAssignTypeWrappers(result);
+    return result.replace(/[ \t]+/g, ' ').trim();
+}
+
+/** Strips __assignType(expr, [...]) wrappers from code, replacing them with just expr */
+function stripAssignTypeWrappers(code: string): string {
+    const marker = '__assignType(';
+    let result = code;
+    let idx = result.indexOf(marker);
+    while (idx !== -1) {
+        const start = idx;
+        let pos = idx + marker.length;
+        // Find the first argument by tracking balanced parentheses
+        let depth = 1;
+        const argStart = pos;
+        let argEnd = pos;
+        let foundSep = false;
+        while (pos < result.length && depth > 0) {
+            const ch = result[pos];
+            if (ch === '(') depth++;
+            else if (ch === ')') {
+                depth--;
+                if (depth === 0) break;
+            } else if (ch === ',' && depth === 1 && !foundSep) {
+                argEnd = pos;
+                foundSep = true;
+            }
+            pos++;
+        }
+        if (!foundSep) argEnd = pos;
+        const firstArg = result.substring(argStart, argEnd).trim();
+        // Replace __assignType(expr, [...]) with expr
+        const end = pos + 1; // skip closing ')'
+        result = result.substring(0, start) + firstArg + result.substring(end);
+        idx = result.indexOf(marker);
+    }
+    return result;
 }
 
 /** Extracts the function body from a function's toString() representation */
