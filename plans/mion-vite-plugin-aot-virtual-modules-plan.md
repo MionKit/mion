@@ -36,7 +36,7 @@ flowchart TD
     C -->|virtual:mion-jit-cache| D[Virtual Module: jitFnsCache]
     C -->|virtual:mion-pure-cache| E[Virtual Module: pureFnsCache]
     C -->|virtual:mion-router-cache| F[Virtual Module: routerCache]
-    C -->|virtual:mion-pure-functions| G[Virtual Module: pureFns - existing]
+    C -->|virtual:mion-server-pure-functions| G[Virtual Module: pureFns - existing]
     H[@mionkit/core jitUtils.ts] -->|import from virtual module| D
     H -->|import from virtual module| E
     I[@mionkit/core routerUtils.ts] -->|import from virtual module| F

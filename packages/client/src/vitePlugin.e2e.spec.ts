@@ -7,12 +7,12 @@
 
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {jitFnsCache, pureFnsCache, routerCache} from 'virtual:mion-aot/caches';
-import {routesCache, MION_ROUTES} from '@mionkit/core';
+import {routesCache, MION_ROUTES, PureFnDef} from '@mionkit/core';
 import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata.ts';
 import {ClientOptions} from './types.ts';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
 import Storage from 'dom-storage';
-import {greetingPureFn} from './testPureFns.ts';
+import {pureServerFn} from '@mionkit/core';
 
 // Setup real localStorage for testing (same pattern as other client tests)
 global.localStorage = new Storage(null, {strict: true});
@@ -157,9 +157,27 @@ describe('mion vite plugin: e2e with real server', () => {
 // Tests the full pipeline: client defines pureServerFn → vite plugin
 // extracts it at build time → server imports virtual module →
 // route invokes the function → client verifies result matches
+// this test requires the test server to have serverPureFunctions.clientSrcPath configured to point to this package
 // ============================================================
 describe('mion vite plugin: pureServerFn e2e', () => {
     const baseURL = TEST_SERVER_BASE_URL_JSON;
+
+    /** Simple pure function for e2e testing of server pure functions extraction */
+    const greetingPureFn = pureServerFn({
+        pureFn: function greeting() {
+            return 'hello from pure function';
+        },
+        fnName: 'greeting',
+    });
+
+    /** Pure function defined as a variable reference (tests AST variable resolution) */
+    const variableDef: PureFnDef<any> = {
+        pureFn: function double(x: number) {
+            return x * 2;
+        },
+        fnName: 'double',
+    };
+    const doublePureFn = pureServerFn(variableDef);
 
     it('should have valid client-side pureServerFn reference', () => {
         expect(greetingPureFn).toBeDefined();
@@ -168,6 +186,14 @@ describe('mion vite plugin: pureServerFn e2e', () => {
         expect(greetingPureFn.fnName).toBe('greeting');
         // The pure function should return the expected value when called client-side
         expect(greetingPureFn.pureFn()).toBe('hello from pure function');
+    });
+
+    it('should have valid client-side pureServerFn from variable reference', () => {
+        expect(doublePureFn).toBeDefined();
+        expect(doublePureFn.bodyHash).toBeTruthy();
+        expect(doublePureFn.namespace).toBe('pureServerFn');
+        expect(doublePureFn.fnName).toBe('double');
+        expect(doublePureFn.pureFn(5)).toBe(10);
     });
 
     it('should execute client-defined pureServerFn on server via virtual module', async () => {

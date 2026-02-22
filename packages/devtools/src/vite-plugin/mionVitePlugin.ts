@@ -6,23 +6,18 @@
  * ######## */
 
 import type {Plugin} from 'vite';
-import {readFileSync, readdirSync, statSync} from 'fs';
-import {join, resolve} from 'path';
+import {resolve} from 'path';
 import {createDeepkitTransform} from './deepkit-type.ts';
-import {ServerPureFunctionsPluginOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
-import {extractPureFnsFromSource} from './extractPureFn.ts';
+import {ServerPureFunctionsOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
+import {scanClientSource, transformPureServerFnCalls} from './extractPureFn.ts';
 import {generateVirtualModule} from './virtualModule.ts';
 import {
-    VIRTUAL_MODULE_ID,
-    RESOLVED_VIRTUAL_MODULE_ID,
+    VIRTUAL_SERVER_PURE_FNS,
     VIRTUAL_AOT_JIT_FNS,
     VIRTUAL_AOT_PURE_FNS,
     VIRTUAL_AOT_ROUTER_CACHE,
     VIRTUAL_AOT_CACHES,
-    RESOLVED_AOT_JIT_FNS,
-    RESOLVED_AOT_PURE_FNS,
-    RESOLVED_AOT_ROUTER_CACHE,
-    RESOLVED_AOT_CACHES,
+    resolveVirtualId,
 } from './constants.ts';
 import {
     generateAOTCaches,
@@ -39,55 +34,15 @@ import {getOrGenerateAOTCaches, updateDiskCache, resolveCacheDir} from './aotDis
 
 export interface MionPluginOptions {
     /** Options for pure function extraction - omit to disable */
-    serverPureFunctions?: ServerPureFunctionsPluginOptions;
+    serverPureFunctions?: ServerPureFunctionsOptions;
     /** Options for deepkit type transformation - omit to disable */
     runTypes?: DeepkitTypeOptions;
     /** Options for AOT cache generation - omit to disable */
     aotCaches?: AOTCacheOptions;
 }
 
-/** Scans the client source directory and extracts all pure functions */
-function scanClientSource(options: ServerPureFunctionsPluginOptions): ExtractedPureFn[] {
-    const include = options.include || ['**/*.ts', '**/*.tsx'];
-    const exclude = options.exclude || ['**/node_modules/**', '**/.dist/**', '**/dist/**'];
-    const clientSrcPath = resolve(options.clientSrcPath);
-    const fns: ExtractedPureFn[] = [];
-
-    function scanDir(dir: string) {
-        const entries = readdirSync(dir);
-        for (const entry of entries) {
-            const fullPath = join(dir, entry);
-            const stat = statSync(fullPath);
-
-            if (stat.isDirectory()) {
-                // Skip excluded directories
-                if (!isIncluded(fullPath + '/', include, exclude)) continue;
-                scanDir(fullPath);
-            } else if (stat.isFile()) {
-                // Only process included files
-                if (!isIncluded(fullPath, include, exclude)) continue;
-
-                try {
-                    const code = readFileSync(fullPath, 'utf-8');
-                    // Quick check: does this file contain pureServerFn?
-                    if (!code.includes('pureServerFn')) continue;
-
-                    const extracted = extractPureFnsFromSource(code, fullPath);
-                    fns.push(...extracted);
-                } catch (err: any) {
-                    // Log but don't fail - some files might not be parseable
-                    console.warn(`[mion-pure-functions] Warning: Could not parse ${fullPath}: ${err.message}`);
-                }
-            }
-        }
-    }
-
-    scanDir(clientSrcPath);
-    return fns;
-}
-
 /** Checks if a file path matches the include/exclude patterns */
-function isIncluded(filePath: string, include: string[], exclude: string[]): boolean {
+export function isIncluded(filePath: string, include: string[], exclude: string[]): boolean {
     // Simple pattern matching - check file extension
     const isTs = /\.(ts|tsx|js|jsx)$/.test(filePath);
     const isDir = filePath.endsWith('/');
@@ -188,22 +143,20 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
 
         resolveId(id) {
             // Pure functions virtual module — always resolve, returns empty cache if not configured
-            if (id === VIRTUAL_MODULE_ID) {
-                return RESOLVED_VIRTUAL_MODULE_ID;
-            }
+            if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
 
             // AOT virtual modules
-            if (id === VIRTUAL_AOT_JIT_FNS) return RESOLVED_AOT_JIT_FNS;
-            if (id === VIRTUAL_AOT_PURE_FNS) return RESOLVED_AOT_PURE_FNS;
-            if (id === VIRTUAL_AOT_ROUTER_CACHE) return RESOLVED_AOT_ROUTER_CACHE;
-            if (id === VIRTUAL_AOT_CACHES) return RESOLVED_AOT_CACHES;
+            if (id === VIRTUAL_AOT_JIT_FNS) return resolveVirtualId(id);
+            if (id === VIRTUAL_AOT_PURE_FNS) return resolveVirtualId(id);
+            if (id === VIRTUAL_AOT_ROUTER_CACHE) return resolveVirtualId(id);
+            if (id === VIRTUAL_AOT_CACHES) return resolveVirtualId(id);
 
             return null;
         },
 
         load(id) {
             // Pure functions virtual module
-            if (id === RESOLVED_VIRTUAL_MODULE_ID) {
+            if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
                 if (!pureFnOptions) {
                     // No serverPureFunctions configured — return empty cache
                     return generateVirtualModule([]);
@@ -216,7 +169,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             }
 
             // AOT JIT functions + pure functions module
-            if (id === RESOLVED_AOT_JIT_FNS) {
+            if (id === resolveVirtualId(VIRTUAL_AOT_JIT_FNS)) {
                 if (!aotData) {
                     return generateNoopModule('No-op: AOT JIT caches not generated');
                 }
@@ -224,7 +177,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             }
 
             // AOT pure functions module (standalone)
-            if (id === RESOLVED_AOT_PURE_FNS) {
+            if (id === resolveVirtualId(VIRTUAL_AOT_PURE_FNS)) {
                 if (!aotData) {
                     return generateNoopModule('No-op: AOT pure fns not generated');
                 }
@@ -232,7 +185,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             }
 
             // AOT router cache module
-            if (id === RESOLVED_AOT_ROUTER_CACHE) {
+            if (id === resolveVirtualId(VIRTUAL_AOT_ROUTER_CACHE)) {
                 if (!aotData) {
                     return generateNoopModule('No-op: AOT router cache not generated');
                 }
@@ -240,7 +193,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             }
 
             // Combined AOT caches module (imports all 3 above, registers and re-exports)
-            if (id === RESOLVED_AOT_CACHES) {
+            if (id === resolveVirtualId(VIRTUAL_AOT_CACHES)) {
                 if (!aotData) {
                     return generateNoopCombinedModule();
                 }
@@ -251,28 +204,27 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
         },
 
         transform(code: string, fileName: string) {
-            // Step 1: Extract pure functions BEFORE any transformation
-            if (pureFnOptions) {
+            let currentCode = code;
+
+            // Step 1: Transform pureServerFn() calls — inject bodyHash (runs on ALL files, not gated behind pureFnOptions)
+            if (code.includes('pureServerFn')) {
                 try {
-                    const fns = extractPureFnsFromSource(code, fileName);
-                    // Store extracted functions - they will be available via virtual module
-                    // Note: This is for inline extraction, main extraction happens in load()
-                    if (fns.length > 0) {
-                        // In a real implementation, we might want to merge these with the registry
-                        // For now, the main extraction in scanClientSource handles the full scan
+                    const result = transformPureServerFnCalls(currentCode, fileName);
+                    if (result) {
+                        currentCode = result.code;
                     }
                 } catch (err) {
-                    // Log but don't fail - extraction errors shouldn't break the build
-                    console.warn(`[mion] Warning: Could not extract pure functions from ${fileName}: ${err}`);
+                    console.warn(`[mion] Warning: Could not transform pureServerFn calls in ${fileName}: ${err}`);
                 }
             }
 
             // Step 2: Apply deepkit transformation
             if (deepkitTransform) {
-                return deepkitTransform(code, fileName);
+                const deepkitResult = deepkitTransform(currentCode, fileName);
+                if (deepkitResult) return deepkitResult;
             }
 
-            return null;
+            return currentCode !== code ? currentCode : null;
         },
 
         handleHotUpdate({file, server}) {
@@ -285,7 +237,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                     if (isIncluded(file, include, exclude)) {
                         // Clear cache and invalidate virtual module
                         extractedFns = null;
-                        const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
+                        const mod = server.moduleGraph.getModuleById(resolveVirtualId(VIRTUAL_SERVER_PURE_FNS));
                         if (mod) {
                             server.moduleGraph.invalidateModule(mod);
                             return [mod];
@@ -307,7 +259,9 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                             logAOTCaches(data);
                             updateDiskCache(aotOptions, data, aotCacheDir);
                             // Invalidate all 3 AOT virtual modules
-                            const modulesToInvalidate = [RESOLVED_AOT_JIT_FNS, RESOLVED_AOT_PURE_FNS, RESOLVED_AOT_ROUTER_CACHE];
+                            const modulesToInvalidate = [VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE].map(
+                                resolveVirtualId
+                            );
                             const invalidatedMods: any[] = [];
                             for (const vmId of modulesToInvalidate) {
                                 const mod = server.moduleGraph.getModuleById(vmId);

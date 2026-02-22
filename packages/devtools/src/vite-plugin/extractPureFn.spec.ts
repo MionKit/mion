@@ -1,15 +1,12 @@
-import {describe, it, expect, beforeAll, beforeEach} from 'vitest';
-import {extractPureFnsFromSource, PurityError, stripTypes} from './extractPureFn.ts';
-import {resetHashes, pureFnHashLength, pureServerFn} from '@mionkit/core';
-import {PURE_SERVER_FN_NAMESPACE} from './pureFnUtils.ts';
-
-beforeAll(() => {
-    resetHashes();
-});
-
-beforeEach(() => {
-    resetHashes();
-});
+import {describe, it, expect} from 'vitest';
+import {
+    extractPureFnsFromSource,
+    PurityError,
+    stripTypes,
+    transformPureServerFnCalls,
+    findMatchingParen,
+} from './extractPureFn.ts';
+import {BODY_HASH_LENGTH, PURE_SERVER_FN_NAMESPACE} from './constants.ts';
 
 describe('stripTypes', () => {
     // Note: These tests verify that type annotations are stripped.
@@ -107,7 +104,7 @@ export const mapUsersFn = pureServerFn({
         // Types should be stripped from the code
         expect(result[0].code).not.toContain(': User');
         expect(result[0].bodyHash).toBeDefined();
-        expect(result[0].bodyHash.length).toBe(pureFnHashLength);
+        expect(result[0].bodyHash.length).toBe(BODY_HASH_LENGTH);
         expect(result[0].isFactory).toBe(false);
     });
 
@@ -186,7 +183,6 @@ export const fn = pureServerFn({
 });
 `;
         const result1 = extractPureFnsFromSource(source, 'test.ts');
-        resetHashes();
         const result2 = extractPureFnsFromSource(source, 'test.ts');
         expect(result1[0].bodyHash).toBe(result2[0].bodyHash);
     });
@@ -337,10 +333,48 @@ export const fn = pureServerFn({
         expect(result[0].isFactory).toBe(true);
     });
 
-    it('should throw when argument is not an object literal', () => {
+    it('should resolve a variable reference to its object literal initializer', () => {
         const source = `
 import {pureServerFn} from '@mionkit/server-pure-functions';
 const def = { pureFn: function myFn(x: number) { return x; } };
+export const fn = pureServerFn(def);
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(1);
+        expect(result[0].fnName).toBe('myFn');
+        expect(result[0].paramNames).toEqual(['x']);
+    });
+
+    it('should resolve a variable reference with all PureFnDef properties', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+const myDef = {
+    pureFn: function addOne(x: number): number { return x + 1; },
+    namespace: 'myNs',
+    fnName: 'myAdd'
+};
+export const fn = pureServerFn(myDef);
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(1);
+        expect(result[0].fnName).toBe('myAdd');
+        expect(result[0].namespace).toBe('myNs');
+        expect(result[0].paramNames).toEqual(['x']);
+    });
+
+    it('should throw when variable reference cannot be resolved', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+export const fn = pureServerFn(unknownDef);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/could not be resolved/);
+    });
+
+    it('should throw when variable resolves to a non-object-literal', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+const def = getSomeDef();
 export const fn = pureServerFn(def);
 `;
         expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
@@ -354,102 +388,6 @@ export const fn = pureServerFn({ namespace: 'test' });
 `;
         expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
         expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/pureFn/);
-    });
-});
-
-describe('extractPureFnsFromSource - pureServerFnGroup with PureFnDef', () => {
-    it('should extract functions from a group and set cross-dependencies', () => {
-        const source = `
-import {pureServerFnGroup} from '@mionkit/server-pure-functions';
-
-const [refA, refB, refC] = pureServerFnGroup([
-    { pureFn: function addOne(x: number): number { return x + 1; } },
-    { pureFn: function double(x: number): number { return x * 2; } },
-    { pureFn: function triple(x: number): number { return x * 3; } }
-]);
-`;
-        const result = extractPureFnsFromSource(source, 'test.ts');
-        expect(result).toHaveLength(3);
-
-        // Each function should have the other two as dependencies
-        const fn1Result = result.find((f) => f.fnName === 'addOne')!;
-        const fn2Result = result.find((f) => f.fnName === 'double')!;
-        const fn3Result = result.find((f) => f.fnName === 'triple')!;
-
-        expect(fn1Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::double`)).toBe(true);
-        expect(fn1Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::triple`)).toBe(true);
-        expect(fn1Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::addOne`)).toBe(false);
-
-        expect(fn2Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::addOne`)).toBe(true);
-        expect(fn2Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::triple`)).toBe(true);
-        expect(fn2Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::double`)).toBe(false);
-
-        expect(fn3Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::addOne`)).toBe(true);
-        expect(fn3Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::double`)).toBe(true);
-        expect(fn3Result.dependencies.has(`${PURE_SERVER_FN_NAMESPACE}::triple`)).toBe(false);
-    });
-
-    it('should handle groups with custom namespaces', () => {
-        const source = `
-import {pureServerFnGroup} from '@mionkit/server-pure-functions';
-
-const [refA, refB] = pureServerFnGroup([
-    { pureFn: function addOne(x: number): number { return x + 1; }, namespace: 'customNs' },
-    { pureFn: function double(x: number): number { return x * 2; }, namespace: 'customNs' }
-]);
-`;
-        const result = extractPureFnsFromSource(source, 'test.ts');
-        expect(result).toHaveLength(2);
-
-        const fn1Result = result.find((f) => f.fnName === 'addOne')!;
-        const fn2Result = result.find((f) => f.fnName === 'double')!;
-
-        expect(fn1Result.namespace).toBe('customNs');
-        expect(fn2Result.namespace).toBe('customNs');
-
-        expect(fn1Result.dependencies.has('customNs::double')).toBe(true);
-        expect(fn2Result.dependencies.has('customNs::addOne')).toBe(true);
-    });
-
-    it('should handle groups with mixed namespaces', () => {
-        const source = `
-import {pureServerFnGroup} from '@mionkit/server-pure-functions';
-
-const [refA, refB] = pureServerFnGroup([
-    { pureFn: function addOne(x: number): number { return x + 1; }, namespace: 'ns1' },
-    { pureFn: function double(x: number): number { return x * 2; }, namespace: 'ns2' }
-]);
-`;
-        const result = extractPureFnsFromSource(source, 'test.ts');
-        expect(result).toHaveLength(2);
-
-        const fn1Result = result.find((f) => f.fnName === 'addOne')!;
-        const fn2Result = result.find((f) => f.fnName === 'double')!;
-
-        expect(fn1Result.dependencies.has('ns2::double')).toBe(true);
-        expect(fn2Result.dependencies.has('ns1::addOne')).toBe(true);
-    });
-
-    it('should throw when pureServerFnGroup argument is not an array literal', () => {
-        const source = `
-import {pureServerFnGroup} from '@mionkit/server-pure-functions';
-
-const defs = [{ pureFn: function addOne(x: number) { return x + 1; } }];
-pureServerFnGroup(defs);
-`;
-        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
-        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/array literal/);
-    });
-
-    it('should throw when array elements are not object literals', () => {
-        const source = `
-import {pureServerFnGroup} from '@mionkit/server-pure-functions';
-
-const def1 = { pureFn: function addOne(x: number) { return x + 1; } };
-pureServerFnGroup([def1]);
-`;
-        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
-        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/object literal/);
     });
 });
 
@@ -679,154 +617,171 @@ export const myFactory = pureServerFn({
     });
 });
 
-describe('bodyHash consistency between runtime and AST extraction', () => {
-    // These tests verify that the bodyHash produced by runtime pureServerFn()
-    // matches the bodyHash produced by AST extraction in extractPureFnsFromSource()
-
-    it('should produce same bodyHash for pureServerFn at runtime and AST extraction', () => {
-        // Define the function
-        const fn = function addOne(x: number) {
-            return x + 1;
-        };
-
-        // Get runtime result
-        resetHashes();
-        const runtimeRef = pureServerFn({pureFn: fn});
-
-        // Get AST extraction result
+describe('transformPureServerFnCalls', () => {
+    it('should inject bodyHash as second argument', () => {
         const source = `
 import {pureServerFn} from '@mionkit/core';
-export const ref = pureServerFn({
-    pureFn: function addOne(x) {
-        return x + 1;
+export const fn = pureServerFn({
+    pureFn: function addOne(x) { return x + 1; }
+});
+`;
+        const result = transformPureServerFnCalls(source, 'test.ts');
+        expect(result).not.toBeNull();
+        expect(result!.extractedFns).toHaveLength(1);
+        // Should contain the injected hash as 2nd argument
+        const hash = result!.extractedFns[0].bodyHash;
+        expect(result!.code).toContain(`, '${hash}'`);
+        // Original code structure should be preserved
+        expect(result!.code).toContain('function addOne(x)');
+    });
+
+    it('should handle multiple pureServerFn calls in one file', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/core';
+export const fn1 = pureServerFn({
+    pureFn: function addOne(x) { return x + 1; }
+});
+export const fn2 = pureServerFn({
+    pureFn: function double(x) { return x * 2; }
+});
+`;
+        const result = transformPureServerFnCalls(source, 'test.ts');
+        expect(result).not.toBeNull();
+        expect(result!.extractedFns).toHaveLength(2);
+        // Both calls should have hashes injected
+        const hash1 = result!.extractedFns[0].bodyHash;
+        const hash2 = result!.extractedFns[1].bodyHash;
+        expect(result!.code).toContain(`, '${hash1}'`);
+        expect(result!.code).toContain(`, '${hash2}'`);
+    });
+
+    it('should return null for files without pureServerFn calls', () => {
+        const source = `const x = 1; export function hello() { return 'world'; }`;
+        const result = transformPureServerFnCalls(source, 'test.ts');
+        expect(result).toBeNull();
+    });
+
+    it('should be idempotent — skip already-transformed calls', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/core';
+export const fn = pureServerFn({
+    pureFn: function addOne(x) { return x + 1; }
+});
+`;
+        // First transform
+        const result1 = transformPureServerFnCalls(source, 'test.ts');
+        expect(result1).not.toBeNull();
+
+        // Second transform on already-transformed code
+        const result2 = transformPureServerFnCalls(result1!.code, 'test.ts');
+        // Should return null because the call already has a hash
+        expect(result2).toBeNull();
+    });
+
+    it('should handle nested parentheses in function bodies', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/core';
+export const fn = pureServerFn({
+    pureFn: function complex(items) {
+        return items.filter((x) => x > 0).map((x) => ({ value: x, doubled: x * 2 }));
     }
 });
 `;
-        resetHashes();
-        const astResult = extractPureFnsFromSource(source, 'test.ts');
-
-        // Both should produce the same bodyHash
-        expect(astResult).toHaveLength(1);
-        expect(astResult[0].bodyHash).toBe(runtimeRef.bodyHash);
-        expect(astResult[0].fnName).toBe(runtimeRef.fnName);
-        expect(astResult[0].namespace).toBe(runtimeRef.namespace);
+        const result = transformPureServerFnCalls(source, 'test.ts');
+        expect(result).not.toBeNull();
+        expect(result!.extractedFns).toHaveLength(1);
+        // Verify the hash was placed correctly (at the end of the outer pureServerFn call)
+        const hash = result!.extractedFns[0].bodyHash;
+        expect(result!.code).toContain(`, '${hash}')`);
     });
 
-    it('should produce same bodyHash for arrow functions', () => {
-        // Get runtime result
-        resetHashes();
-        const runtimeRef = pureServerFn({
-            pureFn: (x: number) => x * 2,
-            fnName: 'double',
-        });
-
-        // Get AST extraction result
+    it('should not match identifiers ending in pureServerFn', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
-export const ref = pureServerFn({
-    pureFn: (x) => x * 2,
-    fnName: 'double'
-});
+const somePureServerFn = (x) => x;
+const result = somePureServerFn(42);
 `;
-        resetHashes();
-        const astResult = extractPureFnsFromSource(source, 'test.ts');
-
-        expect(astResult).toHaveLength(1);
-        expect(astResult[0].bodyHash).toBe(runtimeRef.bodyHash);
+        const result = transformPureServerFnCalls(source, 'test.ts');
+        expect(result).toBeNull();
     });
 
-    it('should produce same bodyHash for pureServerFnGroup AST extraction (individual runtime match)', () => {
-        // pureServerFnGroup was removed from core runtime, so we test each function individually
-        // against pureServerFn runtime, then verify AST group extraction produces matching hashes
-
-        // Get individual runtime results
-        resetHashes();
-        const runtimeFnA = pureServerFn({
-            pureFn: function fnA(x: number) {
-                return x + 1;
-            },
-        });
-        const runtimeFnB = pureServerFn({
-            pureFn: function fnB(x: number) {
-                return x * 2;
-            },
-        });
-
-        // Get AST extraction result for individual pureServerFn calls (same code, same hash)
+    it('should handle pureServerFn with custom namespace and fnName', () => {
         const source = `
 import {pureServerFn} from '@mionkit/core';
-export const refA = pureServerFn({ pureFn: function fnA(x) { return x + 1; } });
-export const refB = pureServerFn({ pureFn: function fnB(x) { return x * 2; } });
-`;
-        resetHashes();
-        const astResult = extractPureFnsFromSource(source, 'test.ts');
-
-        expect(astResult).toHaveLength(2);
-
-        const astFnA = astResult.find((f) => f.fnName === 'fnA')!;
-        const astFnB = astResult.find((f) => f.fnName === 'fnB')!;
-
-        expect(astFnA.bodyHash).toBe(runtimeFnA.bodyHash);
-        expect(astFnB.bodyHash).toBe(runtimeFnB.bodyHash);
-    });
-
-    it('should produce same bodyHash with custom namespace', () => {
-        // Get runtime result
-        resetHashes();
-        const runtimeRef = pureServerFn({
-            pureFn: function myFn(x: number) {
-                return x;
-            },
-            namespace: 'customNs',
-        });
-
-        // Get AST extraction result
-        const source = `
-import {pureServerFn} from '@mionkit/core';
-export const ref = pureServerFn({
+export const fn = pureServerFn({
     pureFn: function myFn(x) { return x; },
-    namespace: 'customNs'
+    namespace: 'customNs',
+    fnName: 'customName'
 });
 `;
-        resetHashes();
-        const astResult = extractPureFnsFromSource(source, 'test.ts');
-
-        expect(astResult).toHaveLength(1);
-        expect(astResult[0].bodyHash).toBe(runtimeRef.bodyHash);
-        expect(astResult[0].namespace).toBe('customNs');
+        const result = transformPureServerFnCalls(source, 'test.ts');
+        expect(result).not.toBeNull();
+        expect(result!.extractedFns[0].namespace).toBe('customNs');
+        expect(result!.extractedFns[0].fnName).toBe('customName');
     });
 
-    it('should produce same bodyHash for multi-line function bodies', () => {
-        // Get runtime result - note: no type annotations to match AST extraction
-        // (AST extraction strips types, so runtime must also not have them for hash to match)
-        resetHashes();
-
-        const runtimeRef = pureServerFn({
-            pureFn: function processData(data) {
-                const filtered = data.filter((x) => x > 0);
-                const mapped = filtered.map((x) => x * 2);
-                return mapped;
-            },
-        });
-
-        // Get AST extraction result - same logic
+    it('should handle variable reference as argument', () => {
         const source = `
 import {pureServerFn} from '@mionkit/core';
-export const ref = pureServerFn({
-    pureFn: function processData(data) {
-        const filtered = data.filter((x) => x > 0);
-        const mapped = filtered.map((x) => x * 2);
-        return mapped;
+const myDef = {
+    pureFn: function addOne(x) { return x + 1; },
+    fnName: 'addOne'
+};
+export const fn = pureServerFn(myDef);
+`;
+        const result = transformPureServerFnCalls(source, 'test.ts');
+        expect(result).not.toBeNull();
+        expect(result!.extractedFns).toHaveLength(1);
+        expect(result!.extractedFns[0].fnName).toBe('addOne');
+        const hash = result!.extractedFns[0].bodyHash;
+        expect(result!.code).toContain(`, '${hash}'`);
+    });
+
+    it('should handle TypeScript type annotations in pureServerFn calls', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/core';
+interface User { id: number; name: string; }
+export const fn = pureServerFn({
+    pureFn: function mapUsers(users: User[]): {userId: number}[] {
+        return users.map((u: User) => ({userId: u.id}));
     }
 });
 `;
-        resetHashes();
-        const astResult = extractPureFnsFromSource(source, 'test.ts');
-
-        expect(astResult).toHaveLength(1);
-        expect(astResult[0].bodyHash).toBe(runtimeRef.bodyHash);
+        const result = transformPureServerFnCalls(source, 'test.ts');
+        expect(result).not.toBeNull();
+        expect(result!.extractedFns).toHaveLength(1);
+        const hash = result!.extractedFns[0].bodyHash;
+        expect(result!.code).toContain(`, '${hash}'`);
     });
 });
 
-// Note: validatePurity is now internal and tested through extractPureFnsFromSource
-// The purity validation tests above cover all the validation cases
+describe('findMatchingParen', () => {
+    it('should find closing paren for simple call', () => {
+        const source = 'fn(x)';
+        expect(findMatchingParen(source, 2)).toBe(4);
+    });
+
+    it('should handle nested parentheses', () => {
+        const source = 'fn(a(b(c)))';
+        expect(findMatchingParen(source, 2)).toBe(10);
+    });
+
+    it('should handle mixed brackets', () => {
+        const source = 'fn({a: [1, 2]})';
+        expect(findMatchingParen(source, 2)).toBe(14);
+    });
+
+    it('should skip string literals', () => {
+        const source = "fn('hello (world)')";
+        expect(findMatchingParen(source, 2)).toBe(18);
+    });
+
+    it('should skip template literals', () => {
+        const source = 'fn(`hello ${x}`)';
+        expect(findMatchingParen(source, 2)).toBe(15);
+    });
+
+    it('should return -1 for unmatched paren', () => {
+        const source = 'fn(x';
+        expect(findMatchingParen(source, 2)).toBe(-1);
+    });
+});

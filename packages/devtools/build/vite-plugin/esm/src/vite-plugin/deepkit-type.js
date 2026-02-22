@@ -19,7 +19,6 @@ function createDeepkitTransform(options = {}) {
         options.compilerOptions || {}
       ),
       fileName,
-      // @ts-ignore - transformers type mismatch between ts versions
       transformers
     });
     return {

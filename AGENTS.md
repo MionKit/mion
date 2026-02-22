@@ -51,6 +51,17 @@
 - before committing, run `npm run lint` and `npm run format`, to ensure code style and formatting are correct (fix any errors before committing)
 - commit often after small changes
 
+## ⚠️ Devtools Rebuild Requirement
+The `@mionkit/devtools` package exports point to built output (`./build/`), not source. Other packages (client, test-server, router, etc.) import the **built** vite plugin and eslint rules via `@mionkit/devtools/vite-plugin` and `@mionkit/devtools/eslint`.
+
+**After modifying any devtools source files, you MUST rebuild before running tests in other packages:**
+```bash
+npm run build -w @mionkit/devtools
+```
+- Devtools' own tests (`npx vitest run --project devtools`) import source directly and do NOT need a rebuild
+- Client, test-server, and any package using `mionVitePlugin` require the rebuilt output
+- Use `npm run dev -w @mionkit/devtools` for watch mode during active development
+
 ## Code examples
 - There is a special package called `examples` that contains code examples that should compile
 

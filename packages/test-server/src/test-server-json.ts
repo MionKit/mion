@@ -17,7 +17,7 @@ import {NumFormat} from '@mionkit/type-formats/FormatsNumber';
 const serverPureFnsCache: Record<
     string,
     Record<string, {fn?: (...args: any[]) => any}>
-> = await import('virtual:mion-pure-functions').then((m) => m.serverPureFnsCache).catch(() => ({}));
+> = await import('virtual:mion-server-pure-fns').then((m) => m.serverPureFnsCache).catch(() => ({}));
 
 // Define routes for testing different validation scenarios
 type User = {name: string; surname: string};
@@ -128,9 +128,8 @@ const routes = {
     }),
 
     // Route that invokes a server pure function extracted from client source at build time
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getPureFnResult: route((_ctx): string => {
-        const pureFn = serverPureFnsCache['pureServerFn']?.['greeting'];
+    getPureFnResult: route((): string => {
+        const pureFn = serverPureFnsCache.pureServerFn?.greeting;
         if (!pureFn?.fn) throw new RpcError({publicMessage: 'Pure function greeting not found', type: 'pure-fn-not-found'});
         return pureFn.fn();
     }),

@@ -66,7 +66,7 @@ export interface PureServerFnRegistry {
 }
 
 /** Plugin options for the server-side Vite plugin */
-export interface ServerPureFunctionsPluginOptions {
+export interface ServerPureFunctionsOptions {
     /** Path to the client package source directory containing pureServerFn() calls */
     clientSrcPath: string;
     /** Glob patterns for files to scan within clientSrcPath. Defaults to ['**\/*.ts', '**\/*.tsx'] */

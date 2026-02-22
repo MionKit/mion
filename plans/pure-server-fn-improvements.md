@@ -281,7 +281,7 @@ flowchart LR
     end
 
     subgraph Server
-        I -->|import virtual:mion-pure-functions| J[pureFnsCache]
+        I -->|import virtual:mion-server-pure-functions| J[pureFnsCache]
         J -->|keyed by namespace::fnName| K[Server uses functions]
     end
 

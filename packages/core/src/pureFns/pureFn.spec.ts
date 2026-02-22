@@ -185,11 +185,11 @@ describe('pureServerFn with factory functions', () => {
                 return true;
             };
         }
-        const ref = pureServerFn({namespace: TEST_NAMESPACE, pureFn: stringPureFn, isFactory: true});
+        const ref = pureServerFn({namespace: TEST_NAMESPACE, pureFn: stringPureFn, isFactory: true}, 'factHash1');
         expect(ref.namespace).toBe(TEST_NAMESPACE);
         expect(ref.fnName).toBe('stringPureFn');
         expect(ref.isFactory).toBe(true);
-        expect(ref.bodyHash).toBeDefined();
+        expect(ref.bodyHash).toBe('factHash1');
         expect(ref.pureFn).toBe(stringPureFn);
     });
 });

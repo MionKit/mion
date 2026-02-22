@@ -140,7 +140,7 @@ The plugin emits a virtual module that serves as the `PureFunctionsCache` for th
 ### Virtual Module ID
 
 ```
-virtual:mion-pure-functions
+virtual:mion-server-pure-functions
 ```
 
 ### Generated Module Shape
@@ -148,7 +148,7 @@ virtual:mion-pure-functions
 The virtual module exports a `PureFunctionsCache`-compatible structure:
 
 ```ts
-// virtual:mion-pure-functions
+// virtual:mion-server-pure-functions
 export const pureFnsCache = {
     pureServerFn: {
         mapUsersToPreferences: {
@@ -183,7 +183,7 @@ Responsibilities:
 3. Validate purity constraints — fail build on violations
 4. Generate deterministic `bodyHash` using the same algorithm as [`createUniqueHash()`](packages/core/src/pureFns/quickHash.ts)
 5. Produce [`PureFunctionData`](packages/core/src/types/pureFunctions.types.ts:37) entries under the `'pureServerFn'` namespace
-6. Emit the virtual module `virtual:mion-pure-functions`
+6. Emit the virtual module `virtual:mion-server-pure-functions`
 7. In production, also emit a physical registry artifact for cross-package consumption
 
 ### Phase B — Server Build: Consume and Register
