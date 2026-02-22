@@ -4,7 +4,7 @@ import {ExtractedPureFn} from './types.ts';
 import {PURE_SERVER_FN_NAMESPACE} from './pureFnUtils.ts';
 
 describe('generateVirtualModule', () => {
-    it('should generate a valid module with one function keyed by namespace::fnName', () => {
+    it('should generate a valid module with one function nested by namespace', () => {
         const fns: ExtractedPureFn[] = [
             {
                 namespace: PURE_SERVER_FN_NAMESPACE,
@@ -19,18 +19,20 @@ describe('generateVirtualModule', () => {
         ];
 
         const result = generateVirtualModule(fns);
-        expect(result).toContain('pureFnsCache');
-        // Key should be namespace::fnName
-        expect(result).toContain(`"${PURE_SERVER_FN_NAMESPACE}::mapUsers"`);
+        expect(result).toContain('serverPureFnsCache');
+        // Namespace level key
+        expect(result).toContain(`"${PURE_SERVER_FN_NAMESPACE}"`);
+        // Function name as nested key
         expect(result).toContain('"mapUsers"');
         expect(result).toContain('"abc12345"');
         expect(result).toContain('return users.map');
-        expect(result).toContain('createJitFn');
-        expect(result).toContain('new Set(');
+        expect(result).toContain('pureFnDependencies: []');
         expect(result).toContain('isFactory: false');
+        // Regular functions have direct fn, not createFn
+        expect(result).toContain('fn: function mapUsers(users)');
     });
 
-    it('should generate a module with multiple functions', () => {
+    it('should generate a module with multiple functions and dependencies', () => {
         const fns: ExtractedPureFn[] = [
             {
                 namespace: PURE_SERVER_FN_NAMESPACE,
@@ -55,20 +57,21 @@ describe('generateVirtualModule', () => {
         ];
 
         const result = generateVirtualModule(fns);
-        expect(result).toContain(`"${PURE_SERVER_FN_NAMESPACE}::fn1"`);
-        expect(result).toContain(`"${PURE_SERVER_FN_NAMESPACE}::fn2"`);
+        expect(result).toContain('"fn1"');
+        expect(result).toContain('"fn2"');
         expect(result).toContain('"hash1111"');
         expect(result).toContain('"hash2222"');
-        expect(result).toContain(`new Set(["${PURE_SERVER_FN_NAMESPACE}::fn1"])`);
+        // Dependencies should be stripped to just fnName
+        expect(result).toContain('pureFnDependencies: ["fn1"]');
     });
 
     it('should generate an empty module when no functions', () => {
         const result = generateVirtualModule([]);
-        expect(result).toContain('pureFnsCache');
-        expect(result).toContain('pureFnsCache = {');
+        expect(result).toContain('serverPureFnsCache');
+        expect(result).toContain('serverPureFnsCache = {');
     });
 
-    it('should generate valid createJitFn closures for regular functions', () => {
+    it('should generate direct fn for regular pure functions', () => {
         const fns: ExtractedPureFn[] = [
             {
                 namespace: PURE_SERVER_FN_NAMESPACE,
@@ -83,12 +86,13 @@ describe('generateVirtualModule', () => {
         ];
 
         const result = generateVirtualModule(fns);
-        // The createJitFn should be a function that takes jitUtils and returns the pure function
-        expect(result).toContain('function addOne(jitUtils)');
-        expect(result).toContain('function addOne(x)');
+        // Regular functions should have a direct fn property
+        expect(result).toContain('fn: function addOne(x)');
+        // Should NOT have createFn for non-factory functions
+        expect(result).not.toContain('createFn');
     });
 
-    it('should generate valid createJitFn closures for factory functions', () => {
+    it('should generate createFn for factory functions', () => {
         const fns: ExtractedPureFn[] = [
             {
                 namespace: 'myNamespace',
@@ -106,11 +110,12 @@ return function inner(x) {
         ];
 
         const result = generateVirtualModule(fns);
-        // Key should be namespace::fnName
-        expect(result).toContain('"myNamespace::myFactory"');
+        expect(result).toContain('"myNamespace"');
+        expect(result).toContain('"myFactory"');
         expect(result).toContain('isFactory: true');
-        // Factory functions have a different createJitFn structure
-        expect(result).toContain('function myFactory(jitUtils)');
+        // Factory functions have createFn and fn: undefined
+        expect(result).toContain('fn: undefined');
+        expect(result).toContain('createFn: function myFactory(jitUtils)');
         expect(result).toContain('function factory(jitUtils)');
     });
 
@@ -139,11 +144,12 @@ return function inner(x) {
         ];
 
         const result = generateVirtualModule(fns);
-        expect(result).toContain('"namespace1::fn1"');
-        expect(result).toContain('"namespace2::fn2"');
+        expect(result).toContain('"namespace1"');
+        expect(result).toContain('"namespace2"');
         expect(result).toContain('namespace: "namespace1"');
         expect(result).toContain('namespace: "namespace2"');
-        expect(result).toContain('new Set(["namespace1::fn1"])');
+        // Cross-namespace dependency stripped to fnName
+        expect(result).toContain('pureFnDependencies: ["fn1"]');
     });
 
     it('should handle function names with special characters', () => {
@@ -161,8 +167,33 @@ return function inner(x) {
         ];
 
         const result = generateVirtualModule(fns);
-        expect(result).toContain(`"${PURE_SERVER_FN_NAMESPACE}::abc12345"`);
+        expect(result).toContain(`"${PURE_SERVER_FN_NAMESPACE}"`);
+        expect(result).toContain('"abc12345"');
         // Function name should be safe for JS
-        expect(result).toContain('function abc12345(jitUtils)');
+        expect(result).toContain('function abc12345(x)');
+    });
+
+    it('should generate evaluable code that produces correct results', () => {
+        const fns: ExtractedPureFn[] = [
+            {
+                namespace: 'testNs',
+                fnName: 'double',
+                paramNames: ['x'],
+                code: 'return x * 2;',
+                bodyHash: 'testhash',
+                dependencies: new Set(),
+                sourceFile: 'test.ts',
+                isFactory: false,
+            },
+        ];
+
+        const result = generateVirtualModule(fns);
+        // Evaluate the generated module code (strip 'export' for new Function)
+        const evalCode = result.replace(/^export /gm, '') + '\nreturn serverPureFnsCache;';
+        const fn = new Function(evalCode);
+        const cache = fn();
+        expect(cache.testNs.double.fn(5)).toBe(10);
+        expect(cache.testNs.double.bodyHash).toBe('testhash');
+        expect(cache.testNs.double.namespace).toBe('testNs');
     });
 });
