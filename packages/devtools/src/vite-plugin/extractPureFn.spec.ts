@@ -4,6 +4,7 @@ import {
     PurityError,
     stripTypes,
     transformPureServerFnCalls,
+    transformPureFnCalls,
     findMatchingParen,
 } from './extractPureFn.ts';
 import {BODY_HASH_LENGTH, PURE_SERVER_FN_NAMESPACE} from './constants.ts';
@@ -100,9 +101,9 @@ export const mapUsersFn = pureServerFn({
         expect(result[0].fnName).toBe('mapUsers');
         expect(result[0].namespace).toBe(PURE_SERVER_FN_NAMESPACE);
         expect(result[0].paramNames).toEqual(['users']);
-        expect(result[0].code).toContain('return users.map');
+        expect(result[0].fnBody).toContain('return users.map');
         // Types should be stripped from the code
-        expect(result[0].code).not.toContain(': User');
+        expect(result[0].fnBody).not.toContain(': User');
         expect(result[0].bodyHash).toBeDefined();
         expect(result[0].bodyHash.length).toBe(BODY_HASH_LENGTH);
         expect(result[0].isFactory).toBe(false);
@@ -129,8 +130,8 @@ export const fn2 = pureServerFn({
         expect(result[0].fnName).toBe('addOne');
         expect(result[1].fnName).toBe('double');
         // Types should be stripped
-        expect(result[0].code).not.toContain(': number');
-        expect(result[1].code).not.toContain(': number');
+        expect(result[0].fnBody).not.toContain(': number');
+        expect(result[1].fnBody).not.toContain(': number');
     });
 
     it('should extract function with multiple typed parameters', () => {
@@ -233,8 +234,8 @@ export const fn = pureServerFn({
         expect(result).toHaveLength(1);
         expect(result[0].paramNames).toEqual(['users']);
         // Types should be stripped from the code
-        expect(result[0].code).not.toContain(': User');
-        expect(result[0].code).not.toContain('UserPrefs');
+        expect(result[0].fnBody).not.toContain(': User');
+        expect(result[0].fnBody).not.toContain('UserPrefs');
     });
 
     it('should handle generic type parameters', () => {
@@ -266,7 +267,7 @@ export const fn = pureServerFn({
         const result = extractPureFnsFromSource(source, 'test.ts');
         expect(result).toHaveLength(1);
         // Type assertion should be stripped
-        expect(result[0].code).not.toContain('as string');
+        expect(result[0].fnBody).not.toContain('as string');
     });
 
     it('should accept anonymous functions and use bodyHash as fnName', () => {
@@ -555,7 +556,7 @@ export const fn = pureServerFn({
         const result = extractPureFnsFromSource(source, 'test.ts');
         expect(result).toHaveLength(1);
         // Types in callbacks should be stripped
-        expect(result[0].code).not.toContain(': number');
+        expect(result[0].fnBody).not.toContain(': number');
     });
 
     it('should allow functions with typed local variable declarations', () => {
@@ -572,7 +573,7 @@ export const fn = pureServerFn({
         const result = extractPureFnsFromSource(source, 'test.ts');
         expect(result).toHaveLength(1);
         // Types should be stripped
-        expect(result[0].code).not.toContain(': number');
+        expect(result[0].fnBody).not.toContain(': number');
     });
 
     it('should allow functions with typed destructuring', () => {
@@ -751,6 +752,268 @@ export const fn = pureServerFn({
         expect(result!.extractedFns).toHaveLength(1);
         const hash = result!.extractedFns[0].bodyHash;
         expect(result!.code).toContain(`, '${hash}'`);
+    });
+});
+
+describe('extractPureFnsFromSource - registerPureFnFactory', () => {
+    it('should extract namespace, functionID, paramNames, code, bodyHash from simple factory', () => {
+        const fnBody = `return function is_h(hours) {
+    if (!hours.length || hours.length > 2)
+      return false;
+    const h = Number(hours);
+    return h >= 0 && h <= 23;
+  };`;
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mion', 'isHours', function () {
+    ${fnBody}
+});
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory');
+        expect(result).toHaveLength(1);
+        expect(result[0].namespace).toBe('mion');
+        expect(result[0].fnName).toBe('isHours');
+        expect(result[0].paramNames).toEqual([]);
+        expect(result[0].fnBody).toBe(fnBody);
+        expect(result[0].bodyHash).toBeDefined();
+        expect(result[0].bodyHash.length).toBe(BODY_HASH_LENGTH);
+        expect(result[0].isFactory).toBe(true);
+    });
+
+    it('should extract from factory with jitUtils parameter', () => {
+        const fnBody = `const isDate = jUtil.getPureFn("mionFormats", "isDateString");
+  return function is_date(value) {
+    const parts = value.split("-");
+    return isDate(parts[0], parts[1], parts[2]);
+  };`;
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mionFormats', 'isDateString_YMD', function (jUtil) {
+    ${fnBody}
+});
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory');
+        expect(result).toHaveLength(1);
+        expect(result[0].namespace).toBe('mionFormats');
+        expect(result[0].fnName).toBe('isDateString_YMD');
+        expect(result[0].paramNames).toEqual(['jUtil']);
+        expect(result[0].fnBody).toBe(fnBody);
+    });
+
+    it('should extract from arrow function factory', () => {
+        const fnBody = `return function inner(x) {
+    return x + 1;
+  };`;
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('test', 'arrowFn', (jUtils) => {
+    ${fnBody}
+});
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory');
+        expect(result).toHaveLength(1);
+        expect(result[0].namespace).toBe('test');
+        expect(result[0].fnName).toBe('arrowFn');
+        expect(result[0].paramNames).toEqual(['jUtils']);
+        expect(result[0].fnBody).toBe(fnBody);
+    });
+
+    it('should extract multiple registerPureFnFactory calls from one file', () => {
+        const fnBody1 = `return function a(x) {
+    return x + 1;
+  };`;
+        const fnBody2 = `return function b(x) {
+    return x * 2;
+  };`;
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf1 = registerPureFnFactory('mion', 'fn1', function () {
+    ${fnBody1}
+});
+export const cpf2 = registerPureFnFactory('mion', 'fn2', function () {
+    ${fnBody2}
+});
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory');
+        expect(result).toHaveLength(2);
+        expect(result[0].fnName).toBe('fn1');
+        expect(result[0].fnBody).toBe(fnBody1);
+        expect(result[1].fnName).toBe('fn2');
+        expect(result[1].fnBody).toBe(fnBody2);
+    });
+
+    it('should generate deterministic hashes', () => {
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mion', 'testFn', function () {
+    return function t(x) { return x; };
+});
+`;
+        const result1 = extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory');
+        const result2 = extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory');
+        expect(result1[0].bodyHash).toBe(result2[0].bodyHash);
+    });
+
+    it('should generate different hashes for different function bodies', () => {
+        const source1 = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mion', 'fn', function () { return function t(x) { return x + 1; }; });
+`;
+        const source2 = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mion', 'fn', function () { return function t(x) { return x + 2; }; });
+`;
+        const r1 = extractPureFnsFromSource(source1, 'test.ts', 'registerPureFnFactory');
+        const r2 = extractPureFnsFromSource(source2, 'test.ts', 'registerPureFnFactory');
+        expect(r1[0].bodyHash).not.toBe(r2[0].bodyHash);
+    });
+
+    it('should include functionID in hash input (different IDs produce different hashes)', () => {
+        const source1 = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mion', 'fn1', function () { return function t(x) { return x; }; });
+`;
+        const source2 = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mion', 'fn2', function () { return function t(x) { return x; }; });
+`;
+        const r1 = extractPureFnsFromSource(source1, 'test.ts', 'registerPureFnFactory');
+        const r2 = extractPureFnsFromSource(source2, 'test.ts', 'registerPureFnFactory');
+        expect(r1[0].bodyHash).not.toBe(r2[0].bodyHash);
+    });
+
+    it('should strip TypeScript types from factory function', () => {
+        const fnBody = `return function check(s, p) {
+    return p.isLower ? s === s.toLowerCase() : true;
+  };`;
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+interface Params { isLower?: boolean; }
+export const cpf = registerPureFnFactory('mion', 'typedFn', function (jUtil: any) {
+    return function check(s: string, p: Params): boolean {
+        return p.isLower ? s === s.toLowerCase() : true;
+    };
+});
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory');
+        expect(result).toHaveLength(1);
+        expect(result[0].fnBody).toBe(fnBody);
+    });
+
+    it('should return empty array for files without registerPureFnFactory', () => {
+        const source = `const x = 1; export function hello() { return 'world'; }`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory');
+        expect(result).toHaveLength(0);
+    });
+
+    it('should throw when namespace is not a string literal', () => {
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+const ns = 'mion';
+export const cpf = registerPureFnFactory(ns, 'fn', function () { return function t() {}; });
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory')).toThrow(/string literal/);
+    });
+
+    it('should throw when factoryFn is not a function expression', () => {
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+const myFn = () => {};
+export const cpf = registerPureFnFactory('mion', 'fn', myFn);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory')).toThrow(
+            /function expression or arrow function/
+        );
+    });
+});
+
+describe('transformPureFnCalls - registerPureFnFactory', () => {
+    it('should inject ParsedFactoryFn as 4th argument', () => {
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mion', 'isHours', function () {
+    return function is_h(hours) {
+        const h = Number(hours);
+        return h >= 0 && h <= 23;
+    };
+});
+`;
+        const result = transformPureFnCalls(source, 'test.ts', 'registerPureFnFactory', 'parsedFactoryFn');
+        expect(result).not.toBeNull();
+        expect(result!.extractedFns).toHaveLength(1);
+        // Should contain the injected ParsedFactoryFn object
+        expect(result!.code).toContain('{bodyHash:');
+        expect(result!.code).toContain('paramNames:');
+        expect(result!.code).toContain('code:');
+        // Original code structure should be preserved
+        expect(result!.code).toContain('function is_h');
+    });
+
+    it('should handle multiple registerPureFnFactory calls', () => {
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf1 = registerPureFnFactory('mion', 'fn1', function () {
+    return function a(x) { return x + 1; };
+});
+export const cpf2 = registerPureFnFactory('mion', 'fn2', function () {
+    return function b(x) { return x * 2; };
+});
+`;
+        const result = transformPureFnCalls(source, 'test.ts', 'registerPureFnFactory', 'parsedFactoryFn');
+        expect(result).not.toBeNull();
+        expect(result!.extractedFns).toHaveLength(2);
+        // Both should have ParsedFactoryFn injected
+        const matches = result!.code.match(/\{bodyHash:/g);
+        expect(matches).toHaveLength(2);
+    });
+
+    it('should be idempotent — skip already-transformed calls', () => {
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mion', 'fn', function () {
+    return function t(x) { return x; };
+});
+`;
+        const result1 = transformPureFnCalls(source, 'test.ts', 'registerPureFnFactory', 'parsedFactoryFn');
+        expect(result1).not.toBeNull();
+
+        // Second transform on already-transformed code
+        const result2 = transformPureFnCalls(result1!.code, 'test.ts', 'registerPureFnFactory', 'parsedFactoryFn');
+        expect(result2).toBeNull();
+    });
+
+    it('should return null for files without registerPureFnFactory', () => {
+        const source = `const x = 1; export function hello() { return 'world'; }`;
+        const result = transformPureFnCalls(source, 'test.ts', 'registerPureFnFactory', 'parsedFactoryFn');
+        expect(result).toBeNull();
+    });
+
+    it('should properly escape code string in injected object', () => {
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mion', 'quoteFn', function () {
+    return function t(s) { return '"' + s + "'"; };
+});
+`;
+        const result = transformPureFnCalls(source, 'test.ts', 'registerPureFnFactory', 'parsedFactoryFn');
+        expect(result).not.toBeNull();
+        // The injected code should be valid (properly escaped via JSON.stringify)
+        expect(result!.code).toContain('{bodyHash:');
+    });
+
+    it('should inject correct paramNames for factory with parameter', () => {
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+export const cpf = registerPureFnFactory('mionFormats', 'dateFn', function (jUtil) {
+    const dep = jUtil.getPureFn('mionFormats', 'isDate');
+    return function check(v) { return dep(v); };
+});
+`;
+        const result = transformPureFnCalls(source, 'test.ts', 'registerPureFnFactory', 'parsedFactoryFn');
+        expect(result).not.toBeNull();
+        expect(result!.code).toContain('"jUtil"');
     });
 });
 

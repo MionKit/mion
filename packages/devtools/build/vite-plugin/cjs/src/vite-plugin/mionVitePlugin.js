@@ -103,12 +103,24 @@ function mionVitePlugin(options) {
       let currentCode = code;
       if (code.includes("pureServerFn")) {
         try {
-          const result = src_vitePlugin_extractPureFn.transformPureServerFnCalls(currentCode, fileName);
+          const result = src_vitePlugin_extractPureFn.transformPureFnCalls(currentCode, fileName, "pureServerFn", "hash");
           if (result) {
             currentCode = result.code;
           }
         } catch (err) {
           console.warn(`[mion] Warning: Could not transform pureServerFn calls in ${fileName}: ${err}`);
+        }
+      }
+      if (currentCode.includes("registerPureFnFactory")) {
+        try {
+          const result = src_vitePlugin_extractPureFn.transformPureFnCalls(currentCode, fileName, "registerPureFnFactory", "parsedFactoryFn");
+          if (result) {
+            currentCode = result.code;
+          }
+        } catch (err) {
+          console.warn(
+            `[mion] Warning: Could not transform registerPureFnFactory calls in ${fileName}: ${err}`
+          );
         }
       }
       if (deepkitTransform) {

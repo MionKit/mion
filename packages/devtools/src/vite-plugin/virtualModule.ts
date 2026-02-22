@@ -50,7 +50,7 @@ function generateEntryCode(fn: ExtractedPureFn): string {
             namespace: ${JSON.stringify(fn.namespace)},
             fnName: ${JSON.stringify(fn.fnName)},
             paramNames: [${paramsArray}],
-            code: ${JSON.stringify(fn.code)},
+            code: ${JSON.stringify(fn.fnBody)},
             bodyHash: ${JSON.stringify(fn.bodyHash)},
             pureFnDependencies: [${depsArray.join(', ')}],
             isFactory: ${fn.isFactory},
@@ -64,7 +64,7 @@ function generateDirectFn(fn: ExtractedPureFn): string {
     const safeName = makeSafeFunctionName(fn.fnName);
 
     return `            fn: function ${safeName}(${params}) {
-                ${fn.code}
+                ${fn.fnBody}
             },`;
 }
 
@@ -76,7 +76,7 @@ function generateFactoryFn(fn: ExtractedPureFn): string {
     return `            fn: undefined,
             createFn: function ${safeName}(jitUtils) {
                 return (function factory(${params}) {
-                    ${fn.code}
+                    ${fn.fnBody}
                 })(jitUtils);
             },`;
 }

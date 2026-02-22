@@ -9,7 +9,7 @@ import type {Plugin} from 'vite';
 import {resolve} from 'path';
 import {createDeepkitTransform} from './deepkit-type.ts';
 import {ServerPureFunctionsOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
-import {scanClientSource, transformPureServerFnCalls} from './extractPureFn.ts';
+import {scanClientSource, transformPureFnCalls} from './extractPureFn.ts';
 import {generateVirtualModule} from './virtualModule.ts';
 import {
     VIRTUAL_SERVER_PURE_FNS,
@@ -206,10 +206,10 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
         transform(code: string, fileName: string) {
             let currentCode = code;
 
-            // Step 1: Transform pureServerFn() calls — inject bodyHash (runs on ALL files, not gated behind pureFnOptions)
+            // Step 1: Transform pureServerFn() calls — inject bodyHash
             if (code.includes('pureServerFn')) {
                 try {
-                    const result = transformPureServerFnCalls(currentCode, fileName);
+                    const result = transformPureFnCalls(currentCode, fileName, 'pureServerFn', 'hash');
                     if (result) {
                         currentCode = result.code;
                     }
@@ -218,7 +218,19 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                 }
             }
 
-            // Step 2: Apply deepkit transformation
+            // Step 2: Transform registerPureFnFactory() calls — inject ParsedFactoryFn
+            if (currentCode.includes('registerPureFnFactory')) {
+                try {
+                    const result = transformPureFnCalls(currentCode, fileName, 'registerPureFnFactory', 'parsedFactoryFn');
+                    if (result) {
+                        currentCode = result.code;
+                    }
+                } catch (err) {
+                    console.warn(`[mion] Warning: Could not transform registerPureFnFactory calls in ${fileName}: ${err}`);
+                }
+            }
+
+            // Step 3: Apply deepkit transformation
             if (deepkitTransform) {
                 const deepkitResult = deepkitTransform(currentCode, fileName);
                 if (deepkitResult) return deepkitResult;
