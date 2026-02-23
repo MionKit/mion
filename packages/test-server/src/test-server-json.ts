@@ -133,6 +133,13 @@ const routes = {
         if (!pureFn?.fn) throw new RpcError({publicMessage: 'Pure function greeting not found', type: 'pure-fn-not-found'});
         return pureFn.fn();
     }),
+
+    // Route that looks up and invokes any server pure function by name, with an optional argument
+    callPureFnByName: route((_ctx, fnName: string, arg?: number): any => {
+        const pureFn = serverPureFnsCache.pureServerFn?.[fnName];
+        if (!pureFn?.fn) throw new RpcError({publicMessage: `Pure function "${fnName}" not found`, type: 'pure-fn-not-found'});
+        return arg !== undefined ? pureFn.fn(arg) : pureFn.fn();
+    }),
 } satisfies Routes;
 
 // Get port from command line args or use default

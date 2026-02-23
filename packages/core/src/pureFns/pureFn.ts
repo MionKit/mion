@@ -8,6 +8,23 @@
 import type {CompiledPureFunction, ParsedFactoryFn, PureFunctionFactory} from '../types/pureFunctions.types.ts';
 import {getJitUtils, type JITUtils} from '../jit/jitUtils.ts';
 
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  WARNING: This function's call signature is parsed by the mion vite plugin  ║
+// ║  at build time (see devtools/src/vite-plugin/extractPureFn.ts).             ║
+// ║  Do NOT rename, change the parameter order, or modify the function          ║
+// ║  signature without updating the corresponding AST extraction and            ║
+// ║  transformer logic in @mionkit/devtools.                                    ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+
+/**
+ * Registers a pure function factory with automatic dependency tracking.
+ * The `parsedFn` argument (containing bodyHash, paramNames, and code) is injected
+ * at build time by the mion vite plugin's transform hook — it must never be passed manually.
+ * If the function is already registered under the same namespace + functionID, the existing
+ * compiled entry is returned (idempotent). Dependencies on other pure functions are
+ * auto-detected by running the factory once with a tracking proxy.
+ *
+ */
 export function registerPureFnFactory(
     namespace: string,
     functionID: string,

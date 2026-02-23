@@ -119,6 +119,53 @@ export const fn = pureServerFn({
         expect(collected).toHaveLength(1);
         expect(output).toContain(`"${collected[0].bodyHash}"`);
     });
+
+    it('should inject bodyHash for plain function expression', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/core';
+export const fn = pureServerFn(function addOne(x) { return x + 1; });
+`;
+        const {output, collected} = transformWithPureFn(source);
+        expect(collected).toHaveLength(1);
+        const hash = collected[0].bodyHash;
+        expect(hash.length).toBe(BODY_HASH_LENGTH);
+        expect(output).toContain(`"${hash}"`);
+        expect(output).toContain('function addOne(x)');
+    });
+
+    it('should inject bodyHash for plain arrow function', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/core';
+export const fn = pureServerFn((x) => x + 1);
+`;
+        const {output, collected} = transformWithPureFn(source);
+        expect(collected).toHaveLength(1);
+        expect(output).toContain(`"${collected[0].bodyHash}"`);
+    });
+
+    it('should be idempotent for plain function with existing hash', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/core';
+export const fn = pureServerFn((x) => x + 1, 'existingHash');
+`;
+        const {output, collected} = transformWithPureFn(source);
+        expect(collected).toHaveLength(0);
+        expect(output).toContain('existingHash');
+    });
+
+    it('should handle mixed plain and PureFnDef calls', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/core';
+export const fn1 = pureServerFn((x) => x + 1);
+export const fn2 = pureServerFn({
+    pureFn: function double(x) { return x * 2; }
+});
+`;
+        const {output, collected} = transformWithPureFn(source);
+        expect(collected).toHaveLength(2);
+        expect(output).toContain(`"${collected[0].bodyHash}"`);
+        expect(output).toContain(`"${collected[1].bodyHash}"`);
+    });
 });
 
 describe('pureFnTransformer - registerPureFnFactory', () => {

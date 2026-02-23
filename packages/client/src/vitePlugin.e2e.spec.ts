@@ -182,6 +182,14 @@ describe('mion vite plugin: pureServerFn e2e', () => {
     };
     const doublePureFn = pureServerFn(variableDef);
 
+    /** Plain function shorthand: pureServerFn(fn) - fnName = bodyHash */
+    const incrementPureFn = pureServerFn(function increment(x: number) {
+        return x + 1;
+    });
+
+    /** Arrow function shorthand: pureServerFn(arrow) - fnName = bodyHash */
+    const tripleArrowFn = pureServerFn((x: number) => x * 3);
+
     beforeEach(() => {
         localStorage.clear();
     });
@@ -235,6 +243,65 @@ describe('mion vite plugin: pureServerFn e2e', () => {
 
         expect(error).toBeUndefined();
         // Both should produce the same value
+        expect(serverResult).toBe(clientResult);
+    });
+
+    // --- Plain function overload tests ---
+
+    it('should have valid client-side ref from plain function overload (named function)', () => {
+        expect(incrementPureFn).toBeDefined();
+        expect(incrementPureFn.bodyHash).toBeTruthy();
+        expect(incrementPureFn.namespace).toBe('pureServerFn');
+        // Plain function overload always uses bodyHash as fnName
+        expect(incrementPureFn.fnName).toBe(incrementPureFn.bodyHash);
+        expect(incrementPureFn.isFactory).toBe(false);
+        expect(incrementPureFn.pureFn(5)).toBe(6);
+    });
+
+    it('should have valid client-side ref from plain arrow function overload', () => {
+        expect(tripleArrowFn).toBeDefined();
+        expect(tripleArrowFn.bodyHash).toBeTruthy();
+        expect(tripleArrowFn.namespace).toBe('pureServerFn');
+        expect(tripleArrowFn.fnName).toBe(tripleArrowFn.bodyHash);
+        expect(tripleArrowFn.isFactory).toBe(false);
+        expect(tripleArrowFn.pureFn(4)).toBe(12);
+    });
+
+    it('should execute plain function pureServerFn on server via callPureFnByName', async () => {
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const authHeaders = new HeadersSubset({Authorization: 'test-token'});
+
+        // The fnName for plain function overload is the bodyHash
+        const [result, error] = await routes.callPureFnByName(incrementPureFn.fnName, 10).callWithLinkedFns({
+            auth: linkedFns.auth(authHeaders),
+        });
+
+        expect(error).toBeUndefined();
+        expect(result).toBe(11);
+    });
+
+    it('should execute plain arrow function pureServerFn on server via callPureFnByName', async () => {
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const authHeaders = new HeadersSubset({Authorization: 'test-token'});
+
+        const [result, error] = await routes.callPureFnByName(tripleArrowFn.fnName, 7).callWithLinkedFns({
+            auth: linkedFns.auth(authHeaders),
+        });
+
+        expect(error).toBeUndefined();
+        expect(result).toBe(21);
+    });
+
+    it('should return same value from server as client-side plain function', async () => {
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const authHeaders = new HeadersSubset({Authorization: 'test-token'});
+
+        const clientResult = incrementPureFn.pureFn(42);
+        const [serverResult, error] = await routes.callPureFnByName(incrementPureFn.fnName, 42).callWithLinkedFns({
+            auth: linkedFns.auth(authHeaders),
+        });
+
+        expect(error).toBeUndefined();
         expect(serverResult).toBe(clientResult);
     });
 });
