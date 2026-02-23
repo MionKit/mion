@@ -23,10 +23,6 @@
       "dependsOn": ["^build-ts-dts"],
       "outputs": ["{projectRoot}/.dist/esm"]
     },
-    "auto-readme": {
-      "dependsOn": [],
-      "outputs": ["{workspaceRoot}/**/*.md"]
-    },
     "clean": {
       "dependsOn": []
     }

@@ -11,7 +11,7 @@ import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnC
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants.ts';
-import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns, importModule} from '@mionkit/core';
+import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns} from '@mionkit/core';
 import {getPersistedMethodMetadata} from './methodsCache.ts';
 
 // ############ This file is the only one importing '@mionkit/run-types' within the router ########
@@ -58,7 +58,7 @@ async function loadRunTypesModule(): Promise<RunTypesFunctions> {
     if (runTypesLoadPromise) return runTypesLoadPromise;
 
     // Start loading the module
-    runTypesLoadPromise = importModule<RunTypesModule>('@mionkit/run-types').then((module) => {
+    runTypesLoadPromise = import('@mionkit/run-types').then((module) => {
         runTypesModule = {
             JitFunctions: module.JitFunctions,
             reflectFunction: module.reflectFunction,
