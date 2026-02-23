@@ -53,10 +53,10 @@ export default defineConfig({
     ],
     resolve: {
         alias: {
-            '@mionkit/router': resolve(__dirname, '.'),
-            '@mionkit/core': resolve(__dirname, '../core'),
-            '@mionkit/run-types': resolve(__dirname, '../run-types'),
-            '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
+            '@mionkit/router': resolve(__dirname, 'index.ts'),
+            '@mionkit/core': resolve(__dirname, '../core/index.ts'),
+            '@mionkit/run-types': resolve(__dirname, '../run-types/index.ts'),
+            '@mionkit/type-formats': resolve(__dirname, '../type-formats/index.ts'),
         },
     },
     build: {

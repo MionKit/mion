@@ -30,7 +30,7 @@ import {
 import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv, resetRoutesCache} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection.ts';
 import {serializerLinkedFns} from './routes/serializer.routes.ts';
-import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache, importModule} from '@mionkit/core';
+import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache.ts';
@@ -222,8 +222,10 @@ export function getRouteExecutableFromPath(path: string): RouteMethod {
 // ############# PRIVATE METHODS #############
 
 async function emitAOTCaches() {
-    type AotEmitterModule = typeof import('./lib/aotEmitter.ts');
-    const aotEmitter = await importModule<AotEmitterModule>('./lib/aotEmitter.ts', __dirname);
+    if (getENV('MION_COMPILE') !== 'true') return;
+    // Dynamic import resolves relative to this source file.
+    // This only runs via vite-node (MION_COMPILE=true), which always resolves from source.
+    const aotEmitter = await import('./lib/aotEmitter.ts');
     return aotEmitter.emitAOTCaches();
 }
 

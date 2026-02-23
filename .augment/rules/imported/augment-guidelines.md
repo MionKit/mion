@@ -23,7 +23,7 @@ type: "always_apply"
   - `codegen`: AOT (Ahead-of-Time) code generation
   - `aws`, `gcloud`, `serverless`, `bun`: Platform-specific adapters
   - `cli`: Command-line interface (not yet implemented)
-  - `eslint-plugin`: ESLint plugin for mion
+  - `devtools`: Vite plugin, ESLint plugin, and dev tooling for mion
 - Run commands in specific package: `npm run <command> -w @mionkit/<packageName>`
 - Or navigate to package directory and run commands locally
 - all devDependencies should be installed root level not in the packages

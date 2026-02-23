@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-import {resolve} from 'path/posix';
 import {getJitUtils} from './jit/jitUtils.ts';
 import type {CompiledPureFunction} from './types/pureFunctions.types.ts';
 
@@ -45,20 +44,4 @@ export function isTestEnv() {
 export function initPureFunction(compiled: CompiledPureFunction): asserts compiled is Required<CompiledPureFunction> {
     if (compiled.fn) return;
     compiled.fn = compiled.createPureFn(getJitUtils());
-}
-
-/**
- * Dynamically imports a module, using require() in CJS and import() in ESM.
- * This prevents dual module loading issues when the same package is loaded
- * via both CJS (require) and ESM (import) in Node.js.
- *
- * In CJS environments, this uses require() to ensure the module is loaded
- * through the CommonJS cache, avoiding duplicate module instances.
- * In ESM environments, this falls back to dynamic import().
- */
-export async function importModule<T>(moduleName: string, callerDir?: string): Promise<T> {
-    const resolvedPath = moduleName.startsWith('.') && callerDir ? resolve(callerDir, moduleName) : moduleName;
-    // Always use dynamic import() for ESM compatibility
-    // This works in both ESM and CJS environments when the package uses dual module output
-    return import(resolvedPath) as Promise<T>;
 }
