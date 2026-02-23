@@ -219,7 +219,7 @@ describe('mion vite plugin: pureServerFn e2e', () => {
         const {routes, linkedFns} = initClient<MyApi>({baseURL});
         const authHeaders = new HeadersSubset({Authorization: 'test-token'});
 
-        const [result, error] = await routes.getPureFnResult().callWithLinkedFns({
+        const [result, error] = await routes.getGreetingsPureFnResult().callWithLinkedFns({
             auth: linkedFns.auth(authHeaders),
         });
 
@@ -237,7 +237,7 @@ describe('mion vite plugin: pureServerFn e2e', () => {
         const clientResult = greetingPureFn.pureFn();
 
         // Get the server-side result via mion client
-        const [serverResult, error] = await routes.getPureFnResult().callWithLinkedFns({
+        const [serverResult, error] = await routes.getGreetingsPureFnResult().callWithLinkedFns({
             auth: linkedFns.auth(authHeaders),
         });
 
