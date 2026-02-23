@@ -15,6 +15,7 @@ import {stringIgnoreProps} from './stringFormat.runtype.ts';
 import {paramVal} from '../utils.ts';
 
 // DateTime validator
+/** @reflection never */
 export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTime> {
     static id = 'dateTime' as const;
     kind = ReflectionKind.string;
@@ -99,6 +100,7 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
 }
 
 // ######### Registering validator and pure functions ########
+/** @reflection never */
 export const DATE_TIME_RUN_TYPE_FORMATTER = registerFormatter(new DateTimeRunTypeFormat());
 
 // ############### Run Types ###############

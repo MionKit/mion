@@ -13,6 +13,7 @@ import {FormatParams_UUID} from '@mionkit/core';
 import {cpf_isUUID} from '../type-formats-pure-fns.ts';
 
 // UUID validator
+/** @reflection never */
 export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
     static readonly id = 'uuid' as const;
     readonly kind = ReflectionKind.string;

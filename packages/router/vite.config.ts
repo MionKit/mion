@@ -40,7 +40,17 @@ export default defineConfig({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
                 compilerOptions: {sourceMap: true},
-                exclude: '**/{dispatch,headers,methodsCache,dispatchError,constants,callContext,workflows}.ts',
+                exclude: [
+                    '**/dispatch.ts',
+                    '**/headers.ts',
+                    '**/methodsCache.ts',
+                    '**/dispatchError.ts',
+                    '**/callContext.ts',
+                    '**/workflows.ts',
+                    '**/router.ts',
+                    '**/lib/handlers.ts',
+                    '**/lib/remoteMethods.ts',
+                ],
             },
         }),
         dts({

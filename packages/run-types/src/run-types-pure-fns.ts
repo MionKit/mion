@@ -7,7 +7,6 @@
 import type {TypeFormatError, StrNumber, RunTypeError} from '@mionkit/core';
 import {MAX_UNKNOWN_KEYS, registerPureFnFactory} from '@mionkit/core';
 
-/** @reflection never */
 export const cpf_asJSONString = registerPureFnFactory('mion', 'asJSONString', function () {
     // @ts-expect-error 2867
     if (typeof Bun !== 'undefined') return JSON.stringify; // bun has a faster JSON.stringify
@@ -24,7 +23,6 @@ export const cpf_asJSONString = registerPureFnFactory('mion', 'asJSONString', fu
     };
 });
 
-/** @reflection never */
 export const cpf_getUnknownKeysFromArray = registerPureFnFactory('mion', 'getUnknownKeysFromArray', function () {
     return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
         const unknownKeys: StrNumber[] = [];
@@ -45,7 +43,6 @@ export const cpf_getUnknownKeysFromArray = registerPureFnFactory('mion', 'getUnk
     };
 });
 
-/** @reflection never */
 export const cpf_hasUnknownKeysFromArray = registerPureFnFactory('mion', 'hasUnknownKeysFromArray', function () {
     return function _hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
         for (const prop in obj) {
@@ -63,7 +60,6 @@ export const cpf_hasUnknownKeysFromArray = registerPureFnFactory('mion', 'hasUnk
     };
 });
 
-/** @reflection never */
 export const cpf_newRunTypeErr = registerPureFnFactory('mion', 'newRunTypeErr', function () {
     return function _err(
         pλth: readonly StrNumber[],
@@ -77,7 +73,6 @@ export const cpf_newRunTypeErr = registerPureFnFactory('mion', 'newRunTypeErr', 
     };
 });
 
-/** @reflection never */
 export const cpf_formatErr = registerPureFnFactory('mion', 'formatErr', function () {
     return function _formatErr(
         pλth: StrNumber[],
@@ -98,7 +93,6 @@ export const cpf_formatErr = registerPureFnFactory('mion', 'formatErr', function
     };
 });
 
-/** @reflection never */
 export const cpf_safeIterableKey = registerPureFnFactory('mion', 'safeIterableKey', function () {
     return function _safeKey(value: any): any {
         if (value === undefined) return null;

@@ -22,6 +22,7 @@ import {
 } from '../type-formats-pure-fns.ts';
 
 // Time validator
+/** @reflection never */
 export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time> {
     static id = 'time' as const;
     kind = ReflectionKind.string;
@@ -92,13 +93,13 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
 }
 
 // ######### Mocking functions #########
-
+/** @reflection never */
 export function mockMilliseconds(): string {
     const showMilliseconds = Math.random() > 0.5;
     if (!showMilliseconds) return '';
     return `.${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
 }
-
+/** @reflection never */
 export function mockTimeZone(): string {
     const isZ = Math.random() > 0.5;
     if (isZ) return 'Z';
@@ -108,7 +109,7 @@ export function mockTimeZone(): string {
 }
 
 // ######### Registering the time validator #########
-
+/** @reflection never */
 export const TIME_RUN_TYPE_FORMATTER = registerFormatter(new TimeStringRunTypeFormat());
 
 // ############### Type  ###############

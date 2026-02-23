@@ -23,11 +23,11 @@ const propsWithRequiredSamples = ['disallowedChars', 'disallowedChars', 'pattern
 export const stringIgnoreProps = ['samples', 'sampleChars'];
 
 // ############### String Format ###############
-
 /**
  * StringFormat is the base class for all string formats.
  * It is used to define the string format and its parameters.
  * Jit code will be generated for each one of the StringFormat parameters.
+ * @reflection never
  */
 export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
     static readonly id = 'stringFormat' as const;
@@ -237,6 +237,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
     }
 }
 
+/** @reflection never */
 export function isPatternParam(p: any): p is FormatParam_Pattern {
     const isMessage = p.message === undefined || typeof p.message === 'string';
     const isSamples = p.samples === undefined || (Array.isArray(p.samples) && p.samples.every((s) => typeof s === 'string'));
@@ -245,11 +246,11 @@ export function isPatternParam(p: any): p is FormatParam_Pattern {
     const isRegexpObj = typeof p.regexp === 'object' && p.regexp instanceof RegExp;
     return isMessage && hasSamples && isSamples && isSampleChars && isRegexpObj;
 }
-
+/** @reflection never */
 export function patternParamsToStrParams(p: FormatParam_Pattern): StringParams {
     return {pattern: p};
 }
-
+/** @reflection never */
 function getParamError(v: any, p: StringParams, skipLengthChecks = false): string | undefined {
     if (!skipLengthChecks) {
         if (p.maxLength !== undefined && v.length > p.maxLength) return 'maxLength';
@@ -262,35 +263,38 @@ function getParamError(v: any, p: StringParams, skipLengthChecks = false): strin
     if (p.allowedValues && !p.allowedValues.val.includes(v)) return 'allowedValues';
     if (p.disallowedValues && p.disallowedValues.val.includes(v)) return 'disallowedValues';
 }
-
+/** @reflection never */
 function getDefaultMessage(name: keyof typeof defaultMessages, p: StringParams): string {
     return p[name]?.errorMessage || defaultMessages[name];
 }
-
+/** @reflection never */
 function getAllowedCharsRegexp(allowedChars: string, ignoreCase?: boolean): RegExp {
     const flags = ignoreCase ? 'i' : '';
     return new RegExp(`^[${regexpEscape(allowedChars)}]+$`, flags);
 }
+/** @reflection never */
 function getDisallowedCharsRegexp(disallowedChars: string, ignoreCase?: boolean): RegExp {
     const flags = ignoreCase ? 'i' : '';
     return new RegExp(`[${regexpEscape(disallowedChars)}]`, flags);
 }
+/** @reflection never */
 function getAllowedValuesRegexp(allowedValues: readonly string[], ignoreCase?: boolean): RegExp {
     const flags = ignoreCase ? 'i' : '';
     return new RegExp(`^(?:${allowedValues.map((v) => regexpEscape(v)).join('|')})$`, flags);
 }
+/** @reflection never */
 function getDisallowedValuesRegexp(disallowedValues: readonly string[], ignoreCase?: boolean): RegExp {
     const flags = ignoreCase ? 'i' : '';
     return new RegExp(`^(?:${disallowedValues.map((v) => regexpEscape(v)).join('|')})$`, flags);
 }
-
+/** @reflection never */
 function charsAllCases(string?: string): string | undefined {
     if (!string) return;
     const chars = string.split('');
     const allCases = [...chars.map((c) => c.toLowerCase()), ...chars.map((c) => c.toUpperCase())];
     return Array.from(new Set(allCases)).join('');
 }
-
+/** @reflection never */
 function valuesAllCases(stringList: string[]): string[] {
     const allCases = [...stringList, ...stringList.map((s) => s.toLowerCase()), ...stringList.map((s) => s.toUpperCase())];
     return Array.from(new Set(allCases));
@@ -300,6 +304,7 @@ function valuesAllCases(stringList: string[]): string[] {
 // registerPureFnClosure(stringFormatErrors);
 
 // register Validator operations so they can be used in the jit compiler
+/** @reflection never */
 export const STRING_RUN_TYPE_FORMATTER = registerFormatter(new StringRunTypeFormat());
 
 /** String format with optional branding. Unbranded by default. */

@@ -7,10 +7,12 @@
 
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {jitFnsCache, pureFnsCache, routerCache} from 'virtual:mion-aot/caches';
-import {routesCache, MION_ROUTES, PureFnDef} from '@mionkit/core';
+import {routesCache, MION_ROUTES, PureFnDef, HeadersSubset} from '@mionkit/core';
 import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata.ts';
+import {initClient} from './client.ts';
 import {ClientOptions} from './types.ts';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
+import {TestServerApi} from '@mionkit/test-server';
 import Storage from 'dom-storage';
 import {pureServerFn} from '@mionkit/core';
 
@@ -161,6 +163,7 @@ describe('mion vite plugin: e2e with real server', () => {
 // ============================================================
 describe('mion vite plugin: pureServerFn e2e', () => {
     const baseURL = TEST_SERVER_BASE_URL_JSON;
+    type MyApi = TestServerApi;
 
     /** Simple pure function for e2e testing of server pure functions extraction */
     const greetingPureFn = pureServerFn({
@@ -178,6 +181,14 @@ describe('mion vite plugin: pureServerFn e2e', () => {
         fnName: 'double',
     };
     const doublePureFn = pureServerFn(variableDef);
+
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    afterEach(() => {
+        resetClientCaches();
+    });
 
     it('should have valid client-side pureServerFn reference', () => {
         expect(greetingPureFn).toBeDefined();
@@ -197,35 +208,33 @@ describe('mion vite plugin: pureServerFn e2e', () => {
     });
 
     it('should execute client-defined pureServerFn on server via virtual module', async () => {
-        // Call the route that invokes the extracted pure function on the server
-        const url = new URL('getPureFnResult', baseURL);
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', Authorization: 'test-token'},
-            body: JSON.stringify({getPureFnResult: []}),
-        });
-        expect(response.ok).toBe(true);
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const authHeaders = new HeadersSubset({Authorization: 'test-token'});
 
-        const data = await response.json();
+        const [result, error] = await routes.getPureFnResult().callWithLinkedFns({
+            auth: linkedFns.auth(authHeaders),
+        });
+
+        expect(error).toBeUndefined();
         // The server route calls the pure function that was extracted from client
         // source at build time via virtual:mion-pure-functions
-        expect(data.getPureFnResult).toBe('hello from pure function');
+        expect(result).toBe('hello from pure function');
     });
 
     it('should return same value from server as client-side pure function', async () => {
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const authHeaders = new HeadersSubset({Authorization: 'test-token'});
+
         // Get the client-side result
         const clientResult = greetingPureFn.pureFn();
 
-        // Get the server-side result
-        const url = new URL('getPureFnResult', baseURL);
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', Authorization: 'test-token'},
-            body: JSON.stringify({getPureFnResult: []}),
+        // Get the server-side result via mion client
+        const [serverResult, error] = await routes.getPureFnResult().callWithLinkedFns({
+            auth: linkedFns.auth(authHeaders),
         });
-        const data = await response.json();
 
+        expect(error).toBeUndefined();
         // Both should produce the same value
-        expect(data.getPureFnResult).toBe(clientResult);
+        expect(serverResult).toBe(clientResult);
     });
 });

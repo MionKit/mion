@@ -39,16 +39,7 @@ export default defineConfig({
         mionPlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
-                exclude: [
-                    '**/utils.ts',
-                    '**/jitUtils.ts',
-                    '**/routerUtils.ts',
-                    '**/restoreJitFns.ts',
-                    '**/dataView.ts',
-                    '**/bodySerializer.ts',
-                    '**/bodyDeserializer.ts',
-                    '**/friendlyErrors.ts',
-                ],
+                include: ['**/types/**/*.ts', '**/errors.ts', '**/headers.ts', '**/constants.ts'],
             },
         }),
         dts({
