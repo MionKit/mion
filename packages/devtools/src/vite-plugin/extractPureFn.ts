@@ -111,39 +111,45 @@ export function stripTypes(code: string): string {
 
 /** Extracts a single PureFnDef from a pureServerFn() call expression */
 function extractDataFromPureFnDefAST(call: ts.CallExpression, sourceFile: ts.SourceFile, filePath: string): ExtractedPureFn {
-    // Accept 1 or 2 arguments: pureServerFn(def) or pureServerFn(def, 'bodyHash') (already transformed)
+    // Accept 1 or 2 arguments: pureServerFn(fnOrDef) or pureServerFn(fnOrDef, 'bodyHash') (already transformed)
     if (call.arguments.length < 1 || call.arguments.length > 2) {
         throw new PurityError(
-            'pureServerFn() requires 1 or 2 arguments: a PureFnDef object and an optional bodyHash string',
+            'pureServerFn() requires 1 or 2 arguments: a function/PureFnDef and an optional bodyHash string',
             filePath,
             call.getStart(sourceFile)
         );
     }
 
-    let objArg = call.arguments[0];
+    let arg = call.arguments[0];
 
     // If the argument is a variable reference, resolve it to its initializer
-    if (ts.isIdentifier(objArg)) {
-        const resolved = resolveVariableInitializer(objArg.text, sourceFile);
+    if (ts.isIdentifier(arg)) {
+        const resolved = resolveVariableInitializer(arg.text, sourceFile);
         if (!resolved) {
             throw new PurityError(
-                `pureServerFn() argument "${objArg.text}" could not be resolved to a variable declaration in this file`,
+                `pureServerFn() argument "${arg.text}" could not be resolved to a variable declaration in this file`,
                 filePath,
-                objArg.getStart(sourceFile)
+                arg.getStart(sourceFile)
             );
         }
-        objArg = resolved;
+        arg = resolved;
     }
 
-    if (!ts.isObjectLiteralExpression(objArg)) {
-        throw new PurityError(
-            'pureServerFn() first argument must be an object literal (PureFnDef) or a variable referencing one',
-            filePath,
-            call.arguments[0].getStart(sourceFile)
-        );
+    // Plain function shorthand: pureServerFn((x) => x + 1) or pureServerFn(function myFn(x) { ... })
+    if (ts.isFunctionExpression(arg) || ts.isArrowFunction(arg)) {
+        return buildExtractedPureFn(arg, PURE_SERVER_FN_NAMESPACE, undefined, false, sourceFile, filePath);
     }
 
-    return extractPureFnDefFromObjectLiteral(objArg, sourceFile, filePath);
+    // Full PureFnDef object: pureServerFn({ pureFn: ..., namespace: ..., fnName: ... })
+    if (ts.isObjectLiteralExpression(arg)) {
+        return extractPureFnDefFromObjectLiteral(arg, sourceFile, filePath);
+    }
+
+    throw new PurityError(
+        'pureServerFn() first argument must be a function, an object literal (PureFnDef), or a variable referencing one',
+        filePath,
+        call.arguments[0].getStart(sourceFile)
+    );
 }
 
 /** Extracts data from a registerPureFnFactory(namespace, functionID, factoryFn) call expression */
@@ -319,8 +325,22 @@ function extractPureFnDefFromObjectLiteral(
         throw new PurityError('PureFnDef must have a pureFn property', filePath, objLiteral.getStart(sourceFile));
     }
 
+    // For PureFnDef path: if no explicit fnName, try function.name fallback (set to 'useFunction' sentinel)
+    const explicitFnName = fnName ?? (ts.isFunctionExpression(pureFn) && pureFn.name ? pureFn.name.text : undefined);
+    return buildExtractedPureFn(pureFn, namespace, explicitFnName, isFactory, sourceFile, filePath);
+}
+
+/** Common extraction logic: validates purity, computes hash, builds ExtractedPureFn */
+function buildExtractedPureFn(
+    fnNode: ts.FunctionExpression | ts.ArrowFunction,
+    namespace: string,
+    explicitFnName: string | undefined,
+    isFactory: boolean,
+    sourceFile: ts.SourceFile,
+    filePath: string
+): ExtractedPureFn {
     // Extract parameter names
-    const paramNames = pureFn.parameters.map((param) => {
+    const paramNames = fnNode.parameters.map((param) => {
         if (!ts.isIdentifier(param.name)) {
             throw new PurityError(
                 'Pure function parameters must be simple identifiers (no destructuring)',
@@ -332,13 +352,13 @@ function extractPureFnDefFromObjectLiteral(
     });
 
     // Get the function body
-    const bodyNode = pureFn.body;
+    const bodyNode = fnNode.body;
 
     // Validate purity (skip for factory functions as they receive jitUtils)
     if (!isFactory) {
-        validatePurity(bodyNode, new Set(paramNames), fnName, sourceFile, filePath);
+        validatePurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath);
     } else {
-        validateFactoryPurity(bodyNode, new Set(paramNames), fnName, sourceFile, filePath);
+        validateFactoryPurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath);
     }
 
     // Get the body text
@@ -351,14 +371,8 @@ function extractPureFnDefFromObjectLiteral(
         .digest('base64url')
         .slice(0, BODY_HASH_LENGTH);
 
-    // If no fnName, try to get from function name or use bodyHash
-    if (!fnName) {
-        if (ts.isFunctionExpression(pureFn) && pureFn.name) {
-            fnName = pureFn.name.text;
-        } else {
-            fnName = bodyHash;
-        }
-    }
+    // Use explicit fnName if provided, otherwise default to bodyHash
+    const fnName = explicitFnName || bodyHash;
 
     return {
         namespace,

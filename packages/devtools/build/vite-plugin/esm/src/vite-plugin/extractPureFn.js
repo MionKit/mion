@@ -72,31 +72,34 @@ function stripTypes(code) {
 function extractDataFromPureFnDefAST(call, sourceFile, filePath) {
   if (call.arguments.length < 1 || call.arguments.length > 2) {
     throw new PurityError(
-      "pureServerFn() requires 1 or 2 arguments: a PureFnDef object and an optional bodyHash string",
+      "pureServerFn() requires 1 or 2 arguments: a function/PureFnDef and an optional bodyHash string",
       filePath,
       call.getStart(sourceFile)
     );
   }
-  let objArg = call.arguments[0];
-  if (ts.isIdentifier(objArg)) {
-    const resolved = resolveVariableInitializer(objArg.text, sourceFile);
+  let arg = call.arguments[0];
+  if (ts.isIdentifier(arg)) {
+    const resolved = resolveVariableInitializer(arg.text, sourceFile);
     if (!resolved) {
       throw new PurityError(
-        `pureServerFn() argument "${objArg.text}" could not be resolved to a variable declaration in this file`,
+        `pureServerFn() argument "${arg.text}" could not be resolved to a variable declaration in this file`,
         filePath,
-        objArg.getStart(sourceFile)
+        arg.getStart(sourceFile)
       );
     }
-    objArg = resolved;
+    arg = resolved;
   }
-  if (!ts.isObjectLiteralExpression(objArg)) {
-    throw new PurityError(
-      "pureServerFn() first argument must be an object literal (PureFnDef) or a variable referencing one",
-      filePath,
-      call.arguments[0].getStart(sourceFile)
-    );
+  if (ts.isFunctionExpression(arg) || ts.isArrowFunction(arg)) {
+    return buildExtractedPureFn(arg, PURE_SERVER_FN_NAMESPACE, void 0, false, sourceFile, filePath);
   }
-  return extractPureFnDefFromObjectLiteral(objArg, sourceFile, filePath);
+  if (ts.isObjectLiteralExpression(arg)) {
+    return extractPureFnDefFromObjectLiteral(arg, sourceFile, filePath);
+  }
+  throw new PurityError(
+    "pureServerFn() first argument must be a function, an object literal (PureFnDef), or a variable referencing one",
+    filePath,
+    call.arguments[0].getStart(sourceFile)
+  );
 }
 function extractDataFromRegisterPureFnFactoryAST(call, sourceFile, filePath) {
   if (call.arguments.length < 3 || call.arguments.length > 4) {
@@ -234,7 +237,11 @@ function extractPureFnDefFromObjectLiteral(objLiteral, sourceFile, filePath) {
   if (!pureFn) {
     throw new PurityError("PureFnDef must have a pureFn property", filePath, objLiteral.getStart(sourceFile));
   }
-  const paramNames = pureFn.parameters.map((param) => {
+  const explicitFnName = fnName ?? (ts.isFunctionExpression(pureFn) && pureFn.name ? pureFn.name.text : void 0);
+  return buildExtractedPureFn(pureFn, namespace, explicitFnName, isFactory, sourceFile, filePath);
+}
+function buildExtractedPureFn(fnNode, namespace, explicitFnName, isFactory, sourceFile, filePath) {
+  const paramNames = fnNode.parameters.map((param) => {
     if (!ts.isIdentifier(param.name)) {
       throw new PurityError(
         "Pure function parameters must be simple identifiers (no destructuring)",
@@ -244,22 +251,16 @@ function extractPureFnDefFromObjectLiteral(objLiteral, sourceFile, filePath) {
     }
     return param.name.text;
   });
-  const bodyNode = pureFn.body;
+  const bodyNode = fnNode.body;
   if (!isFactory) {
-    validatePurity(bodyNode, new Set(paramNames), fnName, sourceFile, filePath);
+    validatePurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath);
   } else {
-    validateFactoryPurity(bodyNode, new Set(paramNames), fnName, sourceFile, filePath);
+    validateFactoryPurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath);
   }
   const bodyText = getBodyText(bodyNode, sourceFile);
   const normalizedBody = bodyText.replace(/[ \t]+/g, " ").trim();
   const bodyHash = createHash("sha256").update(namespace + normalizedBody).digest("base64url").slice(0, BODY_HASH_LENGTH);
-  if (!fnName) {
-    if (ts.isFunctionExpression(pureFn) && pureFn.name) {
-      fnName = pureFn.name.text;
-    } else {
-      fnName = bodyHash;
-    }
-  }
+  const fnName = explicitFnName || bodyHash;
   return {
     namespace,
     fnName,

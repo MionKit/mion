@@ -385,6 +385,127 @@ export const fn = pureServerFn({ namespace: 'test' });
     });
 });
 
+describe('extractPureFnsFromSource - pureServerFn with plain function', () => {
+    it('should extract a named function expression and always use bodyHash as fnName', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+export const fn = pureServerFn(function addOne(x: number): number {
+    return x + 1;
+});
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(1);
+        // Plain function overload always uses bodyHash as fnName (not function.name)
+        expect(result[0].fnName).toBe(result[0].bodyHash);
+        expect(result[0].namespace).toBe(PURE_SERVER_FN_NAMESPACE);
+        expect(result[0].paramNames).toEqual(['x']);
+        expect(result[0].fnBody).toContain('return x + 1');
+        expect(result[0].fnBody).not.toContain(': number');
+        expect(result[0].bodyHash).toBeDefined();
+        expect(result[0].bodyHash.length).toBe(BODY_HASH_LENGTH);
+        expect(result[0].isFactory).toBe(false);
+    });
+
+    it('should extract an arrow function with expression body', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+export const fn = pureServerFn((x: number) => x + 1);
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(1);
+        expect(result[0].fnName).toBe(result[0].bodyHash);
+        expect(result[0].paramNames).toEqual(['x']);
+        expect(result[0].fnBody).toContain('return x + 1');
+        expect(result[0].isFactory).toBe(false);
+    });
+
+    it('should extract an arrow function with block body', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+export const fn = pureServerFn((users: any[]) => {
+    return users.map((u: any) => ({id: u.id}));
+});
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(1);
+        expect(result[0].paramNames).toEqual(['users']);
+        expect(result[0].fnBody).toContain('users.map');
+    });
+
+    it('should extract multiple plain function calls from one file', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+export const fn1 = pureServerFn(function addOne(x: number) { return x + 1; });
+export const fn2 = pureServerFn((x: number) => x * 2);
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(2);
+        // Both should use bodyHash as fnName
+        expect(result[0].fnName).toBe(result[0].bodyHash);
+        expect(result[1].fnName).toBe(result[1].bodyHash);
+    });
+
+    it('should produce same hash as equivalent PureFnDef form', () => {
+        const plainSource = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+export const fn = pureServerFn(function addOne(x) { return x + 1; });
+`;
+        const defSource = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+export const fn = pureServerFn({ pureFn: function addOne(x) { return x + 1; } });
+`;
+        const plainResult = extractPureFnsFromSource(plainSource, 'test.ts');
+        const defResult = extractPureFnsFromSource(defSource, 'test.ts');
+        expect(plainResult[0].bodyHash).toBe(defResult[0].bodyHash);
+        expect(plainResult[0].fnBody).toBe(defResult[0].fnBody);
+    });
+
+    it('should handle mixed plain function and PureFnDef calls in one file', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+export const fn1 = pureServerFn((x: number) => x + 1);
+export const fn2 = pureServerFn({
+    pureFn: function double(x: number) { return x * 2; },
+    fnName: 'double'
+});
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(2);
+        expect(result[0].fnName).toBe(result[0].bodyHash);
+        expect(result[1].fnName).toBe('double');
+    });
+
+    it('should resolve a variable reference that holds a function', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+const myFn = function addOne(x) { return x + 1; };
+export const fn = pureServerFn(myFn);
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(1);
+        // Variable-resolved function still uses bodyHash as fnName
+        expect(result[0].fnName).toBe(result[0].bodyHash);
+    });
+
+    it('should validate purity for plain functions (reject closure variables)', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+const SECRET = 'hidden';
+export const fn = pureServerFn((x: string) => x + SECRET);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/SECRET/);
+    });
+
+    it('should validate purity for plain functions (reject this)', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+export const fn = pureServerFn(function myFn() { return this.value; });
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
+    });
+});
+
 describe('purity validation', () => {
     it('should reject functions using eval', () => {
         const source = `

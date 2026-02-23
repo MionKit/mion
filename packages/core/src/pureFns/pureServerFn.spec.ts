@@ -180,3 +180,50 @@ describe('pureServerFn', () => {
         expect(ref.fnName).toBe('myFnName');
     });
 });
+
+describe('pureServerFn - plain function overload', () => {
+    it('should accept a named function expression and use bodyHash as fnName', () => {
+        const ref = pureServerFn(function addOne(x: number) {
+            return x + 1;
+        }, 'hashPlain01');
+
+        expect(ref.fnName).toBe('hashPlain01');
+        expect(ref.bodyHash).toBe('hashPlain01');
+        expect(ref.namespace).toBe('pureServerFn');
+        expect(ref.isFactory).toBe(false);
+        expect(ref.pureFn(5)).toBe(6);
+    });
+
+    it('should accept an arrow function and use bodyHash as fnName', () => {
+        const ref = pureServerFn((x: number) => x * 2, 'hashPlain02');
+
+        expect(ref.fnName).toBe('hashPlain02');
+        expect(ref.bodyHash).toBe('hashPlain02');
+        expect(ref.namespace).toBe('pureServerFn');
+        expect(ref.isFactory).toBe(false);
+        expect(ref.pureFn(3)).toBe(6);
+    });
+
+    it('should throw when bodyHash is not provided', () => {
+        expect(() => pureServerFn((x: number) => x + 1)).toThrow(
+            'pureServerFn requires mion vite plugin transform to inject bodyHash'
+        );
+    });
+
+    it('should preserve the original function in pureFn', () => {
+        const originalFn = (x: number) => x + 10;
+        const ref = pureServerFn(originalFn, 'hashPlain03');
+
+        expect(ref.pureFn).toBe(originalFn);
+        expect(ref.pureFn(5)).toBe(15);
+    });
+
+    it('should always use bodyHash as fnName even for named functions', () => {
+        const ref = pureServerFn(function myNamedFn(x: number) {
+            return x;
+        }, 'hashPlain04');
+
+        // Plain function overload always uses bodyHash, not function.name
+        expect(ref.fnName).toBe('hashPlain04');
+    });
+});
