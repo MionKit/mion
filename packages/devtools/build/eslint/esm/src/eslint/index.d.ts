@@ -5,17 +5,8 @@ declare const plugin: {
         'no-unreachable-union-types': import('@typescript-eslint/utils/ts-eslint').RuleModule<"unreachableUnionType", [], unknown, import('@typescript-eslint/utils/ts-eslint').RuleListener>;
         'no-mixed-union-properties': import('@typescript-eslint/utils/ts-eslint').RuleModule<"mixedUnionProperties", [], unknown, import('@typescript-eslint/utils/ts-eslint').RuleListener>;
         'no-type-imports': import('@typescript-eslint/utils/ts-eslint').RuleModule<"noTypeImports", [], unknown, import('@typescript-eslint/utils/ts-eslint').RuleListener>;
+        'pure-functions': import('@typescript-eslint/utils/ts-eslint').RuleModule<"purityThis" | "purityAwait" | "purityYield" | "purityDynamicImport" | "purityForbiddenIdentifier" | "purityClosureVariable", [], unknown, import('@typescript-eslint/utils/ts-eslint').RuleListener>;
     };
-    configs: {
-        recommended: {
-            extends: never[];
-            rules: {
-                '@mionkit/no-typeof-runtype': string;
-                '@mionkit/strong-typed-routes': string;
-                '@mionkit/no-unreachable-union-types': string;
-                '@mionkit/no-type-imports': string;
-            };
-        };
-    };
+    configs: Record<string, unknown>;
 };
 export default plugin;

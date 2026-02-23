@@ -37,7 +37,7 @@ export default defineConfig({
     plugins: [
         dts({
             outDir: ['build/vite-plugin/cjs', 'build/vite-plugin/esm'],
-            include: ['src/vite-plugin/**/*.ts'],
+            include: ['src/vite-plugin/**/*.ts', 'src/pureFns/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
             pathsToAliases: false,
         }),

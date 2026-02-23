@@ -12,12 +12,8 @@ import {RpcError, HeadersSubset} from '@mionkit/core';
 import {StrFormat, StrEmail, StrUUIDv4} from '@mionkit/type-formats/FormatsString';
 import {NumFormat} from '@mionkit/type-formats/FormatsNumber';
 // Import server pure functions extracted from client source at build time.
-// Dynamic import with fallback: resolves when run through vite-node with mion plugin,
-// returns empty cache when imported directly (e.g. vitest without serverPureFunctions config).
-const serverPureFnsCache: Record<
-    string,
-    Record<string, {fn?: (...args: any[]) => any}>
-> = await import('virtual:mion-server-pure-fns').then((m) => m.serverPureFnsCache).catch(() => ({}));
+// for this specific scenario server function are defined in packages/client/src/vitePlugin.e2e.spec.ts
+import {serverPureFnsCache} from 'virtual:mion-server-pure-fns';
 
 // Define routes for testing different validation scenarios
 type User = {name: string; surname: string};

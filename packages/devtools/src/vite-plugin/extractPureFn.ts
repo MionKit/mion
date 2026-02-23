@@ -9,7 +9,8 @@ import * as ts from 'typescript';
 import {createHash} from 'crypto';
 import {transformSync} from 'esbuild';
 import {ExtractedPureFn, ServerPureFunctionsOptions} from './types.ts';
-import {ALLOWED_GLOBALS, BODY_HASH_LENGTH, FORBIDDEN_IDENTIFIERS, PURE_SERVER_FN_NAMESPACE} from './constants.ts';
+import {BODY_HASH_LENGTH, PURE_SERVER_FN_NAMESPACE} from './constants.ts';
+import {ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS, FACTORY_FORBIDDEN_IDENTIFIERS} from '../pureFns/purityRules.ts';
 import {readdirSync, statSync, readFileSync} from 'fs';
 import {resolve, join} from 'path/posix';
 import {isIncluded} from './mionVitePlugin.ts';
@@ -544,8 +545,7 @@ function validateFactoryPurity(
             }
 
             // Check for forbidden identifiers (but not all - factory functions have more access)
-            const factoryForbidden = new Set(['eval', 'Function', 'fetch', 'XMLHttpRequest', 'WebSocket']);
-            if (factoryForbidden.has(name)) {
+            if (FACTORY_FORBIDDEN_IDENTIFIERS.has(name)) {
                 throw new PurityError(`${name} is not allowed in factory functions`, filePath, node.getStart(sourceFile));
             }
         }

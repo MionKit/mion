@@ -2,13 +2,6 @@ import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import mionPlugin from '@mionkit/devtools/eslint';
 
-const mionRules = {
-  '@mionkit/no-typeof-runtype': 'error',
-  '@mionkit/strong-typed-routes': 'error',
-  '@mionkit/no-unreachable-union-types': 'error',
-  '@mionkit/no-type-imports': 'error',
-};
-
 export default tseslint.config(
   {
     ignores: [
@@ -42,10 +35,8 @@ export default tseslint.config(
   },
   eslint.configs.recommended,
   tseslint.configs.recommended,
+  mionPlugin.configs.recommended,
   {
-    plugins: {
-      '@mionkit': mionPlugin,
-    },
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -56,7 +47,6 @@ export default tseslint.config(
       'no-empty-function': 'off',
       '@typescript-eslint/no-empty-function': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
-      ...mionRules,
     },
   },
   {

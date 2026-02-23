@@ -1,7 +1,8 @@
 import * as ts from "typescript";
 import { createHash } from "crypto";
 import { transformSync } from "esbuild";
-import { BODY_HASH_LENGTH, PURE_SERVER_FN_NAMESPACE, ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS } from "./constants.js";
+import { BODY_HASH_LENGTH, PURE_SERVER_FN_NAMESPACE } from "./constants.js";
+import { ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS, FACTORY_FORBIDDEN_IDENTIFIERS } from "../pureFns/purityRules.js";
 import { readdirSync, statSync, readFileSync } from "fs";
 import { resolve, join } from "path/posix";
 import { isIncluded } from "./mionVitePlugin.js";
@@ -362,8 +363,7 @@ function validateFactoryPurity(body, localScope, fnName, sourceFile, filePath) {
         ts.forEachChild(node, checkNode);
         return;
       }
-      const factoryForbidden = /* @__PURE__ */ new Set(["eval", "Function", "fetch", "XMLHttpRequest", "WebSocket"]);
-      if (factoryForbidden.has(name)) {
+      if (FACTORY_FORBIDDEN_IDENTIFIERS.has(name)) {
         throw new PurityError(`${name} is not allowed in factory functions`, filePath, node.getStart(sourceFile));
       }
     }

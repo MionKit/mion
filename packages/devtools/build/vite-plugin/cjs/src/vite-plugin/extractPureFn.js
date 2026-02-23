@@ -4,6 +4,7 @@ const ts = require("typescript");
 const crypto = require("crypto");
 const esbuild = require("esbuild");
 const src_vitePlugin_constants = require("./constants.js");
+const purityRules = require("../pureFns/purityRules.js");
 const fs = require("fs");
 const posix = require("path/posix");
 const src_vitePlugin_mionVitePlugin = require("./mionVitePlugin.js");
@@ -326,7 +327,7 @@ function validatePurity(body, localScope, fnName, sourceFile, filePath) {
         return;
       }
       if (ts__namespace.isShorthandPropertyAssignment(node.parent) && node.parent.name === node) {
-        if (!localScope.has(name) && !src_vitePlugin_constants.ALLOWED_GLOBALS.has(name)) {
+        if (!localScope.has(name) && !purityRules.ALLOWED_GLOBALS.has(name)) {
           throw new PurityError(
             `Closure variable "${name}" is not allowed in pure functions. Pure functions cannot access outer scope variables.`,
             filePath,
@@ -336,10 +337,10 @@ function validatePurity(body, localScope, fnName, sourceFile, filePath) {
         ts__namespace.forEachChild(node, checkNode);
         return;
       }
-      if (src_vitePlugin_constants.FORBIDDEN_IDENTIFIERS.has(name)) {
+      if (purityRules.FORBIDDEN_IDENTIFIERS.has(name)) {
         throw new PurityError(`${name} is not allowed in pure functions`, filePath, node.getStart(sourceFile));
       }
-      if (!localScope.has(name) && !src_vitePlugin_constants.ALLOWED_GLOBALS.has(name)) {
+      if (!localScope.has(name) && !purityRules.ALLOWED_GLOBALS.has(name)) {
         throw new PurityError(
           `Closure variable "${name}" is not allowed in pure functions. Pure functions cannot access outer scope variables.`,
           filePath,
@@ -381,8 +382,7 @@ function validateFactoryPurity(body, localScope, fnName, sourceFile, filePath) {
         ts__namespace.forEachChild(node, checkNode);
         return;
       }
-      const factoryForbidden = /* @__PURE__ */ new Set(["eval", "Function", "fetch", "XMLHttpRequest", "WebSocket"]);
-      if (factoryForbidden.has(name)) {
+      if (purityRules.FACTORY_FORBIDDEN_IDENTIFIERS.has(name)) {
         throw new PurityError(`${name} is not allowed in factory functions`, filePath, node.getStart(sourceFile));
       }
     }
