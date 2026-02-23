@@ -128,7 +128,7 @@ const routes = {
     }),
 
     // Route that invokes a server pure function extracted from client source at build time
-    getPureFnResult: route((): string => {
+    getGreetingsPureFnResult: route((): string => {
         const pureFn = serverPureFnsCache.pureServerFn?.greeting;
         if (!pureFn?.fn) throw new RpcError({publicMessage: 'Pure function greeting not found', type: 'pure-fn-not-found'});
         return pureFn.fn();
