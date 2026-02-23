@@ -13,6 +13,7 @@ import {FormatParams_IP} from '@mionkit/core';
 import {cpf_isIPV4, cpf_isIPV6} from '../type-formats-pure-fns.ts';
 
 // IP validator
+/** @reflection never */
 export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
     static id = 'ip';
     kind = ReflectionKind.string;
@@ -46,13 +47,13 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
 }
 
 // ############### Mock Functions ###############
-
+/** @reflection never */
 export function mockIpV4(p: FormatParams_IP): string {
     const r = Math.random();
     if (p.allowLocalHost && r > 0.8) return Math.random() > 0.5 ? 'localhost' : '127:0:0:1';
     return Array.from({length: 4}, () => Math.floor(Math.random() * 256)).join('.');
 }
-
+/** @reflection never */
 export function mockIpV6(p: FormatParams_IP): string {
     if (p.allowLocalHost && Math.random() > 0.8) return Math.random() > 0.5 ? '0:0:0:0:0:0:0:1' : '::1';
     return Array.from({length: 8}, () => Math.floor(Math.random() * 0xffff).toString(16)).join(':');
@@ -61,6 +62,7 @@ export function mockIpV6(p: FormatParams_IP): string {
 // ############### Register runtypes ###############
 
 // register Validator operations so they can be used in the jit compiler
+/** @reflection never */
 export const IP_RUN_TYPE_FORMATTER = registerFormatter(new IPRunTypeFormat());
 
 // ############### Type  ###############

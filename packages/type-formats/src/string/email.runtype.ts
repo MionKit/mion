@@ -21,6 +21,7 @@ export const EMAIL_PATTERN = /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,
 export const EMAIL_PATTERN_PUNYCODE = /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z0-9-]{2,63}$/;
 
 // Email validator
+/** @reflection never */
 export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
     static id = 'email';
     kind = ReflectionKind.string;
@@ -187,7 +188,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
 }
 
 // ######### Registering validator and pure functions ########
-
+/** @reflection never */
 export const EMAIL_RUN_TYPE_FORMATTER = registerFormatter(new EmailRunTypeFormat());
 
 // ############### Type  ###############

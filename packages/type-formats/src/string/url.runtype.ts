@@ -26,6 +26,7 @@ export const URL_FILE_REGEXP = /^file:\/\/\/?(?:[a-zA-Z]:)?[^\s/$.?#-][^\s]*$/i;
 export const URL_HTTP_REGEXP = /^https?:\/\/[^\s/$.?#-][^\s]*$/i;
 
 // URL validator
+/** @reflection never */
 export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
     static readonly id = 'url';
     readonly kind = ReflectionKind.string;
@@ -159,7 +160,7 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         return {code, type: 'RB'};
     }
 }
-
+/** @reflection never */
 function replaceDomain(url: string, domain: string): string {
     const start = url.indexOf('://') + 3;
     const end = url.indexOf('/', start);
@@ -168,7 +169,7 @@ function replaceDomain(url: string, domain: string): string {
 }
 
 // ############### Register runtypes ###############
-
+/** @reflection never */
 export const URL_RUN_TYPE_FORMATTER = registerFormatter(new URLRunTypeFormat());
 
 // ############### Type  ###############

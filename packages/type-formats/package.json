@@ -36,11 +36,6 @@
       "types": "./.dist/esm/FormatsBigint.d.ts",
       "require": "./.dist/cjs/FormatsBigint.js",
       "default": "./.dist/esm/FormatsBigint.js"
-    },
-    "./index": {
-      "types": "./.dist/esm/index.d.ts",
-      "require": "./.dist/cjs/index.js",
-      "default": "./.dist/esm/index.js"
     }
   },
   "directories": {

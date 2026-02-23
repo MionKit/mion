@@ -13,10 +13,11 @@ import type {
     JitFunctions,
     BaseFnCompiler,
     jitBinaryDeserializerArgs,
+    TypeFormat,
 } from '@mionkit/run-types';
 // TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
+import {registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils.ts';
 import {FormatParams_BigInt} from '@mionkit/core';
@@ -37,6 +38,7 @@ const BIGUINT64_MAX = 18446744073709551615n;
  * BigIntFormat is the base class for bigint formats.
  * It is used to define the bigint format and its parameters.
  * Jit code will be generated for each one of the BigIntFormat parameters.
+ * @reflection never
  */
 export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigInt> {
     static readonly id = 'bigintFormat' as const;
@@ -232,7 +234,10 @@ function getBigIntType(params: FormatParams_BigInt) {
 
 // ############### Register runtypes ###############
 
+/** @reflection never */
 export const BIGINT_RUN_TYPE_FORMATTER = registerFormatter(new BigIntRunTypeFormat());
+
+// ########################### Run Types ###########################
 
 // Define the type for bigint format (optional branding, unbranded by default like StrFormat)
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

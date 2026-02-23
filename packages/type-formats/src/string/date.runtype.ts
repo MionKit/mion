@@ -19,6 +19,7 @@ import {
 } from '../type-formats-pure-fns.ts';
 
 // Date validator
+/** @reflection never */
 export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date> {
     static id = 'date' as const;
     kind = ReflectionKind.string;
@@ -84,6 +85,7 @@ export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date
 }
 
 /** return the max days in a month taking into account leap years */
+/** @reflection never */
 function getMaxDaysInMonth(year: number, month: number): number {
     if (month === 2) {
         // check for leap years
@@ -95,7 +97,7 @@ function getMaxDaysInMonth(year: number, month: number): number {
 }
 
 // ######### Registering the date validator #########
-
+/** @reflection never */
 export const DATE_RUN_TYPE_FORMATTER = registerFormatter(new DateStringRunTypeFormat());
 
 // ############### Run Types ###############

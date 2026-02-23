@@ -30,6 +30,7 @@ type BinaryDeserializer = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeo
  * NumberFormat is the base class for number formats.
  * It is used to define the number format and its parameters.
  * Jit code will be generated for each one of the NumberFormat parameters.
+ * @reflection never
  */
 export class NumberRunTypeFormat extends BaseRunTypeFormat<FormatParams_Number> {
     static readonly id = 'numberFormat' as const;
@@ -282,6 +283,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<FormatParams_Number> 
     }
 }
 
+/** @reflection never */
 function getIntegerType(params: any) {
     const min = params.min !== undefined ? paramVal(params.min) : Number.MIN_SAFE_INTEGER;
     const max = params.max !== undefined ? paramVal(params.max) : Number.MAX_SAFE_INTEGER;
@@ -295,7 +297,7 @@ function getIntegerType(params: any) {
 }
 
 // ############### Register runtypes ###############
-
+/** @reflection never */
 export const NUMBER_RUN_TYPE_FORMATTER = registerFormatter(new NumberRunTypeFormat());
 
 // Define the type for number format (optional branding, unbranded by default like StrFormat)

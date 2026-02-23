@@ -40,6 +40,7 @@ const namesAllowedChars: StringValidators['allowedChars'] = {
 };
 
 // Domain validator
+/** @reflection never */
 export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> {
     static id = 'domain' as const;
     kind = ReflectionKind.string;
@@ -277,6 +278,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
 // ############### Register runtypes ###############
 
 // register Validator operations so they can be used in the jit compiler
+/** @reflection never */
 export const DOMAIN_RUN_TYPE_FORMATTER = registerFormatter(new DomainRunTypeFormat());
 
 // ############### Type Params ###############
