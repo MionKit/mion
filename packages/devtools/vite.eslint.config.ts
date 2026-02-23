@@ -37,7 +37,7 @@ export default defineConfig({
     plugins: [
         dts({
             outDir: ['build/eslint/cjs', 'build/eslint/esm'],
-            include: ['src/eslint/**/*.ts'],
+            include: ['src/eslint/**/*.ts', 'src/pureFns/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
             pathsToAliases: false,
         }),

@@ -195,33 +195,6 @@ type OptionalParamBlocking = {name?: string} | {name: string; age: number}; // S
 route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
 
 // ========================================
-// Rule: @mionkit/no-mixed-union-properties , !!RULE DISABLED AS DOES NOT ADD MUCH VALUE!!
-// ========================================
-
-// // 1. Return object with properties from multiple union types
-// type MixedResult = {success: true; data: string} | {success: false; error: string};
-// route((ctx): MixedResult => ({success: true, data: 'ok', error: 'also has error'})); // Mixed properties
-
-// // 2. Object literal with unique properties from different union types
-// type UserOrProduct = {userId: string; userName: string} | {productId: string; productName: string};
-// route((ctx): UserOrProduct => ({userId: '1', productId: '2'})); // Has properties from both types
-
-// // 3. Multiple mixed returns in conditional
-// type Status = {active: boolean; lastSeen: Date} | {active: boolean; reason: string};
-// route((ctx): Status => {
-//     if (Math.random() > 0.5) {
-//         return {active: true, lastSeen: new Date(), reason: 'mixed'}; // Mixed properties
-//     }
-//     return {active: false, lastSeen: new Date(), reason: 'also mixed'}; // Mixed properties
-// });
-
-// 4. LinkedFn with mixed properties
-type LinkedFnData = {name: string} | {age: number};
-linkedFn((ctx): LinkedFnData => ({name: 'John', age: 25})); // Mixed properties
-
-export {}; // Make this a module
-
-// ========================================
 // Rule: @mionkit/no-type-imports
 // ========================================
 
@@ -244,3 +217,146 @@ const logUser = linkedFn((ctx, user: User): void => {
 });
 
 export const routes = {getUser, createProduct, logUser};
+
+// ========================================
+// Rule: @mionkit/pure-functions
+// ========================================
+
+import {pureServerFn, registerPureFnFactory} from '@mionkit/core';
+
+// ========================================
+// ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
+// ========================================
+
+// 1. Pure function using only params and allowed globals
+pureServerFn((x: number) => Math.floor(x * 2));
+
+// 2. Pure function with local variables
+pureServerFn(function compute(x: number) {
+    const y = x * 2;
+    const z = y + 1;
+    return z;
+});
+
+// 3. Pure function with JSON, RegExp, and other allowed globals
+pureServerFn(function validate(s: string) {
+    const encoded = encodeURIComponent(s);
+    const num = parseInt(s, 10);
+    const valid = isNaN(num) ? false : isFinite(num);
+    const regex = new RegExp('^[a-z]+$');
+    console.log(encoded, valid, regex);
+    return num;
+});
+
+// 4. Pure function with nested callbacks and destructuring
+pureServerFn((items: number[]) => items.map((x) => x + 1).filter((x) => x > 0));
+pureServerFn(({a, b}: {a: number; b: number}) => a + b);
+
+// 5. Pure function with loops and try-catch
+pureServerFn(function safeParse(s: string) {
+    try {
+        return JSON.parse(s);
+    } catch (e) {
+        return null;
+    }
+});
+
+// 6. Object form (PureFnDef)
+pureServerFn({
+    pureFn: function greeting() {
+        return 'hello';
+    },
+    fnName: 'greeting',
+});
+
+// 7. Factory function via isFactory: true — closures are allowed
+const THRESHOLD = 10;
+pureServerFn({
+    pureFn: function factory() {
+        return THRESHOLD;
+    },
+    isFactory: true,
+});
+
+// 8. registerPureFnFactory — closures are allowed in factory functions
+const MAX_ITEMS = 100;
+registerPureFnFactory('ns', 'limitItems', function () {
+    return function inner(items: any[]) {
+        return items.slice(0, MAX_ITEMS);
+    };
+});
+
+// 9. Variable references — function defined separately, passed by name
+const doubler = (x: number) => x * 2;
+pureServerFn(doubler);
+
+const myDef = {
+    pureFn: function triple(x: number) {
+        return x * 3;
+    },
+    fnName: 'triple',
+};
+pureServerFn(myDef);
+
+// ========================================
+// ❌ INVALID EXAMPLES (these SHOULD trigger ESLint errors when rule is enabled)
+// ========================================
+
+// 1. Using 'this' keyword
+pureServerFn(function () {
+    return this.x;
+});
+
+// 2. Using async/await
+pureServerFn(async (x: number) => await x);
+
+// 3. Using dynamic import()
+pureServerFn((x: string) => import(x));
+
+// 4. Forbidden identifiers: eval, fetch, setTimeout, process, window, etc.
+pureServerFn((x: string) => eval(x));
+pureServerFn((url: string) => fetch(url));
+pureServerFn(() => {
+    setTimeout(() => {}, 100);
+});
+pureServerFn(() => process.env.KEY);
+pureServerFn(() => window.location.href);
+pureServerFn(() => document.getElementById('app'));
+
+// 5. Closure variables — referencing outer scope
+const SECRET = 'my-secret-key';
+pureServerFn((x: string) => x + SECRET);
+
+const config = {maxRetries: 3};
+pureServerFn((x: number) => x + config.maxRetries);
+
+// 6. Object form with violation
+pureServerFn({pureFn: (x: string) => eval(x)});
+
+// 7. Object form with isFactory: false — closures NOT allowed
+const outerValue = 42;
+pureServerFn({
+    pureFn: () => outerValue,
+    isFactory: false,
+});
+
+// 8. registerPureFnFactory with forbidden identifiers (forbidden even for factories)
+registerPureFnFactory('ns', 'badFactory', function () {
+    return function inner(x: string) {
+        return eval(x);
+    };
+});
+
+registerPureFnFactory('ns', 'badFactory2', function () {
+    return new Function('return 1');
+});
+
+registerPureFnFactory('ns', 'badFactory3', function () {
+    return function inner() {
+        return fetch('/api');
+    };
+});
+
+// 9. Variable reference with violation
+const impureFn = (x: string) => x + SECRET;
+pureServerFn(impureFn);
