@@ -360,3 +360,36 @@ registerPureFnFactory('ns', 'badFactory3', function () {
 // 9. Variable reference with violation
 const impureFn = (x: string) => x + SECRET;
 pureServerFn(impureFn);
+
+// 10. Imported functions — cannot be statically analyzed
+import {myFn} from './helpers.ts';
+pureServerFn(myFn); // ❌ Error: argument "myFn" is imported from another module
+pureServerFn({pureFn: myFn}); // ❌ Error: argument "myFn" is imported from another module
+
+import {myFactory} from './helpers.ts';
+registerPureFnFactory('ns', 'importedFactory', myFactory); // ❌ Error: argument "myFactory" is imported from another module
+
+// 11. Dynamic arguments (function parameters) — cannot be statically analyzed
+function enhancePureServerFn(fn: (x: number) => number) {
+    pureServerFn(fn); // ❌ Error: argument "fn" could not be resolved
+}
+
+function wrapFactory(factory: () => (x: number) => number) {
+    registerPureFnFactory('ns', 'dynamicFactory', factory); // ❌ Error: argument "factory" could not be resolved
+}
+
+// ========================================
+// Rule: @mionkit/type-formats-imports
+// ========================================
+
+// ✅ VALID: Regular imports preserve type metadata for Deepkit reflection
+import {StrEmail, StrUrl} from '@mionkit/type-formats/FormatsString';
+import {NumFormat, NumInteger} from '@mionkit/type-formats/FormatsNumber';
+import {BigNumFormat} from '@mionkit/type-formats/FormatsBigint';
+import {TypeFormat} from '@mionkit/run-types';
+
+// ❌ INVALID: Type-only imports strip metadata, causing silent validation failures
+import type {StrTime, StrDate} from '@mionkit/type-formats/FormatsString';
+import type {NumFloat} from '@mionkit/type-formats/FormatsNumber';
+import {type BigNumInt64} from '@mionkit/type-formats/FormatsBigint';
+import type {TypeFormat as TF} from '@mionkit/run-types';

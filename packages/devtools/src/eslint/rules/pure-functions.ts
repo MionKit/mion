@@ -14,7 +14,9 @@ type MessageIds =
     | 'purityYield'
     | 'purityDynamicImport'
     | 'purityForbiddenIdentifier'
-    | 'purityClosureVariable';
+    | 'purityClosureVariable'
+    | 'importedArgument'
+    | 'unresolvedArgument';
 
 /** Cache of pure function imports from @mionkit/core */
 interface PureFnImports {
@@ -251,6 +253,86 @@ function resolveToExpression(node: TSESTree.Node, program: TSESTree.Program): TS
     return node as TSESTree.Expression;
 }
 
+/** Checks if an identifier name is an import from any module */
+function isImportedIdentifier(name: string, program: TSESTree.Program): boolean {
+    for (const statement of program.body) {
+        if (statement.type !== AST_NODE_TYPES.ImportDeclaration) continue;
+        for (const specifier of statement.specifiers) {
+            if (specifier.local.name === name) return true;
+        }
+    }
+    return false;
+}
+
+/** Finds the unresolved identifier in a pure function argument */
+function findUnresolvedIdentifier(arg: TSESTree.Node, program: TSESTree.Program): {name: string; node: TSESTree.Node} | null {
+    // Direct identifier: pureServerFn(myFn) or registerPureFnFactory('ns', 'id', myFn)
+    if (arg.type === AST_NODE_TYPES.Identifier) {
+        const resolved = resolveVariableInitializer(arg.name, program);
+        if (!resolved) return {name: arg.name, node: arg};
+
+        // Resolved to something but extraction still returned null — check object form
+        if (resolved.type === AST_NODE_TYPES.ObjectExpression) {
+            return findUnresolvedPureFnInObject(resolved, program);
+        }
+
+        // Resolved to something unexpected (call expression, etc.)
+        return {name: arg.name, node: arg};
+    }
+
+    // Inline object: pureServerFn({ pureFn: importedFn })
+    if (arg.type === AST_NODE_TYPES.ObjectExpression) {
+        return findUnresolvedPureFnInObject(arg, program);
+    }
+
+    return null;
+}
+
+/** Finds unresolved pureFn identifier inside an object expression */
+function findUnresolvedPureFnInObject(
+    obj: TSESTree.ObjectExpression,
+    program: TSESTree.Program
+): {name: string; node: TSESTree.Node} | null {
+    for (const prop of obj.properties) {
+        if (prop.type !== AST_NODE_TYPES.Property) continue;
+        if (prop.key.type !== AST_NODE_TYPES.Identifier || prop.key.name !== 'pureFn') continue;
+        if (prop.value.type === AST_NODE_TYPES.Identifier) {
+            const resolved = resolveToExpression(prop.value, program);
+            if (
+                !resolved ||
+                (resolved.type !== AST_NODE_TYPES.FunctionExpression && resolved.type !== AST_NODE_TYPES.ArrowFunctionExpression)
+            ) {
+                return {name: (prop.value as TSESTree.Identifier).name, node: prop.value};
+            }
+        }
+    }
+    return null;
+}
+
+/** Reports an error when a pure function argument cannot be resolved */
+function reportUnresolvedArgument(
+    node: TSESTree.CallExpression,
+    callee: string,
+    program: TSESTree.Program,
+    context: TSESLint.RuleContext<MessageIds, []>
+): void {
+    const argIndex = callee === 'registerPureFnFactory' ? 2 : 0;
+    const arg = node.arguments[argIndex];
+    if (!arg) return;
+
+    const identifierToCheck = findUnresolvedIdentifier(arg, program);
+    if (!identifierToCheck) return;
+
+    const name = identifierToCheck.name;
+    const reportNode = identifierToCheck.node;
+
+    if (isImportedIdentifier(name, program)) {
+        context.report({node: reportNode, messageId: 'importedArgument', data: {callee, name}});
+    } else {
+        context.report({node: reportNode, messageId: 'unresolvedArgument', data: {callee, name}});
+    }
+}
+
 /** Extracts function + isFactory from an object expression (PureFnDef) */
 function extractFromObjectExpression(
     obj: TSESTree.ObjectExpression,
@@ -345,6 +427,10 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
             purityForbiddenIdentifier: '"{{name}}" is not allowed in {{fnType}}',
             purityClosureVariable:
                 'Closure variable "{{name}}" is not allowed in {{fnType}}. Pure functions cannot access outer scope variables.',
+            importedArgument:
+                '{{callee}}() argument "{{name}}" is imported from another module. Pure functions must be defined inline or as a variable in the same file.',
+            unresolvedArgument:
+                '{{callee}}() argument "{{name}}" could not be resolved to a variable declaration in this file. Pure functions must be defined inline or as a variable in the same file.',
         },
         schema: [],
     },
@@ -377,7 +463,10 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
                     target = extractFactoryFnTarget(node, programNode);
                 }
 
-                if (!target) return;
+                if (!target) {
+                    reportUnresolvedArgument(node, importedName, programNode, context);
+                    return;
+                }
 
                 const fnTypeLabel = target.isFactory ? 'factory functions' : 'pure functions';
                 const localScope = collectLocalScope(target.fnNode);

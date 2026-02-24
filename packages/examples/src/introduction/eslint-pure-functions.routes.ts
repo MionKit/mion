@@ -126,4 +126,26 @@ registerPureFnFactory('ns', 'badFactory2', function () {
 });
 // end:pure-functions-invalid-factory
 
+// start:pure-functions-invalid-imported
+// Imported functions cannot be statically analyzed — must be defined in the same file
+import {myFn} from './helpers.ts';
+pureServerFn(myFn); // ❌ Error: argument "myFn" is imported from another module
+
+pureServerFn({pureFn: myFn}); // ❌ Error: argument "myFn" is imported from another module
+
+import {myFactory} from './helpers.ts';
+registerPureFnFactory('ns', 'fn', myFactory); // ❌ Error: argument "myFactory" is imported from another module
+// end:pure-functions-invalid-imported
+
+// start:pure-functions-invalid-dynamic
+// Dynamic arguments (function parameters) cannot be statically analyzed
+function enhancePureServerFn(fn: (x: number) => number) {
+    pureServerFn(fn); // ❌ Error: argument "fn" could not be resolved
+}
+
+function wrapFactory(factory: () => (x: number) => number) {
+    registerPureFnFactory('ns', 'fn', factory); // ❌ Error: argument "factory" could not be resolved
+}
+// end:pure-functions-invalid-dynamic
+
 export {}; // Make this a module

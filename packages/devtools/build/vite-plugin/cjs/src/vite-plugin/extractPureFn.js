@@ -101,8 +101,15 @@ function extractDataFromPureFnDefAST(call, sourceFile, filePath) {
   if (ts__namespace.isIdentifier(arg)) {
     const resolved = resolveVariableInitializer(arg.text, sourceFile);
     if (!resolved) {
+      if (isImportedIdentifier(arg.text, sourceFile)) {
+        throw new PurityError(
+          `pureServerFn() argument "${arg.text}" is imported from another module. Pure functions must be defined inline or as a variable in the same file`,
+          filePath,
+          arg.getStart(sourceFile)
+        );
+      }
       throw new PurityError(
-        `pureServerFn() argument "${arg.text}" could not be resolved to a variable declaration in this file`,
+        `pureServerFn() argument "${arg.text}" could not be resolved to a variable declaration in this file. Pure functions must be defined inline or as a variable in the same file`,
         filePath,
         arg.getStart(sourceFile)
       );
@@ -148,6 +155,20 @@ function extractDataFromRegisterPureFnFactoryAST(call, sourceFile, filePath) {
   }
   const fnName = idArg.text;
   const fnArg = call.arguments[2];
+  if (ts__namespace.isIdentifier(fnArg)) {
+    if (isImportedIdentifier(fnArg.text, sourceFile)) {
+      throw new PurityError(
+        `registerPureFnFactory() third argument "${fnArg.text}" is imported from another module. The factory function must be defined inline`,
+        filePath,
+        fnArg.getStart(sourceFile)
+      );
+    }
+    throw new PurityError(
+      `registerPureFnFactory() third argument "${fnArg.text}" could not be resolved. The factory function must be defined inline as a function expression or arrow function`,
+      filePath,
+      fnArg.getStart(sourceFile)
+    );
+  }
   if (!ts__namespace.isFunctionExpression(fnArg) && !ts__namespace.isArrowFunction(fnArg)) {
     throw new PurityError(
       "registerPureFnFactory() third argument (factoryFn) must be a function expression or arrow function",
@@ -181,6 +202,22 @@ function extractDataFromRegisterPureFnFactoryAST(call, sourceFile, filePath) {
     // registerPureFnFactory always registers factory functions
   };
 }
+function isImportedIdentifier(name, sourceFile) {
+  for (const statement of sourceFile.statements) {
+    if (!ts__namespace.isImportDeclaration(statement) || !statement.importClause) continue;
+    const clause = statement.importClause;
+    if (clause.name && clause.name.text === name) return true;
+    if (clause.namedBindings) {
+      if (ts__namespace.isNamespaceImport(clause.namedBindings) && clause.namedBindings.name.text === name) return true;
+      if (ts__namespace.isNamedImports(clause.namedBindings)) {
+        for (const element of clause.namedBindings.elements) {
+          if (element.name.text === name) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
 function resolveVariableInitializer(name, sourceFile) {
   let result;
   function visit(node) {
@@ -208,6 +245,19 @@ function extractPureFnDefFromObjectLiteral(objLiteral, sourceFile, filePath) {
         const initializer = prop.initializer;
         if (ts__namespace.isFunctionExpression(initializer) || ts__namespace.isArrowFunction(initializer)) {
           pureFn = initializer;
+        } else if (ts__namespace.isIdentifier(initializer)) {
+          if (isImportedIdentifier(initializer.text, sourceFile)) {
+            throw new PurityError(
+              `pureFn property "${initializer.text}" is imported from another module. Pure functions must be defined inline or as a variable in the same file`,
+              filePath,
+              prop.initializer.getStart(sourceFile)
+            );
+          }
+          throw new PurityError(
+            `pureFn property "${initializer.text}" could not be resolved. Pure functions must be defined inline or as a variable in the same file`,
+            filePath,
+            prop.initializer.getStart(sourceFile)
+          );
         } else {
           throw new PurityError(
             "pureFn property must be a function expression or arrow function",
