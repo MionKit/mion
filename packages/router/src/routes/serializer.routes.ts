@@ -117,8 +117,14 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
 /** Serializes response body to binary format using the core serializeBinaryBody function */
 function serializeBinaryBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
     const response = context.response as Mutable<MionResponse>;
-    // For routesFlows, use workflowRouteIds from context for proper buffer sizing
-    const {serializer, buffer} = coreSerializeBinaryBody(context.path, executionChain, respBody, true, context.workflowRouteIds);
+    // For routesFlow, use routesFlowRouteIds from context for proper buffer sizing
+    const {serializer, buffer} = coreSerializeBinaryBody(
+        context.path,
+        executionChain,
+        respBody,
+        true,
+        context.routesFlowRouteIds
+    );
     response.binSerializer = serializer;
     response.rawBody = new Uint8Array(buffer);
 }

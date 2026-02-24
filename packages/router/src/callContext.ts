@@ -13,11 +13,11 @@ import type {
     MionRequest,
     MionHeaders,
     RawRequestBody,
-    WorkflowExecutionResult,
+    RoutesFlowExecutionResult,
 } from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
 import {Mutable, StatusCodes, SerializerModes, SerializerCode, RpcError} from '@mionkit/core';
-import {getWorkflowExecutionChain} from './workflows.ts';
+import {getRoutesFlowExecutionChain} from './routesFlow.ts';
 
 // ############# POOL STATE #############
 
@@ -49,7 +49,7 @@ export function createCallContext(
     urlQuery?: string
 ): CallContext {
     const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
-    const {executionChain, workflowRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
+    const {executionChain, routesFlowRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
     return {
         path: transformedPath,
         request: {
@@ -71,7 +71,7 @@ export function createCallContext(
         executionChain,
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
         urlQuery,
-        workflowRouteIds,
+        routesFlowRouteIds,
     } as CallContext;
 }
 
@@ -112,9 +112,9 @@ export function acquireCallContext(
         resp.serializer = SerializerModes.json;
         resp.binSerializer = undefined;
         // Reset execution chain and routesFlow route IDs
-        const {executionChain, workflowRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
+        const {executionChain, routesFlowRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
         ctx.executionChain = executionChain;
-        ctx.workflowRouteIds = workflowRouteIds;
+        ctx.routesFlowRouteIds = routesFlowRouteIds;
         // Reset shared data
         ctx.shared = opts.contextDataFactory ? opts.contextDataFactory() : {};
         // Reset urlQuery
@@ -148,7 +148,7 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
         };
         mutableCtx.shared = null as any;
         mutableCtx.executionChain = null as any;
-        mutableCtx.workflowRouteIds = undefined;
+        mutableCtx.routesFlowRouteIds = undefined;
         contextPool.push(ctx);
     }
     // If pool is full, let the context be garbage collected
@@ -169,10 +169,10 @@ function getExecutionChain(
     urlQuery: string | undefined,
     rawRequest: unknown,
     opts: RouterOptions
-): WorkflowExecutionResult {
+): RoutesFlowExecutionResult {
     // Handle routesFlow path - build merged execution chain from multiple routes
     // Compare with original path since WORKFLOW_PATH is not transformed
-    if (originalPath === WORKFLOW_PATH) return getWorkflowExecutionChain(rawRequest, opts, urlQuery);
+    if (originalPath === WORKFLOW_PATH) return getRoutesFlowExecutionChain(rawRequest, opts, urlQuery);
 
     // Normal path - get execution chain from router using transformed path
     let executionChain = getRouteExecutionChain(transformedPath);

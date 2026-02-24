@@ -36,7 +36,7 @@ import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache.ts';
 import {mionClientRoutes} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
-import {clearWorkflowCache} from './workflows.ts';
+import {clearRoutesFlowCache} from './routesFlow.ts';
 import {clearContextPool} from './callContext.ts';
 
 type RouterKeyEntryList = [string, RouterEntry][];
@@ -101,7 +101,7 @@ export const resetRouter = () => {
     resetPersistedMethods();
     resetRoutesCache();
     clearContextPool();
-    clearWorkflowCache();
+    clearRoutesFlowCache();
     // Note: We intentionally do NOT call resetJitFnCaches() here because:
     // 1. JIT function caches are global and should persist across router resets
     // 2. The serializableClassRegistry (cleared by resetJitFnCaches) is needed for

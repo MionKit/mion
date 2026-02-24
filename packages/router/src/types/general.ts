@@ -78,5 +78,5 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
      * Set to 0 to disable caching.
      * @default 100
      */
-    maxWorkflowsCacheSize: number;
+    maxRoutesFlowsCacheSize: number;
 }
