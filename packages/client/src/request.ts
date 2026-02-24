@@ -13,7 +13,7 @@ import {getRoutePath} from '@mionkit/core';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
 import {validateSubRequests} from './validation.ts';
 import {serializeRequestBody, deserializeResponseBody} from './serializer.ts';
-import {WORKFLOW_PATH} from './constants.ts';
+import {ROUTES_FLOW_PATH} from './constants.ts';
 
 export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList extends HSubRequest<any>[]> {
     readonly path: string;
@@ -26,13 +26,13 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
         private readonly prefilledLinkedFnsCache: PrefilledLinkedFnsCache,
         public readonly route?: RR,
         public readonly linkedFns?: LinkedFnRequestsList,
-        /** Array of workflow subrequests when executing a workflow */
+        /** Array of routesFlow subrequests when executing a routesFlow */
         public readonly workflowSubRequests?: RSubRequest<any>[]
     ) {
         if (workflowSubRequests && workflowSubRequests.length > 0) {
             const routePaths = workflowSubRequests.map((sr) => getRoutePath(sr.pointer, this.options));
-            this.path = `${WORKFLOW_PATH}?${routePaths.join(',')}`;
-            this.requestId = 'mion-workflow-route';
+            this.path = `${ROUTES_FLOW_PATH}?${routePaths.join(',')}`;
+            this.requestId = 'mion-routes-flow';
             workflowSubRequests.forEach((sr) => this.addSubRequest(sr));
         } else {
             this.path = route ? getRoutePath(route.pointer, this.options) : 'no-route';
@@ -226,7 +226,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
         });
     }
 
-    /** Restore prefilled linkedFns for all routes in a workflow, deduplicating by ID */
+    /** Restore prefilled linkedFns for all routes in a routesFlow, deduplicating by ID */
     private restorePrefilledLinkedFnsForWorkflow(errors: RequestErrors): void {
         const workflowRouteIds = new Set(this.workflowSubRequests!.map((sr) => sr.id));
 

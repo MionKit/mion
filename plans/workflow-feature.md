@@ -2,9 +2,9 @@
 
 ## Overview
 
-Workflows allow calling multiple routes in a single HTTP request. A workflow request hits a special mion internal route (`mion-workflow-route`) with the target routes specified as a CSV query string. The router then dynamically builds a merged execution chain from all the specified routes and replaces the current context's execution chain.
+Workflows allow calling multiple routes in a single HTTP request. A workflow request hits a special mion internal route (`mion-routes-flow`) with the target routes specified as a CSV query string. The router then dynamically builds a merged execution chain from all the specified routes and replaces the current context's execution chain.
 
-**URL format:** `POST /mion-workflow-route?/api/route1,/api/route2,/api/route3`
+**URL format:** `POST /mion-routes-flow?/api/route1,/api/route2,/api/route3`
 
 **Body format:** Same as current multi-route body — `{"route1Id": [p1, p2], "route2Id": [p3, p4]}`
 
@@ -22,7 +22,7 @@ sequenceDiagram
     participant WF as workflowRoute handler
     participant Serializer as Serializer LinkedFns
 
-    Client->>Adapter: POST /mion-workflow-route?/route1,/route2
+    Client->>Adapter: POST /mion-routes-flow?/route1,/route2
     Adapter->>Adapter: Extract path and query string
     Adapter->>Dispatch: dispatchRoute - path, body, headers, query
     Dispatch->>Context: acquireCallContext - resolves workflow route chain

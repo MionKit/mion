@@ -24,9 +24,9 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
     shared: ContextData;
     /** The execution chain of the current route */
     readonly executionChain: MethodsExecutionChain;
-    /** Query string from URL, used for workflow routes */
+    /** Query string from URL, used for routesFlow routes */
     readonly urlQuery?: string;
-    /** Route IDs for workflow calls, used for binary serialization buffer sizing */
+    /** Route IDs for routesFlow calls, used for binary serialization buffer sizing */
     readonly workflowRouteIds?: string[];
 }
 // type-call-context-end
@@ -108,7 +108,7 @@ export interface ResponseBody extends Record<string, any> {
 }
 // type-response-body-end
 
-/** Result of getWorkflowExecutionChain including the route IDs for buffer sizing */
+/** Result of getRoutesFlowExecutionChain including the route IDs for buffer sizing */
 export interface WorkflowExecutionResult {
     executionChain: MethodsExecutionChain;
     /** Route IDs for binary serialization buffer sizing */

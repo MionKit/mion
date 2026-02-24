@@ -1,4 +1,4 @@
-import {initClient, workflow} from '@mionkit/client';
+import {initClient, routesFlow} from '@mionkit/client';
 import type {MyApi} from './server.routes.ts';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
@@ -23,12 +23,12 @@ async function singleRouteCall() {
 }
 
 // ============================================
-// WORKFLOW - Multiple routes in one request
+// ROUTES_FLOW - Multiple routes in one request
 // ============================================
 // Results and errors are ARRAYS in the same order as the routes
-async function workflowCall() {
+async function routesFlowCall() {
     // Returns: [[results...], [errors...], linkedFnResults, linkedFnErrors]
-    const [[user, order], [userError, orderError]] = await workflow([
+    const [[user, order], [userError, orderError]] = await routesFlow([
         routes.users.getById('USER-123'),
         routes.orders.getById('ORDER-1'),
     ]);

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ClientOptions} from './types';
+import {ClientOptions} from './types.ts';
 
 export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
     baseURL: '',
@@ -27,8 +27,8 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
 
 export const STORAGE_KEY = 'mionkit:client';
 
-/** Workflow route key - matches router constant */
-export const WORKFLOW_KEY = 'mion-workflow-route';
+/** RoutesFlow route key - matches router constant */
+export const ROUTES_FLOW_KEY = 'mion-routes-flow';
 
-/** Workflow route path - matches router constant */
-export const WORKFLOW_PATH = `/${WORKFLOW_KEY}`;
+/** RoutesFlow route path - matches router constant */
+export const ROUTES_FLOW_PATH = `/${ROUTES_FLOW_KEY}`;

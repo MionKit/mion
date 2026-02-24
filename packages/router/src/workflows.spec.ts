@@ -16,15 +16,15 @@ import {headersFromRecord} from './lib/headers.ts';
 import {clearWorkflowCache, getWorkflowCacheSize, getCachedWorkflow} from './workflows.ts';
 import {WORKFLOW_KEY, WORKFLOW_PATH} from './constants.ts';
 
-// Workflows allow calling multiple routes in a single request, with shared context between them
-// a new execution chain is created for each workflow request, merging the execution chains of all routes in the workflow
+// RoutesFlows allow calling multiple routes in a single request, with shared context between them
+// a new execution chain is created for each routesFlow request, merging the execution chains of all routes in the routesFlow
 
 type RawRequest = {
     headers: MionHeaders;
     body: string;
 };
 
-describe('Workflow routes', () => {
+describe('RoutesFlow routes', () => {
     const getDefaultRequest = (body: Record<string, any[]>): RawRequest => ({
         headers: headersFromRecord({}),
         body: JSON.stringify(body),
@@ -42,7 +42,7 @@ describe('Workflow routes', () => {
             await expect(registerRoutes(routesWithComma)).rejects.toThrow('Route names cannot contain commas');
         });
 
-        it('should reject route names using reserved workflow route name', async () => {
+        it('should reject route names using reserved routesFlow route name', async () => {
             await initRouter();
             const routesWithWorkflowName = {
                 [WORKFLOW_KEY]: route((ctx): string => 'test'),
@@ -54,7 +54,7 @@ describe('Workflow routes', () => {
         });
     });
 
-    describe('workflow execution', () => {
+    describe('routesFlow execution', () => {
         const route1 = route((ctx): string => 'result1');
         const routeX2 = route((ctx, value: number): number => value * 2);
         const routeSum = route((ctx, a: number, b: number): number => a + b);
@@ -75,7 +75,7 @@ describe('Workflow routes', () => {
             routeX2,
         } satisfies Routes;
 
-        it('should execute single route in workflow', async () => {
+        it('should execute single route in routesFlow', async () => {
             await initRouter();
             await registerRoutes(routes);
 
@@ -98,7 +98,7 @@ describe('Workflow routes', () => {
             expect(response.body.route1).toBe('result1');
         });
 
-        it('should execute multiple routes in workflow', async () => {
+        it('should execute multiple routes in routesFlow', async () => {
             await initRouter();
             await registerRoutes(routes);
 
@@ -154,7 +154,7 @@ describe('Workflow routes', () => {
             expect(response.body.route1).toBe('result1');
             expect(response.body.routeX2).toBe(10);
 
-            // Verify the cached workflow has deduplicated linkedFns
+            // Verify the cached routesFlow has deduplicated linkedFns
             const cachedWorkflow = getCachedWorkflow(urlQuery);
             expect(cachedWorkflow).toBeDefined();
             // routeIndex is the actual route index from the first route's chain
@@ -177,7 +177,7 @@ describe('Workflow routes', () => {
             expect(serializer).toBeDefined();
         });
 
-        it('should throw error for non-existent route in workflow', async () => {
+        it('should throw error for non-existent route in routesFlow', async () => {
             await initRouter();
             await registerRoutes(routes);
 
@@ -185,7 +185,7 @@ describe('Workflow routes', () => {
             const workflowPath = WORKFLOW_PATH;
             const urlQuery = '/nonExistent';
 
-            // Errors during workflow chain building are thrown as exceptions
+            // Errors during routesFlow chain building are thrown as exceptions
             // since they happen during context creation
             await expect(
                 dispatchRoute(
@@ -198,17 +198,17 @@ describe('Workflow routes', () => {
                     undefined,
                     urlQuery
                 )
-            ).rejects.toThrow('Route not found in workflow: /nonExistent');
+            ).rejects.toThrow('Route not found in routesFlow: /nonExistent');
         });
 
-        it('should throw error for workflow path without query string', async () => {
+        it('should throw error for routesFlow path without query string', async () => {
             await initRouter();
             await registerRoutes(routes);
 
             const request = getDefaultRequest({});
             const workflowPath = WORKFLOW_PATH;
 
-            // When no urlQuery is provided, the workflow should throw an error
+            // When no urlQuery is provided, the routesFlow should throw an error
             await expect(
                 dispatchRoute(
                     workflowPath,
@@ -220,7 +220,7 @@ describe('Workflow routes', () => {
                     undefined,
                     undefined // no urlQuery
                 )
-            ).rejects.toThrow('Workflow request requires a query string with route paths.');
+            ).rejects.toThrow('RoutesFlow request requires a query string with route paths.');
         });
 
         it('should handle URL-encoded route paths', async () => {
@@ -247,7 +247,7 @@ describe('Workflow routes', () => {
             expect(response.body.route1).toBe('result1');
         });
 
-        it('should apply pathTransform to workflow route paths', async () => {
+        it('should apply pathTransform to routesFlow route paths', async () => {
             await initRouter({
                 pathTransform: (req, path) => path.replace('/v1', ''),
             });
@@ -314,11 +314,11 @@ describe('Workflow routes', () => {
         });
     });
 
-    // Note: Workflow routes are no longer registered as a separate route.
-    // The workflow execution chain is built dynamically in getExecutionChain()
-    // when the path matches the workflow route path.
+    // Note: RoutesFlow routes are no longer registered as a separate route.
+    // The routesFlow execution chain is built dynamically in getExecutionChain()
+    // when the path matches the routesFlow route path.
 
-    describe('workflow cache', () => {
+    describe('routesFlow cache', () => {
         const route1 = route((ctx): string => 'result1');
         const routeX2 = route((ctx, value: number): number => value * 2);
 
@@ -508,7 +508,7 @@ describe('Workflow routes', () => {
         });
     });
 
-    describe('scoped linkedFns in workflows', () => {
+    describe('scoped linkedFns in routesFlows', () => {
         const route1 = route((ctx): string => 'result1');
         const route2 = route((ctx): string => 'result2');
         const route3 = route((ctx): string => 'result3');
@@ -558,7 +558,7 @@ describe('Workflow routes', () => {
             expect(response.body['other/route2']).toBe('result2');
             expect(response.body.route3).toBe('result3');
 
-            // Verify the cached workflow has the scoped linkedFn
+            // Verify the cached routesFlow has the scoped linkedFn
             const cachedWorkflow = getCachedWorkflow(urlQuery);
             expect(cachedWorkflow).toBeDefined();
 
@@ -601,7 +601,7 @@ describe('Workflow routes', () => {
             expect(response.body.route1).toBe('result1');
             expect(response.body.route3).toBe('result3');
 
-            // Verify the cached workflow has the scoped linkedFn
+            // Verify the cached routesFlow has the scoped linkedFn
             const cachedWorkflow = getCachedWorkflow(urlQuery);
             expect(cachedWorkflow).toBeDefined();
 
@@ -638,7 +638,7 @@ describe('Workflow routes', () => {
             expect(response.body.route1).toBe('result1');
             expect(response.body.route3).toBe('result3');
 
-            // Verify the cached workflow does NOT have the scoped linkedFn
+            // Verify the cached routesFlow does NOT have the scoped linkedFn
             const cachedWorkflow = getCachedWorkflow(urlQuery);
             expect(cachedWorkflow).toBeDefined();
 

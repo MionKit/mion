@@ -43,7 +43,7 @@ export function setSerializationOptions(options: Partial<SerializationOptions>) 
 /**
  * Creates a DataView-based serializer for binary serialization.
  * @param routeId - The route ID for buffer size calculation and tracking
- * @param workflowRouteIds - Optional array of route IDs for workflow requests.
+ * @param workflowRouteIds - Optional array of route IDs for routesFlow requests.
  *                           When provided, buffer size is calculated by summing sizes for each route.
  */
 export function createDataViewSerializer(routeId: string, workflowRouteIds?: string[]): DataViewSerializer {
@@ -221,15 +221,15 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
 }
 
 /**
- * Calculates buffer size for a request, handling both single routes and workflows.
- * For workflows, sums up the buffer sizes for each individual route.
+ * Calculates buffer size for a request, handling both single routes and routesFlows.
+ * For routesFlows, sums up the buffer sizes for each individual route.
  */
 function calculateBufferSizeForRequest(routeId: string, workflowRouteIds?: string[]): number {
     if (!workflowRouteIds || workflowRouteIds.length === 0) {
         return calculateDefaultBufferSize(routeId);
     }
 
-    // For workflows, sum up the buffer sizes for each individual route
+    // For routesFlows, sum up the buffer sizes for each individual route
     let totalSize = 0;
     for (const id of workflowRouteIds) {
         totalSize += calculateDefaultBufferSize(id);

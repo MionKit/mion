@@ -7,7 +7,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
-import {workflow} from './workflow.ts';
+import {routesFlow} from './routesFlow.ts';
 import {HSubRequest, RSubRequest} from './types.ts';
 import {HeadersSubset} from '@mionkit/core';
 import {TestServerApi} from '@mionkit/test-server';
@@ -24,21 +24,21 @@ function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
     return new HeadersSubset({Authorization: token});
 }
 
-describe('workflow', () => {
+describe('routesFlow', () => {
     const someUser = {name: 'John', surname: 'Doe'};
     type MyApi = TestServerApi;
 
     const baseURL = TEST_SERVER_BASE_URL_JSON;
 
-    describe('workflow() function', () => {
-        it('should execute a single route in a workflow', async () => {
+    describe('routesFlow() function', () => {
+        it('should execute a single route in a routesFlow', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth so it's included automatically
             linkedFns.auth(authHeaders).prefill();
 
-            const [[greeting], [greetingError]] = await workflow([routes.sayHello(someUser)]);
+            const [[greeting], [greetingError]] = await routesFlow([routes.sayHello(someUser)]);
 
             expect(greeting).toEqual('Hello John Doe');
             expect(greetingError).toBeUndefined();
@@ -47,14 +47,14 @@ describe('workflow', () => {
             linkedFns.auth(authHeaders).removePrefill();
         });
 
-        it('should execute multiple routes in a workflow', async () => {
+        it('should execute multiple routes in a routesFlow', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth so it's included automatically
             linkedFns.auth(authHeaders).prefill();
 
-            const [[greeting, age, sum], [greetingError, ageError, sumError]] = await workflow([
+            const [[greeting, age, sum], [greetingError, ageError, sumError]] = await routesFlow([
                 routes.sayHello(someUser),
                 routes.calculateAge(1990),
                 routes.utils.sumTwo(5),
@@ -71,11 +71,11 @@ describe('workflow', () => {
             linkedFns.auth(authHeaders).removePrefill();
         });
 
-        it('should execute workflow with explicit linkedFns', async () => {
+        it('should execute routesFlow with explicit linkedFns', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [[greeting], [greetingError], , linkedFnErrors] = await workflow([routes.sayHello(someUser)], {
+            const [[greeting], [greetingError], , linkedFnErrors] = await routesFlow([routes.sayHello(someUser)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
@@ -84,11 +84,11 @@ describe('workflow', () => {
             expect(linkedFnErrors?.auth).toBeUndefined();
         });
 
-        it('should handle route errors in workflow', async () => {
+        it('should handle route errors in routesFlow', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [[failResult], [failError]] = await workflow([routes.alwaysFails(someUser)], {
+            const [[failResult], [failError]] = await routesFlow([routes.alwaysFails(someUser)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
@@ -99,21 +99,21 @@ describe('workflow', () => {
         });
 
         it('should throw error when called with empty routes array', async () => {
-            await expect(workflow([])).rejects.toThrow('Workflow requires at least one route subrequest.');
+            await expect(routesFlow([])).rejects.toThrow('RoutesFlow requires at least one route subrequest.');
         });
 
         it('should throw error when subrequests have different client instances', async () => {
             const {routes: routes1} = initClient<MyApi>({baseURL});
             const {routes: routes2} = initClient<MyApi>({baseURL});
 
-            await expect(workflow([routes1.sayHello(someUser), routes2.calculateAge(1990)])).rejects.toThrow(
-                'All subrequests in a workflow must use the same client instance'
+            await expect(routesFlow([routes1.sayHello(someUser), routes2.calculateAge(1990)])).rejects.toThrow(
+                'All subrequests in a routesFlow must use the same client instance'
             );
         });
     });
 
     describe('callWithWorkflow() method', () => {
-        it('should execute workflow via callWithWorkflow on a subrequest', async () => {
+        it('should execute routesFlow via callWithWorkflow on a subrequest', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -149,13 +149,13 @@ describe('workflow', () => {
         });
     });
 
-    describe('serialization/deserialization in workflows', () => {
+    describe('serialization/deserialization in routesFlows', () => {
         it('should serialize and deserialize Date params and results', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testDate = new Date('2024-06-15T12:30:00.000Z');
 
-            const [[sameDate], [dateError]] = await workflow([routes.getSameDate(testDate)], {
+            const [[sameDate], [dateError]] = await routesFlow([routes.getSameDate(testDate)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
@@ -169,7 +169,7 @@ describe('workflow', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testDate = new Date('2024-01-01T00:00:00.000Z');
 
-            const [[datePlusDays], [dateError]] = await workflow([routes.getDatePlusDays(testDate, 10)], {
+            const [[datePlusDays], [dateError]] = await routesFlow([routes.getDatePlusDays(testDate, 10)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
@@ -186,7 +186,7 @@ describe('workflow', () => {
                 ['b', 2],
             ]);
 
-            const [[sameMap], [mapError]] = await workflow([routes.getSameMap(testMap)], {
+            const [[sameMap], [mapError]] = await routesFlow([routes.getSameMap(testMap)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
@@ -201,7 +201,7 @@ describe('workflow', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testMap = new Map<string, number>([['x', 10]]);
 
-            const [[mergedMap], [mapError]] = await workflow([routes.mergeMap(testMap, 'y', 20)], {
+            const [[mergedMap], [mapError]] = await routesFlow([routes.mergeMap(testMap, 'y', 20)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
@@ -216,7 +216,7 @@ describe('workflow', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testSet = new Set(['hello', 'world']);
 
-            const [[sameSet], [setError]] = await workflow([routes.getSameSet(testSet)], {
+            const [[sameSet], [setError]] = await routesFlow([routes.getSameSet(testSet)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
@@ -231,7 +231,7 @@ describe('workflow', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testSet = new Set(['a', 'b']);
 
-            const [[modifiedSet], [setError]] = await workflow([routes.addToSet(testSet, 'c')], {
+            const [[modifiedSet], [setError]] = await routesFlow([routes.addToSet(testSet, 'c')], {
                 auth: linkedFns.auth(authHeaders),
             });
 
@@ -242,12 +242,12 @@ describe('workflow', () => {
             expect(modifiedSet?.has('c')).toBe(true);
         });
 
-        it('should handle multiple routes mixing serializable and plain types in a workflow', async () => {
+        it('should handle multiple routes mixing serializable and plain types in a routesFlow', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testDate = new Date('2024-06-15T12:30:00.000Z');
 
-            const [[sameDate, greeting, age], [dateError, greetingError, ageError]] = await workflow(
+            const [[sameDate, greeting, age], [dateError, greetingError, ageError]] = await routesFlow(
                 [routes.getSameDate(testDate), routes.sayHello(someUser), routes.calculateAge(1990)],
                 {auth: linkedFns.auth(authHeaders)}
             );

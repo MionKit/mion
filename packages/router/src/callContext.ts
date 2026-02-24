@@ -111,7 +111,7 @@ export function acquireCallContext(
         resp.rawBody = '';
         resp.serializer = SerializerModes.json;
         resp.binSerializer = undefined;
-        // Reset execution chain and workflow route IDs
+        // Reset execution chain and routesFlow route IDs
         const {executionChain, workflowRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
         ctx.executionChain = executionChain;
         ctx.workflowRouteIds = workflowRouteIds;
@@ -162,7 +162,7 @@ function getRequestBodyType(rawBody: RawRequestBody): SerializerCode {
     return SerializerModes.json;
 }
 
-/** Gets the execution chain for a path, handling workflow paths specially */
+/** Gets the execution chain for a path, handling routesFlow paths specially */
 function getExecutionChain(
     originalPath: string,
     transformedPath: string,
@@ -170,7 +170,7 @@ function getExecutionChain(
     rawRequest: unknown,
     opts: RouterOptions
 ): WorkflowExecutionResult {
-    // Handle workflow path - build merged execution chain from multiple routes
+    // Handle routesFlow path - build merged execution chain from multiple routes
     // Compare with original path since WORKFLOW_PATH is not transformed
     if (originalPath === WORKFLOW_PATH) return getWorkflowExecutionChain(rawRequest, opts, urlQuery);
 

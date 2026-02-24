@@ -14,4 +14,4 @@ export * from './src/request.ts';
 export * from './src/client.ts';
 export * from './src/typedEvent.ts';
 export * from './src/handlersRegistry.ts';
-export * from './src/workflow.ts';
+export * from './src/routesFlow.ts';

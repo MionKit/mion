@@ -8,7 +8,7 @@ This document specifies the implementation of workflow functionality in the mion
 
 The router already supports workflows via:
 
-- **Endpoint**: `/mion-workflow-route?/route1,/route2,/route3`
+- **Endpoint**: `/mion-routes-flow?/route1,/route2,/route3`
 - **Query String**: CSV list of route paths to execute
 - **Request Body**: Standard mion body with params for each route keyed by route ID
 - **Response Body**: Standard mion body with results for each route keyed by route ID
@@ -113,7 +113,7 @@ export async function workflow<
 **Implementation Details:**
 
 1. Extract `MionClient` from first subrequest's `client` property
-2. Build workflow path: `/mion-workflow-route?/route1,/route2,...`
+2. Build workflow path: `/mion-routes-flow?/route1,/route2,...`
 3. Collect all linkedFns from:
    - Explicitly passed `linkedFns` parameter
    - Prefilled linkedFns from cache for each route
@@ -167,7 +167,7 @@ executeCallWithWorkflow<
 
 **Implementation Details:**
 
-1. Create a synthetic workflow route subrequest pointing to `/mion-workflow-route`
+1. Create a synthetic workflow route subrequest pointing to `/mion-routes-flow`
 2. Build the URL query string from route IDs
 3. Create `MionClientRequest` with:
    - `route`: The synthetic workflow subrequest
@@ -208,7 +208,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
 
 - When `workflowSubRequests` is provided, the path should be:
   ```
-  /mion-workflow-route?/route1,/route2,/route3
+  /mion-routes-flow?/route1,/route2,/route3
   ```
 - The query string is built from the route IDs of workflow subrequests
 
@@ -217,7 +217,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
 Add to `constants.ts`:
 
 ```ts
-export const WORKFLOW_KEY = 'mion-workflow-route';
+export const WORKFLOW_KEY = 'mion-routes-flow';
 export const WORKFLOW_PATH = `/${WORKFLOW_KEY}`;
 ```
 
@@ -225,7 +225,7 @@ export const WORKFLOW_PATH = `/${WORKFLOW_KEY}`;
 
 ### Request Building
 
-1. **URL**: `{baseURL}/mion-workflow-route?/users-getUser,/posts-getPosts,/audit-logAccess`
+1. **URL**: `{baseURL}/mion-routes-flow?/users-getUser,/posts-getPosts,/audit-logAccess`
 2. **Method**: PUT (default)
 3. **Body**:
    ```json
@@ -301,7 +301,7 @@ flowchart TD
     end
 
     subgraph Server
-        WFR[/mion-workflow-route]
+        WFR[/mion-routes-flow]
         R1[Route 1]
         R2[Route 2]
         R3[Route 3]

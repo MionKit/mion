@@ -11,30 +11,30 @@ import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
 import {WorkflowExecutionResult} from './types/context.ts';
 
-// ############# WORKFLOW CACHE #############
+// ############# ROUTES_FLOW CACHE #############
 
 /** FILO cache for merged execution chains. Key is the query string, value is the cached chain. */
-const workflowCache = new Map<string, MethodsExecutionChain>();
+const routesFlowCache = new Map<string, MethodsExecutionChain>();
 const cacheOrder: string[] = [];
 
-/** Clears the workflow cache - useful for testing */
+/** Clears the routesFlow cache - useful for testing */
 export function clearWorkflowCache(): void {
-    workflowCache.clear();
+    routesFlowCache.clear();
     cacheOrder.length = 0;
 }
 
-/** Returns the current workflow cache size */
+/** Returns the current routesFlow cache size */
 export function getWorkflowCacheSize(): number {
-    return workflowCache.size;
+    return routesFlowCache.size;
 }
 
-/** Returns a cached workflow chain by query string */
+/** Returns a cached routesFlow chain by query string */
 export function getCachedWorkflow(query: string): MethodsExecutionChain | undefined {
-    return workflowCache.get(query);
+    return routesFlowCache.get(query);
 }
 
 /** Adds a merged chain to the cache with FILO eviction */
-function addToWorkflowCache(query: string, chain: MethodsExecutionChain): void {
+function addToRoutesFlowCache(query: string, chain: MethodsExecutionChain): void {
     const routerOpts = getRouterOptions();
     const maxSize = routerOpts.maxWorkflowsCacheSize;
     // Caching disabled
@@ -42,22 +42,22 @@ function addToWorkflowCache(query: string, chain: MethodsExecutionChain): void {
     // Evict oldest entries if cache is full (FILO - First In, Last Out)
     while (cacheOrder.length >= maxSize) {
         const oldestKey = cacheOrder.shift();
-        if (oldestKey) workflowCache.delete(oldestKey);
+        if (oldestKey) routesFlowCache.delete(oldestKey);
     }
-    workflowCache.set(query, chain);
+    routesFlowCache.set(query, chain);
     cacheOrder.push(query);
 }
 
-// ############# WORKFLOWS #############
+// ############# ROUTES_FLOW #############
 
-/** Builds or retrieves a cached merged execution chain for workflow requests */
+/** Builds or retrieves a cached merged execution chain for routesFlow requests */
 export function getWorkflowExecutionChain(rawRequest: unknown, opts: RouterOptions, urlQuery?: string): WorkflowExecutionResult {
     // Validate urlQuery is provided
     if (!urlQuery) {
         throw new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'workflow-missing-query',
-            publicMessage: 'Workflow request requires a query string with route paths.',
+            type: 'routesFlow-missing-query',
+            publicMessage: 'RoutesFlow request requires a query string with route paths.',
         });
     }
 
@@ -70,8 +70,8 @@ export function getWorkflowExecutionChain(rawRequest: unknown, opts: RouterOptio
     if (routePaths.length === 0) {
         throw new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,
-            type: 'workflow-empty-routes',
-            publicMessage: 'Workflow request requires at least one route path in query string.',
+            type: 'routesFlow-empty-routes',
+            publicMessage: 'RoutesFlow request requires at least one route path in query string.',
         });
     }
 
@@ -79,12 +79,12 @@ export function getWorkflowExecutionChain(rawRequest: unknown, opts: RouterOptio
     const routeIds = routePaths.map((path) => (path.startsWith('/') ? path.slice(1) : path));
 
     // Check cache first
-    let executionChain = workflowCache.get(urlQuery);
+    let executionChain = routesFlowCache.get(urlQuery);
     if (executionChain) return {executionChain, workflowRouteIds: routeIds};
 
     // Build merged execution chain
     executionChain = buildMergedExecutionChain(routePaths, rawRequest, opts);
-    addToWorkflowCache(urlQuery, executionChain);
+    addToRoutesFlowCache(urlQuery, executionChain);
     return {executionChain, workflowRouteIds: routeIds};
 }
 
@@ -118,8 +118,8 @@ function buildMergedExecutionChain(routePaths: string[], rawRequest: unknown, op
         if (!chain) {
             throw new RpcError({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
-                type: 'workflow-route-not-found',
-                publicMessage: `Route not found in workflow: ${routePath}`,
+                type: 'routesFlow-route-not-found',
+                publicMessage: `Route not found in routesFlow: ${routePath}`,
                 errorData: {routePath},
             });
         }
