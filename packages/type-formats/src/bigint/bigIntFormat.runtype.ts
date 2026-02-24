@@ -13,11 +13,9 @@ import type {
     JitFunctions,
     BaseFnCompiler,
     jitBinaryDeserializerArgs,
-    TypeFormat,
 } from '@mionkit/run-types';
-// TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
+import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils.ts';
 import {FormatParams_BigInt} from '@mionkit/core';
@@ -222,6 +220,7 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigInt> 
 }
 
 /** Determines if the bigint params fit within Int64 or UInt64 ranges for 8-byte binary encoding */
+/** @reflection never */
 function getBigIntType(params: FormatParams_BigInt) {
     const min = params.min !== undefined ? (paramVal(params.min) as bigint) : undefined;
     const max = params.max !== undefined ? (paramVal(params.max) as bigint) : undefined;
