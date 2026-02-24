@@ -8,7 +8,7 @@
 import {PURE_SERVER_FN_NAMESPACE, RpcError} from '@mionkit/core';
 import type {HSubRequest, RSubRequest, SubRequest, WorkflowResult} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
-import {FromServerFnRef} from './types.ts';
+import {MapFromServerFnRef} from '@mionkit/core/src/types/pureFunctions.types.ts';
 
 /** Creates and executes a routesFlow request with multiple routes */
 export async function routesFlow<
@@ -52,6 +52,8 @@ export async function routesFlow<
     return [results ?? emptyResults, errors ?? emptyErrors, linkedFnResults, linkedFnErrors] as WorkflowResult<Routes, LinkedFns>;
 }
 
+export const mapFromSymbol = Symbol('MapFromServerFnRef');
+
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║  WARNING: This function's call signature is parsed by the mion vite plugin  ║
 // ║  at build time (see devtools/src/vite-plugin/extractPureFn.ts).             ║
@@ -69,10 +71,11 @@ export function mapFrom<FromSR extends SubRequest<any>, MappedInput>(
     source: FromSR,
     mapper: (value: FromSR['resolvedValue']) => MappedInput,
     bodyHash?: string // injected by mion vite plugin
-): FromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput> {
+): MapFromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput> {
     // Important: bodyHash is injected at build time by mion vite plugin
     if (!bodyHash) throw new Error('mapFrom() requires mion vite plugin transform to inject bodyHash');
-    const ref: FromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput> = {
+    const ref: MapFromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput> = {
+        mapFromSymbol,
         namespace: PURE_SERVER_FN_NAMESPACE,
         fnName: bodyHash,
         bodyHash,

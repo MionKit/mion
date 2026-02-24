@@ -16,8 +16,10 @@ import type {
     SubRequest,
     WorkflowResult,
 } from './types.ts';
+import type {MapFromRef, MapFromServerFnRef} from '@mionkit/core/src/types/pureFunctions.types.ts';
 import type {MionClient} from './client.ts';
 import {TypedEvent} from './typedEvent.ts';
+import {mapFromSymbol} from './routesFlow.ts';
 
 /** Implementation of both RouteSubRequest and LinkedFnSubRequest interfaces */
 export class MionSubRequest<S = any, E extends RpcError<string, any> = any> implements RSubRequest<any>, HSubRequest<any> {
@@ -28,6 +30,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     resolvedValue?: S;
     error?: E;
     serializedParams?: any[];
+    mappings: MapFromRef[] = [];
 
     constructor(
         parentProps: string[],
@@ -37,7 +40,19 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     ) {
         this.pointer = [...parentProps];
         this.id = handlerId;
-        this.params = argArray;
+        this.params = argArray.map((arg) => {
+            if (arg && arg.mapFromSymbol === mapFromSymbol) {
+                const ref = arg as MapFromServerFnRef<any>;
+                this.mappings.push({
+                    fromRequestId: ref.fromRequestId,
+                    toRequestId: this.id,
+                    fnName: ref.fnName,
+                    namespace: ref.namespace,
+                } satisfies MapFromRef);
+                return null;
+            }
+            return arg;
+        });
     }
 
     /** Prefills LinkedFn's parameters and returns TypedEvent for event handler registration */

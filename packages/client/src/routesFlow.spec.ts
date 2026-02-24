@@ -284,7 +284,7 @@ describe('routesFlow', () => {
 describe('mapFrom()', () => {
     const fakeSubRequest = {pointer: ['test'], id: 'test', isResolved: false, params: []} as any;
 
-    it('should return a FromServerFnRef with correct properties', () => {
+    it('should return a MapFromServerFnRef with correct properties', () => {
         const mapper = (x: number) => x * 2;
         const ref = rawMapFrom(fakeSubRequest, mapper, 'testHash123456');
         expect(ref.namespace).toBe(PURE_SERVER_FN_NAMESPACE);

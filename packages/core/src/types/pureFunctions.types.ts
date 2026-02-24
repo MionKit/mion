@@ -99,3 +99,12 @@ export interface PureServerFnRef<F extends (...args: any[]) => any = (...args: a
      */
     pureFnDependencies?: Array<string>;
 }
+export interface MapFromServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> extends PureServerFnRef<F> {
+    fromRequestId: string;
+    toRequestId: string;
+    mapFromSymbol: symbol;
+    /** Returns this reference cast as ReturnType<F>, allowing it to be passed as a parameter to subrequests */
+    fake(): ReturnType<F>;
+}
+
+export type MapFromRef = Pick<MapFromServerFnRef<any>, 'fromRequestId' | 'toRequestId' | 'fnName' | 'namespace'>;
