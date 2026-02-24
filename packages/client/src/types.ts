@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import type {Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionkit/core';
+import type {Prettify, PureServerFnRef, RunTypeError, SerializerMode, ValidationError} from '@mionkit/core';
 import type {PublicHeadersFn, PublicLinkedFn, RemoteApi, PublicRoute} from '@mionkit/router';
 import type {TypedEvent} from './typedEvent.ts';
 
@@ -195,4 +195,14 @@ export type SuccessClientResponse<RS extends RSubRequest<any>, RHList extends HS
     ...SuccessResponses<RHList>,
 ];
 
-export type PrefilledLinkedFnsCache = Map<string, SubRequest<any>>;
+export type PrefilledLinkedFnsCache = Map<
+    string,
+    SubRequest<any>
+>; /** Reference returned by mapFrom() - extends PureServerFnRef with fake() for type-safe routesFlow piping */
+
+export interface FromServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> extends PureServerFnRef<F> {
+    fromRequestId: string;
+    toRequestId: string;
+    /** Returns this reference cast as ReturnType<F>, allowing it to be passed as a parameter to subrequests */
+    fake(): ReturnType<F>;
+}

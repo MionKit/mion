@@ -9,9 +9,11 @@ import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
 import {routesFlow} from './routesFlow.ts';
 import {HSubRequest, RSubRequest} from './types.ts';
-import {HeadersSubset} from '@mionkit/core';
+import {HeadersSubset, PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
 import {TestServerApi} from '@mionkit/test-server';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
+// Alias to avoid vite plugin transformer injecting bodyHash into test calls
+import {mapFrom as rawMapFrom} from './routesFlow.ts';
 
 // Mock localStorage for method metadata storage
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -276,5 +278,47 @@ describe('routesFlow', () => {
             expect(subRequest.callWithWorkflow).toBeDefined();
             expect(typeof subRequest.callWithWorkflow).toBe('function');
         });
+    });
+});
+
+describe('mapFrom()', () => {
+    const fakeSubRequest = {pointer: ['test'], id: 'test', isResolved: false, params: []} as any;
+
+    it('should return a FromServerFnRef with correct properties', () => {
+        const mapper = (x: number) => x * 2;
+        const ref = rawMapFrom(fakeSubRequest, mapper, 'testHash123456');
+        expect(ref.namespace).toBe(PURE_SERVER_FN_NAMESPACE);
+        expect(ref.fnName).toBe('testHash123456');
+        expect(ref.bodyHash).toBe('testHash123456');
+        expect(ref.pureFn).toBe(mapper);
+        expect(ref.isFactory).toBe(false);
+        expect(ref.fromRequestId).toBe('test');
+        expect(ref.toRequestId).toBe(''); // toRequestId is set once the ref is passed to the target subRequest
+    });
+
+    it('should use bodyHash as fnName', () => {
+        const ref = rawMapFrom(fakeSubRequest, (x: number) => x.toString(), 'abcdef12345678');
+        expect(ref.fnName).toBe('abcdef12345678');
+        expect(ref.bodyHash).toBe('abcdef12345678');
+    });
+
+    it('should throw when bodyHash is not provided', () => {
+        expect(() => rawMapFrom(fakeSubRequest, (x: number) => x * 2)).toThrow(
+            'mapFrom() requires mion vite plugin transform to inject bodyHash'
+        );
+    });
+
+    it('fake() should return the ref itself', () => {
+        const ref = rawMapFrom(fakeSubRequest, (x: number) => x * 2, 'testHash123456');
+        const fakeResult = ref.fake();
+        // fake() returns the ref cast as ReturnType<F>
+        expect(fakeResult).toBe(ref);
+    });
+
+    it('should preserve the mapper function as pureFn', () => {
+        const mapper = (user: {name: string}) => user.name.toUpperCase();
+        const ref = rawMapFrom(fakeSubRequest, mapper, 'testHash123456');
+        expect(ref.pureFn).toBe(mapper);
+        expect(ref.pureFn({name: 'alice'})).toBe('ALICE');
     });
 });

@@ -2,6 +2,7 @@
 // This file demonstrates the ESLint rules for @mionkit pure functions
 // The rules are disabled for this file so you can see both valid and invalid examples
 import {pureServerFn, registerPureFnFactory} from '@mionkit/core';
+import {mapFrom} from '@mionkit/client';
 
 // ========================================
 // ✅ VALID EXAMPLES
@@ -64,6 +65,16 @@ registerPureFnFactory('ns', 'limitItems', function () {
     };
 });
 // end:pure-functions-valid-factory
+
+// start:from-valid
+// mapFrom() mapper follows the same purity rules as pureServerFn
+const someSubRequest = {} as any; // placeholder for SubRequest
+mapFrom(someSubRequest, (value: number) => value * 2);
+mapFrom(someSubRequest, (user: {name: string; age: number}) => user.name.toUpperCase());
+mapFrom(someSubRequest, function extractId(item: {id: number}) {
+    return item.id;
+});
+// end:from-valid
 
 // ========================================
 // ❌ INVALID EXAMPLES
@@ -147,5 +158,18 @@ function wrapFactory(factory: () => (x: number) => number) {
     registerPureFnFactory('ns', 'fn', factory); // ❌ Error: argument "factory" could not be resolved
 }
 // end:pure-functions-invalid-dynamic
+
+// start:from-invalid
+// mapFrom() mapper follows the same purity rules — closure variables are not allowed
+const MULTIPLIER = 5;
+mapFrom(someSubRequest, (x: number) => x * MULTIPLIER); // ❌ Error: Closure variable "MULTIPLIER" is not allowed
+
+// Forbidden identifiers not allowed in mapFrom() mapper
+mapFrom(someSubRequest, (url: string) => fetch(url)); // ❌ Error: "fetch" is not allowed
+
+// Imported mapper not allowed — must be defined inline
+import {myMapper} from './helpers.ts';
+mapFrom(someSubRequest, myMapper); // ❌ Error: argument "myMapper" is imported from another module
+// end:from-invalid
 
 export {}; // Make this a module

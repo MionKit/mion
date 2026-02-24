@@ -238,6 +238,57 @@ export const cpf = registerPureFnFactory('mionFormats', 'dateFn', function (jUti
     });
 });
 
+describe('pureFnTransformer - mapFrom', () => {
+    it('should inject bodyHash as 3rd string argument', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (x) => x + 1);
+`;
+        const {output, collected} = transformWithPureFn(source);
+        expect(collected).toHaveLength(1);
+        const hash = collected[0].bodyHash;
+        expect(hash.length).toBe(BODY_HASH_LENGTH);
+        expect(output).toContain(`"${hash}"`);
+    });
+
+    it('should handle multiple mapFrom() calls in one file', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref1 = mapFrom(sub, (x) => x + 1);
+export const ref2 = mapFrom(sub, (x) => x * 2);
+`;
+        const {output, collected} = transformWithPureFn(source);
+        expect(collected).toHaveLength(2);
+        expect(output).toContain(`"${collected[0].bodyHash}"`);
+        expect(output).toContain(`"${collected[1].bodyHash}"`);
+    });
+
+    it('should be idempotent — skip calls that already have 3 arguments', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (x) => x + 1, 'existingHash');
+`;
+        const {output, collected} = transformWithPureFn(source);
+        expect(collected).toHaveLength(0);
+        expect(output).toContain('existingHash');
+    });
+
+    it('should handle named function expression as mapper', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, function extractName(user) { return user.name; });
+`;
+        const {output, collected} = transformWithPureFn(source);
+        expect(collected).toHaveLength(1);
+        expect(output).toContain(`"${collected[0].bodyHash}"`);
+        expect(output).toContain('function extractName');
+    });
+});
+
 describe('pureFnTransformer - mixed file', () => {
     it('should handle both pureServerFn and registerPureFnFactory in the same file', () => {
         const source = `
@@ -259,5 +310,20 @@ export const cpf = registerPureFnFactory('mion', 'double', function () {
         expect(output).toContain('bodyHash');
         expect(output).toContain('paramNames');
         expect(output).toContain('code');
+    });
+
+    it('should handle pureServerFn and mapFrom() in the same file', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/core';
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+
+export const fn = pureServerFn((x) => x + 1);
+export const ref = mapFrom(sub, (x) => x * 2);
+`;
+        const {output, collected} = transformWithPureFn(source);
+        expect(collected).toHaveLength(2);
+        expect(output).toContain(`"${collected[0].bodyHash}"`);
+        expect(output).toContain(`"${collected[1].bodyHash}"`);
     });
 });

@@ -216,7 +216,8 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
         },
 
         transform(code: string, fileName: string) {
-            const hasPureFns = code.includes('pureServerFn') || code.includes('registerPureFnFactory');
+            const hasPureFns =
+                code.includes('pureServerFn') || code.includes('registerPureFnFactory') || code.includes('mapFrom');
             const needsDeepkit = deepkitConfig ? deepkitConfig.filter(fileName) : false;
 
             if (!hasPureFns && !needsDeepkit) return null;

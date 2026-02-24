@@ -787,6 +787,187 @@ export const fn = pureServerFn({
     });
 });
 
+describe('extractPureFnsFromSource - mapFrom', () => {
+    it('should extract an arrow mapper from mapFrom(source, mapper)', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (value: number) => value * 2);
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        expect(result).toHaveLength(1);
+        expect(result[0].fnName).toBe(result[0].bodyHash);
+        expect(result[0].namespace).toBe(PURE_SERVER_FN_NAMESPACE);
+        expect(result[0].paramNames).toEqual(['value']);
+        expect(result[0].fnBody).toContain('return value * 2');
+        expect(result[0].fnBody).not.toContain(': number');
+        expect(result[0].bodyHash).toBeDefined();
+        expect(result[0].bodyHash.length).toBe(BODY_HASH_LENGTH);
+        expect(result[0].isFactory).toBe(false);
+    });
+
+    it('should extract a named function expression mapper', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, function extractId(item: {id: number}): number {
+    return item.id;
+});
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        expect(result).toHaveLength(1);
+        expect(result[0].fnName).toBe(result[0].bodyHash);
+        expect(result[0].paramNames).toEqual(['item']);
+        expect(result[0].fnBody).toContain('return item.id');
+        expect(result[0].fnBody).not.toContain(': number');
+    });
+
+    it('should extract mapper with block body', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (user: any) => {
+    const name = user.name;
+    return name.toUpperCase();
+});
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        expect(result).toHaveLength(1);
+        expect(result[0].paramNames).toEqual(['user']);
+        expect(result[0].fnBody).toContain('name.toUpperCase()');
+    });
+
+    it('should extract multiple mapFrom() calls from one file', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref1 = mapFrom(sub, (x: number) => x + 1);
+export const ref2 = mapFrom(sub, (x: number) => x * 2);
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        expect(result).toHaveLength(2);
+        expect(result[0].fnName).toBe(result[0].bodyHash);
+        expect(result[1].fnName).toBe(result[1].bodyHash);
+        expect(result[0].bodyHash).not.toBe(result[1].bodyHash);
+    });
+
+    it('should generate deterministic hashes', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (x: number) => x + 1);
+`;
+        const result1 = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        const result2 = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        expect(result1[0].bodyHash).toBe(result2[0].bodyHash);
+    });
+
+    it('should generate different hashes for different mapper bodies', () => {
+        const source1 = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (x: number) => x + 1);
+`;
+        const source2 = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (x: number) => x + 2);
+`;
+        const result1 = extractPureFnsFromSource(source1, 'test.ts', 'mapFrom');
+        const result2 = extractPureFnsFromSource(source2, 'test.ts', 'mapFrom');
+        expect(result1[0].bodyHash).not.toBe(result2[0].bodyHash);
+    });
+
+    it('should validate purity — reject closure variables', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+const SECRET = 'hidden';
+export const ref = mapFrom(sub, (x: string) => x + SECRET);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/SECRET/);
+    });
+
+    it('should validate purity — reject forbidden identifiers', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (url: string) => fetch(url));
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/fetch/);
+    });
+
+    it('should validate purity — reject this keyword', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, function() { return this.value; });
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
+    });
+
+    it('should throw when mapper is imported from another module', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+import {myMapper} from './helpers';
+const sub = {} as any;
+export const ref = mapFrom(sub, myMapper);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/imported from another module/);
+    });
+
+    it('should throw when mapper cannot be resolved', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, unknownMapper);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/could not be resolved/);
+    });
+
+    it('should throw when mapper is not a function', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, 'notAFunction');
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/function expression or arrow function/);
+    });
+
+    it('should resolve a variable reference holding a mapper function', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+const myMapper = (x: number) => x + 1;
+export const ref = mapFrom(sub, myMapper);
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        expect(result).toHaveLength(1);
+        expect(result[0].fnName).toBe(result[0].bodyHash);
+    });
+
+    it('should return empty array for files without mapFrom', () => {
+        const source = `const x = 1; export function hello() { return 'world'; }`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        expect(result).toHaveLength(0);
+    });
+
+    it('should handle calls that already have 3 arguments (already transformed)', () => {
+        const source = `
+import {mapFrom} from '@mionkit/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (x: number) => x + 1, 'existingHash');
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        expect(result).toHaveLength(1);
+    });
+});
+
 describe('extractPureFnsFromSource - registerPureFnFactory', () => {
     it('should extract namespace, functionID, paramNames, code, bodyHash from simple factory', () => {
         const fnBody = `return function is_h(hours) {

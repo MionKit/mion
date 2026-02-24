@@ -56,13 +56,16 @@ export function createPureFnTransformerFactory(
 ): ts.CustomTransformerFactory {
     const hasPureServerFn = originalSource.includes('pureServerFn');
     const hasFactory = originalSource.includes('registerPureFnFactory');
+    const hasMapFrom = originalSource.includes('mapFrom');
 
     const pureServerFns = hasPureServerFn ? extractPureFnsFromSource(originalSource, filePath, 'pureServerFn') : [];
     const factoryFns = hasFactory ? extractPureFnsFromSource(originalSource, filePath, 'registerPureFnFactory') : [];
+    const mapFromFns = hasMapFrom ? extractPureFnsFromSource(originalSource, filePath, 'mapFrom') : [];
 
     return (context: ts.TransformationContext): ts.CustomTransformer => {
         let pureIdx = 0;
         let factoryIdx = 0;
+        let mapFromIdx = 0;
 
         function visitor(node: ts.Node): ts.Node {
             if (ts.isCallExpression(node)) {
@@ -92,6 +95,19 @@ export function createPureFnTransformerFactory(
                             createParsedFactoryFnNode(context.factory, data),
                         ]);
                     }
+                    if (callee.text === 'mapFrom' && mapFromIdx < mapFromFns.length) {
+                        // mapFrom(source, mapper) -> mapFrom(source, mapper, 'bodyHash')
+                        if (node.arguments.length >= 3) {
+                            mapFromIdx++;
+                            return ts.visitEachChild(node, visitor, context);
+                        }
+                        const data = mapFromFns[mapFromIdx++];
+                        collector?.push(data);
+                        return context.factory.updateCallExpression(node, node.expression, node.typeArguments, [
+                            ...node.arguments,
+                            context.factory.createStringLiteral(data.bodyHash),
+                        ]);
+                    }
                 }
             }
             return ts.visitEachChild(node, visitor, context);
@@ -99,7 +115,7 @@ export function createPureFnTransformerFactory(
 
         return {
             transformSourceFile(sourceFile: ts.SourceFile): ts.SourceFile {
-                if (pureServerFns.length === 0 && factoryFns.length === 0) return sourceFile;
+                if (pureServerFns.length === 0 && factoryFns.length === 0 && mapFromFns.length === 0) return sourceFile;
                 return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
             },
             transformBundle(bundle: ts.Bundle): ts.Bundle {

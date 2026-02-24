@@ -125,7 +125,7 @@ function mionVitePlugin(options) {
       return null;
     },
     transform(code, fileName) {
-      const hasPureFns = code.includes("pureServerFn") || code.includes("registerPureFnFactory");
+      const hasPureFns = code.includes("pureServerFn") || code.includes("registerPureFnFactory") || code.includes("mapFrom");
       const needsDeepkit = deepkitConfig ? deepkitConfig.filter(fileName) : false;
       if (!hasPureFns && !needsDeepkit) return null;
       const before = [];

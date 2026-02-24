@@ -69,7 +69,7 @@ export const FORBIDDEN_IDENTIFIERS = new Set([
 ]);
 
 /** The target function names that purity validation applies to */
-export const PURE_FN_CALL_NAMES = ['pureServerFn', 'registerPureFnFactory'] as const;
+export const PURE_FN_CALL_NAMES = ['pureServerFn', 'registerPureFnFactory', 'mapFrom'] as const;
 
 /** The packages that export the target pure function APIs */
-export const PURE_FN_SOURCE_PACKAGES = ['@mionkit/core'] as const;
+export const PURE_FN_SOURCE_PACKAGES = ['@mionkit/core', '@mionkit/client'] as const;

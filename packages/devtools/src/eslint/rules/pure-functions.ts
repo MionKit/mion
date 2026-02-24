@@ -18,13 +18,13 @@ type MessageIds =
     | 'importedArgument'
     | 'unresolvedArgument';
 
-/** Cache of pure function imports from @mionkit/core */
+/** Cache of pure function imports from @mionkit/core and @mionkit/client */
 interface PureFnImports {
-    /** Maps local name -> imported name for pureServerFn/registerPureFnFactory */
+    /** Maps local name -> imported name for pureServerFn/registerPureFnFactory/mapFrom */
     pureFnNames: Map<string, string>;
 }
 
-/** Builds a cache of pure function imports from @mionkit/core */
+/** Builds a cache of pure function imports from @mionkit/core and @mionkit/client */
 function buildPureFnImportCache(program: TSESTree.Program): PureFnImports {
     const pureFnNames = new Map<string, string>();
 
@@ -36,7 +36,7 @@ function buildPureFnImportCache(program: TSESTree.Program): PureFnImports {
         for (const specifier of statement.specifiers) {
             if (specifier.type === AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === AST_NODE_TYPES.Identifier) {
                 const importedName = specifier.imported.name;
-                if (importedName === 'pureServerFn' || importedName === 'registerPureFnFactory') {
+                if (importedName === 'pureServerFn' || importedName === 'registerPureFnFactory' || importedName === 'mapFrom') {
                     pureFnNames.set(specifier.local.name, importedName);
                 }
             }
@@ -316,7 +316,7 @@ function reportUnresolvedArgument(
     program: TSESTree.Program,
     context: TSESLint.RuleContext<MessageIds, []>
 ): void {
-    const argIndex = callee === 'registerPureFnFactory' ? 2 : 0;
+    const argIndex = callee === 'registerPureFnFactory' ? 2 : callee === 'mapFrom' ? 1 : 0;
     const arg = node.arguments[argIndex];
     if (!arg) return;
 
@@ -412,12 +412,31 @@ function extractFactoryFnTarget(
     return null;
 }
 
+/** Extracts the mapper function from a mapFrom(source, mapper) call */
+function extractMapFromMapperTarget(
+    node: TSESTree.CallExpression,
+    program: TSESTree.Program
+): {fnNode: TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression; isFactory: boolean} | null {
+    // mapFrom(source, mapper) - mapper is the 2nd argument
+    const mapperArg = node.arguments[1];
+    if (!mapperArg) return null;
+
+    const resolved = resolveToExpression(mapperArg, program);
+    if (!resolved) return null;
+
+    if (resolved.type === AST_NODE_TYPES.FunctionExpression || resolved.type === AST_NODE_TYPES.ArrowFunctionExpression) {
+        return {fnNode: resolved, isFactory: false};
+    }
+
+    return null;
+}
+
 const rule: TSESLint.RuleModule<MessageIds, []> = {
     meta: {
         type: 'problem',
         docs: {
             description:
-                'Validate that functions passed to pureServerFn() and registerPureFnFactory() are pure and do not use forbidden identifiers, closures, or side effects.',
+                'Validate that functions passed to pureServerFn(), registerPureFnFactory(), and mapFrom() are pure and do not use forbidden identifiers, closures, or side effects.',
         },
         messages: {
             purityThis: "'this' is not allowed in {{fnType}}",
@@ -461,6 +480,8 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
                     target = extractPureServerFnTarget(node, programNode);
                 } else if (importedName === 'registerPureFnFactory') {
                     target = extractFactoryFnTarget(node, programNode);
+                } else if (importedName === 'mapFrom') {
+                    target = extractMapFromMapperTarget(node, programNode);
                 }
 
                 if (!target) {
