@@ -29,6 +29,8 @@ export const PURE_SERVER_FN_NAMESPACE = 'pureServerFn';
  * - No external imports except other pureServerFn references
  * - The 'pureServerFn' namespace is assigned automatically
  * - Functions can be named or anonymous (bodyHash is used as identifier)
+ *
+ * This is intended so clients can define functions that can be safely executed in the server
  */
 export function pureServerFn<F extends (...args: any[]) => any>(pureFn: F, bodyHash?: string): PureServerFnRef<F>;
 export function pureServerFn<F extends (...args: any[]) => any>(def: PureFnDef<F>, bodyHash?: string): PureServerFnRef<F>;
