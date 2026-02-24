@@ -113,34 +113,26 @@ ruleTester.run('pure-functions', rule, {
                 });
             `,
         },
-        // Factory function via isFactory: true — closures allowed
-        {
-            code: `
-                import { pureServerFn } from '@mionkit/core';
-                const outer = 42;
-                pureServerFn({
-                    pureFn: function factory() { return outer; },
-                    isFactory: true,
-                });
-            `,
-        },
-        // Factory function — setTimeout allowed for factories
+        // Factory function with local scope only (isFactory: true)
         {
             code: `
                 import { pureServerFn } from '@mionkit/core';
                 pureServerFn({
-                    pureFn: function factory() { return setTimeout; },
+                    pureFn: function factory() {
+                        const regexp = new RegExp('^[a-z]+$');
+                        return function inner(s: string) { return regexp.test(s); };
+                    },
                     isFactory: true,
                 });
             `,
         },
-        // registerPureFnFactory — closures allowed
+        // registerPureFnFactory with local scope only
         {
             code: `
                 import { registerPureFnFactory } from '@mionkit/core';
-                const MAX = 100;
                 registerPureFnFactory('ns', 'fn', function() {
-                    return function inner(x: number) { return x + MAX; };
+                    const multiplier = 2;
+                    return function inner(x: number) { return x * multiplier; };
                 });
             `,
         },
@@ -366,6 +358,40 @@ ruleTester.run('pure-functions', rule, {
                 });
             `,
             errors: [{messageId: 'purityThis', data: {fnType: 'factory functions'}}],
+        },
+        // Factory function with closure variable (isFactory: true)
+        {
+            code: `
+                import { pureServerFn } from '@mionkit/core';
+                const outer = 42;
+                pureServerFn({
+                    pureFn: function factory() { return outer; },
+                    isFactory: true,
+                });
+            `,
+            errors: [{messageId: 'purityClosureVariable', data: {name: 'outer', fnType: 'factory functions'}}],
+        },
+        // Factory function with setTimeout (forbidden for factories)
+        {
+            code: `
+                import { pureServerFn } from '@mionkit/core';
+                pureServerFn({
+                    pureFn: function factory() { return setTimeout; },
+                    isFactory: true,
+                });
+            `,
+            errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'setTimeout', fnType: 'factory functions'}}],
+        },
+        // registerPureFnFactory with closure variable
+        {
+            code: `
+                import { registerPureFnFactory } from '@mionkit/core';
+                const MAX = 100;
+                registerPureFnFactory('ns', 'fn', function() {
+                    return function inner(x: number) { return x + MAX; };
+                });
+            `,
+            errors: [{messageId: 'purityClosureVariable', data: {name: 'MAX', fnType: 'factory functions'}}],
         },
         // Multiple violations reported
         {

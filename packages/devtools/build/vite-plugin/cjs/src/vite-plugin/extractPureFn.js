@@ -272,11 +272,8 @@ function buildExtractedPureFn(fnNode, namespace, explicitFnName, isFactory, sour
     return param.name.text;
   });
   const bodyNode = fnNode.body;
-  if (!isFactory) {
-    validatePurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath);
-  } else {
-    validateFactoryPurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath);
-  }
+  const fnTypeLabel = isFactory ? "factory functions" : "pure functions";
+  validatePurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath, fnTypeLabel);
   const bodyText = getBodyText(bodyNode, sourceFile);
   const normalizedBody = bodyText.replace(/[ \t]+/g, " ").trim();
   const bodyHash = crypto.createHash("sha256").update(namespace + normalizedBody).digest("base64url").slice(0, src_vitePlugin_constants.BODY_HASH_LENGTH);
@@ -300,21 +297,21 @@ function getBodyText(body, sourceFile) {
     return `return ${body.getText(sourceFile)}`;
   }
 }
-function validatePurity(body, localScope, fnName, sourceFile, filePath) {
+function validatePurity(body, localScope, fnName, sourceFile, filePath, fnTypeLabel = "pure functions") {
   collectLocalDeclarations(body, localScope);
   if (fnName) localScope.add(fnName);
   function checkNode(node) {
     if (node.kind === ts__namespace.SyntaxKind.ThisKeyword) {
-      throw new PurityError("'this' is not allowed in pure functions", filePath, node.getStart(sourceFile));
+      throw new PurityError(`'this' is not allowed in ${fnTypeLabel}`, filePath, node.getStart(sourceFile));
     }
     if (ts__namespace.isAwaitExpression(node)) {
-      throw new PurityError("async/await is not allowed in pure functions", filePath, node.getStart(sourceFile));
+      throw new PurityError(`async/await is not allowed in ${fnTypeLabel}`, filePath, node.getStart(sourceFile));
     }
     if (node.kind === ts__namespace.SyntaxKind.YieldKeyword) {
-      throw new PurityError("generators are not allowed in pure functions", filePath, node.getStart(sourceFile));
+      throw new PurityError(`generators are not allowed in ${fnTypeLabel}`, filePath, node.getStart(sourceFile));
     }
     if (ts__namespace.isCallExpression(node) && node.expression.kind === ts__namespace.SyntaxKind.ImportKeyword) {
-      throw new PurityError("Dynamic import() is not allowed in pure functions", filePath, node.getStart(sourceFile));
+      throw new PurityError(`Dynamic import() is not allowed in ${fnTypeLabel}`, filePath, node.getStart(sourceFile));
     }
     if (ts__namespace.isIdentifier(node)) {
       const name = node.text;
@@ -329,7 +326,7 @@ function validatePurity(body, localScope, fnName, sourceFile, filePath) {
       if (ts__namespace.isShorthandPropertyAssignment(node.parent) && node.parent.name === node) {
         if (!localScope.has(name) && !purityRules.ALLOWED_GLOBALS.has(name)) {
           throw new PurityError(
-            `Closure variable "${name}" is not allowed in pure functions. Pure functions cannot access outer scope variables.`,
+            `Closure variable "${name}" is not allowed in ${fnTypeLabel}. ${fnTypeLabel[0].toUpperCase() + fnTypeLabel.slice(1)} cannot access outer scope variables.`,
             filePath,
             node.getStart(sourceFile)
           );
@@ -338,52 +335,14 @@ function validatePurity(body, localScope, fnName, sourceFile, filePath) {
         return;
       }
       if (purityRules.FORBIDDEN_IDENTIFIERS.has(name)) {
-        throw new PurityError(`${name} is not allowed in pure functions`, filePath, node.getStart(sourceFile));
+        throw new PurityError(`${name} is not allowed in ${fnTypeLabel}`, filePath, node.getStart(sourceFile));
       }
       if (!localScope.has(name) && !purityRules.ALLOWED_GLOBALS.has(name)) {
         throw new PurityError(
-          `Closure variable "${name}" is not allowed in pure functions. Pure functions cannot access outer scope variables.`,
+          `Closure variable "${name}" is not allowed in ${fnTypeLabel}. ${fnTypeLabel[0].toUpperCase() + fnTypeLabel.slice(1)} cannot access outer scope variables.`,
           filePath,
           node.getStart(sourceFile)
         );
-      }
-    }
-    ts__namespace.forEachChild(node, checkNode);
-  }
-  checkNode(body);
-}
-function validateFactoryPurity(body, localScope, fnName, sourceFile, filePath) {
-  collectLocalDeclarations(body, localScope);
-  if (fnName) localScope.add(fnName);
-  function checkNode(node) {
-    if (node.kind === ts__namespace.SyntaxKind.ThisKeyword) {
-      throw new PurityError("'this' is not allowed in factory functions", filePath, node.getStart(sourceFile));
-    }
-    if (ts__namespace.isAwaitExpression(node)) {
-      throw new PurityError("async/await is not allowed in factory functions", filePath, node.getStart(sourceFile));
-    }
-    if (node.kind === ts__namespace.SyntaxKind.YieldKeyword) {
-      throw new PurityError("generators are not allowed in factory functions", filePath, node.getStart(sourceFile));
-    }
-    if (ts__namespace.isCallExpression(node) && node.expression.kind === ts__namespace.SyntaxKind.ImportKeyword) {
-      throw new PurityError("Dynamic import() is not allowed in factory functions", filePath, node.getStart(sourceFile));
-    }
-    if (ts__namespace.isIdentifier(node)) {
-      const name = node.text;
-      if (ts__namespace.isPropertyAccessExpression(node.parent) && node.parent.name === node) {
-        ts__namespace.forEachChild(node, checkNode);
-        return;
-      }
-      if (ts__namespace.isPropertyAssignment(node.parent) && node.parent.name === node) {
-        ts__namespace.forEachChild(node, checkNode);
-        return;
-      }
-      if (ts__namespace.isShorthandPropertyAssignment(node.parent) && node.parent.name === node) {
-        ts__namespace.forEachChild(node, checkNode);
-        return;
-      }
-      if (purityRules.FACTORY_FORBIDDEN_IDENTIFIERS.has(name)) {
-        throw new PurityError(`${name} is not allowed in factory functions`, filePath, node.getStart(sourceFile));
       }
     }
     ts__namespace.forEachChild(node, checkNode);

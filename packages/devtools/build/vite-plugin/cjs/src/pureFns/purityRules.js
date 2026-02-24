@@ -59,8 +59,6 @@ const FORBIDDEN_IDENTIFIERS = /* @__PURE__ */ new Set([
   "sessionStorage",
   "indexedDB"
 ]);
-const FACTORY_FORBIDDEN_IDENTIFIERS = /* @__PURE__ */ new Set(["eval", "Function", "fetch", "XMLHttpRequest", "WebSocket"]);
 exports.ALLOWED_GLOBALS = ALLOWED_GLOBALS;
-exports.FACTORY_FORBIDDEN_IDENTIFIERS = FACTORY_FORBIDDEN_IDENTIFIERS;
 exports.FORBIDDEN_IDENTIFIERS = FORBIDDEN_IDENTIFIERS;
 //# sourceMappingURL=purityRules.js.map

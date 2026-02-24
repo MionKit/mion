@@ -96,8 +96,8 @@ function collectLocalScope(fnNode) {
   collectLocalDeclarations(fnNode.body, scope);
   return scope;
 }
-function checkPurityViolations(body, localScope, isFactory, fnTypeLabel, context) {
-  const forbiddenSet = isFactory ? purityRules.FACTORY_FORBIDDEN_IDENTIFIERS : purityRules.FORBIDDEN_IDENTIFIERS;
+function checkPurityViolations(body, localScope, fnTypeLabel, context) {
+  const forbiddenSet = purityRules.FORBIDDEN_IDENTIFIERS;
   function visit(node) {
     if (node.type === utils.AST_NODE_TYPES.ThisExpression) {
       context.report({ node, messageId: "purityThis", data: { fnType: fnTypeLabel } });
@@ -127,7 +127,7 @@ function checkPurityViolations(body, localScope, isFactory, fnTypeLabel, context
         });
         return;
       }
-      if (!isFactory && !localScope.has(name) && !purityRules.ALLOWED_GLOBALS.has(name)) {
+      if (!localScope.has(name) && !purityRules.ALLOWED_GLOBALS.has(name)) {
         context.report({
           node,
           messageId: "purityClosureVariable",
@@ -253,7 +253,7 @@ const rule = {
         if (!target) return;
         const fnTypeLabel = target.isFactory ? "factory functions" : "pure functions";
         const localScope = collectLocalScope(target.fnNode);
-        checkPurityViolations(target.fnNode.body, localScope, target.isFactory, fnTypeLabel, context);
+        checkPurityViolations(target.fnNode.body, localScope, fnTypeLabel, context);
       }
     };
   }
