@@ -68,9 +68,6 @@ export const FORBIDDEN_IDENTIFIERS = new Set([
     'indexedDB',
 ]);
 
-/** Forbidden identifiers for factory functions (more relaxed than pure functions) */
-export const FACTORY_FORBIDDEN_IDENTIFIERS = new Set(['eval', 'Function', 'fetch', 'XMLHttpRequest', 'WebSocket']);
-
 /** The target function names that purity validation applies to */
 export const PURE_FN_CALL_NAMES = ['pureServerFn', 'registerPureFnFactory'] as const;
 

@@ -1,5 +1,5 @@
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
-import { PURE_FN_SOURCE_PACKAGES, FACTORY_FORBIDDEN_IDENTIFIERS, FORBIDDEN_IDENTIFIERS, ALLOWED_GLOBALS } from "../../pureFns/purityRules.js";
+import { PURE_FN_SOURCE_PACKAGES, FORBIDDEN_IDENTIFIERS, ALLOWED_GLOBALS } from "../../pureFns/purityRules.js";
 function buildPureFnImportCache(program) {
   const pureFnNames = /* @__PURE__ */ new Map();
   for (const statement of program.body) {
@@ -95,8 +95,8 @@ function collectLocalScope(fnNode) {
   collectLocalDeclarations(fnNode.body, scope);
   return scope;
 }
-function checkPurityViolations(body, localScope, isFactory, fnTypeLabel, context) {
-  const forbiddenSet = isFactory ? FACTORY_FORBIDDEN_IDENTIFIERS : FORBIDDEN_IDENTIFIERS;
+function checkPurityViolations(body, localScope, fnTypeLabel, context) {
+  const forbiddenSet = FORBIDDEN_IDENTIFIERS;
   function visit(node) {
     if (node.type === AST_NODE_TYPES.ThisExpression) {
       context.report({ node, messageId: "purityThis", data: { fnType: fnTypeLabel } });
@@ -126,7 +126,7 @@ function checkPurityViolations(body, localScope, isFactory, fnTypeLabel, context
         });
         return;
       }
-      if (!isFactory && !localScope.has(name) && !ALLOWED_GLOBALS.has(name)) {
+      if (!localScope.has(name) && !ALLOWED_GLOBALS.has(name)) {
         context.report({
           node,
           messageId: "purityClosureVariable",
@@ -252,7 +252,7 @@ const rule = {
         if (!target) return;
         const fnTypeLabel = target.isFactory ? "factory functions" : "pure functions";
         const localScope = collectLocalScope(target.fnNode);
-        checkPurityViolations(target.fnNode.body, localScope, target.isFactory, fnTypeLabel, context);
+        checkPurityViolations(target.fnNode.body, localScope, fnTypeLabel, context);
       }
     };
   }

@@ -6,12 +6,7 @@
  * ######## */
 
 import {TSESTree, TSESLint, AST_NODE_TYPES} from '@typescript-eslint/utils';
-import {
-    ALLOWED_GLOBALS,
-    FORBIDDEN_IDENTIFIERS,
-    FACTORY_FORBIDDEN_IDENTIFIERS,
-    PURE_FN_SOURCE_PACKAGES,
-} from '../../pureFns/purityRules.ts';
+import {ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS, PURE_FN_SOURCE_PACKAGES} from '../../pureFns/purityRules.ts';
 
 type MessageIds =
     | 'purityThis'
@@ -154,11 +149,10 @@ function collectLocalScope(fnNode: TSESTree.FunctionExpression | TSESTree.ArrowF
 function checkPurityViolations(
     body: TSESTree.Node,
     localScope: Set<string>,
-    isFactory: boolean,
     fnTypeLabel: string,
     context: TSESLint.RuleContext<MessageIds, []>
 ): void {
-    const forbiddenSet = isFactory ? FACTORY_FORBIDDEN_IDENTIFIERS : FORBIDDEN_IDENTIFIERS;
+    const forbiddenSet = FORBIDDEN_IDENTIFIERS;
 
     function visit(node: TSESTree.Node): void {
         if (node.type === AST_NODE_TYPES.ThisExpression) {
@@ -205,8 +199,8 @@ function checkPurityViolations(
                 return;
             }
 
-            // For non-factory functions, check closure variables
-            if (!isFactory && !localScope.has(name) && !ALLOWED_GLOBALS.has(name)) {
+            // Check for closure variables (not local, not allowed global)
+            if (!localScope.has(name) && !ALLOWED_GLOBALS.has(name)) {
                 context.report({
                     node,
                     messageId: 'purityClosureVariable',
@@ -387,7 +381,7 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
 
                 const fnTypeLabel = target.isFactory ? 'factory functions' : 'pure functions';
                 const localScope = collectLocalScope(target.fnNode);
-                checkPurityViolations(target.fnNode.body, localScope, target.isFactory, fnTypeLabel, context);
+                checkPurityViolations(target.fnNode.body, localScope, fnTypeLabel, context);
             },
         };
     },

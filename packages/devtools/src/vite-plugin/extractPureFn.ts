@@ -10,7 +10,7 @@ import {createHash} from 'crypto';
 import {transformSync} from 'esbuild';
 import {ExtractedPureFn, ServerPureFunctionsOptions} from './types.ts';
 import {BODY_HASH_LENGTH, PURE_SERVER_FN_NAMESPACE} from './constants.ts';
-import {ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS, FACTORY_FORBIDDEN_IDENTIFIERS} from '../pureFns/purityRules.ts';
+import {ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS} from '../pureFns/purityRules.ts';
 import {readdirSync, statSync, readFileSync} from 'fs';
 import {resolve, join} from 'path/posix';
 import {isIncluded} from './mionVitePlugin.ts';
@@ -355,12 +355,9 @@ function buildExtractedPureFn(
     // Get the function body
     const bodyNode = fnNode.body;
 
-    // Validate purity (skip for factory functions as they receive jitUtils)
-    if (!isFactory) {
-        validatePurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath);
-    } else {
-        validateFactoryPurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath);
-    }
+    // Validate purity
+    const fnTypeLabel = isFactory ? 'factory functions' : 'pure functions';
+    validatePurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath, fnTypeLabel);
 
     // Get the body text
     const bodyText = getBodyText(bodyNode, sourceFile);
@@ -405,7 +402,8 @@ function validatePurity(
     localScope: Set<string>,
     fnName: string | undefined,
     sourceFile: ts.SourceFile,
-    filePath: string
+    filePath: string,
+    fnTypeLabel = 'pure functions'
 ): void {
     // Collect all locally declared variables
     collectLocalDeclarations(body, localScope);
@@ -417,22 +415,22 @@ function validatePurity(
     function checkNode(node: ts.Node): void {
         // Check for 'this' keyword
         if (node.kind === ts.SyntaxKind.ThisKeyword) {
-            throw new PurityError("'this' is not allowed in pure functions", filePath, node.getStart(sourceFile));
+            throw new PurityError(`'this' is not allowed in ${fnTypeLabel}`, filePath, node.getStart(sourceFile));
         }
 
         // Check for 'await' expression
         if (ts.isAwaitExpression(node)) {
-            throw new PurityError('async/await is not allowed in pure functions', filePath, node.getStart(sourceFile));
+            throw new PurityError(`async/await is not allowed in ${fnTypeLabel}`, filePath, node.getStart(sourceFile));
         }
 
         // Check for 'yield' keyword
         if (node.kind === ts.SyntaxKind.YieldKeyword) {
-            throw new PurityError('generators are not allowed in pure functions', filePath, node.getStart(sourceFile));
+            throw new PurityError(`generators are not allowed in ${fnTypeLabel}`, filePath, node.getStart(sourceFile));
         }
 
         // Check for dynamic import
         if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-            throw new PurityError('Dynamic import() is not allowed in pure functions', filePath, node.getStart(sourceFile));
+            throw new PurityError(`Dynamic import() is not allowed in ${fnTypeLabel}`, filePath, node.getStart(sourceFile));
         }
 
         // Check for identifier references
@@ -456,7 +454,7 @@ function validatePurity(
                 // But we still need to check the value reference
                 if (!localScope.has(name) && !ALLOWED_GLOBALS.has(name)) {
                     throw new PurityError(
-                        `Closure variable "${name}" is not allowed in pure functions. Pure functions cannot access outer scope variables.`,
+                        `Closure variable "${name}" is not allowed in ${fnTypeLabel}. ${fnTypeLabel[0].toUpperCase() + fnTypeLabel.slice(1)} cannot access outer scope variables.`,
                         filePath,
                         node.getStart(sourceFile)
                     );
@@ -467,86 +465,16 @@ function validatePurity(
 
             // Check for forbidden identifiers
             if (FORBIDDEN_IDENTIFIERS.has(name)) {
-                throw new PurityError(`${name} is not allowed in pure functions`, filePath, node.getStart(sourceFile));
+                throw new PurityError(`${name} is not allowed in ${fnTypeLabel}`, filePath, node.getStart(sourceFile));
             }
 
             // Check for closure variables (not local, not allowed global)
             if (!localScope.has(name) && !ALLOWED_GLOBALS.has(name)) {
                 throw new PurityError(
-                    `Closure variable "${name}" is not allowed in pure functions. Pure functions cannot access outer scope variables.`,
+                    `Closure variable "${name}" is not allowed in ${fnTypeLabel}. ${fnTypeLabel[0].toUpperCase() + fnTypeLabel.slice(1)} cannot access outer scope variables.`,
                     filePath,
                     node.getStart(sourceFile)
                 );
-            }
-        }
-
-        ts.forEachChild(node, checkNode);
-    }
-
-    checkNode(body);
-}
-
-/** Validates factory function purity - more relaxed than regular pure functions */
-function validateFactoryPurity(
-    body: ts.Node,
-    localScope: Set<string>,
-    fnName: string | undefined,
-    sourceFile: ts.SourceFile,
-    filePath: string
-): void {
-    // Collect all locally declared variables
-    collectLocalDeclarations(body, localScope);
-
-    // Add the function name to local scope (for recursion) if it exists
-    if (fnName) localScope.add(fnName);
-
-    // Traverse the AST and check for purity violations
-    function checkNode(node: ts.Node): void {
-        // Check for 'this' keyword
-        if (node.kind === ts.SyntaxKind.ThisKeyword) {
-            throw new PurityError("'this' is not allowed in factory functions", filePath, node.getStart(sourceFile));
-        }
-
-        // Check for 'await' expression
-        if (ts.isAwaitExpression(node)) {
-            throw new PurityError('async/await is not allowed in factory functions', filePath, node.getStart(sourceFile));
-        }
-
-        // Check for 'yield' keyword
-        if (node.kind === ts.SyntaxKind.YieldKeyword) {
-            throw new PurityError('generators are not allowed in factory functions', filePath, node.getStart(sourceFile));
-        }
-
-        // Check for dynamic import
-        if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-            throw new PurityError('Dynamic import() is not allowed in factory functions', filePath, node.getStart(sourceFile));
-        }
-
-        // Check for identifier references - but allow more globals for factory functions
-        if (ts.isIdentifier(node)) {
-            const name = node.text;
-
-            // Skip if it's a property access (e.g., obj.prop - we only care about 'obj')
-            if (ts.isPropertyAccessExpression(node.parent) && node.parent.name === node) {
-                ts.forEachChild(node, checkNode);
-                return;
-            }
-
-            // Skip if it's a property name in object literal
-            if (ts.isPropertyAssignment(node.parent) && node.parent.name === node) {
-                ts.forEachChild(node, checkNode);
-                return;
-            }
-
-            // Skip if it's a shorthand property assignment name
-            if (ts.isShorthandPropertyAssignment(node.parent) && node.parent.name === node) {
-                ts.forEachChild(node, checkNode);
-                return;
-            }
-
-            // Check for forbidden identifiers (but not all - factory functions have more access)
-            if (FACTORY_FORBIDDEN_IDENTIFIERS.has(name)) {
-                throw new PurityError(`${name} is not allowed in factory functions`, filePath, node.getStart(sourceFile));
             }
         }
 

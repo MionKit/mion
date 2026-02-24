@@ -710,7 +710,7 @@ export const fn = pureServerFn({
         expect(result).toHaveLength(1);
     });
 
-    it('should allow factory functions to access jitUtils methods', () => {
+    it('should allow factory functions with local variables and params only', () => {
         const source = `
 import {pureServerFn} from '@mionkit/server-pure-functions';
 
@@ -725,10 +725,35 @@ export const myFactory = pureServerFn({
     isFactory: true
 });
 `;
-        // Should not throw - factory functions have relaxed purity rules
+        // Should not throw - jitUtils is a param, serialize/validate are local variables
         const result = extractPureFnsFromSource(source, 'test.ts');
         expect(result).toHaveLength(1);
         expect(result[0].isFactory).toBe(true);
+    });
+
+    it('should reject factory functions accessing closure variables', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+const OUTER = 42;
+export const fn = pureServerFn({
+    pureFn: function factory() { return OUTER; },
+    isFactory: true
+});
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/OUTER/);
+    });
+
+    it('should reject factory functions using forbidden identifiers', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+export const fn = pureServerFn({
+    pureFn: function factory() { return setTimeout; },
+    isFactory: true
+});
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/setTimeout/);
     });
 });
 
