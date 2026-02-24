@@ -224,6 +224,58 @@ ruleTester.run('pure-functions', rule, {
                 pureServerFn(myDef);
             `,
         },
+        // mapFrom() with pure arrow mapper
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                mapFrom(sub, (x: number) => x * 2);
+            `,
+        },
+        // mapFrom() with pure named function mapper
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                mapFrom(sub, function extractId(item: {id: number}) { return item.id; });
+            `,
+        },
+        // mapFrom() with allowed globals
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                mapFrom(sub, (x: any) => JSON.stringify(x));
+            `,
+        },
+        // mapFrom() with local variables
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                mapFrom(sub, (x: number) => {
+                    const doubled = x * 2;
+                    return doubled;
+                });
+            `,
+        },
+        // mapFrom() with variable reference mapper
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                const myMapper = (x: number) => x + 1;
+                mapFrom(sub, myMapper);
+            `,
+        },
+        // mapFrom() not imported from @mionkit/client — should be ignored
+        {
+            code: `
+                import { mapFrom } from 'other-package';
+                const SECRET = 'key';
+                mapFrom({} as any, () => SECRET);
+            `,
+        },
     ],
     invalid: [
         // pureServerFn with 'this' keyword
@@ -521,6 +573,75 @@ ruleTester.run('pure-functions', rule, {
                 pureServerFn(myFn);
             `,
             errors: [{messageId: 'unresolvedArgument', data: {callee: 'pureServerFn', name: 'myFn'}}],
+        },
+        // mapFrom() with closure variable in mapper
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                const MULTIPLIER = 5;
+                mapFrom(sub, (x: number) => x * MULTIPLIER);
+            `,
+            errors: [{messageId: 'purityClosureVariable', data: {name: 'MULTIPLIER', fnType: 'pure functions'}}],
+        },
+        // mapFrom() with forbidden identifier in mapper
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                mapFrom(sub, (url: string) => fetch(url));
+            `,
+            errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'fetch', fnType: 'pure functions'}}],
+        },
+        // mapFrom() with eval in mapper
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                mapFrom(sub, (x: string) => eval(x));
+            `,
+            errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'eval', fnType: 'pure functions'}}],
+        },
+        // mapFrom() with this in mapper
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                mapFrom(sub, function() { return this.value; });
+            `,
+            errors: [{messageId: 'purityThis', data: {fnType: 'pure functions'}}],
+        },
+        // mapFrom() with imported mapper
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                import { myMapper } from './myModule';
+                const sub = {} as any;
+                mapFrom(sub, myMapper);
+            `,
+            errors: [{messageId: 'importedArgument', data: {callee: 'mapFrom', name: 'myMapper'}}],
+        },
+        // mapFrom() with unresolved mapper
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                function wrap(mapper: any) {
+                    mapFrom(sub, mapper);
+                }
+            `,
+            errors: [{messageId: 'unresolvedArgument', data: {callee: 'mapFrom', name: 'mapper'}}],
+        },
+        // mapFrom() with variable reference mapper that has violation
+        {
+            code: `
+                import { mapFrom } from '@mionkit/client';
+                const sub = {} as any;
+                const SECRET = 'key';
+                const myMapper = (x: string) => x + SECRET;
+                mapFrom(sub, myMapper);
+            `,
+            errors: [{messageId: 'purityClosureVariable', data: {name: 'SECRET', fnType: 'pure functions'}}],
         },
     ],
 });

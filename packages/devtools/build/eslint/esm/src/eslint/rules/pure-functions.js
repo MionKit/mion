@@ -9,7 +9,7 @@ function buildPureFnImportCache(program) {
     for (const specifier of statement.specifiers) {
       if (specifier.type === AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === AST_NODE_TYPES.Identifier) {
         const importedName = specifier.imported.name;
-        if (importedName === "pureServerFn" || importedName === "registerPureFnFactory") {
+        if (importedName === "pureServerFn" || importedName === "registerPureFnFactory" || importedName === "mapFrom") {
           pureFnNames.set(specifier.local.name, importedName);
         }
       }
@@ -206,7 +206,7 @@ function findUnresolvedPureFnInObject(obj, program) {
   return null;
 }
 function reportUnresolvedArgument(node, callee, program, context) {
-  const argIndex = callee === "registerPureFnFactory" ? 2 : 0;
+  const argIndex = callee === "registerPureFnFactory" ? 2 : callee === "mapFrom" ? 1 : 0;
   const arg = node.arguments[argIndex];
   if (!arg) return;
   const identifierToCheck = findUnresolvedIdentifier(arg, program);
@@ -263,11 +263,21 @@ function extractFactoryFnTarget(node, program) {
   }
   return null;
 }
+function extractMapFromMapperTarget(node, program) {
+  const mapperArg = node.arguments[1];
+  if (!mapperArg) return null;
+  const resolved = resolveToExpression(mapperArg, program);
+  if (!resolved) return null;
+  if (resolved.type === AST_NODE_TYPES.FunctionExpression || resolved.type === AST_NODE_TYPES.ArrowFunctionExpression) {
+    return { fnNode: resolved, isFactory: false };
+  }
+  return null;
+}
 const rule = {
   meta: {
     type: "problem",
     docs: {
-      description: "Validate that functions passed to pureServerFn() and registerPureFnFactory() are pure and do not use forbidden identifiers, closures, or side effects."
+      description: "Validate that functions passed to pureServerFn(), registerPureFnFactory(), and mapFrom() are pure and do not use forbidden identifiers, closures, or side effects."
     },
     messages: {
       purityThis: "'this' is not allowed in {{fnType}}",
@@ -300,6 +310,8 @@ const rule = {
           target = extractPureServerFnTarget(node, programNode);
         } else if (importedName === "registerPureFnFactory") {
           target = extractFactoryFnTarget(node, programNode);
+        } else if (importedName === "mapFrom") {
+          target = extractMapFromMapperTarget(node, programNode);
         }
         if (!target) {
           reportUnresolvedArgument(node, importedName, programNode, context);

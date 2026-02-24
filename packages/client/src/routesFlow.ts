@@ -5,9 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
-import type {HSubRequest, RSubRequest, WorkflowResult} from './types.ts';
+import {PURE_SERVER_FN_NAMESPACE, RpcError} from '@mionkit/core';
+import type {HSubRequest, RSubRequest, SubRequest, WorkflowResult} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
+import {FromServerFnRef} from './types.ts';
 
 /** Creates and executes a routesFlow request with multiple routes */
 export async function routesFlow<
@@ -49,4 +50,39 @@ export async function routesFlow<
     const emptyResults = routeSubRequests.map(() => undefined);
     const emptyErrors = routeSubRequests.map(() => undefined);
     return [results ?? emptyResults, errors ?? emptyErrors, linkedFnResults, linkedFnErrors] as WorkflowResult<Routes, LinkedFns>;
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  WARNING: This function's call signature is parsed by the mion vite plugin  ║
+// ║  at build time (see devtools/src/vite-plugin/extractPureFn.ts).             ║
+// ║  Do NOT rename, change the parameter order, or modify the function          ║
+// ║  signature without updating the corresponding AST extraction and            ║
+// ║  transformer logic in @mionkit/devtools.                                    ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+/**
+ * Maps the output of one route SubRequest to the input of another within a routesFlow.
+ * The mapper function must be pure (same rules as pureServerFn).
+ * The bodyHash is injected at build time by the mion vite plugin.
+ */
+
+export function mapFrom<FromSR extends SubRequest<any>, MappedInput>(
+    source: FromSR,
+    mapper: (value: FromSR['resolvedValue']) => MappedInput,
+    bodyHash?: string // injected by mion vite plugin
+): FromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput> {
+    // Important: bodyHash is injected at build time by mion vite plugin
+    if (!bodyHash) throw new Error('mapFrom() requires mion vite plugin transform to inject bodyHash');
+    const ref: FromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput> = {
+        namespace: PURE_SERVER_FN_NAMESPACE,
+        fnName: bodyHash,
+        bodyHash,
+        pureFn: mapper,
+        isFactory: false,
+        fromRequestId: source.id,
+        toRequestId: '',
+        fake() {
+            return ref as unknown as MappedInput;
+        },
+    };
+    return ref;
 }

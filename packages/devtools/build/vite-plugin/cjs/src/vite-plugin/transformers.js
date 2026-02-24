@@ -38,11 +38,14 @@ function createDeepkitConfig(options = {}) {
 function createPureFnTransformerFactory(originalSource, filePath, collector) {
   const hasPureServerFn = originalSource.includes("pureServerFn");
   const hasFactory = originalSource.includes("registerPureFnFactory");
+  const hasMapFrom = originalSource.includes("mapFrom");
   const pureServerFns = hasPureServerFn ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "pureServerFn") : [];
   const factoryFns = hasFactory ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "registerPureFnFactory") : [];
+  const mapFromFns = hasMapFrom ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "mapFrom") : [];
   return (context) => {
     let pureIdx = 0;
     let factoryIdx = 0;
+    let mapFromIdx = 0;
     function visitor(node) {
       if (ts__namespace.isCallExpression(node)) {
         const callee = node.expression;
@@ -71,13 +74,25 @@ function createPureFnTransformerFactory(originalSource, filePath, collector) {
               createParsedFactoryFnNode(context.factory, data)
             ]);
           }
+          if (callee.text === "mapFrom" && mapFromIdx < mapFromFns.length) {
+            if (node.arguments.length >= 3) {
+              mapFromIdx++;
+              return ts__namespace.visitEachChild(node, visitor, context);
+            }
+            const data = mapFromFns[mapFromIdx++];
+            collector?.push(data);
+            return context.factory.updateCallExpression(node, node.expression, node.typeArguments, [
+              ...node.arguments,
+              context.factory.createStringLiteral(data.bodyHash)
+            ]);
+          }
         }
       }
       return ts__namespace.visitEachChild(node, visitor, context);
     }
     return {
       transformSourceFile(sourceFile) {
-        if (pureServerFns.length === 0 && factoryFns.length === 0) return sourceFile;
+        if (pureServerFns.length === 0 && factoryFns.length === 0 && mapFromFns.length === 0) return sourceFile;
         return ts__namespace.visitNode(sourceFile, visitor);
       },
       transformBundle(bundle) {

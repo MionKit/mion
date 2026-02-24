@@ -23,9 +23,17 @@ function scanClientSource(options) {
         if (!isIncluded(fullPath, include, exclude)) continue;
         try {
           const code = readFileSync(fullPath, "utf-8");
-          if (!code.includes("pureServerFn")) continue;
-          const extracted = extractPureFnsFromSource(code, fullPath);
-          fns.push(...extracted);
+          const hasPureFn = code.includes("pureServerFn");
+          const hasMapFrom = code.includes("mapFrom");
+          if (!hasPureFn && !hasMapFrom) continue;
+          if (hasPureFn) {
+            const extracted = extractPureFnsFromSource(code, fullPath);
+            fns.push(...extracted);
+          }
+          if (hasMapFrom) {
+            const extracted = extractPureFnsFromSource(code, fullPath, "mapFrom");
+            fns.push(...extracted);
+          }
         } catch (err) {
           console.warn(`[mion-pure-functions] Warning: Could not parse ${fullPath}: ${err.message}`);
         }
@@ -46,6 +54,9 @@ function extractPureFnsFromSource(source, filePath, fnName = "pureServerFn") {
       if (ts.isIdentifier(callee) && callee.text === fnName) {
         if (fnName === "registerPureFnFactory") {
           const extracted = extractDataFromRegisterPureFnFactoryAST(node, sourceFile, filePath);
+          results.push(extracted);
+        } else if (fnName === "mapFrom") {
+          const extracted = extractDataFromMapFromCallAST(node, sourceFile, filePath);
           results.push(extracted);
         } else {
           const extracted = extractDataFromPureFnDefAST(node, sourceFile, filePath);
@@ -107,6 +118,42 @@ function extractDataFromPureFnDefAST(call, sourceFile, filePath) {
     "pureServerFn() first argument must be a function, an object literal (PureFnDef), or a variable referencing one",
     filePath,
     call.arguments[0].getStart(sourceFile)
+  );
+}
+function extractDataFromMapFromCallAST(call, sourceFile, filePath) {
+  if (call.arguments.length < 2 || call.arguments.length > 3) {
+    throw new PurityError(
+      "mapFrom() requires 2 or 3 arguments: a SubRequest source, a mapper function, and an optional bodyHash string",
+      filePath,
+      call.getStart(sourceFile)
+    );
+  }
+  let arg = call.arguments[1];
+  if (ts.isIdentifier(arg)) {
+    const resolved = resolveVariableInitializer(arg.text, sourceFile);
+    if (!resolved) {
+      if (isImportedIdentifier(arg.text, sourceFile)) {
+        throw new PurityError(
+          `mapFrom() mapper argument "${arg.text}" is imported from another module. Pure functions must be defined inline or as a variable in the same file`,
+          filePath,
+          arg.getStart(sourceFile)
+        );
+      }
+      throw new PurityError(
+        `mapFrom() mapper argument "${arg.text}" could not be resolved to a variable declaration in this file. Pure functions must be defined inline or as a variable in the same file`,
+        filePath,
+        arg.getStart(sourceFile)
+      );
+    }
+    arg = resolved;
+  }
+  if (ts.isFunctionExpression(arg) || ts.isArrowFunction(arg)) {
+    return buildExtractedPureFn(arg, PURE_SERVER_FN_NAMESPACE, void 0, false, sourceFile, filePath);
+  }
+  throw new PurityError(
+    "mapFrom() second argument (mapper) must be a function expression or arrow function",
+    filePath,
+    call.arguments[1].getStart(sourceFile)
   );
 }
 function extractDataFromRegisterPureFnFactoryAST(call, sourceFile, filePath) {

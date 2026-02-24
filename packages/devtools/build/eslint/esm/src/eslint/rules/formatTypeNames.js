@@ -1,6 +1,4 @@
-const RUN_TYPES_FORMAT_TYPES = /* @__PURE__ */ new Set([
-  "TypeFormat"
-]);
+const RUN_TYPES_FORMAT_TYPES = /* @__PURE__ */ new Set(["TypeFormat"]);
 const TYPE_FORMATS_FORMAT_TYPES = /* @__PURE__ */ new Set([
   // Number formats (numberFormat.runtype.ts + defaultNumberFormats.ts)
   "NumFormat",
