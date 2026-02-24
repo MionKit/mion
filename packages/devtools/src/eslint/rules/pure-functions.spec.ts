@@ -457,5 +457,70 @@ ruleTester.run('pure-functions', rule, {
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'fetch', fnType: 'pure functions'}}],
         },
+        // pureServerFn with imported named function
+        {
+            code: `
+                import { pureServerFn } from '@mionkit/core';
+                import { myFn } from './myModule';
+                pureServerFn(myFn);
+            `,
+            errors: [{messageId: 'importedArgument', data: {callee: 'pureServerFn', name: 'myFn'}}],
+        },
+        // pureServerFn with imported function in object form
+        {
+            code: `
+                import { pureServerFn } from '@mionkit/core';
+                import { myFn } from './myModule';
+                pureServerFn({ pureFn: myFn });
+            `,
+            errors: [{messageId: 'importedArgument', data: {callee: 'pureServerFn', name: 'myFn'}}],
+        },
+        // registerPureFnFactory with imported function
+        {
+            code: `
+                import { registerPureFnFactory } from '@mionkit/core';
+                import { myFactory } from './myModule';
+                registerPureFnFactory('ns', 'fn', myFactory);
+            `,
+            errors: [{messageId: 'importedArgument', data: {callee: 'registerPureFnFactory', name: 'myFactory'}}],
+        },
+        // pureServerFn with default import
+        {
+            code: `
+                import { pureServerFn } from '@mionkit/core';
+                import myFn from './myModule';
+                pureServerFn(myFn);
+            `,
+            errors: [{messageId: 'importedArgument', data: {callee: 'pureServerFn', name: 'myFn'}}],
+        },
+        // pureServerFn with function parameter (dynamic value)
+        {
+            code: `
+                import { pureServerFn } from '@mionkit/core';
+                function wrap(fn: any) {
+                    pureServerFn(fn);
+                }
+            `,
+            errors: [{messageId: 'unresolvedArgument', data: {callee: 'pureServerFn', name: 'fn'}}],
+        },
+        // registerPureFnFactory with function parameter
+        {
+            code: `
+                import { registerPureFnFactory } from '@mionkit/core';
+                function wrap(factory: any) {
+                    registerPureFnFactory('ns', 'fn', factory);
+                }
+            `,
+            errors: [{messageId: 'unresolvedArgument', data: {callee: 'registerPureFnFactory', name: 'factory'}}],
+        },
+        // pureServerFn with variable initialized from function call (not resolvable to function)
+        {
+            code: `
+                import { pureServerFn } from '@mionkit/core';
+                const myFn = createFn();
+                pureServerFn(myFn);
+            `,
+            errors: [{messageId: 'unresolvedArgument', data: {callee: 'pureServerFn', name: 'myFn'}}],
+        },
     ],
 });

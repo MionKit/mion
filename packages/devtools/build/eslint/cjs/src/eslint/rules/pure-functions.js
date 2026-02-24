@@ -170,6 +170,56 @@ function resolveToExpression(node, program) {
   }
   return node;
 }
+function isImportedIdentifier(name, program) {
+  for (const statement of program.body) {
+    if (statement.type !== utils.AST_NODE_TYPES.ImportDeclaration) continue;
+    for (const specifier of statement.specifiers) {
+      if (specifier.local.name === name) return true;
+    }
+  }
+  return false;
+}
+function findUnresolvedIdentifier(arg, program) {
+  if (arg.type === utils.AST_NODE_TYPES.Identifier) {
+    const resolved = resolveVariableInitializer(arg.name, program);
+    if (!resolved) return { name: arg.name, node: arg };
+    if (resolved.type === utils.AST_NODE_TYPES.ObjectExpression) {
+      return findUnresolvedPureFnInObject(resolved, program);
+    }
+    return { name: arg.name, node: arg };
+  }
+  if (arg.type === utils.AST_NODE_TYPES.ObjectExpression) {
+    return findUnresolvedPureFnInObject(arg, program);
+  }
+  return null;
+}
+function findUnresolvedPureFnInObject(obj, program) {
+  for (const prop of obj.properties) {
+    if (prop.type !== utils.AST_NODE_TYPES.Property) continue;
+    if (prop.key.type !== utils.AST_NODE_TYPES.Identifier || prop.key.name !== "pureFn") continue;
+    if (prop.value.type === utils.AST_NODE_TYPES.Identifier) {
+      const resolved = resolveToExpression(prop.value, program);
+      if (!resolved || resolved.type !== utils.AST_NODE_TYPES.FunctionExpression && resolved.type !== utils.AST_NODE_TYPES.ArrowFunctionExpression) {
+        return { name: prop.value.name, node: prop.value };
+      }
+    }
+  }
+  return null;
+}
+function reportUnresolvedArgument(node, callee, program, context) {
+  const argIndex = callee === "registerPureFnFactory" ? 2 : 0;
+  const arg = node.arguments[argIndex];
+  if (!arg) return;
+  const identifierToCheck = findUnresolvedIdentifier(arg, program);
+  if (!identifierToCheck) return;
+  const name = identifierToCheck.name;
+  const reportNode = identifierToCheck.node;
+  if (isImportedIdentifier(name, program)) {
+    context.report({ node: reportNode, messageId: "importedArgument", data: { callee, name } });
+  } else {
+    context.report({ node: reportNode, messageId: "unresolvedArgument", data: { callee, name } });
+  }
+}
 function extractFromObjectExpression(obj, program) {
   let fnNode = null;
   let isFactory = false;
@@ -226,7 +276,9 @@ const rule = {
       purityYield: "generators are not allowed in {{fnType}}",
       purityDynamicImport: "Dynamic import() is not allowed in {{fnType}}",
       purityForbiddenIdentifier: '"{{name}}" is not allowed in {{fnType}}',
-      purityClosureVariable: 'Closure variable "{{name}}" is not allowed in {{fnType}}. Pure functions cannot access outer scope variables.'
+      purityClosureVariable: 'Closure variable "{{name}}" is not allowed in {{fnType}}. Pure functions cannot access outer scope variables.',
+      importedArgument: '{{callee}}() argument "{{name}}" is imported from another module. Pure functions must be defined inline or as a variable in the same file.',
+      unresolvedArgument: '{{callee}}() argument "{{name}}" could not be resolved to a variable declaration in this file. Pure functions must be defined inline or as a variable in the same file.'
     },
     schema: []
   },
@@ -250,7 +302,10 @@ const rule = {
         } else if (importedName === "registerPureFnFactory") {
           target = extractFactoryFnTarget(node, programNode);
         }
-        if (!target) return;
+        if (!target) {
+          reportUnresolvedArgument(node, importedName, programNode, context);
+          return;
+        }
         const fnTypeLabel = target.isFactory ? "factory functions" : "pure functions";
         const localScope = collectLocalScope(target.fnNode);
         checkPurityViolations(target.fnNode.body, localScope, fnTypeLabel, context);

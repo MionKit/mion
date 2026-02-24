@@ -11,6 +11,7 @@ import noUnreachableUnionTypes from './rules/no-unreachable-union-types.ts';
 import noMixedUnionProperties from './rules/no-mixed-union-properties.ts';
 import noTypeImports from './rules/no-type-imports.ts';
 import pureFunctions from './rules/pure-functions.ts';
+import typeFormatsImports from './rules/type-formats-imports.ts';
 
 const plugin = {
     rules: {
@@ -20,6 +21,7 @@ const plugin = {
         'no-mixed-union-properties': noMixedUnionProperties,
         'no-type-imports': noTypeImports,
         'pure-functions': pureFunctions,
+        'type-formats-imports': typeFormatsImports,
     },
     configs: {} as Record<string, unknown>,
 };
@@ -36,6 +38,7 @@ plugin.configs.recommended = {
         '@mionkit/no-unreachable-union-types': 'error',
         '@mionkit/no-type-imports': 'error',
         '@mionkit/pure-functions': 'error',
+        '@mionkit/type-formats-imports': 'error',
         // disabled as seems is not too useful and overlaps with some ts rules
         // '@mionkit/no-mixed-union-properties': 'warn',
     },

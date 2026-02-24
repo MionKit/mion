@@ -365,6 +365,36 @@ export const fn = pureServerFn(unknownDef);
         expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/could not be resolved/);
     });
 
+    it('should throw with import-specific message when argument is a named import', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+import {myFn} from './myModule';
+export const fn = pureServerFn(myFn);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/imported from another module/);
+    });
+
+    it('should throw with import-specific message when argument is a default import', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+import myFn from './myModule';
+export const fn = pureServerFn(myFn);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/imported from another module/);
+    });
+
+    it('should throw with import-specific message when pureFn property is an import', () => {
+        const source = `
+import {pureServerFn} from '@mionkit/server-pure-functions';
+import {myFn} from './myModule';
+export const fn = pureServerFn({ pureFn: myFn });
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/imported from another module/);
+    });
+
     it('should throw when variable resolves to a non-object-literal', () => {
         const source = `
 import {pureServerFn} from '@mionkit/server-pure-functions';
@@ -925,8 +955,18 @@ const myFn = () => {};
 export const cpf = registerPureFnFactory('mion', 'fn', myFn);
 `;
         expect(() => extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory')).toThrow(/could not be resolved/);
+    });
+
+    it('should throw with import-specific message when factoryFn is an import', () => {
+        const source = `
+import {registerPureFnFactory} from '@mionkit/core';
+import {myFactory} from './myModule';
+export const cpf = registerPureFnFactory('mion', 'fn', myFactory);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory')).toThrow(PurityError);
         expect(() => extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory')).toThrow(
-            /function expression or arrow function/
+            /imported from another module/
         );
     });
 });
