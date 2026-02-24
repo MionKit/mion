@@ -24,6 +24,7 @@ import {getJitUtils, type JITUtils} from '../jit/jitUtils.ts';
  * compiled entry is returned (idempotent). Dependencies on other pure functions are
  * auto-detected by running the factory once with a tracking proxy.
  *
+ * This is intended to share util functions between server and clients
  */
 export function registerPureFnFactory(
     namespace: string,
