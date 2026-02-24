@@ -66,7 +66,7 @@ export class MionClient {
         return this.executeRequest(routeSubRequest, undefined, linkedFnsRecord);
     }
 
-    /** Executes a workflow call with multiple routes and optional linkedFns */
+    /** Executes a routesFlow call with multiple routes and optional linkedFns */
     executeCallWithWorkflow<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         workflowSubRequests: Routes,
         linkedFnsRecord: H
@@ -124,7 +124,7 @@ export class MionClient {
         });
     }
 
-    /** Get route IDs from single route or workflow routes */
+    /** Get route IDs from single route or routesFlow routes */
     private getRouteIds(
         routeSubRequest: RSubRequest<any> | undefined,
         workflowSubRequests: RSubRequest<any>[] | undefined
@@ -194,7 +194,7 @@ export class MionClient {
             routeErrorPart = hasAnyError ? routeErrors : undefined;
         }
 
-        // linkedFns can be a named record (from callWithLinkedFns/workflow) or an array (from executeCall)
+        // linkedFns can be a named record (from callWithLinkedFns/routesFlow) or an array (from executeCall)
         if (Array.isArray(linkedFns)) {
             // Array of subrequests - use IDs as keys
             for (const linkedFn of linkedFns) {

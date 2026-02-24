@@ -314,7 +314,7 @@ interface Post {
 
 export const posts = drizzlePGTable<Post>('posts', {
   id: uuid('id').primaryKey(),
-  authorId: uuid('author_id').references(() => users.id, {onDelete: 'cascade'}),
+  authorId: uuid('author_id').references(() => users.id, {onDelete: 'routesFlow'}),
 });
 ```
 

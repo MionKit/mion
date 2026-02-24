@@ -7,7 +7,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
-import {workflow} from './workflow.ts';
+import {routesFlow} from './routesFlow.ts';
 import {isRpcError} from '@mionkit/core';
 import {BinaryTestServerApi} from '@mionkit/test-server';
 import {TEST_SERVER_BASE_URL_BINARY} from '../globalSetup.ts';
@@ -322,11 +322,11 @@ describe('Binary Serialization E2E', () => {
         });
     });
 
-    describe('Workflow with Binary Serialization', () => {
-        it('should serialize and deserialize simple types in a workflow', async () => {
+    describe('RoutesFlow with Binary Serialization', () => {
+        it('should serialize and deserialize simple types in a routesFlow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            const [[result1, result2], [error1, error2]] = await workflow([
+            const [[result1, result2], [error1, error2]] = await routesFlow([
                 routes.echo('Hello Workflow!'),
                 routes.addNumbers(10, 20),
             ]);
@@ -337,10 +337,10 @@ describe('Binary Serialization E2E', () => {
             expect(result2).toBe(30);
         });
 
-        it('should serialize and deserialize objects in a workflow', async () => {
+        it('should serialize and deserialize objects in a routesFlow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            const [[result1, result2], [error1, error2]] = await workflow([
+            const [[result1, result2], [error1, error2]] = await routesFlow([
                 routes.getSimpleUser('Alice', 28),
                 routes.processSimpleUser({name: 'Bob', age: 35}),
             ]);
@@ -351,10 +351,10 @@ describe('Binary Serialization E2E', () => {
             expect(result2).toBe('User: Bob, Age: 35');
         });
 
-        it('should serialize and deserialize arrays in a workflow', async () => {
+        it('should serialize and deserialize arrays in a routesFlow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            const [[result1, result2, result3], [error1, error2, error3]] = await workflow([
+            const [[result1, result2, result3], [error1, error2, error3]] = await routesFlow([
                 routes.sumArray([1, 2, 3, 4, 5]),
                 routes.doubleArray([10, 20, 30]),
                 routes.reverseStrings(['a', 'b', 'c']),
@@ -368,11 +368,11 @@ describe('Binary Serialization E2E', () => {
             expect(result3).toEqual(['c', 'b', 'a']);
         });
 
-        it('should serialize and deserialize Date types in a workflow', async () => {
+        it('should serialize and deserialize Date types in a routesFlow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const inputDate = new Date('2025-01-15T00:00:00Z');
 
-            const [[result1, result2], [error1, error2]] = await workflow([
+            const [[result1, result2], [error1, error2]] = await routesFlow([
                 routes.getCurrentDate(),
                 routes.addDays(inputDate, 5),
             ]);
@@ -384,10 +384,10 @@ describe('Binary Serialization E2E', () => {
             expect(result2?.getTime()).toBe(new Date('2025-01-20T00:00:00Z').getTime());
         });
 
-        it('should serialize and deserialize complex objects in a workflow', async () => {
+        it('should serialize and deserialize complex objects in a routesFlow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            const [[result1, result2], [error1, error2]] = await workflow([
+            const [[result1, result2], [error1, error2]] = await routesFlow([
                 routes.createComplexUser('user-1', 'John Doe', 'john@example.com'),
                 routes.createNestedData('deep value', [1, 2, 3]),
             ]);
@@ -413,11 +413,11 @@ describe('Binary Serialization E2E', () => {
             });
         });
 
-        it('should handle mixed types in a single workflow', async () => {
+        it('should handle mixed types in a single routesFlow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const inputDate = new Date('2025-06-01T12:00:00Z');
 
-            const [[result1, result2, result3, result4, result5], [error1, error2, error3, error4, error5]] = await workflow([
+            const [[result1, result2, result3, result4, result5], [error1, error2, error3, error4, error5]] = await routesFlow([
                 routes.echo('test'),
                 routes.addNumbers(5, 10),
                 routes.getSimpleUser('Test', 25),
@@ -438,10 +438,10 @@ describe('Binary Serialization E2E', () => {
             expect(result5).toBe(false);
         });
 
-        it('should handle workflow with linkedFns in binary mode', async () => {
+        it('should handle routesFlow with linkedFns in binary mode', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
 
-            const [[result1, result2], [error1, error2], linkedFnResults] = await workflow(
+            const [[result1, result2], [error1, error2], linkedFnResults] = await routesFlow(
                 [routes.echo('workflow test'), routes.addNumbers(1, 2)],
                 {
                     session: linkedFns.session('valid-token'),
@@ -455,10 +455,10 @@ describe('Binary Serialization E2E', () => {
             expect(linkedFnResults?.session).toEqual({valid: true, userId: 'user-123'});
         });
 
-        it('should handle errors in binary workflow', async () => {
+        it('should handle errors in binary routesFlow', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            const [results, errors] = await workflow([routes.mayFail(true), routes.echo('should not reach')]);
+            const [results, errors] = await routesFlow([routes.mayFail(true), routes.echo('should not reach')]);
 
             expect(errors).toBeDefined();
             expect(errors?.[0]).toBeDefined();

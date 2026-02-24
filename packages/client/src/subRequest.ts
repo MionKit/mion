@@ -74,7 +74,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         >;
     }
 
-    /** Calls this route as part of a workflow with other routes in a single HTTP request */
+    /** Calls this route as part of a routesFlow with other routes in a single HTTP request */
     async callWithWorkflow<OtherRoutes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         otherRoutes: [...OtherRoutes],
         linkedFns?: H

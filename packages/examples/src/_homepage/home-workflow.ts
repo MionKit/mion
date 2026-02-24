@@ -1,4 +1,4 @@
-import {initClient, workflow} from '@mionkit/client';
+import {initClient, routesFlow} from '@mionkit/client';
 import type {MyApi} from './home-server.ts';
 
 const {routes} = initClient<MyApi>({
@@ -6,7 +6,7 @@ const {routes} = initClient<MyApi>({
 });
 // @annotate: Execute multiple routes in a single HTTP request
 
-const [[user, greeting], [userError, greetingError]] = await workflow([
+const [[user, greeting], [userError, greetingError]] = await routesFlow([
     routes.getUser(1234),
     routes.sayHello('World'),
 ]);

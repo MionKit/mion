@@ -128,8 +128,8 @@ blur: 140px
     ---
     class: sm:col-span-2 lg:col-span-1 home-card
     ---
-    ### Workflows
-    [Execute multiple routes in a single HTTP request](/client/workflows) — batch API calls together to reduce network overhead and improve performance.
+    ### RoutesFlows
+    [Execute multiple routes in a single HTTP request](/client/routesFlows) — batch API calls together to reduce network overhead and improve performance.
 
     <br>
 
@@ -141,7 +141,7 @@ blur: 140px
     ::::twoslash-code
     ---
     path: packages/examples/src/_homepage/home-workflow.ts
-    title: mion-workflow.ts
+    title: mion-routesFlow.ts
     class: sm:col-span-2 lg:col-span-2
     ---
     ::::

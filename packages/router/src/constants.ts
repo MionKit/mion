@@ -34,12 +34,12 @@ export const DEFAULT_ROUTE_OPTIONS = {
     aot: false,
     /** Context pooling size == 100 by default */
     maxContextPoolSize: 100,
-    /** Workflow cache size == 100 by default */
+    /** RoutesFlow cache size == 100 by default */
     maxWorkflowsCacheSize: 100,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
 export const NOT_FOUND_HOOK_NAME = '_miΦn404NΦtfΦundHΦΦk_';
 export const NOT_FOUND_PATH = `${PATH_SEPARATOR}${MION_ROUTES.notFound}`;
-export const WORKFLOW_KEY = `mion-workflow-route`;
+export const WORKFLOW_KEY = `mion-routes-flow`;
 export const WORKFLOW_PATH = `${PATH_SEPARATOR}${WORKFLOW_KEY}`;

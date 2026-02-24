@@ -1,14 +1,14 @@
-import {initClient, workflow} from '@mionkit/client';
+import {initClient, routesFlow} from '@mionkit/client';
 import {HeadersSubset} from '@mionkit/core';
 import type {MyApi} from './server.routes.ts';
 
 const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-async function workflowWithLinkedFns() {
+async function routesFlowWithLinkedFns() {
     const authHeaders = new HeadersSubset({Authorization: 'my-token'});
 
-    // Execute workflow with explicit linkedFns
-    const [[sum, user], [sumError, userError], linkedFnResults, linkedFnErrors] = await workflow(
+    // Execute routesFlow with explicit linkedFns
+    const [[sum, user], [sumError, userError], linkedFnResults, linkedFnErrors] = await routesFlow(
         [routes.utils.sum(5, 2), routes.users.getById('USER-123')],
         {auth: linkedFns.auth(authHeaders)}
     );

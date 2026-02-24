@@ -9,22 +9,22 @@ import {RpcError} from '@mionkit/core';
 import type {HSubRequest, RSubRequest, WorkflowResult} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
 
-/** Creates and executes a workflow request with multiple routes */
-export async function workflow<
+/** Creates and executes a routesFlow request with multiple routes */
+export async function routesFlow<
     Routes extends RSubRequest<any>[],
     LinkedFns extends Record<string, HSubRequest<any>> = Record<string, never>,
 >(routeSubRequests: [...Routes], linkedFns?: LinkedFns): Promise<WorkflowResult<Routes, LinkedFns>> {
     if (!routeSubRequests || routeSubRequests.length === 0) {
         throw new RpcError({
-            type: 'workflow-empty-routes',
-            publicMessage: 'Workflow requires at least one route subrequest.',
+            type: 'routesFlow-empty-routes',
+            publicMessage: 'RoutesFlow requires at least one route subrequest.',
         });
     }
 
     const firstSubRequest = routeSubRequests[0] as MionSubRequest;
     if (!firstSubRequest.client) {
         throw new RpcError({
-            type: 'workflow-missing-client',
+            type: 'routesFlow-missing-client',
             publicMessage: 'Could not extract MionClient from subrequest. Ensure subrequests are created via routes proxy.',
         });
     }
@@ -36,8 +36,8 @@ export async function workflow<
         const subRequest = routeSubRequests[i] as MionSubRequest;
         if (subRequest.client !== client) {
             throw new RpcError({
-                type: 'workflow-client-mismatch',
-                publicMessage: `All subrequests in a workflow must use the same client instance. Subrequest at index ${i} has a different client.`,
+                type: 'routesFlow-client-mismatch',
+                publicMessage: `All subrequests in a routesFlow must use the same client instance. Subrequest at index ${i} has a different client.`,
             });
         }
     }
