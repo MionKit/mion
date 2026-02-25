@@ -12,7 +12,7 @@ import {BaseColumnMapper} from './base.mapper.ts';
 import type {ColumnMapping, DrizzleMapperConfig} from '../types/common.types.ts';
 import {DrizzleTypesSQLite} from '../types/common.types.ts';
 import {isIntegerFormat} from '../core/utils.ts';
-import {FormatName, FormatNames} from '@mionkit/type-formats';
+import {FormatName, FormatNames} from '@mionkit/type-formats/constants';
 
 /** SQLite-specific column mapper */
 export class SQLiteColumnMapper extends BaseColumnMapper {
