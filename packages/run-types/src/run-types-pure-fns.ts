@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {TypeFormatError, StrNumber, RunTypeError} from '@mionkit/core';
-import {MAX_UNKNOWN_KEYS, registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionkit/core';
 
 export const cpf_asJSONString = registerPureFnFactory('mion', 'asJSONString', function () {
     // @ts-expect-error 2867
@@ -24,6 +24,7 @@ export const cpf_asJSONString = registerPureFnFactory('mion', 'asJSONString', fu
 });
 
 export const cpf_getUnknownKeysFromArray = registerPureFnFactory('mion', 'getUnknownKeysFromArray', function () {
+    const MAX_UNKNOWN_KEYS = 10;
     return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
         const unknownKeys: StrNumber[] = [];
         for (const prop in obj) {

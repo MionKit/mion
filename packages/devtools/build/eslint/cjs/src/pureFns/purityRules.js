@@ -38,7 +38,8 @@ const ALLOWED_GLOBALS = /* @__PURE__ */ new Set([
   "decodeURI",
   // Common safe globals
   "console",
-  "globalThis"
+  "globalThis",
+  "Bun"
 ]);
 const FORBIDDEN_IDENTIFIERS = /* @__PURE__ */ new Set([
   "eval",

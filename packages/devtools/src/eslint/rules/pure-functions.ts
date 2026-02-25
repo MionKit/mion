@@ -81,19 +81,18 @@ function collectLocalDeclarations(node: TSESTree.Node, scope: Set<string>): void
         collectBindingNames(node.id, scope);
     }
 
-    if (node.type === AST_NODE_TYPES.FunctionDeclaration && node.id) {
-        scope.add(node.id.name);
+    if (node.type === AST_NODE_TYPES.FunctionDeclaration) {
+        if (node.id) scope.add(node.id.name);
+        for (const param of node.params) collectBindingNames(param, scope);
     }
 
-    if (node.type === AST_NODE_TYPES.FunctionExpression && node.id) {
-        scope.add(node.id.name);
+    if (node.type === AST_NODE_TYPES.FunctionExpression) {
+        if (node.id) scope.add(node.id.name);
         for (const param of node.params) collectBindingNames(param, scope);
-        return;
     }
 
     if (node.type === AST_NODE_TYPES.ArrowFunctionExpression) {
         for (const param of node.params) collectBindingNames(param, scope);
-        return;
     }
 
     if (
@@ -211,9 +210,16 @@ function checkPurityViolations(
             }
         }
 
-        // Recurse into children
+        // Recurse into children (skip type-only AST subtrees)
         for (const key of Object.keys(node)) {
-            if (key === 'parent') continue;
+            if (
+                key === 'parent' ||
+                key === 'typeAnnotation' ||
+                key === 'returnType' ||
+                key === 'typeParameters' ||
+                key === 'typeArguments'
+            )
+                continue;
             const child = (node as unknown as Record<string, unknown>)[key];
             if (child && typeof child === 'object') {
                 if (Array.isArray(child)) {

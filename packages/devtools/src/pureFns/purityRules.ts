@@ -45,6 +45,7 @@ export const ALLOWED_GLOBALS = new Set([
     // Common safe globals
     'console',
     'globalThis',
+    'Bun',
 ]);
 
 /** Forbidden identifiers that indicate impure operations in pure functions */
