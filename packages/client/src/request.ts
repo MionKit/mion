@@ -7,7 +7,7 @@
 
 import type {ResponseBody} from '@mionkit/router';
 import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledLinkedFnsCache} from './types.ts';
-import type {RunTypeError} from '@mionkit/core';
+import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionkit/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
@@ -31,7 +31,8 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
     ) {
         if (workflowSubRequests && workflowSubRequests.length > 0) {
             const routePaths = workflowSubRequests.map((sr) => getRoutePath(sr.pointer, this.options));
-            this.path = `${ROUTES_FLOW_PATH}?${routePaths.join(',')}`;
+            const query = buildRoutesFlowQuery(routePaths, workflowSubRequests);
+            this.path = `${ROUTES_FLOW_PATH}?${btoa(JSON.stringify(query))}`;
             this.requestId = 'mion-routes-flow';
             workflowSubRequests.forEach((sr) => this.addSubRequest(sr));
         } else {
@@ -365,4 +366,27 @@ function reconstructHeadersSubsetFromResponse(
     }
 
     return undefined;
+}
+
+/** Builds a RoutesFlowQuery from route paths and subrequests, collecting any mapFrom mappings */
+function buildRoutesFlowQuery(routePaths: string[], workflowSubRequests: RSubRequest<any>[]): RoutesFlowQuery {
+    const allMappings: RoutesFlowMapping[] = [];
+    for (const sr of workflowSubRequests) {
+        // Duck-type check for mappings array (avoids circular import of MionSubRequest)
+        const mappings = (sr as any).mappings;
+        if (Array.isArray(mappings) && mappings.length > 0) {
+            for (const ref of mappings) {
+                allMappings.push({
+                    fromId: ref.fromRequestId,
+                    toId: ref.toRequestId,
+                    bodyHash: ref.bodyHash,
+                    paramIndex: ref.paramIndex,
+                });
+            }
+        }
+    }
+    return {
+        routes: routePaths,
+        mappings: allMappings.length > 0 ? allMappings : undefined,
+    };
 }

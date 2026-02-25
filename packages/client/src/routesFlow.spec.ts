@@ -12,8 +12,10 @@ import {HSubRequest, RSubRequest} from './types.ts';
 import {HeadersSubset, PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
 import {TestServerApi} from '@mionkit/test-server';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
-// Alias to avoid vite plugin transformer injecting bodyHash into test calls
+// Alias to avoid vite plugin transformer injecting bodyHash into unit test calls
 import {mapFrom as rawMapFrom} from './routesFlow.ts';
+// vite plugin DOES inject bodyHash for e2e tests
+import {mapFrom} from './routesFlow.ts';
 
 // Mock localStorage for method metadata storage
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -320,5 +322,27 @@ describe('mapFrom()', () => {
         const ref = rawMapFrom(fakeSubRequest, mapper, 'testHash123456');
         expect(ref.pureFn).toBe(mapper);
         expect(ref.pureFn({name: 'alice'})).toBe('ALICE');
+    });
+});
+
+describe('mapFrom e2e in routesFlow', () => {
+    type MyApi = TestServerApi;
+    const baseURL = TEST_SERVER_BASE_URL_JSON;
+
+    it('should map output of one route to input of another', async () => {
+        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+        const customer = routes.getCustomerById(42);
+        const [[customerData, prefs], [customerError, prefsError]] = await routesFlow(
+            [customer, routes.getPreferencesById(mapFrom(customer, (c) => c!.preferenceId).fake())],
+            {auth: linkedFns.auth(authHeaders)}
+        );
+
+        expect(customerError).toBeUndefined();
+        expect(prefsError).toBeUndefined();
+        expect(customerData).toEqual({id: 42, name: 'Test Customer', preferenceId: 142});
+        // 142 is even → 'dark', userId = prefId - 100 = 42 (original customer id)
+        expect(prefs).toEqual({id: 142, userId: 42, theme: 'dark', lang: 'en'});
     });
 });

@@ -15,6 +15,12 @@ import {linkedFn, route} from './lib/handlers.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {clearRoutesFlowCache, getRoutesFlowCacheSize, getCachedRoutesFlow} from './routesFlow.ts';
 import {WORKFLOW_KEY, WORKFLOW_PATH} from './constants.ts';
+import type {RoutesFlowQuery} from '@mionkit/core';
+
+/** Helper to encode a RoutesFlowQuery as base64 JSON (same format the client sends) */
+function encodeRoutesFlowQuery(query: RoutesFlowQuery): string {
+    return Buffer.from(JSON.stringify(query)).toString('base64');
+}
 
 // RoutesFlows allow calling multiple routes in a single request, with shared context between them
 // a new execution chain is created for each routesFlow request, merging the execution chains of all routes in the routesFlow
@@ -81,7 +87,7 @@ describe('RoutesFlow routes', () => {
 
             const request = getDefaultRequest({route1: []});
             const routesFlowPath = WORKFLOW_PATH;
-            const urlQuery = '/route1';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/route1']});
 
             const response = await dispatchRoute(
                 routesFlowPath,
@@ -108,7 +114,7 @@ describe('RoutesFlow routes', () => {
                 routeSum: [10, 20],
             });
             const routesFlowPath = WORKFLOW_PATH;
-            const urlQuery = '/route1,/routeX2,/routeSum';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/route1', '/routeX2', '/routeSum']});
 
             const response = await dispatchRoute(
                 routesFlowPath,
@@ -137,7 +143,7 @@ describe('RoutesFlow routes', () => {
                 routeX2: [5],
             });
             const routesFlowPath = WORKFLOW_PATH;
-            const urlQuery = '/route1,/routeX2';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/route1', '/routeX2']});
 
             const response = await dispatchRoute(
                 routesFlowPath,
@@ -183,7 +189,7 @@ describe('RoutesFlow routes', () => {
 
             const request = getDefaultRequest({});
             const routesFlowPath = WORKFLOW_PATH;
-            const urlQuery = '/nonExistent';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/nonExistent']});
 
             // Errors during routesFlow chain building are thrown as exceptions
             // since they happen during context creation
@@ -223,28 +229,27 @@ describe('RoutesFlow routes', () => {
             ).rejects.toThrow('RoutesFlow request requires a query string with route paths.');
         });
 
-        it('should handle URL-encoded route paths', async () => {
+        it('should throw error for invalid base64 query string', async () => {
             await initRouter();
             await registerRoutes(routes);
 
             const request = getDefaultRequest({route1: []});
             const routesFlowPath = WORKFLOW_PATH;
-            // URL-encoded path
-            const urlQuery = '%2Froute1';
+            // Invalid base64 (not valid JSON when decoded)
+            const urlQuery = Buffer.from('not-valid-json').toString('base64');
 
-            const response = await dispatchRoute(
-                routesFlowPath,
-                request.body,
-                request.headers,
-                headersFromRecord({}),
-                request,
-                undefined,
-                undefined,
-                urlQuery
-            );
-
-            expect(response.hasErrors).toBe(false);
-            expect(response.body.route1).toBe('result1');
+            await expect(
+                dispatchRoute(
+                    routesFlowPath,
+                    request.body,
+                    request.headers,
+                    headersFromRecord({}),
+                    request,
+                    undefined,
+                    undefined,
+                    urlQuery
+                )
+            ).rejects.toThrow('RoutesFlow query string is not valid base64-encoded JSON.');
         });
 
         it('should apply pathTransform to routesFlow route paths', async () => {
@@ -256,7 +261,7 @@ describe('RoutesFlow routes', () => {
             const request = getDefaultRequest({route1: []});
             const routesFlowPath = WORKFLOW_PATH;
             // Path with /v1 prefix that should be transformed
-            const urlQuery = '/v1/route1';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/v1/route1']});
 
             const response = await dispatchRoute(
                 routesFlowPath,
@@ -294,7 +299,7 @@ describe('RoutesFlow routes', () => {
                 route1: [],
             });
             const routesFlowPath = WORKFLOW_PATH;
-            const urlQuery = '/errorRoute,/route1';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/errorRoute', '/route1']});
 
             const response = await dispatchRoute(
                 routesFlowPath,
@@ -339,7 +344,7 @@ describe('RoutesFlow routes', () => {
 
             const request = getDefaultRequest({route1: []});
             const routesFlowPath = WORKFLOW_PATH;
-            const urlQuery = '/route1';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/route1']});
 
             // First request - should add to cache
             await dispatchRoute(
@@ -387,7 +392,7 @@ describe('RoutesFlow routes', () => {
                 request1,
                 undefined,
                 undefined,
-                '/route1'
+                encodeRoutesFlowQuery({routes: ['/route1']})
             );
 
             expect(response1.hasErrors).toBe(false);
@@ -403,7 +408,7 @@ describe('RoutesFlow routes', () => {
                 request2,
                 undefined,
                 undefined,
-                '/routeX2'
+                encodeRoutesFlowQuery({routes: ['/routeX2']})
             );
 
             expect(response2.hasErrors).toBe(false);
@@ -427,7 +432,7 @@ describe('RoutesFlow routes', () => {
                 request1,
                 undefined,
                 undefined,
-                '/route1'
+                encodeRoutesFlowQuery({routes: ['/route1']})
             );
             expect(getRoutesFlowCacheSize()).toBe(1);
 
@@ -441,7 +446,7 @@ describe('RoutesFlow routes', () => {
                 request2,
                 undefined,
                 undefined,
-                '/routeX2'
+                encodeRoutesFlowQuery({routes: ['/routeX2']})
             );
             expect(getRoutesFlowCacheSize()).toBe(2);
 
@@ -455,7 +460,7 @@ describe('RoutesFlow routes', () => {
                 request3,
                 undefined,
                 undefined,
-                '/route1,/routeX2'
+                encodeRoutesFlowQuery({routes: ['/route1', '/routeX2']})
             );
             expect(getRoutesFlowCacheSize()).toBe(2);
         });
@@ -466,7 +471,7 @@ describe('RoutesFlow routes', () => {
 
             const request = getDefaultRequest({route1: []});
             const routesFlowPath = WORKFLOW_PATH;
-            const urlQuery = '/route1';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/route1']});
 
             await dispatchRoute(
                 routesFlowPath,
@@ -497,7 +502,7 @@ describe('RoutesFlow routes', () => {
                 request,
                 undefined,
                 undefined,
-                '/route1'
+                encodeRoutesFlowQuery({routes: ['/route1']})
             );
 
             expect(getRoutesFlowCacheSize()).toBe(1);
@@ -540,7 +545,7 @@ describe('RoutesFlow routes', () => {
                 route3: [],
             });
             const routesFlowPath = WORKFLOW_PATH;
-            const urlQuery = '/route1,/other/route2,/route3';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/route1', '/other/route2', '/route3']});
 
             const response = await dispatchRoute(
                 routesFlowPath,
@@ -583,7 +588,7 @@ describe('RoutesFlow routes', () => {
                 route3: [],
             });
             const routesFlowPath = WORKFLOW_PATH;
-            const urlQuery = '/other/route2,/route1,/route3';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/other/route2', '/route1', '/route3']});
 
             const response = await dispatchRoute(
                 routesFlowPath,
@@ -621,7 +626,7 @@ describe('RoutesFlow routes', () => {
                 route3: [],
             });
             const routesFlowPath = WORKFLOW_PATH;
-            const urlQuery = '/route1,/route3';
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/route1', '/route3']});
 
             const response = await dispatchRoute(
                 routesFlowPath,
