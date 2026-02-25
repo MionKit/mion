@@ -102,9 +102,33 @@ export interface PureServerFnRef<F extends (...args: any[]) => any = (...args: a
 export interface MapFromServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> extends PureServerFnRef<F> {
     fromRequestId: string;
     toRequestId: string;
+    /** Index of the parameter in the target route's params array this mapping replaces */
+    paramIndex: number;
     mapFromSymbol: symbol;
     /** Returns this reference cast as ReturnType<F>, allowing it to be passed as a parameter to subrequests */
     fake(): ReturnType<F>;
 }
 
-export type MapFromRef = Pick<MapFromServerFnRef<any>, 'fromRequestId' | 'toRequestId' | 'fnName' | 'namespace'>;
+export type MapFromRef = Pick<MapFromServerFnRef<any>, 'fromRequestId' | 'toRequestId' | 'fnName' | 'namespace' | 'paramIndex'>;
+
+// ########################################### ROUTES FLOW ##########################################
+
+/** Decoded routesFlow query payload sent as base64-encoded JSON in the URL query string */
+export interface RoutesFlowQuery {
+    /** Route paths to execute, e.g. ["/route1", "/route2"] */
+    routes: string[];
+    /** Optional mappings that transform one route's output into another route's input */
+    mappings?: RoutesFlowMapping[];
+}
+
+/** Describes a mapping from one route's output to another route's input parameter */
+export interface RoutesFlowMapping {
+    /** Source route ID whose output to map from */
+    fromId: string;
+    /** Target route ID whose input parameter to update */
+    toId: string;
+    /** Pure function body hash identifier in jitUtils cache */
+    bodyHash: string;
+    /** Index of the parameter in the target route's params array to replace */
+    paramIndex: number;
+}

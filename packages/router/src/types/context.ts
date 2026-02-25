@@ -7,6 +7,7 @@
 
 import type {AnyObject, DataViewSerializer, SerializerCode} from '@mionkit/core';
 import type {RpcError} from '@mionkit/core';
+import type {RoutesFlowMapping} from '@mionkit/core';
 import type {MethodsExecutionChain} from './remoteMethods.ts';
 
 // ####### Call Context #######
@@ -113,4 +114,6 @@ export interface RoutesFlowExecutionResult {
     executionChain: MethodsExecutionChain;
     /** Route IDs for binary serialization buffer sizing */
     routesFlowRouteIds?: string[];
+    /** Mappings from the routesFlow query, used for mapping route outputs to inputs */
+    mappings?: RoutesFlowMapping[];
 }

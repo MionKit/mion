@@ -123,6 +123,19 @@ const routes = {
         return set;
     }),
 
+    // Routes for testing routesFlow mapFrom (output→input mapping between routes)
+    getCustomerById: route((_ctx, customerId: number): {id: number; name: string; preferenceId: number} => ({
+        id: customerId,
+        name: 'Test Customer',
+        preferenceId: customerId + 100,
+    })),
+    getPreferencesById: route((_ctx, prefId: number): {id: number; userId: number; theme: string; lang: string} => ({
+        id: prefId,
+        userId: prefId - 100,
+        theme: prefId % 2 === 0 ? 'dark' : 'light',
+        lang: 'en',
+    })),
+
     // Route that invokes a server pure function extracted from client source at build time
     getGreetingsPureFnResult: route((): string => {
         const pureFn = serverPureFnsCache.pureServerFn?.greeting;

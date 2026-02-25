@@ -83,9 +83,14 @@ export function mapFrom<FromSR extends SubRequest<any>, MappedInput>(
         isFactory: false,
         fromRequestId: source.id,
         toRequestId: '',
+        paramIndex: -1, // set by MionSubRequest constructor when passed as a parameter
         fake() {
             return ref as unknown as MappedInput;
         },
     };
     return ref;
+}
+
+export function isMapFromRef(ref: any): ref is MapFromServerFnRef<any> {
+    return ref && ref.mapFromSymbol === mapFromSymbol;
 }
