@@ -12,7 +12,7 @@ import {BaseColumnMapper} from './base.mapper.ts';
 import type {ColumnMapping, DrizzleMapperConfig} from '../types/common.types.ts';
 import {DrizzleTypesPostgres, DEFAULT_VARCHAR_LENGTH} from '../types/common.types.ts';
 import {getMaxLengthFromParams, getLengthFromParams, isIntegerFormat} from '../core/utils.ts';
-import {FormatName, FormatNames} from '@mionkit/type-formats';
+import {FormatName, FormatNames} from '@mionkit/type-formats/constants';
 
 /** PostgreSQL-specific column mapper */
 export class PGColumnMapper extends BaseColumnMapper {
