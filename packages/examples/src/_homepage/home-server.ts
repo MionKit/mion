@@ -23,6 +23,8 @@ const routes = {
         };
     }),
     sayHello: route((ctx, name: string): string => `Hello ${name}`),
+    sum: route((ctx, a: number, b: number): number => a + b),
+    multiply: route((ctx, a: number, b: number): number => a * b),
 } satisfies Routes;
 export const myApi = await initMionRouter(routes);
 export type MyApi = typeof myApi;

@@ -129,13 +129,11 @@ blur: 140px
     class: sm:col-span-2 lg:col-span-1 home-card
     ---
     ### RoutesFlows
-    [Execute multiple routes in a single HTTP request](/client/routesFlows) — batch API calls together to reduce network overhead and improve performance.
+    [Execute multiple routes in a single HTTP request](/client/client-flow) — batch API calls together, reduce network overhead and **map results between routes** server-side.
 
     <br>
 
-    ::note{class="text-sm"}
-    **Coming Soon:** Result mapping between routes — enabling GraphQL-like data composition with the simplicity of RPC.
-    ::
+    [GraphQL-like data composition]{.text-highlighted} with the simplicity of RPC — resolve relationships in a single request using `mapFrom`.
     ::::
 
     ::::twoslash-code
