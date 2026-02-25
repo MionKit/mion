@@ -45,9 +45,9 @@ function matchGlob(filePath, pattern) {
 function mionVitePlugin(options) {
   let extractedFns = null;
   const pureFnOptions = options.serverPureFunctions;
-  const deepkitOptions = options.runTypes;
+  const runTypesOptions = options.runTypes;
   const aotOptions = options.aotCaches;
-  const deepkitConfig = deepkitOptions ? src_vitePlugin_transformers.createDeepkitConfig(deepkitOptions) : null;
+  const deepkitConfig = runTypesOptions ? src_vitePlugin_transformers.createDeepkitConfig(runTypesOptions) : null;
   const defaultCompilerOptions = {
     target: ts__namespace.ScriptTarget.ESNext,
     module: ts__namespace.ModuleKind.ESNext

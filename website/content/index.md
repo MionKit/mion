@@ -128,17 +128,19 @@ blur: 140px
     ---
     class: sm:col-span-2 lg:col-span-1 home-card
     ---
-    ### RoutesFlows
-    [Execute multiple routes in a single HTTP request](/client/client-flow) — batch API calls together, reduce network overhead and **map results between routes** server-side.
+    ### Routes Flows
+    [Execute multiple routes in a single HTTP request](/client/client-flow). Batch API calls together, and Orchestrate router logic from the client.
 
     <br>
 
+    ::note{class="text-sm"}
     [GraphQL-like data composition]{.text-highlighted} with the simplicity of RPC — resolve relationships in a single request using `mapFrom`.
+    ::
     ::::
 
     ::::twoslash-code
     ---
-    path: packages/examples/src/_homepage/home-workflow.ts
+    path: packages/examples/src/_homepage/home-mapFrom.ts
     title: mion-routesFlow.ts
     class: sm:col-span-2 lg:col-span-2
     ---
@@ -235,4 +237,4 @@ blur: 140px
 
 [&nbsp;]{style="padding-bottom: 6rem;"}
 
-<!-- code-import-timestamp 1770603353367 -->
+<!-- code-import-timestamp 1772049798879 -->

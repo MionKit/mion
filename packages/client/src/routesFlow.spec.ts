@@ -312,7 +312,7 @@ describe('mapFrom()', () => {
 
     it('fake() should return the ref itself', () => {
         const ref = rawMapFrom(fakeSubRequest, (x: number) => x * 2, 'testHash123456');
-        const fakeResult = ref.fake();
+        const fakeResult = ref.type();
         // fake() returns the ref cast as ReturnType<F>
         expect(fakeResult).toBe(ref);
     });
@@ -335,7 +335,7 @@ describe('mapFrom e2e in routesFlow', () => {
 
         const customer = routes.getCustomerById(42);
         const [[customerData, prefs], [customerError, prefsError]] = await routesFlow(
-            [customer, routes.getPreferencesById(mapFrom(customer, (c) => c!.preferenceId).fake())],
+            [customer, routes.getPreferencesById(mapFrom(customer, (c) => c!.preferenceId).type())],
             {auth: linkedFns.auth(authHeaders)}
         );
 

@@ -84,7 +84,7 @@ export function mapFrom<FromSR extends SubRequest<any>, MappedInput>(
         fromRequestId: source.id,
         toRequestId: '',
         paramIndex: -1, // set by MionSubRequest constructor when passed as a parameter
-        fake() {
+        type() {
             return ref as unknown as MappedInput;
         },
     };

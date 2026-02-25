@@ -71,12 +71,12 @@ function matchGlob(filePath: string, pattern: string): boolean {
 
 /**
  * Creates the unified mion Vite plugin.
- * This plugin combines pure function extraction, deepkit type transformation,
+ * This plugin combines pure function extraction, type compiler transformations,
  * and AOT cache generation in a single plugin with correct execution order.
  *
  * Execution order:
  * 1. Extract pure functions from original TypeScript source
- * 2. Apply deepkit type transformations to the code
+ * 2. Apply type metadata transformations to the code
  *
  * This ensures pure function extraction happens on clean, untransformed TypeScript.
  *
@@ -105,9 +105,9 @@ function matchGlob(filePath: string, pattern: string): boolean {
 export function mionVitePlugin(options: MionPluginOptions): Plugin {
     let extractedFns: ExtractedPureFn[] | null = null;
     const pureFnOptions = options.serverPureFunctions;
-    const deepkitOptions = options.runTypes;
+    const runTypesOptions = options.runTypes;
     const aotOptions = options.aotCaches;
-    const deepkitConfig: DeepkitConfig | null = deepkitOptions ? createDeepkitConfig(deepkitOptions) : null;
+    const deepkitConfig: DeepkitConfig | null = runTypesOptions ? createDeepkitConfig(runTypesOptions) : null;
 
     // Default compiler options for when deepkit is disabled
     const defaultCompilerOptions: ts.CompilerOptions = {

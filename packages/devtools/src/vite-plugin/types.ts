@@ -19,7 +19,6 @@ export interface AOTCacheOptions {
     /**
      * Path to the server's vite.config.ts file.
      * Used by vite-node to run the start script with proper transformations
-     * (deepkit type metadata, aliases, etc.).
      * If not provided, vite-node will auto-discover the config from the
      * startServerScript's directory.
      */

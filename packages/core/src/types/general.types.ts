@@ -235,16 +235,6 @@ export type PureFnsDataCache = Record<string, Record<string, PureFunctionData>>;
 
 // ########################################### JIT SRC CODE ####################################
 
-// TODO: bellow way of declaring thing by using omit and and redeclaring the fn property have a bug in deepkit type compiler, so we need to find another way to do it
-// export type SrcCodeJitCompiledFn = Omit<JitCompiledFn, 'fn'> & {
-//     // jit fn can not be compiled to code as contains references to context code and jitUtils
-//     readonly fn: undefined;
-// }
-// export type SrcCodeCompiledPureFunction = Omit<CompiledPureFunction, 'fn'> & {
-//     // pure fn can not be compiled to code as contains references to context code and jitUtils
-//     readonly fn: undefined;
-// }
-
 export interface SrcCodeJitCompiledFn extends JitCompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
     readonly createJitFn: (utl: JITUtils) => AnyFn;
