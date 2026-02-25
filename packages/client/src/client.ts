@@ -51,6 +51,9 @@ export class MionClient {
     /** In-memory cache for prefilled linkedFn subrequests (keyed by baseURL:linkedFnId) */
     readonly prefilledLinkedFnsCache = new Map<string, SubRequest<any>>();
 
+    /** Tracks in-flight prefill operations to avoid race conditions */
+    private pendingPrefills: Promise<void>[] = [];
+
     constructor(private clientOptions: ClientOptions) {}
 
     /** Executes a route call and returns a Result 4-tuple */
@@ -74,54 +77,35 @@ export class MionClient {
         return this.executeRequest(undefined, workflowSubRequests, linkedFnsRecord);
     }
 
-    private executeRequest<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+    private async executeRequest<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         routeSubRequest: RSubRequest<any> | undefined,
         workflowSubRequests: Routes | undefined,
         linkedFnsRecord: H | undefined
     ): Promise<any> {
-        return new Promise((resolve, reject) => {
-            let request: MionClientRequest<any, any>;
-            const linkedFnSubRequests = linkedFnsRecord ? Object.values(linkedFnsRecord) : [];
-            try {
-                request = new MionClientRequest(
-                    this.clientOptions,
-                    this.prefilledLinkedFnsCache,
-                    routeSubRequest,
-                    linkedFnSubRequests,
-                    workflowSubRequests
-                );
-            } catch (error) {
-                reject(error);
-                return;
-            }
+        // Wait for any in-flight prefill operations to complete before executing the request
+        if (this.pendingPrefills.length > 0) await Promise.allSettled([...this.pendingPrefills]);
 
-            request
-                .call()
-                .then(() => {
-                    const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
-                    const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeIds);
-                    this.processLinkedFnsResponses(allLinkedFns, undefined);
-                    const result = this.buildResult(
-                        routeSubRequest,
-                        workflowSubRequests,
-                        linkedFnsRecord || allLinkedFns,
-                        undefined
-                    );
-                    resolve(result);
-                })
-                .catch((errors: RequestErrors) => {
-                    const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
-                    const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeIds);
-                    this.processLinkedFnsResponses(allLinkedFns, errors);
-                    const result = this.buildResult(
-                        routeSubRequest,
-                        workflowSubRequests,
-                        linkedFnsRecord || allLinkedFns,
-                        errors
-                    );
-                    resolve(result);
-                });
-        });
+        const linkedFnSubRequests = linkedFnsRecord ? Object.values(linkedFnsRecord) : [];
+        const request = new MionClientRequest(
+            this.clientOptions,
+            this.prefilledLinkedFnsCache,
+            routeSubRequest,
+            linkedFnSubRequests,
+            workflowSubRequests
+        );
+
+        try {
+            await request.call();
+            const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
+            const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeIds);
+            this.processLinkedFnsResponses(allLinkedFns, undefined);
+            return this.buildResult(routeSubRequest, workflowSubRequests, linkedFnsRecord || allLinkedFns, undefined);
+        } catch (errors: any) {
+            const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
+            const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeIds);
+            this.processLinkedFnsResponses(allLinkedFns, errors);
+            return this.buildResult(routeSubRequest, workflowSubRequests, linkedFnsRecord || allLinkedFns, errors);
+        }
     }
 
     /** Get route IDs from single route or routesFlow routes */
@@ -237,7 +221,13 @@ export class MionClient {
 
     prefill<List extends HSubRequest<any>[]>(...subRequest: List): Promise<void> {
         const request = new MionClientRequest(this.clientOptions, this.prefilledLinkedFnsCache);
-        return request.prefill(subRequest);
+        const promise = request.prefill(subRequest);
+        this.pendingPrefills.push(promise);
+        promise.finally(() => {
+            const index = this.pendingPrefills.indexOf(promise);
+            if (index >= 0) this.pendingPrefills.splice(index, 1);
+        });
+        return promise;
     }
 
     removePrefill<List extends HSubRequest<any>[]>(...subRequest: List): Promise<void> {
