@@ -21,28 +21,7 @@ import type {
     inet,
     pgTable,
 } from 'drizzle-orm/pg-core';
-import type {
-    BrandEmail,
-    BrandUUID,
-    BrandUrl,
-    BrandDomain,
-    BrandIP,
-    BrandDate,
-    BrandTime,
-    BrandDateTime,
-    BrandInteger,
-    BrandFloat,
-    BrandPositive,
-    BrandNegative,
-    BrandPositiveInt,
-    BrandNegativeInt,
-    BrandInt8,
-    BrandInt16,
-    BrandInt32,
-    BrandUInt8,
-    BrandUInt16,
-    BrandUInt32,
-} from '@mionkit/core';
+import type {AllBrandNames} from './common.types.ts';
 
 // ============================================================================
 // Helper type to extract return type of column builder function with name
@@ -76,93 +55,72 @@ type PgTimeColumn<K extends string> = ReturnType<typeof time<K>>;
 type PgJsonbColumn<K extends string> = ReturnType<typeof jsonb<K>>;
 
 // ============================================================================
-// Column Type Mapping with Column Name
+// Brand → Column Mapping
 // ============================================================================
 
-/**
- * Maps a TypeScript primitive type to its corresponding PostgreSQL column builder type,
- * with the column name properly typed. Uses branded types to narrow column types.
- *
- * @template K - The column name (key from the interface)
- * @template T - The TypeScript type of the property value
- *
- * String brands:
- * - BrandEmail → PgVarcharColumn (emails have max length)
- * - BrandUUID → PgUUIDColumn (native UUID type)
- * - BrandUrl → PgTextColumn (URLs can be long)
- * - BrandDomain → PgTextColumn
- * - BrandIP → PgInetColumn (native inet type)
- * - BrandDate → PgDateColumn
- * - BrandTime → PgTimeColumn
- * - BrandDateTime → PgTimestampColumn
- * - plain string → PgTextColumn (unlimited length, same performance as varchar in PG)
- *
- * Number brands:
- * - BrandFloat → PgDoublePrecisionColumn
- * - BrandInteger/BrandPositiveInt/BrandNegativeInt → PgIntegerColumn
- * - BrandInt8/BrandUInt8/BrandInt16/BrandUInt16 → PgIntegerColumn (runtime uses integer)
- * - BrandInt32/BrandUInt32 → PgIntegerColumn
- * - BrandPositive/BrandNegative → PgDoublePrecisionColumn (could be float or int, default to double)
- * - plain number → PgDoublePrecisionColumn (default to double precision for safety)
- *
- * Other types:
- * - boolean → PgBooleanColumn
- * - bigint → PgBigIntColumn
- * - Date → PgTimestampColumn (runtime uses timestamp)
- * - arrays/objects → PgJsonbColumn
- */
+/** Maps brand name strings to their corresponding PostgreSQL column builder types.
+ * Adding a new brand = add one line here. Compile-time checks below ensure completeness. */
+type PgBrandColumnMap<K extends string> = {
+    // String brands
+    email: PgVarcharColumn<K>;
+    uuid: PgUUIDColumn<K>;
+    url: PgTextColumn<K>;
+    domain: PgTextColumn<K>;
+    ip: PgInetColumn<K>;
+    date: PgDateColumn<K>;
+    time: PgTimeColumn<K>;
+    dateTime: PgTimestampColumn<K>;
+    // Number brands — integer group
+    integer: PgIntegerColumn<K>;
+    positiveInt: PgIntegerColumn<K>;
+    negativeInt: PgIntegerColumn<K>;
+    int8: PgIntegerColumn<K>;
+    uint8: PgIntegerColumn<K>;
+    int16: PgIntegerColumn<K>;
+    uint16: PgIntegerColumn<K>;
+    int32: PgIntegerColumn<K>;
+    uint32: PgIntegerColumn<K>;
+    // Number brands — float group
+    float: PgDoublePrecisionColumn<K>;
+    positive: PgDoublePrecisionColumn<K>;
+    negative: PgDoublePrecisionColumn<K>;
+};
+
+// Compile-time verification: these resolve to `never` when the map is complete.
+// If a brand is missing/extra, the type will show the offending brand name string.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _MissingPgBrands = Exclude<AllBrandNames, keyof PgBrandColumnMap<string>>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _ExtraPgBrands = Exclude<keyof PgBrandColumnMap<string>, AllBrandNames>;
+
+// ============================================================================
+// Column Type Mapping
+// ============================================================================
+
+/** Maps a TypeScript type to its corresponding PostgreSQL column builder type.
+ * Branded types are resolved via PgBrandColumnMap lookup, plain types use direct mapping. */
 export type PgColumnType<K extends string, T> =
-    // String branded types - narrow to specific column types
-    T extends BrandUUID
-        ? PgUUIDColumn<K>
-        : T extends BrandEmail
-          ? PgVarcharColumn<K>
-          : T extends BrandIP
-            ? PgInetColumn<K>
-            : T extends BrandDateTime
-              ? PgTimestampColumn<K>
-              : T extends BrandDate
-                ? PgDateColumn<K>
-                : T extends BrandTime
-                  ? PgTimeColumn<K>
-                  : T extends BrandUrl | BrandDomain
-                    ? PgTextColumn<K>
-                    : // Number branded types - narrow to specific column types
-                      T extends BrandFloat
-                      ? PgDoublePrecisionColumn<K>
-                      : T extends
-                              | BrandInt8
-                              | BrandUInt8
-                              | BrandInt16
-                              | BrandUInt16
-                              | BrandInteger
-                              | BrandPositiveInt
-                              | BrandNegativeInt
-                              | BrandInt32
-                              | BrandUInt32
-                        ? PgIntegerColumn<K>
-                        : T extends BrandPositive | BrandNegative
-                          ? PgDoublePrecisionColumn<K>
-                          : // Plain string types - use text (unlimited length, same perf as varchar in PG)
-                            T extends string
-                            ? PgTextColumn<K>
-                            : // Plain number types - default to double precision for safety
-                              T extends number
-                              ? PgDoublePrecisionColumn<K>
-                              : // Boolean type
-                                T extends boolean
-                                ? PgBooleanColumn<K>
-                                : // BigInt type
-                                  T extends bigint
-                                  ? PgBigIntColumn<K>
-                                  : // Date type - use timestamp (runtime uses timestamp)
-                                    T extends Date
-                                    ? PgTimestampColumn<K>
-                                    : // Arrays and objects become JSONB
-                                      T extends any[] | object
-                                      ? PgJsonbColumn<K>
-                                      : // Fallback to base column builder
-                                        PgColumnBuilderBase;
+    // Branded types → lookup from map
+    T extends {brand: infer B extends string}
+        ? B extends keyof PgBrandColumnMap<K>
+            ? PgBrandColumnMap<K>[B]
+            : T extends string
+              ? PgTextColumn<K>
+              : PgDoublePrecisionColumn<K>
+        : // Plain primitives
+          T extends string
+          ? PgTextColumn<K>
+          : T extends number
+            ? PgDoublePrecisionColumn<K>
+            : T extends boolean
+              ? PgBooleanColumn<K>
+              : T extends bigint
+                ? PgBigIntColumn<K>
+                : T extends Date
+                  ? PgTimestampColumn<K>
+                  : T extends any[] | object
+                    ? PgJsonbColumn<K>
+                    : PgColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)

@@ -21,28 +21,7 @@ import type {
     MySqlJsonBuilderInitial,
 } from 'drizzle-orm/mysql-core';
 import type {BuildColumns} from 'drizzle-orm/column-builder';
-import type {
-    BrandEmail,
-    BrandUUID,
-    BrandUrl,
-    BrandDomain,
-    BrandIP,
-    BrandDate,
-    BrandTime,
-    BrandDateTime,
-    BrandInteger,
-    BrandFloat,
-    BrandPositive,
-    BrandNegative,
-    BrandPositiveInt,
-    BrandNegativeInt,
-    BrandInt8,
-    BrandInt16,
-    BrandInt32,
-    BrandUInt8,
-    BrandUInt16,
-    BrandUInt32,
-} from '@mionkit/core';
+import type {AllBrandNames} from './common.types.ts';
 
 // ============================================================================
 // Helper types for MySQL column builders with column name
@@ -72,95 +51,71 @@ type MySqlTimeColumn<K extends string> = MySqlTimeBuilderInitial<K>;
 type MySqlJsonColumn<K extends string> = MySqlJsonBuilderInitial<K>;
 
 // ============================================================================
-// Column Type Mapping with Column Name
+// Brand → Column Mapping
 // ============================================================================
 
-/**
- * Maps a TypeScript primitive type to its corresponding MySQL column builder type,
- * with the column name properly typed. Uses branded types to narrow column types.
- *
- * @template K - The column name (key from the interface)
- * @template T - The TypeScript type of the property value
- *
- * String brands:
- * - BrandEmail → MySqlVarcharColumn (emails have max length)
- * - BrandUUID → MySqlVarcharColumn (MySQL has no native UUID, use varchar(36))
- * - BrandUrl → MySqlTextColumn (URLs can be long)
- * - BrandDomain → MySqlVarcharColumn
- * - BrandIP → MySqlVarcharColumn (IPv6 up to 45 chars)
- * - BrandDate → MySqlDateColumn
- * - BrandTime → MySqlTimeColumn
- * - BrandDateTime → MySqlDatetimeColumn
- * - plain string → MySqlTextColumn | MySqlVarcharColumn
- *
- * Number brands:
- * - BrandFloat → MySqlDoubleColumn
- * - BrandInt8/BrandUInt8 → MySqlTinyIntColumn
- * - BrandInt16/BrandUInt16 → MySqlSmallIntColumn
- * - BrandInteger/BrandPositiveInt/BrandNegativeInt/BrandInt32/BrandUInt32 → MySqlIntColumn
- * - BrandPositive/BrandNegative → MySqlDoubleColumn | MySqlIntColumn
- * - plain number → MySqlDoubleColumn (default to double for safety)
- *
- * Other types:
- * - boolean → MySqlBooleanColumn
- * - bigint → MySqlBigIntColumn
- * - Date → MySqlTimestampColumn | MySqlDatetimeColumn | MySqlDateColumn | MySqlTimeColumn
- * - arrays/objects → MySqlJsonColumn
- */
+/** Maps brand name strings to their corresponding MySQL column builder types.
+ * Adding a new brand = add one line here. Compile-time checks below ensure completeness. */
+type MySqlBrandColumnMap<K extends string> = {
+    // String brands
+    email: MySqlVarcharColumn<K>;
+    uuid: MySqlVarcharColumn<K>;
+    url: MySqlTextColumn<K>;
+    domain: MySqlVarcharColumn<K>;
+    ip: MySqlVarcharColumn<K>;
+    date: MySqlDateColumn<K>;
+    time: MySqlTimeColumn<K>;
+    dateTime: MySqlDatetimeColumn<K>;
+    // Number brands — integer group
+    integer: MySqlIntColumn<K>;
+    positiveInt: MySqlIntColumn<K>;
+    negativeInt: MySqlIntColumn<K>;
+    int8: MySqlIntColumn<K>;
+    uint8: MySqlIntColumn<K>;
+    int16: MySqlIntColumn<K>;
+    uint16: MySqlIntColumn<K>;
+    int32: MySqlIntColumn<K>;
+    uint32: MySqlIntColumn<K>;
+    // Number brands — float group
+    float: MySqlDoubleColumn<K>;
+    positive: MySqlDoubleColumn<K>;
+    negative: MySqlDoubleColumn<K>;
+};
+
+// Compile-time verification: these resolve to `never` when the map is complete.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _MissingMySqlBrands = Exclude<AllBrandNames, keyof MySqlBrandColumnMap<string>>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _ExtraMySqlBrands = Exclude<keyof MySqlBrandColumnMap<string>, AllBrandNames>;
+
+// ============================================================================
+// Column Type Mapping
+// ============================================================================
+
+/** Maps a TypeScript type to its corresponding MySQL column builder type.
+ * Branded types are resolved via MySqlBrandColumnMap lookup, plain types use direct mapping. */
 export type MySqlColumnType<K extends string, T> =
-    // String branded types - narrow to specific column types
-    T extends BrandUUID
-        ? MySqlVarcharColumn<K>
-        : T extends BrandEmail
-          ? MySqlVarcharColumn<K>
-          : T extends BrandIP
-            ? MySqlVarcharColumn<K>
-            : T extends BrandDateTime
-              ? MySqlDatetimeColumn<K>
-              : T extends BrandDate
-                ? MySqlDateColumn<K>
-                : T extends BrandTime
-                  ? MySqlTimeColumn<K>
-                  : T extends BrandUrl
-                    ? MySqlTextColumn<K>
-                    : T extends BrandDomain
-                      ? MySqlVarcharColumn<K>
-                      : // Number branded types - all integers use int() in runtime mapper
-                        T extends BrandFloat
-                        ? MySqlDoubleColumn<K>
-                        : T extends
-                                | BrandInt8
-                                | BrandUInt8
-                                | BrandInt16
-                                | BrandUInt16
-                                | BrandInteger
-                                | BrandPositiveInt
-                                | BrandNegativeInt
-                                | BrandInt32
-                                | BrandUInt32
-                          ? MySqlIntColumn<K>
-                          : T extends BrandPositive | BrandNegative
-                            ? MySqlDoubleColumn<K>
-                            : // Plain string types - use text (unlimited length)
-                              T extends string
-                              ? MySqlTextColumn<K>
-                              : // Plain number types - default to double for safety
-                                T extends number
-                                ? MySqlDoubleColumn<K>
-                                : // Boolean type
-                                  T extends boolean
-                                  ? MySqlBooleanColumn<K>
-                                  : // BigInt type
-                                    T extends bigint
-                                    ? MySqlBigIntColumn<K>
-                                    : // Date type - use timestamp (runtime uses timestamp)
-                                      T extends Date
-                                      ? MySqlTimestampColumn<K>
-                                      : // Arrays and objects become JSON
-                                        T extends any[] | object
-                                        ? MySqlJsonColumn<K>
-                                        : // Fallback to base column builder
-                                          MySqlColumnBuilderBase;
+    // Branded types → lookup from map
+    T extends {brand: infer B extends string}
+        ? B extends keyof MySqlBrandColumnMap<K>
+            ? MySqlBrandColumnMap<K>[B]
+            : T extends string
+              ? MySqlTextColumn<K>
+              : MySqlDoubleColumn<K>
+        : // Plain primitives
+          T extends string
+          ? MySqlTextColumn<K>
+          : T extends number
+            ? MySqlDoubleColumn<K>
+            : T extends boolean
+              ? MySqlBooleanColumn<K>
+              : T extends bigint
+                ? MySqlBigIntColumn<K>
+                : T extends Date
+                  ? MySqlTimestampColumn<K>
+                  : T extends any[] | object
+                    ? MySqlJsonColumn<K>
+                    : MySqlColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)
