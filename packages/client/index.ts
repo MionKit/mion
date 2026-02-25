@@ -15,4 +15,3 @@ export * from './src/client.ts';
 export * from './src/typedEvent.ts';
 export * from './src/handlersRegistry.ts';
 export * from './src/routesFlow.ts';
-export * from './src/from.ts';

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initClient, HSubRequest, RSubRequest, workflow} from '@mionkit/client';
+import {initClient, HSubRequest, RSubRequest, routesFlow} from '@mionkit/client';
 import {isRpcError, HeadersSubset} from '@mionkit/core';
 import {TestServerApi} from '@mionkit/test-server';
 import Storage from 'dom-storage';
@@ -800,8 +800,8 @@ describe('client', () => {
 
     // ========== Workflow Tests ==========
 
-    describe('workflow() function', () => {
-        it('should execute a single route in a workflow', async () => {
+    describe('routesFlow() function', () => {
+        it('should execute a single route in a routesFlow', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -809,7 +809,7 @@ describe('client', () => {
             linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const [[greeting], [greetingError]] = await workflow([routes.sayHello(someUser)]);
+            const [[greeting], [greetingError]] = await routesFlow([routes.sayHello(someUser)]);
 
             expect(greeting).toEqual('Hello John Doe');
             expect(greetingError).toBeUndefined();
@@ -818,7 +818,7 @@ describe('client', () => {
             linkedFns.auth(authHeaders).removePrefill();
         });
 
-        it('should execute multiple routes in a workflow', async () => {
+        it('should execute multiple routes in a routesFlow', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -826,7 +826,7 @@ describe('client', () => {
             linkedFns.auth(authHeaders).prefill();
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const [[greeting, age, sum], [greetingError, ageError, sumError]] = await workflow([
+            const [[greeting, age, sum], [greetingError, ageError, sumError]] = await routesFlow([
                 routes.sayHello(someUser),
                 routes.calculateAge(1990),
                 routes.utils.sumTwo(5),
@@ -843,11 +843,11 @@ describe('client', () => {
             linkedFns.auth(authHeaders).removePrefill();
         });
 
-        it('should execute workflow with explicit linkedFns', async () => {
+        it('should execute routesFlow with explicit linkedFns', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [[greeting], [greetingError], , linkedFnErrors] = await workflow([routes.sayHello(someUser)], {
+            const [[greeting], [greetingError], , linkedFnErrors] = await routesFlow([routes.sayHello(someUser)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
@@ -856,11 +856,11 @@ describe('client', () => {
             expect(linkedFnErrors?.auth).toBeUndefined();
         });
 
-        it('should handle route errors in workflow', async () => {
+        it('should handle route errors in routesFlow', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [[failResult], [failError]] = await workflow([routes.alwaysFails(someUser)], {
+            const [[failResult], [failError]] = await routesFlow([routes.alwaysFails(someUser)], {
                 auth: linkedFns.auth(authHeaders),
             });
 
@@ -871,12 +871,12 @@ describe('client', () => {
         });
 
         it('should throw error when called with empty routes array', async () => {
-            await expect(workflow([])).rejects.toThrow('Workflow requires at least one route subrequest.');
+            await expect(routesFlow([])).rejects.toThrow('Workflow requires at least one route subrequest.');
         });
     });
 
     describe('callWithWorkflow() method', () => {
-        it('should execute workflow via callWithWorkflow on a subrequest', async () => {
+        it('should execute routesFlow via callWithWorkflow on a subrequest', async () => {
             const {routes, linkedFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 

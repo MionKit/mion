@@ -9,17 +9,16 @@ const {routes} = initClient<MyApi>({
 // @annotate: Autocomplete: shows available routes
 
 const [user, error] = await routes.getUser(1234).call();
-//                                 ^|
-
-// @annotate: Native Classes are automatically restored to their original types
+//                                ^|
 
 if (user) {
     user.createdAt;
-    //   ^?
+//         ^?
 
+// @annotate: Native Classes are automatically restored to their original types
 
     user.tags;
-    //   ^?
+//        ^?
 }
 
 // Type error: id must be a number
