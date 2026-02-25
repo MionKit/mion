@@ -238,17 +238,34 @@ function checkPurityViolations(
     visit(body);
 }
 
-/** Resolves a variable identifier to its initializer expression within the same module */
+/** Resolves a variable identifier to its initializer expression within the same module (searches all scopes) */
 function resolveVariableInitializer(name: string, program: TSESTree.Program): TSESTree.Expression | null {
-    for (const statement of program.body) {
-        if (statement.type !== AST_NODE_TYPES.VariableDeclaration) continue;
-        for (const decl of statement.declarations) {
-            if (decl.id.type === AST_NODE_TYPES.Identifier && decl.id.name === name && decl.init) {
-                return decl.init;
+    function search(node: TSESTree.Node): TSESTree.Expression | null {
+        if (node.type === AST_NODE_TYPES.VariableDeclarator) {
+            if (node.id.type === AST_NODE_TYPES.Identifier && node.id.name === name && node.init) {
+                return node.init;
             }
         }
+        for (const key of Object.keys(node)) {
+            if (key === 'parent') continue;
+            const child = (node as unknown as Record<string, unknown>)[key];
+            if (child && typeof child === 'object') {
+                if (Array.isArray(child)) {
+                    for (const item of child) {
+                        if (item && typeof item === 'object' && 'type' in item) {
+                            const result = search(item as TSESTree.Node);
+                            if (result) return result;
+                        }
+                    }
+                } else if ('type' in child) {
+                    const result = search(child as TSESTree.Node);
+                    if (result) return result;
+                }
+            }
+        }
+        return null;
     }
-    return null;
+    return search(program);
 }
 
 /** Extracts a function or object expression from a node, resolving variable references */

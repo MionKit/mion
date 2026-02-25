@@ -135,7 +135,8 @@ function checkPurityViolations(body, localScope, fnTypeLabel, context) {
       }
     }
     for (const key of Object.keys(node)) {
-      if (key === "parent" || key === "typeAnnotation" || key === "returnType" || key === "typeParameters" || key === "typeArguments") continue;
+      if (key === "parent" || key === "typeAnnotation" || key === "returnType" || key === "typeParameters" || key === "typeArguments")
+        continue;
       const child = node[key];
       if (child && typeof child === "object") {
         if (Array.isArray(child)) {
@@ -153,15 +154,32 @@ function checkPurityViolations(body, localScope, fnTypeLabel, context) {
   visit(body);
 }
 function resolveVariableInitializer(name, program) {
-  for (const statement of program.body) {
-    if (statement.type !== utils.AST_NODE_TYPES.VariableDeclaration) continue;
-    for (const decl of statement.declarations) {
-      if (decl.id.type === utils.AST_NODE_TYPES.Identifier && decl.id.name === name && decl.init) {
-        return decl.init;
+  function search(node) {
+    if (node.type === utils.AST_NODE_TYPES.VariableDeclarator) {
+      if (node.id.type === utils.AST_NODE_TYPES.Identifier && node.id.name === name && node.init) {
+        return node.init;
       }
     }
+    for (const key of Object.keys(node)) {
+      if (key === "parent") continue;
+      const child = node[key];
+      if (child && typeof child === "object") {
+        if (Array.isArray(child)) {
+          for (const item of child) {
+            if (item && typeof item === "object" && "type" in item) {
+              const result = search(item);
+              if (result) return result;
+            }
+          }
+        } else if ("type" in child) {
+          const result = search(child);
+          if (result) return result;
+        }
+      }
+    }
+    return null;
   }
-  return null;
+  return search(program);
 }
 function resolveToExpression(node, program) {
   if (node.type === utils.AST_NODE_TYPES.Identifier) {
