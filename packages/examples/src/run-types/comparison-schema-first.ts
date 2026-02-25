@@ -7,4 +7,3 @@ const UserSchema = z.object({
     email: z.string().email(),
 });
 type User = z.infer<typeof UserSchema>;
-

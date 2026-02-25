@@ -13,4 +13,3 @@ async function callRoute() {
         console.log(sum); // 7
     }
 }
-

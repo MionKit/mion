@@ -16,4 +16,3 @@ const routes = {
         return {id: generateId(), ...article};
     }),
 } satisfies Routes;
-

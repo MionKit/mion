@@ -19,4 +19,3 @@ type Price = NumFormat<{
     multipleOf: 1; // multipleOf must be integer
     integer: true; // store as cents
 }>;
-

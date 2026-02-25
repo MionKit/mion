@@ -22,4 +22,3 @@ async function unionTypeExample() {
     const restored = restoreFromJson(json2);
     // restored === 42
 }
-

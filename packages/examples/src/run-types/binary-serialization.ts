@@ -21,4 +21,3 @@ async function fromBinaryExample() {
     // user is now { name: 'John', age: 30 }
 }
 // end-from-binary
-

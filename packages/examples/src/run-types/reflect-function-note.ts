@@ -6,4 +6,3 @@ function sayHello(name: string): string {
 
 const fnType = reflectFunction(sayHello);
 // fnType = FunctionRunType<type (name: string) => string>
-

@@ -9,6 +9,5 @@ type USDate = StrDate<{format: 'MM-DD-YYYY'}>;
 type MonthYear = StrDate<{format: 'YYYY-MM'}>;
 
 // Validates leap years correctly
-'2000-02-29'; // ✓ (leap year)
-'1900-02-29'; // ✗ (not a leap year)
-
+('2000-02-29'); // ✓ (leap year)
+('1900-02-29'); // ✗ (not a leap year)

@@ -13,4 +13,3 @@ import {
     NumUInt16,
     NumUInt32,
 } from '@mionkit/type-formats/FormatsNumber';
-

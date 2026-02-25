@@ -5,4 +5,3 @@ type Name = StrAlpha; // Letters only (supports Unicode)
 type Code = StrNumeric; // Digits only
 type Slug = StrLowercase; // Forced lowercase
 type Initials = StrUppercase; // Forced uppercase
-

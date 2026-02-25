@@ -10,7 +10,7 @@ export interface RawUser {
     surname: string;
     lastUpdate: string;
 }
-export type NewUser = Omit<User, "id" | "lastUpdate">;
+export type NewUser = Omit<User, 'id' | 'lastUpdate'>;
 export type UserId = User | number;
 export type PartialUser = Partial<User> & {
     id: number;
