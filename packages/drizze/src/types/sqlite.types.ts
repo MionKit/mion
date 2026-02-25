@@ -17,28 +17,7 @@ import type {
     SQLiteBlobJsonBuilderInitial,
 } from 'drizzle-orm/sqlite-core';
 import type {BuildColumns} from 'drizzle-orm/column-builder';
-import type {
-    BrandEmail,
-    BrandUUID,
-    BrandUrl,
-    BrandDomain,
-    BrandIP,
-    BrandDate,
-    BrandTime,
-    BrandDateTime,
-    BrandInteger,
-    BrandFloat,
-    BrandPositive,
-    BrandNegative,
-    BrandPositiveInt,
-    BrandNegativeInt,
-    BrandInt8,
-    BrandInt16,
-    BrandInt32,
-    BrandUInt8,
-    BrandUInt16,
-    BrandUInt32,
-} from '@mionkit/core';
+import type {AllBrandNames} from './common.types.ts';
 
 // ============================================================================
 // Helper types for SQLite column builders with column name
@@ -60,74 +39,71 @@ type SqliteBigIntColumn<K extends string> = SQLiteBigIntBuilderInitial<K>;
 type SqliteJsonColumn<K extends string> = SQLiteBlobJsonBuilderInitial<K>;
 
 // ============================================================================
-// Column Type Mapping with Column Name
+// Brand → Column Mapping
 // ============================================================================
 
-/**
- * Maps a TypeScript primitive type to its corresponding SQLite column builder type,
- * with the column name properly typed. Uses branded types to narrow column types.
- *
- * @template K - The column name (key from the interface)
- * @template T - The TypeScript type of the property value
- *
- * String brands (all map to text in SQLite):
- * - BrandEmail/BrandUUID/BrandUrl/BrandDomain/BrandIP → SqliteTextColumn
- * - BrandDate/BrandTime/BrandDateTime → SqliteTextColumn (stored as ISO strings)
- * - plain string → SqliteTextColumn
- *
- * Number brands:
- * - BrandFloat → SqliteRealColumn
- * - BrandInteger/BrandPositiveInt/BrandNegativeInt → SqliteIntegerColumn
- * - BrandInt8/BrandUInt8/BrandInt16/BrandUInt16/BrandInt32/BrandUInt32 → SqliteIntegerColumn
- * - BrandPositive/BrandNegative → SqliteRealColumn (no integer flag, defaults to real)
- * - plain number → SqliteRealColumn (default to real for safety)
- *
- * Other types:
- * - boolean → SqliteBooleanColumn
- * - bigint → SqliteBigIntColumn
- * - Date → SqliteTimestampColumn
- * - arrays/objects → SqliteJsonColumn
- */
+/** Maps brand name strings to their corresponding SQLite column builder types.
+ * Adding a new brand = add one line here. Compile-time checks below ensure completeness. */
+type SqliteBrandColumnMap<K extends string> = {
+    // String brands — all map to text in SQLite
+    email: SqliteTextColumn<K>;
+    uuid: SqliteTextColumn<K>;
+    url: SqliteTextColumn<K>;
+    domain: SqliteTextColumn<K>;
+    ip: SqliteTextColumn<K>;
+    date: SqliteTextColumn<K>;
+    time: SqliteTextColumn<K>;
+    dateTime: SqliteTextColumn<K>;
+    // Number brands — integer group
+    integer: SqliteIntegerColumn<K>;
+    positiveInt: SqliteIntegerColumn<K>;
+    negativeInt: SqliteIntegerColumn<K>;
+    int8: SqliteIntegerColumn<K>;
+    uint8: SqliteIntegerColumn<K>;
+    int16: SqliteIntegerColumn<K>;
+    uint16: SqliteIntegerColumn<K>;
+    int32: SqliteIntegerColumn<K>;
+    uint32: SqliteIntegerColumn<K>;
+    // Number brands — float group
+    float: SqliteRealColumn<K>;
+    positive: SqliteRealColumn<K>;
+    negative: SqliteRealColumn<K>;
+};
+
+// Compile-time verification: these resolve to `never` when the map is complete.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _MissingSqliteBrands = Exclude<AllBrandNames, keyof SqliteBrandColumnMap<string>>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _ExtraSqliteBrands = Exclude<keyof SqliteBrandColumnMap<string>, AllBrandNames>;
+
+// ============================================================================
+// Column Type Mapping
+// ============================================================================
+
+/** Maps a TypeScript type to its corresponding SQLite column builder type.
+ * Branded types are resolved via SqliteBrandColumnMap lookup, plain types use direct mapping. */
 export type SqliteColumnType<K extends string, T> =
-    // String branded types - all map to text in SQLite
-    T extends BrandUUID | BrandEmail | BrandIP | BrandUrl | BrandDomain | BrandDateTime | BrandDate | BrandTime
-        ? SqliteTextColumn<K>
-        : // Number branded types - narrow to specific column types
-          T extends BrandFloat
-          ? SqliteRealColumn<K>
-          : T extends
-                  | BrandInteger
-                  | BrandPositiveInt
-                  | BrandNegativeInt
-                  | BrandInt8
-                  | BrandUInt8
-                  | BrandInt16
-                  | BrandUInt16
-                  | BrandInt32
-                  | BrandUInt32
-            ? SqliteIntegerColumn<K>
-            : T extends BrandPositive | BrandNegative
-              ? SqliteRealColumn<K>
-              : // Plain string types - text
-                T extends string
-                ? SqliteTextColumn<K>
-                : // Plain number types - default to real for safety
-                  T extends number
-                  ? SqliteRealColumn<K>
-                  : // Boolean type - integer with mode: boolean
-                    T extends boolean
-                    ? SqliteBooleanColumn<K>
-                    : // BigInt type - blob with mode: bigint
-                      T extends bigint
-                      ? SqliteBigIntColumn<K>
-                      : // Date type - integer with mode: timestamp
-                        T extends Date
-                        ? SqliteTimestampColumn<K>
-                        : // Arrays and objects become JSON (blob or text with mode: json)
-                          T extends any[] | object
-                          ? SqliteJsonColumn<K>
-                          : // Fallback to base column builder
-                            SQLiteColumnBuilderBase;
+    // Branded types → lookup from map
+    T extends {brand: infer B extends string}
+        ? B extends keyof SqliteBrandColumnMap<K>
+            ? SqliteBrandColumnMap<K>[B]
+            : T extends string
+              ? SqliteTextColumn<K>
+              : SqliteRealColumn<K>
+        : // Plain primitives
+          T extends string
+          ? SqliteTextColumn<K>
+          : T extends number
+            ? SqliteRealColumn<K>
+            : T extends boolean
+              ? SqliteBooleanColumn<K>
+              : T extends bigint
+                ? SqliteBigIntColumn<K>
+                : T extends Date
+                  ? SqliteTimestampColumn<K>
+                  : T extends any[] | object
+                    ? SqliteJsonColumn<K>
+                    : SQLiteColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)
