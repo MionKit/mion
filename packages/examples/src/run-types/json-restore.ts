@@ -15,4 +15,3 @@ async function example() {
     // event.timestamp is now a Date object
     // event.metadata is now a Map
 }
-

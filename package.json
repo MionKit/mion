@@ -7,8 +7,8 @@
   "homepage": "https://github.com/MionKit/mion#readme",
   "scripts": {
     "test": "vitest run",
-    "format": "prettier --write packages/**/*.{ts,md}",
-    "check-format": "prettier --check packages/**/*.{ts,md}",
+    "format": "prettier --write 'packages/**/*.{ts,md}'",
+    "check-format": "prettier --check 'packages/**/*.{ts,md}'",
     "check-format-pre-commit": "prettier --check",
     "lint": "lerna run lint",
     "lint:spec": "npx eslint --fix packages/**/*.spec.ts",

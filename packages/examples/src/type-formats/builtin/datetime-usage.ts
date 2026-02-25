@@ -18,4 +18,3 @@ type ShortDateTime = StrDateTime<{
     time: {format: 'HH'};
 }>;
 // Example: '01-15T14'
-

@@ -17,4 +17,3 @@ type SocialMediaDomain = StrDomainStrict<{
         };
     };
 }>;
-

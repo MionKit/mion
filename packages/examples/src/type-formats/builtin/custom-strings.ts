@@ -30,4 +30,3 @@ type SafeName = StrFormat<{
     };
     capitalize: true;
 }>;
-

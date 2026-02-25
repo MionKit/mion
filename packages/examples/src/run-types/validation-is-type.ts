@@ -12,4 +12,3 @@ async function example() {
     isUser({name: 'John'}); // false (missing age)
     isUser({name: 'John', age: '30'}); // false (age is string)
 }
-

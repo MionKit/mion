@@ -23,4 +23,3 @@ app.post(
         return c.json({id: data.id, title: data.title, body: data.body});
     }
 );
-

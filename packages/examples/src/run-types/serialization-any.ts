@@ -18,4 +18,3 @@ async function anyTypeExample() {
     const restored = fromBinary(binary);
     // restored.payload is parsed back from JSON
 }
-

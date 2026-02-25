@@ -19,4 +19,3 @@ async function example() {
     // { name: 'Click', timestamp: '2025-01-15T00:00:00.000Z', metadata: [['source', 'web']] }
     JSON.stringify(jsonReady); // Now works correctly!
 }
-

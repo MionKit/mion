@@ -192,14 +192,14 @@ export function resetJitFunctionsCache(): void {
 
 ---
 
-## Issue 4: `createRawLinkedFnReflection` Creates New Objects
+## Issue 4: `createUseRawFnReflection` Creates New Objects
 
 **Location:** Lines 88-98
 
 **Current Code:**
 
 ```typescript
-function createRawLinkedFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
+function createUseRawFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
   return {
     paramNames,
     paramsJitFns: getNoopJitFns(),
@@ -215,20 +215,20 @@ function createRawLinkedFnReflection(isAsync: boolean, hasReturnData: boolean = 
 **Problem:**
 
 - Creates a new object every time
-- For raw linkedFns with the same parameters, this creates duplicate objects
+- For raw useFns with the same parameters, this creates duplicate objects
 
 **Recommendation:**
 Cache common cases:
 
 ```typescript
-// Cache for common raw linkedFn reflections
-const rawLinkedFnReflectionCache = new Map<string, MethodReflect>();
+// Cache for common raw useFn reflections
+const useRawFnReflectionCache = new Map<string, MethodReflect>();
 
-function createRawLinkedFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
+function createUseRawFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
   // Create cache key from parameters
   const cacheKey = `${isAsync}_${hasReturnData}_${paramNames.join(',')}`;
 
-  const cached = rawLinkedFnReflectionCache.get(cacheKey);
+  const cached = useRawFnReflectionCache.get(cacheKey);
   if (cached) return cached;
 
   const reflection: MethodReflect = {
@@ -241,7 +241,7 @@ function createRawLinkedFnReflection(isAsync: boolean, hasReturnData: boolean = 
     isAsync,
   };
 
-  rawLinkedFnReflectionCache.set(cacheKey, reflection);
+  useRawFnReflectionCache.set(cacheKey, reflection);
   return reflection;
 }
 ```
@@ -324,7 +324,7 @@ function getFunctionJitFns<Fn extends AnyFn>(
 | **High**   | Cache `getJitFunctionsFromHash` results     | routerUtils.ts | Reduces object creation per request |
 | **High**   | Cache `reflectFunction` results             | reflection.ts  | Prevents duplicate RunType creation |
 | **Medium** | Use getter for `persistedMethods`           | reflection.ts  | Better encapsulation                |
-| **Medium** | Cache `createRawLinkedFnReflection` results | reflection.ts  | Reduces object creation             |
+| **Medium** | Cache `createUseRawFnReflection` results | reflection.ts  | Reduces object creation             |
 | **Low**    | Consolidate caching logic                   | Both files     | Code maintainability                |
 
 ---
@@ -336,7 +336,7 @@ function getFunctionJitFns<Fn extends AnyFn>(
 3. **Third:** Add `extractReflectionFromCached` caching in `reflection.ts`
 4. **Fourth:** Add `reflectFunction` caching in `reflection.ts` (defense-in-depth)
 5. **Fifth:** Refactor to use getter for `persistedMethods`
-6. **Sixth:** Cache `createRawLinkedFnReflection` results
+6. **Sixth:** Cache `createUseRawFnReflection` results
 
 ---
 

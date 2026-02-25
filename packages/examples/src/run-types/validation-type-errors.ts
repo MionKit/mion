@@ -14,4 +14,3 @@ async function example() {
     //   { path: ['age'], expected: 'number', actual: 'string' }
     // ]
 }
-

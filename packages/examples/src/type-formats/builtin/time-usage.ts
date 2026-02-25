@@ -9,7 +9,6 @@ type ShortTime = StrTime<{format: 'HH:mm'}>;
 type Duration = StrTime<{format: 'mm:ss'}>;
 
 // ISO time examples
-'14:30:00Z'; // ✓ UTC
-'14:30:00+05:30'; // ✓ with offset
-'14:30:00.123Z'; // ✓ with milliseconds
-
+('14:30:00Z'); // ✓ UTC
+('14:30:00+05:30'); // ✓ with offset
+('14:30:00.123Z'); // ✓ with milliseconds

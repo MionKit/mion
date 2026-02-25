@@ -5,4 +5,3 @@ export const routes = {
         return `Hello ${name}!`;
     }),
 } satisfies Routes;
-
