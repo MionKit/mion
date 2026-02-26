@@ -10,6 +10,9 @@ export {mionVitePlugin, mionVitePlugin as mionPlugin} from './mionVitePlugin.ts'
 export type {MionPluginOptions} from './mionVitePlugin.ts';
 export type {AOTCacheOptions, ServerPureFunctionsOptions as PureFunctionsPluginOptions, DeepkitTypeOptions} from './types.ts';
 
+/** Vite plugin that writes {"type":"commonjs"} package.json in CJS output dirs */
+export {cjsPackageJsonPlugin} from './cjsPackageJsonPlugin.ts';
+
 // Re-export virtual module constants for advanced usage
 export {
     VIRTUAL_AOT_JIT_FNS,

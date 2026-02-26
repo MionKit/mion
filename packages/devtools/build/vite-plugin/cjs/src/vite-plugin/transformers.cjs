@@ -1,7 +1,26 @@
-import { createFilter } from "@rollup/pluginutils";
-import * as ts from "typescript";
-import { declarationTransformer, transformer } from "@deepkit/type-compiler";
-import { extractPureFnsFromSource } from "./extractPureFn.js";
+"use strict";
+Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+const pluginutils = require("@rollup/pluginutils");
+const ts = require("typescript");
+const typeCompiler = require("@deepkit/type-compiler");
+const src_vitePlugin_extractPureFn = require("./extractPureFn.cjs");
+function _interopNamespaceDefault(e) {
+  const n = Object.create(null, { [Symbol.toStringTag]: { value: "Module" } });
+  if (e) {
+    for (const k in e) {
+      if (k !== "default") {
+        const d = Object.getOwnPropertyDescriptor(e, k);
+        Object.defineProperty(n, k, d.get ? d : {
+          enumerable: true,
+          get: () => e[k]
+        });
+      }
+    }
+  }
+  n.default = e;
+  return Object.freeze(n);
+}
+const ts__namespace = /* @__PURE__ */ _interopNamespaceDefault(ts);
 const requireToImport = (context) => ({
   transformSourceFile(sf) {
     const newStatements = [];
@@ -22,17 +41,17 @@ const requireToImport = (context) => ({
   }
 });
 function tryConvertRequireToImport(f, stmt) {
-  if (!ts.isVariableStatement(stmt)) return void 0;
+  if (!ts__namespace.isVariableStatement(stmt)) return void 0;
   const decls = stmt.declarationList.declarations;
   if (decls.length !== 1) return void 0;
   const decl = decls[0];
-  if (!ts.isObjectBindingPattern(decl.name) || !decl.initializer) return void 0;
-  if (!ts.isCallExpression(decl.initializer)) return void 0;
+  if (!ts__namespace.isObjectBindingPattern(decl.name) || !decl.initializer) return void 0;
+  if (!ts__namespace.isCallExpression(decl.initializer)) return void 0;
   const callee = decl.initializer.expression;
-  if (!ts.isIdentifier(callee) || callee.text !== "require") return void 0;
+  if (!ts__namespace.isIdentifier(callee) || callee.text !== "require") return void 0;
   if (decl.initializer.arguments.length !== 1) return void 0;
   const specArg = decl.initializer.arguments[0];
-  if (!ts.isStringLiteral(specArg)) return void 0;
+  if (!ts__namespace.isStringLiteral(specArg)) return void 0;
   const specifiers = decl.name.elements.map(
     (el) => f.createImportSpecifier(false, void 0, f.createIdentifier(el.name.text))
   );
@@ -43,38 +62,38 @@ function tryConvertRequireToImport(f, stmt) {
   );
 }
 function createDeepkitConfig(options = {}) {
-  const filter = createFilter(options.include ?? ["**/*.tsx", "**/*.ts"], options.exclude ?? "node_modules/**");
+  const filter = pluginutils.createFilter(options.include ?? ["**/*.tsx", "**/*.ts"], options.exclude ?? "node_modules/**");
   return {
     filter: (fileName) => filter(fileName),
     compilerOptions: {
-      target: ts.ScriptTarget.ESNext,
-      module: ts.ModuleKind.ESNext,
+      target: ts__namespace.ScriptTarget.ESNext,
+      module: ts__namespace.ModuleKind.ESNext,
       configFilePath: options.tsConfig || process.cwd() + "/tsconfig.json",
       ...options.compilerOptions || {}
     },
-    beforeTransformers: [transformer],
-    afterTransformers: [declarationTransformer, requireToImport]
+    beforeTransformers: [typeCompiler.transformer],
+    afterTransformers: [typeCompiler.declarationTransformer, requireToImport]
   };
 }
 function createPureFnTransformerFactory(originalSource, filePath, collector) {
   const hasPureServerFn = originalSource.includes("pureServerFn");
   const hasFactory = originalSource.includes("registerPureFnFactory");
   const hasMapFrom = originalSource.includes("mapFrom");
-  const pureServerFns = hasPureServerFn ? extractPureFnsFromSource(originalSource, filePath, "pureServerFn") : [];
-  const factoryFns = hasFactory ? extractPureFnsFromSource(originalSource, filePath, "registerPureFnFactory") : [];
-  const mapFromFns = hasMapFrom ? extractPureFnsFromSource(originalSource, filePath, "mapFrom") : [];
+  const pureServerFns = hasPureServerFn ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "pureServerFn") : [];
+  const factoryFns = hasFactory ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "registerPureFnFactory") : [];
+  const mapFromFns = hasMapFrom ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "mapFrom") : [];
   return (context) => {
     let pureIdx = 0;
     let factoryIdx = 0;
     let mapFromIdx = 0;
     function visitor(node) {
-      if (ts.isCallExpression(node)) {
+      if (ts__namespace.isCallExpression(node)) {
         const callee = node.expression;
-        if (ts.isIdentifier(callee)) {
+        if (ts__namespace.isIdentifier(callee)) {
           if (callee.text === "pureServerFn" && pureIdx < pureServerFns.length) {
             if (node.arguments.length >= 2) {
               pureIdx++;
-              return ts.visitEachChild(node, visitor, context);
+              return ts__namespace.visitEachChild(node, visitor, context);
             }
             const data = pureServerFns[pureIdx++];
             collector?.push(data);
@@ -86,7 +105,7 @@ function createPureFnTransformerFactory(originalSource, filePath, collector) {
           if (callee.text === "registerPureFnFactory" && factoryIdx < factoryFns.length) {
             if (node.arguments.length >= 4) {
               factoryIdx++;
-              return ts.visitEachChild(node, visitor, context);
+              return ts__namespace.visitEachChild(node, visitor, context);
             }
             const data = factoryFns[factoryIdx++];
             collector?.push(data);
@@ -98,7 +117,7 @@ function createPureFnTransformerFactory(originalSource, filePath, collector) {
           if (callee.text === "mapFrom" && mapFromIdx < mapFromFns.length) {
             if (node.arguments.length >= 3) {
               mapFromIdx++;
-              return ts.visitEachChild(node, visitor, context);
+              return ts__namespace.visitEachChild(node, visitor, context);
             }
             const data = mapFromFns[mapFromIdx++];
             collector?.push(data);
@@ -109,12 +128,12 @@ function createPureFnTransformerFactory(originalSource, filePath, collector) {
           }
         }
       }
-      return ts.visitEachChild(node, visitor, context);
+      return ts__namespace.visitEachChild(node, visitor, context);
     }
     return {
       transformSourceFile(sourceFile) {
         if (pureServerFns.length === 0 && factoryFns.length === 0 && mapFromFns.length === 0) return sourceFile;
-        return ts.visitNode(sourceFile, visitor);
+        return ts__namespace.visitNode(sourceFile, visitor);
       },
       transformBundle(bundle) {
         return bundle;
@@ -132,8 +151,6 @@ function createParsedFactoryFnNode(factory, data) {
     factory.createPropertyAssignment("code", factory.createStringLiteral(data.fnBody))
   ]);
 }
-export {
-  createDeepkitConfig,
-  createPureFnTransformerFactory
-};
-//# sourceMappingURL=transformers.js.map
+exports.createDeepkitConfig = createDeepkitConfig;
+exports.createPureFnTransformerFactory = createPureFnTransformerFactory;
+//# sourceMappingURL=transformers.cjs.map

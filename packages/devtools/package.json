@@ -19,17 +19,17 @@
     ".": {
       "types": "./build/eslint/esm/index.d.ts",
       "import": "./build/eslint/esm/index.js",
-      "require": "./build/eslint/cjs/index.js"
+      "require": "./build/eslint/cjs/index.cjs"
     },
     "./eslint": {
       "types": "./build/eslint/esm/index.d.ts",
       "import": "./build/eslint/esm/index.js",
-      "require": "./build/eslint/cjs/index.js"
+      "require": "./build/eslint/cjs/index.cjs"
     },
     "./vite-plugin": {
       "types": "./build/vite-plugin/esm/src/vite-plugin/index.d.ts",
       "import": "./build/vite-plugin/esm/index.js",
-      "require": "./build/vite-plugin/cjs/index.js"
+      "require": "./build/vite-plugin/cjs/index.cjs"
     },
     "./virtual-modules": {
       "types": "./src/vite-plugin/virtual-modules.d.ts"
@@ -67,7 +67,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-"@deepkit/type-compiler": "^1.0.1-alpha.157",
+    "@deepkit/type-compiler": "1.0.19",
     "@rollup/pluginutils": "^5.1.0",
     "@typescript-eslint/utils": "^8.17.0",
     "vite-node": "^5.3.0"

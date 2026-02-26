@@ -231,13 +231,18 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                 before.push(createPureFnTransformerFactory(code, fileName, collected));
             }
 
-            // Deepkit transformers (run after ours)
+            // Deepkit has two functions: type metadata emission (follows include/exclude filters)
+            // and import restoration (always runs globally for all ts.transpileModule calls).
+            // afterTransformers (including requireToImport) must always be included to convert
+            // deepkit's CJS require() back to ESM imports in the restored import statements.
+            if (deepkitConfig) {
+                after.push(...deepkitConfig.afterTransformers);
+            }
             if (needsDeepkit) {
                 before.push(...deepkitConfig!.beforeTransformers);
-                after.push(...deepkitConfig!.afterTransformers);
             }
 
-            const compilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
+            const compilerOptions = deepkitConfig!.compilerOptions ?? defaultCompilerOptions;
 
             const result = ts.transpileModule(code, {
                 compilerOptions,
