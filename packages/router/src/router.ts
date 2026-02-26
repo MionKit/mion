@@ -132,9 +132,7 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
     validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
-    // In AOT mode, caches should be pre-loaded via virtual modules before calling initRouter
-    // The virtual modules (virtual:mion-aot/jit-fns, virtual:mion-aot/router-cache) self-register
-    // by calling addAOTCaches() and addRoutesToCache() from @mionkit/core
+    if (routerOptions.aot) await loadAOTCaches();
     isRouterInitialized = true;
     await registerRoutes({...mionErrorsRoutes});
     if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});
@@ -220,6 +218,11 @@ export function getRouteExecutableFromPath(path: string): RouteMethod {
 }
 
 // ############# PRIVATE METHODS #############
+
+async function loadAOTCaches() {
+    const loader = await import('./lib/aotCacheLoader.ts');
+    return loader.loadAOTCaches();
+}
 
 async function emitAOTCaches() {
     if (getENV('MION_COMPILE') !== 'true') return;
