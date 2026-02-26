@@ -54,7 +54,7 @@ const requireToImport: ts.CustomTransformerFactory = (context: ts.Transformation
 /**
  * Converts CJS require patterns to ESM import declarations:
  * - `var {a, b} = require("./path")` → `import {a, b} from "./path"`
- * - `var mod = require("./path")` → `import * as mod from "./path"`
+ * - `var mod = require("./path")` → `import mod from "./path"`
  */
 function tryConvertRequireToImport(f: ts.NodeFactory, stmt: ts.Statement): ts.ImportDeclaration | undefined {
     if (!ts.isVariableStatement(stmt)) return undefined;
@@ -80,11 +80,11 @@ function tryConvertRequireToImport(f: ts.NodeFactory, stmt: ts.Statement): ts.Im
         );
     }
 
-    // var mod = require("./path") → import * as mod from "./path"
+    // var mod = require("./path") → import mod from "./path"
     if (ts.isIdentifier(decl.name)) {
         return f.createImportDeclaration(
             undefined,
-            f.createImportClause(false, undefined, f.createNamespaceImport(f.createIdentifier(decl.name.text))),
+            f.createImportClause(false, f.createIdentifier(decl.name.text), undefined),
             f.createStringLiteral(specArg.text)
         );
     }
