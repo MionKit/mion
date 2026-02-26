@@ -67,7 +67,7 @@ function mionVitePlugin(options) {
       }
     },
     async buildStart() {
-      if (aotOptions) {
+      if (aotOptions && process.env.MION_COMPILE !== "true") {
         try {
           console.log("[mion] Generating AOT caches...");
           aotGenerationPromise = src_vitePlugin_aotDiskCache.getOrGenerateAOTCaches(aotOptions, aotCacheDir);
@@ -181,7 +181,7 @@ function mionVitePlugin(options) {
           }
         }
       }
-      if (aotOptions && aotOptions.startServerScript) {
+      if (aotOptions && aotOptions.startServerScript && process.env.MION_COMPILE !== "true") {
         const serverDir = path.resolve(aotOptions.startServerScript, "..");
         if (file.startsWith(serverDir)) {
           src_vitePlugin_aotCacheGenerator.generateAOTCaches(aotOptions).then((data) => {

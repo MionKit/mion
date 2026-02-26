@@ -24,22 +24,22 @@
   "exports": {
     "./FormatsNumber": {
       "types": "./.dist/esm/FormatsNumber.d.ts",
-      "require": "./.dist/cjs/FormatsNumber.js",
+      "require": "./.dist/cjs/FormatsNumber.cjs",
       "default": "./.dist/esm/FormatsNumber.js"
     },
     "./FormatsString": {
       "types": "./.dist/esm/FormatsString.d.ts",
-      "require": "./.dist/cjs/FormatsString.js",
+      "require": "./.dist/cjs/FormatsString.cjs",
       "default": "./.dist/esm/FormatsString.js"
     },
     "./FormatsBigint": {
       "types": "./.dist/esm/FormatsBigint.d.ts",
-      "require": "./.dist/cjs/FormatsBigint.js",
+      "require": "./.dist/cjs/FormatsBigint.cjs",
       "default": "./.dist/esm/FormatsBigint.js"
     },
     "./constants": {
       "types": "./.dist/esm/src/constants.d.ts",
-      "require": "./.dist/cjs/src/constants.js",
+      "require": "./.dist/cjs/src/constants.cjs",
       "default": "./.dist/esm/src/constants.js"
     }
   },

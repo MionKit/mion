@@ -139,7 +139,9 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
 
         async buildStart() {
             // Generate AOT caches if enabled
-            if (aotOptions) {
+            // Skip when already running as the AOT compile child process to prevent infinite recursion
+            // (happens when aotCaches.serverViteConfig points to the same vite config)
+            if (aotOptions && process.env.MION_COMPILE !== 'true') {
                 try {
                     console.log('[mion] Generating AOT caches...');
                     aotGenerationPromise = getOrGenerateAOTCaches(aotOptions, aotCacheDir);
@@ -294,7 +296,8 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
 
             // In dev mode, regenerate AOT caches when server source changes
             // Only if a custom startServerScript is provided (default routes don't change)
-            if (aotOptions && aotOptions.startServerScript) {
+            // Skip when running as the AOT compile child process
+            if (aotOptions && aotOptions.startServerScript && process.env.MION_COMPILE !== 'true') {
                 // Check if the changed file is in the server directory
                 const serverDir = resolve(aotOptions.startServerScript, '..');
                 if (file.startsWith(serverDir)) {

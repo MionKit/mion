@@ -21,12 +21,12 @@
   "exports": {
     ".": {
       "types": "./.dist/esm/index.d.ts",
-      "require": "./.dist/cjs/index.js",
+      "require": "./.dist/cjs/index.cjs",
       "default": "./.dist/esm/index.js"
     },
     "./aot": {
       "types": "./aot/build/esm/index.d.ts",
-      "require": "./aot/build/cjs/index.js",
+      "require": "./aot/build/cjs/index.cjs",
       "default": "./aot/build/esm/index.js"
     }
   },
