@@ -15,6 +15,7 @@ import {
     resetRoutesCache,
     getJitUtils,
 } from '@mionkit/core';
+import {getPersistedMethods, resetPersistedMethods} from './methodsCache.ts';
 import type {MethodsCache, PersistedJitFunctionsCache} from '@mionkit/core';
 import {
     cpf_asJSONString,
@@ -88,6 +89,7 @@ describe('aotCacheLoader', () => {
     beforeEach(() => {
         resetJitFnCaches();
         resetRoutesCache();
+        resetPersistedMethods();
         reRegisterRunTypesPureFns();
     });
 
@@ -109,6 +111,16 @@ describe('aotCacheLoader', () => {
         expect(metadata).toBeDefined();
         expect(metadata?.paramNames).toEqual(['name']);
         expect(metadata?.paramsJitHash).toBe(MOCK_JIT_HASH);
+    });
+
+    it('should load router cache into persisted methods cache', async () => {
+        const {loadAOTCaches} = await import('./aotCacheLoader.ts');
+        loadAOTCaches();
+
+        const persisted = getPersistedMethods();
+        expect(persisted['testRoute']).toBeDefined();
+        expect(persisted['testRoute'].id).toBe('testRoute');
+        expect(persisted['testRoute'].paramsJitHash).toBe(MOCK_JIT_HASH);
     });
 
     it('should populate both jit and routes caches so getMethodJitFns works end-to-end', async () => {
