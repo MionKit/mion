@@ -2,6 +2,7 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
+import {cjsPackageJsonPlugin} from '@mionkit/devtools/vite-plugin';
 
 // Get all TypeScript files from a directory (excluding spec/test files)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
@@ -35,6 +36,7 @@ export default defineConfig({
         legalComments: 'none',
     },
     plugins: [
+        cjsPackageJsonPlugin('.dist/cjs'),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
             include: ['index.ts', 'src/**/*.ts'],
@@ -64,7 +66,7 @@ export default defineConfig({
                 {
                     format: 'cjs',
                     dir: '.dist/cjs',
-                    entryFileNames: '[name].js',
+                    entryFileNames: '[name].cjs',
                     preserveModules: true,
                     preserveModulesRoot: '.',
                 },

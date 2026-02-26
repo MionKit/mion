@@ -49,7 +49,7 @@
 - Run `npm run clean` before starting work
 - Use `npm run test` to run tests
 - before committing, run `npm run lint` and `npm run format`, to ensure code style and formatting are correct (fix any errors before committing)
-- commit often after small changes
+- always try to use npm commands from packages instead `npx whatever command` if there is an npm command Available.
 
 ## ⚠️ Devtools Rebuild Requirement
 The `@mionkit/devtools` package exports point to built output (`./build/`), not source. Other packages (client, test-server, router, etc.) import the **built** vite plugin and eslint rules via `@mionkit/devtools/vite-plugin` and `@mionkit/devtools/eslint`.
