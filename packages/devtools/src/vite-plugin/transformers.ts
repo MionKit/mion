@@ -23,6 +23,58 @@ export interface DeepkitConfig {
     afterTransformers: ts.CustomTransformerFactory[];
 }
 
+/**
+ * Post-deepkit transformer that converts require() calls back to import declarations.
+ * Deepkit's getModuleType() reads tsconfig's module:NodeNext and falls back to 'cjs'
+ * because ts.transpileModule doesn't set sourceFile.impliedNodeFormat. This causes
+ * deepkit to emit `var {__ΩFoo} = require("./bar.ts")` instead of ESM imports.
+ * This transformer converts those back to `import {__ΩFoo} from "./bar.ts"` so Rollup
+ * can properly resolve and rewrite the module specifiers.
+ */
+const requireToImport: ts.CustomTransformerFactory = (context: ts.TransformationContext): ts.CustomTransformer => ({
+    transformSourceFile(sf: ts.SourceFile): ts.SourceFile {
+        const newStatements: ts.Statement[] = [];
+        let changed = false;
+        for (const stmt of sf.statements) {
+            const converted = tryConvertRequireToImport(context.factory, stmt);
+            if (converted) {
+                newStatements.push(converted);
+                changed = true;
+            } else {
+                newStatements.push(stmt);
+            }
+        }
+        return changed ? context.factory.updateSourceFile(sf, newStatements) : sf;
+    },
+    transformBundle(b: ts.Bundle): ts.Bundle {
+        return b;
+    },
+});
+
+/** Converts `var {a, b} = require("./path")` → `import {a, b} from "./path"` */
+function tryConvertRequireToImport(f: ts.NodeFactory, stmt: ts.Statement): ts.ImportDeclaration | undefined {
+    if (!ts.isVariableStatement(stmt)) return undefined;
+    const decls = stmt.declarationList.declarations;
+    if (decls.length !== 1) return undefined;
+    const decl = decls[0];
+    if (!ts.isObjectBindingPattern(decl.name) || !decl.initializer) return undefined;
+    if (!ts.isCallExpression(decl.initializer)) return undefined;
+    const callee = decl.initializer.expression;
+    if (!ts.isIdentifier(callee) || callee.text !== 'require') return undefined;
+    if (decl.initializer.arguments.length !== 1) return undefined;
+    const specArg = decl.initializer.arguments[0];
+    if (!ts.isStringLiteral(specArg)) return undefined;
+
+    const specifiers = decl.name.elements.map((el) =>
+        f.createImportSpecifier(false, undefined, f.createIdentifier((el.name as ts.Identifier).text))
+    );
+    return f.createImportDeclaration(
+        undefined,
+        f.createImportClause(false, undefined, f.createNamedImports(specifiers)),
+        f.createStringLiteral(specArg.text)
+    );
+}
+
 /** Creates deepkit config components that can be integrated into a unified ts.transpileModule call */
 export function createDeepkitConfig(options: DeepkitTypeOptions = {}): DeepkitConfig {
     const filter = createFilter(options.include ?? ['**/*.tsx', '**/*.ts'], options.exclude ?? 'node_modules/**');
@@ -35,7 +87,7 @@ export function createDeepkitConfig(options: DeepkitTypeOptions = {}): DeepkitCo
             ...(options.compilerOptions || {}),
         },
         beforeTransformers: [transformer],
-        afterTransformers: [declarationTransformer],
+        afterTransformers: [declarationTransformer, requireToImport],
     };
 }
 

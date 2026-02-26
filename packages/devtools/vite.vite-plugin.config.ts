@@ -2,6 +2,7 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
+import {cjsPackageJsonPlugin} from './src/vite-plugin/cjsPackageJsonPlugin';
 
 // Get all TypeScript files from a directory (excluding spec/test files)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
@@ -35,6 +36,7 @@ export default defineConfig({
         legalComments: 'none',
     },
     plugins: [
+        cjsPackageJsonPlugin('build/vite-plugin/cjs'),
         dts({
             outDir: ['build/vite-plugin/cjs', 'build/vite-plugin/esm'],
             include: ['src/vite-plugin/**/*.ts', 'src/pureFns/**/*.ts'],
@@ -64,7 +66,7 @@ export default defineConfig({
                 {
                     format: 'cjs',
                     dir: 'build/vite-plugin/cjs',
-                    entryFileNames: '[name].js',
+                    entryFileNames: '[name].cjs',
                     preserveModules: true,
                     preserveModulesRoot: '.',
                 },
