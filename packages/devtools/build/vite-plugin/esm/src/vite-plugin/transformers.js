@@ -45,7 +45,7 @@ function tryConvertRequireToImport(f, stmt) {
   if (ts.isIdentifier(decl.name)) {
     return f.createImportDeclaration(
       void 0,
-      f.createImportClause(false, void 0, f.createNamespaceImport(f.createIdentifier(decl.name.text))),
+      f.createImportClause(false, f.createIdentifier(decl.name.text), void 0),
       f.createStringLiteral(specArg.text)
     );
   }

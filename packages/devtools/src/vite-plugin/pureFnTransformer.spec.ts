@@ -349,10 +349,10 @@ describe('requireToImport afterTransformer', () => {
         expect(output).not.toContain('require');
     });
 
-    it('should convert plain identifier require to namespace import', () => {
+    it('should convert plain identifier require to default import', () => {
         const source = `var myModule = require("./myModule.js");`;
         const output = transformWithAfter(source);
-        expect(output).toContain('import * as myModule from "./myModule.js"');
+        expect(output).toContain('import myModule from "./myModule.js"');
         expect(output).not.toContain('require');
     });
 
@@ -372,7 +372,7 @@ export function hello() { return x; }
 `;
         const output = transformWithAfter(source);
         expect(output).toContain('import { __ΩFoo } from "./types.js"');
-        expect(output).toContain('import * as bar from "./bar.js"');
+        expect(output).toContain('import bar from "./bar.js"');
         expect(output).toContain('const x = 1');
         expect(output).not.toContain('require');
     });
