@@ -51,28 +51,45 @@ const requireToImport: ts.CustomTransformerFactory = (context: ts.Transformation
     },
 });
 
-/** Converts `var {a, b} = require("./path")` → `import {a, b} from "./path"` */
+/**
+ * Converts CJS require patterns to ESM import declarations:
+ * - `var {a, b} = require("./path")` → `import {a, b} from "./path"`
+ * - `var mod = require("./path")` → `import * as mod from "./path"`
+ */
 function tryConvertRequireToImport(f: ts.NodeFactory, stmt: ts.Statement): ts.ImportDeclaration | undefined {
     if (!ts.isVariableStatement(stmt)) return undefined;
     const decls = stmt.declarationList.declarations;
     if (decls.length !== 1) return undefined;
     const decl = decls[0];
-    if (!ts.isObjectBindingPattern(decl.name) || !decl.initializer) return undefined;
-    if (!ts.isCallExpression(decl.initializer)) return undefined;
+    if (!decl.initializer || !ts.isCallExpression(decl.initializer)) return undefined;
     const callee = decl.initializer.expression;
     if (!ts.isIdentifier(callee) || callee.text !== 'require') return undefined;
     if (decl.initializer.arguments.length !== 1) return undefined;
     const specArg = decl.initializer.arguments[0];
     if (!ts.isStringLiteral(specArg)) return undefined;
 
-    const specifiers = decl.name.elements.map((el) =>
-        f.createImportSpecifier(false, undefined, f.createIdentifier((el.name as ts.Identifier).text))
-    );
-    return f.createImportDeclaration(
-        undefined,
-        f.createImportClause(false, undefined, f.createNamedImports(specifiers)),
-        f.createStringLiteral(specArg.text)
-    );
+    // var {a, b} = require("./path") → import {a, b} from "./path"
+    if (ts.isObjectBindingPattern(decl.name)) {
+        const specifiers = decl.name.elements.map((el) =>
+            f.createImportSpecifier(false, undefined, f.createIdentifier((el.name as ts.Identifier).text))
+        );
+        return f.createImportDeclaration(
+            undefined,
+            f.createImportClause(false, undefined, f.createNamedImports(specifiers)),
+            f.createStringLiteral(specArg.text)
+        );
+    }
+
+    // var mod = require("./path") → import * as mod from "./path"
+    if (ts.isIdentifier(decl.name)) {
+        return f.createImportDeclaration(
+            undefined,
+            f.createImportClause(false, undefined, f.createNamespaceImport(f.createIdentifier(decl.name.text))),
+            f.createStringLiteral(specArg.text)
+        );
+    }
+
+    return undefined;
 }
 
 /** Creates deepkit config components that can be integrated into a unified ts.transpileModule call */

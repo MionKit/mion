@@ -1,6 +1,6 @@
 import {describe, it, expect} from 'vitest';
 import * as ts from 'typescript';
-import {createPureFnTransformerFactory} from './transformers.ts';
+import {createPureFnTransformerFactory, createDeepkitConfig} from './transformers.ts';
 import {ExtractedPureFn} from './types.ts';
 import {BODY_HASH_LENGTH} from './constants.ts';
 
@@ -325,5 +325,61 @@ export const ref = mapFrom(sub, (x) => x * 2);
         expect(collected).toHaveLength(2);
         expect(output).toContain(`"${collected[0].bodyHash}"`);
         expect(output).toContain(`"${collected[1].bodyHash}"`);
+    });
+});
+
+// ── requireToImport afterTransformer ────────────────────────────────
+
+/** Helper: runs only the afterTransformers from createDeepkitConfig (includes requireToImport) */
+function transformWithAfter(source: string, filePath = 'test.ts'): string {
+    const config = createDeepkitConfig();
+    const result = ts.transpileModule(source, {
+        compilerOptions: {target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext},
+        fileName: filePath,
+        transformers: {after: config.afterTransformers},
+    });
+    return result.outputText;
+}
+
+describe('requireToImport afterTransformer', () => {
+    it('should convert destructured require to named import', () => {
+        const source = `var {__ΩFoo, __ΩBar} = require("./types.js");`;
+        const output = transformWithAfter(source);
+        expect(output).toContain('import { __ΩFoo, __ΩBar } from "./types.js"');
+        expect(output).not.toContain('require');
+    });
+
+    it('should convert plain identifier require to namespace import', () => {
+        const source = `var myModule = require("./myModule.js");`;
+        const output = transformWithAfter(source);
+        expect(output).toContain('import * as myModule from "./myModule.js"');
+        expect(output).not.toContain('require');
+    });
+
+    it('should leave non-require statements untouched', () => {
+        const source = `const x = 1;\nexport function hello() { return 'world'; }`;
+        const output = transformWithAfter(source);
+        expect(output).toContain('const x = 1');
+        expect(output).toContain('function hello()');
+    });
+
+    it('should handle mixed require and non-require statements', () => {
+        const source = `
+var {__ΩFoo} = require("./types.js");
+const x = 1;
+var bar = require("./bar.js");
+export function hello() { return x; }
+`;
+        const output = transformWithAfter(source);
+        expect(output).toContain('import { __ΩFoo } from "./types.js"');
+        expect(output).toContain('import * as bar from "./bar.js"');
+        expect(output).toContain('const x = 1');
+        expect(output).not.toContain('require');
+    });
+
+    it('should preserve module specifier path as-is', () => {
+        const source = `var {__ΩType} = require("../types/foo.types.ts");`;
+        const output = transformWithAfter(source);
+        expect(output).toContain('from "../types/foo.types.ts"');
     });
 });

@@ -45,21 +45,30 @@ function tryConvertRequireToImport(f, stmt) {
   const decls = stmt.declarationList.declarations;
   if (decls.length !== 1) return void 0;
   const decl = decls[0];
-  if (!ts__namespace.isObjectBindingPattern(decl.name) || !decl.initializer) return void 0;
-  if (!ts__namespace.isCallExpression(decl.initializer)) return void 0;
+  if (!decl.initializer || !ts__namespace.isCallExpression(decl.initializer)) return void 0;
   const callee = decl.initializer.expression;
   if (!ts__namespace.isIdentifier(callee) || callee.text !== "require") return void 0;
   if (decl.initializer.arguments.length !== 1) return void 0;
   const specArg = decl.initializer.arguments[0];
   if (!ts__namespace.isStringLiteral(specArg)) return void 0;
-  const specifiers = decl.name.elements.map(
-    (el) => f.createImportSpecifier(false, void 0, f.createIdentifier(el.name.text))
-  );
-  return f.createImportDeclaration(
-    void 0,
-    f.createImportClause(false, void 0, f.createNamedImports(specifiers)),
-    f.createStringLiteral(specArg.text)
-  );
+  if (ts__namespace.isObjectBindingPattern(decl.name)) {
+    const specifiers = decl.name.elements.map(
+      (el) => f.createImportSpecifier(false, void 0, f.createIdentifier(el.name.text))
+    );
+    return f.createImportDeclaration(
+      void 0,
+      f.createImportClause(false, void 0, f.createNamedImports(specifiers)),
+      f.createStringLiteral(specArg.text)
+    );
+  }
+  if (ts__namespace.isIdentifier(decl.name)) {
+    return f.createImportDeclaration(
+      void 0,
+      f.createImportClause(false, void 0, f.createNamespaceImport(f.createIdentifier(decl.name.text))),
+      f.createStringLiteral(specArg.text)
+    );
+  }
+  return void 0;
 }
 function createDeepkitConfig(options = {}) {
   const filter = pluginutils.createFilter(options.include ?? ["**/*.tsx", "**/*.ts"], options.exclude ?? "node_modules/**");
