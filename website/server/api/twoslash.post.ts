@@ -1,5 +1,7 @@
 import { createHighlighter } from 'shiki'
-import { transformerTwoslash, rendererRich, defaultHoverInfoProcessor } from '@shikijs/twoslash'
+import { createTransformerFactory, rendererRich, defaultHoverInfoProcessor } from '@shikijs/twoslash'
+import { createTwoslasher } from 'twoslash'
+import ts from 'typescript'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
 import { join, dirname, relative, resolve } from 'path'
 
@@ -54,9 +56,7 @@ const NATIVE_PATTERNS = [
   /^module "zlib"/,
 ]
 
-/**
- * Custom hover info processor that filters out native types
- */
+/** Custom hover info processor that filters out native types */
 function filterNativeHoverInfo(info: string): string {
   // First apply the default processing
   const processed = defaultHoverInfoProcessor(info)
@@ -92,6 +92,9 @@ let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
 // Cache for fsMap (loaded once at startup)
 let fsMapCache: Map<string, string> | null = null
 
+// Cache for the twoslasher instance (created once with fsMap)
+let twoslasherCache: ReturnType<typeof createTwoslasher> | null = null
+
 // Cache for rendered twoslash results (avoids re-rendering on hot reload)
 const resultCache = new Map<string, { html: string }>()
 
@@ -109,9 +112,7 @@ async function getHighlighter() {
   return highlighterPromise
 }
 
-/**
- * Recursively find files matching a pattern in a directory
- */
+/** Recursively find files matching a pattern in a directory */
 function findFiles(dir: string, pattern: RegExp, files: string[] = []): string[] {
   if (!existsSync(dir)) return files
   const entries = readdirSync(dir)
@@ -127,9 +128,7 @@ function findFiles(dir: string, pattern: RegExp, files: string[] = []): string[]
   return files
 }
 
-/**
- * Load all .d.ts files from mion packages into a virtual file system Map
- */
+/** Load all .d.ts files from mion packages + TypeScript lib files into a virtual file system Map */
 function loadMionPackageTypes(): Map<string, string> {
   if (fsMapCache) return fsMapCache
 
@@ -139,6 +138,16 @@ function loadMionPackageTypes(): Map<string, string> {
   const websiteDir = dirname(new URL(import.meta.url).pathname)
   const repoRoot = join(websiteDir, '..', '..', '..')
   const packagesDir = join(repoRoot, 'packages')
+
+  // Load TypeScript lib files (needed for built-in types like Date, Set, Map, Promise, etc.)
+  // When using an in-memory VFS (createSystem), TS has no filesystem fallback for lib files
+  const libDir = dirname(ts.getDefaultLibFilePath({ target: 99 /* ESNext */ }))
+  const libFiles = readdirSync(libDir).filter((f: string) => f.startsWith('lib.') && f.endsWith('.d.ts'))
+  for (const lib of libFiles) {
+    try {
+      fsMap.set(`/${lib}`, readFileSync(join(libDir, lib), 'utf-8'))
+    } catch { /* skip unreadable lib files */ }
+  }
 
   // Packages to load with their dist paths
   const packageConfigs = [
@@ -191,14 +200,32 @@ function loadMionPackageTypes(): Map<string, string> {
   }
 
   fsMapCache = fsMap
-  console.log(`Loaded ${fsMap.size} files for twoslash (d.ts + examples)`)
+  console.log(`Loaded ${fsMap.size} files for twoslash (${libFiles.length} lib + d.ts + examples)`)
   return fsMap
 }
 
 /**
- * Read code from a file path (only packages/examples allowed)
- * Prepends a comment with the file path and removes trailing newlines
+ * Get or create the twoslasher instance.
+ * IMPORTANT: fsMap must be passed to createTwoslasher (creation-time option), NOT to
+ * twoslashOptions (per-call option). The twoslash library only reads fsMap at creation
+ * time to set up the virtual TypeScript environment. Passing it in twoslashOptions is
+ * silently ignored, causing TypeScript to fall back to the real filesystem where
+ * cross-package relative imports in d.ts files don't resolve correctly.
  */
+function getTwoslasher() {
+  if (!twoslasherCache) {
+    const fsMap = loadMionPackageTypes()
+    twoslasherCache = createTwoslasher({
+      fsMap,
+      compilerOptions: {
+        moduleResolution: 100, // Bundler
+      },
+    })
+  }
+  return twoslasherCache
+}
+
+/** Read code from a file path (only packages/examples allowed) */
 function readCodeFromPath(path: string): string {
   // Security: Only allow reading from packages/examples
   if (!path.startsWith('packages/examples/')) {
@@ -281,9 +308,11 @@ export default defineEventHandler(async (event) => {
         const prefix = `/${fileDir}/`
         for (const [path, content] of fsMap.entries()) {
           if (path.startsWith(prefix) && !path.endsWith(relativePath)) {
-            // Convert /introduction/about-server.ts to ./about-server.ts style import
+            // Use plain filename (NOT prefixed with ./) because twoslash prepends fsRoot "/"
+            // to create the virtual path. "./file.ts" would become "/./file.ts" which doesn't
+            // match TypeScript's resolution of "/file.ts" from the main "/index.ts" file.
             const fileName = path.substring(prefix.length)
-            extraFiles[`./${fileName}`] = content
+            extraFiles[fileName] = content
           }
         }
       }
@@ -294,6 +323,10 @@ export default defineEventHandler(async (event) => {
       ? explicitModeHoverInfo
       : filterNativeHoverInfo
 
+    // Use createTransformerFactory with a custom twoslasher that has fsMap baked in.
+    // This ensures the in-memory VFS is used instead of the real filesystem.
+    const twoslasher = getTwoslasher()
+
     let html = highlighter.codeToHtml(code, {
       lang,
       themes: {
@@ -301,13 +334,11 @@ export default defineEventHandler(async (event) => {
         light: 'github-light',
       },
       transformers: [
-        transformerTwoslash({
+        createTransformerFactory(twoslasher, rendererRich({
+          processHoverInfo: hoverInfoProcessor,
+        }))({
           explicitTrigger: false,
-          renderer: rendererRich({
-            processHoverInfo: hoverInfoProcessor,
-          }),
           twoslashOptions: {
-            fsMap,
             extraFiles,
             // Enable custom annotation tags like @log, @error, @warn, @annotate
             customTags: ['log', 'error', 'warn', 'annotate'],
@@ -344,4 +375,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
