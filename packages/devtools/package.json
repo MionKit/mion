@@ -59,7 +59,6 @@
     "clean:aot-caches": "find .. -name mion-aot-cache.json -path '*/node_modules/.vite/*' -delete 2>/dev/null; true",
     "build:eslint": "vite build --config vite.eslint.config.ts",
     "build:vite-plugin": "vite build --config vite.vite-plugin.config.ts",
-    "build-ts-dts": "echo 'noop: devtools uses custom build'",
     "clean": "rimraf .dist && rimraf .coverage && npm run clean:aot-caches",
     "fresh-start": "npm run clean && rimraf node_modules"
   },

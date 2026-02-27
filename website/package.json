@@ -6,7 +6,7 @@
     "dev": "nuxt dev --extends docus",
     "dev:fresh": "npm run clean && npm run dev",
     "build": "npm run build:types && nuxt build --extends docus",
-    "build:types": "cd .. && npm run build-ts-dts",
+    "build:types": "cd .. && npm run build",
     "check-links": "npx tsx scripts/check-links.ts",
     "check-unused-examples": "npx tsx scripts/check-unused-examples.ts",
     "test": "npx playwright test",

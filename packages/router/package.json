@@ -46,7 +46,6 @@
     "lint": "npx eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
-    "build-ts-dts": "tsc --project tsconfig.json --emitDeclarationOnly --declaration --skipLibCheck --outDir .dist/esm",
     "clean": "rimraf .dist & rimraf .coverage",
     "fresh-start": "npm run clean && rimraf node_modules"
   },
