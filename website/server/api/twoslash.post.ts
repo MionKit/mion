@@ -163,7 +163,11 @@ function loadMionPackageTypes(): Map<string, string> {
       const virtualPath = `/node_modules/@mionkit/${pkg.name}/${relativePath}`
 
       try {
-        const content = readFileSync(dtsFile, 'utf-8')
+        let content = readFileSync(dtsFile, 'utf-8')
+        // Strip .ts extensions from imports so TypeScript resolves to .d.ts files.
+        // Mion's .d.ts files use .ts extensions (e.g. `from './types.ts'`)
+        // but the VFS only has .d.ts files. Extensionless imports let TS find them.
+        content = content.replace(/(from\s+['"])([^'"]+)\.ts(['"])/g, '$1$2$3')
         fsMap.set(virtualPath, content)
       } catch (e) {
         console.warn(`Failed to read ${dtsFile}:`, e)
@@ -312,12 +316,12 @@ export default defineEventHandler(async (event) => {
             // Enable custom annotation tags like @log, @error, @warn, @annotate
             customTags: ['log', 'error', 'warn', 'annotate'],
             compilerOptions: {
-              // Use ESNext with bundler resolution for best compatibility
-              // ModuleResolutionKind: Bundler=100, NodeNext=99
-              // ModuleKind: ESNext=99, Preserve=200
+              // Use Node module resolution so TypeScript properly resolves .d.ts
+              // files in the VFS and evaluates complex mapped types from packages.
+              // Bundler resolution doesn't resolve .d.ts re-exports in the VFS.
               target: 99, // ESNext
               module: 99, // ESNext
-              moduleResolution: 100, // Bundler (not 99 which is NodeNext!)
+              moduleResolution: 2, // Node (classic node resolution)
               strict: false, // Allow implicit any for examples
               esModuleInterop: true,
               skipLibCheck: true,
