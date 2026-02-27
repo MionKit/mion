@@ -45,7 +45,7 @@ Then reload VS Code.
 In any markdown file, paths in `code-import` tags become clickable:
 
 ```markdown
-<code-import path="packages/examples/src/router/useFns.ts" lang="ts" />
+<code-import path="packages/examples/src/router/linkedFns.ts" lang="ts" />
 ```
 
 Ctrl+Click (Cmd+Click on macOS) on the path to open the file.

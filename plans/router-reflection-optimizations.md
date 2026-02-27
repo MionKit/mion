@@ -215,13 +215,13 @@ function createUseRawFnReflection(isAsync: boolean, hasReturnData: boolean = fal
 **Problem:**
 
 - Creates a new object every time
-- For raw useFns with the same parameters, this creates duplicate objects
+- For raw linkedFns with the same parameters, this creates duplicate objects
 
 **Recommendation:**
 Cache common cases:
 
 ```typescript
-// Cache for common raw useFn reflections
+// Cache for common raw linkedFn reflections
 const useRawFnReflectionCache = new Map<string, MethodReflect>();
 
 function createUseRawFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
