@@ -73,7 +73,7 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
         let params = subRequest.params;
         const method = routesCache.useMethodJitFns(id);
 
-        if (method.type === HandlerType.headersLinkedFn && method.headersParam) {
+        if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
             params = getParamsWithoutHeadersSubset(params);
         }
 
@@ -158,7 +158,7 @@ function stringifyBody(req: MionClientRequest<any, any>): string {
         let params = subRequest.params;
         const method = routesCache.useMethodJitFns(id);
 
-        if (method.type === HandlerType.headersLinkedFn && method.headersParam) {
+        if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
             params = getParamsWithoutHeadersSubset(params);
         }
 
@@ -204,7 +204,7 @@ function parseHandlerReturnValue(method: MethodWithJitFns, returnValue: any): an
     } catch (e: any) {
         return new RpcError({
             type: 'deserialization-error',
-            publicMessage: `Invalid response from Route or LinkedFn '${method.id}', can not deserialize return value: ${e.message}`,
+            publicMessage: `Invalid response from Route or MiddleFn '${method.id}', can not deserialize return value: ${e.message}`,
             errorData: e?.errors,
         });
     }

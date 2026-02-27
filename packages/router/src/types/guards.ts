@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions.ts';
+import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
 import {Route, RouterEntry, Routes} from './general.ts';
 import {RawMethod} from './remoteMethods.ts';
 import {HeadersMethod} from './remoteMethods.ts';
@@ -19,20 +19,20 @@ export function isRouteDef(entry: RouterEntry): entry is RouteDef {
     return entry.type === HandlerType.route;
 }
 
-export function isLinkedFnDef(entry: RouterEntry): entry is LinkedFnDef {
-    return entry.type === HandlerType.linkedFn;
+export function isMiddleFnDef(entry: RouterEntry): entry is MiddleFnDef {
+    return entry.type === HandlerType.middleFn;
 }
 
-export function isRawLinkedFnDef(entry: RouterEntry): entry is RawLinkedFnDef {
-    return entry.type === HandlerType.rawLinkedFn;
+export function isRawMiddleFnDef(entry: RouterEntry): entry is RawMiddleFnDef {
+    return entry.type === HandlerType.rawMiddleFn;
 }
 
-export function isHeadersLinkedFnDef(entry: RouterEntry): entry is HeadersLinkedFnDef {
-    return entry.type === HandlerType.headersLinkedFn;
+export function isHeadersMiddleFnDef(entry: RouterEntry): entry is HeadersMiddleFnDef {
+    return entry.type === HandlerType.headersMiddleFn;
 }
 
-export function isAnyLinkedFnDef(entry: RouterEntry): entry is HeadersLinkedFnDef | LinkedFnDef | RawLinkedFnDef {
-    return isLinkedFnDef(entry) || isRawLinkedFnDef(entry) || isHeadersLinkedFnDef(entry);
+export function isAnyMiddleFnDef(entry: RouterEntry): entry is HeadersMiddleFnDef | MiddleFnDef | RawMiddleFnDef {
+    return isMiddleFnDef(entry) || isRawMiddleFnDef(entry) || isHeadersMiddleFnDef(entry);
 }
 
 export function isRoute(entry: RouterEntry): entry is Route {
@@ -50,7 +50,7 @@ export function isExecutable(entry: RemoteMethod | {pathPointer: string[]}): ent
     );
 }
 export function isRawExecutable(entry: RemoteMethod): entry is RawMethod {
-    return entry.type === HandlerType.rawLinkedFn;
+    return entry.type === HandlerType.rawMiddleFn;
 }
 
 export function isPublicExecutable(entry: RemoteMethod): entry is RemoteMethod {
@@ -63,7 +63,7 @@ export function isPublicExecutable(entry: RemoteMethod): entry is RemoteMethod {
 }
 
 export function isHeaderExecutable(entry: RemoteMethod): entry is HeadersMethod {
-    return entry.type === HandlerType.headersLinkedFn;
+    return entry.type === HandlerType.headersMiddleFn;
 }
 
 export function isRouteExecutable(entry: RemoteMethod): entry is RouteMethod {

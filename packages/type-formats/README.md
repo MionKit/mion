@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>mion standard linkedFns and routes.
+  <strong>mion standard middleFns and routes.
   </strong>
 </p>
 <p align=center>

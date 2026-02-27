@@ -9,12 +9,12 @@ import {describe, it, expect} from 'vitest';
 import {Routes} from '../types/general.ts';
 import {registerRoutes, initRouter} from '../router.ts';
 import {dispatchRoute} from '../dispatch.ts';
-import {route, headersFn, linkedFn, rawLinkedFn} from './handlers.ts';
+import {route, headersFn, middleFn, rawMiddleFn} from './handlers.ts';
 import {MionHeaders} from '../types/context.ts';
 import {headersFromRecord} from './headers.ts';
 import {HandlerType, HeadersSubset} from '@mionkit/core';
 
-describe('route & linkedFns init functions', () => {
+describe('route & middleFns init functions', () => {
     type RawRequest = {
         headers: MionHeaders;
         body: string;
@@ -24,28 +24,28 @@ describe('route & linkedFns init functions', () => {
         auth: headersFn(
             (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1234'})
         ),
-        timestamp: linkedFn((ctx, time: number): string => `time: ${time}`),
-        nothing: rawLinkedFn((ctx, req: unknown, resp: unknown): void => undefined),
+        timestamp: middleFn((ctx, time: number): string => `time: ${time}`),
+        nothing: rawMiddleFn((ctx, req: unknown, resp: unknown): void => undefined),
         print: route((ctx, name: string): string => `name: ${name}`),
     } satisfies Routes;
 
-    it('should initialize a Headers LinkedFn object', () => {
+    it('should initialize a Headers MiddleFn object', () => {
         expect(routes.auth).toEqual({
-            type: HandlerType.headersLinkedFn,
+            type: HandlerType.headersMiddleFn,
             handler: expect.any(Function),
         });
     });
 
-    it('should initialize a linkedFn object', () => {
+    it('should initialize a middleFn object', () => {
         expect(routes.timestamp).toEqual({
-            type: HandlerType.linkedFn,
+            type: HandlerType.middleFn,
             handler: expect.any(Function),
         });
     });
 
-    it('should initialize a rawLinkedFn object', () => {
+    it('should initialize a rawMiddleFn object', () => {
         expect(routes.nothing).toEqual({
-            type: HandlerType.rawLinkedFn,
+            type: HandlerType.rawMiddleFn,
             handler: expect.any(Function),
         });
     });

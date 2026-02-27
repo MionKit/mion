@@ -2,7 +2,7 @@ import {initClient} from '@mionkit/client';
 import {HeadersSubset} from '@mionkit/core';
 import type {MyApi} from './server.routes.ts';
 
-const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 async function callWithWorkflowExample() {
     const authHeaders = new HeadersSubset({Authorization: 'my-token'});
@@ -11,7 +11,7 @@ async function callWithWorkflowExample() {
     const [[sum, user, order], [sumError, userError, orderError]] = await routes.utils
         .sum(5, 2)
         .callWithWorkflow([routes.users.getById('USER-123'), routes.orders.getById('ORDER-1')], {
-            auth: linkedFns.auth(authHeaders),
+            auth: middleFns.auth(authHeaders),
         });
 
     // Handle results - same array pattern as routesFlow()

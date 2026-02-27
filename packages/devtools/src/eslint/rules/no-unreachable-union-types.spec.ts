@@ -74,11 +74,11 @@ ruleTester.run('no-unreachable-union-types', rule, {
                 route((ctx, data: {a: string; b: number} | {a: string}) => ({result: 'ok'}));
             `,
         },
-        // Parameters with proper union order (linkedFn)
+        // Parameters with proper union order (middleFn)
         {
             code: `
-                import { linkedFn } from '@mionkit/router';
-                linkedFn((ctx, data: {a: string; b: number} | {a: string}) => ({result: 'ok'}));
+                import { middleFn } from '@mionkit/router';
+                middleFn((ctx, data: {a: string; b: number} | {a: string}) => ({result: 'ok'}));
             `,
         },
         // Parameters with proper union order (headersFn)
@@ -112,11 +112,11 @@ ruleTester.run('no-unreachable-union-types', rule, {
             `,
             errors: [{messageId: 'unreachableUnionType'}],
         },
-        // Subset type before superset type in linkedFn return
+        // Subset type before superset type in middleFn return
         {
             code: `
-                import { linkedFn } from '@mionkit/router';
-                linkedFn((ctx): {name: string} | {name: string; age: number} => ({name: 'John'}));
+                import { middleFn } from '@mionkit/router';
+                middleFn((ctx): {name: string} | {name: string; age: number} => ({name: 'John'}));
             `,
             errors: [{messageId: 'unreachableUnionType'}],
         },
@@ -164,11 +164,11 @@ ruleTester.run('no-unreachable-union-types', rule, {
             `,
             errors: [{messageId: 'unreachableUnionType'}],
         },
-        // Parameter with unreachable union type (linkedFn)
+        // Parameter with unreachable union type (middleFn)
         {
             code: `
-                import { linkedFn } from '@mionkit/router';
-                linkedFn((ctx, data: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
+                import { middleFn } from '@mionkit/router';
+                middleFn((ctx, data: {a: string} | {a: string; b: number}) => ({result: 'ok'}));
             `,
             errors: [{messageId: 'unreachableUnionType'}],
         },

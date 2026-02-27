@@ -6,7 +6,7 @@
  * ######## */
 
 import type {ResponseBody} from '@mionkit/router';
-import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledLinkedFnsCache} from './types.ts';
+import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledMiddleFnsCache} from './types.ts';
 import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionkit/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionkit/core';
 import {getRoutePath} from '@mionkit/core';
@@ -15,7 +15,7 @@ import {validateSubRequests} from './validation.ts';
 import {serializeRequestBody, deserializeResponseBody} from './serializer.ts';
 import {ROUTES_FLOW_PATH} from './constants.ts';
 
-export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList extends HSubRequest<any>[]> {
+export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList extends HSubRequest<any>[]> {
     readonly path: string;
     readonly requestId: string;
     readonly subRequestList: {[key: string]: SubRequest<any>} = {};
@@ -23,9 +23,9 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
 
     constructor(
         public readonly options: ClientOptions,
-        private readonly prefilledLinkedFnsCache: PrefilledLinkedFnsCache,
+        private readonly prefilledMiddleFnsCache: PrefilledMiddleFnsCache,
         public readonly route?: RR,
-        public readonly linkedFns?: LinkedFnRequestsList,
+        public readonly middleFns?: MiddleFnRequestsList,
         /** Array of routesFlow subrequests when executing a routesFlow */
         public readonly workflowSubRequests?: RSubRequest<any>[]
     ) {
@@ -40,7 +40,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
             this.requestId = route ? route.id : 'no-route';
             if (route) this.addSubRequest(route);
         }
-        if (linkedFns) linkedFns.forEach((linkedFn) => this.addSubRequest(linkedFn));
+        if (middleFns) middleFns.forEach((middleFn) => this.addSubRequest(middleFn));
     }
 
     /** Calls a remote route */
@@ -51,7 +51,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
             const subRequestIds = Object.keys(this.subRequestList);
             await fetchRemoteMethodsMetadata(subRequestIds, this.options);
 
-            this.restorePrefilledLinkedFns(errors);
+            this.restorePrefilledMiddleFns(errors);
             if (errors.size) return Promise.reject(errors);
 
             validateSubRequests(subRequestIds, this, errors);
@@ -149,7 +149,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
 
             serializeRequestBody(this);
 
-            this.storePrefilledLinkedFns(errors);
+            this.storePrefilledMiddleFns(errors);
             if (errors.size) return Promise.reject(errors);
 
             return;
@@ -162,7 +162,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
     /** Removes Prefills and stores SubRequest */
     async removePrefill(subRequests?: SubRequest<any>[]): Promise<void> {
         if (subRequests) subRequests.forEach((subRequest) => this.addSubRequest(subRequest));
-        this.removePrefilledLinkedFns();
+        this.removePrefilledMiddleFns();
     }
 
     addSubRequest(subRequest: SubRequest<any>) {
@@ -192,9 +192,9 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
         return respBody[id];
     }
 
-    private restorePrefilledLinkedFns(errors: RequestErrors): void {
+    private restorePrefilledMiddleFns(errors: RequestErrors): void {
         if (this.workflowSubRequests && this.workflowSubRequests.length > 0) {
-            this.restorePrefilledLinkedFnsForWorkflow(errors);
+            this.restorePrefilledMiddleFnsForWorkflow(errors);
             return;
         }
 
@@ -209,12 +209,12 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
             );
             return;
         }
-        const missingIds = methodMeta.linkedFnIds?.filter((id) => !!id && this.requestId !== id) || [];
+        const missingIds = methodMeta.middleFnIds?.filter((id) => !!id && this.requestId !== id) || [];
         missingIds.forEach((id) => {
             const subRequest = this.subRequestList[id];
             if (subRequest) return;
-            const cacheKey = this.getPrefilledLinkedFnCacheKey(id);
-            const cachedSubRequest = this.prefilledLinkedFnsCache.get(cacheKey);
+            const cacheKey = this.getPrefilledMiddleFnCacheKey(id);
+            const cachedSubRequest = this.prefilledMiddleFnsCache.get(cacheKey);
             if (cachedSubRequest) {
                 const clonedSubRequest: SubRequest<any> = {
                     ...cachedSubRequest,
@@ -227,8 +227,8 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
         });
     }
 
-    /** Restore prefilled linkedFns for all routes in a routesFlow, deduplicating by ID */
-    private restorePrefilledLinkedFnsForWorkflow(errors: RequestErrors): void {
+    /** Restore prefilled middleFns for all routes in a routesFlow, deduplicating by ID */
+    private restorePrefilledMiddleFnsForWorkflow(errors: RequestErrors): void {
         const workflowRouteIds = new Set(this.workflowSubRequests!.map((sr) => sr.id));
 
         for (const routeSubRequest of this.workflowSubRequests!) {
@@ -243,12 +243,12 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
                 );
                 continue;
             }
-            const missingIds = methodMeta.linkedFnIds?.filter((id) => !!id && !workflowRouteIds.has(id)) || [];
+            const missingIds = methodMeta.middleFnIds?.filter((id) => !!id && !workflowRouteIds.has(id)) || [];
             missingIds.forEach((id) => {
                 const subRequest = this.subRequestList[id];
                 if (subRequest) return;
-                const cacheKey = this.getPrefilledLinkedFnCacheKey(id);
-                const cachedSubRequest = this.prefilledLinkedFnsCache.get(cacheKey);
+                const cacheKey = this.getPrefilledMiddleFnCacheKey(id);
+                const cachedSubRequest = this.prefilledMiddleFnsCache.get(cacheKey);
                 if (cachedSubRequest) {
                     const clonedSubRequest: SubRequest<any> = {
                         ...cachedSubRequest,
@@ -262,7 +262,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
         }
     }
 
-    private storePrefilledLinkedFns(errors: RequestErrors): void {
+    private storePrefilledMiddleFns(errors: RequestErrors): void {
         Object.keys(this.subRequestList).forEach((id) => {
             const subRequest = this.subRequestList[id];
             const methodMeta = routesCache.getMetadata(id);
@@ -277,19 +277,19 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
                 );
                 return;
             }
-            const cacheKey = this.getPrefilledLinkedFnCacheKey(id);
-            this.prefilledLinkedFnsCache.set(cacheKey, subRequest);
+            const cacheKey = this.getPrefilledMiddleFnCacheKey(id);
+            this.prefilledMiddleFnsCache.set(cacheKey, subRequest);
         });
     }
 
-    private removePrefilledLinkedFns(): void {
+    private removePrefilledMiddleFns(): void {
         Object.keys(this.subRequestList).forEach((id) => {
-            const cacheKey = this.getPrefilledLinkedFnCacheKey(id);
-            this.prefilledLinkedFnsCache.delete(cacheKey);
+            const cacheKey = this.getPrefilledMiddleFnCacheKey(id);
+            this.prefilledMiddleFnsCache.delete(cacheKey);
         });
     }
 
-    private getPrefilledLinkedFnCacheKey(id: string): string {
+    private getPrefilledMiddleFnCacheKey(id: string): string {
         return `${this.options.baseURL}:${id}`;
     }
 }
@@ -305,7 +305,7 @@ function extractRequestHeaders(req: MionClientRequest<any, any>): Record<string,
         if (!subRequest) continue;
 
         const method = routesCache.getMetadata(id);
-        if (!method || method.type !== HandlerType.headersLinkedFn || !method.headersParam) continue;
+        if (!method || method.type !== HandlerType.headersMiddleFn || !method.headersParam) continue;
 
         const params = subRequest.params;
         const extracted = extractHeadersFromParams(params);

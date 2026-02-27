@@ -1,5 +1,5 @@
 import {HeadersSubset, RpcError} from '@mionkit/core';
-import {Routes, headersFn, linkedFn, initMionRouter, route} from '@mionkit/router';
+import {Routes, headersFn, middleFn, initMionRouter, route} from '@mionkit/router';
 
 const routes = {
     auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
@@ -10,7 +10,7 @@ const routes = {
         sum5: route((ctx, a: number): number => a + 5),
         sayHello: route((ctx, message: string): string => `Hello ${message}`),
     },
-    log: linkedFn((ctx): void => console.log(ctx.path, ctx.request.headers, ctx.request.body), {
+    log: middleFn((ctx): void => console.log(ctx.path, ctx.request.headers, ctx.request.body), {
         runOnError: true,
     }),
 } satisfies Routes;

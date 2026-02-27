@@ -5,14 +5,14 @@ import {HeadersSubset} from '@mionkit/core';
 import type {MyApi} from './server.routes.ts';
 
 const john = {id: '123', name: 'John', surname: 'Doe'};
-const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-// ========== LinkedFn with Typed Success Return and Error Handling ==========
+// ========== MiddleFn with Typed Success Return and Error Handling ==========
 // prefills auth token for any future requests, value is stored in localStorage by default
 // Returns TypedEvent for registering persistent success and error handlers
-// The auth linkedFn returns SessionInfo on success (when returnSession=true) or RpcError<'not-authorized', NotAuthorizedData>
+// The auth middleFn returns SessionInfo on success (when returnSession=true) or RpcError<'not-authorized', NotAuthorizedData>
 const authHeaders = new HeadersSubset({Authorization: 'Bearer myToken-XYZ'});
-linkedFns
+middleFns
     .auth(authHeaders, true) // returnSession=true to get SessionInfo back
     .prefill()
     // onSuccess receives the strongly typed SessionInfo (or void when returnSession=false)
@@ -47,7 +47,7 @@ linkedFns
 
 // ========== Example 1: Route with strongly-typed errorData ==========
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
-// call() returns 4-tuple: [routeResult, routeError, linkedFnsResults, linkedFnsErrors]
+// call() returns 4-tuple: [routeResult, routeError, middleFnsResults, middleFnsErrors]
 async function exampleWithTypedError() {
     const [user, error] = await routes.users.getById('USER-123').call();
     if (error && error.type === 'user-not-found') {
@@ -58,7 +58,7 @@ async function exampleWithTypedError() {
         }
         return;
     } else if (error) {
-        // Catches any other errors (network errors, linkedFn errors, etc.)
+        // Catches any other errors (network errors, middleFn errors, etc.)
         console.log('Unexpected error:', error.publicMessage);
         return;
     }
@@ -88,25 +88,25 @@ async function exampleAlwaysSucceeds() {
     console.log(result); // Hello John Doe
 }
 
-// ========== Example 5: Using callWithLinkedFns() for per-request linkedFns ==========
-// Use callWithLinkedFns() when you need to pass linkedFns for a SINGLE request
-// Returns 4-tuple: [routeResult, routeError, linkedFnsResults, linkedFnsErrors]
+// ========== Example 5: Using callWithMiddleFns() for per-request middleFns ==========
+// Use callWithMiddleFns() when you need to pass middleFns for a SINGLE request
+// Returns 4-tuple: [routeResult, routeError, middleFnsResults, middleFnsErrors]
 
-// Create a linkedFn with temporary credentials for this specific request
+// Create a middleFn with temporary credentials for this specific request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
 
-// callWithLinkedFns() takes a record of linkedFns and returns a typed 4-tuple
-async function exampleWithCallWithLinkedFns() {
-    const [user, routeError, linkedFnResults, linkedFnErrors] = await routes.users.getById('USER-123').callWithLinkedFns({
-        auth: linkedFns.auth(tempAuthHeaders, true),
+// callWithMiddleFns() takes a record of middleFns and returns a typed 4-tuple
+async function exampleWithCallWithMiddleFns() {
+    const [user, routeError, middleFnResults, middleFnErrors] = await routes.users.getById('USER-123').callWithMiddleFns({
+        auth: middleFns.auth(tempAuthHeaders, true),
     });
     // Check for route errors
     if (routeError?.type === 'user-not-found') {
         console.log('User not found:', routeError.errorData?.requestedId);
     }
-    // Check linkedFn errors
-    if (linkedFnErrors?.auth?.type === 'not-authorized') {
-        const authError = linkedFnErrors.auth;
+    // Check middleFn errors
+    if (middleFnErrors?.auth?.type === 'not-authorized') {
+        const authError = middleFnErrors.auth;
         const reason = authError.errorData?.reason;
         if (reason === 'expired-token') {
             console.log('Temp token expired, requesting new one...');
@@ -114,26 +114,26 @@ async function exampleWithCallWithLinkedFns() {
     }
     // Access success data
     if (user) console.log('Found user:', user.name);
-    if (linkedFnResults?.auth) console.log('Authenticated as:', linkedFnResults.auth.userId);
+    if (middleFnResults?.auth) console.log('Authenticated as:', middleFnResults.auth.userId);
 }
 
-// ========== Example 6: Multiple LinkedFns with callWithLinkedFns() ==========
-// Pass multiple linkedFns in the record - each gets its own typed result
-async function exampleWithMultipleLinkedFns() {
-    const [user, routeError, linkedFnResults, linkedFnErrors] = await routes.users.getById('USER-123').callWithLinkedFns({
-        auth: linkedFns.auth(tempAuthHeaders),
-        // session: linkedFns.session('session-token'), // If you have a session linkedFn
+// ========== Example 6: Multiple MiddleFns with callWithMiddleFns() ==========
+// Pass multiple middleFns in the record - each gets its own typed result
+async function exampleWithMultipleMiddleFns() {
+    const [user, routeError, middleFnResults, middleFnErrors] = await routes.users.getById('USER-123').callWithMiddleFns({
+        auth: middleFns.auth(tempAuthHeaders),
+        // session: middleFns.session('session-token'), // If you have a session middleFn
     });
-    // Handle each linkedFn's errors independently
-    if (linkedFnErrors?.auth) {
-        console.log('Auth failed:', linkedFnErrors.auth.publicMessage);
+    // Handle each middleFn's errors independently
+    if (middleFnErrors?.auth) {
+        console.log('Auth failed:', middleFnErrors.auth.publicMessage);
     }
     // Access success data
     if (user) console.log('User:', user.name);
 }
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
-// call() returns 4-tuple: [routeResult, routeError, linkedFnsResults, linkedFnsErrors]
+// call() returns 4-tuple: [routeResult, routeError, middleFnsResults, middleFnsErrors]
 // This is the standard pattern for all route calls
 async function exampleWithCall() {
     // call() never throws - returns a 4-tuple

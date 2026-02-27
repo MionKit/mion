@@ -237,12 +237,12 @@ describe('Binary Serialization at Router Level', () => {
         });
     });
 
-    describe('LinkedFns with Binary Serialization', () => {
-        it('should handle linkedFn with optional parameter (with value)', async () => {
+    describe('MiddleFns with Binary Serialization', () => {
+        it('should handle middleFn with optional parameter (with value)', async () => {
             const path = '/echo';
             const executionChain = getRouteExecutionChain(path)!.methods;
 
-            // Serialize request body with linkedFn params
+            // Serialize request body with middleFn params
             const requestBody = {
                 echo: ['test'],
                 session: ['valid-token'],
@@ -267,11 +267,11 @@ describe('Binary Serialization at Router Level', () => {
             expect(responseBody.session).toEqual({valid: true, userId: 'user-123'});
         });
 
-        it('should handle linkedFn with optional parameter (without value)', async () => {
+        it('should handle middleFn with optional parameter (without value)', async () => {
             const path = '/echo';
             const executionChain = getRouteExecutionChain(path)!.methods;
 
-            // Serialize request body with linkedFn params (no token)
+            // Serialize request body with middleFn params (no token)
             const requestBody = {
                 echo: ['test'],
                 session: [],
@@ -296,7 +296,7 @@ describe('Binary Serialization at Router Level', () => {
             expect(responseBody.session).toBeNull();
         });
 
-        it('should handle linkedFn returning error-like object', async () => {
+        it('should handle middleFn returning error-like object', async () => {
             const path = '/echo';
             const executionChain = getRouteExecutionChain(path)!.methods;
 

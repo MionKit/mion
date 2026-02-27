@@ -11,7 +11,7 @@ import {dispatchRoute} from './dispatch.ts';
 import {MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
 import {RpcError} from '@mionkit/core';
-import {linkedFn, route} from './lib/handlers.ts';
+import {middleFn, route} from './lib/handlers.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {clearRoutesFlowCache, getRoutesFlowCacheSize, getCachedRoutesFlow} from './routesFlow.ts';
 import {WORKFLOW_KEY, WORKFLOW_PATH} from './constants.ts';
@@ -65,8 +65,8 @@ describe('RoutesFlow routes', () => {
         const routeX2 = route((ctx, value: number): number => value * 2);
         const routeSum = route((ctx, a: number, b: number): number => a + b);
 
-        const sharedLinkedFn = linkedFn((ctx): void => {
-            ctx.shared.linkedFnCalled = (ctx.shared.linkedFnCalled || 0) + 1;
+        const sharedMiddleFn = middleFn((ctx): void => {
+            ctx.shared.middleFnCalled = (ctx.shared.middleFnCalled || 0) + 1;
         });
 
         const routes = {
@@ -75,8 +75,8 @@ describe('RoutesFlow routes', () => {
             routeSum,
         } satisfies Routes;
 
-        const routesWithLinkedFn = {
-            sharedLinkedFn,
+        const routesWithMiddleFn = {
+            sharedMiddleFn,
             route1,
             routeX2,
         } satisfies Routes;
@@ -133,10 +133,10 @@ describe('RoutesFlow routes', () => {
             expect(response.body.routeSum).toBe(30);
         });
 
-        it('should deduplicate shared linkedFns', async () => {
+        it('should deduplicate shared middleFns', async () => {
             clearRoutesFlowCache();
-            await initRouter({contextDataFactory: () => ({linkedFnCalled: 0})});
-            await registerRoutes(routesWithLinkedFn);
+            await initRouter({contextDataFactory: () => ({middleFnCalled: 0})});
+            await registerRoutes(routesWithMiddleFn);
 
             const request = getDefaultRequest({
                 route1: [],
@@ -160,15 +160,15 @@ describe('RoutesFlow routes', () => {
             expect(response.body.route1).toBe('result1');
             expect(response.body.routeX2).toBe(10);
 
-            // Verify the cached routesFlow has deduplicated linkedFns
+            // Verify the cached routesFlow has deduplicated middleFns
             const cachedRoutesFlow = getCachedRoutesFlow(urlQuery);
             expect(cachedRoutesFlow).toBeDefined();
             // routeIndex is the actual route index from the first route's chain
             expect(cachedRoutesFlow!.routeIndex).toBeGreaterThanOrEqual(0);
 
-            // The sharedLinkedFn should only appear once in the merged methods
-            const linkedFnCount = cachedRoutesFlow!.methods.filter((m) => m.id === 'sharedLinkedFn').length;
-            expect(linkedFnCount).toBe(1);
+            // The sharedMiddleFn should only appear once in the merged methods
+            const middleFnCount = cachedRoutesFlow!.methods.filter((m) => m.id === 'sharedMiddleFn').length;
+            expect(middleFnCount).toBe(1);
 
             // Both route handlers should be present
             const route1Handler = cachedRoutesFlow!.methods.find((m) => m.id === 'route1');
@@ -513,19 +513,19 @@ describe('RoutesFlow routes', () => {
         });
     });
 
-    describe('scoped linkedFns in routesFlow', () => {
+    describe('scoped middleFns in routesFlow', () => {
         const route1 = route((ctx): string => 'result1');
         const route2 = route((ctx): string => 'result2');
         const route3 = route((ctx): string => 'result3');
 
-        const scopedLinkedFn = linkedFn((ctx): void => {
-            ctx.shared.scopedLinkedFnCalled = (ctx.shared.scopedLinkedFnCalled || 0) + 1;
+        const scopedMiddleFn = middleFn((ctx): void => {
+            ctx.shared.scopedMiddleFnCalled = (ctx.shared.scopedMiddleFnCalled || 0) + 1;
         });
 
         const routes = {
             route1,
             other: {
-                scopedLinkedFn,
+                scopedMiddleFn,
                 route2,
             },
             route3,
@@ -535,8 +535,8 @@ describe('RoutesFlow routes', () => {
             clearRoutesFlowCache();
         });
 
-        it('should include scoped linkedFn when route from that scope is called', async () => {
-            await initRouter({contextDataFactory: () => ({scopedLinkedFnCalled: 0})});
+        it('should include scoped middleFn when route from that scope is called', async () => {
+            await initRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})});
             await registerRoutes(routes);
 
             const request = getDefaultRequest({
@@ -563,23 +563,23 @@ describe('RoutesFlow routes', () => {
             expect(response.body['other/route2']).toBe('result2');
             expect(response.body.route3).toBe('result3');
 
-            // Verify the cached routesFlow has the scoped linkedFn
+            // Verify the cached routesFlow has the scoped middleFn
             const cachedRoutesFlow = getCachedRoutesFlow(urlQuery);
             expect(cachedRoutesFlow).toBeDefined();
 
-            // The scopedLinkedFn should appear in the merged methods (with path prefix)
-            const scopedLinkedFnMethod = cachedRoutesFlow!.methods.find((m) => m.id === 'other/scopedLinkedFn');
-            expect(scopedLinkedFnMethod).toBeDefined();
+            // The scopedMiddleFn should appear in the merged methods (with path prefix)
+            const scopedMiddleFnMethod = cachedRoutesFlow!.methods.find((m) => m.id === 'other/scopedMiddleFn');
+            expect(scopedMiddleFnMethod).toBeDefined();
 
-            // Verify execution order: route1, other/scopedLinkedFn, other/route2, route3
+            // Verify execution order: route1, other/scopedMiddleFn, other/route2, route3
             const methodIds = cachedRoutesFlow!.methods
-                .filter((m) => ['route1', 'other/scopedLinkedFn', 'other/route2', 'route3'].includes(m.id))
+                .filter((m) => ['route1', 'other/scopedMiddleFn', 'other/route2', 'route3'].includes(m.id))
                 .map((m) => m.id);
-            expect(methodIds).toEqual(['route1', 'other/scopedLinkedFn', 'other/route2', 'route3']);
+            expect(methodIds).toEqual(['route1', 'other/scopedMiddleFn', 'other/route2', 'route3']);
         });
 
         it('should maintain correct order when scoped route is called first', async () => {
-            await initRouter({contextDataFactory: () => ({scopedLinkedFnCalled: 0})});
+            await initRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})});
             await registerRoutes(routes);
 
             const request = getDefaultRequest({
@@ -606,19 +606,19 @@ describe('RoutesFlow routes', () => {
             expect(response.body.route1).toBe('result1');
             expect(response.body.route3).toBe('result3');
 
-            // Verify the cached routesFlow has the scoped linkedFn
+            // Verify the cached routesFlow has the scoped middleFn
             const cachedRoutesFlow = getCachedRoutesFlow(urlQuery);
             expect(cachedRoutesFlow).toBeDefined();
 
-            // Verify execution order: other/scopedLinkedFn, other/route2, route1, route3
+            // Verify execution order: other/scopedMiddleFn, other/route2, route1, route3
             const methodIds = cachedRoutesFlow!.methods
-                .filter((m) => ['route1', 'other/scopedLinkedFn', 'other/route2', 'route3'].includes(m.id))
+                .filter((m) => ['route1', 'other/scopedMiddleFn', 'other/route2', 'route3'].includes(m.id))
                 .map((m) => m.id);
-            expect(methodIds).toEqual(['other/scopedLinkedFn', 'other/route2', 'route1', 'route3']);
+            expect(methodIds).toEqual(['other/scopedMiddleFn', 'other/route2', 'route1', 'route3']);
         });
 
-        it('should not include scoped linkedFn when no routes from that scope are called', async () => {
-            await initRouter({contextDataFactory: () => ({scopedLinkedFnCalled: 0})});
+        it('should not include scoped middleFn when no routes from that scope are called', async () => {
+            await initRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})});
             await registerRoutes(routes);
 
             const request = getDefaultRequest({
@@ -643,13 +643,13 @@ describe('RoutesFlow routes', () => {
             expect(response.body.route1).toBe('result1');
             expect(response.body.route3).toBe('result3');
 
-            // Verify the cached routesFlow does NOT have the scoped linkedFn
+            // Verify the cached routesFlow does NOT have the scoped middleFn
             const cachedRoutesFlow = getCachedRoutesFlow(urlQuery);
             expect(cachedRoutesFlow).toBeDefined();
 
-            // The scopedLinkedFn should NOT appear in the merged methods (with path prefix)
-            const scopedLinkedFnMethod = cachedRoutesFlow!.methods.find((m) => m.id === 'other/scopedLinkedFn');
-            expect(scopedLinkedFnMethod).toBeUndefined();
+            // The scopedMiddleFn should NOT appear in the merged methods (with path prefix)
+            const scopedMiddleFnMethod = cachedRoutesFlow!.methods.find((m) => m.id === 'other/scopedMiddleFn');
+            expect(scopedMiddleFnMethod).toBeUndefined();
         });
     });
 });

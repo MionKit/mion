@@ -23,12 +23,12 @@
  * - mion@methodsMetadataByPath: Remote methods metadata by path
  */
 
-import {linkedFn, initMionRouter} from '@mionkit/router';
+import {middleFn, initMionRouter} from '@mionkit/router';
 import type {Routes} from '@mionkit/router';
 
 const routes = {
-    // Only required as initMionRouter needs at least one route/linkedFn
-    'mion@mionEmptyLinkedFn': linkedFn((): void => undefined),
+    // Only required as initMionRouter needs at least one route/middleFn
+    'mion@mionEmptyMiddleFn': middleFn((): void => undefined),
 } satisfies Routes;
 
 // Initialize the router — this registers all internal routes and emits AOT caches

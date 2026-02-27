@@ -260,38 +260,38 @@ describe('Binary Serialization E2E', () => {
         });
     });
 
-    describe('LinkedFns with Binary Serialization', () => {
-        it('should handle linkedFn with optional parameter (with value)', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
-            const [result, error, linkedFnsResults] = await routes.echo('test').callWithLinkedFns({
-                session: linkedFns.session('valid-token'),
+    describe('MiddleFns with Binary Serialization', () => {
+        it('should handle middleFn with optional parameter (with value)', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const [result, error, middleFnsResults] = await routes.echo('test').callWithMiddleFns({
+                session: middleFns.session('valid-token'),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(linkedFnsResults?.session).toEqual({valid: true, userId: 'user-123'});
+            expect(middleFnsResults?.session).toEqual({valid: true, userId: 'user-123'});
         });
 
-        it('should handle linkedFn with optional parameter (without value)', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
-            const [result, error, linkedFnsResults] = await routes.echo('test').callWithLinkedFns({
-                session: linkedFns.session(),
+        it('should handle middleFn with optional parameter (without value)', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const [result, error, middleFnsResults] = await routes.echo('test').callWithMiddleFns({
+                session: middleFns.session(),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(linkedFnsResults?.session).toBeNull();
+            expect(middleFnsResults?.session).toBeNull();
         });
 
-        it('should handle linkedFn returning error-like object', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
-            const [result, error, linkedFnsResults] = await routes.echo('test').callWithLinkedFns({
-                session: linkedFns.session('invalid'),
+        it('should handle middleFn returning error-like object', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const [result, error, middleFnsResults] = await routes.echo('test').callWithMiddleFns({
+                session: middleFns.session('invalid'),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(linkedFnsResults?.session).toEqual({valid: false});
+            expect(middleFnsResults?.session).toEqual({valid: false});
         });
     });
 

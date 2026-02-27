@@ -1,5 +1,5 @@
 import {HeadersSubset, RpcError} from '@mionkit/core';
-import {headersFn, linkedFn, Routes} from '@mionkit/router';
+import {headersFn, middleFn, Routes} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const routes = {
@@ -10,11 +10,11 @@ const routes = {
         if (!isAuthorized(me)) {
             return new RpcError({type: 'not-authorized', publicMessage: 'User is not authorized'});
         }
-        ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/linkedFns
+        ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/middleFns
     }),
     // set response headers
-    serverName: linkedFn((ctx): HeadersSubset<'Server'> => {
+    serverName: middleFn((ctx): HeadersSubset<'Server'> => {
         return new HeadersSubset({Server: 'my-server'});
     }),
-    // ... other routes and linkedFns
+    // ... other routes and middleFns
 } satisfies Routes;

@@ -1,7 +1,7 @@
 import {initClient} from '@mionkit/client';
 import type {MyApi} from './server.routes.ts';
 
-const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 async function basicErrorHandling() {
     // call() returns 4-tuple - never throws

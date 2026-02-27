@@ -8,7 +8,7 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {registerRoutes, resetRouter, initRouter} from '../router.ts';
 import {dispatchRoute} from '../dispatch.ts';
-import {route, headersFn, linkedFn} from './handlers.ts';
+import {route, headersFn, middleFn} from './handlers.ts';
 import {headersFromRecord} from './headers.ts';
 import {MionHeaders} from '../types/context.ts';
 import {HeadersSubset, RpcError, StatusCodes} from '@mionkit/core';
@@ -185,14 +185,14 @@ describe('Request and Response Headers', () => {
         });
     });
 
-    describe('Setting headers from linkedFn return values', () => {
-        it('should set single header from linkedFn return value', async () => {
+    describe('Setting headers from middleFn return values', () => {
+        it('should set single header from middleFn return value', async () => {
             const shared = {data: 'test'};
             const getSharedData = (): typeof shared => shared;
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                setHeadersLinkedFn: linkedFn((ctx): HeadersSubset<'x-custom'> => {
+                setHeadersMiddleFn: middleFn((ctx): HeadersSubset<'x-custom'> => {
                     return new HeadersSubset({'x-custom': 'custom-value'});
                 }),
                 testRoute: route((): string => 'ok'),
@@ -206,13 +206,13 @@ describe('Request and Response Headers', () => {
             expect(response.headers.get('x-custom')).toEqual('custom-value');
         });
 
-        it('should set multiple headers from linkedFn return value', async () => {
+        it('should set multiple headers from middleFn return value', async () => {
             const shared = {data: 'test'};
             const getSharedData = (): typeof shared => shared;
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                setHeadersFn: linkedFn((ctx): HeadersSubset<'x-custom' | 'x-token' | 'x-version'> => {
+                setHeadersFn: middleFn((ctx): HeadersSubset<'x-custom' | 'x-token' | 'x-version'> => {
                     return new HeadersSubset({
                         'x-custom': 'custom-value',
                         'x-token': 'token-value',
@@ -238,7 +238,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                setHeadersLinkedFn: linkedFn((ctx): HeadersSubset<'X-Custom'> => {
+                setHeadersMiddleFn: middleFn((ctx): HeadersSubset<'X-Custom'> => {
                     return new HeadersSubset({'X-Custom': 'custom-value'});
                 }),
                 testRoute: route((): string => 'ok'),
@@ -260,7 +260,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                setHeadersFn: linkedFn((ctx): HeadersSubset<'x-custom', 'x-token'> => {
+                setHeadersFn: middleFn((ctx): HeadersSubset<'x-custom', 'x-token'> => {
                     return new HeadersSubset({'x-custom': 'custom-value'});
                 }),
                 testRoute: route((): string => 'ok'),
@@ -509,7 +509,7 @@ describe('Request and Response Headers', () => {
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                setHeadersFn: linkedFn((ctx): HeadersSubset<'x-first' | 'x-second' | 'x-third'> => {
+                setHeadersFn: middleFn((ctx): HeadersSubset<'x-first' | 'x-second' | 'x-third'> => {
                     return new HeadersSubset({
                         'x-first': 'first-value',
                         'x-second': 'second-value',
@@ -529,16 +529,16 @@ describe('Request and Response Headers', () => {
             expect(response.headers.get('x-third')).toEqual('third-value');
         });
 
-        it('should handle overwriting headers set by multiple linkedFns', async () => {
+        it('should handle overwriting headers set by multiple middleFns', async () => {
             const shared = {data: 'test'};
             const getSharedData = (): typeof shared => shared;
 
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({
-                firstLinkedFn: linkedFn((ctx): HeadersSubset<'X-Custom'> => {
+                firstMiddleFn: middleFn((ctx): HeadersSubset<'X-Custom'> => {
                     return new HeadersSubset({'X-Custom': 'first-value'});
                 }),
-                secondLinkedFn: linkedFn((ctx): HeadersSubset<'X-Custom'> => {
+                secondMiddleFn: middleFn((ctx): HeadersSubset<'X-Custom'> => {
                     return new HeadersSubset({'X-Custom': 'second-value'});
                 }),
                 testRoute: route((): string => 'ok'),
@@ -549,7 +549,7 @@ describe('Request and Response Headers', () => {
             const response = await dispatchRoute('/testRoute', request.body, request.headers, headersFromRecord({}), request, {});
 
             expect(response.hasErrors).toBeFalsy();
-            // The last linkedFn to set the header should win
+            // The last middleFn to set the header should win
             expect(response.headers.get('x-custom')).toEqual('second-value');
         });
 

@@ -19,7 +19,7 @@ import {
     RouteOnlyOptions,
     RemoteMethodOpts,
 } from '@mionkit/core';
-import {linkedFn, rawLinkedFn, route} from '../lib/handlers.ts';
+import {middleFn, rawMiddleFn, route} from '../lib/handlers.ts';
 import {Routes} from '../types/general.ts';
 import {mionClientRoutes} from './client.routes.ts';
 import {headersFromRecord} from '../lib/headers.ts';
@@ -129,29 +129,29 @@ describe('PublicMethods run type functionality', () => {
 });
 
 describe('Client Routes should', () => {
-    const privateLinkedFn = linkedFn((ctx): void => undefined);
-    const publicLinkedFn = linkedFn((ctx): null => null);
-    const auth = linkedFn((ctx, token: string): void => undefined);
+    const privateMiddleFn = middleFn((ctx): void => undefined);
+    const publicMiddleFn = middleFn((ctx): null => null);
+    const auth = middleFn((ctx, token: string): void => undefined);
     const route1 = route((ctx): string => 'route1');
     const route2 = route((ctx): string => 'route2');
 
     const routes = {
         auth: auth, // is public as has params
-        parse: rawLinkedFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
+        parse: rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
         users: {
-            userBefore: privateLinkedFn, // private
+            userBefore: privateMiddleFn, // private
             getUser: route1, // public
             setUser: route2, // public
             pets: {
                 getUserPet: route2, // public
             },
-            userAfter: privateLinkedFn, // private
+            userAfter: privateMiddleFn, // private
         },
         pets: {
             getPet: route1, // public
             setPet: route2, // public
         },
-        last: publicLinkedFn, // public LinkedFn
+        last: publicMiddleFn, // public MiddleFn
     } satisfies Routes;
 
     const shared = {auth: {me: null as any}};
@@ -164,7 +164,7 @@ describe('Client Routes should', () => {
         validateReturn: false,
         description: undefined,
     };
-    const defaultLinkedFnOpts: RemoteMethodOpts = {
+    const defaultMiddleFnOpts: RemoteMethodOpts = {
         runOnError: false,
         validateParams: true,
         validateReturn: false,
@@ -181,7 +181,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            linkedFnIds: ['auth', 'last'],
+            middleFnIds: ['auth', 'last'],
             pointer: ['users', 'getUser'],
             options: defaultRouteOpts,
         },
@@ -194,7 +194,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            linkedFnIds: ['auth', 'last'],
+            middleFnIds: ['auth', 'last'],
             pointer: ['users', 'setUser'],
             options: defaultRouteOpts,
         },
@@ -207,7 +207,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            linkedFnIds: ['auth', 'last'],
+            middleFnIds: ['auth', 'last'],
             pointer: ['users', 'pets', 'getUserPet'],
             options: defaultRouteOpts,
         },
@@ -220,7 +220,7 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            linkedFnIds: ['auth', 'last'],
+            middleFnIds: ['auth', 'last'],
             pointer: ['pets', 'getPet'],
             options: defaultRouteOpts,
         },
@@ -233,12 +233,12 @@ describe('Client Routes should', () => {
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
             paramNames: [],
-            linkedFnIds: ['auth', 'last'],
+            middleFnIds: ['auth', 'last'],
             pointer: ['pets', 'setPet'],
             options: defaultRouteOpts,
         },
         auth: {
-            type: HandlerType.linkedFn,
+            type: HandlerType.middleFn,
             id: 'auth',
             isAsync: false,
             hasReturnData: false,
@@ -247,10 +247,10 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: ['token'],
             pointer: ['auth'],
-            options: defaultLinkedFnOpts,
+            options: defaultMiddleFnOpts,
         },
         last: {
-            type: HandlerType.linkedFn,
+            type: HandlerType.middleFn,
             id: 'last',
             isAsync: false,
             hasReturnData: true,
@@ -259,7 +259,7 @@ describe('Client Routes should', () => {
             returnJitHash: expect.any(String),
             paramNames: [],
             pointer: ['last'],
-            options: defaultLinkedFnOpts,
+            options: defaultMiddleFnOpts,
         },
     } satisfies MethodsCache;
 
@@ -273,16 +273,16 @@ describe('Client Routes should', () => {
 
     afterEach(() => resetRouter());
 
-    it('get Remote LinkedFns Only info from id', async () => {
+    it('get Remote MiddleFns Only info from id', async () => {
         await initRouter({contextDataFactory: getSharedData});
         await registerRoutes(routes);
         await registerRoutes(mionClientRoutes);
 
-        const methodIdList = ['auth', 'last']; // all public linkedFns
+        const methodIdList = ['auth', 'last']; // all public middleFns
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // linkedFn is required
+                auth: ['token'], // middleFn is required
                 [methodsId]: [methodIdList],
             }),
         };
@@ -299,7 +299,7 @@ describe('Client Routes should', () => {
         });
     });
 
-    it('get Remote Route info from id, it should also return the linkedFns from the ExecutionChain', async () => {
+    it('get Remote Route info from id, it should also return the middleFns from the ExecutionChain', async () => {
         await initRouter({contextDataFactory: getSharedData});
         await registerRoutes(routes);
         await registerRoutes(mionClientRoutes);
@@ -308,7 +308,7 @@ describe('Client Routes should', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // linkedFn is required (request should be authenticated)
+                auth: ['token'], // middleFn is required (request should be authenticated)
                 [methodsId]: [methodIdList],
             }),
         };
@@ -337,7 +337,7 @@ describe('Client Routes should', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // linkedFn is required
+                auth: ['token'], // middleFn is required
                 [methodsId]: [methodIdList, getAllRemoteMethods],
             }),
         };
@@ -360,7 +360,7 @@ describe('Client Routes should', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // linkedFn is required
+                auth: ['token'], // middleFn is required
                 [routeMethodsId]: ['/users/getUser'],
             }),
         };
@@ -388,7 +388,7 @@ describe('Client Routes should', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // linkedFn is required
+                auth: ['token'], // middleFn is required
                 [methodsId]: [methodIdList],
             }),
         };
@@ -412,7 +412,7 @@ describe('Client Routes should', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                auth: ['token'], // linkedFn is required
+                auth: ['token'], // middleFn is required
                 [routeMethodsId]: ['/abcd'],
             }),
         };

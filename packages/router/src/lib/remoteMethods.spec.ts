@@ -10,35 +10,35 @@ import {getPublicApi} from './remoteMethods.ts';
 import {registerRoutes, initRouter, resetRouter} from '../router.ts';
 import {CallContext} from '../types/context.ts';
 import {Routes} from '../types/general.ts';
-import {LinkedFnMethod, RouteMethod} from '../types/remoteMethods.ts';
+import {MiddleFnMethod, RouteMethod} from '../types/remoteMethods.ts';
 import {getJitFnHashes, HandlerType} from '@mionkit/core';
-import {linkedFn, rawLinkedFn, route} from './handlers.ts';
+import {middleFn, rawMiddleFn, route} from './handlers.ts';
 import {getJitUtils} from '@mionkit/core';
 
 describe('Public Methods should', () => {
-    const privateLinkedFn = linkedFn((ctx): void => undefined);
-    const publicLinkedFn = linkedFn((ctx): null => null);
-    const paramsLinkedFn = linkedFn((ctx, s: string): void => undefined);
+    const privateMiddleFn = middleFn((ctx): void => undefined);
+    const publicMiddleFn = middleFn((ctx): null => null);
+    const paramsMiddleFn = middleFn((ctx, s: string): void => undefined);
     const route1 = route((ctx): string => 'route1');
     const route2 = route((ctx): string => 'route2');
 
     const routes = {
-        first: paramsLinkedFn, // is public as has params
-        parse: rawLinkedFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
+        first: paramsMiddleFn, // is public as has params
+        parse: rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
         users: {
-            userBefore: privateLinkedFn, // private
+            userBefore: privateMiddleFn, // private
             getUser: route1, // public
             setUser: route2, // public
             pets: {
                 getUserPet: route2, // public
             },
-            userAfter: privateLinkedFn, // private
+            userAfter: privateMiddleFn, // private
         },
         pets: {
             getPet: route1, // public
             setPet: route2, // public
         },
-        last: publicLinkedFn, // public LinkedFn
+        last: publicMiddleFn, // public MiddleFn
     } satisfies Routes;
 
     const shared = {auth: {me: null as any}};
@@ -53,10 +53,10 @@ describe('Public Methods should', () => {
         expect(publicExecutables).toEqual({});
     });
 
-    it('generate all the required public fields for linkedFn and route', async () => {
+    it('generate all the required public fields for middleFn and route', async () => {
         await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
-            auth: paramsLinkedFn,
+            auth: paramsMiddleFn,
             routes: {
                 route1,
             },
@@ -65,12 +65,12 @@ describe('Public Methods should', () => {
 
         expect(api.auth).toEqual(
             expect.objectContaining({
-                type: HandlerType.linkedFn,
+                type: HandlerType.middleFn,
                 id: 'auth',
                 paramsJitHash: expect.any(String),
                 returnJitHash: expect.any(String),
                 paramNames: ['s'],
-            } as Partial<LinkedFnMethod>)
+            } as Partial<MiddleFnMethod>)
         );
 
         expect(api.routes.route1).toEqual(
@@ -124,14 +124,14 @@ describe('Public Methods should', () => {
     it('generate public data when suing prefix and suffix', async () => {
         await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
         const testR = {
-            auth: paramsLinkedFn,
+            auth: paramsMiddleFn,
             route1,
         };
         const api = await registerRoutes(testR);
 
         expect(api).toEqual({
             auth: expect.objectContaining({
-                type: HandlerType.linkedFn,
+                type: HandlerType.middleFn,
                 id: 'auth',
             }),
             route1: expect.objectContaining({
@@ -147,7 +147,7 @@ describe('Public Methods should', () => {
 
         expect(publicExecutables).toEqual({
             first: expect.objectContaining({
-                type: HandlerType.linkedFn,
+                type: HandlerType.middleFn,
                 id: 'first',
             }),
             parse: null,
@@ -180,20 +180,20 @@ describe('Public Methods should', () => {
                 }),
             },
             last: expect.objectContaining({
-                type: HandlerType.linkedFn,
+                type: HandlerType.middleFn,
                 id: 'last',
             }),
         });
     });
 
-    it('should throw an error when route or linkedFn is not already created in the router', () => {
+    it('should throw an error when route or middleFn is not already created in the router', () => {
         const testR1 = {route1};
-        const testR2 = {linkedFn1: paramsLinkedFn};
+        const testR2 = {middleFn1: paramsMiddleFn};
         expect(() => getPublicApi(testR1)).toThrow(
-            `Route or LinkedFn route1 not found. Please check you have called router.registerRoutes first.`
+            `Route or MiddleFn route1 not found. Please check you have called router.registerRoutes first.`
         );
         expect(() => getPublicApi(testR2)).toThrow(
-            `Route or LinkedFn linkedFn1 not found. Please check you have called router.registerRoutes first.`
+            `Route or MiddleFn middleFn1 not found. Please check you have called router.registerRoutes first.`
         );
     });
 

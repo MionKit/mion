@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Handler, HeaderHandler, RawLinkedFnHandler} from './handlers.ts';
+import {Handler, HeaderHandler, RawMiddleFnHandler} from './handlers.ts';
 import {
-    HeadersLinkedFnOptions,
+    HeadersMiddleFnOptions,
     HeadersMethod,
-    LinkedFnOptions,
-    LinkedFnMethod,
-    RawLinkedFnOptions,
+    MiddleFnOptions,
+    MiddleFnMethod,
+    RawMiddleFnOptions,
     RawMethod,
     RouteOptions,
     RouteMethod,
@@ -26,28 +26,28 @@ export type RouteDef<H extends Handler = any> = Pick<RouteMethod<H>, 'type' | 'h
 };
 // type-route-def-end
 
-// type-linkedFn-def-start
-/** LinkedFn definition, a function that linkedFns into the ExecutionChain */
-export type LinkedFnDef<H extends Handler = any> = Pick<LinkedFnMethod<H>, 'type' | 'handler'> & {
-    options?: LinkedFnOptions;
+// type-middleFn-def-start
+/** MiddleFn definition, a function that middleFns into the ExecutionChain */
+export type MiddleFnDef<H extends Handler = any> = Pick<MiddleFnMethod<H>, 'type' | 'handler'> & {
+    options?: MiddleFnOptions;
 };
-// type-linkedFn-def-end
+// type-middleFn-def-end
 
-// type-header-linkedFn-def-start
-/** Headers LinkedFn definition, used to handle header params */
-export type HeadersLinkedFnDef<H extends HeaderHandler = any> = Pick<HeadersMethod<H>, 'type' | 'handler'> & {
-    options?: HeadersLinkedFnOptions;
+// type-header-middleFn-def-start
+/** Headers MiddleFn definition, used to handle header params */
+export type HeadersMiddleFnDef<H extends HeaderHandler = any> = Pick<HeadersMethod<H>, 'type' | 'handler'> & {
+    options?: HeadersMiddleFnOptions;
 };
-// type-header-linkedFn-def-end
+// type-header-middleFn-def-end
 
-// type-raw-linkedFn-def-start
+// type-raw-middleFn-def-start
 /**
- * Raw linkedFn, used only to access raw request/response and modify the call context.
+ * Raw middleFn, used only to access raw request/response and modify the call context.
  * Can not declare extra parameters.
  */
-export type RawLinkedFnDef<H extends RawLinkedFnHandler = any> = Pick<RawMethod<H>, 'type' | 'handler'> & {
-    options?: RawLinkedFnOptions;
+export type RawMiddleFnDef<H extends RawMiddleFnHandler = any> = Pick<RawMethod<H>, 'type' | 'handler'> & {
+    options?: RawMiddleFnOptions;
 };
-// type-raw-linkedFn-def-end
+// type-raw-middleFn-def-end
 
-export type AnyHandlerDef = RouteDef | LinkedFnDef | HeadersLinkedFnDef | RawLinkedFnDef;
+export type AnyHandlerDef = RouteDef | MiddleFnDef | HeadersMiddleFnDef | RawMiddleFnDef;

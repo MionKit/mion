@@ -137,16 +137,16 @@ describe('friendlyErrors with client validation', () => {
         });
     });
 
-    describe('linkedFn validation errors', () => {
-        it('should return linkedFn errors when required auth header is missing', async () => {
+    describe('middleFn validation errors', () => {
+        it('should return middleFn errors when required auth header is missing', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            // Call without required auth linkedFn - should return error in the tuple
-            const [, , , linkedFnErrors] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
+            // Call without required auth middleFn - should return error in the tuple
+            const [, , , middleFnErrors] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
 
-            // LinkedFn error should be present for the auth linkedFn
-            expect(linkedFnErrors?.auth).toBeDefined();
-            expect(linkedFnErrors?.auth?.type).toBe('validation-error');
+            // MiddleFn error should be present for the auth middleFn
+            expect(middleFnErrors?.auth).toBeDefined();
+            expect(middleFnErrors?.auth?.type).toBe('validation-error');
         });
     });
 

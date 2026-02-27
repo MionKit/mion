@@ -7,7 +7,7 @@
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {initMionRouter, resetRouter, getRouterOptions, getRouteExecutionChain} from '../router.ts';
-import {route, linkedFn} from '../lib/handlers.ts';
+import {route, middleFn} from '../lib/handlers.ts';
 import {Routes} from '../types/general.ts';
 import {serializeResponseBody, deserializeRequestBody} from './serializer.routes.ts';
 import {createCallContext} from '../callContext.ts';
@@ -26,7 +26,7 @@ interface User {
 
 // Test routes with binary serialization
 const routes = {
-    auth: linkedFn((ctx: any, token: string): void => {}),
+    auth: middleFn((ctx: any, token: string): void => {}),
     getUser: route(
         (ctx: any, id: string): User => ({
             id,
@@ -186,7 +186,7 @@ describe('Binary Serialization - Router', () => {
         const opts = getRouterOptions();
         const context = getNewBinaryContext('/sayHello', new Uint8Array(0));
         const response = context.response as Mutable<MionResponse>;
-        // Note: auth linkedFn has void return (hasReturnData: false), so it won't be serialized
+        // Note: auth middleFn has void return (hasReturnData: false), so it won't be serialized
         // Only sayHello with actual return data will be serialized
         response.body = {
             auth: undefined,
@@ -199,7 +199,7 @@ describe('Binary Serialization - Router', () => {
         const deserializer = createDataViewDeserializer('test-response', rawBody);
 
         // Read number of methods (should be 1 - only sayHello has return data)
-        // auth linkedFn has void return type so hasReturnData is false
+        // auth middleFn has void return type so hasReturnData is false
         const numMethods = deserializer.view.getUint32(deserializer.index, true);
         deserializer.index += 4;
         expect(numMethods).toBe(1);

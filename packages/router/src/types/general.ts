@@ -7,17 +7,17 @@
 
 import {CoreOptions, SerializerMode} from '@mionkit/core';
 import {ContextDataFactory} from './context.ts';
-import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions.ts';
+import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
 import type {RunTypeOptions} from '@mionkit/run-types';
 // #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */
 export type Route = RouteDef;
 
-/** A route entry can be a route, a linkedFn or sub-routes */
-export type RouterEntry = Routes | LinkedFnDef | RouteDef | RawLinkedFnDef | HeadersLinkedFnDef;
+/** A route entry can be a route, a middleFn or sub-routes */
+export type RouterEntry = Routes | MiddleFnDef | RouteDef | RawMiddleFnDef | HeadersMiddleFnDef;
 
-/** Data structure to define all the routes, each entry is a route a linkedFn or sub-routes */
+/** Data structure to define all the routes, each entry is a route a middleFn or sub-routes */
 export interface Routes {
     [key: string]: RouterEntry;
 }
@@ -45,7 +45,7 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
      * @default 'stringifyJson'
      */
     serializer: SerializerMode;
-    /** run type compiler options for linkedFns and routes */
+    /** run type compiler options for middleFns and routes */
     runTypeOptions: RunTypeOptions;
     /** Used to return public data structure when adding routes */
     getPublicRoutesData: boolean;
@@ -57,7 +57,7 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
      * Enable AOT (Ahead-of-Time) mode.
      * When true, router will use pre-compiled JIT functions from cache
      * and will NOT load @mionkit/run-types package.
-     * Throws error if any route/linkedFn is missing from AOT cache.
+     * Throws error if any route/middleFn is missing from AOT cache.
      * @default false
      */
     aot: boolean;

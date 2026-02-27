@@ -36,11 +36,11 @@ describe('routesFlow', () => {
 
     describe('routesFlow() function', () => {
         it('should execute a single route in a routesFlow', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth so it's included automatically
-            linkedFns.auth(authHeaders).prefill();
+            middleFns.auth(authHeaders).prefill();
 
             const [[greeting], [greetingError]] = await routesFlow([routes.sayHello(someUser)]);
 
@@ -48,15 +48,15 @@ describe('routesFlow', () => {
             expect(greetingError).toBeUndefined();
 
             // Clean up
-            linkedFns.auth(authHeaders).removePrefill();
+            middleFns.auth(authHeaders).removePrefill();
         });
 
         it('should execute multiple routes in a routesFlow', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth so it's included automatically
-            linkedFns.auth(authHeaders).prefill();
+            middleFns.auth(authHeaders).prefill();
 
             const [[greeting, age, sum], [greetingError, ageError, sumError]] = await routesFlow([
                 routes.sayHello(someUser),
@@ -72,28 +72,28 @@ describe('routesFlow', () => {
             expect(sumError).toBeUndefined();
 
             // Clean up
-            linkedFns.auth(authHeaders).removePrefill();
+            middleFns.auth(authHeaders).removePrefill();
         });
 
-        it('should execute routesFlow with explicit linkedFns', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('should execute routesFlow with explicit middleFns', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [[greeting], [greetingError], , linkedFnErrors] = await routesFlow([routes.sayHello(someUser)], {
-                auth: linkedFns.auth(authHeaders),
+            const [[greeting], [greetingError], , middleFnErrors] = await routesFlow([routes.sayHello(someUser)], {
+                auth: middleFns.auth(authHeaders),
             });
 
             expect(greeting).toEqual('Hello John Doe');
             expect(greetingError).toBeUndefined();
-            expect(linkedFnErrors?.auth).toBeUndefined();
+            expect(middleFnErrors?.auth).toBeUndefined();
         });
 
         it('should handle route errors in routesFlow', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [[failResult], [failError]] = await routesFlow([routes.alwaysFails(someUser)], {
-                auth: linkedFns.auth(authHeaders),
+                auth: middleFns.auth(authHeaders),
             });
 
             // The failing route should have an error
@@ -118,11 +118,11 @@ describe('routesFlow', () => {
 
     describe('callWithWorkflow() method', () => {
         it('should execute routesFlow via callWithWorkflow on a subrequest', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth so it's included automatically
-            linkedFns.auth(authHeaders).prefill();
+            middleFns.auth(authHeaders).prefill();
 
             const [[greeting, age], [greetingError, ageError]] = await routes
                 .sayHello(someUser)
@@ -134,33 +134,33 @@ describe('routesFlow', () => {
             expect(ageError).toBeUndefined();
 
             // Clean up
-            linkedFns.auth(authHeaders).removePrefill();
+            middleFns.auth(authHeaders).removePrefill();
         });
 
-        it('should execute callWithWorkflow with explicit linkedFns', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('should execute callWithWorkflow with explicit middleFns', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [[greeting, age], [greetingError, ageError], , linkedFnErrors] = await routes
+            const [[greeting, age], [greetingError, ageError], , middleFnErrors] = await routes
                 .sayHello(someUser)
-                .callWithWorkflow([routes.calculateAge(1990)], {auth: linkedFns.auth(authHeaders)});
+                .callWithWorkflow([routes.calculateAge(1990)], {auth: middleFns.auth(authHeaders)});
 
             expect(greeting).toEqual('Hello John Doe');
             expect(age).toEqual(new Date().getFullYear() - 1990);
             expect(greetingError).toBeUndefined();
             expect(ageError).toBeUndefined();
-            expect(linkedFnErrors?.auth).toBeUndefined();
+            expect(middleFnErrors?.auth).toBeUndefined();
         });
     });
 
     describe('serialization/deserialization in routesFlows', () => {
         it('should serialize and deserialize Date params and results', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testDate = new Date('2024-06-15T12:30:00.000Z');
 
             const [[sameDate], [dateError]] = await routesFlow([routes.getSameDate(testDate)], {
-                auth: linkedFns.auth(authHeaders),
+                auth: middleFns.auth(authHeaders),
             });
 
             expect(dateError).toBeUndefined();
@@ -169,12 +169,12 @@ describe('routesFlow', () => {
         });
 
         it('should serialize Date params and return computed Date result', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testDate = new Date('2024-01-01T00:00:00.000Z');
 
             const [[datePlusDays], [dateError]] = await routesFlow([routes.getDatePlusDays(testDate, 10)], {
-                auth: linkedFns.auth(authHeaders),
+                auth: middleFns.auth(authHeaders),
             });
 
             expect(dateError).toBeUndefined();
@@ -183,7 +183,7 @@ describe('routesFlow', () => {
         });
 
         it('should serialize and deserialize Map params and results', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testMap = new Map<string, number>([
                 ['a', 1],
@@ -191,7 +191,7 @@ describe('routesFlow', () => {
             ]);
 
             const [[sameMap], [mapError]] = await routesFlow([routes.getSameMap(testMap)], {
-                auth: linkedFns.auth(authHeaders),
+                auth: middleFns.auth(authHeaders),
             });
 
             expect(mapError).toBeUndefined();
@@ -201,12 +201,12 @@ describe('routesFlow', () => {
         });
 
         it('should serialize Map params and return modified Map result', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testMap = new Map<string, number>([['x', 10]]);
 
             const [[mergedMap], [mapError]] = await routesFlow([routes.mergeMap(testMap, 'y', 20)], {
-                auth: linkedFns.auth(authHeaders),
+                auth: middleFns.auth(authHeaders),
             });
 
             expect(mapError).toBeUndefined();
@@ -216,12 +216,12 @@ describe('routesFlow', () => {
         });
 
         it('should serialize and deserialize Set params and results', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testSet = new Set(['hello', 'world']);
 
             const [[sameSet], [setError]] = await routesFlow([routes.getSameSet(testSet)], {
-                auth: linkedFns.auth(authHeaders),
+                auth: middleFns.auth(authHeaders),
             });
 
             expect(setError).toBeUndefined();
@@ -231,12 +231,12 @@ describe('routesFlow', () => {
         });
 
         it('should serialize Set params and return modified Set result', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testSet = new Set(['a', 'b']);
 
             const [[modifiedSet], [setError]] = await routesFlow([routes.addToSet(testSet, 'c')], {
-                auth: linkedFns.auth(authHeaders),
+                auth: middleFns.auth(authHeaders),
             });
 
             expect(setError).toBeUndefined();
@@ -247,13 +247,13 @@ describe('routesFlow', () => {
         });
 
         it('should handle multiple routes mixing serializable and plain types in a routesFlow', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             const testDate = new Date('2024-06-15T12:30:00.000Z');
 
             const [[sameDate, greeting, age], [dateError, greetingError, ageError]] = await routesFlow(
                 [routes.getSameDate(testDate), routes.sayHello(someUser), routes.calculateAge(1990)],
-                {auth: linkedFns.auth(authHeaders)}
+                {auth: middleFns.auth(authHeaders)}
             );
 
             expect(dateError).toBeUndefined();
@@ -330,13 +330,13 @@ describe('mapFrom e2e in routesFlow', () => {
     const baseURL = TEST_SERVER_BASE_URL_JSON;
 
     it('should map output of one route to input of another', async () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         const customer = routes.getCustomerById(42);
         const [[customerData, prefs], [customerError, prefsError]] = await routesFlow(
             [customer, routes.getPreferencesById(mapFrom(customer, (c) => c!.preferenceId).type())],
-            {auth: linkedFns.auth(authHeaders)}
+            {auth: middleFns.auth(authHeaders)}
         );
 
         expect(customerError).toBeUndefined();

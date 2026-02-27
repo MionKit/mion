@@ -4,10 +4,10 @@ import {initClient} from '@mionkit/client';
 import type {MyApi} from './server-record.routes.ts';
 import {HeadersSubset} from '@mionkit/core';
 
-const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // lets prefill auth token
-await linkedFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();
+await middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();
 
 // now lets change remoteh methods
 const sumResult = await routes.utils.sum5(5).call();

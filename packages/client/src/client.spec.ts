@@ -30,10 +30,10 @@ describe('client', () => {
 
     const baseURL = TEST_SERVER_BASE_URL_JSON;
 
-    // Note: prefilledLinkedFnsCache is now per-client instance, so each test with a fresh client starts with empty cache
+    // Note: prefilledMiddleFnsCache is now per-client instance, so each test with a fresh client starts with empty cache
 
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         const expectedAuthSubRequest: RSubRequest<any> & HSubRequest<any> = {
@@ -42,7 +42,7 @@ describe('client', () => {
             isResolved: false,
             params: [authHeaders],
             call: expect.any(Function),
-            callWithLinkedFns: expect.any(Function),
+            callWithMiddleFns: expect.any(Function),
             callWithWorkflow: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
@@ -55,7 +55,7 @@ describe('client', () => {
             isResolved: false,
             params: [someUser],
             call: expect.any(Function),
-            callWithLinkedFns: expect.any(Function),
+            callWithMiddleFns: expect.any(Function),
             callWithWorkflow: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
@@ -68,14 +68,14 @@ describe('client', () => {
             isResolved: false,
             params: [2],
             call: expect.any(Function),
-            callWithLinkedFns: expect.any(Function),
+            callWithMiddleFns: expect.any(Function),
             callWithWorkflow: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
         };
 
-        expect(linkedFns.auth(authHeaders)).toEqual(expect.objectContaining(expectedAuthSubRequest));
+        expect(middleFns.auth(authHeaders)).toEqual(expect.objectContaining(expectedAuthSubRequest));
         expect(routes.sayHello(someUser)).toEqual(expect.objectContaining(expectedSayHelloSubRequest));
         expect(routes.utils.sumTwo(2)).toEqual(expect.objectContaining(expectedSumTwoSubRequest));
 
@@ -87,49 +87,49 @@ describe('client', () => {
             isResolved: false,
             params: [1, 'a'],
             call: expect.any(Function),
-            callWithLinkedFns: expect.any(Function),
+            callWithMiddleFns: expect.any(Function),
             callWithWorkflow: expect.any(Function),
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
         };
         expect((routes as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
-        expect((linkedFns as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
+        expect((middleFns as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
     });
 
     it('make a route call and get a valid response', async () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, error, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
-            auth: linkedFns.auth(authHeaders),
+        const [greeting, error, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
+            auth: middleFns.auth(authHeaders),
         });
 
         expect(greeting).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
         expect(error).toBeUndefined();
-        expect(linkedFnResults).toBeDefined();
-        expect(linkedFnErrors).toBeDefined();
+        expect(middleFnResults).toBeDefined();
+        expect(middleFnErrors).toBeDefined();
     });
 
-    it('make a route call using callWithLinkedFns method', async () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+    it('make a route call using callWithMiddleFns method', async () => {
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, , linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
-            auth: linkedFns.auth(authHeaders),
+        const [greeting, routeError, , middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
+            auth: middleFns.auth(authHeaders),
         });
 
         expect(greeting).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
         expect(routeError).toBeUndefined();
-        expect(linkedFnErrors?.auth).toBeUndefined();
+        expect(middleFnErrors?.auth).toBeUndefined();
     });
 
     it('return error in result if a route call fails', async () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError] = await routes.alwaysFails(someUser).callWithLinkedFns({
-            auth: linkedFns.auth(authHeaders),
+        const [greeting, routeError] = await routes.alwaysFails(someUser).callWithMiddleFns({
+            auth: middleFns.auth(authHeaders),
         });
 
         expect(greeting).toBeUndefined();
@@ -150,10 +150,10 @@ describe('client', () => {
     });
 
     it('prefill and remove prefill from a request', async () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('ABYWZ-TOKEN');
 
-        const request = linkedFns.auth(authHeaders);
+        const request = middleFns.auth(authHeaders);
         request.prefill();
         // note auth has been prefilled and is not required to be sent in the call
 
@@ -167,7 +167,7 @@ describe('client', () => {
 
         const [, error] = await routes.sayHello(someUser).call();
 
-        // After removing prefill, the auth linkedFn is not sent, so server returns headers validation error
+        // After removing prefill, the auth middleFn is not sent, so server returns headers validation error
         expect(error).toBeDefined();
         expect(isRpcError(error)).toBe(true);
         expect(error?.['mion@isΣrrθr']).toBe(true);
@@ -178,11 +178,11 @@ describe('client', () => {
 
     describe('Result pattern', () => {
         it('call() should return data on success', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Prefill auth linkedFn so call() works without callWithLinkedFns
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn so call() works without callWithMiddleFns
+            middleFns.auth(authHeaders).prefill();
 
             const [greeting, error] = await routes.sayHello(someUser).call();
 
@@ -190,15 +190,15 @@ describe('client', () => {
             expect(error).toBeUndefined();
 
             // Clean up
-            linkedFns.auth(authHeaders).removePrefill();
+            middleFns.auth(authHeaders).removePrefill();
         });
 
         it('call() should return error on failure', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Prefill auth linkedFn so call() works without callWithLinkedFns
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn so call() works without callWithMiddleFns
+            middleFns.auth(authHeaders).prefill();
 
             const [response, error] = await routes.alwaysFails(someUser).call();
 
@@ -208,15 +208,15 @@ describe('client', () => {
             expect(error?.publicMessage).toBe('Something fails');
 
             // Clean up
-            linkedFns.auth(authHeaders).removePrefill();
+            middleFns.auth(authHeaders).removePrefill();
         });
 
         it('call() should not throw even on error', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Prefill auth linkedFn so call() works without callWithLinkedFns
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn so call() works without callWithMiddleFns
+            middleFns.auth(authHeaders).prefill();
 
             // This should NOT throw
             let didThrow = false;
@@ -230,15 +230,15 @@ describe('client', () => {
             expect(didThrow).toBe(false);
 
             // Clean up
-            linkedFns.auth(authHeaders).removePrefill();
+            middleFns.auth(authHeaders).removePrefill();
         });
 
         it('call() should return typed error that can be checked', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Prefill auth linkedFn so call() works without callWithLinkedFns
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn so call() works without callWithMiddleFns
+            middleFns.auth(authHeaders).prefill();
 
             const [response, error] = await routes.alwaysFails(someUser).call();
 
@@ -248,22 +248,22 @@ describe('client', () => {
             expect(response).toBeUndefined();
 
             // Clean up
-            linkedFns.auth(authHeaders).removePrefill();
+            middleFns.auth(authHeaders).removePrefill();
         });
     });
 
-    // ========== TypedEvent LinkedFn Success Handler Tests ==========
+    // ========== TypedEvent MiddleFn Success Handler Tests ==========
 
     describe('TypedEvent onSuccess handlers', () => {
         it('onSuccess should be called on every successful request', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCallCount = 0;
             let receivedSessionInfo: any = null;
 
-            // Prefill the session linkedFn and register onSuccess handler
-            linkedFns
+            // Prefill the session middleFn and register onSuccess handler
+            middleFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess((sessionInfo) => {
@@ -271,8 +271,8 @@ describe('client', () => {
                     receivedSessionInfo = sessionInfo;
                 });
 
-            // Prefill auth linkedFn so call() works without callWithLinkedFns
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn so call() works without callWithMiddleFns
+            middleFns.auth(authHeaders).prefill();
 
             // Make first request
             await routes.sayHello(someUser).call();
@@ -286,19 +286,19 @@ describe('client', () => {
             expect(successCallCount).toBe(2);
 
             // Clean up
-            await linkedFns.session('valid-token').removePrefill();
-            await linkedFns.auth(authHeaders).removePrefill();
+            await middleFns.session('valid-token').removePrefill();
+            await middleFns.auth(authHeaders).removePrefill();
         });
 
-        it('onSuccess should NOT be called when linkedFn fails', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('onSuccess should NOT be called when middleFn fails', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCalled = false;
             let errorCalled = false;
 
             // Prefill with expired token and register handlers
-            linkedFns
+            middleFns
                 .session('expired')
                 .prefill()
                 .onSuccess(() => {
@@ -308,8 +308,8 @@ describe('client', () => {
                     errorCalled = true;
                 });
 
-            // Prefill auth linkedFn so call() works without callWithLinkedFns
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn so call() works without callWithMiddleFns
+            middleFns.auth(authHeaders).prefill();
 
             // Make request - should fail with session-expired
             await routes.sayHello(someUser).call();
@@ -318,26 +318,26 @@ describe('client', () => {
             expect(errorCalled).toBe(true);
 
             // Clean up
-            await linkedFns.session('expired').removePrefill();
-            await linkedFns.auth(authHeaders).removePrefill();
+            await middleFns.session('expired').removePrefill();
+            await middleFns.auth(authHeaders).removePrefill();
         });
 
         it('offSuccess should remove success handler', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCallCount = 0;
 
             // Prefill and register onSuccess handler
-            const typedEvent = linkedFns
+            const typedEvent = middleFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess(() => {
                     successCallCount++;
                 });
 
-            // Prefill auth linkedFn so call() works without callWithLinkedFns
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn so call() works without callWithMiddleFns
+            middleFns.auth(authHeaders).prefill();
 
             // First request - handler should be called
             await routes.sayHello(someUser).call();
@@ -351,19 +351,19 @@ describe('client', () => {
             expect(successCallCount).toBe(1); // Still 1
 
             // Clean up
-            await linkedFns.session('valid-token').removePrefill();
-            await linkedFns.auth(authHeaders).removePrefill();
+            await middleFns.session('valid-token').removePrefill();
+            await middleFns.auth(authHeaders).removePrefill();
         });
 
         it('both onSuccess and onError can be registered on same TypedEvent', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCalled = false;
             let errorCalled = false;
 
             // Register both handlers
-            linkedFns
+            middleFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess(() => {
@@ -373,8 +373,8 @@ describe('client', () => {
                     errorCalled = true;
                 });
 
-            // Prefill auth linkedFn so call() works without callWithLinkedFns
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn so call() works without callWithMiddleFns
+            middleFns.auth(authHeaders).prefill();
 
             // Make successful request
             await routes.sayHello(someUser).call();
@@ -383,15 +383,15 @@ describe('client', () => {
             expect(errorCalled).toBe(false);
 
             // Clean up
-            await linkedFns.session('valid-token').removePrefill();
-            await linkedFns.auth(authHeaders).removePrefill();
+            await middleFns.session('valid-token').removePrefill();
+            await middleFns.auth(authHeaders).removePrefill();
         });
 
         it('removePrefill should clear both success and error handlers', async () => {
-            const {linkedFns} = initClient<MyApi>({baseURL});
+            const {middleFns} = initClient<MyApi>({baseURL});
 
             // Register handlers
-            const typedEvent = linkedFns
+            const typedEvent = middleFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess(() => {
@@ -406,22 +406,22 @@ describe('client', () => {
             expect(typedEvent.hasErrorHandler('session-expired')).toBe(true);
 
             // Remove prefill (should clear handlers)
-            await linkedFns.session('valid-token').removePrefill();
+            await middleFns.session('valid-token').removePrefill();
 
             // Verify handlers are cleared
             expect(typedEvent.hasSuccessHandler()).toBe(false);
             expect(typedEvent.hasErrorHandler('session-expired')).toBe(false);
         });
 
-        it('call() with prefilled linkedFns should return linkedFnResults/linkedFnErrors AND trigger TypedEvent handlers', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('call() with prefilled middleFns should return middleFnResults/middleFnErrors AND trigger TypedEvent handlers', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let typedEventSuccessCalled = false;
             let typedEventReceivedSession: any = null;
 
-            // Prefill session linkedFn with TypedEvent handlers
-            linkedFns
+            // Prefill session middleFn with TypedEvent handlers
+            middleFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess((sessionInfo) => {
@@ -429,19 +429,19 @@ describe('client', () => {
                     typedEventReceivedSession = sessionInfo;
                 });
 
-            // Prefill auth linkedFn
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn
+            middleFns.auth(authHeaders).prefill();
 
-            // call() should return both route result AND linkedFn results/errors in the 4-tuple
-            const [greeting, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).call();
+            // call() should return both route result AND middleFn results/errors in the 4-tuple
+            const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call();
 
             // Route should succeed
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
 
-            // LinkedFn results should be available in the 4-tuple (from prefilled linkedFns)
-            expect(linkedFnResults).toBeDefined();
-            expect(linkedFnErrors).toBeDefined();
+            // MiddleFn results should be available in the 4-tuple (from prefilled middleFns)
+            expect(middleFnResults).toBeDefined();
+            expect(middleFnErrors).toBeDefined();
 
             // TypedEvent handler should ALSO have been called
             expect(typedEventSuccessCalled).toBe(true);
@@ -449,19 +449,19 @@ describe('client', () => {
             expect(typedEventReceivedSession.userId).toBe('user-123');
 
             // Clean up
-            await linkedFns.session('valid-token').removePrefill();
-            await linkedFns.auth(authHeaders).removePrefill();
+            await middleFns.session('valid-token').removePrefill();
+            await middleFns.auth(authHeaders).removePrefill();
         });
 
-        it('call() with prefilled linkedFns should return linkedFnErrors AND trigger TypedEvent error handlers', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('call() with prefilled middleFns should return middleFnErrors AND trigger TypedEvent error handlers', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let typedEventErrorCalled = false;
             let typedEventReceivedError: any = null;
 
-            // Prefill session linkedFn with expired token and TypedEvent error handler
-            linkedFns
+            // Prefill session middleFn with expired token and TypedEvent error handler
+            middleFns
                 .session('expired')
                 .prefill()
                 .onError('session-expired', (error) => {
@@ -469,15 +469,15 @@ describe('client', () => {
                     typedEventReceivedError = error;
                 });
 
-            // Prefill auth linkedFn
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn
+            middleFns.auth(authHeaders).prefill();
 
-            // call() should return linkedFn errors in the 4-tuple
-            const [, , linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).call();
+            // call() should return middleFn errors in the 4-tuple
+            const [, , middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call();
 
-            // LinkedFn errors should be available in the 4-tuple
-            expect(linkedFnResults).toBeDefined();
-            expect(linkedFnErrors).toBeDefined();
+            // MiddleFn errors should be available in the 4-tuple
+            expect(middleFnResults).toBeDefined();
+            expect(middleFnErrors).toBeDefined();
 
             // TypedEvent error handler should ALSO have been called
             expect(typedEventErrorCalled).toBe(true);
@@ -485,19 +485,19 @@ describe('client', () => {
             expect(typedEventReceivedError.type).toBe('session-expired');
 
             // Clean up
-            await linkedFns.session('expired').removePrefill();
-            await linkedFns.auth(authHeaders).removePrefill();
+            await middleFns.session('expired').removePrefill();
+            await middleFns.auth(authHeaders).removePrefill();
         });
 
-        it('call() with prefilled linkedFns should handle mixed results (linkedFn succeeds, route fails)', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('call() with prefilled middleFns should handle mixed results (middleFn succeeds, route fails)', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let typedEventSuccessCalled = false;
             let typedEventReceivedSession: any = null;
 
-            // Prefill session linkedFn with TypedEvent success handler
-            linkedFns
+            // Prefill session middleFn with TypedEvent success handler
+            middleFns
                 .session('valid-token')
                 .prefill()
                 .onSuccess((sessionInfo) => {
@@ -505,11 +505,11 @@ describe('client', () => {
                     typedEventReceivedSession = sessionInfo;
                 });
 
-            // Prefill auth linkedFn
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn
+            middleFns.auth(authHeaders).prefill();
 
-            // Call a route that always fails - linkedFns still execute and succeed, but route returns error
-            const [result, routeError, linkedFnResults, linkedFnErrors] = await routes.alwaysFails(someUser).call();
+            // Call a route that always fails - middleFns still execute and succeed, but route returns error
+            const [result, routeError, middleFnResults, middleFnErrors] = await routes.alwaysFails(someUser).call();
 
             // Route should fail
             expect(result).toBeUndefined();
@@ -517,61 +517,61 @@ describe('client', () => {
             expect(routeError?.type).toBe('unknown-error');
             expect(routeError?.publicMessage).toBe('Something fails');
 
-            // LinkedFn results should be available (linkedFns succeeded even though route failed)
-            expect(linkedFnResults).toBeDefined();
-            expect(linkedFnErrors).toBeDefined();
+            // MiddleFn results should be available (middleFns succeeded even though route failed)
+            expect(middleFnResults).toBeDefined();
+            expect(middleFnErrors).toBeDefined();
 
-            // TypedEvent success handler SHOULD be called for the linkedFn (linkedFn succeeded independently)
-            // This is the correct behavior - each linkedFn is processed individually, not based on route success
+            // TypedEvent success handler SHOULD be called for the middleFn (middleFn succeeded independently)
+            // This is the correct behavior - each middleFn is processed individually, not based on route success
             expect(typedEventSuccessCalled).toBe(true);
             expect(typedEventReceivedSession).toBeDefined();
             expect(typedEventReceivedSession.userId).toBe('user-123');
 
             // Clean up
-            await linkedFns.session('valid-token').removePrefill();
-            await linkedFns.auth(authHeaders).removePrefill();
+            await middleFns.session('valid-token').removePrefill();
+            await middleFns.auth(authHeaders).removePrefill();
         });
     });
 
-    // ========== callWithLinkedFns() Tests ==========
+    // ========== callWithMiddleFns() Tests ==========
 
-    describe('callWithLinkedFns() API', () => {
-        it('callWithLinkedFns should return route data on success', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+    describe('callWithMiddleFns() API', () => {
+        it('callWithMiddleFns should return route data on success', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
-                auth: linkedFns.auth(authHeaders),
+            const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
             });
 
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
-            expect(linkedFnResults).toBeDefined();
-            expect(linkedFnErrors).toBeDefined();
+            expect(middleFnResults).toBeDefined();
+            expect(middleFnErrors).toBeDefined();
         });
 
-        it('callWithLinkedFns should return linkedFn data on success', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('callWithMiddleFns should return middleFn data on success', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
-                auth: linkedFns.auth(authHeaders),
-                session: linkedFns.session('valid-token'),
+            const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+                session: middleFns.session('valid-token'),
             });
 
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
-            expect(linkedFnErrors?.auth).toBeUndefined();
-            expect(linkedFnResults?.session).toBeDefined();
-            expect(linkedFnResults?.session?.userId).toBe('user-123');
+            expect(middleFnErrors?.auth).toBeUndefined();
+            expect(middleFnResults?.session).toBeDefined();
+            expect(middleFnResults?.session?.userId).toBe('user-123');
         });
 
-        it('callWithLinkedFns should return route error on failure', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('callWithMiddleFns should return route error on failure', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError] = await routes.alwaysFails(someUser).callWithLinkedFns({
-                auth: linkedFns.auth(authHeaders),
+            const [greeting, routeError] = await routes.alwaysFails(someUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
             });
 
             expect(greeting).toBeUndefined();
@@ -579,28 +579,28 @@ describe('client', () => {
             expect(routeError?.type).toBe('unknown-error');
         });
 
-        it('callWithLinkedFns should return linkedFn error on linkedFn failure', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('callWithMiddleFns should return middleFn error on middleFn failure', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [, , , linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
-                auth: linkedFns.auth(authHeaders),
-                session: linkedFns.session('expired'), // This will fail
+            const [, , , middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+                session: middleFns.session('expired'), // This will fail
             });
 
-            // Route may or may not have data depending on linkedFn execution order
-            expect(linkedFnErrors?.session).toBeDefined();
-            expect(linkedFnErrors?.session?.type).toBe('session-expired');
+            // Route may or may not have data depending on middleFn execution order
+            expect(middleFnErrors?.session).toBeDefined();
+            expect(middleFnErrors?.session?.type).toBe('session-expired');
         });
 
-        it('callWithLinkedFns should never throw', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('callWithMiddleFns should never throw', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let didThrow = false;
             try {
-                const [, routeError] = await routes.alwaysFails(someUser).callWithLinkedFns({
-                    auth: linkedFns.auth(authHeaders),
+                const [, routeError] = await routes.alwaysFails(someUser).callWithMiddleFns({
+                    auth: middleFns.auth(authHeaders),
                 });
                 // Should have error in result, not throw
                 expect(routeError).toBeDefined();
@@ -611,66 +611,66 @@ describe('client', () => {
             expect(didThrow).toBe(false);
         });
 
-        it('callWithLinkedFns should NOT work with empty linkedFns object', async () => {
+        it('callWithMiddleFns should NOT work with empty middleFns object', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            // callWithLinkedFns with empty linkedFns object should throw an error
-            expect(() => routes.sayHello(someUser).callWithLinkedFns({})).toThrow(
-                'callWithLinkedFns requires at least one linkedFn. Use call() instead for requests without linkedFns.'
+            // callWithMiddleFns with empty middleFns object should throw an error
+            expect(() => routes.sayHello(someUser).callWithMiddleFns({})).toThrow(
+                'callWithMiddleFns requires at least one middleFn. Use call() instead for requests without middleFns.'
             );
         });
 
-        it('callWithLinkedFns should support partial success (route succeeds, linkedFn fails)', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('callWithMiddleFns should support partial success (route succeeds, middleFn fails)', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Session linkedFn with expired token will fail
-            const [, , , linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
-                auth: linkedFns.auth(authHeaders),
-                session: linkedFns.session('expired'),
+            // Session middleFn with expired token will fail
+            const [, , , middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+                session: middleFns.session('expired'),
             });
 
-            // Route may or may not succeed depending on linkedFn execution order
-            // But session linkedFn should definitely have an error
-            expect(linkedFnErrors?.session).toBeDefined();
-            expect(linkedFnErrors?.session?.type).toBe('session-expired');
+            // Route may or may not succeed depending on middleFn execution order
+            // But session middleFn should definitely have an error
+            expect(middleFnErrors?.session).toBeDefined();
+            expect(middleFnErrors?.session?.type).toBe('session-expired');
         });
 
-        it('callWithLinkedFns should return all linkedFn results', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('callWithMiddleFns should return all middleFn results', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [, , linkedFnResults] = await routes.sayHello(someUser).callWithLinkedFns({
-                auth: linkedFns.auth(authHeaders),
-                session: linkedFns.session('valid-token'),
+            const [, , middleFnResults] = await routes.sayHello(someUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+                session: middleFns.session('valid-token'),
             });
 
-            // Session linkedFn should have data
-            expect(linkedFnResults?.session).toBeDefined();
-            expect(linkedFnResults?.session?.userId).toBe('user-123');
+            // Session middleFn should have data
+            expect(middleFnResults?.session).toBeDefined();
+            expect(middleFnResults?.session?.userId).toBe('user-123');
         });
 
-        it('callWithLinkedFns should work with multiple linkedFns', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('callWithMiddleFns should work with multiple middleFns', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(someUser).callWithLinkedFns({
-                auth: linkedFns.auth(authHeaders),
-                session: linkedFns.session('valid-token'),
+            const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+                session: middleFns.session('valid-token'),
             });
 
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
-            expect(linkedFnErrors?.auth).toBeUndefined();
-            expect(linkedFnResults?.session).toBeDefined();
+            expect(middleFnErrors?.auth).toBeUndefined();
+            expect(middleFnResults?.session).toBeDefined();
         });
 
-        it('callWithLinkedFns result should have correct types', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('callWithMiddleFns result should have correct types', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError] = await routes.sayHello(someUser).callWithLinkedFns({
-                auth: linkedFns.auth(authHeaders),
+            const [greeting, routeError] = await routes.sayHello(someUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
             });
 
             // Type checks - these should compile
@@ -686,12 +686,12 @@ describe('client', () => {
             expect(greetingValue === undefined || typeof greetingValue === 'string').toBe(true);
         });
 
-        it('callWithLinkedFns should handle route that always fails', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('callWithMiddleFns should handle route that always fails', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError] = await routes.alwaysFails(someUser).callWithLinkedFns({
-                auth: linkedFns.auth(authHeaders),
+            const [greeting, routeError] = await routes.alwaysFails(someUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
             });
 
             expect(greeting).toBeUndefined();
@@ -701,11 +701,11 @@ describe('client', () => {
         });
     });
 
-    // ========== Server-side LinkedFn Errors Tests (@thrownErrors) ==========
+    // ========== Server-side MiddleFn Errors Tests (@thrownErrors) ==========
 
-    describe('Server-side linkedFn errors (@thrownErrors)', () => {
-        it('validation error should be included in linkedFnErrors when sending wrong param type', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+    describe('Server-side middleFn errors (@thrownErrors)', () => {
+        it('validation error should be included in middleFnErrors when sending wrong param type', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Send a string instead of a number to calculateAge route
@@ -713,73 +713,73 @@ describe('client', () => {
             // We need to bypass TypeScript type checking to send wrong type
             const wrongParams = 'not-a-number' as unknown as number;
 
-            const [result, routeError, linkedFnResults, linkedFnErrors] = await routes
+            const [result, routeError, middleFnResults, middleFnErrors] = await routes
                 .calculateAge(wrongParams)
-                .callWithLinkedFns({
-                    auth: linkedFns.auth(authHeaders),
+                .callWithMiddleFns({
+                    auth: middleFns.auth(authHeaders),
                 });
 
             // The request should fail due to validation error
             expect(result).toBeUndefined();
 
-            // Either routeError or linkedFnErrors should contain the validation error
-            const hasError = routeError !== undefined || (linkedFnErrors && Object.keys(linkedFnErrors).length > 0);
+            // Either routeError or middleFnErrors should contain the validation error
+            const hasError = routeError !== undefined || (middleFnErrors && Object.keys(middleFnErrors).length > 0);
             expect(hasError).toBe(true);
 
-            // linkedFnResults should be defined (even if empty)
-            expect(linkedFnResults).toBeDefined();
-            expect(linkedFnErrors).toBeDefined();
+            // middleFnResults should be defined (even if empty)
+            expect(middleFnResults).toBeDefined();
+            expect(middleFnErrors).toBeDefined();
         });
 
-        it('validation error should be included in linkedFnErrors when sending wrong object structure', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('validation error should be included in middleFnErrors when sending wrong object structure', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Send an object with wrong structure (missing surname)
             // We need to bypass TypeScript type checking to send wrong type
             const wrongUser = {name: 'John'} as unknown as {name: string; surname: string};
 
-            const [result, routeError, linkedFnResults, linkedFnErrors] = await routes.sayHello(wrongUser).callWithLinkedFns({
-                auth: linkedFns.auth(authHeaders),
+            const [result, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(wrongUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
             });
 
             // The request should fail due to validation error
             expect(result).toBeUndefined();
 
-            // Either routeError or linkedFnErrors should contain the validation error
-            const hasError = routeError !== undefined || (linkedFnErrors && Object.keys(linkedFnErrors).length > 0);
+            // Either routeError or middleFnErrors should contain the validation error
+            const hasError = routeError !== undefined || (middleFnErrors && Object.keys(middleFnErrors).length > 0);
             expect(hasError).toBe(true);
 
-            // linkedFnResults should be defined (even if empty)
-            expect(linkedFnResults).toBeDefined();
-            expect(linkedFnErrors).toBeDefined();
+            // middleFnResults should be defined (even if empty)
+            expect(middleFnResults).toBeDefined();
+            expect(middleFnErrors).toBeDefined();
         });
 
-        it('validation error should be included in linkedFnErrors for call() with prefilled linkedFns', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('validation error should be included in middleFnErrors for call() with prefilled middleFns', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            // Prefill auth linkedFn
-            linkedFns.auth(authHeaders).prefill();
+            // Prefill auth middleFn
+            middleFns.auth(authHeaders).prefill();
 
             // Send wrong param type
             const wrongParams = 'not-a-number' as unknown as number;
 
-            const [result, routeError, linkedFnResults, linkedFnErrors] = await routes.calculateAge(wrongParams).call();
+            const [result, routeError, middleFnResults, middleFnErrors] = await routes.calculateAge(wrongParams).call();
 
             // The request should fail due to validation error
             expect(result).toBeUndefined();
 
-            // Either routeError or linkedFnErrors should contain the validation error
-            const hasError = routeError !== undefined || (linkedFnErrors && Object.keys(linkedFnErrors).length > 0);
+            // Either routeError or middleFnErrors should contain the validation error
+            const hasError = routeError !== undefined || (middleFnErrors && Object.keys(middleFnErrors).length > 0);
             expect(hasError).toBe(true);
 
-            // linkedFnResults and linkedFnErrors should always be defined in 4-tuple
-            expect(linkedFnResults).toBeDefined();
-            expect(linkedFnErrors).toBeDefined();
+            // middleFnResults and middleFnErrors should always be defined in 4-tuple
+            expect(middleFnResults).toBeDefined();
+            expect(middleFnErrors).toBeDefined();
 
             // Clean up
-            await linkedFns.auth(authHeaders).removePrefill();
+            await middleFns.auth(authHeaders).removePrefill();
         });
     });
 
@@ -787,18 +787,18 @@ describe('client', () => {
 
     describe('Pure Functions E2E (UUID validation)', () => {
         let routes: ReturnType<typeof initClient<MyApi>>['routes'];
-        let linkedFns: ReturnType<typeof initClient<MyApi>>['linkedFns'];
+        let middleFns: ReturnType<typeof initClient<MyApi>>['middleFns'];
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         beforeEach(() => {
             const client = initClient<MyApi>({baseURL});
             routes = client.routes;
-            linkedFns = client.linkedFns;
-            linkedFns.auth(authHeaders).prefill();
+            middleFns = client.middleFns;
+            middleFns.auth(authHeaders).prefill();
         });
 
         afterEach(async () => {
-            await linkedFns.auth(authHeaders).removePrefill();
+            await middleFns.auth(authHeaders).removePrefill();
         });
 
         it('should successfully call route with valid UUID v4', async () => {

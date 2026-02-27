@@ -6,8 +6,8 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {resetRouter, initRouter, registerRoutes, getRouteExecutable, getLinkedFnExecutable} from '../router.ts';
-import {route, linkedFn, rawLinkedFn} from './handlers.ts';
+import {resetRouter, initRouter, registerRoutes, getRouteExecutable, getMiddleFnExecutable} from '../router.ts';
+import {route, middleFn, rawMiddleFn} from './handlers.ts';
 import {setPersistedMethods, resetPersistedMethods, loadCompiledMethods} from './methodsCache.ts';
 import {AOTCacheError, resetRunTypesCache} from './reflection.ts';
 import {
@@ -107,15 +107,15 @@ const defaultRoutesCache: MethodsCache = {
         nestLevel: 0,
         options: {runOnError: false, validateParams: true, validateReturn: false},
     },
-    'mion@mionEmptyLinkedFn': {
+    'mion@mionEmptyMiddleFn': {
         paramNames: [],
-        type: HandlerType.linkedFn,
-        id: 'mion@mionEmptyLinkedFn',
+        type: HandlerType.middleFn,
+        id: 'mion@mionEmptyMiddleFn',
         isAsync: false,
         hasReturnData: false,
         paramsJitHash: EMPTY_HASH,
         returnJitHash: EMPTY_HASH,
-        pointer: ['mion@mionEmptyLinkedFn'],
+        pointer: ['mion@mionEmptyMiddleFn'],
         nestLevel: 0,
         options: {runOnError: false, validateParams: true, validateReturn: false},
     },
@@ -185,8 +185,8 @@ describe('AOT Lazy Loading', () => {
             await expect(registerRoutes(routes)).rejects.toThrow('Regenerate AOT caches');
         });
 
-        it('should throw AOTCacheError when linkedFn is missing from cache', async () => {
-            // Setup: Cache with default routes and route but missing the custom linkedFn
+        it('should throw AOTCacheError when middleFn is missing from cache', async () => {
+            // Setup: Cache with default routes and route but missing the custom middleFn
             const mockCache: MethodsCache = {
                 ...defaultRoutesCache,
                 sayHello: {
@@ -207,47 +207,47 @@ describe('AOT Lazy Loading', () => {
             // Initialize router in AOT mode
             await initRouter({aot: true});
 
-            // Register routes with a linkedFn that's not in cache
+            // Register routes with a middleFn that's not in cache
             const routes = {
-                missingLinkedFn: linkedFn((ctx: any): void => undefined),
+                missingMiddleFn: middleFn((ctx: any): void => undefined),
                 sayHello: route((ctx: any): string => 'hello'),
             } satisfies Routes;
 
             await expect(registerRoutes(routes)).rejects.toThrow(AOTCacheError);
-            await expect(registerRoutes(routes)).rejects.toThrow('missingLinkedFn');
+            await expect(registerRoutes(routes)).rejects.toThrow('missingMiddleFn');
         });
 
-        it('should NOT throw AOTCacheError for raw linkedFns (they do not need AOT cache)', async () => {
-            // Raw linkedFns don't need JIT functions, so they don't need to be in the AOT cache
+        it('should NOT throw AOTCacheError for raw middleFns (they do not need AOT cache)', async () => {
+            // Raw middleFns don't need JIT functions, so they don't need to be in the AOT cache
             // They should work in AOT mode without being in the cache
             setPersistedMethods({...defaultRoutesCache});
 
             // Initialize router in AOT mode
             await initRouter({aot: true});
 
-            // Register routes with a raw linkedFn that's not in cache - should NOT throw
+            // Register routes with a raw middleFn that's not in cache - should NOT throw
             const routes = {
-                myRawLinkedFn: rawLinkedFn((ctx: any, cb: () => void): void => cb()),
+                myRawMiddleFn: rawMiddleFn((ctx: any, cb: () => void): void => cb()),
             } satisfies Routes;
 
-            // This should succeed because raw linkedFns don't need to be in the AOT cache
+            // This should succeed because raw middleFns don't need to be in the AOT cache
             await expect(registerRoutes(routes)).resolves.not.toThrow();
         });
 
         it('should work with complete AOT cache', async () => {
-            // Setup: Complete cache with all routes and linkedFns
+            // Setup: Complete cache with all routes and middleFns
             const mockCache: MethodsCache = {
                 ...defaultRoutesCache,
-                myLinkedFn: {
-                    type: HandlerType.linkedFn,
-                    id: 'myLinkedFn',
+                myMiddleFn: {
+                    type: HandlerType.middleFn,
+                    id: 'myMiddleFn',
                     nestLevel: 0,
                     isAsync: false,
                     hasReturnData: false,
                     paramNames: [],
                     paramsJitHash: EMPTY_HASH,
                     returnJitHash: EMPTY_HASH,
-                    pointer: ['myLinkedFn'],
+                    pointer: ['myMiddleFn'],
                     options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
                 myRoute: {
@@ -270,13 +270,13 @@ describe('AOT Lazy Loading', () => {
 
             // Register routes - should succeed with complete cache
             const routes = {
-                myLinkedFn: linkedFn((ctx: any): void => undefined),
+                myMiddleFn: middleFn((ctx: any): void => undefined),
                 myRoute: route((ctx: any, data: string): string => data),
             } satisfies Routes;
             await registerRoutes(routes);
 
             // Verify routes were created
-            expect(getLinkedFnExecutable('myLinkedFn')).toBeDefined();
+            expect(getMiddleFnExecutable('myMiddleFn')).toBeDefined();
             expect(getRouteExecutable('myRoute')).toBeDefined();
             expect(getRouteExecutable('myRoute')?.paramNames).toEqual(['data']);
         });
@@ -358,26 +358,26 @@ describe('AOT Lazy Loading', () => {
             expect(executable?.paramNames).toEqual(['cachedParam']); // From cache
         });
 
-        it('should generate reflection for linkedFns not in cache', async () => {
+        it('should generate reflection for middleFns not in cache', async () => {
             // Setup: Include default routes cache (needed for error handling)
             setPersistedMethods({...defaultRoutesCache});
 
             // Initialize router in non-AOT mode
             await initRouter({aot: false});
 
-            // Register routes with linkedFns
+            // Register routes with middleFns
             const routes = {
-                myLinkedFn: linkedFn((ctx: any, data: number): number => data * 2),
+                myMiddleFn: middleFn((ctx: any, data: number): number => data * 2),
                 myRoute: route((ctx: any): string => 'hello'),
             } satisfies Routes;
             await registerRoutes(routes);
 
-            // Verify linkedFn was created with reflection data
-            const linkedFnExecutable = getLinkedFnExecutable('myLinkedFn');
-            expect(linkedFnExecutable).toBeDefined();
-            expect(linkedFnExecutable?.id).toBe('myLinkedFn');
-            expect(linkedFnExecutable?.paramNames).toEqual(['data']);
-            expect(linkedFnExecutable?.hasReturnData).toBe(true);
+            // Verify middleFn was created with reflection data
+            const middleFnExecutable = getMiddleFnExecutable('myMiddleFn');
+            expect(middleFnExecutable).toBeDefined();
+            expect(middleFnExecutable?.id).toBe('myMiddleFn');
+            expect(middleFnExecutable?.paramNames).toEqual(['data']);
+            expect(middleFnExecutable?.hasReturnData).toBe(true);
         });
     });
 
@@ -390,17 +390,17 @@ describe('AOT Lazy Loading', () => {
             expect(error.message).toContain('mion-build-aot');
         });
 
-        it('should have correct error message for linkedFns', () => {
-            const error = new AOTCacheError('auth', 'linkedFn');
+        it('should have correct error message for middleFns', () => {
+            const error = new AOTCacheError('auth', 'middleFn');
             expect(error.name).toBe('AOTCacheError');
-            expect(error.message).toContain('LinkedFn');
+            expect(error.message).toContain('MiddleFn');
             expect(error.message).toContain('auth');
         });
 
-        it('should have correct error message for raw linkedFns', () => {
-            const error = new AOTCacheError('mionDeserializeRequest', 'rawLinkedFn');
+        it('should have correct error message for raw middleFns', () => {
+            const error = new AOTCacheError('mionDeserializeRequest', 'rawMiddleFn');
             expect(error.name).toBe('AOTCacheError');
-            expect(error.message).toContain('Raw linkedFn');
+            expect(error.message).toContain('Raw middleFn');
             expect(error.message).toContain('mionDeserializeRequest');
         });
     });
@@ -545,23 +545,23 @@ describe('AOT Lazy Loading', () => {
             await expect(registerRoutes(routes)).rejects.toThrow();
         });
 
-        it('should work with linkedFns that have non-empty JIT hashes', async () => {
+        it('should work with middleFns that have non-empty JIT hashes', async () => {
             // Setup: Pre-populate JIT function caches
             addAOTCaches(mockJitFnsCache, mockPureFnsCache);
 
-            // Setup: Pre-populate router cache with linkedFn having non-empty JIT hashes
+            // Setup: Pre-populate router cache with middleFn having non-empty JIT hashes
             const mockCache: MethodsCache = {
                 ...defaultRoutesCache,
-                linkedFnWithJitFns: {
-                    type: HandlerType.linkedFn,
-                    id: 'linkedFnWithJitFns',
+                middleFnWithJitFns: {
+                    type: HandlerType.middleFn,
+                    id: 'middleFnWithJitFns',
                     nestLevel: 0,
                     isAsync: false,
                     hasReturnData: true,
                     paramNames: ['value'],
                     paramsJitHash: MOCK_PARAMS_JIT_HASH,
                     returnJitHash: MOCK_RETURN_JIT_HASH,
-                    pointer: ['linkedFnWithJitFns'],
+                    pointer: ['middleFnWithJitFns'],
                     options: {runOnError: false, validateParams: true, validateReturn: false},
                 },
                 testRoute: {
@@ -582,18 +582,18 @@ describe('AOT Lazy Loading', () => {
             // Initialize router in AOT mode
             await initRouter({aot: true});
 
-            // Register routes with linkedFn
+            // Register routes with middleFn
             const routes = {
-                linkedFnWithJitFns: linkedFn((ctx: any, value: number): number => value * 2),
+                middleFnWithJitFns: middleFn((ctx: any, value: number): number => value * 2),
                 testRoute: route((ctx: any): string => 'hello'),
             } satisfies Routes;
             await registerRoutes(routes);
 
-            // Verify the linkedFn was created with JIT functions
-            const linkedFnExecutable = getLinkedFnExecutable('linkedFnWithJitFns');
-            expect(linkedFnExecutable).toBeDefined();
-            expect(linkedFnExecutable?.paramsJitFns).toBeDefined();
-            expect(linkedFnExecutable?.returnJitFns).toBeDefined();
+            // Verify the middleFn was created with JIT functions
+            const middleFnExecutable = getMiddleFnExecutable('middleFnWithJitFns');
+            expect(middleFnExecutable).toBeDefined();
+            expect(middleFnExecutable?.paramsJitFns).toBeDefined();
+            expect(middleFnExecutable?.returnJitFns).toBeDefined();
         });
     });
 

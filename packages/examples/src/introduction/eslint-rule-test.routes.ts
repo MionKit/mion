@@ -2,7 +2,7 @@
 // This file demonstrates the ESLint rules for @mionkit/router
 // The rules are disabled for this file so you can see both valid and invalid examples
 import {HeadersSubset} from '@mionkit/core';
-import {route, linkedFn, headersFn, Handler, HeaderHandler, CallContext} from '@mionkit/router';
+import {route, middleFn, headersFn, Handler, HeaderHandler, CallContext} from '@mionkit/router';
 
 // ========================================
 // ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
@@ -11,7 +11,7 @@ import {route, linkedFn, headersFn, Handler, HeaderHandler, CallContext} from '@
 // start:strong-typed-valid-inline
 // 1. Direct inline handlers with proper types
 route((ctx, name: string): string => `hello ${name}`);
-linkedFn((ctx, data: number): void => {
+middleFn((ctx, data: number): void => {
     console.log(data);
 });
 headersFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
@@ -57,9 +57,9 @@ function routeWithJSDoc(ctx, name: string): string {
 }
 
 /**
- * @mion:linkedFn
+ * @mion:middleFn
  */
-const linkedFnWithJSDoc = (ctx, data: number): void => {
+const middleFnWithJSDoc = (ctx, data: number): void => {
     console.log(data);
 };
 
@@ -104,7 +104,7 @@ route((ctx): Result => ({success: false, error: 'failed'}));
 // start:strong-typed-invalid-inline
 // 1. Direct inline handlers missing types
 route((ctx, name) => `hello ${name}`); // Missing both param type and return type
-linkedFn((ctx, data: number) => {
+middleFn((ctx, data: number) => {
     console.log(data);
 }); // Missing return type
 headersFn((c: CallContext, [token]): void => {
@@ -150,9 +150,9 @@ function invalidRouteJSDoc(ctx, name) {
 } // Missing both types
 
 /**
- * @mion:linkedFn
+ * @mion:middleFn
  */
-const invalidLinkedFnJSDoc = (ctx, data: number) => {
+const invalidMiddleFnJSDoc = (ctx, data: number) => {
     console.log(data);
 }; // Missing return type
 
@@ -196,19 +196,19 @@ type MultipleUnreachable = {a: string} | {a: string; b: number} | {a: string; b:
 route((ctx): MultipleUnreachable => ({a: 'hello'}));
 // end:unreachable-union-multiple
 
-// start:unreachable-union-linkedFns
+// start:unreachable-union-middleFns
 // 6. Unreachable in headersFn parameter (third parameter)
 type UnreachableHeaderParam = {x: number} | {x: number; y: number}; // Second type is unreachable
 headersFn((ctx, {headers}: HeadersSubset<'auth'>, data: UnreachableHeaderParam): void => {
     console.log(data.x);
 });
 
-// 7. Unreachable in linkedFn parameter
-type UnreachableLinkedFnParam = {status: string} | {status: string; code: number}; // Second type is unreachable
-linkedFn((ctx, data: UnreachableLinkedFnParam): void => {
+// 7. Unreachable in middleFn parameter
+type UnreachableMiddleFnParam = {status: string} | {status: string; code: number}; // Second type is unreachable
+middleFn((ctx, data: UnreachableMiddleFnParam): void => {
     console.log(data.status);
 });
-// end:unreachable-union-linkedFns
+// end:unreachable-union-middleFns
 
 // start:unreachable-union-complex
 // 8. Multiple parameters with unreachable unions
@@ -250,8 +250,8 @@ route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
 //     return {active: false, lastSeen: new Date(), reason: 'also mixed'}; // Mixed properties
 // });
 
-// 4. LinkedFn with mixed properties
-type LinkedFnData = {name: string} | {age: number};
-linkedFn((ctx): LinkedFnData => ({name: 'John', age: 25})); // Mixed properties
+// 4. MiddleFn with mixed properties
+type MiddleFnData = {name: string} | {age: number};
+middleFn((ctx): MiddleFnData => ({name: 'John', age: 25})); // Mixed properties
 
 export {}; // Make this a module

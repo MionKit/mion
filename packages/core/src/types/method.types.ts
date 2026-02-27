@@ -31,10 +31,10 @@ export interface MethodMetadata {
     returnJitHash: string;
     /** Information about headers used by the method, used by HeadersFn */
     headersParam?: HeadersMetaData;
-    /** Information about headers returned by the method, used by HeadersFn and when any other linkedFn returns headers */
+    /** Information about headers returned by the method, used by HeadersFn and when any other middleFn returns headers */
     headersReturn?: HeadersMetaData;
-    /** Array of linkedFn IDs associated with this method, only available for route methods */
-    linkedFnIds?: string[];
+    /** Array of middleFn IDs associated with this method, only available for route methods */
+    middleFnIds?: string[];
     /** router pointer ie ['users', 'getUser' ]  */
     pointer: string[];
     /** router nest level */

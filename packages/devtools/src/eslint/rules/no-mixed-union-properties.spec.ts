@@ -75,11 +75,11 @@ ruleTester.run('no-mixed-union-properties', rule, {
             `,
             errors: [{messageId: 'mixedUnionProperties'}],
         },
-        // LinkedFn with mixed properties
+        // MiddleFn with mixed properties
         {
             code: `
-                import { linkedFn } from '@mionkit/router';
-                linkedFn((ctx): {name: string} | {age: number} => ({name: 'John', age: 25}));
+                import { middleFn } from '@mionkit/router';
+                middleFn((ctx): {name: string} | {age: number} => ({name: 'John', age: 25}));
             `,
             errors: [{messageId: 'mixedUnionProperties'}],
         },
@@ -146,12 +146,12 @@ ruleTester.run('no-mixed-union-properties', rule, {
             `,
             errors: [{messageId: 'mixedUnionProperties'}, {messageId: 'mixedUnionProperties'}],
         },
-        // Type alias with linkedFn and mixed properties
+        // Type alias with middleFn and mixed properties
         {
             code: `
-                import { linkedFn } from '@mionkit/router';
-                type LinkedFnData = {name: string} | {age: number};
-                linkedFn((ctx): LinkedFnData => ({name: 'John', age: 25}));
+                import { middleFn } from '@mionkit/router';
+                type MiddleFnData = {name: string} | {age: number};
+                middleFn((ctx): MiddleFnData => ({name: 'John', age: 25}));
             `,
             errors: [{messageId: 'mixedUnionProperties'}],
         },

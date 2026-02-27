@@ -7,7 +7,7 @@
 
 import {MionResponse, MionRequest, CallContext, ResponseBody} from '../types/context.ts';
 import {RouterOptions} from '../types/general.ts';
-import {LinkedFnsCollection, MayReturnError} from '../types/publicMethods.ts';
+import {MiddleFnsCollection, MayReturnError} from '../types/publicMethods.ts';
 import {
     AnyObject,
     Mutable,
@@ -17,7 +17,7 @@ import {
     deserializeBinaryBody as coreDeserializeBinaryBody,
     SerializerModes,
 } from '@mionkit/core';
-import {rawLinkedFn} from '../lib/handlers.ts';
+import {rawMiddleFn} from '../lib/handlers.ts';
 import {getRouteExecutableFromPath, getRouteExecutable} from '../router.ts';
 import {RpcError} from '@mionkit/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
@@ -27,9 +27,9 @@ import {onExecutableError} from '../lib/dispatchError.ts';
 
 /**
  * Deserializes the request body and stores it in the request body property.
- * This method is called before any other linkedFn or route handler.
+ * This method is called before any other middleFn or route handler.
  * For binary requests, the body is parsed lazily per-method in dispatch.ts.
- * @mion:linkedFn
+ * @mion:middleFn
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
     if (!context.request.rawBody) return; // empty body
@@ -77,8 +77,8 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
 
 /**
  * Serializes the response body and stores it in the response rawBody property.
- * This method is called after any other linkedFn or route handler.
- * @mion:linkedFn
+ * This method is called after any other middleFn or route handler.
+ * @mion:middleFn
  */
 export function serializeResponseBody(context: CallContext, opts: RouterOptions): MayReturnError {
     const response = context.response as Mutable<MionResponse>;
@@ -219,7 +219,7 @@ function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any 
     return method.returnJitFns.prepareForJson.fn(returnValue);
 }
 
-export const serializerLinkedFns = {
-    mionDeserializeRequest: rawLinkedFn(deserializeRequestBody, {runOnError: true}),
-    mionSerializeResponse: rawLinkedFn(serializeResponseBody, {runOnError: true}),
-} satisfies LinkedFnsCollection;
+export const serializerMiddleFns = {
+    mionDeserializeRequest: rawMiddleFn(deserializeRequestBody, {runOnError: true}),
+    mionSerializeResponse: rawMiddleFn(serializeResponseBody, {runOnError: true}),
+} satisfies MiddleFnsCollection;

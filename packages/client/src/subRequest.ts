@@ -8,7 +8,7 @@
 import {RpcError} from '@mionkit/core';
 import type {RunTypeError} from '@mionkit/core';
 import type {
-    CallWithLinkedFnsResult,
+    CallWithMiddleFnsResult,
     HSubRequest,
     RequestErrors,
     Result,
@@ -21,7 +21,7 @@ import type {MionClient} from './client.ts';
 import {TypedEvent} from './typedEvent.ts';
 import {isMapFromRef} from './routesFlow.ts';
 
-/** Implementation of both RouteSubRequest and LinkedFnSubRequest interfaces */
+/** Implementation of both RouteSubRequest and MiddleFnSubRequest interfaces */
 export class MionSubRequest<S = any, E extends RpcError<string, any> = any> implements RSubRequest<any>, HSubRequest<any> {
     pointer: string[];
     id: string;
@@ -51,7 +51,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         });
     }
 
-    /** Prefills LinkedFn's parameters and returns TypedEvent for event handler registration */
+    /** Prefills MiddleFn's parameters and returns TypedEvent for event handler registration */
     prefill(): TypedEvent<S, E> {
         const typedEvent = new TypedEvent<S, E>(this.id, this.client.handlersRegistry);
 
@@ -62,7 +62,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         return typedEvent;
     }
 
-    /** Removes prefilled value and clears any registered error handlers for this linkedFn */
+    /** Removes prefilled value and clears any registered error handlers for this middleFn */
     removePrefill(): Promise<void> {
         this.client.handlersRegistry.clearHandlers(this.id);
         return this.client.removePrefill(this as HSubRequest<any>);
@@ -73,31 +73,31 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         return this.client.executeCall(this as unknown as RSubRequest<any>);
     }
 
-    /** Calls a remote route with linkedFns and returns a fully-typed 4-tuple result */
-    callWithLinkedFns<H extends Record<string, HSubRequest<any>>>(linkedFns: H): Promise<CallWithLinkedFnsResult<S, E, H>> {
-        if (Object.keys(linkedFns).length === 0) {
+    /** Calls a remote route with middleFns and returns a fully-typed 4-tuple result */
+    callWithMiddleFns<H extends Record<string, HSubRequest<any>>>(middleFns: H): Promise<CallWithMiddleFnsResult<S, E, H>> {
+        if (Object.keys(middleFns).length === 0) {
             throw new Error(
-                'callWithLinkedFns requires at least one linkedFn. Use call() instead for requests without linkedFns.'
+                'callWithMiddleFns requires at least one middleFn. Use call() instead for requests without middleFns.'
             );
         }
-        return this.client.executeCallWithLinkedFns(this as RSubRequest<any>, linkedFns) as Promise<
-            CallWithLinkedFnsResult<S, E, H>
+        return this.client.executeCallWithMiddleFns(this as RSubRequest<any>, middleFns) as Promise<
+            CallWithMiddleFnsResult<S, E, H>
         >;
     }
 
     /** Calls this route as part of a routesFlow with other routes in a single HTTP request */
     async callWithWorkflow<OtherRoutes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         otherRoutes: [...OtherRoutes],
-        linkedFns?: H
+        middleFns?: H
     ): Promise<WorkflowResult<[RSubRequest<any>, ...OtherRoutes], H>> {
         const allRoutes = [this as unknown as RSubRequest<any>, ...otherRoutes];
-        const [results, errors, linkedFnResults, linkedFnErrors] = await this.client.executeCallWithWorkflow(
+        const [results, errors, middleFnResults, middleFnErrors] = await this.client.executeCallWithWorkflow(
             allRoutes,
-            linkedFns ?? ({} as H)
+            middleFns ?? ({} as H)
         );
         const emptyResults = allRoutes.map(() => undefined);
         const emptyErrors = allRoutes.map(() => undefined);
-        return [results ?? emptyResults, errors ?? emptyErrors, linkedFnResults, linkedFnErrors] as WorkflowResult<
+        return [results ?? emptyResults, errors ?? emptyErrors, middleFnResults, middleFnErrors] as WorkflowResult<
             [RSubRequest<any>, ...OtherRoutes],
             H
         >;

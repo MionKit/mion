@@ -13,7 +13,7 @@ import type {MethodsExecutionChain} from './remoteMethods.ts';
 // ####### Call Context #######
 
 // type-call-context-start
-/** The call Context object passed as first parameter to any linkedFn or route */
+/** The call Context object passed as first parameter to any middleFn or route */
 export interface CallContext<ContextData extends Record<string, any> = any> {
     /** Route's path after internal transformation */
     readonly path: string;
@@ -21,7 +21,7 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
     readonly request: MionRequest;
     /** Router's own response object */
     readonly response: MionResponse;
-    /** context data between handlers (route/linkedFns) and that is not returned in the response. */
+    /** context data between handlers (route/middleFns) and that is not returned in the response. */
     shared: ContextData;
     /** The execution chain of the current route */
     readonly executionChain: MethodsExecutionChain;
@@ -58,7 +58,7 @@ export interface MionRequest {
      * - Any other errors thrown during execution
      *
      * These errors are serialized separately from the route response and sent to the client
-     * in the thrownErrors linkedFn response, allowing them to be properly deserialized
+     * in the thrownErrors middleFn response, allowing them to be properly deserialized
      * without being part of the route's type signature.
      */
     readonly thrownErrors?: Readonly<Record<string, RpcError<string>>>;

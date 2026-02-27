@@ -9,36 +9,36 @@ import type {Prettify, RpcError, MethodMetadata} from '@mionkit/core';
 import type {CallContext} from './context.ts';
 import type {Routes} from './general.ts';
 import type {Handler} from './handlers.ts';
-import type {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from './definitions.ts';
+import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
 import {HandlerType} from '@mionkit/core'; // do not import type only
 
-// ####### Raw LinkedFns #######
+// ####### Raw MiddleFns #######
 
 export type MayReturnError = void | RpcError<string> | Promise<RpcError<string> | void>;
 
-export type LinkedFnsCollection = {
-    [key: string]: LinkedFnDef | HeadersLinkedFnDef | RawLinkedFnDef;
+export type MiddleFnsCollection = {
+    [key: string]: MiddleFnDef | HeadersMiddleFnDef | RawMiddleFnDef;
 };
 
-// ####### Private LinkedFns #######
+// ####### Private MiddleFns #######
 
-export interface PrivateLinkedFnDef extends LinkedFnDef {
+export interface PrivateMiddleFnDef extends MiddleFnDef {
     handler: (ctx?: any) => void | never | undefined;
 }
 
-export type PrivateDef = PrivateLinkedFnDef | RawLinkedFnDef;
+export type PrivateDef = PrivateMiddleFnDef | RawMiddleFnDef;
 
 // ####### Remote Methods Metadata #######
 
-/** Data structure containing all public routes & linkedFns.
- * is a Ts Mapped type the remove private linkedFns and rawLinkedFns
+/** Data structure containing all public routes & middleFns.
+ * is a Ts Mapped type the remove private middleFns and rawMiddleFns
  */
 // prettier-ignore
 export type PublicApi<Type extends Routes> = Prettify<{
     [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
-    : Type[Property] extends LinkedFnDef
-    ? PublicLinkedFn<PublicHandler<Type[Property]['handler']>>
-    : Type[Property] extends HeadersLinkedFnDef
+    : Type[Property] extends MiddleFnDef
+    ? PublicMiddleFn<PublicHandler<Type[Property]['handler']>>
+    : Type[Property] extends HeadersMiddleFnDef
     ? PublicHeadersFn<PublicHandler<Type[Property]['handler']>>
     : Type[Property] extends RouteDef // Routes
     ? PublicRoute<PublicHandler<Type[Property]['handler']>>
@@ -50,27 +50,27 @@ export type PublicApi<Type extends Routes> = Prettify<{
 // type-remote-api-start
 /** Same as Public Api but no type mapping, should be easier to use than PublicApi when non strong types are required. */
 export type RemoteApi = {
-    [key: string]: PublicRoute | PublicLinkedFn | PublicHeadersFn | RemoteApi;
+    [key: string]: PublicRoute | PublicMiddleFn | PublicHeadersFn | RemoteApi;
 };
 // type-remote-api-end
 
 /** Public Routes, handler type is the same as RemoteRoute but does not include the context  */
 export interface PublicRoute<H extends Handler = any> extends MethodMetadata {
     type: typeof HandlerType.route;
-    linkedFnIds: string[];
+    middleFnIds: string[];
     headerNames: undefined;
     handler: H;
 }
 
-/** Public LinkedFns, handler type is the same as RemoteLinkedFns but does not include the context  */
-export interface PublicLinkedFn<H extends Handler = any> extends MethodMetadata {
-    type: typeof HandlerType.linkedFn;
+/** Public MiddleFns, handler type is the same as RemoteMiddleFns but does not include the context  */
+export interface PublicMiddleFn<H extends Handler = any> extends MethodMetadata {
+    type: typeof HandlerType.middleFn;
     handler: H;
 }
 
 /** Public HeadersFns, handler type is the same as HeadersFns but does not include the context */
 export interface PublicHeadersFn<H extends Handler = any> extends MethodMetadata {
-    type: typeof HandlerType.headersLinkedFn;
+    type: typeof HandlerType.headersMiddleFn;
     headerNames: string[];
     handler: H;
 }

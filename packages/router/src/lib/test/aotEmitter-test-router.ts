@@ -13,7 +13,7 @@
  * Uses initMionRouter which automatically calls emitAOTCaches() when MION_COMPILE=true.
  */
 
-import {initMionRouter, route, linkedFn, Routes, PublicApi} from '@mionkit/router';
+import {initMionRouter, route, middleFn, Routes, PublicApi} from '@mionkit/router';
 
 interface User {
     id: string;
@@ -29,8 +29,8 @@ const routes = {
         sum: route((ctx, a: number, b: number): number => a + b),
     },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    log: linkedFn((ctx): void => {
-        // Log linkedFn
+    log: middleFn((ctx): void => {
+        // Log middleFn
     }),
 } satisfies Routes;
 

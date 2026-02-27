@@ -1,10 +1,10 @@
-import {Route, LinkedFnDef} from '@mionkit/router';
+import {Route, MiddleFnDef} from '@mionkit/router';
 import {myApp} from './full-example.app.ts';
 
 interface MyRoute extends Route {
     doNotFail: boolean;
 }
-interface MyLinkedFn extends LinkedFnDef {
+interface MyMiddleFn extends MiddleFnDef {
     shouldLog: boolean;
 }
 
@@ -19,10 +19,10 @@ const someRoute: MyRoute = {
     },
 };
 
-const someLinkedFn: MyLinkedFn = {
+const someMiddleFn: MyMiddleFn = {
     shouldLog: false,
-    linkedFn: (): void => {
-        if (someLinkedFn.shouldLog) {
+    middleFn: (): void => {
+        if (someMiddleFn.shouldLog) {
             myApp.cloudLogs.log('hello');
         } else {
             // do something else

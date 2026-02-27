@@ -2,7 +2,7 @@
   "name": "@mionkit/type-formats",
   "version": "0.7.2",
   "type": "module",
-  "description": "mion standard linkedFns and routes",
+  "description": "mion standard middleFns and routes",
   "keywords": [
     "typescript",
     "API",

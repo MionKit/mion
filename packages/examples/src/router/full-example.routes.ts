@@ -1,5 +1,5 @@
 import {RpcError, HeadersSubset} from '@mionkit/core';
-import {headersFn, rawLinkedFn, linkedFn, Routes, initMionRouter, route} from '@mionkit/router';
+import {headersFn, rawMiddleFn, middleFn, Routes, initMionRouter, route} from '@mionkit/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app.ts';
 import {User} from './full-example.app.ts';
 
@@ -33,10 +33,10 @@ const auth = headersFn((ctx: Context, {headers}: HeadersSubset<'Authorization'>)
     ctx.shared.me = myApp.auth.getIdentity(token) as User;
 });
 
-const log = rawLinkedFn((context: Context): void => console.log('rawLinkedFn', context.path));
+const log = rawMiddleFn((context: Context): void => console.log('rawMiddleFn', context.path));
 
 const routes = {
-    private: linkedFn((): null => null),
+    private: middleFn((): null => null),
     auth,
     users: {
         get: getUser, // api/v1/users/get

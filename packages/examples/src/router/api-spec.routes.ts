@@ -1,6 +1,6 @@
 import type {AnyObject} from '@mionkit/core';
 import {RpcError, HeadersSubset} from '@mionkit/core';
-import {initMionRouter, Routes, CallContext, route, headersFn, rawLinkedFn, linkedFn} from '@mionkit/router';
+import {initMionRouter, Routes, CallContext, route, headersFn, rawMiddleFn, middleFn} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 
 export type HttpRequest = IncomingMessage & {body: string};
@@ -16,16 +16,16 @@ const routes = {
     maybeError: route((): string | RpcError<'typed-error'> => 'hello'),
 } satisfies Routes;
 
-const linkedFns = {
+const middleFns = {
     auth: headersFn((c: Context, {headers}: HeadersSubset<'Authorization'>): void => {
         // do something
     }),
-    parser: rawLinkedFn((c: Context, req: HttpRequest, resp, opts): void => undefined),
-    parser2: rawLinkedFn((): void => undefined),
-    linkedFnNoCtx: linkedFn((): void => undefined),
-    linkedFnParams: linkedFn((c: Context, name: string): void => undefined),
-    linkedFnCanReturn: linkedFn((c: Context): string => 'hello'),
-    log: linkedFn((c: Context): void => undefined),
+    parser: rawMiddleFn((c: Context, req: HttpRequest, resp, opts): void => undefined),
+    parser2: rawMiddleFn((): void => undefined),
+    middleFnNoCtx: middleFn((): void => undefined),
+    middleFnParams: middleFn((c: Context, name: string): void => undefined),
+    middleFnCanReturn: middleFn((c: Context): string => 'hello'),
+    log: middleFn((c: Context): void => undefined),
 } satisfies Routes;
 
 export const routesSpec = await initMionRouter(routes);

@@ -50,7 +50,7 @@ export interface TypedErrorParams<ErrType extends StrNumber> {
     originalError?: Error;
 }
 
-/** Any error triggered by linkedFns or routes must follow this interface, returned errors in the body also follows this interface */
+/** Any error triggered by middleFns or routes must follow this interface, returned errors in the body also follows this interface */
 export interface RpcErrorParams<ErrType extends StrNumber, ErrData = any> {
     /** Error type, can be used as discriminator in union types switch, etc*/
     type: ErrType;
