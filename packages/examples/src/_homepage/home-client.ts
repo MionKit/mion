@@ -9,7 +9,7 @@ const {routes} = initClient<MyApi>({
 // @annotate: Autocomplete: shows available routes
 
 const [user, error] = await routes.getUser(1234).call();
-//                                ^|
+//                                 ^|
 
 if (user) {
     user.createdAt;
