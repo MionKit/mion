@@ -14,7 +14,6 @@
     "lint:spec": "npx eslint --fix packages/**/*.spec.ts",
     "lint-pre-committ": "npx eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
     "build": "lerna run build",
-    "build-ts-dts": "npm run clean && lerna run build-ts-dts",
     "clean": "lerna run clean; nx reset --onlyCache",
     "fresh-start": "lerna run fresh-start && rimraf node_modules",
     "deepkit-install": "deepkit-type-install",
