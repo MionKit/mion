@@ -20,7 +20,7 @@ sequenceDiagram
     participant Context as CallContext
     participant Chain as runExecutionChain
     participant WF as workflowRoute handler
-    participant Serializer as Serializer UseFns
+    participant Serializer as Serializer LinkedFns
 
     Client->>Adapter: POST /mion-routes-flow?/route1,/route2
     Adapter->>Adapter: Extract path and query string
@@ -31,7 +31,7 @@ sequenceDiagram
     Chain->>WF: workflowRoute handler
     WF->>WF: Parse CSV from query string
     WF->>WF: Lookup execution chains for each route
-    WF->>WF: Merge and deduplicate useFns
+    WF->>WF: Merge and deduplicate linkedFns
     WF->>WF: Build new merged execution chain
     WF->>WF: Resolve serializer mode conflicts
     WF->>Context: Replace context.executionChain with merged chain
@@ -45,7 +45,7 @@ sequenceDiagram
 
 ### Execution Chain Merging
 
-The merged execution chain is built by combining the execution chains of all requested routes, with deduplication of shared useFns:
+The merged execution chain is built by combining the execution chains of all requested routes, with deduplication of shared linkedFns:
 
 ```mermaid
 flowchart TD
@@ -55,31 +55,31 @@ flowchart TD
     end
 
     subgraph Route1 Chain
-        D1[startUseFns] --> E1[preUseFn-auth]
+        D1[startLinkedFns] --> E1[preLinkedFn-auth]
         E1 --> F1[route1 handler]
-        F1 --> G1[postUseFn-log]
-        G1 --> H1[endUseFns]
+        F1 --> G1[postLinkedFn-log]
+        G1 --> H1[endLinkedFns]
     end
 
     subgraph Route2 Chain
-        D2[startUseFns] --> E2[preUseFn-auth]
+        D2[startLinkedFns] --> E2[preLinkedFn-auth]
         E2 --> F2[route2 handler]
-        F2 --> G2[postUseFn-log]
-        G2 --> H2[endUseFns]
+        F2 --> G2[postLinkedFn-log]
+        G2 --> H2[endLinkedFns]
     end
 
     subgraph Merged Chain - replaces original
-        MA[mionDeserializeRequest] --> MB[preUseFn-auth]
+        MA[mionDeserializeRequest] --> MB[preLinkedFn-auth]
         MB --> MC[route1 handler]
         MC --> MD[route2 handler]
-        MD --> ME[postUseFn-log]
+        MD --> ME[postLinkedFn-log]
         ME --> MF[mionSerializeResponse]
     end
 ```
 
 **Key rules for merging:**
 
-- UseFns with the same ID are deduplicated — only one instance in the merged chain
+- LinkedFns with the same ID are deduplicated — only one instance in the merged chain
 - Route handlers are placed in the order specified in the CSV
 - after new merged execution chain is created, current one is truncated, after the current route, and appended, so the whole merged execution chain is ran after current workflow route
 
@@ -165,9 +165,9 @@ The workflow handler will:
 3. **Look up execution chains** for each route path using [`getRouteExecutionChain()`](packages/router/src/router.ts:81)
 4. **Validate** all routes exist — throw `RpcError` if any route is not found
 5. **Build merged execution chain:**
-   - Collect all methods from all route chains, excluding `startUseFns` and `endUseFns` (they are already in the workflow chain)
-   - Deduplicate useFns by ID using a Set
-   - Order: pre-useFns first, then route handlers in CSV order, then post-useFns
+   - Collect all methods from all route chains, excluding `startLinkedFns` and `endLinkedFns` (they are already in the workflow chain)
+   - Deduplicate linkedFns by ID using a Set
+   - Order: pre-linkedFns first, then route handlers in CSV order, then post-linkedFns
 6. **Resolve serializer mode:** If all routes agree on a serializer, use it. If conflicting, use `routerOptions.serializer` default.
 7. **Replace `context.executionChain`** — truncate the current chain and append the merged methods. Since `runExecutionChain` reads `context.executionChain.methods.length` dynamically in the loop, modifying the array in-place will work.
 
@@ -175,9 +175,9 @@ The workflow handler will:
 
 The workflow handler runs at position `routeIndex` in the current chain. After it executes, the loop in [`runExecutionChain()`](packages/router/src/dispatch.ts:66) continues with `i++`. We need to:
 
-1. Build the merged methods array (all the route-specific useFns and route handlers)
-2. Splice them into `context.executionChain.methods` right after the current workflow route position, replacing the remaining methods (which would just be `endUseFns`)
-3. Keep `endUseFns` at the end (specifically `mionSerializeResponse`)
+1. Build the merged methods array (all the route-specific linkedFns and route handlers)
+2. Splice them into `context.executionChain.methods` right after the current workflow route position, replacing the remaining methods (which would just be `endLinkedFns`)
+3. Keep `endLinkedFns` at the end (specifically `mionSerializeResponse`)
 
 Since the loop reads `context.executionChain.methods.length` on each iteration, the dynamically inserted methods will be picked up.
 
@@ -218,9 +218,9 @@ function workflowHandler(ctx: CallContext): void {
     const currentMethods = ctx.executionChain.methods;
     const workflowRouteIndex = ctx.executionChain.routeIndex;
 
-    // Insert merged methods after workflow route, before endUseFns
-    const endUseFnsCount = endUseFns.length;
-    const insertPosition = currentMethods.length - endUseFnsCount;
+    // Insert merged methods after workflow route, before endLinkedFns
+    const endLinkedFnsCount = endLinkedFns.length;
+    const insertPosition = currentMethods.length - endLinkedFnsCount;
     currentMethods.splice(insertPosition, 0, ...mergedMethods);
 
     // Update serializer if resolved
@@ -242,7 +242,7 @@ function workflowHandler(ctx: CallContext): void {
 - Route names with commas are rejected during registration
 - Workflow with single route works correctly
 - Workflow with multiple routes merges execution chains
-- Workflow with shared useFns deduplicates them
+- Workflow with shared linkedFns deduplicates them
 - Workflow with non-existent route returns error
 - Workflow with empty query string returns error
 - Workflow with conflicting serializer modes falls back to default
