@@ -16,9 +16,9 @@ import type {
     MethodWithOptions,
     PureFnsDataCache,
 } from '@mionkit/core';
-import {isRoute, isHeadersLinkedFnDef, isLinkedFnDef, isPublicExecutable} from '../types/guards.ts';
+import {isRoute, isHeadersMiddleFnDef, isMiddleFnDef, isPublicExecutable} from '../types/guards.ts';
 import {
-    getLinkedFnExecutable,
+    getMiddleFnExecutable,
     getRouteExecutable,
     getRouteExecutionChain,
     getRouterOptions,
@@ -67,11 +67,11 @@ function recursiveGetSerializableRoutes<R extends Routes>(
         const id = getRouterItemId(itemPointer);
 
         if (isPrivateDefinition(item, id)) {
-            publicData[key] = null; // linkedFns that don't receive or return data are not public
-        } else if (isLinkedFnDef(item) || isHeadersLinkedFnDef(item) || isRoute(item)) {
-            const executable = getLinkedFnExecutable(id) || getRouteExecutable(id);
+            publicData[key] = null; // middleFns that don't receive or return data are not public
+        } else if (isMiddleFnDef(item) || isHeadersMiddleFnDef(item) || isRoute(item)) {
+            const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
             if (!executable)
-                throw new Error(`Route or LinkedFn ${id} not found. Please check you have called router.registerRoutes first.`);
+                throw new Error(`Route or MiddleFn ${id} not found. Please check you have called router.registerRoutes first.`);
             publicData[key] = getSerializableMethod(executable as RemoteMethod);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
@@ -105,11 +105,11 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
             getRouteExecutionChain(path)
                 ?.methods.filter((exec) => isPublicExecutable(exec))
                 .map((exec) => exec.pointer) || [];
-        newRemoteMethod.linkedFnIds = pathPointers
+        newRemoteMethod.middleFnIds = pathPointers
             .map((pointer) => getRouterItemId(pointer))
             .filter((id) => {
                 if (mionInternalRoutes.includes(id)) return false;
-                const exec = getLinkedFnExecutable(id);
+                const exec = getMiddleFnExecutable(id);
                 return exec && isPublicExecutable(exec);
             });
     }

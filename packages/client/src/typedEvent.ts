@@ -9,14 +9,14 @@ import type {RpcError} from '@mionkit/core';
 import type {HandlersRegistry} from './handlersRegistry.ts';
 import type {ErrorHandler, SuccessHandler} from './types.ts';
 
-/** Persistent event emitter for linkedFn success and error handling */
+/** Persistent event emitter for middleFn success and error handling */
 export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
     constructor(
         private readonly handlerId: string,
         private readonly registry: HandlersRegistry
     ) {}
 
-    /** Register a persistent success handler for this linkedFn */
+    /** Register a persistent success handler for this middleFn */
     onSuccess(handler: SuccessHandler<S>): TypedEvent<S, E> {
         this.registry.registerSuccess(this.handlerId, handler);
         return this;
@@ -28,7 +28,7 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
         return this;
     }
 
-    /** Register a persistent error handler for this linkedFn */
+    /** Register a persistent error handler for this middleFn */
     onError<T extends E['type']>(errorType: T, handler: (error: Extract<E, {type: T}>) => void): TypedEvent<S, E> {
         this.registry.register(this.handlerId, errorType, handler as ErrorHandler<any>);
         return this;

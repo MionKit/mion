@@ -8,66 +8,66 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {
     registerRoutes,
-    geLinkedFnsSize,
+    geMiddleFnsSize,
     geRoutesSize,
     getComplexity,
-    getLinkedFnExecutable,
+    getMiddleFnExecutable,
     getRouteExecutionChain,
     getRouteExecutable,
     resetRouter,
     initRouter,
-    addStartLinkedFns,
-    addEndLinkedFns,
+    addStartMiddleFns,
+    addEndMiddleFns,
 } from './router.ts';
 import {type Routes} from './types/general.ts';
-import {linkedFn, route, rawLinkedFn, headersFn} from './lib/handlers.ts';
+import {middleFn, route, rawMiddleFn, headersFn} from './lib/handlers.ts';
 import {HandlerType, HeadersSubset} from '@mionkit/core';
 import {isPublicExecutable} from './types/guards.ts';
 
 describe('Create routes should', () => {
-    const linkedFn1 = linkedFn((): void => undefined);
+    const middleFn1 = middleFn((): void => undefined);
     const route1 = route((): string => 'route1');
     const route2 = route((): string => 'route2');
 
     const routes = {
-        first: linkedFn1,
+        first: middleFn1,
         users: {
-            userBefore: linkedFn1,
+            userBefore: middleFn1,
             getUser: route1,
             setUser: route2,
             pets: {
                 getUserPet: route2,
-                userPetsAfter: linkedFn1,
+                userPetsAfter: middleFn1,
             },
-            userAfter: linkedFn1,
+            userAfter: middleFn1,
         },
         pets: {
             getPet: route1,
             setPet: route2,
         },
-        last: linkedFn1,
+        last: middleFn1,
     } satisfies Routes;
 
-    const linkedFnExecutables = {
+    const middleFnExecutables = {
         first: {
             id: 'first',
-            type: HandlerType.linkedFn,
+            type: HandlerType.middleFn,
         },
         userBefore: {
             id: 'users/userBefore',
-            type: HandlerType.linkedFn,
+            type: HandlerType.middleFn,
         },
         userAfter: {
             id: 'users/userAfter',
-            type: HandlerType.linkedFn,
+            type: HandlerType.middleFn,
         },
         userPetsAfter: {
             id: 'users/pets/userPetsAfter',
-            type: HandlerType.linkedFn,
+            type: HandlerType.middleFn,
         },
         last: {
             id: 'last',
-            type: HandlerType.linkedFn,
+            type: HandlerType.middleFn,
         },
     };
 
@@ -89,11 +89,11 @@ describe('Create routes should', () => {
     const defaultExecutables = {
         mionDeserializeRequest: {
             id: 'mionDeserializeRequest',
-            type: HandlerType.rawLinkedFn,
+            type: HandlerType.rawMiddleFn,
         },
         mionSerializeResponse: {
             id: 'mionSerializeResponse',
-            type: HandlerType.rawLinkedFn,
+            type: HandlerType.rawMiddleFn,
         },
     };
 
@@ -112,51 +112,51 @@ describe('Create routes should', () => {
         await registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
-        expect(geLinkedFnsSize()).toEqual(5);
+        expect(geMiddleFnsSize()).toEqual(5);
 
         expect(getRouteExecutionChain('/users/getUser')?.methods).toEqual(
             addDefaultExecutables([
-                expect.objectContaining({...linkedFnExecutables.first}),
-                expect.objectContaining({...linkedFnExecutables.userBefore}),
+                expect.objectContaining({...middleFnExecutables.first}),
+                expect.objectContaining({...middleFnExecutables.userBefore}),
                 expect.objectContaining({...routeExecutables.usersGetUser}),
-                expect.objectContaining({...linkedFnExecutables.userAfter}),
-                expect.objectContaining({...linkedFnExecutables.last}),
+                expect.objectContaining({...middleFnExecutables.userAfter}),
+                expect.objectContaining({...middleFnExecutables.last}),
             ])
         );
         expect(getRouteExecutionChain('/users/setUser')).toBeTruthy();
         expect(getRouteExecutionChain('/users/pets/getUserPet')?.methods).toEqual(
             addDefaultExecutables([
-                expect.objectContaining({...linkedFnExecutables.first}),
-                expect.objectContaining({...linkedFnExecutables.userBefore}),
+                expect.objectContaining({...middleFnExecutables.first}),
+                expect.objectContaining({...middleFnExecutables.userBefore}),
                 expect.objectContaining({...routeExecutables.usersPetsGetUserPet}),
-                expect.objectContaining({...linkedFnExecutables.userPetsAfter}),
-                expect.objectContaining({...linkedFnExecutables.userAfter}),
-                expect.objectContaining({...linkedFnExecutables.last}),
+                expect.objectContaining({...middleFnExecutables.userPetsAfter}),
+                expect.objectContaining({...middleFnExecutables.userAfter}),
+                expect.objectContaining({...middleFnExecutables.last}),
             ])
         );
         expect(getRouteExecutionChain('/pets/getPet')?.methods).toEqual(
             addDefaultExecutables([
-                expect.objectContaining({...linkedFnExecutables.first}),
+                expect.objectContaining({...middleFnExecutables.first}),
                 expect.objectContaining({...routeExecutables.petsGetPet}),
-                expect.objectContaining({...linkedFnExecutables.last}),
+                expect.objectContaining({...middleFnExecutables.last}),
             ])
         );
         expect(getRouteExecutionChain('/pets/setPet')).toBeTruthy();
     });
 
-    it('add default values to linkedFns', async () => {
+    it('add default values to middleFns', async () => {
         await initRouter();
-        const defaultLinkedFnValues = {
-            first: linkedFn((): void => undefined),
-            second: linkedFn((): null => null),
+        const defaultMiddleFnValues = {
+            first: middleFn((): void => undefined),
+            second: middleFn((): null => null),
         };
-        await registerRoutes(defaultLinkedFnValues);
+        await registerRoutes(defaultMiddleFnValues);
 
-        expect(getLinkedFnExecutable('first')).toEqual(
+        expect(getMiddleFnExecutable('first')).toEqual(
             expect.objectContaining({
                 id: 'first',
                 nestLevel: 0,
-                type: HandlerType.linkedFn,
+                type: HandlerType.middleFn,
                 hasReturnData: false,
                 options: expect.objectContaining({
                     runOnError: false,
@@ -164,11 +164,11 @@ describe('Create routes should', () => {
             })
         );
 
-        expect(getLinkedFnExecutable('second')).toEqual(
+        expect(getMiddleFnExecutable('second')).toEqual(
             expect.objectContaining({
                 id: 'second',
                 nestLevel: 0,
-                type: HandlerType.linkedFn,
+                type: HandlerType.middleFn,
                 hasReturnData: true,
                 options: expect.objectContaining({
                     runOnError: false,
@@ -200,7 +200,7 @@ describe('Create routes should', () => {
         await registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
-        expect(geLinkedFnsSize()).toEqual(5);
+        expect(geMiddleFnsSize()).toEqual(5);
 
         expect(getRouteExecutionChain('/api/v1/users/getUser.json')).toBeTruthy();
         expect(getRouteExecutionChain('/api/v1/users/setUser.json')).toBeTruthy();
@@ -251,7 +251,7 @@ describe('Create routes should', () => {
     it('optimize parsing routes (complexity) when there are multiple routes in a row', async () => {
         await initRouter();
         const bestCase = {
-            first: linkedFn1,
+            first: middleFn1,
             route1: route1,
             route2: route2,
             route3: route1,
@@ -263,7 +263,7 @@ describe('Create routes should', () => {
             route9: route1,
             route10: route2,
             pets: {
-                petsFirst: linkedFn1,
+                petsFirst: middleFn1,
                 route1: route1,
                 route2: route2,
                 route3: route1,
@@ -274,21 +274,21 @@ describe('Create routes should', () => {
                 route8: route2,
                 route9: route1,
                 route10: route2,
-                petsLast: linkedFn1,
+                petsLast: middleFn1,
             },
-            last: linkedFn1,
+            last: middleFn1,
         };
         const worstCase = {
-            first: linkedFn1,
+            first: middleFn1,
             route1: route1,
             route12: route2,
             pets: {
-                petsFirst: linkedFn1,
+                petsFirst: middleFn1,
                 route1: route1,
                 route12: route2,
-                petsLast: linkedFn1,
+                petsLast: middleFn1,
             },
-            last: linkedFn1,
+            last: middleFn1,
         };
         const bestCaseTotalRoutes = 20;
         const worstCaseTotalRoutes = 4;
@@ -327,53 +327,53 @@ describe('Create routes should', () => {
         expect(getRouteExecutable('noReturnType')?.isAsync).toEqual(true);
     });
 
-    it('add start and end global linkedFns', async () => {
-        const prependLinkedFns = {
-            p1: rawLinkedFn((ctx, cb: () => void): void => cb()),
-            p2: rawLinkedFn((ctx, cb: () => void): void => cb()),
+    it('add start and end global middleFns', async () => {
+        const prependMiddleFns = {
+            p1: rawMiddleFn((ctx, cb: () => void): void => cb()),
+            p2: rawMiddleFn((ctx, cb: () => void): void => cb()),
         };
 
-        const appendLinkedFns = {
-            a1: rawLinkedFn((ctx, cb: () => void): void => cb()),
-            a2: rawLinkedFn((ctx, cb: () => void): void => cb()),
+        const appendMiddleFns = {
+            a1: rawMiddleFn((ctx, cb: () => void): void => cb()),
+            a2: rawMiddleFn((ctx, cb: () => void): void => cb()),
         };
-        addStartLinkedFns(prependLinkedFns, false);
-        addEndLinkedFns(appendLinkedFns, false);
+        addStartMiddleFns(prependMiddleFns, false);
+        addEndMiddleFns(appendMiddleFns, false);
 
         await initRouter();
         await registerRoutes(routes);
 
         const expectedExecutionChain = addDefaultExecutables([
-            expect.objectContaining({id: 'p1', type: HandlerType.rawLinkedFn}),
-            expect.objectContaining({id: 'p2', type: HandlerType.rawLinkedFn}),
-            expect.objectContaining({id: 'first', type: HandlerType.linkedFn}),
+            expect.objectContaining({id: 'p1', type: HandlerType.rawMiddleFn}),
+            expect.objectContaining({id: 'p2', type: HandlerType.rawMiddleFn}),
+            expect.objectContaining({id: 'first', type: HandlerType.middleFn}),
             expect.objectContaining({id: 'pets/getPet', type: HandlerType.route}),
-            expect.objectContaining({id: 'last', type: HandlerType.linkedFn}),
-            expect.objectContaining({id: 'a1', type: HandlerType.rawLinkedFn}),
-            expect.objectContaining({id: 'a2', type: HandlerType.rawLinkedFn}),
+            expect.objectContaining({id: 'last', type: HandlerType.middleFn}),
+            expect.objectContaining({id: 'a1', type: HandlerType.rawMiddleFn}),
+            expect.objectContaining({id: 'a2', type: HandlerType.rawMiddleFn}),
         ]);
 
         expect(getRouteExecutionChain('/pets/getPet')?.methods).toEqual(expectedExecutionChain);
-        expect(() => addStartLinkedFns(prependLinkedFns)).toThrow(
-            'Can not add start linkedFns after the router has been initialized'
+        expect(() => addStartMiddleFns(prependMiddleFns)).toThrow(
+            'Can not add start middleFns after the router has been initialized'
         );
-        expect(() => addEndLinkedFns(appendLinkedFns)).toThrow('Can not add end linkedFns after the router has been initialized');
+        expect(() => addEndMiddleFns(appendMiddleFns)).toThrow('Can not add end middleFns after the router has been initialized');
     });
 
     it('Headers Functions should be considered public (non-private)', async () => {
         await initRouter();
-        const routesWithHeadersLinkedFn = {
+        const routesWithHeadersMiddleFn = {
             auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
-                // Headers LinkedFn with no return data and no body params
+                // Headers MiddleFn with no return data and no body params
             }),
             sayHello: route((): string => 'hello'),
         } satisfies Routes;
-        await registerRoutes(routesWithHeadersLinkedFn);
+        await registerRoutes(routesWithHeadersMiddleFn);
 
-        const authLinkedFn = getLinkedFnExecutable('auth');
-        expect(authLinkedFn).toBeDefined();
-        expect(authLinkedFn!.type).toEqual(HandlerType.headersLinkedFn);
+        const authMiddleFn = getMiddleFnExecutable('auth');
+        expect(authMiddleFn).toBeDefined();
+        expect(authMiddleFn!.type).toEqual(HandlerType.headersMiddleFn);
         // Headers Functions should be public because they have headerNames, even if they have no return data or body params
-        expect(isPublicExecutable(authLinkedFn!)).toBe(true);
+        expect(isPublicExecutable(authMiddleFn!)).toBe(true);
     });
 });

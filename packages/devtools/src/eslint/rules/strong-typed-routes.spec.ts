@@ -19,11 +19,11 @@ ruleTester.run('strong-typed-routes', rule, {
                 route((ctx, name: string): string => \`hello \${name}\`);
             `,
         },
-        // Valid linkedFn with explicit types
+        // Valid middleFn with explicit types
         {
             code: `
-                import { linkedFn } from '@mionkit/router';
-                linkedFn((ctx, data: number): void => { console.log(data); });
+                import { middleFn } from '@mionkit/router';
+                middleFn((ctx, data: number): void => { console.log(data); });
             `,
         },
         // Valid headersFn with explicit types
@@ -50,8 +50,8 @@ ruleTester.run('strong-typed-routes', rule, {
         // Valid with only context parameter (no other params to check)
         {
             code: `
-                import { linkedFn } from '@mionkit/router';
-                linkedFn((ctx): void => { console.log('linkedFn'); });
+                import { middleFn } from '@mionkit/router';
+                middleFn((ctx): void => { console.log('middleFn'); });
             `,
         },
         // Functions from different packages should be ignored
@@ -69,11 +69,11 @@ ruleTester.run('strong-typed-routes', rule, {
                 otherFunction(null, 'test');
             `,
         },
-        // rawLinkedFn should be ignored (not in the list)
+        // rawMiddleFn should be ignored (not in the list)
         {
             code: `
-                import { rawLinkedFn } from '@mionkit/router';
-                rawLinkedFn((ctx, req, resp) => undefined);
+                import { rawMiddleFn } from '@mionkit/router';
+                rawMiddleFn((ctx, req, resp) => undefined);
             `,
         },
         // Valid with rest parameters
@@ -115,12 +115,12 @@ ruleTester.run('strong-typed-routes', rule, {
                 headersFn(authHandler);
             `,
         },
-        // Valid with linkedFn function reference
+        // Valid with middleFn function reference
         {
             code: `
-                import { linkedFn } from '@mionkit/router';
+                import { middleFn } from '@mionkit/router';
                 function logHandler(ctx, data: number): void { console.log(data); }
-                linkedFn(logHandler);
+                middleFn(logHandler);
             `,
         },
         // Valid with Handler type annotation
@@ -162,11 +162,11 @@ ruleTester.run('strong-typed-routes', rule, {
                 }
             `,
         },
-        // Valid with @mion:linkedFn JSDoc tag
+        // Valid with @mion:middleFn JSDoc tag
         {
             code: `
                 /**
-                 * @mion:linkedFn
+                 * @mion:middleFn
                  */
                 const logHandler = (ctx, data: number): void => { console.log(data); };
             `,
@@ -268,11 +268,11 @@ ruleTester.run('strong-typed-routes', rule, {
                 {messageId: 'missingParamTypesRouter'}, // param 'name'
             ],
         },
-        // Missing types in linkedFn
+        // Missing types in middleFn
         {
             code: `
-                import { linkedFn } from '@mionkit/router';
-                linkedFn((ctx, data) => { console.log(data); });
+                import { middleFn } from '@mionkit/router';
+                middleFn((ctx, data) => { console.log(data); });
             `,
             errors: [
                 {messageId: 'missingReturnTypeRouter'}, // return type on function
@@ -460,11 +460,11 @@ ruleTester.run('strong-typed-routes', rule, {
                 {messageId: 'missingParamTypes'}, // param 'name'
             ],
         },
-        // @mion:linkedFn JSDoc tag missing return type
+        // @mion:middleFn JSDoc tag missing return type
         {
             code: `
                 /**
-                 * @mion:linkedFn
+                 * @mion:middleFn
                  */
                 const logHandler = (ctx, data: number) => { console.log(data); };
             `,

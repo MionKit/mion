@@ -216,11 +216,11 @@ describe('mion vite plugin: pureServerFn e2e', () => {
     });
 
     it('should execute client-defined pureServerFn on server via virtual module', async () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = new HeadersSubset({Authorization: 'test-token'});
 
-        const [result, error] = await routes.getGreetingsPureFnResult().callWithLinkedFns({
-            auth: linkedFns.auth(authHeaders),
+        const [result, error] = await routes.getGreetingsPureFnResult().callWithMiddleFns({
+            auth: middleFns.auth(authHeaders),
         });
 
         expect(error).toBeUndefined();
@@ -230,15 +230,15 @@ describe('mion vite plugin: pureServerFn e2e', () => {
     });
 
     it('should return same value from server as client-side pure function', async () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = new HeadersSubset({Authorization: 'test-token'});
 
         // Get the client-side result
         const clientResult = greetingPureFn.pureFn();
 
         // Get the server-side result via mion client
-        const [serverResult, error] = await routes.getGreetingsPureFnResult().callWithLinkedFns({
-            auth: linkedFns.auth(authHeaders),
+        const [serverResult, error] = await routes.getGreetingsPureFnResult().callWithMiddleFns({
+            auth: middleFns.auth(authHeaders),
         });
 
         expect(error).toBeUndefined();
@@ -268,12 +268,12 @@ describe('mion vite plugin: pureServerFn e2e', () => {
     });
 
     it('should execute plain function pureServerFn on server via callPureFnByName', async () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = new HeadersSubset({Authorization: 'test-token'});
 
         // The fnName for plain function overload is the bodyHash
-        const [result, error] = await routes.callPureFnByName(incrementPureFn.fnName, 10).callWithLinkedFns({
-            auth: linkedFns.auth(authHeaders),
+        const [result, error] = await routes.callPureFnByName(incrementPureFn.fnName, 10).callWithMiddleFns({
+            auth: middleFns.auth(authHeaders),
         });
 
         expect(error).toBeUndefined();
@@ -281,11 +281,11 @@ describe('mion vite plugin: pureServerFn e2e', () => {
     });
 
     it('should execute plain arrow function pureServerFn on server via callPureFnByName', async () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = new HeadersSubset({Authorization: 'test-token'});
 
-        const [result, error] = await routes.callPureFnByName(tripleArrowFn.fnName, 7).callWithLinkedFns({
-            auth: linkedFns.auth(authHeaders),
+        const [result, error] = await routes.callPureFnByName(tripleArrowFn.fnName, 7).callWithMiddleFns({
+            auth: middleFns.auth(authHeaders),
         });
 
         expect(error).toBeUndefined();
@@ -293,12 +293,12 @@ describe('mion vite plugin: pureServerFn e2e', () => {
     });
 
     it('should return same value from server as client-side plain function', async () => {
-        const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = new HeadersSubset({Authorization: 'test-token'});
 
         const clientResult = incrementPureFn.pureFn(42);
-        const [serverResult, error] = await routes.callPureFnByName(incrementPureFn.fnName, 42).callWithLinkedFns({
-            auth: linkedFns.auth(authHeaders),
+        const [serverResult, error] = await routes.callPureFnByName(incrementPureFn.fnName, 42).callWithMiddleFns({
+            auth: middleFns.auth(authHeaders),
         });
 
         expect(error).toBeUndefined();

@@ -7,41 +7,41 @@
 
 import {RpcError} from '@mionkit/core';
 import type {Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionkit/core';
-import type {PublicHeadersFn, PublicLinkedFn, RemoteApi, PublicRoute} from '@mionkit/router';
+import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionkit/router';
 import type {TypedEvent} from './typedEvent.ts';
 
-/** Result type for call() and callWithLinkedFns() methods - 4-tuple pattern */
+/** Result type for call() and callWithMiddleFns() methods - 4-tuple pattern */
 export type Result<
     RouteSuccess,
     RouteError,
-    LinkedFnsResults extends Record<string, unknown> = Record<string, unknown>,
-    LinkedFnsErrors extends Record<string, RpcError<string, unknown>> = Record<string, RpcError<string, unknown>>,
-> = [RouteSuccess | undefined, RouteError | undefined, LinkedFnsResults | undefined, LinkedFnsErrors | undefined];
+    MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>,
+    MiddleFnsErrors extends Record<string, RpcError<string, unknown>> = Record<string, RpcError<string, unknown>>,
+> = [RouteSuccess | undefined, RouteError | undefined, MiddleFnsResults | undefined, MiddleFnsErrors | undefined];
 
-/** Extract success type from a LinkedFnSubRequest */
-export type LinkedFnSuccess<H> = H extends HSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
+/** Extract success type from a MiddleFnSubRequest */
+export type MiddleFnSuccess<H> = H extends HSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
 
-/** Extract error type from a LinkedFnSubRequest */
-export type LinkedFnError<H> = H extends HSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
+/** Extract error type from a MiddleFnSubRequest */
+export type MiddleFnError<H> = H extends HSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
 
-/** Result type for callWithLinkedFns method - 4-tuple pattern */
-export type CallWithLinkedFnsResult<RouteSuccess, RouteError, LinkedFns extends Record<string, HSubRequest<any>>> = [
+/** Result type for callWithMiddleFns method - 4-tuple pattern */
+export type CallWithMiddleFnsResult<RouteSuccess, RouteError, MiddleFns extends Record<string, HSubRequest<any>>> = [
     RouteSuccess | undefined,
     RouteError | ValidationError | undefined,
-    {[K in keyof LinkedFns]?: LinkedFnSuccess<LinkedFns[K]>} | undefined,
-    {[K in keyof LinkedFns]?: LinkedFnError<LinkedFns[K]>} | undefined,
+    {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
+    {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined,
 ];
 
 // type-routesFlow-result-start
 /** Result type for routesFlow() function - 4-tuple pattern matching array input */
 export type WorkflowResult<
     Routes extends RSubRequest<any>[],
-    LinkedFns extends Record<string, HSubRequest<any>> = Record<string, HSubRequest<any>>,
+    MiddleFns extends Record<string, HSubRequest<any>> = Record<string, HSubRequest<any>>,
 > = [
     WorkflowRouteResults<Routes>,
     WorkflowRouteErrors<Routes>,
-    {[K in keyof LinkedFns]?: LinkedFnSuccess<LinkedFns[K]>} | undefined,
-    {[K in keyof LinkedFns]?: LinkedFnError<LinkedFns[K]>} | undefined,
+    {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
+    {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined,
 ];
 // type-routesFlow-result-end
 
@@ -75,16 +75,16 @@ export type ClientOptions = {
 };
 
 type PublicHandler = (...args: any[]) => Promise<any>;
-type PublicMethod = PublicRoute | PublicLinkedFn | PublicHeadersFn;
+type PublicMethod = PublicRoute | PublicMiddleFn | PublicHeadersFn;
 type ExtractHandler<PM extends PublicMethod> = PM extends {handler: infer H} ? H : never;
 
 export type InitOptions = Partial<ClientOptions> & {baseURL: string};
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
 
-/** Extracts all parameters from a PublicRoute, PublicLinkedFn, or PublicHeadersFn */
+/** Extracts all parameters from a PublicRoute, PublicMiddleFn, or PublicHeadersFn */
 export type RouteParamsType<PM extends PublicMethod> = Parameters<ExtractHandler<PM>>;
-/** Extracts a single parameter at a given index from a PublicRoute, PublicLinkedFn, or PublicHeadersFn */
+/** Extracts a single parameter at a given index from a PublicRoute, PublicMiddleFn, or PublicHeadersFn */
 export type RouteParamType<PM extends PublicMethod, Index extends number> = Parameters<ExtractHandler<PM>>[Index];
 /** Extracts the headers parameter (first param) from a PublicHeadersFn handler */
 export type HeadersParamsType<PM extends PublicHeadersFn> = Parameters<ExtractHandler<PM>>[0];
@@ -142,29 +142,29 @@ export interface RSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
         >
     >;
 
-    /** Calls a remote route with linkedFns and returns a fully-typed 4-tuple result */
-    callWithLinkedFns: <H extends Record<string, HSubRequest<any>>>(
-        linkedFns: H
-    ) => Promise<CallWithLinkedFnsResult<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, H>>;
+    /** Calls a remote route with middleFns and returns a fully-typed 4-tuple result */
+    callWithMiddleFns: <H extends Record<string, HSubRequest<any>>>(
+        middleFns: H
+    ) => Promise<CallWithMiddleFnsResult<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, H>>;
 
     /** Calls this route as part of a routesFlow with other routes in a single HTTP request */
     callWithWorkflow: <OtherRoutes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         otherRoutes: [...OtherRoutes],
-        linkedFns?: H
+        middleFns?: H
     ) => Promise<WorkflowResult<any, H>>;
 }
 
-/** structure returned from the proxy, containing info of the remote linkedFn to execute */
+/** structure returned from the proxy, containing info of the remote middleFn to execute */
 export interface HSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
-    /** Validates LinkedFn's parameters and returns type errors */
+    /** Validates MiddleFn's parameters and returns type errors */
     typeErrors: () => Promise<RunTypeError[]>;
-    /** Prefills LinkedFn's parameters for any future request and returns TypedEvent */
+    /** Prefills MiddleFn's parameters for any future request and returns TypedEvent */
     prefill: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
     /** Removes prefilled value */
     removePrefill: () => Promise<void>;
 }
 
-export type NonClientRoute = never | PublicLinkedFn | PublicHeadersFn;
+export type NonClientRoute = never | PublicMiddleFn | PublicHeadersFn;
 
 export type ClientRoutes<RA extends RemoteApi> = Prettify<{
     [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
@@ -174,15 +174,15 @@ export type ClientRoutes<RA extends RemoteApi> = Prettify<{
           : never;
 }>;
 
-export type NonClientLinkedFn = never | PublicRoute | {[key: string]: PublicRoute};
+export type NonClientMiddleFn = never | PublicRoute | {[key: string]: PublicRoute};
 
-export type ClientLinkedFns<RA extends RemoteApi> = Prettify<{
-    [Property in keyof RA as RA[Property] extends NonClientLinkedFn ? never : Property]: RA[Property] extends
-        | PublicLinkedFn
+export type ClientMiddleFns<RA extends RemoteApi> = Prettify<{
+    [Property in keyof RA as RA[Property] extends NonClientMiddleFn ? never : Property]: RA[Property] extends
+        | PublicMiddleFn
         | PublicHeadersFn
         ? (...params: Parameters<RA[Property]['handler']>) => HSubRequest<RA[Property]['handler']>
         : RA[Property] extends RemoteApi
-          ? ClientLinkedFns<RA[Property]>
+          ? ClientMiddleFns<RA[Property]>
           : never;
 }>;
 
@@ -195,7 +195,7 @@ export type SuccessClientResponse<RS extends RSubRequest<any>, RHList extends HS
     ...SuccessResponses<RHList>,
 ];
 
-export type PrefilledLinkedFnsCache = Map<
+export type PrefilledMiddleFnsCache = Map<
     string,
     SubRequest<any>
 >; /** Reference returned by mapFrom() - extends PureServerFnRef with fake() for type-safe routesFlow piping */

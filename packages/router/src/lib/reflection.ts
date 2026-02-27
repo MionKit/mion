@@ -26,8 +26,8 @@ type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'point
  * This indicates that the AOT caches need to be regenerated using 'mion-build-aot' command.
  */
 export class AOTCacheError extends Error {
-    constructor(routeId: string, type: 'route' | 'linkedFn' | 'rawLinkedFn' = 'route') {
-        const typeLabel = type === 'rawLinkedFn' ? 'Raw linkedFn' : type === 'linkedFn' ? 'LinkedFn' : 'Route/linkedFn';
+    constructor(routeId: string, type: 'route' | 'middleFn' | 'rawMiddleFn' = 'route') {
+        const typeLabel = type === 'rawMiddleFn' ? 'Raw middleFn' : type === 'middleFn' ? 'MiddleFn' : 'Route/middleFn';
         super(`${typeLabel} "${routeId}" not found in AOT cache.\n` + `Regenerate AOT caches using 'mion-build-aot' command.`);
         this.name = 'AOTCacheError';
     }
@@ -81,26 +81,26 @@ export function resetRunTypesCache(): void {
 
 /** Resets all reflection caches. Useful for testing purposes only. */
 export function resetReflectionCaches(): void {
-    rawLinkedFnReflectionCache.clear();
+    rawMiddleFnReflectionCache.clear();
     // Note: functionRunTypeCache uses WeakMap so it doesn't need explicit clearing
     // Note: _cachedReflection on MethodMetadata objects will be cleared when persistedMethods is reset
 }
 
-// ############ Raw LinkedFn Reflection Helper ############
+// ############ Raw MiddleFn Reflection Helper ############
 
-// Cache for common raw linkedFn reflections
-const rawLinkedFnReflectionCache = new Map<string, MethodReflect>();
+// Cache for common raw middleFn reflections
+const rawMiddleFnReflectionCache = new Map<string, MethodReflect>();
 
 /**
- * Creates a MethodReflect for raw linkedFns.
- * Raw linkedFns don't need JIT functions - they always use NoopJitFns.
+ * Creates a MethodReflect for raw middleFns.
+ * Raw middleFns don't need JIT functions - they always use NoopJitFns.
  * Results are cached to avoid creating duplicate objects.
  */
-function createRawLinkedFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
+function createRawMiddleFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
     // Create cache key from parameters
     const cacheKey = `${isAsync}_${hasReturnData}_${paramNames.join(',')}`;
 
-    const cached = rawLinkedFnReflectionCache.get(cacheKey);
+    const cached = rawMiddleFnReflectionCache.get(cacheKey);
     if (cached) return cached;
 
     const reflection: MethodReflect = {
@@ -113,7 +113,7 @@ function createRawLinkedFnReflection(isAsync: boolean, hasReturnData: boolean = 
         isAsync,
     };
 
-    rawLinkedFnReflectionCache.set(cacheKey, reflection);
+    rawMiddleFnReflectionCache.set(cacheKey, reflection);
     return reflection;
 }
 
@@ -169,7 +169,7 @@ function extractReflectionFromCached(cached: CachedMethodMetadata): MethodReflec
 // ############ Main Reflection Functions ############
 
 /**
- * Gets reflection data for a handler (route or linkedFn).
+ * Gets reflection data for a handler (route or middleFn).
  * In AOT mode, returns cached data without loading run-types.
  * In non-AOT mode, dynamically loads run-types and generates reflection.
  * Throws AOTCacheError if AOT mode is enabled and route is not in cache.
@@ -178,21 +178,21 @@ export async function getHandlerReflection(
     handler: Handler,
     routeId: string,
     routerOptions: RouterOptions,
-    isHeadersLinkedFn: boolean = false
+    isHeadersMiddleFn: boolean = false
 ): Promise<MethodReflect> {
     // Check AOT cache first
     const cached = getPersistedMethodMetadata(routeId);
     if (cached) return extractReflectionFromCached(cached);
-    if (routerOptions.aot) throw new AOTCacheError(routeId, isHeadersLinkedFn ? 'linkedFn' : 'route');
+    if (routerOptions.aot) throw new AOTCacheError(routeId, isHeadersMiddleFn ? 'middleFn' : 'route');
     // Non-AOT mode: dynamically load run-types and generate reflection
     const rt = await loadRunTypesModule();
-    return generateHandlerReflection(handler, routeId, routerOptions, isHeadersLinkedFn, rt);
+    return generateHandlerReflection(handler, routeId, routerOptions, isHeadersMiddleFn, rt);
 }
 
 /**
- * Gets reflection data for a raw linkedFn.
- * Raw linkedFns don't use full reflection - they don't need JIT functions.
- * Raw linkedFns don't NEED to be in the AOT cache, but if they are, we can use
+ * Gets reflection data for a raw middleFn.
+ * Raw middleFns don't use full reflection - they don't need JIT functions.
+ * Raw middleFns don't NEED to be in the AOT cache, but if they are, we can use
  * the cached data (especially the isAsync flag).
  * In AOT mode, this function does NOT load run-types.
  */
@@ -201,11 +201,11 @@ export async function getRawMethodReflection(
     routeId: string,
     routerOptions: RouterOptions
 ): Promise<MethodReflect> {
-    // Check if raw linkedFn is in cache - if so, use cached data (especially isAsync)
+    // Check if raw middleFn is in cache - if so, use cached data (especially isAsync)
     const cached = getPersistedMethodMetadata(routeId);
-    if (cached) return createRawLinkedFnReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
-    // Raw linkedFns don't need JIT functions, so we don't need to load run-types in AOT mode
-    if (routerOptions.aot) return createRawLinkedFnReflection(true);
+    if (cached) return createRawMiddleFnReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
+    // Raw middleFns don't need JIT functions, so we don't need to load run-types in AOT mode
+    if (routerOptions.aot) return createRawMiddleFnReflection(true);
     // Non-AOT mode: dynamically load run-types to properly detect if handler is async
     const rt = await loadRunTypesModule();
     return generateRawMethodReflection(handler, routeId, rt);
@@ -221,7 +221,7 @@ function generateHandlerReflection(
     handler: Handler,
     routeId: string,
     routerOptions: RouterOptions,
-    isHeadersLinkedFn: boolean,
+    isHeadersMiddleFn: boolean,
     rt: RunTypesFunctions
 ): MethodReflect {
     const reflectionItems: Partial<MethodReflect> = {};
@@ -230,9 +230,9 @@ function generateHandlerReflection(
     try {
         handlerRunType = rt.reflectFunction(handler);
     } catch (error: any) {
-        throw new Error(`Can not get RunType of handler for route/linkedFn "${routeId}." Error: ${error?.message}`);
+        throw new Error(`Can not get RunType of handler for route/middleFn "${routeId}." Error: ${error?.message}`);
     }
-    const paramsSlice = isHeadersLinkedFn ? {start: HEADER_HOOK_DEFAULT_PARAMS.length} : {start: ROUTE_DEFAULT_PARAMS.length};
+    const paramsSlice = isHeadersMiddleFn ? {start: HEADER_HOOK_DEFAULT_PARAMS.length} : {start: ROUTE_DEFAULT_PARAMS.length};
     const paramsOpts: RunTypeOptions = {...runTypeOptions, paramsSlice};
 
     try {
@@ -246,10 +246,10 @@ function generateHandlerReflection(
             reflectionItems.paramsJitHash = handlerRunType.getParameters().getJitHash(paramsOpts);
         }
     } catch (error: any) {
-        throw new Error(`Can not compile Jit Functions for Parameters of route/linkedFn "${routeId}." Error: ${error?.message}`);
+        throw new Error(`Can not compile Jit Functions for Parameters of route/middleFn "${routeId}." Error: ${error?.message}`);
     }
 
-    if (isHeadersLinkedFn) {
+    if (isHeadersMiddleFn) {
         const headersRunType = getParamsHeadersRunType(handlerRunType, routeId, routerOptions, rt);
         const headerNames: string[] = getHeaderNames(headersRunType, routeId, rt);
 
@@ -264,7 +264,7 @@ function generateHandlerReflection(
             reflectionItems.headersParam = {headerNames, jitFns, jitHash};
         } catch (error: any) {
             throw new Error(
-                `Can not compile Jit Functions for Headers of Headers LinkedFn "${routeId}." Error: ${error?.message}`
+                `Can not compile Jit Functions for Headers of Headers MiddleFn "${routeId}." Error: ${error?.message}`
             );
         }
     }
@@ -293,7 +293,7 @@ function generateHandlerReflection(
             reflectionItems.returnJitHash = handlerRunType.getReturnType().getJitHash(returnOpts);
         }
     } catch (error: any) {
-        throw new Error(`Can not get Jit Functions for Return of route/linkedFn "${routeId}." Error: ${error?.message}`);
+        throw new Error(`Can not get Jit Functions for Return of route/middleFn "${routeId}." Error: ${error?.message}`);
     }
 
     reflectionItems.isAsync = handlerRunType.isAsync();
@@ -302,7 +302,7 @@ function generateHandlerReflection(
 }
 
 /**
- * Generates reflection data for a raw linkedFn using run-types.
+ * Generates reflection data for a raw middleFn using run-types.
  * This function is only called in non-AOT mode.
  */
 function generateRawMethodReflection(handler: Handler, routeId: string, rt: RunTypesFunctions): MethodReflect {
@@ -310,10 +310,10 @@ function generateRawMethodReflection(handler: Handler, routeId: string, rt: RunT
     try {
         handlerRunType = rt.reflectFunction(handler);
     } catch (error: any) {
-        throw new Error(`Can not get RunType of handler for route/linkedFn "${routeId}." Error: ${error?.message}`);
+        throw new Error(`Can not get RunType of handler for route/middleFn "${routeId}." Error: ${error?.message}`);
     }
     const isAsync = handlerRunType?.isAsync() || true;
-    return createRawLinkedFnReflection(isAsync);
+    return createRawMiddleFnReflection(isAsync);
 }
 
 // ############ Helper Functions (require run-types module) ############
@@ -328,7 +328,7 @@ function getParamsHeadersRunType(
     const headersSubset = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // HeadersSubset is always index 1 after context
 
     if (!isHeaderSubSetRunType(headersSubset, rt)) {
-        throw new Error(`Headers LinkedFn '${routeId}' second parameter must be a HeadersSubset.`);
+        throw new Error(`Headers MiddleFn '${routeId}' second parameter must be a HeadersSubset.`);
     }
     return headersSubset;
 }
@@ -355,7 +355,7 @@ function getHeaderNames(runType: BaseRunType, routeId: string, rt: RunTypesFunct
     // Use 'typeArguments' (not 'arguments') to get both Required and Optional with their defaults
     const typeArguments = (runType.src as any).typeArguments;
     if (!typeArguments || typeArguments.length === 0) {
-        throw new Error(`HeadersSubset must have type arguments in route/linkedFn ${routeId}`);
+        throw new Error(`HeadersSubset must have type arguments in route/middleFn ${routeId}`);
     }
     const headerNames: string[] = [];
     // Extract header names from Required type argument (first argument)
@@ -372,7 +372,7 @@ function getHeaderNames(runType: BaseRunType, routeId: string, rt: RunTypesFunct
             headerNames.push(...optionalNames);
         }
     }
-    if (headerNames.length === 0) throw new Error(`Header names array cannot be empty in route/linkedFn ${routeId}`);
+    if (headerNames.length === 0) throw new Error(`Header names array cannot be empty in route/middleFn ${routeId}`);
     return headerNames;
 }
 

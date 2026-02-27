@@ -259,38 +259,38 @@ describe('Binary Serialization E2E', () => {
         });
     });
 
-    describe('LinkedFns with Binary Serialization', () => {
-        it('should handle linkedFn with optional parameter (with value)', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
-            const [result, error, linkedFnsResults] = await routes.echo('test').callWithLinkedFns({
-                session: linkedFns.session('valid-token'),
+    describe('MiddleFns with Binary Serialization', () => {
+        it('should handle middleFn with optional parameter (with value)', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const [result, error, middleFnsResults] = await routes.echo('test').callWithMiddleFns({
+                session: middleFns.session('valid-token'),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(linkedFnsResults?.session).toEqual({valid: true, userId: 'user-123'});
+            expect(middleFnsResults?.session).toEqual({valid: true, userId: 'user-123'});
         });
 
-        it('should handle linkedFn with optional parameter (without value)', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
-            const [result, error, linkedFnsResults] = await routes.echo('test').callWithLinkedFns({
-                session: linkedFns.session(),
+        it('should handle middleFn with optional parameter (without value)', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const [result, error, middleFnsResults] = await routes.echo('test').callWithMiddleFns({
+                session: middleFns.session(),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(linkedFnsResults?.session).toBeNull();
+            expect(middleFnsResults?.session).toBeNull();
         });
 
-        it('should handle linkedFn returning error-like object', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
-            const [result, error, linkedFnsResults] = await routes.echo('test').callWithLinkedFns({
-                session: linkedFns.session('invalid'),
+        it('should handle middleFn returning error-like object', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const [result, error, middleFnsResults] = await routes.echo('test').callWithMiddleFns({
+                session: middleFns.session('invalid'),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(linkedFnsResults?.session).toEqual({valid: false});
+            expect(middleFnsResults?.session).toEqual({valid: false});
         });
     });
 
@@ -438,13 +438,13 @@ describe('Binary Serialization E2E', () => {
             expect(result5).toBe(false);
         });
 
-        it('should handle routesFlow with linkedFns in binary mode', async () => {
-            const {routes, linkedFns} = initClient<MyApi>({baseURL});
+        it('should handle routesFlow with middleFns in binary mode', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
 
-            const [[result1, result2], [error1, error2], linkedFnResults] = await routesFlow(
+            const [[result1, result2], [error1, error2], middleFnResults] = await routesFlow(
                 [routes.echo('workflow test'), routes.addNumbers(1, 2)],
                 {
-                    session: linkedFns.session('valid-token'),
+                    session: middleFns.session('valid-token'),
                 }
             );
 
@@ -452,7 +452,7 @@ describe('Binary Serialization E2E', () => {
             expect(error2).toBeUndefined();
             expect(result1).toBe('workflow test');
             expect(result2).toBe(3);
-            expect(linkedFnResults?.session).toEqual({valid: true, userId: 'user-123'});
+            expect(middleFnResults?.session).toEqual({valid: true, userId: 'user-123'});
         });
 
         it('should handle errors in binary routesFlow', async () => {

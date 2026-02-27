@@ -12,7 +12,7 @@ The router already supports workflows via:
 - **Query String**: CSV list of route paths to execute
 - **Request Body**: Standard mion body with params for each route keyed by route ID
 - **Response Body**: Standard mion body with results for each route keyed by route ID
-- **Execution**: Routes execute in order, linkedFns are deduplicated, execution stops on first error
+- **Execution**: Routes execute in order, middleFns are deduplicated, execution stops on first error
 
 ## Client API Design
 
@@ -23,10 +23,10 @@ import {initClient} from '@mionkit/client';
 import {workflow} from '@mionkit/client';
 import type {RemoteApi} from './api';
 
-const {client, routes, linkedFns} = initClient<RemoteApi>({baseURL: 'http://localhost:3000'});
+const {client, routes, middleFns} = initClient<RemoteApi>({baseURL: 'http://localhost:3000'});
 
 // Basic workflow call
-const [results, errors, linkedFnResults, linkedFnErrors] = await workflow([
+const [results, errors, middleFnResults, middleFnErrors] = await workflow([
   routes.users.getUser({id: '1'}),
   routes.posts.getPosts({userId: '1'}),
   routes.audit.logAccess({userId: '1'}),
@@ -36,12 +36,12 @@ const [results, errors, linkedFnResults, linkedFnErrors] = await workflow([
 const [user, posts, auditLog] = results ?? [];
 const [userError, postsError, auditError] = errors ?? [];
 
-// Workflow with explicit linkedFns
-const [results, errors, linkedFnResults, linkedFnErrors] = await workflow(
+// Workflow with explicit middleFns
+const [results, errors, middleFnResults, middleFnErrors] = await workflow(
   [routes.users.getUser({id: '1'}), routes.posts.getPosts({userId: '1'})],
   {
-    auth: linkedFns.auth.validateToken({token: 'abc'}),
-    rateLimit: linkedFns.rateLimit.check({userId: '1'}),
+    auth: middleFns.auth.validateToken({token: 'abc'}),
+    rateLimit: middleFns.rateLimit.check({userId: '1'}),
   }
 );
 ```
@@ -55,11 +55,11 @@ const [results, errors, linkedFnResults, linkedFnErrors] = await workflow(
  * Result type for workflow() function - 4-tuple pattern matching array input.
  *
  * @typeParam Routes - Tuple type of RSubRequest instances passed to workflow
- * @typeParam LinkedFns - Record of linkedFn names to HSubRequest instances
+ * @typeParam MiddleFns - Record of middleFn names to HSubRequest instances
  */
 export type WorkflowResult<
   Routes extends RSubRequest<any>[],
-  LinkedFns extends Record<string, HSubRequest<any>> = Record<string, HSubRequest<any>>,
+  MiddleFns extends Record<string, HSubRequest<any>> = Record<string, HSubRequest<any>>,
 > = [
   (
     // Array of route results matching input order - undefined if route failed
@@ -70,12 +70,12 @@ export type WorkflowResult<
     WorkflowRouteErrors<Routes> | undefined
   ),
   (
-    // LinkedFn results keyed by name
-    {[K in keyof LinkedFns]?: LinkedFnSuccess<LinkedFns[K]>} | undefined
+    // MiddleFn results keyed by name
+    {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined
   ),
   (
-    // LinkedFn errors keyed by name
-    {[K in keyof LinkedFns]?: LinkedFnError<LinkedFns[K]>} | undefined
+    // MiddleFn errors keyed by name
+    {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined
   ),
 ];
 
@@ -101,24 +101,24 @@ This file will contain the main `workflow` function and related utilities.
  * Creates and executes a workflow request with multiple routes.
  *
  * @param routeSubRequests Array of route subrequests to execute in order
- * @param linkedFns Optional record of linkedFn subrequests to include
+ * @param middleFns Optional record of middleFn subrequests to include
  * @returns Promise resolving to WorkflowResult 4-tuple
  */
 export async function workflow<
   Routes extends RSubRequest<any>[],
-  LinkedFns extends Record<string, HSubRequest<any>> = Record<string, never>,
->(routeSubRequests: [...Routes], linkedFns?: LinkedFns): Promise<WorkflowResult<Routes, LinkedFns>>;
+  MiddleFns extends Record<string, HSubRequest<any>> = Record<string, never>,
+>(routeSubRequests: [...Routes], middleFns?: MiddleFns): Promise<WorkflowResult<Routes, MiddleFns>>;
 ```
 
 **Implementation Details:**
 
 1. Extract `MionClient` from first subrequest's `client` property
 2. Build workflow path: `/mion-routes-flow?/route1,/route2,...`
-3. Collect all linkedFns from:
-   - Explicitly passed `linkedFns` parameter
-   - Prefilled linkedFns from cache for each route
-4. Deduplicate linkedFns by ID (last write wins)
-5. Call `client.executeCallWithWorkflow()` with the workflow subrequest and linkedFns
+3. Collect all middleFns from:
+   - Explicitly passed `middleFns` parameter
+   - Prefilled middleFns from cache for each route
+4. Deduplicate middleFns by ID (last write wins)
+5. Call `client.executeCallWithWorkflow()` with the workflow subrequest and middleFns
 6. Return the 4-tuple result
 
 ### 2. New Method: `MionSubRequest.callWithWorkflow()`
@@ -131,14 +131,14 @@ Add a method to `MionSubRequest` that allows calling a single route as part of a
  * This is an alternative to the standalone workflow() function.
  *
  * @param otherRoutes Additional routes to include in the workflow
- * @param linkedFns Optional linkedFns to include
+ * @param middleFns Optional middleFns to include
  */
 callWithWorkflow<
   OtherRoutes extends RSubRequest<any>[],
   H extends Record<string, HSubRequest<any>>
 >(
   otherRoutes: OtherRoutes,
-  linkedFns?: H
+  middleFns?: H
 ): Promise<WorkflowResult<[this, ...OtherRoutes], H>>
 ```
 
@@ -148,20 +148,20 @@ Add a method to `MionClient` that orchestrates workflow execution:
 
 ```ts
 /**
- * Executes a workflow call with multiple routes and optional linkedFns.
- * Similar to executeCallWithLinkedFns but for workflows.
+ * Executes a workflow call with multiple routes and optional middleFns.
+ * Similar to executeCallWithMiddleFns but for workflows.
  *
  * @param workflowSubRequests Array of route subrequests for the workflow
- * @param linkedFnsRecord Record of linkedFn names to subrequests
- * @param linkedFnSubRequests Array of linkedFn subrequests
+ * @param middleFnsRecord Record of middleFn names to subrequests
+ * @param middleFnSubRequests Array of middleFn subrequests
  */
 executeCallWithWorkflow<
   Routes extends RSubRequest<any>[],
   H extends Record<string, HSubRequest<any>>
 >(
   workflowSubRequests: Routes,
-  linkedFnsRecord: H,
-  linkedFnSubRequests: HSubRequest<any>[]
+  middleFnsRecord: H,
+  middleFnSubRequests: HSubRequest<any>[]
 ): Promise<WorkflowResult<Routes, H>>
 ```
 
@@ -171,7 +171,7 @@ executeCallWithWorkflow<
 2. Build the URL query string from route IDs
 3. Create `MionClientRequest` with:
    - `route`: The synthetic workflow subrequest
-   - `linkedFns`: All collected linkedFns
+   - `middleFns`: All collected middleFns
    - `workflowSubRequests`: The array of actual route subrequests
 4. Execute the request
 5. Map response body to result arrays matching input order
@@ -181,7 +181,7 @@ executeCallWithWorkflow<
 The `MionClientRequest` class needs to support workflow requests:
 
 ```ts
-export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList extends HSubRequest<any>[]> {
+export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList extends HSubRequest<any>[]> {
   // Existing properties...
 
   /** Array of workflow subrequests when executing a workflow */
@@ -189,9 +189,9 @@ export class MionClientRequest<RR extends RSubRequest<any>, LinkedFnRequestsList
 
   constructor(
     public readonly options: ClientOptions,
-    private readonly prefilledLinkedFnsCache: PrefilledLinkedFnsCache,
+    private readonly prefilledMiddleFnsCache: PrefilledMiddleFnsCache,
     public readonly route?: RR,
-    public readonly linkedFns?: LinkedFnRequestsList,
+    public readonly middleFns?: MiddleFnRequestsList,
     public readonly workflowSubRequests?: RSubRequest<any>[] // NEW
   ) {
     // ... existing logic
@@ -253,7 +253,7 @@ export const WORKFLOW_PATH = `/${WORKFLOW_KEY}`;
 2. **Result Mapping**:
    - Map route results to array by input order
    - Map route errors to array by input order
-   - Map linkedFn results/errors by name
+   - Map middleFn results/errors by name
 
 ## Error Handling
 
@@ -273,21 +273,21 @@ These are handled as platform errors and applied to all subrequests.
 
 Each route can have its own error. The server stops execution on first error, so subsequent routes will have `undefined` results.
 
-### LinkedFn Errors
+### MiddleFn Errors
 
 - Same as current implementation
-- Errors are keyed by linkedFn name in the result tuple
+- Errors are keyed by middleFn name in the result tuple
 
 ## Deduplication Strategy
 
-LinkedFns are deduplicated by ID:
+MiddleFns are deduplicated by ID:
 
-1. Collect all linkedFns from explicit parameter
-2. For each route, restore prefilled linkedFns from cache
+1. Collect all middleFns from explicit parameter
+2. For each route, restore prefilled middleFns from cache
 3. Add to a Map keyed by ID (last write wins)
 4. Convert Map values to array for request
 
-This matches the server-side behavior where linkedFns are deduplicated in the merged execution chain.
+This matches the server-side behavior where middleFns are deduplicated in the merged execution chain.
 
 ## Architecture Diagram
 
@@ -305,7 +305,7 @@ flowchart TD
         R1[Route 1]
         R2[Route 2]
         R3[Route 3]
-        LF[LinkedFns]
+        LF[MiddleFns]
     end
 
     WF -->|creates| MSR
@@ -338,7 +338,7 @@ flowchart TD
 
 1. **Type Safety**: The tuple types for workflow results require careful handling to preserve type information across the array. TypeScript's tuple inference should work with the spread operator `[...Routes]`.
 
-2. **Prefilled LinkedFns**: When restoring prefilled linkedFns for workflows, we need to restore them for ALL routes in the workflow, not just the first one.
+2. **Prefilled MiddleFns**: When restoring prefilled middleFns for workflows, we need to restore them for ALL routes in the workflow, not just the first one.
 
 3. **Binary Serialization**: The workflow request body follows the same format as regular requests, so binary serialization should work without changes.
 
@@ -349,13 +349,13 @@ flowchart TD
 1. **Unit Tests**:
    - `workflow()` function with single route
    - `workflow()` function with multiple routes
-   - `workflow()` with explicit linkedFns
-   - `workflow()` with prefilled linkedFns
+   - `workflow()` with explicit middleFns
+   - `workflow()` with prefilled middleFns
    - Error handling for route errors
-   - Error handling for linkedFn errors
+   - Error handling for middleFn errors
    - Type inference tests
 
 2. **Integration Tests**:
    - End-to-end workflow execution
    - Workflow with mixed success/failure routes
-   - Workflow with shared linkedFns
+   - Workflow with shared middleFns

@@ -8,12 +8,12 @@
 import type {RpcError} from '@mionkit/core';
 import type {ErrorHandler, SuccessHandler} from './types';
 
-/** Central registry for persistent linkedFn handlers (both success and error) */
+/** Central registry for persistent middleFn handlers (both success and error) */
 export class HandlersRegistry {
     private errorHandlers: Map<string, Map<string, ErrorHandler<any>>> = new Map();
     private successHandlers: Map<string, SuccessHandler<any>> = new Map();
 
-    /** Register an error handler for a specific handler (linkedFn) and error type */
+    /** Register an error handler for a specific handler (middleFn) and error type */
     register(handlerId: string, errorType: string, handler: ErrorHandler<any>): void {
         let handlerMap = this.errorHandlers.get(handlerId);
         if (!handlerMap) {
@@ -50,12 +50,12 @@ export class HandlersRegistry {
         return true;
     }
 
-    /** Register a success handler for a specific linkedFn */
+    /** Register a success handler for a specific middleFn */
     registerSuccess(handlerId: string, handler: SuccessHandler<any>): void {
         this.successHandlers.set(handlerId, handler);
     }
 
-    /** Unregister a success handler for a specific linkedFn */
+    /** Unregister a success handler for a specific middleFn */
     unregisterSuccess(handlerId: string): void {
         this.successHandlers.delete(handlerId);
     }
@@ -65,7 +65,7 @@ export class HandlersRegistry {
         return this.successHandlers.has(handlerId);
     }
 
-    /** Get and execute the success handler for a linkedFn result, if it exists */
+    /** Get and execute the success handler for a middleFn result, if it exists */
     executeSuccessHandler(handlerId: string, result: any): boolean {
         const handler = this.successHandlers.get(handlerId);
         if (!handler) return false;

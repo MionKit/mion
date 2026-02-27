@@ -8,7 +8,7 @@ const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 // ============================================
 // Result and error are the direct types from the route
 async function singleRouteCall() {
-    // Returns: [result, error, linkedFnResults, linkedFnErrors]
+    // Returns: [result, error, middleFnResults, middleFnErrors]
     const [user, error] = await routes.users.getById('USER-123').call();
 
     // `user` is User | undefined
@@ -27,7 +27,7 @@ async function singleRouteCall() {
 // ============================================
 // Results and errors are ARRAYS in the same order as the routes
 async function routesFlowCall() {
-    // Returns: [[results...], [errors...], linkedFnResults, linkedFnErrors]
+    // Returns: [[results...], [errors...], middleFnResults, middleFnErrors]
     const [[user, order], [userError, orderError]] = await routesFlow([
         routes.users.getById('USER-123'),
         routes.orders.getById('ORDER-1'),

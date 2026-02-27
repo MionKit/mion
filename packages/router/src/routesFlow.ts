@@ -15,7 +15,7 @@ import {
     PURE_SERVER_FN_NAMESPACE,
 } from '@mionkit/core';
 import {serverPureFnsCache} from 'virtual:mion-server-pure-fns';
-import {getRouteExecutionChain, getRouterOptions, startLinkedFns, endLinkedFns} from './router.ts';
+import {getRouteExecutionChain, getRouterOptions, startMiddleFns, endMiddleFns} from './router.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
 import {RoutesFlowExecutionResult} from './types/context.ts';
@@ -127,9 +127,9 @@ export function getRoutesFlowExecutionChain(
  * The merged chain includes all methods from all routes, with deduplication by ID.
  *
  * The chain is structured as:
- * 1. Start linkedFns (e.g., mionDeserializeRequest) - from first route, at the beginning
- * 2. Middle methods (routes and their linkedFns) - merged from all routes, with mapping steps inserted
- * 3. End linkedFns (e.g., mionSerializeResponse) - from first route, at the end
+ * 1. Start middleFns (e.g., mionDeserializeRequest) - from first route, at the beginning
+ * 2. Middle methods (routes and their middleFns) - merged from all routes, with mapping steps inserted
+ * 3. End middleFns (e.g., mionSerializeResponse) - from first route, at the end
  *
  * When mappings are provided, mapping steps are inserted after the source route
  * and before the target route to transform output → input.
@@ -146,9 +146,9 @@ function buildMergedExecutionChain(
     let firstRouteIndex = -1;
     const defaultSerializerCode = SerializerModes[opts.serializer];
 
-    // Build sets of start and end linkedFn IDs for filtering
-    const startLinkedFnIds = new Set(startLinkedFns.map((m) => m.id));
-    const endLinkedFnIds = new Set(endLinkedFns.map((m) => m.id));
+    // Build sets of start and end middleFn IDs for filtering
+    const startMiddleFnIds = new Set(startMiddleFns.map((m) => m.id));
+    const endMiddleFnIds = new Set(endMiddleFns.map((m) => m.id));
 
     // Process each route path
     for (const routePath of routePaths) {
@@ -167,18 +167,18 @@ function buildMergedExecutionChain(
         // Resolve serializer - use first route's serializer, or fall back to default if conflicting
         if (!resolvedSerializer) {
             resolvedSerializer = chain.serializer;
-            // Track the route index from the first route (relative to start linkedFns)
+            // Track the route index from the first route (relative to start middleFns)
             firstRouteIndex = chain.routeIndex;
         } else if (resolvedSerializer !== chain.serializer) {
             resolvedSerializer = defaultSerializerCode;
         }
 
         // Add middle methods from this route's chain, deduplicating by ID
-        // Skip start and end linkedFns - they will be added separately
+        // Skip start and end middleFns - they will be added separately
         for (const method of chain.methods) {
             if (seenIds.has(method.id)) continue;
-            if (startLinkedFnIds.has(method.id)) continue;
-            if (endLinkedFnIds.has(method.id)) continue;
+            if (startMiddleFnIds.has(method.id)) continue;
+            if (endMiddleFnIds.has(method.id)) continue;
             seenIds.add(method.id);
             middleMethods.push(method);
         }
@@ -189,8 +189,8 @@ function buildMergedExecutionChain(
         insertMappingMethods(middleMethods, mappings);
     }
 
-    // Build final chain: start linkedFns + middle methods + end linkedFns
-    const mergedMethods = [...startLinkedFns, ...middleMethods, ...endLinkedFns];
+    // Build final chain: start middleFns + middle methods + end middleFns
+    const mergedMethods = [...startMiddleFns, ...middleMethods, ...endMiddleFns];
 
     return {
         // Use the first route's routeIndex since that's where the first route handler is
@@ -263,7 +263,7 @@ function insertMappingMethods(middleMethods: RemoteMethod[], mappings: RoutesFlo
     }
 }
 
-/** Creates or retrieves a cached RemoteMethod that acts as a raw linkedFn to execute a mapping between routes */
+/** Creates or retrieves a cached RemoteMethod that acts as a raw middleFn to execute a mapping between routes */
 function createMappingMethod(mapping: RoutesFlowMapping): RemoteMethod {
     const id = `mionMapFrom_${mapping.fromId}_${mapping.bodyHash}_to_${mapping.toId}`;
     const cached = mappingMethodCache.get(id);
@@ -271,7 +271,7 @@ function createMappingMethod(mapping: RoutesFlowMapping): RemoteMethod {
 
     const noopJitFns = getNoopJitFns();
     const method = {
-        type: HandlerType.rawLinkedFn,
+        type: HandlerType.rawMiddleFn,
         id,
         isAsync: false,
         hasReturnData: false,

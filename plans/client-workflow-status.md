@@ -7,8 +7,8 @@
 - **`packages/client/src/workflow.ts`** - Standalone `workflow()` function
 - **`packages/client/src/types.ts`** - `WorkflowResult`, `WorkflowRouteResults`, `WorkflowRouteErrors` types
 - **`packages/client/src/constants.ts`** - `WORKFLOW_KEY`, `WORKFLOW_PATH` constants
-- **`packages/client/src/client.ts`** - `executeCallWithWorkflow()`, `buildWorkflowResult()`, `getAllLinkedFnsFromWorkflowRequest()` methods on `MionClient`
-- **`packages/client/src/request.ts`** - `workflowSubRequests` parameter on `MionClientRequest`, `restorePrefilledLinkedFnsForWorkflow()` for workflow-specific prefilled linkedFn restoration
+- **`packages/client/src/client.ts`** - `executeCallWithWorkflow()`, `buildWorkflowResult()`, `getAllMiddleFnsFromWorkflowRequest()` methods on `MionClient`
+- **`packages/client/src/request.ts`** - `workflowSubRequests` parameter on `MionClientRequest`, `restorePrefilledMiddleFnsForWorkflow()` for workflow-specific prefilled middleFn restoration
 - **`packages/client/src/subRequest.ts`** - `callWithWorkflow()` method on `MionSubRequest`
 - **`packages/client/index.ts`** - Export `workflow` function
 
@@ -16,8 +16,8 @@
 
 - **`packages/client/src/workflow.spec.ts`** - 15 tests all passing:
   - Basic workflow with single/multiple routes
-  - Workflow with explicit linkedFns
-  - Workflow with prefilled linkedFns
+  - Workflow with explicit middleFns
+  - Workflow with prefilled middleFns
   - Error handling
   - Serialization/deserialization of Date, Map, Set
   - Mixed types in workflows
@@ -27,7 +27,7 @@
   - Simple types, arrays, dates, complex objects
   - Optional/nullable types
   - Error handling
-  - LinkedFns with binary serialization
+  - MiddleFns with binary serialization
   - Multiple sequential calls
   - **Workflow with Binary Serialization** (8 tests):
     - Simple types in workflow
@@ -36,15 +36,15 @@
     - Date types in workflow
     - Complex objects in workflow
     - Mixed types in workflow
-    - Workflow with linkedFns
+    - Workflow with middleFns
     - Error handling in workflow
 
 ### Bug Fixes Applied
 
 1. **`packages/router/src/workflows.ts`** - Fixed workflow execution chain building:
-   - The `mionSerializeResponse` linkedFn was being placed in the middle of the merged chain instead of at the end
+   - The `mionSerializeResponse` middleFn was being placed in the middle of the merged chain instead of at the end
    - This caused binary serialization to run BEFORE all routes executed, resulting in missing results
-   - Fixed by properly separating start linkedFns, middle methods, and end linkedFns
+   - Fixed by properly separating start middleFns, middle methods, and end middleFns
    - Added `WorkflowExecutionResult` interface to return both execution chain and route IDs
 
 2. **`packages/core/src/binary/dataView.ts`** - Enhanced buffer size calculation for workflows:
@@ -107,9 +107,9 @@ All workflow functionality is now working correctly for both JSON and binary ser
    - The serializer uses this property directly instead of parsing the URL query
 
 3. **Execution Chain Order**: The merged execution chain for workflows follows this order:
-   - Start linkedFns (e.g., `mionDeserializeRequest`)
-   - Middle methods (routes and their linkedFns, merged from all routes)
-   - End linkedFns (e.g., `mionSerializeResponse`)
+   - Start middleFns (e.g., `mionDeserializeRequest`)
+   - Middle methods (routes and their middleFns, merged from all routes)
+   - End middleFns (e.g., `mionSerializeResponse`)
 
 4. **Consistent Serialization**: Both client and server now use the same core functions:
    - `serializeBinaryBody()` from `@mionkit/core`

@@ -1,18 +1,18 @@
-import {Routes, initMionRouter, linkedFn, route} from '@mionkit/router';
+import {Routes, initMionRouter, middleFn, route} from '@mionkit/router';
 
 const invalidRoutes = {
-    authorizationLinkedFn: linkedFn((): void => undefined), // linkedFn
+    authorizationMiddleFn: middleFn((): void => undefined), // middleFn
     1: {
         // Invalid naming !!!
-        userOnlyLinkedFn: linkedFn((): void => undefined), // linkedFn
+        userOnlyMiddleFn: middleFn((): void => undefined), // middleFn
         getUser: route((): null => null), // route
     },
     '2': {
         // Invalid naming !!!
         getPet: route((): null => null), // route
     },
-    errorHandlerLinkedFn: linkedFn((): void => undefined), // linkedFn
-    loggingLinkedFn: linkedFn((): void => undefined), // linkedFn
+    errorHandlerMiddleFn: middleFn((): void => undefined), // middleFn
+    loggingMiddleFn: middleFn((): void => undefined), // middleFn
 } satisfies Routes;
 
 // Throws an error as there are invalid route names

@@ -11,7 +11,7 @@ import {dispatchRoute} from './dispatch.ts';
 import {CallContext, MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
 import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes} from '@mionkit/core';
-import {headersFn, linkedFn, route} from './lib/handlers.ts';
+import {headersFn, middleFn, route} from './lib/handlers.ts';
 import {headersFromRecord} from './lib/headers.ts';
 
 type RawRequest = {
@@ -84,7 +84,7 @@ describe('Dispatch routes', () => {
             expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
-        it('read data from header & linkedFn', async () => {
+        it('read data from header & middleFn', async () => {
             await initRouter({contextDataFactory: getSharedData});
             await registerRoutes({auth, changeUserName});
 
@@ -222,7 +222,7 @@ describe('Dispatch routes', () => {
             expect(response.body[routeId]).toEqual('hello');
         });
 
-        // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another linkedFn it wil work
+        // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another middleFn it wil work
         it('support async handlers and ensure execution in order', async () => {
             await initRouter({contextDataFactory: getSharedData});
             const id = 'sumTwo';
@@ -234,7 +234,7 @@ describe('Dispatch routes', () => {
                         }, 500);
                     });
                 }),
-                totals: linkedFn((ctx: CallContext): string => {
+                totals: middleFn((ctx: CallContext): string => {
                     // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
                     return `the total is ${ctx.response.body[id]}`;
                 }),

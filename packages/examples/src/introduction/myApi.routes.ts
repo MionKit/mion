@@ -1,5 +1,5 @@
 import {HeadersSubset, RpcError} from '@mionkit/core';
-import {RouterOptions, initMionRouter, headersFn, linkedFn, route} from '@mionkit/router';
+import {RouterOptions, initMionRouter, headersFn, middleFn, route} from '@mionkit/router';
 
 export type User = {id: string; name: string; surname: string};
 
@@ -15,7 +15,7 @@ export const myApi = await initMionRouter(
         users: {
             sayHello: route((ctx, user: User): string => `Hello ${user.name} ${user.surname}`),
         },
-        log: linkedFn((ctx): void => console.log(Date.now(), ctx.path, ctx.response.statusCode), {runOnError: true}),
+        log: middleFn((ctx): void => console.log(Date.now(), ctx.path, ctx.response.statusCode), {runOnError: true}),
     },
     routerOptions
 );

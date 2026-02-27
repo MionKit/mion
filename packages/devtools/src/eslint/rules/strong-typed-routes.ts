@@ -8,7 +8,7 @@
 import {TSESTree, TSESLint, AST_NODE_TYPES} from '@typescript-eslint/utils';
 
 // List of router functions that should have strongly typed handlers
-const ROUTER_FUNCTIONS = ['route', 'linkedFn', 'headersFn'] as const;
+const ROUTER_FUNCTIONS = ['route', 'middleFn', 'headersFn'] as const;
 // List of handler types that can be used with type annotations
 const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
 
@@ -16,7 +16,7 @@ const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
  * Cache for imports from @mionkit/router - computed once per file
  */
 interface MionRouterImports {
-    /** Set of function names imported from @mionkit/router (route, linkedFn, headersFn) */
+    /** Set of function names imported from @mionkit/router (route, middleFn, headersFn) */
     routerFunctions: Set<string>;
     /** Set of type names imported from @mionkit/router (Handler, HeaderHandler) */
     handlerTypes: Set<string>;
@@ -121,7 +121,7 @@ function getHandlerFunction(
     node: TSESTree.CallExpression,
     functionCache: FunctionCache
 ): TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration | null {
-    // Handler is always the first parameter for route, linkedFn, and headersFn
+    // Handler is always the first parameter for route, middleFn, and headersFn
     const handlerIndex = 0;
 
     if (node.arguments.length <= handlerIndex) {
@@ -336,7 +336,7 @@ function getHandlerTypeFromJSDoc(
         | TSESTree.FunctionDeclaration
         | TSESTree.VariableDeclaration,
     context: TSESLint.RuleContext<any, any>
-): 'Handler' | 'HeaderHandler' | 'LinkedFnHandler' | null {
+): 'Handler' | 'HeaderHandler' | 'MiddleFnHandler' | null {
     const sourceCode = context.sourceCode;
     const comments = sourceCode.getCommentsBefore(node);
 
@@ -346,8 +346,8 @@ function getHandlerTypeFromJSDoc(
             if (commentText.includes('@mion:route')) {
                 return 'Handler';
             }
-            if (commentText.includes('@mion:linkedFn')) {
-                return 'LinkedFnHandler';
+            if (commentText.includes('@mion:middleFn')) {
+                return 'MiddleFnHandler';
             }
             if (commentText.includes('@mion:headersFn')) {
                 return 'HeaderHandler';
@@ -429,7 +429,7 @@ const rule: TSESLint.RuleModule<
                 if (!importCache) return;
 
                 if (node.id.type === AST_NODE_TYPES.Identifier) {
-                    let handlerType: 'Handler' | 'HeaderHandler' | 'LinkedFnHandler' | null = null;
+                    let handlerType: 'Handler' | 'HeaderHandler' | 'MiddleFnHandler' | null = null;
 
                     // Check for type annotation
                     if (node.id.typeAnnotation) {
@@ -488,11 +488,11 @@ const rule: TSESLint.RuleModule<
 };
 
 /**
- * Maps Handler/HeaderHandler/LinkedFnHandler type names to their corresponding router function names
+ * Maps Handler/HeaderHandler/MiddleFnHandler type names to their corresponding router function names
  */
-function handlerTypeToFunctionName(handlerType: 'Handler' | 'HeaderHandler' | 'LinkedFnHandler'): string {
+function handlerTypeToFunctionName(handlerType: 'Handler' | 'HeaderHandler' | 'MiddleFnHandler'): string {
     if (handlerType === 'HeaderHandler') return 'headersFn';
-    if (handlerType === 'LinkedFnHandler') return 'linkedFn';
+    if (handlerType === 'MiddleFnHandler') return 'middleFn';
     return 'route';
 }
 
@@ -504,7 +504,7 @@ function handlerTypeToFunctionName(handlerType: 'Handler' | 'HeaderHandler' | 'L
  */
 function checkHandlerFunction(
     func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
-    handlerType: 'Handler' | 'HeaderHandler' | 'LinkedFnHandler',
+    handlerType: 'Handler' | 'HeaderHandler' | 'MiddleFnHandler',
     context: TSESLint.RuleContext<any, any>
 ) {
     const hasReturnType = hasExplicitReturnType(func);

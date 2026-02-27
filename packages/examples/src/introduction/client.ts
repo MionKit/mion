@@ -3,11 +3,11 @@ import {initClient} from '@mionkit/client';
 import type {MyApi} from './myApi.routes.ts';
 
 const john = {id: '123', name: 'John', surname: 'Doe'};
-const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 async function example() {
     // prefills auth token for any future requests, value is stored in localStorage by default
-    await linkedFns.auth({headers: {Authorization: 'myToken-XYZ'}}).prefill();
+    await middleFns.auth({headers: {Authorization: 'myToken-XYZ'}}).prefill();
 
     // calls sayHello route in the server
     const [hello] = await routes.users.sayHello(john).call();

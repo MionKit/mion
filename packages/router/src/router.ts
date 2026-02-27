@@ -12,24 +12,24 @@ import type {
     MethodsExecutionChain,
     RawMethod,
     HeadersMethod,
-    LinkedFnMethod,
+    MiddleFnMethod,
     RouteMethod,
 } from './types/remoteMethods.ts';
-import type {PublicApi, PrivateDef, LinkedFnsCollection} from './types/publicMethods.ts';
-import type {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef} from './types/definitions.ts';
+import type {PublicApi, PrivateDef, MiddleFnsCollection} from './types/publicMethods.ts';
+import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef} from './types/definitions.ts';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, WORKFLOW_KEY} from './constants.ts';
 import {
-    isRawLinkedFnDef,
-    isHeadersLinkedFnDef,
+    isRawMiddleFnDef,
+    isHeadersMiddleFnDef,
     isExecutable,
-    isLinkedFnDef,
+    isMiddleFnDef,
     isRoute,
     isRoutes,
-    isAnyLinkedFnDef,
+    isAnyMiddleFnDef,
 } from './types/guards.ts';
 import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv, resetRoutesCache} from '@mionkit/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection.ts';
-import {serializerLinkedFns} from './routes/serializer.routes.ts';
+import {serializerMiddleFns} from './routes/serializer.routes.ts';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
@@ -48,27 +48,27 @@ type RoutesWithId = {
 // ############# PRIVATE STATE #############
 
 const flatRouter: Map<string, MethodsExecutionChain> = new Map(); // Main Router
-const linkedFnsById: Map<string, LinkedFnMethod | HeadersMethod | RawMethod> = new Map();
+const middleFnsById: Map<string, MiddleFnMethod | HeadersMethod | RawMethod> = new Map();
 const routesById: Map<string, RouteMethod> = new Map();
-const rawLinkedFnsById: Map<string, RawMethod> = new Map();
-const linkedFnNames: Set<string> = new Set();
+const rawMiddleFnsById: Map<string, RawMethod> = new Map();
+const middleFnNames: Set<string> = new Set();
 const routeNames: Set<string> = new Set();
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
 let allExecutablesIds: string[] | undefined;
 
-/** Global linkedFns to be run before and after any other linkedFns or routes set using `registerRoutes` */
-const defaultStartLinkedFns = {
-    mionDeserializeRequest: serializerLinkedFns.mionDeserializeRequest,
+/** Global middleFns to be run before and after any other middleFns or routes set using `registerRoutes` */
+const defaultStartMiddleFns = {
+    mionDeserializeRequest: serializerMiddleFns.mionDeserializeRequest,
 };
-const defaultEndLinkedFns = {
-    mionSerializeResponse: serializerLinkedFns.mionSerializeResponse,
+const defaultEndMiddleFns = {
+    mionSerializeResponse: serializerMiddleFns.mionSerializeResponse,
 };
-let startLinkedFnsDef: LinkedFnsCollection = {...defaultStartLinkedFns};
-let endLinkedFnsDef: LinkedFnsCollection = {...defaultEndLinkedFns};
-export let startLinkedFns: RemoteMethod[] = [];
-export let endLinkedFns: RemoteMethod[] = [];
+let startMiddleFnsDef: MiddleFnsCollection = {...defaultStartMiddleFns};
+let endMiddleFnsDef: MiddleFnsCollection = {...defaultEndMiddleFns};
+export let startMiddleFns: RemoteMethod[] = [];
+export let endMiddleFns: RemoteMethod[] = [];
 
 // ############# PUBLIC METHODS #############
 
@@ -76,25 +76,25 @@ export const getRouteExecutionChain = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();
 export const geRoutesSize = () => flatRouter.size;
 export const getRouteExecutable = (id: string) => routesById.get(id);
-export const getLinkedFnExecutable = (id: string) => linkedFnsById.get(id);
-export const geLinkedFnsSize = () => linkedFnsById.size;
+export const getMiddleFnExecutable = (id: string) => middleFnsById.get(id);
+export const geMiddleFnsSize = () => middleFnsById.size;
 export const getComplexity = () => complexity;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
-export const getAnyExecutable = (id: string) => routesById.get(id) || linkedFnsById.get(id) || rawLinkedFnsById.get(id);
+export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
 
 export const resetRouter = () => {
     flatRouter.clear();
-    linkedFnsById.clear();
+    middleFnsById.clear();
     routesById.clear();
-    rawLinkedFnsById.clear();
-    linkedFnNames.clear();
+    rawMiddleFnsById.clear();
+    middleFnNames.clear();
     routeNames.clear();
     complexity = 0;
     routerOptions = {...DEFAULT_ROUTE_OPTIONS};
-    startLinkedFnsDef = {...defaultStartLinkedFns};
-    endLinkedFnsDef = {...defaultEndLinkedFns};
-    startLinkedFns = [];
-    endLinkedFns = [];
+    startMiddleFnsDef = {...defaultStartMiddleFns};
+    endMiddleFnsDef = {...defaultEndMiddleFns};
+    startMiddleFns = [];
+    endMiddleFns = [];
     isRouterInitialized = false;
     allExecutablesIds = undefined;
     resetRemoteMethodsMetadata();
@@ -142,8 +142,8 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
 
 export async function registerRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
-    startLinkedFns = await getExecutablesFromLinkedFnsCollection(startLinkedFnsDef);
-    endLinkedFns = await getExecutablesFromLinkedFnsCollection(endLinkedFnsDef);
+    startMiddleFns = await getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
+    endMiddleFns = await getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
     await recursiveFlatRoutes(routes);
     if (shouldFullGenerateSpec()) {
         return getPublicApi(routes);
@@ -151,33 +151,33 @@ export async function registerRoutes<R extends Routes>(routes: R): Promise<Publi
     return {} as PublicApi<R>;
 }
 
-/** Add linkedFns at the start af the ExecutionChain, adds them before any other existing start linkedFns by default */
-export function addStartLinkedFns(linkedFnsDef: LinkedFnsCollection, appendBeforeExisting = true) {
-    if (isRouterInitialized) throw new Error('Can not add start linkedFns after the router has been initialized');
+/** Add middleFns at the start af the ExecutionChain, adds them before any other existing start middleFns by default */
+export function addStartMiddleFns(middleFnsDef: MiddleFnsCollection, appendBeforeExisting = true) {
+    if (isRouterInitialized) throw new Error('Can not add start middleFns after the router has been initialized');
     if (appendBeforeExisting) {
-        startLinkedFnsDef = {...linkedFnsDef, ...startLinkedFnsDef};
+        startMiddleFnsDef = {...middleFnsDef, ...startMiddleFnsDef};
         return;
     }
-    startLinkedFnsDef = {...startLinkedFnsDef, ...linkedFnsDef};
+    startMiddleFnsDef = {...startMiddleFnsDef, ...middleFnsDef};
 }
 
-/** Add linkedFns at the end af the ExecutionChain, adds them after any other existing end linkedFns by default */
-export function addEndLinkedFns(linkedFnsDef: LinkedFnsCollection, prependAfterExisting = true) {
-    if (isRouterInitialized) throw new Error('Can not add end linkedFns after the router has been initialized');
+/** Add middleFns at the end af the ExecutionChain, adds them after any other existing end middleFns by default */
+export function addEndMiddleFns(middleFnsDef: MiddleFnsCollection, prependAfterExisting = true) {
+    if (isRouterInitialized) throw new Error('Can not add end middleFns after the router has been initialized');
     if (prependAfterExisting) {
-        endLinkedFnsDef = {...endLinkedFnsDef, ...linkedFnsDef};
+        endMiddleFnsDef = {...endMiddleFnsDef, ...middleFnsDef};
         return;
     }
-    endLinkedFnsDef = {...linkedFnsDef, ...endLinkedFnsDef};
+    endMiddleFnsDef = {...middleFnsDef, ...endMiddleFnsDef};
 }
 
 export function isPrivateDefinition(entry: RouterEntry, id: string): entry is PrivateDef {
     if (isRoute(entry)) return false;
-    if (isRawLinkedFnDef(entry)) return true;
+    if (isRawMiddleFnDef(entry)) return true;
     try {
-        const executable = getLinkedFnExecutable(id) || getRouteExecutable(id);
+        const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
         if (!executable)
-            throw new Error(`Route or LinkedFn ${id} not found. Please check you have called router.registerRoutes first.`);
+            throw new Error(`Route or MiddleFn ${id} not found. Please check you have called router.registerRoutes first.`);
         return isPrivateExecutable(executable);
     } catch {
         // error thrown because entry is a Routes object and does not have any handler
@@ -186,7 +186,7 @@ export function isPrivateDefinition(entry: RouterEntry, id: string): entry is Pr
 }
 
 export function isPrivateExecutable(executable: RemoteMethod): boolean {
-    if (executable.type === HandlerType.rawLinkedFn) return true;
+    if (executable.type === HandlerType.rawMiddleFn) return true;
     if (executable.type === HandlerType.route) return false;
     const hasPublicParams = !!executable.paramNames?.length;
     const hasHeaderParams = !!(executable as HeadersMethod).headersParam?.headerNames?.length;
@@ -194,12 +194,12 @@ export function isPrivateExecutable(executable: RemoteMethod): boolean {
 }
 
 export function getTotalExecutables(): number {
-    return routesById.size + linkedFnsById.size + rawLinkedFnsById.size;
+    return routesById.size + middleFnsById.size + rawMiddleFnsById.size;
 }
 
 export function getAllExecutablesIds(): string[] {
     if (allExecutablesIds) return allExecutablesIds;
-    allExecutablesIds = [...routesById.keys(), ...linkedFnsById.keys(), ...rawLinkedFnsById.keys()];
+    allExecutablesIds = [...routesById.keys(), ...middleFnsById.keys(), ...rawMiddleFnsById.keys()];
     return allExecutablesIds;
 }
 
@@ -236,15 +236,15 @@ async function emitAOTCaches() {
  * Optimized algorithm to flatten the routes object into a list of Executable objects.
  * @param routes
  * @param currentPointer current pointer in the routes object i.e. ['users', 'get']
- * @param preLinkedFns linkedFns one level up preceding current pointer
- * @param postLinkedFns linkedFns one level up  following the current pointer
+ * @param preMiddleFns middleFns one level up preceding current pointer
+ * @param postMiddleFns middleFns one level up  following the current pointer
  * @param nestLevel
  */
 async function recursiveFlatRoutes(
     routes: Routes,
     currentPointer: string[] = [],
-    preLinkedFns: RemoteMethod[] = [],
-    postLinkedFns: RemoteMethod[] = [],
+    preMiddleFns: RemoteMethod[] = [],
+    postMiddleFns: RemoteMethod[] = [],
     nestLevel = 0
 ) {
     if (nestLevel > MAX_ROUTE_NESTING)
@@ -266,14 +266,14 @@ async function recursiveFlatRoutes(
         if (key === WORKFLOW_KEY)
             throw new Error(`Invalid route: ${join(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
 
-        // generates a linkedFn
-        if (isAnyLinkedFnDef(item)) {
-            routeEntry = await getExecutableFromAnyLinkedFn(item, newPointer, nestLevel);
-            if (linkedFnNames.has(routeEntry.id))
+        // generates a middleFn
+        if (isAnyMiddleFnDef(item)) {
+            routeEntry = await getExecutableFromAnyMiddleFn(item, newPointer, nestLevel);
+            if (middleFnNames.has(routeEntry.id))
                 throw new Error(
-                    `Invalid linkedFn: ${join(...newPointer)}. Naming collision, Naming collision, duplicated linkedFn.`
+                    `Invalid middleFn: ${join(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`
                 );
-            linkedFnNames.add(routeEntry.id);
+            middleFnNames.add(routeEntry.id);
         }
 
         // generates a route
@@ -302,8 +302,8 @@ async function recursiveFlatRoutes(
         minus1Props = await recursiveCreateExecutionChainAsync(
             routeEntry,
             newPointer,
-            preLinkedFns,
-            postLinkedFns,
+            preMiddleFns,
+            postMiddleFns,
             nestLevel,
             index,
             entries,
@@ -317,8 +317,8 @@ async function recursiveFlatRoutes(
 async function recursiveCreateExecutionChainAsync(
     routeEntry: RemoteMethod | RoutesWithId,
     currentPointer: string[],
-    preLinkedFns: RemoteMethod[],
-    postLinkedFns: RemoteMethod[],
+    preMiddleFns: RemoteMethod[],
+    postMiddleFns: RemoteMethod[],
     nestLevel: number,
     index: number,
     routeKeyedEntries: RouterKeyEntryList,
@@ -329,17 +329,17 @@ async function recursiveCreateExecutionChainAsync(
     const props = getRouteEntryProperties(minus1, routeEntry, plus1);
 
     if (props.isBetweenRoutes && minus1Props) {
-        props.preLevelLinkedFns = minus1Props.preLevelLinkedFns;
-        props.postLevelLinkedFns = minus1Props.postLevelLinkedFns;
+        props.preLevelMiddleFns = minus1Props.preLevelMiddleFns;
+        props.postLevelMiddleFns = minus1Props.postLevelMiddleFns;
     } else {
         for (let i = 0; i < routeKeyedEntries.length; i++) {
             const [k, entry] = routeKeyedEntries[i];
             complexity++;
-            if (!isAnyLinkedFnDef(entry)) continue;
+            if (!isAnyMiddleFnDef(entry)) continue;
             const newPointer = [...currentPointer.slice(0, -1), k];
-            const executable = await getExecutableFromAnyLinkedFn(entry, newPointer, nestLevel);
-            if (i < index) props.preLevelLinkedFns.push(executable);
-            if (i > index) props.postLevelLinkedFns.push(executable);
+            const executable = await getExecutableFromAnyMiddleFn(entry, newPointer, nestLevel);
+            if (i < index) props.preLevelMiddleFns.push(executable);
+            if (i > index) props.postLevelMiddleFns.push(executable);
         }
     }
     const isExec = isExecutable(routeEntry);
@@ -348,15 +348,15 @@ async function recursiveCreateExecutionChainAsync(
         const path = getRoutePath(routeEntry.pointer, routerOptions);
         const routeMethod = routeEntry as RouteMethod;
         const levelMethods = [
-            ...preLinkedFns,
-            ...props.preLevelLinkedFns,
+            ...preMiddleFns,
+            ...props.preLevelMiddleFns,
             routeEntry,
-            ...props.postLevelLinkedFns,
-            ...postLinkedFns,
+            ...props.postLevelMiddleFns,
+            ...postMiddleFns,
         ];
-        const methods = [...startLinkedFns, ...levelMethods, ...endLinkedFns];
+        const methods = [...startMiddleFns, ...levelMethods, ...endMiddleFns];
         const executionChain: MethodsExecutionChain = {
-            routeIndex: startLinkedFns.length + preLinkedFns.length + props.preLevelLinkedFns.length,
+            routeIndex: startMiddleFns.length + preMiddleFns.length + props.preLevelMiddleFns.length,
             methods,
             serializer: getSerializerCodeFromMode(routeMethod.options.serializer),
         };
@@ -365,8 +365,8 @@ async function recursiveCreateExecutionChainAsync(
         await recursiveFlatRoutes(
             routeEntry.routes,
             routeEntry.pathPointer,
-            [...preLinkedFns, ...props.preLevelLinkedFns],
-            [...props.postLevelLinkedFns, ...postLinkedFns],
+            [...preMiddleFns, ...props.preLevelMiddleFns],
+            [...props.postLevelMiddleFns, ...postMiddleFns],
             nestLevel + 1
         );
     }
@@ -374,83 +374,83 @@ async function recursiveCreateExecutionChainAsync(
     return props;
 }
 
-async function getExecutableFromAnyLinkedFn(
-    linkedFn: LinkedFnDef | HeadersLinkedFnDef | RawLinkedFnDef,
-    linkedFnPointer: string[],
+async function getExecutableFromAnyMiddleFn(
+    middleFn: MiddleFnDef | HeadersMiddleFnDef | RawMiddleFnDef,
+    middleFnPointer: string[],
     nestLevel: number
 ) {
-    if (isRawLinkedFnDef(linkedFn)) return getExecutableFromRawLinkedFn(linkedFn, linkedFnPointer, nestLevel);
-    return getExecutableFromLinkedFn(linkedFn, linkedFnPointer, nestLevel);
+    if (isRawMiddleFnDef(middleFn)) return getExecutableFromRawMiddleFn(middleFn, middleFnPointer, nestLevel);
+    return getExecutableFromMiddleFn(middleFn, middleFnPointer, nestLevel);
 }
 
-export async function getExecutableFromLinkedFn(
-    linkedFn: LinkedFnDef | HeadersLinkedFnDef,
-    linkedFnPointer: string[],
+export async function getExecutableFromMiddleFn(
+    middleFn: MiddleFnDef | HeadersMiddleFnDef,
+    middleFnPointer: string[],
     nestLevel: number
-): Promise<LinkedFnMethod | HeadersMethod> {
-    const isHeader = isHeadersLinkedFnDef(linkedFn);
+): Promise<MiddleFnMethod | HeadersMethod> {
+    const isHeader = isHeadersMiddleFnDef(middleFn);
     // todo fix header id should be same as any other one and then maybe map from id to header name
-    const linkedFnId = getRouterItemId(linkedFnPointer);
-    const existing = linkedFnsById.get(linkedFnId);
-    if (existing) return existing as LinkedFnMethod;
+    const middleFnId = getRouterItemId(middleFnPointer);
+    const existing = middleFnsById.get(middleFnId);
+    if (existing) return existing as MiddleFnMethod;
 
-    type MixedLinkedFn = (Omit<LinkedFnMethod, 'type'> | Omit<HeadersMethod, 'type'>) & {
-        type: typeof HandlerType.linkedFn | typeof HandlerType.headersLinkedFn;
+    type MixedMiddleFn = (Omit<MiddleFnMethod, 'type'> | Omit<HeadersMethod, 'type'>) & {
+        type: typeof HandlerType.middleFn | typeof HandlerType.headersMiddleFn;
     };
 
-    const compiledMethod = getPersistedMethod(linkedFnId, linkedFn.handler);
-    let executable: MixedLinkedFn;
+    const compiledMethod = getPersistedMethod(middleFnId, middleFn.handler);
+    let executable: MixedMiddleFn;
     if (compiledMethod) {
-        executable = compiledMethod as MixedLinkedFn;
+        executable = compiledMethod as MixedMiddleFn;
     } else {
-        const reflectionData = await getHandlerReflection(linkedFn.handler, linkedFnId, routerOptions, isHeader);
+        const reflectionData = await getHandlerReflection(middleFn.handler, middleFnId, routerOptions, isHeader);
         executable = {
-            id: linkedFnId,
-            type: isHeader ? HandlerType.headersLinkedFn : HandlerType.linkedFn,
+            id: middleFnId,
+            type: isHeader ? HandlerType.headersMiddleFn : HandlerType.middleFn,
             nestLevel,
-            handler: linkedFn.handler,
-            pointer: linkedFnPointer,
+            handler: middleFn.handler,
+            pointer: middleFnPointer,
             ...reflectionData,
             options: {
-                runOnError: !!linkedFn.options?.runOnError,
-                validateParams: linkedFn.options?.validateParams ?? true,
-                validateReturn: linkedFn.options?.validateReturn ?? false,
-                description: linkedFn.options?.description,
+                runOnError: !!middleFn.options?.runOnError,
+                validateParams: middleFn.options?.validateParams ?? true,
+                validateReturn: middleFn.options?.validateReturn ?? false,
+                description: middleFn.options?.description,
             },
         };
-        addToPersistedMethods(linkedFnId, executable);
+        addToPersistedMethods(middleFnId, executable);
     }
 
-    linkedFnsById.set(linkedFnId, executable as any);
-    routesCache.setMethodJitFns(linkedFnId, executable as any);
+    middleFnsById.set(middleFnId, executable as any);
+    routesCache.setMethodJitFns(middleFnId, executable as any);
     return executable as any;
 }
 
-export async function getExecutableFromRawLinkedFn(
-    linkedFn: RawLinkedFnDef,
-    linkedFnPointer: string[],
+export async function getExecutableFromRawMiddleFn(
+    middleFn: RawMiddleFnDef,
+    middleFnPointer: string[],
     nestLevel: number
 ): Promise<RawMethod> {
-    const linkedFnId = getRouterItemId(linkedFnPointer);
-    const existing = rawLinkedFnsById.get(linkedFnId);
+    const middleFnId = getRouterItemId(middleFnPointer);
+    const existing = rawMiddleFnsById.get(middleFnId);
     if (existing) return existing as RawMethod;
-    const reflectionData = await getRawMethodReflection(linkedFn.handler, linkedFnId, routerOptions);
+    const reflectionData = await getRawMethodReflection(middleFn.handler, middleFnId, routerOptions);
     const executable: RawMethod = {
-        id: linkedFnId,
-        type: HandlerType.rawLinkedFn,
+        id: middleFnId,
+        type: HandlerType.rawMiddleFn,
         nestLevel,
-        handler: linkedFn.handler,
-        pointer: linkedFnPointer,
+        handler: middleFn.handler,
+        pointer: middleFnPointer,
         ...reflectionData,
         options: {
-            runOnError: !!linkedFn.options?.runOnError,
+            runOnError: !!middleFn.options?.runOnError,
             validateParams: false,
             validateReturn: false,
-            description: linkedFn.options?.description,
+            description: middleFn.options?.description,
         },
     };
-    rawLinkedFnsById.set(linkedFnId, executable);
-    routesCache.setMethodJitFns(linkedFnId, executable as any);
+    rawMiddleFnsById.set(middleFnId, executable);
+    routesCache.setMethodJitFns(middleFnId, executable as any);
     return executable;
 }
 
@@ -506,22 +506,22 @@ function getRouteEntryProperties(
         isBetweenRoutes: minus1IsRoute && zeroIsRoute && plus1IsRoute,
         isExecutable: isExec,
         isRoute: zeroIsRoute,
-        preLevelLinkedFns: [] as RemoteMethod[],
-        postLevelLinkedFns: [] as RemoteMethod[],
+        preLevelMiddleFns: [] as RemoteMethod[],
+        postLevelMiddleFns: [] as RemoteMethod[],
     };
 }
 
-async function getExecutablesFromLinkedFnsCollection(
-    linkedFnsDef: LinkedFnsCollection
-): Promise<(RawMethod | LinkedFnMethod | HeadersMethod)[]> {
-    const results: (RawMethod | LinkedFnMethod | HeadersMethod)[] = [];
-    for (const [key, linkedFn] of Object.entries(linkedFnsDef)) {
-        if (isRawLinkedFnDef(linkedFn)) {
-            results.push(await getExecutableFromRawLinkedFn(linkedFn, [key], 0));
-        } else if (isHeadersLinkedFnDef(linkedFn) || isLinkedFnDef(linkedFn)) {
-            results.push(await getExecutableFromLinkedFn(linkedFn, [key], 0));
+async function getExecutablesFromMiddleFnsCollection(
+    middleFnsDef: MiddleFnsCollection
+): Promise<(RawMethod | MiddleFnMethod | HeadersMethod)[]> {
+    const results: (RawMethod | MiddleFnMethod | HeadersMethod)[] = [];
+    for (const [key, middleFn] of Object.entries(middleFnsDef)) {
+        if (isRawMiddleFnDef(middleFn)) {
+            results.push(await getExecutableFromRawMiddleFn(middleFn, [key], 0));
+        } else if (isHeadersMiddleFnDef(middleFn) || isMiddleFnDef(middleFn)) {
+            results.push(await getExecutableFromMiddleFn(middleFn, [key], 0));
         } else {
-            throw new Error(`Invalid linkedFn: ${key}. Invalid linkedFn definition`);
+            throw new Error(`Invalid middleFn: ${key}. Invalid middleFn definition`);
         }
     }
     return results;

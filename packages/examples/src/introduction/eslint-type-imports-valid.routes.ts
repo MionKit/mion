@@ -1,10 +1,10 @@
 // This file demonstrates VALID usage for the @mionkit/no-type-imports rule
-// Types used in routes/linkedFns should be imported WITHOUT the 'type' keyword
+// Types used in routes/middleFns should be imported WITHOUT the 'type' keyword
 
 // start:type-imports-valid
 // ✅ CORRECT: Regular import - types are available at runtime
 import {User, Product} from './types.ts';
-import {route, linkedFn} from '@mionkit/router';
+import {route, middleFn} from '@mionkit/router';
 
 // Types imported without 'type' keyword work correctly with mion
 const getUser = route((ctx, id: number): User => {
@@ -15,7 +15,7 @@ const createProduct = route((ctx, product: Product): Product => {
     return product;
 });
 
-const logUser = linkedFn((ctx, user: User): void => {
+const logUser = middleFn((ctx, user: User): void => {
     console.log(user.name);
 });
 // end:type-imports-valid

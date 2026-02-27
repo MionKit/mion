@@ -13,8 +13,8 @@ import {MapFromServerFnRef} from '@mionkit/core/src/types/pureFunctions.types.ts
 /** Creates and executes a routesFlow request with multiple routes */
 export async function routesFlow<
     Routes extends RSubRequest<any>[],
-    LinkedFns extends Record<string, HSubRequest<any>> = Record<string, never>,
->(routeSubRequests: [...Routes], linkedFns?: LinkedFns): Promise<WorkflowResult<Routes, LinkedFns>> {
+    MiddleFns extends Record<string, HSubRequest<any>> = Record<string, never>,
+>(routeSubRequests: [...Routes], middleFns?: MiddleFns): Promise<WorkflowResult<Routes, MiddleFns>> {
     if (!routeSubRequests || routeSubRequests.length === 0) {
         throw new RpcError({
             type: 'routesFlow-empty-routes',
@@ -43,13 +43,13 @@ export async function routesFlow<
         }
     }
 
-    const [results, errors, linkedFnResults, linkedFnErrors] = await client.executeCallWithWorkflow(
+    const [results, errors, middleFnResults, middleFnErrors] = await client.executeCallWithWorkflow(
         routeSubRequests as any,
-        (linkedFns ?? {}) as any
+        (middleFns ?? {}) as any
     );
     const emptyResults = routeSubRequests.map(() => undefined);
     const emptyErrors = routeSubRequests.map(() => undefined);
-    return [results ?? emptyResults, errors ?? emptyErrors, linkedFnResults, linkedFnErrors] as WorkflowResult<Routes, LinkedFns>;
+    return [results ?? emptyResults, errors ?? emptyErrors, middleFnResults, middleFnErrors] as WorkflowResult<Routes, MiddleFns>;
 }
 
 export const mapFromSymbol = Symbol('MapFromServerFnRef');

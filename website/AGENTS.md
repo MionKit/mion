@@ -85,7 +85,7 @@ prefer start and end comment markers to delimit the code to import.
 <code-import path="packages/router/examples/routes-definition.routes.ts" lang="ts" />
 
 <!-- Line range (1-10) -->
-<code-import path="packages/router/examples/linkedFns-definition.routes.ts" lang="ts" lines="1,10" />
+<code-import path="packages/router/examples/middleFns-definition.routes.ts" lang="ts" lines="1,10" />
 
 <!-- Comment markers -->
 <code-import path="packages/router/examples/example.ts" lang="ts" commentStart="start-routes" commentEnd="end-routes" />

@@ -4,11 +4,11 @@ import {getAuthUser, isAuthorized} from 'MyAuth';
 
 let currentSharedData: any = null;
 
-const authorizationLinkedFn = headersFn(async (ctx, {headers}: HeadersSubset<'Authorization'>): Promise<void> => {
+const authorizationMiddleFn = headersFn(async (ctx, {headers}: HeadersSubset<'Authorization'>): Promise<void> => {
     const token = headers.Authorization;
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
-    ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/linkedFns
+    ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/middleFns
 
     // THIS IS WRONG! DO NOT STORE THE CONTEXT!
     currentSharedData = ctx.shared;
@@ -24,7 +24,7 @@ const sayHello = route((ctx): string => {
 });
 
 const routes = {
-    authorizationLinkedFn, // header: Authorization
+    authorizationMiddleFn, // header: Authorization
     wrongSayHello,
     sayHello,
 } satisfies Routes;

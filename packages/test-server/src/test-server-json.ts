@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicApi, Routes, initMionRouter, route, headersFn, linkedFn} from '@mionkit/router';
+import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn} from '@mionkit/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/node';
 import {RpcError, HeadersSubset} from '@mionkit/core';
 // Import format types (regular import to ensure JIT functions are created)
@@ -38,7 +38,7 @@ export type UserWithFormats = {
     email: StrEmail;
 };
 
-// Session info returned by session linkedFn
+// Session info returned by session middleFn
 type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 
 const routes = {
@@ -46,8 +46,8 @@ const routes = {
     auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
-    // LinkedFn that returns session info on every request (optional param for flexibility in tests)
-    session: linkedFn(
+    // MiddleFn that returns session info on every request (optional param for flexibility in tests)
+    session: middleFn(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         (ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
             if (!sessionToken) return null;
@@ -99,7 +99,7 @@ const routes = {
     validateAge: route((_ctx, age: NumFormat<{min: 0; max: 150; integer: true}>): string => `Age: ${age}`),
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    log: linkedFn((ctx): void => undefined, {runOnError: true}),
+    log: middleFn((ctx): void => undefined, {runOnError: true}),
 
     // Routes for testing pure functions with UUID validation
     validateUUID: route((_ctx, uuid: StrUUIDv4): string => `Valid UUID: ${uuid}`),

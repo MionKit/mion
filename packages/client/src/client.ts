@@ -7,7 +7,7 @@
 
 import {DEFAULT_PREFILL_OPTIONS} from './constants.ts';
 import {
-    CallWithLinkedFnsResult,
+    CallWithMiddleFnsResult,
     ClientOptions,
     HSubRequest,
     InitOptions,
@@ -15,7 +15,7 @@ import {
     SubRequest,
     RequestErrors,
     ClientRoutes,
-    ClientLinkedFns,
+    ClientMiddleFns,
     Result,
     WorkflowResult,
 } from './types.ts';
@@ -29,7 +29,7 @@ import {MionSubRequest, findSubRequestError} from './subRequest.ts';
 
 export function initClient<RM extends RemoteApi>(
     options: InitOptions
-): {client: MionClient; routes: ClientRoutes<RM>; linkedFns: ClientLinkedFns<RM>} {
+): {client: MionClient; routes: ClientRoutes<RM>; middleFns: ClientMiddleFns<RM>} {
     registerErrorDeserializers();
     const clientOptions = {
         ...DEFAULT_PREFILL_OPTIONS,
@@ -40,16 +40,16 @@ export function initClient<RM extends RemoteApi>(
     return {
         client,
         routes: rootProxy.proxy as ClientRoutes<RM>,
-        linkedFns: rootProxy.proxy as ClientLinkedFns<RM>,
+        middleFns: rootProxy.proxy as ClientMiddleFns<RM>,
     };
 }
 
 export class MionClient {
-    /** Shared registry for persistent linkedFn error handlers */
+    /** Shared registry for persistent middleFn error handlers */
     readonly handlersRegistry = new HandlersRegistry();
 
-    /** In-memory cache for prefilled linkedFn subrequests (keyed by baseURL:linkedFnId) */
-    readonly prefilledLinkedFnsCache = new Map<string, SubRequest<any>>();
+    /** In-memory cache for prefilled middleFn subrequests (keyed by baseURL:middleFnId) */
+    readonly prefilledMiddleFnsCache = new Map<string, SubRequest<any>>();
 
     /** Tracks in-flight prefill operations to avoid race conditions */
     private pendingPrefills: Promise<void>[] = [];
@@ -61,50 +61,50 @@ export class MionClient {
         return this.executeRequest(routeSubRequest, undefined, undefined);
     }
 
-    /** Executes a route call with linkedFns and returns a typed result object */
-    executeCallWithLinkedFns<H extends Record<string, HSubRequest<any>>>(
+    /** Executes a route call with middleFns and returns a typed result object */
+    executeCallWithMiddleFns<H extends Record<string, HSubRequest<any>>>(
         routeSubRequest: RSubRequest<any>,
-        linkedFnsRecord: H
-    ): Promise<CallWithLinkedFnsResult<any, any, H>> {
-        return this.executeRequest(routeSubRequest, undefined, linkedFnsRecord);
+        middleFnsRecord: H
+    ): Promise<CallWithMiddleFnsResult<any, any, H>> {
+        return this.executeRequest(routeSubRequest, undefined, middleFnsRecord);
     }
 
-    /** Executes a routesFlow call with multiple routes and optional linkedFns */
+    /** Executes a routesFlow call with multiple routes and optional middleFns */
     executeCallWithWorkflow<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         workflowSubRequests: Routes,
-        linkedFnsRecord: H
+        middleFnsRecord: H
     ): Promise<WorkflowResult<Routes, H>> {
-        return this.executeRequest(undefined, workflowSubRequests, linkedFnsRecord);
+        return this.executeRequest(undefined, workflowSubRequests, middleFnsRecord);
     }
 
     private async executeRequest<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         routeSubRequest: RSubRequest<any> | undefined,
         workflowSubRequests: Routes | undefined,
-        linkedFnsRecord: H | undefined
+        middleFnsRecord: H | undefined
     ): Promise<any> {
         // Wait for any in-flight prefill operations to complete before executing the request
         if (this.pendingPrefills.length > 0) await Promise.allSettled([...this.pendingPrefills]);
 
-        const linkedFnSubRequests = linkedFnsRecord ? Object.values(linkedFnsRecord) : [];
+        const middleFnSubRequests = middleFnsRecord ? Object.values(middleFnsRecord) : [];
         const request = new MionClientRequest(
             this.clientOptions,
-            this.prefilledLinkedFnsCache,
+            this.prefilledMiddleFnsCache,
             routeSubRequest,
-            linkedFnSubRequests,
+            middleFnSubRequests,
             workflowSubRequests
         );
 
         try {
             await request.call();
             const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
-            const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeIds);
-            this.processLinkedFnsResponses(allLinkedFns, undefined);
-            return this.buildResult(routeSubRequest, workflowSubRequests, linkedFnsRecord || allLinkedFns, undefined);
+            const allMiddleFns = this.getAllMiddleFnsFromRequest(request, routeIds);
+            this.processMiddleFnsResponses(allMiddleFns, undefined);
+            return this.buildResult(routeSubRequest, workflowSubRequests, middleFnsRecord || allMiddleFns, undefined);
         } catch (errors: any) {
             const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
-            const allLinkedFns = this.getAllLinkedFnsFromRequest(request, routeIds);
-            this.processLinkedFnsResponses(allLinkedFns, errors);
-            return this.buildResult(routeSubRequest, workflowSubRequests, linkedFnsRecord || allLinkedFns, errors);
+            const allMiddleFns = this.getAllMiddleFnsFromRequest(request, routeIds);
+            this.processMiddleFnsResponses(allMiddleFns, errors);
+            return this.buildResult(routeSubRequest, workflowSubRequests, middleFnsRecord || allMiddleFns, errors);
         }
     }
 
@@ -119,34 +119,34 @@ export class MionClient {
         return routeIds;
     }
 
-    /** Get all linkedFns from the request's subRequestList, excluding the route(s) */
-    private getAllLinkedFnsFromRequest(request: MionClientRequest<any, any>, excludedIds: Set<string>): HSubRequest<any>[] {
+    /** Get all middleFns from the request's subRequestList, excluding the route(s) */
+    private getAllMiddleFnsFromRequest(request: MionClientRequest<any, any>, excludedIds: Set<string>): HSubRequest<any>[] {
         return Object.entries(request.subRequestList)
             .filter(([id]) => !excludedIds.has(id))
             .map(([, subRequest]) => subRequest as HSubRequest<any>);
     }
 
-    /** Process all linkedFn responses - call success or error handlers for each linkedFn individually */
-    private processLinkedFnsResponses(linkedFnSubRequests: HSubRequest<any>[], errors: RequestErrors | undefined): void {
-        for (const linkedFn of linkedFnSubRequests) {
-            const linkedFnError = errors?.get(linkedFn.id);
-            if (linkedFnError) {
-                this.handlersRegistry.executeHandler(linkedFn.id, linkedFnError);
-            } else if (linkedFn.resolvedValue !== undefined) {
-                this.handlersRegistry.executeSuccessHandler(linkedFn.id, linkedFn.resolvedValue);
+    /** Process all middleFn responses - call success or error handlers for each middleFn individually */
+    private processMiddleFnsResponses(middleFnSubRequests: HSubRequest<any>[], errors: RequestErrors | undefined): void {
+        for (const middleFn of middleFnSubRequests) {
+            const middleFnError = errors?.get(middleFn.id);
+            if (middleFnError) {
+                this.handlersRegistry.executeHandler(middleFn.id, middleFnError);
+            } else if (middleFn.resolvedValue !== undefined) {
+                this.handlersRegistry.executeSuccessHandler(middleFn.id, middleFn.resolvedValue);
             }
         }
     }
 
-    /** Build the result 4-tuple from the request results. linkedFns can be a named record or an array of subrequests */
+    /** Build the result 4-tuple from the request results. middleFns can be a named record or an array of subrequests */
     private buildResult<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
         routeSubRequest: RSubRequest<any> | undefined,
         workflowSubRequests: Routes | undefined,
-        linkedFns: H | HSubRequest<any>[],
+        middleFns: H | HSubRequest<any>[],
         errors: RequestErrors | undefined
-    ): CallWithLinkedFnsResult<any, any, H> | WorkflowResult<Routes, H> | Result<any, any> {
-        const linkedFnsResults = {} as Record<string, any>;
-        const linkedFnsErrors = {} as Record<string, any>;
+    ): CallWithMiddleFnsResult<any, any, H> | WorkflowResult<Routes, H> | Result<any, any> {
+        const middleFnsResults = {} as Record<string, any>;
+        const middleFnsErrors = {} as Record<string, any>;
         const processedIds = new Set<string>();
 
         let routeResultPart: any;
@@ -178,27 +178,27 @@ export class MionClient {
             routeErrorPart = hasAnyError ? routeErrors : undefined;
         }
 
-        // linkedFns can be a named record (from callWithLinkedFns/routesFlow) or an array (from executeCall)
-        if (Array.isArray(linkedFns)) {
+        // middleFns can be a named record (from callWithMiddleFns/routesFlow) or an array (from executeCall)
+        if (Array.isArray(middleFns)) {
             // Array of subrequests - use IDs as keys
-            for (const linkedFn of linkedFns) {
-                processedIds.add(linkedFn.id);
-                const linkedFnError = errors?.get(linkedFn.id);
-                if (linkedFnError) {
-                    linkedFnsErrors[linkedFn.id] = linkedFnError;
-                } else if (linkedFn.resolvedValue !== undefined) {
-                    linkedFnsResults[linkedFn.id] = linkedFn.resolvedValue;
+            for (const middleFn of middleFns) {
+                processedIds.add(middleFn.id);
+                const middleFnError = errors?.get(middleFn.id);
+                if (middleFnError) {
+                    middleFnsErrors[middleFn.id] = middleFnError;
+                } else if (middleFn.resolvedValue !== undefined) {
+                    middleFnsResults[middleFn.id] = middleFn.resolvedValue;
                 }
             }
         } else {
             // Named record - use names as keys
-            for (const [name, linkedFn] of Object.entries(linkedFns)) {
-                processedIds.add(linkedFn.id);
-                const linkedFnError = errors?.get(linkedFn.id);
-                if (linkedFnError) {
-                    linkedFnsErrors[name] = linkedFnError;
-                } else if (linkedFn.resolvedValue !== undefined) {
-                    linkedFnsResults[name] = linkedFn.resolvedValue;
+            for (const [name, middleFn] of Object.entries(middleFns)) {
+                processedIds.add(middleFn.id);
+                const middleFnError = errors?.get(middleFn.id);
+                if (middleFnError) {
+                    middleFnsErrors[name] = middleFnError;
+                } else if (middleFn.resolvedValue !== undefined) {
+                    middleFnsResults[name] = middleFn.resolvedValue;
                 }
             }
         }
@@ -206,21 +206,21 @@ export class MionClient {
         if (errors) {
             for (const [id, error] of errors) {
                 if (!processedIds.has(id)) {
-                    linkedFnsErrors[id] = error;
+                    middleFnsErrors[id] = error;
                 }
             }
         }
 
-        return [routeResultPart, routeErrorPart, linkedFnsResults, linkedFnsErrors] as any;
+        return [routeResultPart, routeErrorPart, middleFnsResults, middleFnsErrors] as any;
     }
 
     typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
-        const request = new MionClientRequest(this.clientOptions, this.prefilledLinkedFnsCache);
+        const request = new MionClientRequest(this.clientOptions, this.prefilledMiddleFnsCache);
         return request.validateParams(subRequest);
     }
 
     prefill<List extends HSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionClientRequest(this.clientOptions, this.prefilledLinkedFnsCache);
+        const request = new MionClientRequest(this.clientOptions, this.prefilledMiddleFnsCache);
         const promise = request.prefill(subRequest);
         this.pendingPrefills.push(promise);
         promise.finally(() => {
@@ -231,7 +231,7 @@ export class MionClient {
     }
 
     removePrefill<List extends HSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionClientRequest(this.clientOptions, this.prefilledLinkedFnsCache);
+        const request = new MionClientRequest(this.clientOptions, this.prefilledMiddleFnsCache);
         return request.removePrefill(subRequest);
     }
 

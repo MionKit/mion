@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeadersLinkedFnOptions, LinkedFnOptions, RawLinkedFnOptions, RouteOptions} from '../types/remoteMethods.ts';
+import {HeadersMiddleFnOptions, MiddleFnOptions, RawMiddleFnOptions, RouteOptions} from '../types/remoteMethods.ts';
 import {HandlerType} from '@mionkit/core';
-import {Handler, HeaderHandler, RawLinkedFnHandler} from '../types/handlers.ts';
-import {HeadersLinkedFnDef, LinkedFnDef, RawLinkedFnDef, RouteDef} from '../types/definitions.ts';
+import {Handler, HeaderHandler, RawMiddleFnHandler} from '../types/handlers.ts';
+import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from '../types/definitions.ts';
 
-// ############# Route & LinkedFns initialization #############
-// these functions are just helpers to initialize the route & linkedFns objects and keep route definitions clean
+// ############# Route & MiddleFns initialization #############
+// these functions are just helpers to initialize the route & middleFns objects and keep route definitions clean
 
 export function route<H extends Handler>(handler: H, opts?: RouteOptions): RouteDef<H> {
     return {
@@ -21,17 +21,17 @@ export function route<H extends Handler>(handler: H, opts?: RouteOptions): Route
     };
 }
 
-export function linkedFn<H extends Handler>(handler: H, opts?: LinkedFnOptions): LinkedFnDef<H> {
+export function middleFn<H extends Handler>(handler: H, opts?: MiddleFnOptions): MiddleFnDef<H> {
     return {
-        type: HandlerType.linkedFn,
+        type: HandlerType.middleFn,
         handler,
         options: opts,
     };
 }
 
 /**
- * LinkedFn for handling HTTP header parameters
- * Used to define linkedFns that receive values from HTTP headers
+ * MiddleFn for handling HTTP header parameters
+ * Used to define middleFns that receive values from HTTP headers
  *
  * @example
  * ```ts
@@ -40,17 +40,17 @@ export function linkedFn<H extends Handler>(handler: H, opts?: LinkedFnOptions):
  * })
  * ```
  */
-export function headersFn<H extends HeaderHandler>(handler: H, opts?: HeadersLinkedFnOptions): HeadersLinkedFnDef<H> {
+export function headersFn<H extends HeaderHandler>(handler: H, opts?: HeadersMiddleFnOptions): HeadersMiddleFnDef<H> {
     return {
-        type: HandlerType.headersLinkedFn,
+        type: HandlerType.headersMiddleFn,
         handler,
         options: opts,
     };
 }
 
-export function rawLinkedFn<H extends RawLinkedFnHandler>(handler: H, opts?: RawLinkedFnOptions): RawLinkedFnDef<H> {
+export function rawMiddleFn<H extends RawMiddleFnHandler>(handler: H, opts?: RawMiddleFnOptions): RawMiddleFnDef<H> {
     return {
-        type: HandlerType.rawLinkedFn,
+        type: HandlerType.rawMiddleFn,
         handler,
         options: opts,
     };

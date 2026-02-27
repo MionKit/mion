@@ -24,21 +24,21 @@ Instead of duplicating server code in each package, this package provides:
 
 ```typescript
 import {initClient} from '@mionkit/client';
-import {createTestServerLinkedFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionkit/test-server';
+import {createTestServerMiddleFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionkit/test-server';
 import type {TestServerApi} from '@mionkit/test-server';
 
 describe('My Tests', () => {
-  const serverLinkedFns = createTestServerLinkedFns({
+  const serverMiddleFns = createTestServerMiddleFns({
     port: TEST_PORT_MAPPING.client,
     serverType: 'json',
   });
 
-  beforeAll(serverLinkedFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-  afterAll(serverLinkedFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
+  beforeAll(serverMiddleFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
+  afterAll(serverMiddleFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
   it('should call a route', async () => {
     const {routes} = initClient<TestServerApi>({
-      baseURL: serverLinkedFns.getBaseURL(),
+      baseURL: serverMiddleFns.getBaseURL(),
     });
     const [result] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
     expect(result).toBe('Hello John Doe');
@@ -51,7 +51,7 @@ describe('My Tests', () => {
 ```typescript
 import type {BinaryTestServerApi} from '@mionkit/test-server';
 
-const serverLinkedFns = createTestServerLinkedFns({
+const serverMiddleFns = createTestServerMiddleFns({
   port: TEST_PORT_MAPPING.binarySerialization,
   serverType: 'binary',
 });

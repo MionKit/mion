@@ -1,7 +1,7 @@
 // This file demonstrates the ESLint rules for @mionkit/router
 // The rules are disabled for this file so you can see both valid and invalid examples
 import {HeadersSubset} from '@mionkit/core';
-import {route, linkedFn, headersFn, Handler, HeaderHandler, CallContext} from '@mionkit/router';
+import {route, middleFn, headersFn, Handler, HeaderHandler, CallContext} from '@mionkit/router';
 
 // ========================================
 // ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
@@ -9,7 +9,7 @@ import {route, linkedFn, headersFn, Handler, HeaderHandler, CallContext} from '@
 
 // 1. Direct inline handlers with proper types
 route((ctx, name: string): string => `hello ${name}`);
-linkedFn((ctx, data: number): void => {
+middleFn((ctx, data: number): void => {
     console.log(data);
 });
 headersFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
@@ -47,9 +47,9 @@ function routeWithJSDoc(ctx, name: string): string {
 }
 
 /**
- * @mion:linkedFn
+ * @mion:middleFn
  */
-const linkedFnWithJSDoc = (ctx, data: number): void => {
+const middleFnWithJSDoc = (ctx, data: number): void => {
     console.log(data);
 };
 
@@ -88,7 +88,7 @@ route((ctx): Result => ({success: false, error: 'failed'}));
 
 // 1. Direct inline handlers missing types
 route((ctx, name) => `hello ${name}`); // Missing both param type and return type
-linkedFn((ctx, data: number) => {
+middleFn((ctx, data: number) => {
     console.log(data);
 }); // Missing return type
 headersFn((c: CallContext, [token]): void => {
@@ -126,9 +126,9 @@ function invalidRouteJSDoc(ctx, name) {
 } // Missing both types
 
 /**
- * @mion:linkedFn
+ * @mion:middleFn
  */
-const invalidLinkedFnJSDoc = (ctx, data: number) => {
+const invalidMiddleFnJSDoc = (ctx, data: number) => {
     console.log(data);
 }; // Missing return type
 
@@ -171,9 +171,9 @@ headersFn((ctx, {headers}: HeadersSubset<'auth'>, data: UnreachableHeaderParam):
     console.log(data.x);
 });
 
-// 7. Unreachable in linkedFn parameter
-type UnreachableLinkedFnParam = {status: string} | {status: string; code: number}; // Second type is unreachable
-linkedFn((ctx, data: UnreachableLinkedFnParam): void => {
+// 7. Unreachable in middleFn parameter
+type UnreachableMiddleFnParam = {status: string} | {status: string; code: number}; // Second type is unreachable
+middleFn((ctx, data: UnreachableMiddleFnParam): void => {
     console.log(data.status);
 });
 
@@ -212,7 +212,7 @@ const createProduct = route((ctx, product: Product): Product => {
     return product;
 });
 
-const logUser = linkedFn((ctx, user: User): void => {
+const logUser = middleFn((ctx, user: User): void => {
     console.log(user.name);
 });
 

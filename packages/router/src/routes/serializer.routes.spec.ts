@@ -10,7 +10,7 @@ import type {Mutable} from '@mionkit/core';
 import type {Routes} from '../types/general.ts';
 import type {MionResponse, RawRequestBody} from '../types/context.ts';
 import {HeadersSubset, SerializerModes} from '@mionkit/core';
-import {headersFn, linkedFn, route} from '../lib/handlers.ts';
+import {headersFn, middleFn, route} from '../lib/handlers.ts';
 import {getRouterOptions, getRouteExecutionChain, initMionRouter, resetRouter} from '../router.ts';
 import {createCallContext} from '../callContext.ts';
 import {headersFromRecord} from '../lib/headers.ts';
@@ -42,7 +42,7 @@ const routes = {
         updateUser: route((ctx, user: User): User => ({...user, lastActivity})),
     },
     sayHello: route((ctx, name: string): string => `Hello, ${name}!`),
-    logs: linkedFn((ctx): void => {}),
+    logs: middleFn((ctx): void => {}),
 } satisfies Routes;
 
 function getNewJsonContext(path: string, body: any) {
@@ -84,7 +84,7 @@ describe('deserialize json Request Body', () => {
         expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
     });
 
-    it('should return the parsed body for the ExecutionChain of "logs" linkedFn', async () => {
+    it('should return the parsed body for the ExecutionChain of "logs" middleFn', async () => {
         await initMionRouter(routes);
         const body = {logs: 'John'};
         const context = getNewJsonContext('/logs', body);

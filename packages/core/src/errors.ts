@@ -31,7 +31,7 @@ export interface ValidationErrorData {
 
 /**
  * Strongly typed validation error.
- * Thrown when route or linkedFn parameters fail type validation.
+ * Thrown when route or middleFn parameters fail type validation.
  * This type is included in the client error unions so validation errors can be properly typed.
  */
 export type ValidationError = RpcError<'validation-error', ValidationErrorData>;

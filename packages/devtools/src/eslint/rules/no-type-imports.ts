@@ -8,13 +8,13 @@
 import {TSESTree, TSESLint, AST_NODE_TYPES} from '@typescript-eslint/utils';
 
 /** List of router functions that should have strongly typed handlers */
-const ROUTER_FUNCTIONS = ['route', 'linkedFn', 'headersFn'] as const;
+const ROUTER_FUNCTIONS = ['route', 'middleFn', 'headersFn'] as const;
 /** List of handler types that can be used with type annotations */
 const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
 
 /** Cache for imports from @mionkit/router - computed once per file */
 interface MionRouterImports {
-    /** Set of function names imported from @mionkit/router (route, linkedFn, headersFn) */
+    /** Set of function names imported from @mionkit/router (route, middleFn, headersFn) */
     routerFunctions: Set<string>;
     /** Set of type names imported from @mionkit/router (Handler, HeaderHandler) */
     handlerTypes: Set<string>;
@@ -247,11 +247,11 @@ const rule: TSESLint.RuleModule<'noTypeImports', []> = {
         type: 'problem',
         docs: {
             description:
-                'Disallow type-only imports for types used in route/linkedFn parameters or return types. Type-only imports are erased at runtime, preventing mion from generating validation and serialization functions.',
+                'Disallow type-only imports for types used in route/middleFn parameters or return types. Type-only imports are erased at runtime, preventing mion from generating validation and serialization functions.',
         },
         messages: {
             noTypeImports:
-                'Type "{{typeName}}" is imported as type-only but is used in a route/linkedFn. Remove the "type" keyword from the import to allow runtime type reflection.',
+                'Type "{{typeName}}" is imported as type-only but is used in a route/middleFn. Remove the "type" keyword from the import to allow runtime type reflection.',
         },
         schema: [],
     },
@@ -371,7 +371,7 @@ const rule: TSESLint.RuleModule<'noTypeImports', []> = {
                     if (
                         comment.type === 'Block' &&
                         (comment.value.includes('@mion:route') ||
-                            comment.value.includes('@mion:linkedFn') ||
+                            comment.value.includes('@mion:middleFn') ||
                             comment.value.includes('@mion:headersFn'))
                     ) {
                         checkFunctionNode(node);

@@ -1,7 +1,7 @@
 import {initClient, routesFlow} from '@mionkit/client';
 import type {MyApi} from './server.routes.ts';
 
-const {routes, linkedFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 async function basicRoutesFlow() {
     // Execute multiple routes in a single HTTP request

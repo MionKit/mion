@@ -80,7 +80,7 @@ async function runExecutionChain(
 
         try {
             const methodCaller = executable.methodCaller || getMethodCaller(executable);
-            // runRawLinkedFn , runHeadersLinkedFn & runRouteOrLinkedFn must always accept the same parameters in the same order
+            // runRawMiddleFn , runHeadersMiddleFn & runRouteOrMiddleFn must always accept the same parameters in the same order
             const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
 
             if (result === undefined || !executable.hasReturnData) continue;
@@ -103,7 +103,7 @@ async function runExecutionChain(
     return context.response;
 }
 
-async function runRawLinkedFn(
+async function runRawMiddleFn(
     context: CallContext,
     executable: RawMethod,
     req,
@@ -116,7 +116,7 @@ async function runRawLinkedFn(
     return result;
 }
 
-async function runHeadersLinkedFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
+async function runHeadersMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
     const headerNames = executable.headersParam.headerNames;
     const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
     const headersMap: Record<string, string> = {};
@@ -132,7 +132,7 @@ async function runHeadersLinkedFn(context: CallContext, executable: HeadersMetho
     return result;
 }
 
-async function runRouteOrLinkedFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
+async function runRouteOrMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
     const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as RemoteMethod);
     const result = await executable.handler(context, ...params);
@@ -140,19 +140,19 @@ async function runRouteOrLinkedFn(context: CallContext, executable: HeadersMetho
 }
 
 function getMethodCaller(executable: RemoteMethod) {
-    if (executable.type === HandlerType.rawLinkedFn) {
-        executable.methodCaller = runRawLinkedFn;
-    } else if (executable.type === HandlerType.headersLinkedFn) {
-        executable.methodCaller = runHeadersLinkedFn;
+    if (executable.type === HandlerType.rawMiddleFn) {
+        executable.methodCaller = runRawMiddleFn;
+    } else if (executable.type === HandlerType.headersMiddleFn) {
+        executable.methodCaller = runHeadersMiddleFn;
     } else {
-        executable.methodCaller = runRouteOrLinkedFn;
+        executable.methodCaller = runRouteOrMiddleFn;
     }
     return executable.methodCaller;
 }
 
 function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMethod): any[] {
     const params: any[] = (request.body[executable.id] as any[]) || [];
-    // For binary requests, params are already deserialized in the serializer linkedFn
+    // For binary requests, params are already deserialized in the serializer middleFn
     // (deserializeBinaryRequestBody in serializer.routes.ts)
     if (request.bodyType === SerializerModes.binary) return params;
 

@@ -46,7 +46,7 @@ Planned change:
 - Mark `_used` on access:
   - When metadata is retrieved (get/use) and found.
   - When method jitFns bundle is retrieved (get/use) and found.
-- Mark `_used` on write paths that create or update entries during compile, so newly created routes/linkedFns don’t get dropped if they are never subsequently read.
+- Mark `_used` on write paths that create or update entries during compile, so newly created routes/middleFns don’t get dropped if they are never subsequently read.
 
 ### Codegen: filter+reset on write
 
