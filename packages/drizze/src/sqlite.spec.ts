@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import {toDBSqliteTable} from './sqlite.ts';
+import {toDrizzleSqliteTable} from './sqlite.ts';
 import {text, integer} from 'drizzle-orm/sqlite-core';
 // Note: Must use regular import (not `import type`) for reflection to work
 import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
@@ -45,41 +45,41 @@ interface UserWithOptionals {
     age?: number;
 }
 
-describe('toDBSqliteTable', () => {
-    describe('simple types with .build()', () => {
+describe('toDrizzleSqliteTable', () => {
+    describe('simple types', () => {
         it('should generate correct schema for simple types', () => {
-            const table = toDBSqliteTable<SimpleUser>().build('users');
+            const users = toDrizzleSqliteTable<SimpleUser>('users');
 
-            expect(table.id).toBeDefined();
-            expect(table.name).toBeDefined();
-            expect(table.age).toBeDefined();
-            expect(table.isActive).toBeDefined();
-            expect(table.createdAt).toBeDefined();
+            expect(users.id).toBeDefined();
+            expect(users.name).toBeDefined();
+            expect(users.age).toBeDefined();
+            expect(users.isActive).toBeDefined();
+            expect(users.createdAt).toBeDefined();
         });
 
         it('should generate text columns for string types', () => {
-            const table = toDBSqliteTable<SimpleUser>().build('users');
+            const table = toDrizzleSqliteTable<SimpleUser>('users');
 
             // String should map to text
             expect(table.name.columnType).toBe('SQLiteText');
         });
 
         it('should generate real columns for number types', () => {
-            const table = toDBSqliteTable<SimpleUser>().build('users');
+            const table = toDrizzleSqliteTable<SimpleUser>('users');
 
             // Number should map to real
             expect(table.age.columnType).toBe('SQLiteReal');
         });
 
         it('should generate boolean columns for boolean types', () => {
-            const table = toDBSqliteTable<SimpleUser>().build('users');
+            const table = toDrizzleSqliteTable<SimpleUser>('users');
 
             // Boolean should map to SQLiteBoolean (integer with mode: 'boolean')
             expect(table.isActive.columnType).toBe('SQLiteBoolean');
         });
 
         it('should generate timestamp columns for Date types', () => {
-            const table = toDBSqliteTable<SimpleUser>().build('users');
+            const table = toDrizzleSqliteTable<SimpleUser>('users');
 
             // Date should map to SQLiteTimestamp (integer with mode: 'timestamp')
             expect(table.createdAt.columnType).toBe('SQLiteTimestamp');
@@ -88,7 +88,7 @@ describe('toDBSqliteTable', () => {
 
     describe('formatted types', () => {
         it('should generate text columns for StrUUIDv7 format', () => {
-            const table = toDBSqliteTable<UserWithFormats>().build('users');
+            const table = toDrizzleSqliteTable<UserWithFormats>('users');
 
             // UUID format should map to text in SQLite
             expect(table.id).toBeDefined();
@@ -96,7 +96,7 @@ describe('toDBSqliteTable', () => {
         });
 
         it('should generate text columns for StrEmail format', () => {
-            const table = toDBSqliteTable<UserWithFormats>().build('users');
+            const table = toDrizzleSqliteTable<UserWithFormats>('users');
 
             // Email format should map to text in SQLite
             expect(table.email).toBeDefined();
@@ -106,7 +106,7 @@ describe('toDBSqliteTable', () => {
 
     describe('nested objects and arrays', () => {
         it('should generate text columns with json mode for nested objects', () => {
-            const table = toDBSqliteTable<UserWithNestedObjects>().build('users');
+            const table = toDrizzleSqliteTable<UserWithNestedObjects>('users');
 
             // Nested objects should map to SQLiteTextJson (text with mode: 'json')
             expect(table.profile).toBeDefined();
@@ -114,7 +114,7 @@ describe('toDBSqliteTable', () => {
         });
 
         it('should generate text columns with json mode for arrays', () => {
-            const table = toDBSqliteTable<UserWithNestedObjects>().build('users');
+            const table = toDrizzleSqliteTable<UserWithNestedObjects>('users');
 
             // Arrays should map to SQLiteTextJson (text with mode: 'json')
             expect(table.tags).toBeDefined();
@@ -124,7 +124,7 @@ describe('toDBSqliteTable', () => {
 
     describe('optional properties', () => {
         it('should generate nullable columns for optional properties', () => {
-            const table = toDBSqliteTable<UserWithOptionals>().build('users');
+            const table = toDrizzleSqliteTable<UserWithOptionals>('users');
 
             // Optional properties should be nullable
             expect(table.nickname).toBeDefined();
@@ -132,7 +132,7 @@ describe('toDBSqliteTable', () => {
         });
 
         it('should generate notNull columns for required properties', () => {
-            const table = toDBSqliteTable<UserWithOptionals>().build('users');
+            const table = toDrizzleSqliteTable<UserWithOptionals>('users');
 
             // Required properties should have notNull
             expect(table.id).toBeDefined();
@@ -140,9 +140,9 @@ describe('toDBSqliteTable', () => {
         });
     });
 
-    describe('column overrides with .build(name, config)', () => {
+    describe('column overrides', () => {
         it('should respect overrides for primary keys', () => {
-            const table = toDBSqliteTable<SimpleUser>().build('users', {
+            const table = toDrizzleSqliteTable<SimpleUser>('users', {
                 id: text('id').primaryKey(),
             });
 
@@ -151,7 +151,7 @@ describe('toDBSqliteTable', () => {
         });
 
         it('should auto-generate columns not in config', () => {
-            const table = toDBSqliteTable<SimpleUser>().build('users', {
+            const table = toDrizzleSqliteTable<SimpleUser>('users', {
                 id: text('id').primaryKey(),
             });
 
@@ -162,7 +162,7 @@ describe('toDBSqliteTable', () => {
 
         it('should throw error when config has extra columns', () => {
             expect(() => {
-                toDBSqliteTable<SimpleUser>().build('users', {
+                toDrizzleSqliteTable<SimpleUser>('users', {
                     id: text('id').primaryKey(),
                     extraColumn: text('extra'),
                 } as any);
@@ -171,7 +171,7 @@ describe('toDBSqliteTable', () => {
 
         it('should allow overriding plain string with text column for UUID', () => {
             // SimpleUser has id: string, SQLite uses text for all strings including UUIDs
-            const table = toDBSqliteTable<SimpleUser>().build('users', {
+            const table = toDrizzleSqliteTable<SimpleUser>('users', {
                 id: text('id').primaryKey(),
             });
 
@@ -184,7 +184,7 @@ describe('toDBSqliteTable', () => {
         it('should allow overriding number (real) with integer column', () => {
             // SimpleUser has age: number, which auto-generates to SQLiteReal
             // Override it with integer() to get SQLiteInteger
-            const table = toDBSqliteTable<SimpleUser>().build('users', {
+            const table = toDrizzleSqliteTable<SimpleUser>('users', {
                 age: integer('age'),
             });
 
@@ -198,14 +198,14 @@ describe('toDBSqliteTable', () => {
     describe('error handling', () => {
         it('should throw error for non-object types', () => {
             expect(() => {
-                toDBSqliteTable<string>().build('users');
+                toDrizzleSqliteTable<string>('users');
             }).toThrow();
         });
 
         it('should throw error when no type parameter is provided', () => {
             expect(() => {
-                toDBSqliteTable().build('users');
-            }).toThrow('toDBSqliteTable requires a type parameter');
+                toDrizzleSqliteTable('users');
+            }).toThrow('toDrizzleSqliteTable requires a type parameter');
         });
     });
 });

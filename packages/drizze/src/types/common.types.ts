@@ -187,3 +187,7 @@ export interface DrizzleMapperConfig {
     /** Multiplier for maxLength in string formats (default: 1.5). Applied to varchar column lengths. */
     lengthBuffer?: number;
 }
+
+/** Applies notNull inline when the property is required in T */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type Nullable<T, K extends keyof T, Col> = {} extends Pick<T, K> ? Col : Col & {_: {notNull: true}};
