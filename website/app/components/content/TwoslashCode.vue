@@ -286,6 +286,8 @@ const handleCopy = () => {
 
 .mion-two-slash-code .shiki .line {
   display: block;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Dark mode: Use Shiki's dark theme CSS variables */

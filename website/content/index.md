@@ -32,7 +32,7 @@ blur: 150px
   ---
   #description
   mion is the definitive TypeScript Framework **for Full Stack APIs**.   
-Offers **The best Developer Experience** for building Single Page Apps.
+  It offers **The best Developer Experience** for building Single Page Apps.
   :::
 
 #links
@@ -172,7 +172,7 @@ blur: 140px
     class: sm:col-span-2 lg:col-span-1 home-card
     ---
     ### Drizzle ORM
-    Auto-generate [Drizzle ORM](./drizzle/drizzle-overview) table schemas directly from types using reflection.   
+    Auto-generate [Drizzle ORM](./drizzle-orm/drizzle-overview) table schemas directly from types using reflection.   
     [Simply extends your types with SQL/Drizzle specific configuration.]{.text-highlighted}   
     <br>
     [Keep DB and Validation/Serialization logic separated.]{.text-highlighted}
