@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import {mapMySqlTable} from './mysql.ts';
+import {toDBMySqlTable} from './mysql.ts';
 import {varchar, text, int} from 'drizzle-orm/mysql-core';
 // Note: Must use regular import (not `import type`) for reflection to work
 import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
@@ -45,10 +45,10 @@ interface UserWithOptionals {
     age?: number;
 }
 
-describe('mapMySqlTable', () => {
+describe('toDBMySqlTable', () => {
     describe('simple types with .build()', () => {
         it('should generate correct schema for simple types', () => {
-            const table = mapMySqlTable<SimpleUser>().build('users');
+            const table = toDBMySqlTable<SimpleUser>().build('users');
 
             expect(table.id).toBeDefined();
             expect(table.name).toBeDefined();
@@ -58,28 +58,28 @@ describe('mapMySqlTable', () => {
         });
 
         it('should generate varchar columns for string types', () => {
-            const table = mapMySqlTable<SimpleUser>().build('users');
+            const table = toDBMySqlTable<SimpleUser>().build('users');
 
             // String should map to varchar
             expect(table.name.columnType).toBe('MySqlVarChar');
         });
 
         it('should generate double columns for number types', () => {
-            const table = mapMySqlTable<SimpleUser>().build('users');
+            const table = toDBMySqlTable<SimpleUser>().build('users');
 
             // Number should map to double
             expect(table.age.columnType).toBe('MySqlDouble');
         });
 
         it('should generate boolean columns for boolean types', () => {
-            const table = mapMySqlTable<SimpleUser>().build('users');
+            const table = toDBMySqlTable<SimpleUser>().build('users');
 
             // Boolean should map to boolean
             expect(table.isActive.columnType).toBe('MySqlBoolean');
         });
 
         it('should generate timestamp columns for Date types', () => {
-            const table = mapMySqlTable<SimpleUser>().build('users');
+            const table = toDBMySqlTable<SimpleUser>().build('users');
 
             // Date should map to timestamp
             expect(table.createdAt.dataType).toBe('date');
@@ -88,7 +88,7 @@ describe('mapMySqlTable', () => {
 
     describe('formatted types', () => {
         it('should generate varchar columns for StrUUIDv7 format', () => {
-            const table = mapMySqlTable<UserWithFormats>().build('users');
+            const table = toDBMySqlTable<UserWithFormats>().build('users');
 
             // UUID format should map to varchar(36) in MySQL
             expect(table.id).toBeDefined();
@@ -96,7 +96,7 @@ describe('mapMySqlTable', () => {
         });
 
         it('should generate varchar columns for StrEmail format', () => {
-            const table = mapMySqlTable<UserWithFormats>().build('users');
+            const table = toDBMySqlTable<UserWithFormats>().build('users');
 
             // Email format should map to varchar
             expect(table.email).toBeDefined();
@@ -106,7 +106,7 @@ describe('mapMySqlTable', () => {
 
     describe('nested objects and arrays', () => {
         it('should generate json columns for nested objects', () => {
-            const table = mapMySqlTable<UserWithNestedObjects>().build('users');
+            const table = toDBMySqlTable<UserWithNestedObjects>().build('users');
 
             // Nested objects should map to json
             expect(table.profile).toBeDefined();
@@ -114,7 +114,7 @@ describe('mapMySqlTable', () => {
         });
 
         it('should generate json columns for arrays', () => {
-            const table = mapMySqlTable<UserWithNestedObjects>().build('users');
+            const table = toDBMySqlTable<UserWithNestedObjects>().build('users');
 
             // Arrays should map to json
             expect(table.tags).toBeDefined();
@@ -124,7 +124,7 @@ describe('mapMySqlTable', () => {
 
     describe('optional properties', () => {
         it('should generate nullable columns for optional properties', () => {
-            const table = mapMySqlTable<UserWithOptionals>().build('users');
+            const table = toDBMySqlTable<UserWithOptionals>().build('users');
 
             // Optional properties should be nullable
             expect(table.nickname).toBeDefined();
@@ -132,7 +132,7 @@ describe('mapMySqlTable', () => {
         });
 
         it('should generate notNull columns for required properties', () => {
-            const table = mapMySqlTable<UserWithOptionals>().build('users');
+            const table = toDBMySqlTable<UserWithOptionals>().build('users');
 
             // Required properties should have notNull
             expect(table.id).toBeDefined();
@@ -142,7 +142,7 @@ describe('mapMySqlTable', () => {
 
     describe('column overrides with .build(name, config)', () => {
         it('should respect overrides for primary keys', () => {
-            const table = mapMySqlTable<SimpleUser>().build('users', {
+            const table = toDBMySqlTable<SimpleUser>().build('users', {
                 id: varchar('id', {length: 36}).primaryKey(),
             });
 
@@ -151,7 +151,7 @@ describe('mapMySqlTable', () => {
         });
 
         it('should auto-generate columns not in config', () => {
-            const table = mapMySqlTable<SimpleUser>().build('users', {
+            const table = toDBMySqlTable<SimpleUser>().build('users', {
                 id: varchar('id', {length: 36}).primaryKey(),
             });
 
@@ -162,7 +162,7 @@ describe('mapMySqlTable', () => {
 
         it('should throw error when config has extra columns', () => {
             expect(() => {
-                mapMySqlTable<SimpleUser>().build('users', {
+                toDBMySqlTable<SimpleUser>().build('users', {
                     id: varchar('id', {length: 36}).primaryKey(),
                     extraColumn: text('extra'),
                 } as any);
@@ -171,7 +171,7 @@ describe('mapMySqlTable', () => {
 
         it('should allow overriding plain string with varchar column for UUID', () => {
             // SimpleUser has id: string, but we can override with varchar(36) for UUID
-            const table = mapMySqlTable<SimpleUser>().build('users', {
+            const table = toDBMySqlTable<SimpleUser>().build('users', {
                 id: varchar('id', {length: 36}).primaryKey(),
             });
 
@@ -184,7 +184,7 @@ describe('mapMySqlTable', () => {
         it('should allow overriding number (double) with int column', () => {
             // SimpleUser has age: number, which auto-generates to MySqlDouble
             // We can override with int() to get MySqlInt instead
-            const table = mapMySqlTable<SimpleUser>().build('users', {
+            const table = toDBMySqlTable<SimpleUser>().build('users', {
                 age: int('age'),
             });
 
@@ -198,14 +198,14 @@ describe('mapMySqlTable', () => {
     describe('error handling', () => {
         it('should throw error for non-object types', () => {
             expect(() => {
-                mapMySqlTable<string>().build('users');
+                toDBMySqlTable<string>().build('users');
             }).toThrow();
         });
 
         it('should throw error when no type parameter is provided', () => {
             expect(() => {
-                mapMySqlTable().build('users');
-            }).toThrow('mapMySqlTable requires a type parameter');
+                toDBMySqlTable().build('users');
+            }).toThrow('toDBMySqlTable requires a type parameter');
         });
     });
 });

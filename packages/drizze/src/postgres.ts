@@ -48,23 +48,23 @@ const DEFAULT_CONFIG: DrizzleMapperConfig = {};
  * }
  *
  * // Without overrides - auto-generates all columns
- * const users = mapPGTable<User>().build('users');
+ * const users = toDBPGTable<User>().build('users');
  *
  * // With overrides - customize specific columns
- * const users = mapPGTable<User>().build('users', {
+ * const users = toDBPGTable<User>().build('users', {
  *   id: uuid('id').primaryKey(),
  * });
  *
  * // With custom lengthBuffer for varchar columns
- * const users = mapPGTable<User>({lengthBuffer: 2.0}).build('users');
+ * const users = toDBPGTable<User>({lengthBuffer: 2.0}).build('users');
  * ```
  */
-export function mapPGTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
+export function toDBPGTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
     // Validate that a type parameter was provided via type reflection
     if (!type) {
         throw new TypedError({
             type: 'drizzle-table-missing-type',
-            message: 'mapPGTable requires a type parameter. Usage: mapPGTable<YourType>() or mapPGTable<YourType>({config})',
+            message: 'toDBPGTable requires a type parameter. Usage: toDBPGTable<YourType>() or toDBPGTable<YourType>({config})',
         });
     }
 
@@ -91,7 +91,7 @@ export function mapPGTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type
                     });
                 }
                 if (validation.warnings.length > 0) {
-                    console.warn(`mapPGTable warnings:\n${validation.warnings.join('\n')}`);
+                    console.warn(`toDBPGTable warnings:\n${validation.warnings.join('\n')}`);
                 }
             }
             // Create column mapper with config
