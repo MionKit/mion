@@ -270,7 +270,7 @@ function workflowHandler(ctx: CallContext): void {
 
 ## Open Questions / Risks
 
-1. **Workflow route as `route` vs `useRawFn`**: Currently the workflow is defined as a `route`. Since it needs to modify `context.executionChain` (which is internal router behavior), it might be cleaner as a `useRawFn` which has access to `(context, rawRequest, rawResponse, opts)`. However, using `route` works too since `CallContext` already has `executionChain`. The tradeoff is that `useRawFn` is private/internal by design, which fits better semantically.
+1. **Workflow route as `route` vs `rawMiddleFn`**: Currently the workflow is defined as a `route`. Since it needs to modify `context.executionChain` (which is internal router behavior), it might be cleaner as a `rawMiddleFn` which has access to `(context, rawRequest, rawResponse, opts)`. However, using `route` works too since `CallContext` already has `executionChain`. The tradeoff is that `rawMiddleFn` is private/internal by design, which fits better semantically.
 
 2. **Binary serialization for workflows**: The binary serializer in [`serializer.routes.ts`](packages/router/src/routes/serializer.routes.ts:53) builds a methods map from `context.executionChain.methods`. Since we modify the chain dynamically, the deserializer runs BEFORE the workflow handler modifies the chain. This means binary deserialization won't know about the merged routes' methods. **This is likely fine for JSON** (body is already parsed as a flat object), but **binary workflows may need special handling** or could be unsupported initially.
 

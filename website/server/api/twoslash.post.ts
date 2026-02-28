@@ -1,7 +1,7 @@
 import { createHighlighter } from 'shiki'
 import { transformerTwoslash, rendererRich, defaultHoverInfoProcessor } from '@shikijs/twoslash'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
-import { join, dirname, relative, resolve } from 'path'
+import { join, relative, resolve } from 'path'
 
 /**
  * Patterns to match native type signatures that should be filtered out from hover popups.
@@ -136,8 +136,9 @@ function loadMionPackageTypes(): Map<string, string> {
   const fsMap = new Map<string, string>()
 
   // Get the repo root (parent of website directory)
-  const websiteDir = dirname(new URL(import.meta.url).pathname)
-  const repoRoot = join(websiteDir, '..', '..', '..')
+  // process.cwd() is always the website dir in both dev and generate modes.
+  // import.meta.url breaks during generate because the code is bundled into .nuxt/prerender/chunks/
+  const repoRoot = resolve(process.cwd(), '..')
   const packagesDir = join(repoRoot, 'packages')
 
   // Packages to load with their dist paths
