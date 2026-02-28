@@ -33,6 +33,11 @@ export default defineNuxtConfig({
   vite: {
     plugins: isDev ? [exampleWatcherPlugin()] : []
   },
+  nitro: {
+    output: {
+      publicDir: '.output/public'
+    }
+  },
   hooks: {
     'content:file:beforeParse'(ctx) {
       const { file } = ctx
