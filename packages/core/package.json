@@ -14,8 +14,7 @@
     "serverless",
     "framework",
     "node",
-    "runtime types",
-    "deepkit"
+    "runtime types"
   ],
   "author": "ma jerez",
   "homepage": "https://mion.io/",

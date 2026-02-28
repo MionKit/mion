@@ -9,7 +9,7 @@
  * @mionkit/test-server
  *
  * Centralized test server for mion packages.
- * Provides pre-built test servers with Deepkit type reflection for testing
+ * Provides pre-built test servers with runtime type reflection for testing
  * client-server communication with both JSON and binary serialization.
  *
  * IMPORTANT: Set MION_TEST_SERVER_AUTO_START=false before importing this package

@@ -3,7 +3,7 @@
 // Format types should be imported WITHOUT the 'type' keyword
 
 // start:type-formats-imports-valid
-// ✅ CORRECT: Regular imports preserve type metadata for Deepkit reflection
+// ✅ CORRECT: Regular imports preserve type metadata for runtime reflection
 import {StrEmail, StrUrl, StrDate} from '@mionkit/type-formats/FormatsString';
 import {NumFormat, NumInteger} from '@mionkit/type-formats/FormatsNumber';
 import {BigNumFormat} from '@mionkit/type-formats/FormatsBigint';

@@ -61,7 +61,7 @@ To learn more about the router, refer to the [Router Documentation](./packages/r
 
 ## Automatic Serialization & Validation
 
-mion utilizes [RunTypes](https://deepkit.io/documentation/run-types) for automatic validation and serialization. RunTypes enables type information to be available at runtime, allowing for automatic validation and serialization of data.
+mion utilizes RunTypes for automatic validation and serialization. RunTypes enables type information to be available at runtime, allowing for automatic validation and serialization of data.
 
 By leveraging runtime types, mion offers advanced capabilities such as request validation and response/request serialization that typically involves using multiple framework and loads of code or boilerplate to be manually written by developers.
 
@@ -93,13 +93,10 @@ npx lerna publish from-package --no-private
 ## Powered by:
 
 - [Typescript](https://www.typescriptlang.org/)
-- [Deepkit](https://deepkit.io/)
 - [@MaJerez](https://github.com/M-jerez)
   <!-- - [Serverless Framework](https://www.serverless.com/)  -->
   <!-- - [AWS Cognito](https://aws.amazon.com/cognito/) -->
   <!-- - [Postgres.js](https://github.com/porsager/postgres) -->
-
-<!-- ![powered by: deepkit, serverless, mion](./assets/public/tech-stack-830x100.png?raw=true) &nbsp;&nbsp; -->
 
 ---
 

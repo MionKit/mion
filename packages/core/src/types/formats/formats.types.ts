@@ -26,7 +26,7 @@ export type FormatParam<L extends TypeFormatValue> = L | FormatParamMeta<L>;
 export type TypeFormatParams = Record<string, TypeFormatValue | undefined | never>;
 export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormatValue};
 
-/** Alias for TypeAnnotation from @deepkit/core. At type level this is `unknown`, but we need the structure for extraction. */
+/** Alias for TypeAnnotation. At type level this is `unknown`, but we need the structure for extraction. */
 export type AliasTypeAnnotation<Name extends string, Options = never> = unknown;
 
 /** Alias for TypeFormat from @mionkit/run-types. This is how format types (StrFormat, NumFormat, etc.) are defined. */
