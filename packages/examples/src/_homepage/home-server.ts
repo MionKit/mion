@@ -9,7 +9,11 @@ interface User {
     createdAt: Date;
     tags: Set<string>;
 }
-interface Order { id: string; userId: number; amount: number }
+interface Order { 
+    id: string; 
+    userId: number; 
+    amount: number;
+}
 // @annotate: Object based router with rpc methods that receive Fully Validated params
 
 const routes = {
@@ -26,6 +30,7 @@ const routes = {
     }),
     sayHello: route((ctx, name: string): string => `Hello ${name}`),
 } satisfies Routes;
+
 export const myApi = await initMionRouter(routes);
 export type MyApi = typeof myApi;
 startNodeServer({port: 3000});

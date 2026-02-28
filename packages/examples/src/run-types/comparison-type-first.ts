@@ -8,6 +8,4 @@ interface User {
     email: StrEmail; // Using type formats for validation
 }
 
-async function example() {
-    const validate = await createIsTypeFn<User>();
-}
+const validate = await createIsTypeFn<User>();

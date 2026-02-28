@@ -1,4 +1,4 @@
-import {mapPGTable} from '@mionkit/drizzle';
+import {toDBPGTable} from '@mionkit/drizzle';
 import {uuid, text, timestamp} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for reflection to work
 import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
@@ -14,7 +14,7 @@ interface User {
 }
 // @annotate: Auto-generate Drizzle table cond configure keys, indexes, etc..
 
-const users = mapPGTable<User>().build('users', {
+const users = toDBPGTable<User>().build('users', {
     id: uuid('id').primaryKey(),
     email: text('email').notNull().unique(),
 });

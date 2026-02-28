@@ -5,9 +5,6 @@ const {routes} = initClient<MyApi>({
     baseURL: 'http://localhost:3000',
 });
 
-async function example() {
-    // Call server method as if it were a local function
-    const [hello] = await routes.sayHello('World').call();
-    console.log(hello); // hello world
-}
-example();
+// Call server method as if it were a local function
+const [hello] = await routes.sayHello('World').call();
+console.log(hello); // hello world

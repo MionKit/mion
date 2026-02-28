@@ -19,29 +19,27 @@ interface BlogPost {
     metadata: Map<string, any>;
 }
 
-async function completeExample() {
-    // Create all needed functions
-    const isPost = await createIsTypeFn<BlogPost>();
-    const getErrors = await createTypeErrorsFn<BlogPost>();
-    const stringify = await createStringifyJsonFn<BlogPost>();
-    const restore = await createRestoreFromJsonFn<BlogPost>();
-    const mockPost = await createMockTypeFn<BlogPost>();
+// Create all needed functions
+const isPost = await createIsTypeFn<BlogPost>();
+const getPostErrors = await createTypeErrorsFn<BlogPost>();
+const stringifyPost = await createStringifyJsonFn<BlogPost>();
+const restorePost = await createRestoreFromJsonFn<BlogPost>();
+const mockPost = await createMockTypeFn<BlogPost>();
 
-    // Generate mock data
-    const post = mockPost();
+// Generate mock data
+const post = mockPost();
 
-    // Validate
-    if (isPost(post)) {
-        // Serialize to JSON (does not mutate original)
-        const json = stringify(post);
+// Validate
+if (isPost(post)) {
+    // Serialize to JSON (does not mutate original)
+    const json = stringifyPost(post);
 
-        // Deserialize
-        const parsed = JSON.parse(json);
-        const restored = restore(parsed);
-        // restored.publishedAt is a Date
-        // restored.metadata is a Map
-    } else {
-        const errors = getErrors(post);
-        console.log('Validation failed:', errors);
-    }
+    // Deserialize
+    const parsed = JSON.parse(json);
+    const restored = restorePost(parsed);
+    // restored.publishedAt is a Date
+    // restored.metadata is a Map
+} else {
+    const errors = getPostErrors(post);
+    console.log('Validation failed:', errors);
 }

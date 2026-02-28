@@ -5,10 +5,8 @@ interface User {
     age: number;
 }
 
-async function example() {
-    const isUser = await createIsTypeFn<User>();
+const isUser = await createIsTypeFn<User>();
 
-    isUser({name: 'John', age: 30}); // true
-    isUser({name: 'John'}); // false (missing age)
-    isUser({name: 'John', age: '30'}); // false (age is string)
-}
+isUser({name: 'John', age: 30}); // true
+isUser({name: 'John'}); // false (missing age)
+isUser({name: 'John', age: '30'}); // false (age is string)

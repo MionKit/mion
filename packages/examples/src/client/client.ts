@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {initClient} from '@mionkit/client';
 import {HeadersSubset} from '@mionkit/core';
 // importing only the RemoteApi type from server
@@ -48,45 +48,36 @@ middleFns
 // ========== Example 1: Route with strongly-typed errorData ==========
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
 // call() returns 4-tuple: [routeResult, routeError, middleFnsResults, middleFnsErrors]
-async function exampleWithTypedError() {
-    const [user, error] = await routes.users.getById('USER-123').call();
-    if (error && error.type === 'user-not-found') {
-        // error.errorData is strongly typed as UserNotFoundData!
-        console.log('User not found. Requested ID:', error.errorData?.requestedId);
-        if (error.errorData?.suggestedIds?.length) {
-            console.log('Did you mean one of these?', error.errorData.suggestedIds.join(', '));
-        }
-        return;
-    } else if (error) {
-        // Catches any other errors (network errors, middleFn errors, etc.)
-        console.log('Unexpected error:', error.publicMessage);
-        return;
+const [user1, error1] = await routes.users.getById('USER-123').call();
+if (error1 && error1.type === 'user-not-found') {
+    // error1.errorData is strongly typed as UserNotFoundData!
+    console.log('User not found. Requested ID:', error1.errorData?.requestedId);
+    if (error1.errorData?.suggestedIds?.length) {
+        console.log('Did you mean one of these?', error1.errorData.suggestedIds.join(', '));
     }
-    // After error check, user is guaranteed to be User here
-    // Use optional chaining for TypeScript strictness
-    console.log('Found user:', user?.name, user?.surname);
+} else if (error1) {
+    // Catches any other errors (network errors, middleFn errors, etc.)
+    console.log('Unexpected error:', error1.publicMessage);
 }
+// After error check, user is guaranteed to be User here
+// Use optional chaining for TypeScript strictness
+console.log('Found user:', user1?.name, user1?.surname);
 
 // ========== Example 2: Order error with typed errorData ==========
 // Order getById returns Order | RpcError<'order-not-found', OrderNotFoundData>
-async function exampleWithOrderError() {
-    const [order, error] = await routes.orders.getById('ORDER-404').call();
-    if (error && error.type === 'order-not-found') {
-        // error.errorData is strongly typed as OrderNotFoundData!
-        console.log('Order not found. Requested ID:', error.errorData?.requestedId);
-        return;
-    }
-    // After error check, order is guaranteed to be Order here
-    console.log('Order total:', order?.totalUSD);
+const [order, error2] = await routes.orders.getById('ORDER-404').call();
+if (error2 && error2.type === 'order-not-found') {
+    // error2.errorData is strongly typed as OrderNotFoundData!
+    console.log('Order not found. Requested ID:', error2.errorData?.requestedId);
 }
+// After error check, order is guaranteed to be Order here
+console.log('Order total:', order?.totalUSD);
 
 // ========== Example 3: Route that always succeeds ==========
 // sayHello returns just string (no error type), so error is always undefined
-async function exampleAlwaysSucceeds() {
-    const [result, error] = await routes.users.sayHello(john).call();
-    // sayHello never has an error type, so we can use the result directly
-    console.log(result); // Hello John Doe
-}
+const [result, error3] = await routes.users.sayHello(john).call();
+// sayHello never has an error type, so we can use the result directly
+console.log(result); // Hello John Doe
 
 // ========== Example 5: Using callWithMiddleFns() for per-request middleFns ==========
 // Use callWithMiddleFns() when you need to pass middleFns for a SINGLE request
@@ -96,64 +87,57 @@ async function exampleAlwaysSucceeds() {
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
 
 // callWithMiddleFns() takes a record of middleFns and returns a typed 4-tuple
-async function exampleWithCallWithMiddleFns() {
-    const [user, routeError, middleFnResults, middleFnErrors] = await routes.users.getById('USER-123').callWithMiddleFns({
-        auth: middleFns.auth(tempAuthHeaders, true),
-    });
-    // Check for route errors
-    if (routeError?.type === 'user-not-found') {
-        console.log('User not found:', routeError.errorData?.requestedId);
-    }
-    // Check middleFn errors
-    if (middleFnErrors?.auth?.type === 'not-authorized') {
-        const authError = middleFnErrors.auth;
-        const reason = authError.errorData?.reason;
-        if (reason === 'expired-token') {
-            console.log('Temp token expired, requesting new one...');
-        }
-    }
-    // Access success data
-    if (user) console.log('Found user:', user.name);
-    if (middleFnResults?.auth) console.log('Authenticated as:', middleFnResults.auth.userId);
+const [user4, routeError4, middleFnResults4, middleFnErrors4] = await routes.users.getById('USER-123').callWithMiddleFns({
+    auth: middleFns.auth(tempAuthHeaders, true),
+});
+// Check for route errors
+if (routeError4?.type === 'user-not-found') {
+    console.log('User not found:', routeError4.errorData?.requestedId);
 }
+// Check middleFn errors
+if (middleFnErrors4?.auth?.type === 'not-authorized') {
+    const authError = middleFnErrors4.auth;
+    const reason = authError.errorData?.reason;
+    if (reason === 'expired-token') {
+        console.log('Temp token expired, requesting new one...');
+    }
+}
+// Access success data
+if (user4) console.log('Found user:', user4.name);
+if (middleFnResults4?.auth) console.log('Authenticated as:', middleFnResults4.auth.userId);
 
 // ========== Example 6: Multiple MiddleFns with callWithMiddleFns() ==========
 // Pass multiple middleFns in the record - each gets its own typed result
-async function exampleWithMultipleMiddleFns() {
-    const [user, routeError, middleFnResults, middleFnErrors] = await routes.users.getById('USER-123').callWithMiddleFns({
-        auth: middleFns.auth(tempAuthHeaders),
-        // session: middleFns.session('session-token'), // If you have a session middleFn
-    });
-    // Handle each middleFn's errors independently
-    if (middleFnErrors?.auth) {
-        console.log('Auth failed:', middleFnErrors.auth.publicMessage);
-    }
-    // Access success data
-    if (user) console.log('User:', user.name);
+const [user5, routeError5, middleFnResults5, middleFnErrors5] = await routes.users.getById('USER-123').callWithMiddleFns({
+    auth: middleFns.auth(tempAuthHeaders),
+    // session: middleFns.session('session-token'), // If you have a session middleFn
+});
+// Handle each middleFn's errors independently
+if (middleFnErrors5?.auth) {
+    console.log('Auth failed:', middleFnErrors5.auth.publicMessage);
 }
+// Access success data
+if (user5) console.log('User:', user5.name);
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
 // call() returns 4-tuple: [routeResult, routeError, middleFnsResults, middleFnsErrors]
 // This is the standard pattern for all route calls
-async function exampleWithCall() {
-    // call() never throws - returns a 4-tuple
-    // Partial destructuring still works for backward compatibility
-    const [user, error] = await routes.users.getById('USER-999').call();
-    if (error) {
-        // TypeScript knows error is the typed error here
-        // Each error type can be checked
-        if (error.type === 'user-not-found') {
-            // error.errorData is still strongly typed!
-            console.log('User not found:', error.errorData?.requestedId);
-        } else {
-            console.log('Other error:', error.publicMessage);
-        }
-        return;
+// call() never throws - returns a 4-tuple
+// Partial destructuring still works for backward compatibility
+const [user6, error6] = await routes.users.getById('USER-999').call();
+if (error6) {
+    // TypeScript knows error is the typed error here
+    // Each error type can be checked
+    if (error6.type === 'user-not-found') {
+        // error6.errorData is still strongly typed!
+        console.log('User not found:', error6.errorData?.requestedId);
+    } else {
+        console.log('Other error:', error6.publicMessage);
     }
-    // After error check, user is guaranteed to be User here
-    // Use optional chaining for TypeScript strictness
-    console.log('User:', user?.name, user?.surname);
-    // validate parameters locally without calling the server
-    const validationResp = await routes.users.sayHello(john).typeErrors();
-    console.log(validationResp); // []
 }
+// After error check, user is guaranteed to be User here
+// Use optional chaining for TypeScript strictness
+console.log('User:', user6?.name, user6?.surname);
+// validate parameters locally without calling the server
+const validationResp = await routes.users.sayHello(john).typeErrors();
+console.log(validationResp); // []

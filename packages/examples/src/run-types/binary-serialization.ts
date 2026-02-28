@@ -6,18 +6,14 @@ interface User {
 }
 
 // start-to-binary
-async function toBinaryExample() {
-    const toBinary = await createToBinaryFn<User>();
-    const buffer = toBinary({name: 'John', age: 30});
-    // Returns Uint8Array with optimized binary encoding
-}
+const toBinary = await createToBinaryFn<User>();
+const buffer = toBinary({name: 'John', age: 30});
+// Returns Uint8Array with optimized binary encoding
 // end-to-binary
 
 // start-from-binary
-async function fromBinaryExample() {
-    const fromBinary = await createFromBinaryFn<User>();
-    const buffer = new Uint8Array(); // from previous example
-    const user = fromBinary(buffer);
-    // user is now { name: 'John', age: 30 }
-}
+const fromBinary = await createFromBinaryFn<User>();
+const bufferInput = new Uint8Array(); // from previous example
+const user = fromBinary(bufferInput);
+// user is now { name: 'John', age: 30 }
 // end-from-binary

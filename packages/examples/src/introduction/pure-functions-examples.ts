@@ -60,16 +60,14 @@ const validate = pureServerFn({
 // start:map-from-basic
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-async function getOrderWithUser() {
-    const order = routes.orders.getById('ORDER-123');
-    // mapFrom maps order.userId → users.getById input (runs server-side)
-    const mapping = mapFrom(order, (o) => o!.userId);
-    // fake() returns a typed placeholder that satisfies the TypeScript compiler
-    const user = routes.users.getById(mapping.type());
+const order = routes.orders.getById('ORDER-123');
+// mapFrom maps order.userId → users.getById input (runs server-side)
+const mapping = mapFrom(order, (o) => o!.userId);
+// fake() returns a typed placeholder that satisfies the TypeScript compiler
+const user = routes.users.getById(mapping.type());
 
-    const [[orderData, userData]] = await routesFlow([order, user]);
-    console.log(`Order by ${userData?.name}`);
-}
+const [[orderData, userData]] = await routesFlow([order, user]);
+console.log(`Order by ${userData?.name}`);
 // end:map-from-basic
 
 export {};
