@@ -86,6 +86,8 @@ function explicitModeHoverInfo(_info: string): string {
   return ''
 }
 
+const isDev = process.env.NODE_ENV !== 'production'
+
 // Cache the highlighter instance
 let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
 
@@ -196,7 +198,7 @@ function loadMionPackageTypes(): Map<string, string> {
   }
 
   fsMapCache = fsMap
-  console.log(`Loaded ${fsMap.size} files for twoslash (d.ts + examples)`)
+  if (isDev) console.log(`Loaded ${fsMap.size} files for twoslash (d.ts + examples)`)
   return fsMap
 }
 
@@ -259,12 +261,12 @@ export default defineEventHandler(async (event) => {
   const cacheKey = getCacheKey(code, path, hoverMode)
   const cached = resultCache.get(cacheKey)
   if (cached) {
-    console.log(`[twoslash] ${path || 'inline'} (cached)`)
+    if (isDev) console.log(`[twoslash] ${path || 'inline'} (cached)`)
     return cached
   }
 
   try {
-    console.log(`[twoslash] ${path || 'inline'} (${code.length} chars)`)
+    if (isDev) console.log(`[twoslash] ${path || 'inline'} (${code.length} chars)`)
     const highlighter = await getHighlighter()
     const fsMap = loadMionPackageTypes()
 
