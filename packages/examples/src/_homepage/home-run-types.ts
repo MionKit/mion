@@ -8,8 +8,8 @@ interface User {
 // @annotate: Create JIT-compiled functions directly from TypeScript types
 
 const isUser = await createIsTypeFn<User>();
-const stringify = await createStringifyJsonFn<User>();
-const toBinary = await createToBinaryFn<User>();
+const stringifyUser = await createStringifyJsonFn<User>();
+const toBinaryUser = await createToBinaryFn<User>();
 const mockUser = await createMockTypeFn<User>();
 
 // @annotate: Generate mock data - respects type structure
@@ -22,5 +22,5 @@ const user = mockUser();
 isUser(user);
 // @annotate: Serialize complex types (Date, Set, unions) to JSON
 
-const json = stringify(user);
+const json = stringifyUser(user);
 //     ^?

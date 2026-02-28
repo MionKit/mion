@@ -54,11 +54,9 @@ const accessingErrorValues = (failed) => {
 
 // start-root-errors
 // Handle root level errors (when path is empty)
-async function handleRootErrors() {
-    const validationErrors: Parameters<typeof getFriendlyErrors>[0] = [];
-    const result = getFriendlyErrors<User>(validationErrors, userFriendlyErrors);
-    if (result.$root) {
-        console.log('Root errors:', result.$root);
-    }
+const validationErrors: Parameters<typeof getFriendlyErrors>[0] = [];
+const result = getFriendlyErrors<User>(validationErrors, userFriendlyErrors);
+if (result.$root) {
+    console.log('Root errors:', result.$root);
 }
 // end-root-errors

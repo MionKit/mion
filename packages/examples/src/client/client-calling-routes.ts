@@ -3,13 +3,11 @@ import type {MyApi} from './server.routes.ts';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-async function callRoute() {
-    // calls sum route in the server
-    const [sum, error] = await routes.utils.sum(5, 2).call();
+// calls sum route in the server
+const [sum, error] = await routes.utils.sum(5, 2).call();
 
-    if (error) {
-        console.log('Error:', error.publicMessage);
-    } else {
-        console.log(sum); // 7
-    }
+if (error) {
+    console.log('Error:', error.publicMessage);
+} else {
+    console.log(sum); // 7
 }
