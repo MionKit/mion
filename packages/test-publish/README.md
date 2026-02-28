@@ -4,7 +4,7 @@
 
 Build verification tests for the mion monorepo. This package validates that all mion packages work correctly **after being built**, ensuring that:
 
-- Built artifacts contain proper Deepkit type metadata
+- Built artifacts contain proper runtime type metadata
 - Client-server communication works with built packages
 - Binary and JSON serialization work as expected
 

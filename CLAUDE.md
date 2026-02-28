@@ -76,7 +76,7 @@ npm run build -w @mionkit/devtools
 
 **NEVER USE `import type` FOR TYPES THAT NEED RUNTIME REFLECTION!**
 
-Deepkit's type compiler needs the actual import statement to preserve type metadata.
+The type compiler needs the actual import statement to preserve type metadata.
 Using `import type` strips the metadata and causes silent failures.
 
 ```ts

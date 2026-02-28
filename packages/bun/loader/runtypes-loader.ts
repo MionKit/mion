@@ -54,7 +54,7 @@ function transform(code: string, fileName: string, options) {
 
 /**
  * Factory function for RunTypes Loader
- * Does some transpilation of typescript using custom @deepkit/type-compiler transformers.
+ * Does some transpilation of typescript using custom type-compiler transformers for runtime type metadata.
  * By default third party plugins should export a factory function https://bun.sh/docs/runtime/plugins#third-party-plugins
  * @param options
  * @returns

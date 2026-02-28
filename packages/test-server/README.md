@@ -2,7 +2,7 @@
 
 > ⚠️ **Internal Package** - This package is private and not published to npm.
 
-Centralized test server utilities for mion packages. Provides pre-configured test servers with Deepkit type reflection for testing client-server communication.
+Centralized test server utilities for mion packages. Provides pre-configured test servers with runtime type reflection for testing client-server communication.
 
 ## Why This Package Exists
 
@@ -98,7 +98,7 @@ The `TestServerManager` class:
 npm run build -w @mionkit/test-server
 ```
 
-This compiles the servers with Deepkit type reflection, producing output in `.dist/`.
+This compiles the servers with runtime type reflection, producing output in `.dist/`.
 
 ## Important Notes
 

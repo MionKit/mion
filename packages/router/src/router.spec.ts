@@ -306,7 +306,7 @@ describe('Create routes should', () => {
 
     it('differentiate async vs non async routes', async () => {
         await initRouter();
-        // !! Important return types must always be declared as deepkit doe not infers the type
+        // !! Important return types must always be declared as the type compiler does not infer the type
         const defaultRouteValues = {
             sayHello: route((): null => null),
             asyncSayHello: route(async (): Promise<string> => {

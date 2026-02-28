@@ -382,7 +382,7 @@ function wrapFactory(factory: () => (x: number) => number) {
 // Rule: @mionkit/type-formats-imports
 // ========================================
 
-// ✅ VALID: Regular imports preserve type metadata for Deepkit reflection
+// ✅ VALID: Regular imports preserve type metadata for runtime reflection
 import {StrEmail, StrUrl} from '@mionkit/type-formats/FormatsString';
 import {NumFormat, NumInteger} from '@mionkit/type-formats/FormatsNumber';
 import {BigNumFormat} from '@mionkit/type-formats/FormatsBigint';

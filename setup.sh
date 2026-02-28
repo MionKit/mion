@@ -27,10 +27,10 @@ rm -f package-lock.json
 # Install dependencies using npm (respecting workspaces and lerna configuration)
 npm install
 
-# Run deepkit type installation (required for runtime type metadata)
+# Run type compiler installation (required for runtime type metadata)
 npm run deepkit-install
 
-# Disable coverage collection in Jest configs to avoid conflicts with deepkit type compiler
+# Disable coverage collection in Jest configs to avoid conflicts with type compiler
 find packages -name "jest.config.js" -exec sed -i 's/collectCoverage: true/collectCoverage: false/g' {} \;
 
 # Set NODE_ENV to test to ensure proper test environment
