@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import {DrizzleTypesPostgres, DrizzleTypesMySQL, DrizzleTypesSQLite} from './types/common.types.ts';
+import {DrizzleTypesPostgres, DrizzleTypesMySQL, DrizzleTypesSQLite} from '../types/common.types.ts';
 
 // Import PostgreSQL column builder functions
 import {

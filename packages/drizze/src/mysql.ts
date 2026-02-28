@@ -13,20 +13,20 @@ import {extractTypeInfo} from './core/typeTraverser.ts';
 import {validateConfig} from './core/validator.ts';
 import {MySQLColumnMapper} from './mappers/mysql.mapper.ts';
 import type {MySqlTableConfig, MySqlColumnType} from './types/mysql.types.ts';
-import type {DrizzleMapperConfig} from './types/common.types.ts';
+import type {DrizzleMapperConfig, Nullable} from './types/common.types.ts';
 
 /**
  * Merges auto-generated columns with config overrides.
  * For each property K in T:
  * - If K exists in TConfig AND TConfig[K] is a column builder, use TConfig[K]
- * - Otherwise, use the auto-generated column type
+ * - Otherwise, use the auto-generated column type (with notNull for required properties)
  */
 type MergedMySqlColumns<T, TConfig> = {
-    [K in keyof T as K extends string ? K : never]: K extends keyof TConfig
+    [K in keyof T as K extends string ? K : never]-?: K extends keyof TConfig
         ? TConfig[K] extends MySqlColumnBuilderBase
-            ? TConfig[K] // Config property is a column builder, use it
-            : MySqlColumnType<K & string, T[K]> // Config property is not a column builder, use auto-generated
-        : MySqlColumnType<K & string, T[K]>; // Property not in config, use auto-generated
+            ? TConfig[K]
+            : Nullable<T, K, MySqlColumnType<K & string, NonNullable<T[K]>>>
+        : Nullable<T, K, MySqlColumnType<K & string, NonNullable<T[K]>>>;
 };
 
 /** Default configuration for the mapper */
@@ -35,7 +35,6 @@ const DEFAULT_CONFIG: DrizzleMapperConfig = {};
 /**
  * Creates a MySQL table schema from a TypeScript type.
  * Auto-generates drizzle column definitions based on the type's properties.
- * Use .build(tableName, config?) to create the table with optional column overrides.
  *
  * @example
  * ```typescript
@@ -48,71 +47,70 @@ const DEFAULT_CONFIG: DrizzleMapperConfig = {};
  * }
  *
  * // Without overrides - auto-generates all columns
- * const users = toDBMySqlTable<User>().build('users');
+ * const users = toDrizzleMySqlTable<User>('users');
  *
  * // With overrides - customize specific columns
- * const users = toDBMySqlTable<User>().build('users', {
+ * const users = toDrizzleMySqlTable<User>('users', {
  *   id: varchar('id', { length: 36 }).primaryKey(),
  * });
  *
  * // With custom lengthBuffer for varchar columns
- * const users = toDBMySqlTable<User>({lengthBuffer: 2.0}).build('users');
+ * const users = toDrizzleMySqlTable<User>('users', undefined, {lengthBuffer: 2.0});
  * ```
  */
-export function toDBMySqlTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export function toDrizzleMySqlTable<T, TN extends string = string, TConfig extends MySqlTableConfig<T> = {}>(
+    tableName: TN,
+    tableConfig?: TConfig,
+    mapperConfig: DrizzleMapperConfig = DEFAULT_CONFIG,
+    type?: ReceiveType<T>
+): MySqlTableWithColumns<{
+    name: TN;
+    schema: undefined;
+    columns: BuildColumns<TN, MergedMySqlColumns<T, TConfig>, 'mysql'>;
+    dialect: 'mysql';
+}> {
     // Validate that a type parameter was provided via type reflection
     if (!type) {
         throw new TypedError({
             type: 'drizzle-table-missing-type',
             message:
-                'toDBMySqlTable requires a type parameter. Usage: toDBMySqlTable<YourType>() or toDBMySqlTable<YourType>({config})',
+                'toDrizzleMySqlTable requires a type parameter. Usage: toDrizzleMySqlTable<YourType>(tableName) or toDrizzleMySqlTable<YourType>(tableName, tableConfig)',
         });
     }
 
     // Extract type information using mion's RunType system
     const typeInfo = extractTypeInfo<T>(type);
 
-    return {
-        build<TN extends string, TConfig extends MySqlTableConfig<T>>(
-            tableName: TN,
-            tableConfig?: TConfig
-        ): MySqlTableWithColumns<{
-            name: TN;
-            schema: undefined;
-            columns: BuildColumns<TN, MergedMySqlColumns<T, TConfig>, 'mysql'>;
-            dialect: 'mysql';
-        }> {
-            // Validate provided config against type
-            if (tableConfig) {
-                const validation = validateConfig(typeInfo, tableConfig);
-                if (!validation.valid) {
-                    throw new TypedError({
-                        type: 'drizzle-table-config-invalid',
-                        message: `Cannot create MySQL table "${tableName}". The provided tableConfig does not match type "${typeInfo.typeName}":\n${validation.errors.join('\n')}`,
-                    });
-                }
-                if (validation.warnings.length > 0) {
-                    console.warn(`toDBMySqlTable warnings:\n${validation.warnings.join('\n')}`);
-                }
-            }
-            // Create column mapper with config
-            const mapper = new MySQLColumnMapper(config);
-            // Build columns object - all properties will be filled (either from config or auto-generated)
-            type Merged = MergedMySqlColumns<T, TConfig>;
-            const columns: Merged = {} as Merged;
-            for (const prop of typeInfo.properties) {
-                // Use provided config if available, otherwise auto-generate
-                const configKey = prop.name as keyof TConfig;
-                if (tableConfig && configKey in tableConfig) {
-                    (columns as Record<string, unknown>)[prop.name] = tableConfig[configKey];
-                } else {
-                    const mapping = mapper.mapProperty(prop);
-                    (columns as Record<string, unknown>)[prop.name] = mapping.builder;
-                }
-            }
-            // Create and return the drizzle table
-            // Cast is needed because mysqlTable's return type doesn't preserve the TConfig type parameter
-            return mysqlTable<TN, Merged>(tableName, columns);
-        },
-    };
+    // Validate provided config against type
+    if (tableConfig) {
+        const validation = validateConfig(typeInfo, tableConfig);
+        if (!validation.valid) {
+            throw new TypedError({
+                type: 'drizzle-table-config-invalid',
+                message: `Cannot create MySQL table "${tableName}". The provided tableConfig does not match type "${typeInfo.typeName}":\n${validation.errors.join('\n')}`,
+            });
+        }
+        if (validation.warnings.length > 0) {
+            console.warn(`toDrizzleMySqlTable warnings:\n${validation.warnings.join('\n')}`);
+        }
+    }
+    // Create column mapper with config
+    const mapper = new MySQLColumnMapper(mapperConfig);
+    // Build columns object - all properties will be filled (either from config or auto-generated)
+    type Merged = MergedMySqlColumns<T, TConfig>;
+    const columns: Merged = {} as Merged;
+    for (const prop of typeInfo.properties) {
+        // Use provided config if available, otherwise auto-generate
+        const configKey = prop.name as keyof TConfig;
+        if (tableConfig && configKey in tableConfig) {
+            (columns as Record<string, unknown>)[prop.name] = tableConfig[configKey];
+        } else {
+            const mapping = mapper.mapProperty(prop);
+            (columns as Record<string, unknown>)[prop.name] = mapping.builder;
+        }
+    }
+    // Create and return the drizzle table
+    // Cast is needed because mysqlTable's return type doesn't preserve the TConfig type parameter
+    return mysqlTable<TN, Merged>(tableName, columns);
 }

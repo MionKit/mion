@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "moduleResolution": "Bundler",
+    "module": "ESNext",
+    "noEmit": true,
+    "rootDir": "../..",
+    "composite": false,
+    "declaration": false,
+    "incremental": false
+  },
+  "include": ["src/test-type-stubs/**/*.stub.ts", "src/test-type-stubs/common.ts"],
+  "references": []
+}

@@ -1,4 +1,4 @@
-import {toDBPGTable} from '@mionkit/drizzle';
+import {toDrizzlePGTable} from '@mionkit/drizzle';
 import {uuid, timestamp} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for reflection to work
 import {StrUUIDv7} from '@mionkit/type-formats/FormatsString';
@@ -20,13 +20,13 @@ interface Post {
 }
 
 // Primary keys should be defined in the tableConfig override
-export const users = toDBPGTable<User>().build('users', {
+export const users = toDrizzlePGTable<User>('users', {
     id: uuid('id').primaryKey(), // Primary key defined here
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Foreign keys should also be defined in the tableConfig override
-export const posts = toDBPGTable<Post>().build('posts', {
+export const posts = toDrizzlePGTable<Post>('posts', {
     id: uuid('id').primaryKey(), // Primary key
     authorId: uuid('author_id') // Foreign key with reference
         .references(() => users.id, {onDelete: 'cascade'})
