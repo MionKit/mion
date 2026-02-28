@@ -67,7 +67,7 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
                 throw new Error(`Invalid time format: ${paramVal(params.format)}`);
         }
     }
-    getFormatPureFn(format: StrTime) {
+    getFormatPureFn(format: FormatStringTime) {
         switch (format) {
             case 'ISO':
             case 'HH:mm:ss[.mmm]TZ':
@@ -117,7 +117,7 @@ export const TIME_RUN_TYPE_FORMATTER = registerFormatter(new TimeStringRunTypeFo
 export type DEFAULT_TIME_FORMAT_PARAMS = {format: 'ISO'};
 
 /** Time string format, always branded with 'time'. */
-export type StrTime<P extends FormatParams_Time = DEFAULT_TIME_FORMAT_PARAMS> = TypeFormat<
+export type FormatStringTime<P extends FormatParams_Time = DEFAULT_TIME_FORMAT_PARAMS> = TypeFormat<
     string,
     typeof TimeStringRunTypeFormat.id,
     P,

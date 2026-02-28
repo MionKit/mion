@@ -1,16 +1,16 @@
 import {toDrizzleSqliteTable} from '@mionkit/drizzle';
 import {text, integer} from 'drizzle-orm/sqlite-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
-import {NumInteger} from '@mionkit/type-formats/FormatsNumber';
+import {FormatUUIDv7, FormatEmail} from '@mionkit/type-formats/StringFormats';
+import {FormatInteger} from '@mionkit/type-formats/NumberFormats';
 
 /** User entity with format types for intelligent column mapping */
 interface User {
-    id: StrUUIDv7;
-    email: StrEmail;
+    id: FormatUUIDv7;
+    email: FormatEmail;
     name: string;
     bio?: string; // Optional = nullable column
-    age: NumInteger;
+    age: FormatInteger;
     tags: string[]; // Array = text({mode: 'json'}) column
     settings: {theme: string; notifications: boolean}; // Nested object = text({mode: 'json'})
     createdAt: Date;

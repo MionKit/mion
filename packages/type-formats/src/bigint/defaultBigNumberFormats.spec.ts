@@ -8,19 +8,25 @@
 import {it, expect} from 'vitest';
 import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
 import {RunTypeError, TypeFormatError} from '@mionkit/core';
-import {BigNumPositive, BigNumNegative, BigNumPositiveInt, BigNumNegativeInt, BigNumInt64} from './defaultBigNumberFormats.ts';
+import {
+    FormatBigPositive,
+    FormatBigNegative,
+    FormatBigPositiveInt,
+    FormatBigNegativeInt,
+    FormatBigInt64,
+} from './defaultBigNumberFormats.ts';
 
 // #### Positive ####
 
-it('validate BigNumPositive', async () => {
-    const isType = await createIsTypeFn<BigNumPositive>();
+it('validate FormatBigPositive', async () => {
+    const isType = await createIsTypeFn<FormatBigPositive>();
     expect(isType(10n)).toBe(true);
     expect(isType(0n)).toBe(true);
     expect(isType(-5n)).toBe(false);
 });
 
-it('get BigNumPositive errors', async () => {
-    const typeErrors = await createTypeErrorsFn<BigNumPositive>();
+it('get FormatBigPositive errors', async () => {
+    const typeErrors = await createTypeErrorsFn<FormatBigPositive>();
     const format: TypeFormatError = {name: 'bigintFormat', val: 0n, formatPath: ['min']};
     const expectedError: RunTypeError = {expected: 'bigint', path: [], format};
     expect(typeErrors(10n)).toEqual([]);
@@ -28,8 +34,8 @@ it('get BigNumPositive errors', async () => {
     expect(typeErrors(-5n)).toEqual([expectedError]);
 });
 
-it('mock BigNumPositive', async () => {
-    const mockType = await createMockTypeFn<BigNumPositive>();
+it('mock FormatBigPositive', async () => {
+    const mockType = await createMockTypeFn<FormatBigPositive>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThanOrEqual(0n);
@@ -38,15 +44,15 @@ it('mock BigNumPositive', async () => {
 
 // #### Negative ####
 
-it('validate BigNumNegative', async () => {
-    const isType = await createIsTypeFn<BigNumNegative>();
+it('validate FormatBigNegative', async () => {
+    const isType = await createIsTypeFn<FormatBigNegative>();
     expect(isType(-10n)).toBe(true);
     expect(isType(0n)).toBe(true);
     expect(isType(5n)).toBe(false);
 });
 
-it('get BigNumNegative errors', async () => {
-    const typeErrors = await createTypeErrorsFn<BigNumNegative>();
+it('get FormatBigNegative errors', async () => {
+    const typeErrors = await createTypeErrorsFn<FormatBigNegative>();
     const format: TypeFormatError = {name: 'bigintFormat', val: 0n, formatPath: ['max']};
     const expectedError: RunTypeError = {expected: 'bigint', path: [], format};
     expect(typeErrors(-10n)).toEqual([]);
@@ -54,8 +60,8 @@ it('get BigNumNegative errors', async () => {
     expect(typeErrors(5n)).toEqual([expectedError]);
 });
 
-it('mock BigNumNegative', async () => {
-    const mockType = await createMockTypeFn<BigNumNegative>();
+it('mock FormatBigNegative', async () => {
+    const mockType = await createMockTypeFn<FormatBigNegative>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeLessThanOrEqual(0n);
@@ -64,15 +70,15 @@ it('mock BigNumNegative', async () => {
 
 // #### PositiveInteger ####
 
-it('validate BigNumPositiveInteger', async () => {
-    const isType = await createIsTypeFn<BigNumPositiveInt>();
+it('validate FormatBigPositiveInteger', async () => {
+    const isType = await createIsTypeFn<FormatBigPositiveInt>();
     expect(isType(10n)).toBe(true);
     expect(isType(0n)).toBe(true);
     expect(isType(-5n)).toBe(false);
 });
 
-it('get BigNumPositiveInteger errors', async () => {
-    const typeErrors = await createTypeErrorsFn<BigNumPositiveInt>();
+it('get FormatBigPositiveInteger errors', async () => {
+    const typeErrors = await createTypeErrorsFn<FormatBigPositiveInt>();
     const format: TypeFormatError = {name: 'bigintFormat', val: 0n, formatPath: ['min']};
     const expectedError: RunTypeError = {expected: 'bigint', path: [], format};
     expect(typeErrors(10n)).toEqual([]);
@@ -80,8 +86,8 @@ it('get BigNumPositiveInteger errors', async () => {
     expect(typeErrors(-5n)).toEqual([expectedError]);
 });
 
-it('mock BigNumPositiveInteger', async () => {
-    const mockType = await createMockTypeFn<BigNumPositiveInt>();
+it('mock FormatBigPositiveInteger', async () => {
+    const mockType = await createMockTypeFn<FormatBigPositiveInt>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThanOrEqual(0n);
@@ -90,15 +96,15 @@ it('mock BigNumPositiveInteger', async () => {
 
 // #### NegativeInteger ####
 
-it('validate BigNumNegativeInteger', async () => {
-    const isType = await createIsTypeFn<BigNumNegativeInt>();
+it('validate FormatBigNegativeInteger', async () => {
+    const isType = await createIsTypeFn<FormatBigNegativeInt>();
     expect(isType(-10n)).toBe(true);
     expect(isType(0n)).toBe(true);
     expect(isType(5n)).toBe(false);
 });
 
-it('get BigNumNegativeInteger errors', async () => {
-    const typeErrors = await createTypeErrorsFn<BigNumNegativeInt>();
+it('get FormatBigNegativeInteger errors', async () => {
+    const typeErrors = await createTypeErrorsFn<FormatBigNegativeInt>();
     const format: TypeFormatError = {name: 'bigintFormat', val: 0n, formatPath: ['max']};
     const expectedError: RunTypeError = {expected: 'bigint', path: [], format};
     expect(typeErrors(-10n)).toEqual([]);
@@ -106,8 +112,8 @@ it('get BigNumNegativeInteger errors', async () => {
     expect(typeErrors(5n)).toEqual([expectedError]);
 });
 
-it('mock BigNumNegativeInteger', async () => {
-    const mockType = await createMockTypeFn<BigNumNegativeInt>();
+it('mock FormatBigNegativeInteger', async () => {
+    const mockType = await createMockTypeFn<FormatBigNegativeInt>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeLessThanOrEqual(0n);
@@ -116,16 +122,16 @@ it('mock BigNumNegativeInteger', async () => {
 
 // #### Int64 ####
 
-it('validate BigNumInt64', async () => {
-    const isType = await createIsTypeFn<BigNumInt64>();
+it('validate FormatBigInt64', async () => {
+    const isType = await createIsTypeFn<FormatBigInt64>();
     expect(isType(-9223372036854775808n)).toBe(true);
     expect(isType(9223372036854775807n)).toBe(true);
     expect(isType(-9223372036854775809n)).toBe(false);
     expect(isType(9223372036854775808n)).toBe(false);
 });
 
-it('get BigNumInt64 errors', async () => {
-    const typeErrors = await createTypeErrorsFn<BigNumInt64>();
+it('get FormatBigInt64 errors', async () => {
+    const typeErrors = await createTypeErrorsFn<FormatBigInt64>();
     const minFormat: TypeFormatError = {name: 'bigintFormat', val: -9223372036854775808n, formatPath: ['min']};
     const maxFormat: TypeFormatError = {name: 'bigintFormat', val: 9223372036854775807n, formatPath: ['max']};
     const minError: RunTypeError = {expected: 'bigint', path: [], format: minFormat};
@@ -136,8 +142,8 @@ it('get BigNumInt64 errors', async () => {
     expect(typeErrors(9223372036854775808n)).toEqual([maxError]);
 });
 
-it('mock BigNumInt64', async () => {
-    const mockType = await createMockTypeFn<BigNumInt64>();
+it('mock FormatBigInt64', async () => {
+    const mockType = await createMockTypeFn<FormatBigInt64>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThanOrEqual(-9223372036854775808n);

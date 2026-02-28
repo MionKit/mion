@@ -1,1 +1,1 @@
-import {StrDomain, StrDomainStrict} from '@mionkit/type-formats/FormatsString';
+import {FormatDomain, FormatDomainStrict} from '@mionkit/type-formats/StringFormats';

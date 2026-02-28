@@ -6,11 +6,18 @@
  * ######## */
 
 // Import string formats types
-import {StrFormat, StrUUIDv4, StrEmail, StrUrlHttp, StrDate, StrDateTime} from '@mionkit/type-formats/FormatsString';
+import {
+    FormatString,
+    FormatUUIDv4,
+    FormatEmail,
+    FormatUrlHttp,
+    FormatStringDate,
+    FormatStringDateTime,
+} from '@mionkit/type-formats/StringFormats';
 // Import brand types for type assertions
 import {BrandUUID, BrandEmail, BrandUrl, BrandDate, BrandDateTime} from '@mionkit/core';
 // Import number formats types
-import {NumFormat, NumPositiveInt, NumPositive} from '@mionkit/type-formats/FormatsNumber';
+import {FormatNumber, FormatPositiveInt, FormatPositive} from '@mionkit/type-formats/NumberFormats';
 
 /**
  * Example User object demonstrating various Runtype Formats
@@ -23,13 +30,13 @@ import {NumFormat, NumPositiveInt, NumPositive} from '@mionkit/type-formats/Form
 
 export type User = {
     // Basic identification
-    id: StrUUIDv4; // UUID v4 format
-    email: StrEmail; // Email validation
+    id: FormatUUIDv4; // UUID v4 format
+    email: FormatEmail; // Email validation
 
     // Personal information with string constraints
-    firstName: StrFormat<{minLength: 2; maxLength: 50; pattern: NamePattern; trim: true}>;
+    firstName: FormatString<{minLength: 2; maxLength: 50; pattern: NamePattern; trim: true}>;
 
-    lastName: StrFormat<{
+    lastName: FormatString<{
         minLength: 2;
         maxLength: 50;
         pattern: NamePattern;
@@ -37,7 +44,7 @@ export type User = {
     }>;
 
     // Username with specific constraints
-    username: StrFormat<{
+    username: FormatString<{
         minLength: 3;
         maxLength: 20;
         pattern: UsernamePattern;
@@ -46,17 +53,17 @@ export type User = {
     }>;
 
     // Phone number with international format
-    phoneNumber: StrFormat<{
+    phoneNumber: FormatString<{
         pattern: PhonePattern;
         minLength: 7; // Minimum E.164 format: +1234567 (country code + 6 digits)
         maxLength: 15; // Maximum E.164 format: +123456789012345 (15 digits total)
     }>;
 
     // Website URL (optional) - HTTP/HTTPS only
-    website?: StrUrlHttp;
+    website?: FormatUrlHttp;
 
     // Bio with length constraints
-    bio?: StrFormat<{
+    bio?: FormatString<{
         maxLength: 500;
         trim: true;
     }>;
@@ -64,63 +71,63 @@ export type User = {
     // ############### Number Format Examples ###############
 
     // Age with realistic constraints
-    age: NumFormat<{
+    age: FormatNumber<{
         min: 13; // Minimum age for most platforms
         max: 120; // Realistic maximum age
         integer: true;
     }>;
 
     // Account balance (can be negative for overdrafts)
-    accountBalance: NumFormat<{
+    accountBalance: FormatNumber<{
         min: -10000; // Maximum overdraft
         max: 1000000; // Maximum balance
         // No multipleOf constraint - allow any precision
     }>;
 
     // Credit score
-    creditScore: NumFormat<{
+    creditScore: FormatNumber<{
         min: 300;
         max: 850;
         integer: true;
     }>;
 
     // Rating (1-5 stars, any precision allowed)
-    rating?: NumFormat<{
+    rating?: FormatNumber<{
         min: 1;
         max: 5;
         // No multipleOf constraint - allow any precision
     }>;
 
     // Number of followers (positive integer)
-    followersCount: NumPositiveInt;
+    followersCount: FormatPositiveInt;
 
     // Monthly income (positive number)
-    monthlyIncome?: NumPositive;
+    monthlyIncome?: FormatPositive;
 
     // ############### Additional Examples ###############
 
     // Date formats
-    birthDate: StrDate;
-    lastLoginAt?: StrDateTime;
+    birthDate: FormatStringDate;
+    lastLoginAt?: FormatStringDateTime;
 
     // Address components (flattened)
-    street?: StrFormat<{
+    street?: FormatString<{
         minLength: 5;
         maxLength: 100;
         trim: true;
     }>;
-    city?: StrFormat<{
+    city?: FormatString<{
         minLength: 2;
         maxLength: 50;
         pattern: CityPattern;
         trim: true;
     }>;
-    zipCode?: StrFormat<{
+    zipCode?: FormatString<{
         pattern: PostalCodePattern;
         uppercase: true;
         trim: true;
     }>;
-    country?: StrFormat<{
+    country?: FormatString<{
         minLength: 2;
         maxLength: 2;
         pattern: CountryCodePattern;
@@ -128,9 +135,9 @@ export type User = {
     }>;
 
     // Preferences (flattened)
-    theme?: StrFormat<{allowedValues: ThemeValues}>;
-    language?: StrFormat<{pattern: LanguageCodePattern}>;
-    timezone?: StrFormat<{pattern: TimezonePattern}>;
+    theme?: FormatString<{allowedValues: ThemeValues}>;
+    language?: FormatString<{pattern: LanguageCodePattern}>;
+    timezone?: FormatString<{pattern: TimezonePattern}>;
 };
 
 // ############### Example Usage ###############
@@ -153,8 +160,8 @@ export const exampleUser: User = {
     accountBalance: 1250.75,
     creditScore: 750,
     rating: 4.5,
-    followersCount: 1500 as NumPositiveInt,
-    monthlyIncome: 5000.0 as NumPositive,
+    followersCount: 1500 as FormatPositiveInt,
+    monthlyIncome: 5000.0 as FormatPositive,
     birthDate: '1994-01-15' as BrandDate,
     lastLoginAt: '2025-01-15T10:30:00Z' as BrandDateTime,
     street: '123 Main Street',

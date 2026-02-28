@@ -1,1 +1,1 @@
-import {StrEmail, StrEmailStrict, StrEmailPunycode} from '@mionkit/type-formats/FormatsString';
+import {FormatEmail, FormatEmailStrict, FormatEmailPunycode} from '@mionkit/type-formats/StringFormats';

@@ -1,12 +1,12 @@
-import {StrDate} from '@mionkit/type-formats/FormatsString';
+import {FormatStringDate} from '@mionkit/type-formats/StringFormats';
 
 // Default ISO format
-type ISODate = StrDate; // 'YYYY-MM-DD'
+type ISODate = FormatStringDate; // 'YYYY-MM-DD'
 
 // Custom formats
-type EuropeanDate = StrDate<{format: 'DD-MM-YYYY'}>;
-type USDate = StrDate<{format: 'MM-DD-YYYY'}>;
-type MonthYear = StrDate<{format: 'YYYY-MM'}>;
+type EuropeanDate = FormatStringDate<{format: 'DD-MM-YYYY'}>;
+type USDate = FormatStringDate<{format: 'MM-DD-YYYY'}>;
+type MonthYear = FormatStringDate<{format: 'YYYY-MM'}>;
 
 // Validates leap years correctly
 ('2000-02-29'); // ✓ (leap year)

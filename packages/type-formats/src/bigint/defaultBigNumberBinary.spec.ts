@@ -6,7 +6,7 @@
  * ######## */
 import {describe, it, expect} from 'vitest';
 import {JitFunctions, type RunType, runType} from '@mionkit/run-types';
-import {BigNumInt64, BigNUmUInt64} from './defaultBigNumberFormats.ts';
+import {FormatBigInt64, FormatBigUInt64} from './defaultBigNumberFormats.ts';
 import {
     createDataViewDeserializer,
     createDataViewSerializer,
@@ -31,54 +31,54 @@ function createSerializationFns(rt: RunType) {
 }
 
 describe('BigInt Binary Serialization', () => {
-    it('BigNumInt64 uses 8 bytes for signed 64-bit integers', async () => {
+    it('FormatBigInt64 uses 8 bytes for signed 64-bit integers', async () => {
         serContext.reset();
-        const rt = runType<BigNumInt64>();
+        const rt = runType<FormatBigInt64>();
         const {serialize, deserialize} = createSerializationFns(rt);
         const buffer = serialize(10n);
         expect(buffer.byteLength).toBe(8);
         expect(deserialize(buffer)).toBe(10n);
     });
 
-    it('BigNumInt64 handles negative values', async () => {
+    it('FormatBigInt64 handles negative values', async () => {
         serContext.reset();
-        const rt = runType<BigNumInt64>();
+        const rt = runType<FormatBigInt64>();
         const {serialize, deserialize} = createSerializationFns(rt);
         const buffer = serialize(-9223372036854775808n); // min Int64
         expect(buffer.byteLength).toBe(8);
         expect(deserialize(buffer)).toBe(-9223372036854775808n);
     });
 
-    it('BigNumInt64 handles max positive value', async () => {
+    it('FormatBigInt64 handles max positive value', async () => {
         serContext.reset();
-        const rt = runType<BigNumInt64>();
+        const rt = runType<FormatBigInt64>();
         const {serialize, deserialize} = createSerializationFns(rt);
         const buffer = serialize(9223372036854775807n); // max Int64
         expect(buffer.byteLength).toBe(8);
         expect(deserialize(buffer)).toBe(9223372036854775807n);
     });
 
-    it('BigNUmUInt64 uses 8 bytes for unsigned 64-bit integers', async () => {
+    it('FormatBigUInt64 uses 8 bytes for unsigned 64-bit integers', async () => {
         serContext.reset();
-        const rt = runType<BigNUmUInt64>();
+        const rt = runType<FormatBigUInt64>();
         const {serialize, deserialize} = createSerializationFns(rt);
         const buffer = serialize(10n);
         expect(buffer.byteLength).toBe(8);
         expect(deserialize(buffer)).toBe(10n);
     });
 
-    it('BigNUmUInt64 handles max unsigned value', async () => {
+    it('FormatBigUInt64 handles max unsigned value', async () => {
         serContext.reset();
-        const rt = runType<BigNUmUInt64>();
+        const rt = runType<FormatBigUInt64>();
         const {serialize, deserialize} = createSerializationFns(rt);
         const buffer = serialize(18446744073709551615n); // max UInt64
         expect(buffer.byteLength).toBe(8);
         expect(deserialize(buffer)).toBe(18446744073709551615n);
     });
 
-    it('BigNUmUInt64 handles zero', async () => {
+    it('FormatBigUInt64 handles zero', async () => {
         serContext.reset();
-        const rt = runType<BigNUmUInt64>();
+        const rt = runType<FormatBigUInt64>();
         const {serialize, deserialize} = createSerializationFns(rt);
         const buffer = serialize(0n);
         expect(buffer.byteLength).toBe(8);

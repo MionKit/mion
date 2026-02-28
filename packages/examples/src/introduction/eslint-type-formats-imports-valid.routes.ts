@@ -4,8 +4,8 @@
 
 // start:type-formats-imports-valid
 // ✅ CORRECT: Regular imports preserve type metadata for runtime reflection
-import {StrEmail, StrUrl, StrDate} from '@mionkit/type-formats/FormatsString';
-import {NumFormat, NumInteger} from '@mionkit/type-formats/FormatsNumber';
-import {BigNumFormat} from '@mionkit/type-formats/FormatsBigint';
+import {FormatEmail, FormatUrl, FormatStringDate} from '@mionkit/type-formats/StringFormats';
+import {FormatNumber, FormatInteger} from '@mionkit/type-formats/NumberFormats';
+import {FormatBigInt} from '@mionkit/type-formats/BigintFormats';
 import {TypeFormat} from '@mionkit/run-types';
 // end:type-formats-imports-valid

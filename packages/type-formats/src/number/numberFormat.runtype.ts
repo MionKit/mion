@@ -300,8 +300,8 @@ function getIntegerType(params: any) {
 /** @reflection never */
 export const NUMBER_RUN_TYPE_FORMATTER = registerFormatter(new NumberRunTypeFormat());
 
-// Define the type for number format (optional branding, unbranded by default like StrFormat)
-export type NumFormat<P extends Partial<FormatParams_Number>, BrandName extends string = never> = TypeFormat<
+// Define the type for number format (optional branding, unbranded by default like FormatString)
+export type FormatNumber<P extends Partial<FormatParams_Number>, BrandName extends string = never> = TypeFormat<
     number,
     typeof NumberRunTypeFormat.id,
     P,

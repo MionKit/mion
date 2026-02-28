@@ -21,20 +21,20 @@
   "license": "MIT",
   "browser": {},
   "exports": {
-    "./FormatsNumber": {
-      "types": "./.dist/esm/FormatsNumber.d.ts",
-      "require": "./.dist/cjs/FormatsNumber.cjs",
-      "default": "./.dist/esm/FormatsNumber.js"
+    "./NumberFormats": {
+      "types": "./.dist/esm/NumberFormats.d.ts",
+      "require": "./.dist/cjs/NumberFormats.cjs",
+      "default": "./.dist/esm/NumberFormats.js"
     },
-    "./FormatsString": {
-      "types": "./.dist/esm/FormatsString.d.ts",
-      "require": "./.dist/cjs/FormatsString.cjs",
-      "default": "./.dist/esm/FormatsString.js"
+    "./StringFormats": {
+      "types": "./.dist/esm/StringFormats.d.ts",
+      "require": "./.dist/cjs/StringFormats.cjs",
+      "default": "./.dist/esm/StringFormats.js"
     },
-    "./FormatsBigint": {
-      "types": "./.dist/esm/FormatsBigint.d.ts",
-      "require": "./.dist/cjs/FormatsBigint.cjs",
-      "default": "./.dist/esm/FormatsBigint.js"
+    "./BigintFormats": {
+      "types": "./.dist/esm/BigintFormats.d.ts",
+      "require": "./.dist/cjs/BigintFormats.cjs",
+      "default": "./.dist/esm/BigintFormats.js"
     },
     "./constants": {
       "types": "./.dist/esm/src/constants.d.ts",

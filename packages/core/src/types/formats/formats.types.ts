@@ -29,7 +29,7 @@ export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormat
 /** Alias for TypeAnnotation. At type level this is `unknown`, but we need the structure for extraction. */
 export type AliasTypeAnnotation<Name extends string, Options = never> = unknown;
 
-/** Alias for TypeFormat from @mionkit/run-types. This is how format types (StrFormat, NumFormat, etc.) are defined. */
+/** Alias for TypeFormat from @mionkit/run-types. This is how format types (FormatString, FormatNumber, etc.) are defined. */
 export type AliasTypeFormat<
     BaseType extends string | number | bigint,
     Name extends string,

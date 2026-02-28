@@ -27,9 +27,9 @@ export default defineConfig({
     resolve: {
         alias: {
             '@mionkit/type-formats': resolve(__dirname, '.'),
-            '@mionkit/type-formats/FormatsString': resolve(__dirname, 'FormatsString.ts'),
-            '@mionkit/type-formats/FormatsNumber': resolve(__dirname, 'FormatsNumber.ts'),
-            '@mionkit/type-formats/FormatsBigint': resolve(__dirname, 'FormatsBigint.ts'),
+            '@mionkit/type-formats/StringFormats': resolve(__dirname, 'StringFormats.ts'),
+            '@mionkit/type-formats/NumberFormats': resolve(__dirname, 'NumberFormats.ts'),
+            '@mionkit/type-formats/BigintFormats': resolve(__dirname, 'BigintFormats.ts'),
             '@mionkit/run-types': resolve(__dirname, '../run-types'),
             '@mionkit/core': resolve(__dirname, '../core'),
         },

@@ -7,18 +7,18 @@
 import {it, expect} from 'vitest';
 import {JitFunctions, type RunType, runType} from '@mionkit/run-types';
 import {
-    NumInteger,
-    NumFloat,
-    NumPositive,
-    NumNegative,
-    NumPositiveInt,
-    NumNegativeInt,
-    NumInt8,
-    NumInt16,
-    NumInt32,
-    NumUInt8,
-    NumUInt16,
-    NumUInt32,
+    FormatInteger,
+    FormatFloat,
+    FormatPositive,
+    FormatNegative,
+    FormatPositiveInt,
+    FormatNegativeInt,
+    FormatInt8,
+    FormatInt16,
+    FormatInt32,
+    FormatUInt8,
+    FormatUInt16,
+    FormatUInt32,
 } from './defaultNumberFormats.ts';
 import {
     createDataViewDeserializer,
@@ -43,54 +43,54 @@ function createSerializationFns(rt: RunType) {
     return {serialize, deserialize};
 }
 
-it('NumInteger uses 8 bytes as MAX_SAFE_INTEGER does not fit in 4 bytes', async () => {
+it('FormatInteger uses 8 bytes as MAX_SAFE_INTEGER does not fit in 4 bytes', async () => {
     serContext.reset();
-    const rt = runType<NumInteger>();
+    const rt = runType<FormatInteger>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(10);
     expect(buffer.byteLength).toBe(8);
     expect(deserialize(buffer)).toBe(10);
 });
 
-it('NumFloat uses 8 bytes', async () => {
+it('FormatFloat uses 8 bytes', async () => {
     serContext.reset();
-    const rt = runType<NumFloat>();
+    const rt = runType<FormatFloat>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(10.5);
     expect(buffer.byteLength).toBe(8);
     expect(deserialize(buffer)).toBe(10.5);
 });
 
-it('NumPositive uses 8 bytes as we do not know if it could be integer or float', async () => {
+it('FormatPositive uses 8 bytes as we do not know if it could be integer or float', async () => {
     serContext.reset();
-    const rt = runType<NumPositive>();
+    const rt = runType<FormatPositive>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(10.5);
     expect(buffer.byteLength).toBe(8);
     expect(deserialize(buffer)).toBe(10.5);
 });
 
-it('NumNegative uses 8 bytes as we do not know if it could be integer or float', async () => {
+it('FormatNegative uses 8 bytes as we do not know if it could be integer or float', async () => {
     serContext.reset();
-    const rt = runType<NumNegative>();
+    const rt = runType<FormatNegative>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(-10.5);
     expect(buffer.byteLength).toBe(8);
     expect(deserialize(buffer)).toBe(-10.5);
 });
 
-it('NumPositiveInt uses 8 bytes as MAX_SAFE_INTEGER does not fit in 4 bytes', async () => {
+it('FormatPositiveInt uses 8 bytes as MAX_SAFE_INTEGER does not fit in 4 bytes', async () => {
     serContext.reset();
-    const rt = runType<NumPositiveInt>();
+    const rt = runType<FormatPositiveInt>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(Number.MAX_SAFE_INTEGER);
     expect(buffer.byteLength).toBe(8);
     expect(deserialize(buffer)).toBe(Number.MAX_SAFE_INTEGER);
 });
 
-it('NumNegativeInt uses 8 bytes as MIN_SAFE_INTEGER does not fit in 4 bytes', async () => {
+it('FormatNegativeInt uses 8 bytes as MIN_SAFE_INTEGER does not fit in 4 bytes', async () => {
     serContext.reset();
-    const rt = runType<NumNegativeInt>();
+    const rt = runType<FormatNegativeInt>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(Number.MIN_SAFE_INTEGER);
     expect(buffer.byteLength).toBe(8);
@@ -100,54 +100,54 @@ it('NumNegativeInt uses 8 bytes as MIN_SAFE_INTEGER does not fit in 4 bytes', as
 // SERIALIZAION/DESERIALIZATION DOES NOT CHECK CORRECTNESS OF THE VALUE, that should be checked before serialization/deserialization
 // so passing wrong number here could send incorrect values
 
-it('NumInt8 uses 1 byte', async () => {
+it('FormatInt8 uses 1 byte', async () => {
     serContext.reset();
-    const rt = runType<NumInt8>();
+    const rt = runType<FormatInt8>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(10);
     expect(buffer.byteLength).toBe(1);
     expect(deserialize(buffer)).toBe(10);
 });
 
-it('NumInt16 uses 2 bytes', async () => {
+it('FormatInt16 uses 2 bytes', async () => {
     serContext.reset();
-    const rt = runType<NumInt16>();
+    const rt = runType<FormatInt16>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(10);
     expect(buffer.byteLength).toBe(2);
     expect(deserialize(buffer)).toBe(10);
 });
 
-it('NumInt32 uses 4 bytes', async () => {
+it('FormatInt32 uses 4 bytes', async () => {
     serContext.reset();
-    const rt = runType<NumInt32>();
+    const rt = runType<FormatInt32>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(10);
     expect(buffer.byteLength).toBe(4);
     expect(deserialize(buffer)).toBe(10);
 });
 
-it('NumUInt8 uses 1 byte', async () => {
+it('FormatUInt8 uses 1 byte', async () => {
     serContext.reset();
-    const rt = runType<NumUInt8>();
+    const rt = runType<FormatUInt8>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(10);
     expect(buffer.byteLength).toBe(1);
     expect(deserialize(buffer)).toBe(10);
 });
 
-it('NumUInt16 uses 2 bytes', async () => {
+it('FormatUInt16 uses 2 bytes', async () => {
     serContext.reset();
-    const rt = runType<NumUInt16>();
+    const rt = runType<FormatUInt16>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(10);
     expect(buffer.byteLength).toBe(2);
     expect(deserialize(buffer)).toBe(10);
 });
 
-it('NumUInt32 correct length and roundtrip', async () => {
+it('FormatUInt32 correct length and roundtrip', async () => {
     serContext.reset();
-    const rt = runType<NumUInt32>();
+    const rt = runType<FormatUInt32>();
     const {serialize, deserialize} = createSerializationFns(rt);
     const buffer = serialize(10);
     expect(buffer.byteLength).toBe(4);

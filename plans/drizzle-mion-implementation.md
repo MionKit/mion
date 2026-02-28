@@ -22,7 +22,7 @@ Each phase includes E2E tests that must pass before proceeding to the next phase
   - [ ] Implement drizzlePGTable function
   - [ ] **E2E Tests (Phase 2):**
     - [ ] Test drizzlePGTable generates correct schema for simple types (string, number, boolean)
-    - [ ] Test drizzlePGTable generates correct schema for formatted types (StrUUIDv7, StrEmail, NumInteger)
+    - [ ] Test drizzlePGTable generates correct schema for formatted types (FormatUUIDv7, FormatEmail, FormatInteger)
     - [ ] Test drizzlePGTable generates jsonb columns for nested objects and arrays
     - [ ] Test drizzlePGTable respects tableConfig overrides for primary keys
     - [ ] Test drizzlePGTable respects tableConfig overrides for foreign keys
@@ -700,54 +700,54 @@ All format types are imported from `@mionkit/type-formats`.
 | Format Type       | Import          | PostgreSQL                 | MySQL                    | SQLite   | Notes                          |
 | ----------------- | --------------- | -------------------------- | ------------------------ | -------- | ------------------------------ |
 | `string` (plain)  | N/A             | `text()`                   | `text()`                 | `text()` | Default string                 |
-| `StrFormat<P>`    | `FormatsString` | `text()` or `varchar(n)`   | `text()` or `varchar(n)` | `text()` | Base string format with params |
-| `StrEmail`        | `FormatsString` | `text()` or `varchar(254)` | `varchar(254)`           | `text()` | Email format                   |
-| `StrEmailStrict`  | `FormatsString` | `text()` or `varchar(254)` | `varchar(254)`           | `text()` | Strict email validation        |
-| `StrUrl`          | `FormatsString` | `text()`                   | `text()`                 | `text()` | URL format (max 2048)          |
-| `StrUrlHttp`      | `FormatsString` | `text()`                   | `text()`                 | `text()` | HTTP/HTTPS URLs only           |
-| `StrUUIDv4`       | `FormatsString` | `uuid()`                   | `varchar(36)`            | `text()` | UUID v4 format                 |
-| `StrUUIDv7`       | `FormatsString` | `uuid()`                   | `varchar(36)`            | `text()` | UUID v7 format                 |
-| `StrIP`           | `FormatsString` | `inet()`                   | `varchar(45)`            | `text()` | IP address (v4 or v6)          |
-| `StrIPv4`         | `FormatsString` | `inet()`                   | `varchar(15)`            | `text()` | IPv4 only                      |
-| `StrIPv6`         | `FormatsString` | `inet()`                   | `varchar(45)`            | `text()` | IPv6 only                      |
-| `StrDomain`       | `FormatsString` | `text()`                   | `varchar(253)`           | `text()` | Domain name                    |
-| `StrDateTime`     | `FormatsString` | `timestamp()`              | `datetime()`             | `text()` | ISO 8601 datetime              |
-| `StrDate`         | `FormatsString` | `date()`                   | `date()`                 | `text()` | ISO 8601 date                  |
-| `StrTime`         | `FormatsString` | `time()`                   | `time()`                 | `text()` | ISO 8601 time                  |
-| `StrAlphaNumeric` | `FormatsString` | `text()`                   | `text()`                 | `text()` | Alphanumeric only              |
-| `StrAlpha`        | `FormatsString` | `text()`                   | `text()`                 | `text()` | Letters only                   |
-| `StrNumeric`      | `FormatsString` | `text()`                   | `text()`                 | `text()` | Digits only                    |
-| `StrLowercase`    | `FormatsString` | `text()`                   | `text()`                 | `text()` | Lowercase string               |
-| `StrUppercase`    | `FormatsString` | `text()`                   | `text()`                 | `text()` | Uppercase string               |
+| `FormatString<P>`    | `StringFormats` | `text()` or `varchar(n)`   | `text()` or `varchar(n)` | `text()` | Base string format with params |
+| `FormatEmail`        | `StringFormats` | `text()` or `varchar(254)` | `varchar(254)`           | `text()` | Email format                   |
+| `FormatEmailStrict`  | `StringFormats` | `text()` or `varchar(254)` | `varchar(254)`           | `text()` | Strict email validation        |
+| `FormatUrl`          | `StringFormats` | `text()`                   | `text()`                 | `text()` | URL format (max 2048)          |
+| `FormatUrlHttp`      | `StringFormats` | `text()`                   | `text()`                 | `text()` | HTTP/HTTPS URLs only           |
+| `FormatUUIDv4`       | `StringFormats` | `uuid()`                   | `varchar(36)`            | `text()` | UUID v4 format                 |
+| `FormatUUIDv7`       | `StringFormats` | `uuid()`                   | `varchar(36)`            | `text()` | UUID v7 format                 |
+| `FormatIP`           | `StringFormats` | `inet()`                   | `varchar(45)`            | `text()` | IP address (v4 or v6)          |
+| `FormatIPv4`         | `StringFormats` | `inet()`                   | `varchar(15)`            | `text()` | IPv4 only                      |
+| `FormatIPv6`         | `StringFormats` | `inet()`                   | `varchar(45)`            | `text()` | IPv6 only                      |
+| `FormatDomain`       | `StringFormats` | `text()`                   | `varchar(253)`           | `text()` | Domain name                    |
+| `FormatStringDateTime`     | `StringFormats` | `timestamp()`              | `datetime()`             | `text()` | ISO 8601 datetime              |
+| `FormatStringDate`         | `StringFormats` | `date()`                   | `date()`                 | `text()` | ISO 8601 date                  |
+| `FormatStringTime`         | `StringFormats` | `time()`                   | `time()`                 | `text()` | ISO 8601 time                  |
+| `FormatAlphaNumeric` | `StringFormats` | `text()`                   | `text()`                 | `text()` | Alphanumeric only              |
+| `FormatAlpha`        | `StringFormats` | `text()`                   | `text()`                 | `text()` | Letters only                   |
+| `FormatNumeric`      | `StringFormats` | `text()`                   | `text()`                 | `text()` | Digits only                    |
+| `FormatLowercase`    | `StringFormats` | `text()`                   | `text()`                 | `text()` | Lowercase string               |
+| `FormatUppercase`    | `StringFormats` | `text()`                   | `text()`                 | `text()` | Uppercase string               |
 
 ### Number Formats (from `@mionkit/type-formats`)
 
 | Format Type      | Import          | PostgreSQL          | MySQL        | SQLite      | Notes                          |
 | ---------------- | --------------- | ------------------- | ------------ | ----------- | ------------------------------ |
 | `number` (plain) | N/A             | `doublePrecision()` | `double()`   | `real()`    | Default number                 |
-| `NumFormat<P>`   | `FormatsNumber` | varies              | varies       | varies      | Base number format with params |
-| `NumInteger`     | `FormatsNumber` | `integer()`         | `int()`      | `integer()` | Integer constraint             |
-| `NumFloat`       | `FormatsNumber` | `doublePrecision()` | `double()`   | `real()`    | Float constraint               |
-| `NumPositive`    | `FormatsNumber` | `doublePrecision()` | `double()`   | `real()`    | min: 0                         |
-| `NumNegative`    | `FormatsNumber` | `doublePrecision()` | `double()`   | `real()`    | max: 0                         |
-| `NumPositiveInt` | `FormatsNumber` | `integer()`         | `int()`      | `integer()` | min: 0, integer                |
-| `NumNegativeInt` | `FormatsNumber` | `integer()`         | `int()`      | `integer()` | max: 0, integer                |
-| `NumInt8`        | `FormatsNumber` | `smallint()`        | `tinyint()`  | `integer()` | -128 to 127                    |
-| `NumInt16`       | `FormatsNumber` | `smallint()`        | `smallint()` | `integer()` | -32768 to 32767                |
-| `NumInt32`       | `FormatsNumber` | `integer()`         | `int()`      | `integer()` | -2147483648 to 2147483647      |
-| `NumUInt8`       | `FormatsNumber` | `smallint()`        | `tinyint()`  | `integer()` | 0 to 255                       |
-| `NumUInt16`      | `FormatsNumber` | `smallint()`        | `smallint()` | `integer()` | 0 to 65535                     |
-| `NumUInt32`      | `FormatsNumber` | `integer()`         | `int()`      | `integer()` | 0 to 4294967295                |
+| `FormatNumber<P>`   | `NumberFormats` | varies              | varies       | varies      | Base number format with params |
+| `FormatInteger`     | `NumberFormats` | `integer()`         | `int()`      | `integer()` | Integer constraint             |
+| `FormatFloat`       | `NumberFormats` | `doublePrecision()` | `double()`   | `real()`    | Float constraint               |
+| `FormatPositive`    | `NumberFormats` | `doublePrecision()` | `double()`   | `real()`    | min: 0                         |
+| `FormatNegative`    | `NumberFormats` | `doublePrecision()` | `double()`   | `real()`    | max: 0                         |
+| `FormatPositiveInt` | `NumberFormats` | `integer()`         | `int()`      | `integer()` | min: 0, integer                |
+| `FormatNegativeInt` | `NumberFormats` | `integer()`         | `int()`      | `integer()` | max: 0, integer                |
+| `FormatInt8`        | `NumberFormats` | `smallint()`        | `tinyint()`  | `integer()` | -128 to 127                    |
+| `FormatInt16`       | `NumberFormats` | `smallint()`        | `smallint()` | `integer()` | -32768 to 32767                |
+| `FormatInt32`       | `NumberFormats` | `integer()`         | `int()`      | `integer()` | -2147483648 to 2147483647      |
+| `FormatUInt8`       | `NumberFormats` | `smallint()`        | `tinyint()`  | `integer()` | 0 to 255                       |
+| `FormatUInt16`      | `NumberFormats` | `smallint()`        | `smallint()` | `integer()` | 0 to 65535                     |
+| `FormatUInt32`      | `NumberFormats` | `integer()`         | `int()`      | `integer()` | 0 to 4294967295                |
 
 ### BigInt Formats (from `@mionkit/type-formats`)
 
 | Format Type       | Import          | PostgreSQL | MySQL      | SQLite                   | Notes              |
 | ----------------- | --------------- | ---------- | ---------- | ------------------------ | ------------------ |
 | `bigint` (plain)  | N/A             | `bigint()` | `bigint()` | `blob({mode: 'bigint'})` | Default bigint     |
-| `BigNumFormat<P>` | `FormatsBigint` | `bigint()` | `bigint()` | `blob({mode: 'bigint'})` | Base bigint format |
-| `BigNumPositive`  | `FormatsBigint` | `bigint()` | `bigint()` | `blob({mode: 'bigint'})` | min: 0n            |
-| `BigNumNegative`  | `FormatsBigint` | `bigint()` | `bigint()` | `blob({mode: 'bigint'})` | max: 0n            |
-| `BigNumInt64`     | `FormatsBigint` | `bigint()` | `bigint()` | `blob({mode: 'bigint'})` | 64-bit signed      |
+| `FormatBigInt<P>` | `BigintFormats` | `bigint()` | `bigint()` | `blob({mode: 'bigint'})` | Base bigint format |
+| `FormatBigPositive`  | `BigintFormats` | `bigint()` | `bigint()` | `blob({mode: 'bigint'})` | min: 0n            |
+| `FormatBigNegative`  | `BigintFormats` | `bigint()` | `bigint()` | `blob({mode: 'bigint'})` | max: 0n            |
+| `FormatBigInt64`     | `BigintFormats` | `bigint()` | `bigint()` | `blob({mode: 'bigint'})` | 64-bit signed      |
 
 ### Date/Time (Native TypeScript)
 
@@ -766,7 +766,7 @@ All format types are imported from `@mionkit/type-formats`.
 
 ## Format Params to Drizzle Constraints
 
-### StringParams (for `StrFormat<P>`)
+### StringParams (for `FormatString<P>`)
 
 | Param              | Type                   | Drizzle Constraint      | Database Support | Notes                   |
 | ------------------ | ---------------------- | ----------------------- | ---------------- | ----------------------- |
@@ -783,7 +783,7 @@ All format types are imported from `@mionkit/type-formats`.
 | `uppercase`        | `boolean`              | Runtime formatting only | N/A              | Convert to uppercase    |
 | `capitalize`       | `boolean`              | Runtime formatting only | N/A              | Capitalize first letter |
 
-### FormatParams_Number (for `NumFormat<P>`)
+### FormatParams_Number (for `FormatNumber<P>`)
 
 | Param        | Type      | Drizzle Constraint      | Database Support | Notes                     |
 | ------------ | --------- | ----------------------- | ---------------- | ------------------------- |
@@ -795,7 +795,7 @@ All format types are imported from `@mionkit/type-formats`.
 | `lt`         | `number`  | Runtime validation only | N/A              | Less than (exclusive)     |
 | `multipleOf` | `number`  | Runtime validation only | N/A              | Must be multiple of value |
 
-### FormatParams_BigInt (for `BigNumFormat<P>`)
+### FormatParams_BigInt (for `FormatBigInt<P>`)
 
 | Param        | Type     | Drizzle Constraint      | Database Support | Notes                     |
 | ------------ | -------- | ----------------------- | ---------------- | ------------------------- |

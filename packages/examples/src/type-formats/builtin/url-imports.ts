@@ -1,1 +1,1 @@
-import {StrUrl, StrUrlHttp, StrUrlFile} from '@mionkit/type-formats/FormatsString';
+import {FormatUrl, FormatUrlHttp, FormatUrlFile} from '@mionkit/type-formats/StringFormats';

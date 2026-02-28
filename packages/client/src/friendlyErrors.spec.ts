@@ -10,7 +10,7 @@ import {initClient} from './client.ts';
 import {getFriendlyErrors} from '@mionkit/core';
 import type {FriendlyErrors} from '@mionkit/core';
 import type {RouteParamsType} from './types.ts';
-import {StrEmail} from '@mionkit/type-formats/FormatsString';
+import {FormatEmail} from '@mionkit/type-formats/StringFormats';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
 import {TestServerApi} from '@mionkit/test-server';
 
@@ -41,7 +41,7 @@ describe('friendlyErrors with client validation', () => {
             const invalidUser = {
                 name: 'A', // too short
                 age: 10, // too young
-                email: 'test@test.com' as StrEmail,
+                email: 'test@test.com' as FormatEmail,
             };
 
             // Get validation errors using typeErrors (client-side validation)
@@ -97,7 +97,7 @@ describe('friendlyErrors with client validation', () => {
             expect(validationErrors.length).toBeGreaterThan(0);
         });
 
-        it('should get validation errors for email format (built-in StrEmail)', async () => {
+        it('should get validation errors for email format (built-in FormatEmail)', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
             // Send invalid user with invalid email format
@@ -116,7 +116,7 @@ describe('friendlyErrors with client validation', () => {
             // Should contain an error for the email field with format info
             const emailError = validationErrors.find((e) => e.path.includes('email'));
             expect(emailError).toBeDefined();
-            // format.name should be 'email' for StrEmail built-in format
+            // format.name should be 'email' for FormatEmail built-in format
             expect(emailError?.format?.name).toBe('email');
         });
 

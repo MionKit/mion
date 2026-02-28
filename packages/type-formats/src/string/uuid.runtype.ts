@@ -48,6 +48,6 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
 export const UUID_RUN_TYPE_FORMATTER = registerFormatter(new UUIDRunTypeFormat());
 
 /** UUID v4 format, always branded with 'uuid'. */
-export type StrUUIDv4 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '4'}, 'uuid'>;
+export type FormatUUIDv4 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '4'}, 'uuid'>;
 /** UUID v7 format, always branded with 'uuid'. */
-export type StrUUIDv7 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '7'}, 'uuid'>;
+export type FormatUUIDv7 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '7'}, 'uuid'>;

@@ -4,8 +4,8 @@
 
 // start:type-formats-imports-invalid
 // ❌ WRONG: Type-only imports strip metadata, causing silent validation failures
-import type {StrEmail, StrDate} from '@mionkit/type-formats/FormatsString';
-import type {NumFloat} from '@mionkit/type-formats/FormatsNumber';
-import {type BigNumInt64} from '@mionkit/type-formats/FormatsBigint';
+import type {FormatEmail, FormatStringDate} from '@mionkit/type-formats/StringFormats';
+import type {FormatFloat} from '@mionkit/type-formats/NumberFormats';
+import {type FormatBigInt64} from '@mionkit/type-formats/BigintFormats';
 import type {TypeFormat} from '@mionkit/run-types';
 // end:type-formats-imports-invalid

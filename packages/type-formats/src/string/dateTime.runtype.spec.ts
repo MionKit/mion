@@ -8,11 +8,11 @@
 import {it, expect} from 'vitest';
 import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
 import {RunTypeError} from '@mionkit/core';
-import {StrDateTime} from './dateTime.runtype';
+import {FormatStringDateTime} from './dateTime.runtype';
 
 // ####### DateTime format ISO #######
 
-type ISODateTime = StrDateTime<{date: {format: 'ISO'}; time: {format: 'ISO'}}>;
+type ISODateTime = FormatStringDateTime<{date: {format: 'ISO'}; time: {format: 'ISO'}}>;
 
 it('validate datetime with format ISO', async () => {
     const isType = await createIsTypeFn<ISODateTime>();
@@ -82,7 +82,7 @@ it('mock datetime with format ISO', async () => {
 
 // ####### DateTime format MM-DDTHH #######
 
-type MMDDTHH = StrDateTime<{date: {format: 'MM-DD'}; time: {format: 'HH'}}>;
+type MMDDTHH = FormatStringDateTime<{date: {format: 'MM-DD'}; time: {format: 'HH'}}>;
 
 it('validate datetime with format MM-DDTHH', async () => {
     const isType = await createIsTypeFn<MMDDTHH>();
