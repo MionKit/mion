@@ -48,24 +48,24 @@ const DEFAULT_CONFIG: DrizzleMapperConfig = {};
  * }
  *
  * // Without overrides - auto-generates all columns
- * const users = mapMySqlTable<User>().build('users');
+ * const users = toDBMySqlTable<User>().build('users');
  *
  * // With overrides - customize specific columns
- * const users = mapMySqlTable<User>().build('users', {
+ * const users = toDBMySqlTable<User>().build('users', {
  *   id: varchar('id', { length: 36 }).primaryKey(),
  * });
  *
  * // With custom lengthBuffer for varchar columns
- * const users = mapMySqlTable<User>({lengthBuffer: 2.0}).build('users');
+ * const users = toDBMySqlTable<User>({lengthBuffer: 2.0}).build('users');
  * ```
  */
-export function mapMySqlTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
+export function toDBMySqlTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
     // Validate that a type parameter was provided via type reflection
     if (!type) {
         throw new TypedError({
             type: 'drizzle-table-missing-type',
             message:
-                'mapMySqlTable requires a type parameter. Usage: mapMySqlTable<YourType>() or mapMySqlTable<YourType>({config})',
+                'toDBMySqlTable requires a type parameter. Usage: toDBMySqlTable<YourType>() or toDBMySqlTable<YourType>({config})',
         });
     }
 
@@ -92,7 +92,7 @@ export function mapMySqlTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, t
                     });
                 }
                 if (validation.warnings.length > 0) {
-                    console.warn(`mapMySqlTable warnings:\n${validation.warnings.join('\n')}`);
+                    console.warn(`toDBMySqlTable warnings:\n${validation.warnings.join('\n')}`);
                 }
             }
             // Create column mapper with config

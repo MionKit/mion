@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import {mapPGTable} from './postgres.ts';
+import {toDBPGTable} from './postgres.ts';
 import {uuid, text, pgTable, timestamp} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for reflection to work
 import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
@@ -45,10 +45,10 @@ interface UserWithOptionals {
     age?: number;
 }
 
-describe('mapPGTable', () => {
+describe('toDBPGTable', () => {
     describe('simple types with .build()', () => {
         it('should generate correct schema for simple types', () => {
-            const table = mapPGTable<SimpleUser>().build('users');
+            const table = toDBPGTable<SimpleUser>().build('users');
 
             // Check that all columns exist
             expect(table.id).toBeDefined();
@@ -59,28 +59,28 @@ describe('mapPGTable', () => {
         });
 
         it('should generate varchar columns for string types', () => {
-            const table = mapPGTable<SimpleUser>().build('users');
+            const table = toDBPGTable<SimpleUser>().build('users');
 
             // String should map to varchar
             expect(table.name.dataType).toBe('string');
         });
 
         it('should generate doublePrecision columns for number types', () => {
-            const table = mapPGTable<SimpleUser>().build('users');
+            const table = toDBPGTable<SimpleUser>().build('users');
 
             // Number should map to doublePrecision
             expect(table.age.dataType).toBe('number');
         });
 
         it('should generate boolean columns for boolean types', () => {
-            const table = mapPGTable<SimpleUser>().build('users');
+            const table = toDBPGTable<SimpleUser>().build('users');
 
             // Boolean should map to boolean
             expect(table.isActive.dataType).toBe('boolean');
         });
 
         it('should generate timestamp columns for Date types', () => {
-            const table = mapPGTable<SimpleUser>().build('users');
+            const table = toDBPGTable<SimpleUser>().build('users');
 
             // Date should map to timestamp
             expect(table.createdAt.dataType).toBe('date');
@@ -89,7 +89,7 @@ describe('mapPGTable', () => {
 
     describe('formatted types', () => {
         it('should generate uuid columns for StrUUIDv7 format', () => {
-            const table = mapPGTable<UserWithFormats>().build('users');
+            const table = toDBPGTable<UserWithFormats>().build('users');
 
             // UUID format should map to uuid column
             expect(table.id).toBeDefined();
@@ -97,7 +97,7 @@ describe('mapPGTable', () => {
         });
 
         it('should generate varchar columns for StrEmail format', () => {
-            const table = mapPGTable<UserWithFormats>().build('users');
+            const table = toDBPGTable<UserWithFormats>().build('users');
 
             // Email format should map to varchar
             expect(table.email).toBeDefined();
@@ -106,7 +106,7 @@ describe('mapPGTable', () => {
 
     describe('nested objects and arrays', () => {
         it('should generate jsonb columns for nested objects', () => {
-            const table = mapPGTable<UserWithNestedObjects>().build('users');
+            const table = toDBPGTable<UserWithNestedObjects>().build('users');
 
             // Nested objects should map to jsonb
             expect(table.profile).toBeDefined();
@@ -114,7 +114,7 @@ describe('mapPGTable', () => {
         });
 
         it('should generate jsonb columns for arrays', () => {
-            const table = mapPGTable<UserWithNestedObjects>().build('users');
+            const table = toDBPGTable<UserWithNestedObjects>().build('users');
 
             // Arrays should map to jsonb
             expect(table.tags).toBeDefined();
@@ -123,7 +123,7 @@ describe('mapPGTable', () => {
 
     describe('optional properties', () => {
         it('should generate nullable columns for optional properties', () => {
-            const table = mapPGTable<UserWithOptionals>().build('users');
+            const table = toDBPGTable<UserWithOptionals>().build('users');
 
             // Optional properties should be nullable
             expect(table.nickname).toBeDefined();
@@ -131,7 +131,7 @@ describe('mapPGTable', () => {
         });
 
         it('should generate notNull columns for required properties', () => {
-            const table = mapPGTable<UserWithOptionals>().build('users');
+            const table = toDBPGTable<UserWithOptionals>().build('users');
 
             // Required properties should have notNull
             expect(table.id).toBeDefined();
@@ -141,7 +141,7 @@ describe('mapPGTable', () => {
 
     describe('.build() with config overrides', () => {
         it('should respect config overrides for primary keys', () => {
-            const table = mapPGTable<SimpleUser>().build('users', {
+            const table = toDBPGTable<SimpleUser>().build('users', {
                 id: text('id').primaryKey(),
             });
 
@@ -150,7 +150,7 @@ describe('mapPGTable', () => {
         });
 
         it('should auto-generate columns not in config', () => {
-            const table = mapPGTable<SimpleUser>().build('users', {
+            const table = toDBPGTable<SimpleUser>().build('users', {
                 id: text('id').primaryKey(),
             });
 
@@ -161,7 +161,7 @@ describe('mapPGTable', () => {
 
         it('should throw error when config has extra columns', () => {
             expect(() => {
-                mapPGTable<SimpleUser>().build('users', {
+                toDBPGTable<SimpleUser>().build('users', {
                     id: text('id').primaryKey(),
                     extraColumn: text('extra'),
                 } as any);
@@ -170,7 +170,7 @@ describe('mapPGTable', () => {
 
         it('should allow overriding plain string with uuid column', () => {
             // SimpleUser has id: string, but we can override with uuid()
-            const table = mapPGTable<SimpleUser>().build('users', {
+            const table = toDBPGTable<SimpleUser>().build('users', {
                 id: uuid('id').primaryKey(),
             });
 
@@ -184,20 +184,20 @@ describe('mapPGTable', () => {
     describe('error handling', () => {
         it('should throw error for non-object types', () => {
             expect(() => {
-                mapPGTable<string>().build('users');
+                toDBPGTable<string>().build('users');
             }).toThrow();
         });
 
         it('should throw error when no type parameter is provided', () => {
             expect(() => {
-                mapPGTable().build('users');
-            }).toThrow('mapPGTable requires a type parameter');
+                toDBPGTable().build('users');
+            }).toThrow('toDBPGTable requires a type parameter');
         });
     });
 
     describe('lengthBuffer config', () => {
         it('should use default lengthBuffer of 1.5 for email format', () => {
-            const table = mapPGTable<UserWithFormats>().build('users');
+            const table = toDBPGTable<UserWithFormats>().build('users');
 
             // Email default maxLength is 254, with 1.5 buffer = 381
             // Check that the column is varchar
@@ -205,7 +205,7 @@ describe('mapPGTable', () => {
         });
 
         it('should apply custom lengthBuffer when provided', () => {
-            const table = mapPGTable<UserWithFormats>({lengthBuffer: 2.0}).build('users');
+            const table = toDBPGTable<UserWithFormats>({lengthBuffer: 2.0}).build('users');
 
             // Email default maxLength is 254, with 2.0 buffer = 508
             // Check that the column is varchar
@@ -213,7 +213,7 @@ describe('mapPGTable', () => {
         });
 
         it('should use varchar for all string primitives regardless of format params', () => {
-            const table = mapPGTable<SimpleUser>().build('users');
+            const table = toDBPGTable<SimpleUser>().build('users');
 
             // All string columns should be varchar
             expect(table.id.columnType).toBe('PgVarchar');

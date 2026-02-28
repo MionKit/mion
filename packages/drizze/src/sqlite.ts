@@ -48,24 +48,24 @@ const DEFAULT_CONFIG: DrizzleMapperConfig = {};
  * }
  *
  * // Without overrides - auto-generates all columns
- * const users = mapSqliteTable<User>().build('users');
+ * const users = toDBSqliteTable<User>().build('users');
  *
  * // With overrides - customize specific columns
- * const users = mapSqliteTable<User>().build('users', {
+ * const users = toDBSqliteTable<User>().build('users', {
  *   id: text('id').primaryKey(),
  * });
  *
  * // With custom lengthBuffer (not used for SQLite text columns, but for consistency)
- * const users = mapSqliteTable<User>({lengthBuffer: 2.0}).build('users');
+ * const users = toDBSqliteTable<User>({lengthBuffer: 2.0}).build('users');
  * ```
  */
-export function mapSqliteTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
+export function toDBSqliteTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, type?: ReceiveType<T>) {
     // Validate that a type parameter was provided via type reflection
     if (!type) {
         throw new TypedError({
             type: 'drizzle-table-missing-type',
             message:
-                'mapSqliteTable requires a type parameter. Usage: mapSqliteTable<YourType>() or mapSqliteTable<YourType>({config})',
+                'toDBSqliteTable requires a type parameter. Usage: toDBSqliteTable<YourType>() or toDBSqliteTable<YourType>({config})',
         });
     }
 
@@ -92,7 +92,7 @@ export function mapSqliteTable<T>(config: DrizzleMapperConfig = DEFAULT_CONFIG, 
                     });
                 }
                 if (validation.warnings.length > 0) {
-                    console.warn(`mapSqliteTable warnings:\n${validation.warnings.join('\n')}`);
+                    console.warn(`toDBSqliteTable warnings:\n${validation.warnings.join('\n')}`);
                 }
             }
             // Create column mapper with config
