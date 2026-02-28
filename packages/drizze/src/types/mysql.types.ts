@@ -89,33 +89,52 @@ type _MissingMySqlBrands = Exclude<AllBrandNames, keyof MySqlBrandColumnMap<stri
 type _ExtraMySqlBrands = Exclude<keyof MySqlBrandColumnMap<string>, AllBrandNames>;
 
 // ============================================================================
+// Primitive → Column Mapping
+// ============================================================================
+
+/** Maps primitive type names to their corresponding MySQL column builder types.
+ * Used by MySqlColumnType for primitive type resolution. */
+type MySqlPrimitiveColumnMap<K extends string> = {
+    string: MySqlTextColumn<K>;
+    number: MySqlDoubleColumn<K>;
+    boolean: MySqlBooleanColumn<K>;
+    bigint: MySqlBigIntColumn<K>;
+};
+
+/** Helper: resolves a TypeScript type to its primitive map key */
+type PrimitiveTypeKey<T> = T extends string
+    ? 'string'
+    : T extends number
+      ? 'number'
+      : T extends boolean
+        ? 'boolean'
+        : T extends bigint
+          ? 'bigint'
+          : never;
+
+// ============================================================================
 // Column Type Mapping
 // ============================================================================
 
 /** Maps a TypeScript type to its corresponding MySQL column builder type.
- * Branded types are resolved via MySqlBrandColumnMap lookup, plain types use direct mapping. */
+ * Branded types are resolved via MySqlBrandColumnMap, primitives via MySqlPrimitiveColumnMap. */
 export type MySqlColumnType<K extends string, T> =
-    // Branded types → lookup from map
+    // Branded types → lookup from MySqlBrandColumnMap
     T extends {brand: infer B extends string}
         ? B extends keyof MySqlBrandColumnMap<K>
             ? MySqlBrandColumnMap<K>[B]
             : T extends string
               ? MySqlTextColumn<K>
               : MySqlDoubleColumn<K>
-        : // Plain primitives
-          T extends string
-          ? MySqlTextColumn<K>
-          : T extends number
-            ? MySqlDoubleColumn<K>
-            : T extends boolean
-              ? MySqlBooleanColumn<K>
-              : T extends bigint
-                ? MySqlBigIntColumn<K>
-                : T extends Date
-                  ? MySqlTimestampColumn<K>
-                  : T extends any[] | object
-                    ? MySqlJsonColumn<K>
-                    : MySqlColumnBuilderBase;
+        : // Primitives → lookup from MySqlPrimitiveColumnMap
+          PrimitiveTypeKey<T> extends infer P extends keyof MySqlPrimitiveColumnMap<K>
+          ? MySqlPrimitiveColumnMap<K>[P]
+          : // Special types
+            T extends Date
+            ? MySqlTimestampColumn<K>
+            : T extends any[] | object
+              ? MySqlJsonColumn<K>
+              : MySqlColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)

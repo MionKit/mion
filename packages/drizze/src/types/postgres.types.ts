@@ -94,33 +94,52 @@ type _MissingPgBrands = Exclude<AllBrandNames, keyof PgBrandColumnMap<string>>;
 type _ExtraPgBrands = Exclude<keyof PgBrandColumnMap<string>, AllBrandNames>;
 
 // ============================================================================
+// Primitive → Column Mapping
+// ============================================================================
+
+/** Maps primitive type names to their corresponding PostgreSQL column builder types.
+ * Used by PgColumnType for primitive type resolution. */
+type PgPrimitiveColumnMap<K extends string> = {
+    string: PgTextColumn<K>;
+    number: PgDoublePrecisionColumn<K>;
+    boolean: PgBooleanColumn<K>;
+    bigint: PgBigIntColumn<K>;
+};
+
+/** Helper: resolves a TypeScript type to its primitive map key */
+type PrimitiveTypeKey<T> = T extends string
+    ? 'string'
+    : T extends number
+      ? 'number'
+      : T extends boolean
+        ? 'boolean'
+        : T extends bigint
+          ? 'bigint'
+          : never;
+
+// ============================================================================
 // Column Type Mapping
 // ============================================================================
 
 /** Maps a TypeScript type to its corresponding PostgreSQL column builder type.
- * Branded types are resolved via PgBrandColumnMap lookup, plain types use direct mapping. */
+ * Branded types are resolved via PgBrandColumnMap, primitives via PgPrimitiveColumnMap. */
 export type PgColumnType<K extends string, T> =
-    // Branded types → lookup from map
+    // Branded types → lookup from PgBrandColumnMap
     T extends {brand: infer B extends string}
         ? B extends keyof PgBrandColumnMap<K>
             ? PgBrandColumnMap<K>[B]
             : T extends string
               ? PgTextColumn<K>
               : PgDoublePrecisionColumn<K>
-        : // Plain primitives
-          T extends string
-          ? PgTextColumn<K>
-          : T extends number
-            ? PgDoublePrecisionColumn<K>
-            : T extends boolean
-              ? PgBooleanColumn<K>
-              : T extends bigint
-                ? PgBigIntColumn<K>
-                : T extends Date
-                  ? PgTimestampColumn<K>
-                  : T extends any[] | object
-                    ? PgJsonbColumn<K>
-                    : PgColumnBuilderBase;
+        : // Primitives → lookup from PgPrimitiveColumnMap
+          PrimitiveTypeKey<T> extends infer P extends keyof PgPrimitiveColumnMap<K>
+          ? PgPrimitiveColumnMap<K>[P]
+          : // Special types
+            T extends Date
+            ? PgTimestampColumn<K>
+            : T extends any[] | object
+              ? PgJsonbColumn<K>
+              : PgColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)

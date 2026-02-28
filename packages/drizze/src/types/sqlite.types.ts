@@ -77,33 +77,52 @@ type _MissingSqliteBrands = Exclude<AllBrandNames, keyof SqliteBrandColumnMap<st
 type _ExtraSqliteBrands = Exclude<keyof SqliteBrandColumnMap<string>, AllBrandNames>;
 
 // ============================================================================
+// Primitive → Column Mapping
+// ============================================================================
+
+/** Maps primitive type names to their corresponding SQLite column builder types.
+ * Used by SqliteColumnType for primitive type resolution. */
+type SqlitePrimitiveColumnMap<K extends string> = {
+    string: SqliteTextColumn<K>;
+    number: SqliteRealColumn<K>;
+    boolean: SqliteBooleanColumn<K>;
+    bigint: SqliteBigIntColumn<K>;
+};
+
+/** Helper: resolves a TypeScript type to its primitive map key */
+type PrimitiveTypeKey<T> = T extends string
+    ? 'string'
+    : T extends number
+      ? 'number'
+      : T extends boolean
+        ? 'boolean'
+        : T extends bigint
+          ? 'bigint'
+          : never;
+
+// ============================================================================
 // Column Type Mapping
 // ============================================================================
 
 /** Maps a TypeScript type to its corresponding SQLite column builder type.
- * Branded types are resolved via SqliteBrandColumnMap lookup, plain types use direct mapping. */
+ * Branded types are resolved via SqliteBrandColumnMap, primitives via SqlitePrimitiveColumnMap. */
 export type SqliteColumnType<K extends string, T> =
-    // Branded types → lookup from map
+    // Branded types → lookup from SqliteBrandColumnMap
     T extends {brand: infer B extends string}
         ? B extends keyof SqliteBrandColumnMap<K>
             ? SqliteBrandColumnMap<K>[B]
             : T extends string
               ? SqliteTextColumn<K>
               : SqliteRealColumn<K>
-        : // Plain primitives
-          T extends string
-          ? SqliteTextColumn<K>
-          : T extends number
-            ? SqliteRealColumn<K>
-            : T extends boolean
-              ? SqliteBooleanColumn<K>
-              : T extends bigint
-                ? SqliteBigIntColumn<K>
-                : T extends Date
-                  ? SqliteTimestampColumn<K>
-                  : T extends any[] | object
-                    ? SqliteJsonColumn<K>
-                    : SQLiteColumnBuilderBase;
+        : // Primitives → lookup from SqlitePrimitiveColumnMap
+          PrimitiveTypeKey<T> extends infer P extends keyof SqlitePrimitiveColumnMap<K>
+          ? SqlitePrimitiveColumnMap<K>[P]
+          : // Special types
+            T extends Date
+            ? SqliteTimestampColumn<K>
+            : T extends any[] | object
+              ? SqliteJsonColumn<K>
+              : SQLiteColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)

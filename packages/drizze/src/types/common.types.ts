@@ -126,6 +126,16 @@ export interface ColumnMapping {
     drizzleType: DrizzleType;
 }
 
+/** Factory that creates a ColumnMapping for a primitive type */
+export type PrimitiveColumnFactory = (propName: string) => ColumnMapping;
+
+/** Factory that creates a ColumnMapping for a format type (may use params and config) */
+export type FormatColumnFactory = (
+    propName: string,
+    formatParams?: Record<string, any>,
+    config?: DrizzleMapperConfig
+) => ColumnMapping;
+
 /** Information about a property extracted from TypeScript type */
 export interface PropertyInfo {
     /** Property name */
