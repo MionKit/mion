@@ -1,6 +1,6 @@
-import {StrDomainStrict} from '@mionkit/type-formats/FormatsString';
+import {FormatDomainStrict} from '@mionkit/type-formats/StringFormats';
 
-type SocialMediaDomain = StrDomainStrict<{
+type SocialMediaDomain = FormatDomainStrict<{
     maxLength: 200;
     minParts: 2;
     maxParts: 3;

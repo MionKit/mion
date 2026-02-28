@@ -9,7 +9,7 @@ import {it, expect} from 'vitest';
 import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
 import {RunTypeError} from '@mionkit/core';
 import {randomUUID_V7} from '@mionkit/core';
-import {StrUUIDv4, StrUUIDv7} from './uuid.runtype';
+import {FormatUUIDv4, FormatUUIDv7} from './uuid.runtype';
 
 // ####### UUID v4 #######
 
@@ -17,7 +17,7 @@ import {StrUUIDv4, StrUUIDv7} from './uuid.runtype';
 // uuid v4 format is a string with the following name: xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx
 // the 3rd section must start with 4
 it('validate uuid v4', async () => {
-    const isType = await createIsTypeFn<StrUUIDv4>();
+    const isType = await createIsTypeFn<FormatUUIDv4>();
     // valid v4 and variant
     expect(isType('f47ac10b-58cc-4372-a567-0e02b2c3d479')).toBe(true);
     expect(isType('FFFFFFFF-0000-4fff-aaaa-FFFFFFff9900')).toBe(true);
@@ -35,7 +35,7 @@ it('validate uuid v4', async () => {
 
 //  uuid v4 typeErrors
 it('get uuid v4 errors', async () => {
-    const typeErrors = await createTypeErrorsFn<StrUUIDv4>();
+    const typeErrors = await createTypeErrorsFn<FormatUUIDv4>();
     const expectedError: RunTypeError = {expected: 'string', path: [], format: {name: 'uuid', formatPath: ['version'], val: '4'}};
     // valid v4 and variant
     expect(typeErrors('f47ac10b-58cc-4372-a567-0e02b2c3d479')).toEqual([]);
@@ -54,8 +54,8 @@ it('get uuid v4 errors', async () => {
 
 // uuid v4 mock
 it('mock uuid v4', async () => {
-    const mockType = await createMockTypeFn<StrUUIDv4>();
-    const isType = await createIsTypeFn<StrUUIDv4>();
+    const mockType = await createMockTypeFn<FormatUUIDv4>();
+    const isType = await createIsTypeFn<FormatUUIDv4>();
     const someIds = Array.from({length: 20}, () => mockType());
     for (const uuid of someIds) expect(isType(uuid)).toBe(true);
 });
@@ -64,7 +64,7 @@ it('mock uuid v4', async () => {
 
 // uuid v7 isType
 it('validate uuid v7', async () => {
-    const isType = await createIsTypeFn<StrUUIDv7>();
+    const isType = await createIsTypeFn<FormatUUIDv7>();
     // valid v7 and variant
     expect(isType('f47ac10b-58cc-7372-b909-0e02b2c3d479')).toBe(true);
     expect(isType('FFFFFFFF-0000-7fff-aaaa-FFFFFFff9900')).toBe(true);
@@ -82,7 +82,7 @@ it('validate uuid v7', async () => {
 
 //  uuid v7 typeErrors
 it('get uuid v7 errors', async () => {
-    const typeErrors = await createTypeErrorsFn<StrUUIDv7>();
+    const typeErrors = await createTypeErrorsFn<FormatUUIDv7>();
     const expectedError: RunTypeError = {expected: 'string', path: [], format: {name: 'uuid', formatPath: ['version'], val: '7'}};
     // valid v7 and variant
     expect(typeErrors('f47ac10b-58cc-7372-b909-0e02b2c3d479')).toEqual([]);
@@ -101,8 +101,8 @@ it('get uuid v7 errors', async () => {
 
 // uuid v7 mock
 it('mock uuid v7', async () => {
-    const mockType = await createMockTypeFn<StrUUIDv7>();
-    const isType = await createIsTypeFn<StrUUIDv7>();
+    const mockType = await createMockTypeFn<FormatUUIDv7>();
+    const isType = await createIsTypeFn<FormatUUIDv7>();
     const someIds = Array.from({length: 20}, () => mockType());
     for (const uuid of someIds) expect(isType(uuid)).toBe(true);
 });

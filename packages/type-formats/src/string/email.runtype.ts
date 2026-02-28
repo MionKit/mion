@@ -226,10 +226,10 @@ export type DEFAULT_EMAIL_PARAMS<
 
 /** Email format, always branded with 'email'. */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type StrEmail<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP, 'email'>;
+export type FormatEmail<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP, 'email'>;
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type StrEmailStrict<E extends Partial<FormatParams_Email> = {}> = StrEmail<DEFAULT_STRICT_EMAIL_PARAMS & E>;
-export type StrEmailPattern<EmailPattern extends RegExp, MockSamples extends Samples> = StrEmail<
+export type FormatEmailStrict<E extends Partial<FormatParams_Email> = {}> = FormatEmail<DEFAULT_STRICT_EMAIL_PARAMS & E>;
+export type FormatEmailPattern<EmailPattern extends RegExp, MockSamples extends Samples> = FormatEmail<
     DEFAULT_EMAIL_PARAMS<EmailPattern, MockSamples>
 >;
-export type StrEmailPunycode = StrEmailPattern<typeof EMAIL_PATTERN_PUNYCODE, EMAIL_SAMPLES_PUNYCODE>;
+export type FormatEmailPunycode = FormatEmailPattern<typeof EMAIL_PATTERN_PUNYCODE, EMAIL_SAMPLES_PUNYCODE>;

@@ -9,7 +9,7 @@ import {describe, it, expect} from 'vitest';
 import {toDrizzleSqliteTable} from './sqlite.ts';
 import {text, integer} from 'drizzle-orm/sqlite-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
+import {FormatUUIDv7, FormatEmail} from '@mionkit/type-formats/StringFormats';
 
 // Test interfaces
 interface SimpleUser {
@@ -21,8 +21,8 @@ interface SimpleUser {
 }
 
 interface UserWithFormats {
-    id: StrUUIDv7;
-    email: StrEmail;
+    id: FormatUUIDv7;
+    email: FormatEmail;
     name: string;
     bio?: string;
 }
@@ -87,7 +87,7 @@ describe('toDrizzleSqliteTable', () => {
     });
 
     describe('formatted types', () => {
-        it('should generate text columns for StrUUIDv7 format', () => {
+        it('should generate text columns for FormatUUIDv7 format', () => {
             const table = toDrizzleSqliteTable<UserWithFormats>('users');
 
             // UUID format should map to text in SQLite
@@ -95,7 +95,7 @@ describe('toDrizzleSqliteTable', () => {
             expect(table.id.columnType).toBe('SQLiteText');
         });
 
-        it('should generate text columns for StrEmail format', () => {
+        it('should generate text columns for FormatEmail format', () => {
             const table = toDrizzleSqliteTable<UserWithFormats>('users');
 
             // Email format should map to text in SQLite

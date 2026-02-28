@@ -14,7 +14,7 @@ ruleTester.run('type-formats-imports', rule, {
     valid: [
         // Valid: regular import of format types from @mionkit/type-formats
         {
-            code: `import { StrEmail } from '@mionkit/type-formats/FormatsString';`,
+            code: `import { FormatEmail } from '@mionkit/type-formats/StringFormats';`,
         },
         // Valid: regular import of TypeFormat from @mionkit/run-types
         {
@@ -30,15 +30,15 @@ ruleTester.run('type-formats-imports', rule, {
         },
         // Valid: type-only import of non-format types from @mionkit/type-formats
         {
-            code: `import type { FormatParams_Email } from '@mionkit/type-formats/FormatsString';`,
+            code: `import type { FormatParams_Email } from '@mionkit/type-formats/StringFormats';`,
         },
         // Valid: regular import from subpath
         {
-            code: `import { NumFormat, NumInteger } from '@mionkit/type-formats/FormatsNumber';`,
+            code: `import { FormatNumber, FormatInteger } from '@mionkit/type-formats/NumberFormats';`,
         },
         // Valid: regular import of multiple string format types
         {
-            code: `import { StrDate, StrTime, StrDateTime } from '@mionkit/type-formats/FormatsString';`,
+            code: `import { FormatStringDate, FormatStringTime, FormatStringDateTime } from '@mionkit/type-formats/StringFormats';`,
         },
     ],
     invalid: [
@@ -47,51 +47,54 @@ ruleTester.run('type-formats-imports', rule, {
             code: `import type { TypeFormat } from '@mionkit/run-types';`,
             errors: [{messageId: 'typeFormatsImports', data: {typeName: 'TypeFormat', source: '@mionkit/run-types'}}],
         },
-        // Invalid: type-only import of StrEmail from subpath
+        // Invalid: type-only import of FormatEmail from subpath
         {
-            code: `import type { StrEmail } from '@mionkit/type-formats/FormatsString';`,
+            code: `import type { FormatEmail } from '@mionkit/type-formats/StringFormats';`,
             errors: [
-                {messageId: 'typeFormatsImports', data: {typeName: 'StrEmail', source: '@mionkit/type-formats/FormatsString'}},
+                {messageId: 'typeFormatsImports', data: {typeName: 'FormatEmail', source: '@mionkit/type-formats/StringFormats'}},
             ],
         },
         // Invalid: specifier-level type-only import
         {
-            code: `import { type StrEmail } from '@mionkit/type-formats/FormatsString';`,
+            code: `import { type FormatEmail } from '@mionkit/type-formats/StringFormats';`,
             errors: [
-                {messageId: 'typeFormatsImports', data: {typeName: 'StrEmail', source: '@mionkit/type-formats/FormatsString'}},
+                {messageId: 'typeFormatsImports', data: {typeName: 'FormatEmail', source: '@mionkit/type-formats/StringFormats'}},
             ],
         },
         // Invalid: multiple format types imported as type-only
         {
-            code: `import type { NumFormat, NumInteger } from '@mionkit/type-formats/FormatsNumber';`,
+            code: `import type { FormatNumber, FormatInteger } from '@mionkit/type-formats/NumberFormats';`,
             errors: [
                 {
                     messageId: 'typeFormatsImports',
-                    data: {typeName: 'NumFormat', source: '@mionkit/type-formats/FormatsNumber'},
+                    data: {typeName: 'FormatNumber', source: '@mionkit/type-formats/NumberFormats'},
                 },
                 {
                     messageId: 'typeFormatsImports',
-                    data: {typeName: 'NumInteger', source: '@mionkit/type-formats/FormatsNumber'},
+                    data: {typeName: 'FormatInteger', source: '@mionkit/type-formats/NumberFormats'},
                 },
             ],
         },
         // Invalid: bigint format type
         {
-            code: `import type { BigNumFormat } from '@mionkit/type-formats/FormatsBigint';`,
+            code: `import type { FormatBigInt } from '@mionkit/type-formats/BigintFormats';`,
             errors: [
                 {
                     messageId: 'typeFormatsImports',
-                    data: {typeName: 'BigNumFormat', source: '@mionkit/type-formats/FormatsBigint'},
+                    data: {typeName: 'FormatBigInt', source: '@mionkit/type-formats/BigintFormats'},
                 },
             ],
         },
         // Invalid: multiple string format types
         {
-            code: `import type { StrDate, StrUrl, StrIP } from '@mionkit/type-formats/FormatsString';`,
+            code: `import type { FormatStringDate, FormatUrl, FormatIP } from '@mionkit/type-formats/StringFormats';`,
             errors: [
-                {messageId: 'typeFormatsImports', data: {typeName: 'StrDate', source: '@mionkit/type-formats/FormatsString'}},
-                {messageId: 'typeFormatsImports', data: {typeName: 'StrUrl', source: '@mionkit/type-formats/FormatsString'}},
-                {messageId: 'typeFormatsImports', data: {typeName: 'StrIP', source: '@mionkit/type-formats/FormatsString'}},
+                {
+                    messageId: 'typeFormatsImports',
+                    data: {typeName: 'FormatStringDate', source: '@mionkit/type-formats/StringFormats'},
+                },
+                {messageId: 'typeFormatsImports', data: {typeName: 'FormatUrl', source: '@mionkit/type-formats/StringFormats'}},
+                {messageId: 'typeFormatsImports', data: {typeName: 'FormatIP', source: '@mionkit/type-formats/StringFormats'}},
             ],
         },
         // Invalid: specifier-level type-only for run-types
@@ -99,28 +102,31 @@ ruleTester.run('type-formats-imports', rule, {
             code: `import { type TypeFormat } from '@mionkit/run-types';`,
             errors: [{messageId: 'typeFormatsImports', data: {typeName: 'TypeFormat', source: '@mionkit/run-types'}}],
         },
-        // Invalid: base StrFormat type
+        // Invalid: base FormatString type
         {
-            code: `import type { StrFormat } from '@mionkit/type-formats/FormatsString';`,
-            errors: [
-                {messageId: 'typeFormatsImports', data: {typeName: 'StrFormat', source: '@mionkit/type-formats/FormatsString'}},
-            ],
-        },
-        // Invalid: BigNUmUInt64 with exact casing
-        {
-            code: `import type { BigNUmUInt64 } from '@mionkit/type-formats/FormatsBigint';`,
+            code: `import type { FormatString } from '@mionkit/type-formats/StringFormats';`,
             errors: [
                 {
                     messageId: 'typeFormatsImports',
-                    data: {typeName: 'BigNUmUInt64', source: '@mionkit/type-formats/FormatsBigint'},
+                    data: {typeName: 'FormatString', source: '@mionkit/type-formats/StringFormats'},
+                },
+            ],
+        },
+        // Invalid: FormatBigUInt64 with exact casing
+        {
+            code: `import type { FormatBigUInt64 } from '@mionkit/type-formats/BigintFormats';`,
+            errors: [
+                {
+                    messageId: 'typeFormatsImports',
+                    data: {typeName: 'FormatBigUInt64', source: '@mionkit/type-formats/BigintFormats'},
                 },
             ],
         },
         // Invalid: mixed import where only format types are flagged
         {
-            code: `import type { StrEmail, FormatParams_Email } from '@mionkit/type-formats/FormatsString';`,
+            code: `import type { FormatEmail, FormatParams_Email } from '@mionkit/type-formats/StringFormats';`,
             errors: [
-                {messageId: 'typeFormatsImports', data: {typeName: 'StrEmail', source: '@mionkit/type-formats/FormatsString'}},
+                {messageId: 'typeFormatsImports', data: {typeName: 'FormatEmail', source: '@mionkit/type-formats/StringFormats'}},
             ],
         },
     ],

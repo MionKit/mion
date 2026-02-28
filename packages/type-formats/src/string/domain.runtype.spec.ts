@@ -8,10 +8,10 @@
 import {it, expect} from 'vitest';
 import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
 import {RunTypeError} from '@mionkit/core';
-import {StrDomainStrict, StrDomain} from './domain.runtype';
+import {FormatDomainStrict, FormatDomain} from './domain.runtype';
 
 it('should validate custom domain values', async () => {
-    const isType = await createIsTypeFn<StrDomainStrict>();
+    const isType = await createIsTypeFn<FormatDomainStrict>();
     // Valid cases
     expect(isType(noEMail1)).toBe(true);
     expect(isType('sub.example.com')).toBe(true);
@@ -30,7 +30,7 @@ it('should validate custom domain values', async () => {
 });
 
 it('should validate domain values', async () => {
-    const isType = await createIsTypeFn<StrDomain>();
+    const isType = await createIsTypeFn<FormatDomain>();
     // Valid cases
     expect(isType(noEMail1)).toBe(true);
     expect(isType('sub.example.com')).toBe(true);
@@ -65,12 +65,12 @@ const domainErrPattern: RunTypeError = {
     format: {name: 'domain', formatPath: ['pattern'], val: 'invalid domain'},
 };
 
-const noEMail1 = 'example.com' as StrDomainStrict;
-const noEMail2 = 'hello.org' as StrDomainStrict;
-const noEMail3 = 'example..com' as StrDomainStrict;
+const noEMail1 = 'example.com' as FormatDomainStrict;
+const noEMail2 = 'hello.org' as FormatDomainStrict;
+const noEMail3 = 'example..com' as FormatDomainStrict;
 
 it('should return custom domain errors', async () => {
-    const typeErrors = await createTypeErrorsFn<StrDomainStrict>();
+    const typeErrors = await createTypeErrorsFn<FormatDomainStrict>();
     // Valid cases
     expect(typeErrors(noEMail1)).toEqual([]);
     // Invalid length - now returns multiple errors
@@ -106,7 +106,7 @@ it('should return custom domain errors', async () => {
 
 it('should return domain errors', async () => {
     // wen using pattern the errors are more generic
-    const typeErrors = await createTypeErrorsFn<StrDomain>();
+    const typeErrors = await createTypeErrorsFn<FormatDomain>();
     // Valid cases
     expect(typeErrors(noEMail1)).toEqual([]);
     // Invalid length - now returns multiple errors
@@ -127,7 +127,7 @@ it('should validate custom domain inside an array', async () => {
     // this scenario ensures path access path variables works both for type path and format path
     // access path variables are typically used for array indexes so when generating jit code
     // so access path typically will contain var name s like `v[i]` to access the i-th element in jit code
-    const isType = await createIsTypeFn<StrDomainStrict[]>();
+    const isType = await createIsTypeFn<FormatDomainStrict[]>();
     // not array
     expect(isType(noEMail1)).toBe(false);
     // Valid cases
@@ -140,7 +140,7 @@ it('should validate domain inside an array', async () => {
     // this scenario ensures path access path variables works both for type path and format path
     // access path variables are typically used for array indexes so when generating jit code
     // so access path typically will contain var name s like `v[i]` to access the i-th element in jit code
-    const isType = await createIsTypeFn<StrDomain[]>();
+    const isType = await createIsTypeFn<FormatDomain[]>();
     // not array
     expect(isType(noEMail1)).toBe(false);
     // Valid cases
@@ -153,7 +153,7 @@ it('should return custom domain errors inside an array', async () => {
     // this scenario ensures path access path variables works both for type path and format path
     // access path variables are typically used for array indexes so when generating jit code
     // so access path typically will contain var name s like `v[i]` to access the i-th element in jit code
-    const typeErrors = await createTypeErrorsFn<StrDomainStrict[]>();
+    const typeErrors = await createTypeErrorsFn<FormatDomainStrict[]>();
     // Valid cases
     expect(typeErrors(noEMail1)).toEqual([{expected: 'array', path: []}]);
     expect(typeErrors([noEMail1])).toEqual([]);
@@ -178,7 +178,7 @@ it('should return domain errors inside an array', async () => {
     // this scenario ensures path access path variables works both for type path and format path
     // access path variables are typically used for array indexes so when generating jit code
     // so access path typically will contain var name s like `v[i]` to access the i-th element in jit code
-    const typeErrors = await createTypeErrorsFn<StrDomain[]>();
+    const typeErrors = await createTypeErrorsFn<FormatDomain[]>();
     // Valid cases
     expect(typeErrors(noEMail1)).toEqual([{expected: 'array', path: []}]);
     expect(typeErrors([noEMail1])).toEqual([]);
@@ -196,7 +196,7 @@ it('should validate custom domain inside recursive data', async () => {
     // similar scenario as above but this time we have a recursive data structure
     type StrictDomainRecursive = {
         name: string;
-        domains: StrDomainStrict[];
+        domains: FormatDomainStrict[];
         children?: StrictDomainRecursive[];
     };
     const isType = await createIsTypeFn<StrictDomainRecursive>();
@@ -221,7 +221,7 @@ it('should validate domain inside recursive data', async () => {
     // similar scenario as above but this time we have a recursive data structure
     type DomainRecursive = {
         name: string;
-        domains: StrDomain[];
+        domains: FormatDomain[];
         children?: DomainRecursive[];
     };
     const isType = await createIsTypeFn<DomainRecursive>();
@@ -246,7 +246,7 @@ it('should return custom domain errors inside recursive data', async () => {
     // similar scenario as above but this time we have a recursive data structure
     type StrictDomainRecursive = {
         name: string;
-        domains: StrDomainStrict[];
+        domains: FormatDomainStrict[];
         children?: StrictDomainRecursive[];
     };
     const typeErrors = await createTypeErrorsFn<StrictDomainRecursive>();
@@ -300,7 +300,7 @@ it('should return domain errors inside recursive data', async () => {
     // similar scenario as above but this time we have a recursive data structure
     type DomainRecursive = {
         name: string;
-        domains: StrDomain[];
+        domains: FormatDomain[];
         children?: DomainRecursive[];
     };
     const typeErrors = await createTypeErrorsFn<DomainRecursive>();
@@ -335,9 +335,9 @@ it('should return domain errors inside recursive data', async () => {
 });
 
 it('should mock custom domain values', async () => {
-    const mockType = await createMockTypeFn<StrDomainStrict>();
-    const isType = await createIsTypeFn<StrDomainStrict>();
-    const typeErrors = await createTypeErrorsFn<StrDomainStrict>();
+    const mockType = await createMockTypeFn<FormatDomainStrict>();
+    const isType = await createIsTypeFn<FormatDomainStrict>();
+    const typeErrors = await createTypeErrorsFn<FormatDomainStrict>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(typeErrors(item)).toEqual([]);
@@ -346,9 +346,9 @@ it('should mock custom domain values', async () => {
 });
 
 it('should mock domain values', async () => {
-    const mockType = await createMockTypeFn<StrDomain>();
-    const isType = await createIsTypeFn<StrDomain>();
-    const typeErrors = await createTypeErrorsFn<StrDomain>();
+    const mockType = await createMockTypeFn<FormatDomain>();
+    const isType = await createIsTypeFn<FormatDomain>();
+    const typeErrors = await createTypeErrorsFn<FormatDomain>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(typeErrors(item)).toEqual([]);
@@ -364,7 +364,7 @@ it('should validate custom domain with custom params', async () => {
         names: {maxLength: 8};
         tld: {maxLength: 2};
     };
-    type CustomDomain = StrDomainStrict<CustomParams>;
+    type CustomDomain = FormatDomainStrict<CustomParams>;
     const isType = await createIsTypeFn<CustomDomain>();
     // Valid cases
     expect(isType('example.co')).toBe(true);
@@ -384,11 +384,11 @@ it('should validate custom domain with custom params', async () => {
 // ######## PERF ########
 
 it('domain should be faster than strict domain', async () => {
-    const isType = await createIsTypeFn<StrDomainStrict>();
-    const isTypeQuick = await createIsTypeFn<StrDomain>();
+    const isType = await createIsTypeFn<FormatDomainStrict>();
+    const isTypeQuick = await createIsTypeFn<FormatDomain>();
     // TODO: regexp seems to be a bit faster than quick email so maybe we should use it
 
-    const mockType = await createMockTypeFn<StrDomainStrict>();
+    const mockType = await createMockTypeFn<FormatDomainStrict>();
     const mockedItems = Array.from({length: 50}, () => mockType());
     const start = performance.now();
     for (const item of mockedItems) {
@@ -413,7 +413,7 @@ it('domain should be faster than strict domain', async () => {
 });
 
 it('mock allowedValues', async () => {
-    type SocialNames = StrDomain<{
+    type SocialNames = FormatDomain<{
         maxLength: 200;
         minLength: 3;
         maxParts: 3;

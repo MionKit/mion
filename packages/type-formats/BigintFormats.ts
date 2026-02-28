@@ -25,12 +25,12 @@ export * from './src/bigint/defaultBigNumberFormats.ts';
 
 // COMMENTED OUT - Original named exports (to be restored after issue is fixed):
 // // Re-export the main BigIntFormat type
-// export {BigNumFormat as FormatBigInt} from './bigint/bigIntFormat.runtype';
+// export {FormatBigInt as FormatBigInt} from './bigint/bigIntFormat.runtype';
 //
 // // ############### Default BigInt Formats ###############
 //
-// export {BigNumPositive} from './bigint/defaultBigNumberFormats';
-// export {BigNumNegative} from './bigint/defaultBigNumberFormats';
-// export {BigNumPositiveInt} from './bigint/defaultBigNumberFormats';
-// export {BigNumNegativeInt} from './bigint/defaultBigNumberFormats';
-// export {BigNumInt64} from './bigint/defaultBigNumberFormats';
+// export {FormatBigPositive} from './bigint/defaultBigNumberFormats';
+// export {FormatBigNegative} from './bigint/defaultBigNumberFormats';
+// export {FormatBigPositiveInt} from './bigint/defaultBigNumberFormats';
+// export {FormatBigNegativeInt} from './bigint/defaultBigNumberFormats';
+// export {FormatBigInt64} from './bigint/defaultBigNumberFormats';

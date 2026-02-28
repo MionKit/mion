@@ -6,32 +6,32 @@
  * ######## */
 
 // Note: Must use regular import (not `import type`) for reflection to work
-import {StrUUIDv7, StrEmail} from '@mionkit/type-formats/FormatsString';
-import {NumInteger, NumPositiveInt} from '@mionkit/type-formats/FormatsNumber';
+import {FormatUUIDv7, FormatEmail} from '@mionkit/type-formats/StringFormats';
+import {FormatInteger, FormatPositiveInt} from '@mionkit/type-formats/NumberFormats';
 
 // ============================================================================
 // Shared test interfaces
 // ============================================================================
 
 export interface User {
-    id: StrUUIDv7;
-    email: StrEmail;
+    id: FormatUUIDv7;
+    email: FormatEmail;
     name: string;
-    age: NumInteger;
-    score: NumPositiveInt;
+    age: FormatInteger;
+    score: FormatPositiveInt;
     tags: string[];
     profile: {avatar: string; theme: string};
 }
 
 export interface Post {
-    id: StrUUIDv7;
-    authorId: StrUUIDv7;
+    id: FormatUUIDv7;
+    authorId: FormatUUIDv7;
     title: string;
-    views: NumPositiveInt;
+    views: FormatPositiveInt;
 }
 
 export interface UserWithOptional {
-    id: StrUUIDv7;
+    id: FormatUUIDv7;
     name: string;
     bio?: string;
 }

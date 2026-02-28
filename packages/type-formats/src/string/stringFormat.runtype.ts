@@ -309,7 +309,7 @@ export const STRING_RUN_TYPE_FORMATTER = registerFormatter(new StringRunTypeForm
 
 /** String format with optional branding. Unbranded by default. */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type StrFormat<P extends StringParams = {}, BrandName extends string = never> = TypeFormat<
+export type FormatString<P extends StringParams = {}, BrandName extends string = never> = TypeFormat<
     string,
     typeof StringRunTypeFormat.id,
     P,

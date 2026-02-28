@@ -1,22 +1,22 @@
-import {StrUrl, StrUrlHttp, StrUrlFile} from '@mionkit/type-formats/FormatsString';
+import {FormatUrl, FormatUrlHttp, FormatUrlFile} from '@mionkit/type-formats/StringFormats';
 
-type GeneralUrl = StrUrl;
-type WebUrl = StrUrlHttp;
-type FileUrl = StrUrlFile;
+type GeneralUrl = FormatUrl;
+type WebUrl = FormatUrlHttp;
+type FileUrl = FormatUrlFile;
 
-// StrUrl - accepts multiple protocols
+// FormatUrl - accepts multiple protocols
 ('http://example.com'); // ✓
 ('https://example.com'); // ✓
 ('ftp://example.com'); // ✓
 ('ws://example.com'); // ✓
 
-// StrUrlHttp - HTTP/HTTPS only
+// FormatUrlHttp - HTTP/HTTPS only
 ('http://example.com'); // ✓
 ('https://example.com'); // ✓
 ('ftp://example.com'); // ✗
 ('ws://example.com'); // ✗
 
-// StrUrlFile - file protocol only
+// FormatUrlFile - file protocol only
 ('file://hello.png'); // ✓
 ('file:///c:/lorem/ipsum.jpg'); // ✓
 ('http://example.com'); // ✗

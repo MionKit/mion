@@ -8,12 +8,12 @@
 import {it, expect} from 'vitest';
 import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
 import {RunTypeError, TypeFormatError} from '@mionkit/core';
-import {NumFormat} from './numberFormat.runtype';
+import {FormatNumber} from './numberFormat.runtype';
 
 // #### max ####
 
 it('validate number max', async () => {
-    type Max10 = NumFormat<{max: 10}>;
+    type Max10 = FormatNumber<{max: 10}>;
     const isType = await createIsTypeFn<Max10>();
     expect(isType(9)).toBe(true);
     expect(isType(10)).toBe(true);
@@ -21,7 +21,7 @@ it('validate number max', async () => {
 });
 
 it('validate number max with zero', async () => {
-    type Max0 = NumFormat<{max: 0}>;
+    type Max0 = FormatNumber<{max: 0}>;
     const isType = await createIsTypeFn<Max0>();
     expect(isType(-1)).toBe(true);
     expect(isType(0)).toBe(true);
@@ -29,7 +29,7 @@ it('validate number max with zero', async () => {
 });
 
 it('get max errors', async () => {
-    type Max10 = NumFormat<{max: 10}>;
+    type Max10 = FormatNumber<{max: 10}>;
     const typeErrors = await createTypeErrorsFn<Max10>();
     const format: TypeFormatError = {name: 'numberFormat', val: 10, formatPath: ['max']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
@@ -39,7 +39,7 @@ it('get max errors', async () => {
 });
 
 it('mock max', async () => {
-    type Max10 = NumFormat<{max: 10}>;
+    type Max10 = FormatNumber<{max: 10}>;
     const mockType = await createMockTypeFn<Max10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -50,7 +50,7 @@ it('mock max', async () => {
 // #### min ####
 
 it('validate number min', async () => {
-    type Min10 = NumFormat<{min: 10}>;
+    type Min10 = FormatNumber<{min: 10}>;
     const isType = await createIsTypeFn<Min10>();
     expect(isType(9)).toBe(false);
     expect(isType(10)).toBe(true);
@@ -58,7 +58,7 @@ it('validate number min', async () => {
 });
 
 it('validate number min with zero', async () => {
-    type Min0 = NumFormat<{min: 0}>;
+    type Min0 = FormatNumber<{min: 0}>;
     const isType = await createIsTypeFn<Min0>();
     expect(isType(-1)).toBe(false);
     expect(isType(0)).toBe(true);
@@ -66,7 +66,7 @@ it('validate number min with zero', async () => {
 });
 
 it('get min errors', async () => {
-    type Min10 = NumFormat<{min: 10}>;
+    type Min10 = FormatNumber<{min: 10}>;
     const typeErrors = await createTypeErrorsFn<Min10>();
     const format: TypeFormatError = {name: 'numberFormat', val: 10, formatPath: ['min']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
@@ -76,7 +76,7 @@ it('get min errors', async () => {
 });
 
 it('mock min', async () => {
-    type Min10 = NumFormat<{min: 10}>;
+    type Min10 = FormatNumber<{min: 10}>;
     const mockType = await createMockTypeFn<Min10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -87,7 +87,7 @@ it('mock min', async () => {
 // #### lt (less than) ####
 
 it('validate number lt', async () => {
-    type Lt10 = NumFormat<{lt: 10}>;
+    type Lt10 = FormatNumber<{lt: 10}>;
     const isType = await createIsTypeFn<Lt10>();
     expect(isType(9)).toBe(true);
     expect(isType(10)).toBe(false);
@@ -95,7 +95,7 @@ it('validate number lt', async () => {
 });
 
 it('validate number lt with zero', async () => {
-    type Lt0 = NumFormat<{lt: 0}>;
+    type Lt0 = FormatNumber<{lt: 0}>;
     const isType = await createIsTypeFn<Lt0>();
     expect(isType(-1)).toBe(true);
     expect(isType(0)).toBe(false);
@@ -103,7 +103,7 @@ it('validate number lt with zero', async () => {
 });
 
 it('get lt errors', async () => {
-    type Lt10 = NumFormat<{lt: 10}>;
+    type Lt10 = FormatNumber<{lt: 10}>;
     const typeErrors = await createTypeErrorsFn<Lt10>();
     const format: TypeFormatError = {name: 'numberFormat', val: 10, formatPath: ['lt']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
@@ -113,7 +113,7 @@ it('get lt errors', async () => {
 });
 
 it('mock lt', async () => {
-    type Lt10 = NumFormat<{lt: 10}>;
+    type Lt10 = FormatNumber<{lt: 10}>;
     const mockType = await createMockTypeFn<Lt10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -124,7 +124,7 @@ it('mock lt', async () => {
 // #### gt (greater than) ####
 
 it('validate number gt', async () => {
-    type Gt10 = NumFormat<{gt: 10}>;
+    type Gt10 = FormatNumber<{gt: 10}>;
     const isType = await createIsTypeFn<Gt10>();
     expect(isType(9)).toBe(false);
     expect(isType(10)).toBe(false);
@@ -132,7 +132,7 @@ it('validate number gt', async () => {
 });
 
 it('validate number gt with zero', async () => {
-    type Gt0 = NumFormat<{gt: 0}>;
+    type Gt0 = FormatNumber<{gt: 0}>;
     const isType = await createIsTypeFn<Gt0>();
     expect(isType(-1)).toBe(false);
     expect(isType(0)).toBe(false);
@@ -140,7 +140,7 @@ it('validate number gt with zero', async () => {
 });
 
 it('get gt errors', async () => {
-    type Gt10 = NumFormat<{gt: 10}>;
+    type Gt10 = FormatNumber<{gt: 10}>;
     const typeErrors = await createTypeErrorsFn<Gt10>();
     const format: TypeFormatError = {name: 'numberFormat', val: 10, formatPath: ['gt']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
@@ -150,7 +150,7 @@ it('get gt errors', async () => {
 });
 
 it('mock gt', async () => {
-    type Gt10 = NumFormat<{gt: 10}>;
+    type Gt10 = FormatNumber<{gt: 10}>;
     const mockType = await createMockTypeFn<Gt10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -161,7 +161,7 @@ it('mock gt', async () => {
 // #### integer ####
 
 it('validate integer', async () => {
-    type IntegerNumber = NumFormat<{integer: true}>;
+    type IntegerNumber = FormatNumber<{integer: true}>;
     const isType = await createIsTypeFn<IntegerNumber>();
     expect(isType(10)).toBe(true);
     expect(isType(-5)).toBe(true);
@@ -171,7 +171,7 @@ it('validate integer', async () => {
 });
 
 it('get integer errors', async () => {
-    type IntegerNumber = NumFormat<{integer: true}>;
+    type IntegerNumber = FormatNumber<{integer: true}>;
     const typeErrors = await createTypeErrorsFn<IntegerNumber>();
     const format: TypeFormatError = {name: 'numberFormat', val: true, formatPath: ['integer']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
@@ -183,7 +183,7 @@ it('get integer errors', async () => {
 });
 
 it('mock integer', async () => {
-    type IntegerNumber = NumFormat<{integer: true}>;
+    type IntegerNumber = FormatNumber<{integer: true}>;
     const mockType = await createMockTypeFn<IntegerNumber>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -194,7 +194,7 @@ it('mock integer', async () => {
 // #### float ####
 
 it('validate float', async () => {
-    type FloatNumber = NumFormat<{float: true}>;
+    type FloatNumber = FormatNumber<{float: true}>;
     const isType = await createIsTypeFn<FloatNumber>();
     expect(isType(10)).toBe(false);
     expect(isType(-5)).toBe(false);
@@ -204,7 +204,7 @@ it('validate float', async () => {
 });
 
 it('get float errors', async () => {
-    type FloatNumber = NumFormat<{float: true}>;
+    type FloatNumber = FormatNumber<{float: true}>;
     const typeErrors = await createTypeErrorsFn<FloatNumber>();
     const format: TypeFormatError = {name: 'numberFormat', val: true, formatPath: ['float']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
@@ -216,7 +216,7 @@ it('get float errors', async () => {
 });
 
 it('mock float', async () => {
-    type FloatNumber = NumFormat<{float: true}>;
+    type FloatNumber = FormatNumber<{float: true}>;
     const mockType = await createMockTypeFn<FloatNumber>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -227,7 +227,7 @@ it('mock float', async () => {
 // #### multipleOf ####
 
 it('validate multipleOf', async () => {
-    type MultipleOf5 = NumFormat<{multipleOf: 5}>;
+    type MultipleOf5 = FormatNumber<{multipleOf: 5}>;
     const isType = await createIsTypeFn<MultipleOf5>();
     expect(isType(0)).toBe(true); // Zero is a multiple of any number
     expect(isType(-0)).toBe(true); // Negative zero is also a multiple
@@ -245,7 +245,7 @@ it('validate multipleOf', async () => {
 });
 
 it('validate multipleOf with 1', async () => {
-    type MultipleOf1 = NumFormat<{multipleOf: 1}>;
+    type MultipleOf1 = FormatNumber<{multipleOf: 1}>;
     const isType = await createIsTypeFn<MultipleOf1>();
     expect(isType(0)).toBe(true); // Zero is a multiple of any number
     expect(isType(-0)).toBe(true); // Negative zero is also a multiple
@@ -259,7 +259,7 @@ it('validate multipleOf with 1', async () => {
 });
 
 it('get multipleOf errors', async () => {
-    type MultipleOf5 = NumFormat<{multipleOf: 5}>;
+    type MultipleOf5 = FormatNumber<{multipleOf: 5}>;
     const typeErrors = await createTypeErrorsFn<MultipleOf5>();
     const format: TypeFormatError = {name: 'numberFormat', val: 5, formatPath: ['multipleOf']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
@@ -277,7 +277,7 @@ it('get multipleOf errors', async () => {
 });
 
 it('mock multipleOf', async () => {
-    type MultipleOf5 = NumFormat<{multipleOf: 5}>;
+    type MultipleOf5 = FormatNumber<{multipleOf: 5}>;
     const mockType = await createMockTypeFn<MultipleOf5>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -288,7 +288,7 @@ it('mock multipleOf', async () => {
 // #### Combined Constraints ####
 
 it('validate combined constraints', async () => {
-    type Combined = NumFormat<{min: 0; max: 100; integer: true; multipleOf: 5}>;
+    type Combined = FormatNumber<{min: 0; max: 100; integer: true; multipleOf: 5}>;
     const isType = await createIsTypeFn<Combined>();
     expect(isType(0)).toBe(true);
     expect(isType(5)).toBe(true);
@@ -301,7 +301,7 @@ it('validate combined constraints', async () => {
 });
 
 it('get combined constraints errors', async () => {
-    type Combined = NumFormat<{min: 0; max: 100; integer: true; multipleOf: 5}>;
+    type Combined = FormatNumber<{min: 0; max: 100; integer: true; multipleOf: 5}>;
     const typeErrors = await createTypeErrorsFn<Combined>();
 
     // Valid values should have no errors
@@ -331,7 +331,7 @@ it('get combined constraints errors', async () => {
 });
 
 it('mock combined constraints', async () => {
-    type Combined = NumFormat<{min: 0; max: 100; integer: true; multipleOf: 5}>;
+    type Combined = FormatNumber<{min: 0; max: 100; integer: true; multipleOf: 5}>;
     const mockType = await createMockTypeFn<Combined>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -345,39 +345,39 @@ it('mock combined constraints', async () => {
 // #### Validation Errors ####
 
 it('throws error when both min and gt are specified', async () => {
-    type InvalidType = NumFormat<{min: 10; gt: 5}>;
+    type InvalidType = FormatNumber<{min: 10; gt: 5}>;
     await expect(createIsTypeFn<InvalidType>()).rejects.toThrow();
 });
 
 it('throws error when both max and lt are specified', async () => {
-    type InvalidType = NumFormat<{max: 10; lt: 15}>;
+    type InvalidType = FormatNumber<{max: 10; lt: 15}>;
     await expect(createIsTypeFn<InvalidType>()).rejects.toThrow();
 });
 
 it('throws error when min > max', async () => {
-    type InvalidType = NumFormat<{min: 20; max: 10}>;
+    type InvalidType = FormatNumber<{min: 20; max: 10}>;
     await expect(createIsTypeFn<InvalidType>()).rejects.toThrow();
 });
 
 it('throws error when gt >= lt', async () => {
-    type InvalidType = NumFormat<{gt: 10; lt: 10}>;
+    type InvalidType = FormatNumber<{gt: 10; lt: 10}>;
     await expect(createIsTypeFn<InvalidType>()).rejects.toThrow();
 });
 
 it('throws error when multipleOf <= 0', async () => {
-    type InvalidType = NumFormat<{multipleOf: -1}>;
+    type InvalidType = FormatNumber<{multipleOf: -1}>;
     await expect(createIsTypeFn<InvalidType>()).rejects.toThrow();
 });
 
 it('throws error when multipleOf is not an integer', async () => {
-    type InvalidType = NumFormat<{multipleOf: 1.5}>;
+    type InvalidType = FormatNumber<{multipleOf: 1.5}>;
     await expect(createIsTypeFn<InvalidType>()).rejects.toThrow(
         /multipleOf must be an integer to avoid floating-point precision issues/
     );
 });
 
 it('throws error when float is true and multipleOf is used', async () => {
-    type InvalidType = NumFormat<{float: true; multipleOf: 2}>;
+    type InvalidType = FormatNumber<{float: true; multipleOf: 2}>;
     await expect(createIsTypeFn<InvalidType>()).rejects.toThrow(
         /multipleOf cannot be used with float constraint as multipleOf must be an integer/
     );
@@ -385,7 +385,7 @@ it('throws error when float is true and multipleOf is used', async () => {
 
 it('validate integer multipleOf works correctly', async () => {
     // Test with integer multipleOf values - these should work fine
-    type MultipleOf5 = NumFormat<{multipleOf: 5}>;
+    type MultipleOf5 = FormatNumber<{multipleOf: 5}>;
     const isType = await createIsTypeFn<MultipleOf5>();
 
     // Valid integer multiples
@@ -407,7 +407,7 @@ it('demonstrates solution for account balance in cents', async () => {
     // This avoids floating-point precision issues entirely
 
     // Account balance in cents (e.g., 123 cents = $1.23)
-    type AccountBalanceInCents = NumFormat<{multipleOf: 1; min: 0}>; // Positive integers only
+    type AccountBalanceInCents = FormatNumber<{multipleOf: 1; min: 0}>; // Positive integers only
     const isValidBalance = await createIsTypeFn<AccountBalanceInCents>();
 
     // Valid balances in cents

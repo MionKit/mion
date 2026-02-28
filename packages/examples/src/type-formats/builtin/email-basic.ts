@@ -1,6 +1,6 @@
-import {StrEmail} from '@mionkit/type-formats/FormatsString';
+import {FormatEmail} from '@mionkit/type-formats/StringFormats';
 
-type UserEmail = StrEmail;
+type UserEmail = FormatEmail;
 
 // Valid
 ('user@example.com'); // ✓

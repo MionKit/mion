@@ -383,13 +383,13 @@ function wrapFactory(factory: () => (x: number) => number) {
 // ========================================
 
 // ✅ VALID: Regular imports preserve type metadata for runtime reflection
-import {StrEmail, StrUrl} from '@mionkit/type-formats/FormatsString';
-import {NumFormat, NumInteger} from '@mionkit/type-formats/FormatsNumber';
-import {BigNumFormat} from '@mionkit/type-formats/FormatsBigint';
+import {FormatEmail, FormatUrl} from '@mionkit/type-formats/StringFormats';
+import {FormatNumber, FormatInteger} from '@mionkit/type-formats/NumberFormats';
+import {FormatBigInt} from '@mionkit/type-formats/BigintFormats';
 import {TypeFormat} from '@mionkit/run-types';
 
 // ❌ INVALID: Type-only imports strip metadata, causing silent validation failures
-import type {StrTime, StrDate} from '@mionkit/type-formats/FormatsString';
-import type {NumFloat} from '@mionkit/type-formats/FormatsNumber';
-import {type BigNumInt64} from '@mionkit/type-formats/FormatsBigint';
+import type {FormatStringTime, FormatStringDate} from '@mionkit/type-formats/StringFormats';
+import type {FormatFloat} from '@mionkit/type-formats/NumberFormats';
+import {type FormatBigInt64} from '@mionkit/type-formats/BigintFormats';
 import type {TypeFormat as TF} from '@mionkit/run-types';

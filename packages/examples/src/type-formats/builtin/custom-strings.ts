@@ -1,7 +1,7 @@
-import {StrFormat} from '@mionkit/type-formats/FormatsString';
+import {FormatString} from '@mionkit/type-formats/StringFormats';
 
 // Username: 3-20 chars, lowercase, trimmed
-type Username = StrFormat<{
+type Username = FormatString<{
     minLength: 3;
     maxLength: 20;
     lowercase: true;
@@ -10,7 +10,7 @@ type Username = StrFormat<{
 
 // Slug with pattern validation
 const slugRegex = /^[a-z0-9-]+$/;
-type Slug = StrFormat<{
+type Slug = FormatString<{
     minLength: 1;
     maxLength: 100;
     pattern: {
@@ -21,7 +21,7 @@ type Slug = StrFormat<{
 }>;
 
 // Name with allowed characters only
-type SafeName = StrFormat<{
+type SafeName = FormatString<{
     minLength: 1;
     maxLength: 50;
     allowedChars: {

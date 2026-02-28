@@ -29,9 +29,9 @@ const srcEntries = getSourceFiles(resolve(__dirname, 'src'));
 const entry: Record<string, string> = {
     // Multiple entry points for this package
     // Entry key becomes output filename, so use the names expected by package.json exports
-    FormatsNumber: resolve(__dirname, 'FormatsNumber.ts'),
-    FormatsString: resolve(__dirname, 'FormatsString.ts'),
-    FormatsBigint: resolve(__dirname, 'FormatsBigint.ts'),
+    NumberFormats: resolve(__dirname, 'NumberFormats.ts'),
+    StringFormats: resolve(__dirname, 'StringFormats.ts'),
+    BigintFormats: resolve(__dirname, 'BigintFormats.ts'),
     ...Object.fromEntries(Object.entries(srcEntries).map(([name, path]) => [`src/${name}`, path])),
 };
 

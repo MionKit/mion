@@ -8,11 +8,11 @@
 import {it, expect} from 'vitest';
 import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
 import {RunTypeError} from '@mionkit/core';
-import {StrDate} from './date.runtype';
+import {FormatStringDate} from './date.runtype';
 
 // ####### Date format YYYY-MM-DD #######
 
-type YYYYMMDD = StrDate<{format: 'YYYY-MM-DD'}>; // same as StringDate<{format: 'ISO'}>;
+type YYYYMMDD = FormatStringDate<{format: 'YYYY-MM-DD'}>; // same as StringDate<{format: 'ISO'}>;
 
 it('validate date with format YYYY-MM-DD', async () => {
     const isType = await createIsTypeFn<YYYYMMDD>();
@@ -75,7 +75,7 @@ it('mock date with format YYYY-MM-DD', async () => {
 
 // ####### Date format DD-MM-YYYY #######
 
-type DDMMYYYY = StrDate<{format: 'DD-MM-YYYY'}>;
+type DDMMYYYY = FormatStringDate<{format: 'DD-MM-YYYY'}>;
 
 it('validate date with format DD-MM-YYYY', async () => {
     const isType = await createIsTypeFn<DDMMYYYY>();
@@ -125,7 +125,7 @@ it('mock date with format DD-MM-YYYY', async () => {
 
 // ####### Date format MM-DD-YYYY #######
 
-type MMDDYYYY = StrDate<{format: 'MM-DD-YYYY'}>;
+type MMDDYYYY = FormatStringDate<{format: 'MM-DD-YYYY'}>;
 
 it('validate date with format MM-DD-YYYY', async () => {
     const isType = await createIsTypeFn<MMDDYYYY>();
@@ -175,7 +175,7 @@ it('mock date with format MM-DD-YYYY', async () => {
 
 // ####### Date format YYYY-MM #######
 
-type YYYYMM = StrDate<{format: 'YYYY-MM'}>;
+type YYYYMM = FormatStringDate<{format: 'YYYY-MM'}>;
 
 it('validate date with format YYYY-MM', async () => {
     const isType = await createIsTypeFn<YYYYMM>();
@@ -223,7 +223,7 @@ it('mock date with format YYYY-MM', async () => {
 
 // ####### Date format MM-DD #######
 
-type MMDD = StrDate<{format: 'MM-DD'}>;
+type MMDD = FormatStringDate<{format: 'MM-DD'}>;
 
 it('validate date with format MM-DD', async () => {
     const isType = await createIsTypeFn<MMDD>();
@@ -269,7 +269,7 @@ it('mock date with format MM-DD', async () => {
 
 // ####### Date format DD-MM #######
 
-type DDMM = StrDate<{format: 'DD-MM'}>;
+type DDMM = FormatStringDate<{format: 'DD-MM'}>;
 
 it('validate date with format DD-MM', async () => {
     const isType = await createIsTypeFn<DDMM>();

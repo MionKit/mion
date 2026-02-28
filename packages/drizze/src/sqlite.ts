@@ -39,8 +39,8 @@ const DEFAULT_CONFIG: DrizzleMapperConfig = {};
  * @example
  * ```typescript
  * interface User {
- *   id: StrUUIDv7;
- *   email: StrEmail;
+ *   id: FormatUUIDv7;
+ *   email: FormatEmail;
  *   name: string;
  *   age: number;
  *   createdAt: Date;

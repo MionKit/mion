@@ -1,21 +1,21 @@
 import {toDrizzlePGTable} from '@mionkit/drizzle';
 import {uuid, timestamp} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {StrUUIDv7} from '@mionkit/type-formats/FormatsString';
+import {FormatUUIDv7} from '@mionkit/type-formats/StringFormats';
 
 /** User entity */
 interface User {
-    id: StrUUIDv7;
+    id: FormatUUIDv7;
     name: string;
     createdAt: Date;
 }
 
 /** Post entity with foreign key reference */
 interface Post {
-    id: StrUUIDv7;
+    id: FormatUUIDv7;
     title: string;
     content: string;
-    authorId: StrUUIDv7; // Foreign key - just a string type
+    authorId: FormatUUIDv7; // Foreign key - just a string type
     createdAt: Date;
 }
 

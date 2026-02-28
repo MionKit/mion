@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {StrFormat} from './stringFormat.runtype.ts';
+import {FormatString} from './stringFormat.runtype.ts';
 import {StringParams} from '@mionkit/core';
 
 // ############### Default String Formats ###############
@@ -37,9 +37,9 @@ type DEFAULT_NUMERIC_PARAMS = {
 };
 
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-export type StrAlphaNumeric<P extends StringParams = {}> = StrFormat<P & DEFAULT_ALPHA_NUM_PARAMS>;
-export type StrAlpha<P extends StringParams = {}> = StrFormat<P & DEFAULT_ALPHA_PARAMS>;
-export type StrNumeric<P extends StringParams = {}> = StrFormat<P & DEFAULT_NUMERIC_PARAMS>;
-export type StrLowercase<P extends StringParams = {}> = StrFormat<P & {lowercase: true}>;
-export type StrUppercase<P extends StringParams = {}> = StrFormat<P & {uppercase: true}>;
-export type StrCapitalize<P extends StringParams = {}> = StrFormat<P & {capitalize: true}>;
+export type FormatAlphaNumeric<P extends StringParams = {}> = FormatString<P & DEFAULT_ALPHA_NUM_PARAMS>;
+export type FormatAlpha<P extends StringParams = {}> = FormatString<P & DEFAULT_ALPHA_PARAMS>;
+export type FormatNumeric<P extends StringParams = {}> = FormatString<P & DEFAULT_NUMERIC_PARAMS>;
+export type FormatLowercase<P extends StringParams = {}> = FormatString<P & {lowercase: true}>;
+export type FormatUppercase<P extends StringParams = {}> = FormatString<P & {uppercase: true}>;
+export type FormatCapitalize<P extends StringParams = {}> = FormatString<P & {capitalize: true}>;

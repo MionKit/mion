@@ -1,6 +1,6 @@
-import {StrEmailPunycode} from '@mionkit/type-formats/FormatsString';
+import {FormatEmailPunycode} from '@mionkit/type-formats/StringFormats';
 
-type InternationalEmail = StrEmailPunycode;
+type InternationalEmail = FormatEmailPunycode;
 
 // Valid
 ('user@xn--80akhbyknj4f.xn--p1ai'); // ✓ (punycode domain)

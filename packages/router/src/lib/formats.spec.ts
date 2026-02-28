@@ -15,8 +15,8 @@ import {route} from './handlers.ts';
 import {headersFromRecord} from './headers.ts';
 import {getSerializableMethod, serializeMethodDeps} from './remoteMethods.ts';
 // Import format types (regular import to ensure JIT functions are created)
-import {StrFormat} from '@mionkit/type-formats/FormatsString';
-import {NumFormat} from '@mionkit/type-formats/FormatsNumber';
+import {FormatString} from '@mionkit/type-formats/StringFormats';
+import {FormatNumber} from '@mionkit/type-formats/NumberFormats';
 
 type RawRequest = {
     headers: MionHeaders;
@@ -25,8 +25,8 @@ type RawRequest = {
 
 // Types with format validation
 type UserWithFormats = {
-    name: StrFormat<{minLength: 2; maxLength: 50}>;
-    age: NumFormat<{min: 13; max: 120; integer: true}>;
+    name: FormatString<{minLength: 2; maxLength: 50}>;
+    age: FormatNumber<{min: 13; max: 120; integer: true}>;
     email: string;
 };
 
@@ -41,7 +41,7 @@ type FormatTestRoutes = {
 } & Routes;
 
 type ValidateNameRoutes = {
-    validateName: ReturnType<typeof route<(ctx: unknown, name: StrFormat<{minLength: 2; maxLength: 20}>) => string>>;
+    validateName: ReturnType<typeof route<(ctx: unknown, name: FormatString<{minLength: 2; maxLength: 20}>) => string>>;
 } & Routes;
 
 describe('Dispatch routes with format types', () => {
@@ -161,7 +161,7 @@ describe('Dispatch routes with format types', () => {
         });
 
         it('validate simple string format param', async () => {
-            const validateName = route((_ctx, name: StrFormat<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`);
+            const validateName = route((_ctx, name: FormatString<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`);
             const routes: ValidateNameRoutes = {validateName};
             await initRouter();
             await registerRoutes(routes);

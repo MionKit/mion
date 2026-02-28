@@ -25,15 +25,15 @@ export * from './src/number/defaultNumberFormats.ts';
 
 // COMMENTED OUT - Original named exports (to be restored after issue is fixed):
 // // Re-export the main NumberFormat type
-// export {NumFormat} from './number/numberFormat.runtype';
+// export {FormatNumber} from './number/numberFormat.runtype';
 //
 // // ############### Default Number Formats ###############
 //
-// export {NumInteger} from './number/defaultNumberFormats';
-// export {NumFloat} from './number/defaultNumberFormats';
-// export {NumPositive} from './number/defaultNumberFormats';
-// export {NumNegative} from './number/defaultNumberFormats';
-// export {NumPositiveInt} from './number/defaultNumberFormats';
-// export {NumNegativeInt} from './number/defaultNumberFormats';
-// export {NumInt32} from './number/defaultNumberFormats';
-// export {NumUInt32 as NumUint32} from './number/defaultNumberFormats';
+// export {FormatInteger} from './number/defaultNumberFormats';
+// export {FormatFloat} from './number/defaultNumberFormats';
+// export {FormatPositive} from './number/defaultNumberFormats';
+// export {FormatNegative} from './number/defaultNumberFormats';
+// export {FormatPositiveInt} from './number/defaultNumberFormats';
+// export {FormatNegativeInt} from './number/defaultNumberFormats';
+// export {FormatInt32} from './number/defaultNumberFormats';
+// export {FormatUInt32 as NumUint32} from './number/defaultNumberFormats';

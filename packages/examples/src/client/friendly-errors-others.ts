@@ -2,20 +2,20 @@
 import type {FriendlyErrors} from '@mionkit/core';
 import {getFriendlyErrors} from '@mionkit/core';
 import {User, userFriendlyErrors} from './friendly-errors-map.ts';
-import type {StrFormat, StrEmail} from '@mionkit/type-formats/FormatsString';
+import type {FormatString, FormatEmail} from '@mionkit/type-formats/StringFormats';
 
 // start-narrowing-params
 // Define a simple type with format constraints
 type ContactInfo = {
-    name: StrFormat<{minLength: 2; maxLength: 50}>;
-    email: StrEmail;
-    website: StrFormat<{minLength: 10}>;
+    name: FormatString<{minLength: 2; maxLength: 50}>;
+    email: FormatEmail;
+    website: FormatString<{minLength: 10}>;
 };
 
 // Error params are automatically inferred from the branded type
 // Handler is called ONCE per field with ALL aggregated error params
 const contactErrors: FriendlyErrors<ContactInfo> = {
-    // StrFormat infers StringErrorParams: minLength, maxLength, pattern, length, etc.
+    // FormatString infers StringErrorParams: minLength, maxLength, pattern, length, etc.
     // All failed constraints are available at once in the params object
     name: (failed) => {
         const messages: string[] = [];
@@ -24,7 +24,7 @@ const contactErrors: FriendlyErrors<ContactInfo> = {
         if (messages.length > 0) return `Name must be ${messages.join(' and ')}`;
         return 'Name must be a valid string';
     },
-    // StrEmail infers EmailErrorParams: pattern, localPart, domain, minLength, maxLength
+    // FormatEmail infers EmailErrorParams: pattern, localPart, domain, minLength, maxLength
     email: (failed) => {
         const messages: string[] = [];
         if (failed.pattern) messages.push('invalid format');
@@ -33,7 +33,7 @@ const contactErrors: FriendlyErrors<ContactInfo> = {
         if (messages.length > 0) return `Email: ${messages.join(', ')}`;
         return 'Email must be a valid string';
     },
-    // StrFormat infers StringErrorParams automatically
+    // FormatString infers StringErrorParams automatically
     website: (failed) => {
         if (failed.minLength) return `Website must be at least ${failed.minLength.val} characters`;
         return 'Website must be a valid string';

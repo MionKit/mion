@@ -211,12 +211,12 @@ export type DEFAULT_URL_SOCIAL_MEDIA_PARAMS<DomainLIst extends readonly string[]
 
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 /** URL format, always branded with 'url'. */
-export type StrUrl<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_PARAMS & P, 'url'>;
+export type FormatUrl<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_PARAMS & P, 'url'>;
 /** File URL format, always branded with 'url'. */
-export type StrUrlFile<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_FILE_PARAMS & P, 'url'>;
+export type FormatUrlFile<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_FILE_PARAMS & P, 'url'>;
 /** HTTP URL format, always branded with 'url'. */
-export type StrUrlHttp<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_HTTP_PARAMS & P, 'url'>;
+export type FormatUrlHttp<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_HTTP_PARAMS & P, 'url'>;
 /** Social media URL format, always branded with 'url'. */
-export type StrUrlSocialMedia<DomainLIst extends readonly string[] = SOCIAL_MEDIA_DOMAINS_SAMPLES> = StrUrl<
+export type FormatUrlSocialMedia<DomainLIst extends readonly string[] = SOCIAL_MEDIA_DOMAINS_SAMPLES> = FormatUrl<
     DEFAULT_URL_SOCIAL_MEDIA_PARAMS<DomainLIst>
 >;

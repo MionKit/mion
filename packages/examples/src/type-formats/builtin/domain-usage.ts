@@ -1,7 +1,7 @@
-import {StrDomain, StrDomainStrict} from '@mionkit/type-formats/FormatsString';
+import {FormatDomain, FormatDomainStrict} from '@mionkit/type-formats/StringFormats';
 
-type QuickDomain = StrDomain;
-type DetailedDomain = StrDomainStrict;
+type QuickDomain = FormatDomain;
+type DetailedDomain = FormatDomainStrict;
 
 // Both validate the same cases
 ('example.com'); // ✓

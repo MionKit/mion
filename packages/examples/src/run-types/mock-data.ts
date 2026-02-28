@@ -22,12 +22,12 @@ const user = mockUser();
 // end-basic
 
 // start-formats
-import {StrEmail} from '@mionkit/type-formats/FormatsString';
-import {NumPositiveInt} from '@mionkit/type-formats/FormatsNumber';
+import {FormatEmail} from '@mionkit/type-formats/StringFormats';
+import {FormatPositiveInt} from '@mionkit/type-formats/NumberFormats';
 
 interface ValidatedUser {
-    email: StrEmail;
-    followersCount: NumPositiveInt;
+    email: FormatEmail;
+    followersCount: FormatPositiveInt;
 }
 
 const mockValidatedUser = await createMockTypeFn<ValidatedUser>();
