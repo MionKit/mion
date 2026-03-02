@@ -1,17 +1,19 @@
 {
-  "name": "@mionkit/vercel",
+  "name": "@mionkit/platform-node",
   "version": "0.7.2",
   "type": "module",
-  "description": "mion adapter for Vercel serverless functions",
+  "description": "mion HTTP Server for quick Api development.",
   "keywords": [
     "typescript",
     "API",
     "RPC",
     "json",
+    "schema",
+    "generate",
     "server",
     "serverless",
     "framework",
-    "vercel"
+    "node"
   ],
   "author": "ma jerez",
   "homepage": "https://mion.io/",
@@ -52,5 +54,6 @@
   "dependencies": {
     "@mionkit/core": "^0.7.2",
     "@mionkit/router": "^0.7.2"
-  }
+  },
+  "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }

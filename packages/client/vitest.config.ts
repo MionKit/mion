@@ -42,7 +42,7 @@ export default defineConfig({
             '@mionkit/run-types': resolve(__dirname, '../run-types'),
             '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
             '@mionkit/router': resolve(__dirname, '../router'),
-            '@mionkit/node': resolve(__dirname, '../node'),
+            '@mionkit/platform-node': resolve(__dirname, '../platform-node'),
             '@mionkit/test-server': resolve(__dirname, '../test-server'),
         },
     },

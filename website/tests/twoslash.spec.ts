@@ -53,7 +53,7 @@ test.describe('Twoslash Basic Functionality', () => {
 
     // Verify the code with @mionkit imports is rendered
     await expect(codeBlock).toContainText('@mionkit/router');
-    await expect(codeBlock).toContainText('@mionkit/node');
+    await expect(codeBlock).toContainText('@mionkit/platform-node');
 
     // Verify type annotations are present (twoslash hover popups)
     const typeAnnotations = page.locator('.twoslash-hover, [class*="twoslash"]');

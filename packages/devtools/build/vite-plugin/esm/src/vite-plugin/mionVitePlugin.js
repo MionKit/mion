@@ -151,7 +151,7 @@ function mionVitePlugin(options) {
         const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
         if (file.startsWith(clientSrcPath)) {
           const include = pureFnOptions.include || ["**/*.ts", "**/*.tsx"];
-          const exclude = pureFnOptions.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
+          const exclude = pureFnOptions.exclude || ["../node_modules/**", "**/.dist/**", "**/dist/**"];
           if (isIncluded(file, include, exclude)) {
             extractedFns = null;
             const mod = server.moduleGraph.getModuleById(resolveVirtualId(VIRTUAL_SERVER_PURE_FNS));

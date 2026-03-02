@@ -14,7 +14,7 @@ export default defineConfig({
         }),
     ],
     test: {
-        name: 'vercel',
+        name: 'platform-vercel',
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],
@@ -26,7 +26,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            '@mionkit/vercel': resolve(__dirname, '.'),
+            '@mionkit/platform-vercel': resolve(__dirname, '.'),
             '@mionkit/core': resolve(__dirname, '../core'),
             '@mionkit/router': resolve(__dirname, '../router'),
             '@mionkit/run-types': resolve(__dirname, '../run-types'),

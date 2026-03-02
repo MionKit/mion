@@ -1,5 +1,5 @@
 import {initMionRouter, route, Routes} from '@mionkit/router';
-import {startNodeServer} from '@mionkit/node';
+import {startNodeServer} from '@mionkit/platform-node';
 
 const routes = {
     // fully validated params

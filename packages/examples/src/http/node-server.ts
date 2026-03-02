@@ -1,5 +1,5 @@
 import {createServer} from 'http';
-import {initMionHttp} from '@mionkit/node';
+import {initMionHttp} from '@mionkit/platform-node';
 import {routes} from './node-routes.ts';
 
 const server = createServer(initMionHttp(routes));

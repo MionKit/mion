@@ -1,4 +1,4 @@
-import {initMionHttp} from '@mionkit/node';
+import {initMionHttp} from '@mionkit/platform-node';
 import {routes} from './node-routes.ts';
 
 const handler = initMionHttp(routes, {

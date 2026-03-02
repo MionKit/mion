@@ -8,13 +8,13 @@
   "references": [
     {"path": "../core"},
     {"path": "../router"},
-    {"path": "../node"},
+    {"path": "../platform-node"},
     {"path": "../client"},
     {"path": "../run-types"},
     {"path": "../type-formats"},
-    {"path": "../bun"},
-    {"path": "../aws"},
-    {"path": "../gcloud"}
+    {"path": "../platform-bun"},
+    {"path": "../platform-aws"},
+    {"path": "../platform-gcloud"}
   ],
   "reflection": true,
   "include": [".", "vite.config.ts"],

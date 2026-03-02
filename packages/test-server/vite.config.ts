@@ -24,7 +24,7 @@ export default defineConfig({
             '@mionkit/test-server': resolve(__dirname, '.'),
             '@mionkit/core': resolve(__dirname, '../core'),
             '@mionkit/router': resolve(__dirname, '../router'),
-            '@mionkit/node': resolve(__dirname, '../node'),
+            '@mionkit/platform-node': resolve(__dirname, '../platform-node'),
             '@mionkit/run-types': resolve(__dirname, '../run-types'),
             '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
         },
@@ -49,7 +49,7 @@ export default defineConfig({
                 preserveModules: true,
                 preserveModulesRoot: '.',
             },
-            external: ['@mionkit/core', '@mionkit/router', '@mionkit/node', '@mionkit/type-formats', /^[^./]/],
+            external: ['@mionkit/core', '@mionkit/router', '@mionkit/platform-node', '@mionkit/type-formats', /^[^./]/],
         },
     },
 });

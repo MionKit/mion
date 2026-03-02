@@ -1,7 +1,8 @@
 {
-  "name": "@mionkit/bun",
+  "name": "@mionkit/platform-aws",
   "version": "0.7.2",
-  "description": "mion server for bun runtime",
+  "type": "module",
+  "description": "AWS Lambda wrapper for mion router.",
   "keywords": [
     "typescript",
     "API",
@@ -12,8 +13,7 @@
     "server",
     "serverless",
     "framework",
-    "node",
-    "runtime types"
+    "node"
   ],
   "author": "ma jerez",
   "homepage": "https://mion.io/",
@@ -38,13 +38,10 @@
   "publishConfig": {
     "access": "public"
   },
-  "engines": {
-    "bun": ">=1.0.1"
-  },
   "scripts": {
-    "test": "bun test",
+    "test": "vitest run",
     "dev": "vite build --watch",
-    "dev:test": "bun test --watch",
+    "dev:test": "vitest watch",
     "lint": "npx eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
@@ -59,8 +56,6 @@
     "@mionkit/router": "^0.7.2"
   },
   "devDependencies": {
-    "@deepkit/core": "1.0.19",
-    "@deepkit/type-compiler": "1.0.19",
-    "bun-types": "latest"
+    "@serverless/event-mocks": "^1.1.1"
   }
 }

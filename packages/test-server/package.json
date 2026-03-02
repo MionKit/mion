@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@mionkit/core": "^0.7.2",
-    "@mionkit/node": "^0.7.2",
+    "@mionkit/platform-node": "^0.7.2",
     "@mionkit/router": "^0.7.2",
     "@mionkit/type-formats": "^0.7.2"
   }

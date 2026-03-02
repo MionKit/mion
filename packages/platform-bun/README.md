@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mionkit/bun`
+# `@mionkit/platform-bun`
 
 This package contains a Bun server to run mion APIs!
 
