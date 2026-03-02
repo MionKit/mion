@@ -18,6 +18,8 @@ import {
     VIRTUAL_AOT_PURE_FNS,
     VIRTUAL_AOT_ROUTER_CACHE,
     VIRTUAL_AOT_CACHES,
+    REFLECTION_MODULES,
+    VIRTUAL_STUB_PREFIX,
     resolveVirtualId,
 } from './constants.ts';
 import {
@@ -131,6 +133,20 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
         name: 'mion',
         enforce: 'pre',
 
+        config(config) {
+            // Strip reflection module aliases in bundle build mode so our resolveId can stub them.
+            // Vite's alias plugin runs before our resolveId, so we remove aliases here to prevent
+            // them from transforming bare package names into file paths before we can intercept.
+            if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== 'true') {
+                const aliases = config.resolve?.alias;
+                if (aliases && !Array.isArray(aliases)) {
+                    for (const mod of REFLECTION_MODULES) {
+                        delete (aliases as Record<string, string>)[mod];
+                    }
+                }
+            }
+        },
+
         configResolved(config) {
             if (aotOptions) {
                 aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
@@ -164,6 +180,11 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             if (id === VIRTUAL_AOT_PURE_FNS) return resolveVirtualId(id);
             if (id === VIRTUAL_AOT_ROUTER_CACHE) return resolveVirtualId(id);
             if (id === VIRTUAL_AOT_CACHES) return resolveVirtualId(id);
+
+            // Stub out reflection modules in the bundle build (not needed at runtime in AOT mode)
+            if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== 'true' && REFLECTION_MODULES.includes(id)) {
+                return resolveVirtualId(VIRTUAL_STUB_PREFIX + id);
+            }
 
             return null;
         },
@@ -212,6 +233,15 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                     return generateNoopCombinedModule();
                 }
                 return generateCombinedCachesModule();
+            }
+
+            // Reflection module stubs (empty modules — all reflection is pre-compiled in AOT caches)
+            // syntheticNamedExports tells Rollup to derive named exports from the default export,
+            // so any `import {foo} from '...'` resolves to undefined without build errors.
+            for (const mod of REFLECTION_MODULES) {
+                if (id === resolveVirtualId(VIRTUAL_STUB_PREFIX + mod)) {
+                    return {code: 'export default {}', syntheticNamedExports: true};
+                }
             }
 
             return null;

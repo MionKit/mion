@@ -41,6 +41,17 @@ export interface AOTCacheOptions {
      * Set env MION_AOT_FORCE=true to force regeneration regardless of this setting.
      */
     cache?: boolean | string;
+
+    /**
+     * Stub out @mionkit/run-types and @deepkit/* modules during the bundle build.
+     * When AOT caches are pre-compiled, these modules are not needed at runtime
+     * and can be replaced with empty stubs to reduce bundle size.
+     * Useful for edge runtime builds where bundle size matters.
+     *
+     * Only applies to the parent build process — the AOT child process (MION_COMPILE=true)
+     * always uses the real modules to generate caches.
+     */
+    excludeReflection?: boolean;
 }
 
 /** Serializable registry entry for a single pure function */
