@@ -18,15 +18,15 @@ interface Order {
 
 const routes = {
     getUser: route((ctx, id: number): User | null => {
+        if (id !== 1234) return null;
         const tags =  new Set(['tag1', 'tag2'])
         const user: User = {id: 1234, name: 'John',age: 30, createdAt: new Date(), tags};
-        if (id === 1234) return user;
-        return null;
+        return user;
     }),
     getOrder: route((ctx, id: string): Order | null => {
+        if (id !== 'ORDER-123') return null;
         const order: Order = {id: 'ORDER-123', userId: 1234, amount: 100};
-        if (id === 'ORDER-123') return order;
-        return null;
+        return order;
     }),
     sayHello: route((ctx, name: string): string => `Hello ${name}`),
 } satisfies Routes;

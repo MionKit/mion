@@ -13,6 +13,7 @@ export default defineConfig({
             'packages/node/vitest.config.ts',
             'packages/devtools/vitest.config.ts',
             'packages/drizze/vitest.config.ts',
+            'packages/vercel/vitest.config.ts',
         ],
         coverage: {
             provider: 'v8',
