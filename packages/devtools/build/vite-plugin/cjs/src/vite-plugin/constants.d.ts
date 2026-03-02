@@ -6,3 +6,5 @@ export declare const VIRTUAL_AOT_ROUTER_CACHE = "virtual:mion-aot/router-cache";
 export declare const VIRTUAL_AOT_CACHES = "virtual:mion-aot/caches";
 export declare const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
 export declare function resolveVirtualId(id: string): string;
+export declare const REFLECTION_MODULES: string[];
+export declare const VIRTUAL_STUB_PREFIX = "virtual:mion-stub/";

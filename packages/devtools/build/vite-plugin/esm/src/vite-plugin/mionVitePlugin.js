@@ -3,7 +3,7 @@ import * as ts from "typescript";
 import { createDeepkitConfig, createPureFnTransformerFactory } from "./transformers.js";
 import { scanClientSource } from "./extractPureFn.js";
 import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
-import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES } from "./constants.js";
+import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX } from "./constants.js";
 import { generateAOTCaches, logAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
 function isIncluded(filePath, include, exclude) {
@@ -42,6 +42,16 @@ function mionVitePlugin(options) {
   return {
     name: "mion",
     enforce: "pre",
+    config(config) {
+      if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== "true") {
+        const aliases = config.resolve?.alias;
+        if (aliases && !Array.isArray(aliases)) {
+          for (const mod of REFLECTION_MODULES) {
+            delete aliases[mod];
+          }
+        }
+      }
+    },
     configResolved(config) {
       if (aotOptions) {
         aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
@@ -67,6 +77,9 @@ function mionVitePlugin(options) {
       if (id === VIRTUAL_AOT_PURE_FNS) return resolveVirtualId(id);
       if (id === VIRTUAL_AOT_ROUTER_CACHE) return resolveVirtualId(id);
       if (id === VIRTUAL_AOT_CACHES) return resolveVirtualId(id);
+      if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== "true" && REFLECTION_MODULES.includes(id)) {
+        return resolveVirtualId(VIRTUAL_STUB_PREFIX + id);
+      }
       return null;
     },
     load(id) {
@@ -102,6 +115,11 @@ function mionVitePlugin(options) {
           return generateNoopCombinedModule();
         }
         return generateCombinedCachesModule();
+      }
+      for (const mod of REFLECTION_MODULES) {
+        if (id === resolveVirtualId(VIRTUAL_STUB_PREFIX + mod)) {
+          return { code: "export default {}", syntheticNamedExports: true };
+        }
       }
       return null;
     },
