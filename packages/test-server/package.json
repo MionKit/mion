@@ -41,7 +41,8 @@
     "lint": "npx eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
-    "clean": "rimraf .dist & rimraf .coverage",
+    "build:edge": "vite build --config vite.edge.config.ts",
+    "clean": "rimraf .dist & rimraf .coverage & rimraf build",
     "fresh-start": "npm run clean && rimraf node_modules"
   },
   "bugs": {
@@ -50,6 +51,7 @@
   "dependencies": {
     "@mionkit/core": "^0.7.2",
     "@mionkit/platform-node": "^0.7.2",
+    "@mionkit/platform-vercel": "^0.7.2",
     "@mionkit/router": "^0.7.2",
     "@mionkit/type-formats": "^0.7.2"
   }

@@ -25,6 +25,7 @@ export default defineConfig({
             '@mionkit/core': resolve(__dirname, '../core'),
             '@mionkit/router': resolve(__dirname, '../router'),
             '@mionkit/platform-node': resolve(__dirname, '../platform-node'),
+            '@mionkit/platform-vercel': resolve(__dirname, '../platform-vercel'),
             '@mionkit/run-types': resolve(__dirname, '../run-types'),
             '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
         },

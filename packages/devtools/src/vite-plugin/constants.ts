@@ -32,5 +32,13 @@ export function resolveVirtualId(id: string): string {
     return '\0' + id + '.ts';
 }
 
+// ============ Reflection Stubs (for excludeReflection) ============
+
+/** Modules stubbed out when excludeReflection is enabled (not needed at runtime in AOT mode) */
+export const REFLECTION_MODULES = ['@mionkit/run-types', '@deepkit/type', '@deepkit/core'];
+
+/** Prefix for virtual stub module IDs */
+export const VIRTUAL_STUB_PREFIX = 'virtual:mion-stub/';
+
 // Purity validation constants (ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS, FACTORY_FORBIDDEN_IDENTIFIERS)
 // are in ../pureFns/purityRules.ts, shared with the eslint plugin.
