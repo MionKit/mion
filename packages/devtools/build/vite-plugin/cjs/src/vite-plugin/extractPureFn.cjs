@@ -27,7 +27,7 @@ function _interopNamespaceDefault(e) {
 const ts__namespace = /* @__PURE__ */ _interopNamespaceDefault(ts);
 function scanClientSource(options) {
   const include = options.include || ["**/*.ts", "**/*.tsx"];
-  const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
+  const exclude = options.exclude || ["../node_modules/**", "**/.dist/**", "**/dist/**"];
   const clientSrcPath = posix.resolve(options.clientSrcPath);
   const fns = [];
   function scanDir(dir) {

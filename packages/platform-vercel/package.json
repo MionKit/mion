@@ -1,19 +1,17 @@
 {
-  "name": "@mionkit/aws",
+  "name": "@mionkit/platform-vercel",
   "version": "0.7.2",
   "type": "module",
-  "description": "AWS Lambda wrapper for mion router.",
+  "description": "mion adapter for Vercel serverless functions",
   "keywords": [
     "typescript",
     "API",
     "RPC",
     "json",
-    "schema",
-    "generate",
     "server",
     "serverless",
     "framework",
-    "node"
+    "vercel"
   ],
   "author": "ma jerez",
   "homepage": "https://mion.io/",
@@ -54,8 +52,5 @@
   "dependencies": {
     "@mionkit/core": "^0.7.2",
     "@mionkit/router": "^0.7.2"
-  },
-  "devDependencies": {
-    "@serverless/event-mocks": "^1.1.1"
   }
 }

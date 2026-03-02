@@ -170,7 +170,7 @@ function mionVitePlugin(options) {
         const clientSrcPath = path.resolve(pureFnOptions.clientSrcPath);
         if (file.startsWith(clientSrcPath)) {
           const include = pureFnOptions.include || ["**/*.ts", "**/*.tsx"];
-          const exclude = pureFnOptions.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
+          const exclude = pureFnOptions.exclude || ["../node_modules/**", "**/.dist/**", "**/dist/**"];
           if (isIncluded(file, include, exclude)) {
             extractedFns = null;
             const mod = server.moduleGraph.getModuleById(src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS));

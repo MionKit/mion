@@ -10,7 +10,7 @@
   "references": [
     {"path": "../core"},
     {"path": "../run-types"},
-    {"path": "../node"},
+    {"path": "../platform-node"},
     {"path": "../type-formats"},
     {"path": "../router"},
     {"path": "../test-server"}

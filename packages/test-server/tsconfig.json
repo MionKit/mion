@@ -11,7 +11,7 @@
     "paths": {
       "@mionkit/core": ["core/index.ts"],
       "@mionkit/router": ["router/index.ts"],
-      "@mionkit/node": ["node/index.ts"],
+      "@mionkit/platform-node": ["node/index.ts"],
       "@mionkit/type-formats": ["type-formats/index.ts"],
       "@mionkit/type-formats/*": ["type-formats/*"],
       "@mionkit/run-types": ["run-types/index.ts"]
@@ -23,7 +23,7 @@
   "references": [
     {"path": "../core"},
     {"path": "../router"},
-    {"path": "../node"},
+    {"path": "../platform-node"},
     {"path": "../type-formats"},
     {"path": "../run-types"}
   ],

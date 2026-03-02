@@ -1,4 +1,4 @@
-import {AwsLambdaOptions, awsLambdaHandler, setAwsLambdaOpts} from '@mionkit/aws';
+import {AwsLambdaOptions, awsLambdaHandler, setAwsLambdaOpts} from '@mionkit/platform-aws';
 import './myApi.routes';
 
 // set options specific for aws lambda

@@ -8,7 +8,7 @@ import { resolve, join } from "path/posix";
 import { isIncluded } from "./mionVitePlugin.js";
 function scanClientSource(options) {
   const include = options.include || ["**/*.ts", "**/*.tsx"];
-  const exclude = options.exclude || ["**/node_modules/**", "**/.dist/**", "**/dist/**"];
+  const exclude = options.exclude || ["../node_modules/**", "**/.dist/**", "**/dist/**"];
   const clientSrcPath = resolve(options.clientSrcPath);
   const fns = [];
   function scanDir(dir) {

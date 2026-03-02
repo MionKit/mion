@@ -52,7 +52,7 @@ export default defineConfig({
         mionPlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
-                exclude: ['**/jitCompilers/**', '**/lib/**', '**/mocking/**', '**/nodes/**'],
+                exclude: ['**/jitCompilers/**', '**/lib/**', '**/mocking/**', '../nodes/**'],
             },
         }),
         dts({

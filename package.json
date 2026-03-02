@@ -76,21 +76,21 @@
     "vitest": "^4.0.18"
   },
   "workspaces": [
-    "packages/aws",
+    "packages/platform-aws",
     "packages/test-publish",
-    "packages/bun",
+    "packages/platform-bun",
     "packages/client",
     "packages/devtools",
     "packages/core",
     "packages/drizze",
     "packages/type-formats",
-    "packages/gcloud",
-    "packages/node",
+    "packages/platform-gcloud",
+    "packages/platform-node",
     "packages/quick-start",
     "packages/router",
     "packages/run-types",
     "packages/test-server",
-    "packages/vercel"
+    "packages/platform-vercel"
   ],
   "dependencies": {
     "typescript": "5.9.3"

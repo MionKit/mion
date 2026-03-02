@@ -40,10 +40,10 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/aws": "^0.7.0",
-    "@mionkit/bun": "^0.7.0",
+    "@mionkit/platform-aws": "^0.7.0",
+    "@mionkit/platform-bun": "^0.7.0",
     "@mionkit/core": "^0.7.0",
-    "@mionkit/node": "^0.7.0",
+    "@mionkit/platform-node": "^0.7.0",
     "@mionkit/router": "^0.7.0"   
   },
   "devDependencies": {

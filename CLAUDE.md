@@ -11,7 +11,7 @@
   - `http`: HTTP server implementation
   - `client`: Client-side utilities
   - `codegen`: AOT (Ahead-of-Time) code generation
-  - `aws`, `gcloud`, `serverless`, `bun`: Platform-specific adapters
+  - `platform-aws`, `platform-gcloud`, `platform-bun`, `platform-node`, `platform-vercel`: Platform-specific adapters
   - `cli`: Command-line interface (not yet implemented)
   - `devtools`: Vite plugin, ESLint plugin, and dev tooling for mion
 - Run commands in specific package: `npm run <command> -w @mionkit/<packageName>`
@@ -25,7 +25,7 @@
 - Run a single test file from root: `npx vitest run <file-path-or-pattern>`
 - Run all tests in a specific project: `npx vitest run --project <name>` (e.g. `--project router`)
 - Run all tests across all packages: `npm run test`
-- Available project names: `core`, `run-types`, `type-formats`, `router`, `client`, `aws`, `gcloud`, `node`, `devtools`, `drizze`
+- Available project names: `core`, `run-types`, `type-formats`, `router`, `client`, `platform-aws`, `platform-gcloud`, `platform-node`, `platform-vercel`, `devtools`, `drizze`
 - `test-publish` package is excluded from the workspace (it tests built artifacts, run separately)
 - Never run `npm run build` during development (only for publishing)
 

@@ -14,7 +14,7 @@ export default defineConfig({
         }),
     ],
     test: {
-        name: 'node',
+        name: 'platform-aws',
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],
@@ -26,12 +26,13 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            '@mionkit/node': resolve(__dirname, '.'),
+            '@mionkit/platform-aws': resolve(__dirname, '.'),
             '@mionkit/core': resolve(__dirname, '../core'),
             '@mionkit/router': resolve(__dirname, '../router'),
             '@mionkit/run-types': resolve(__dirname, '../run-types'),
             '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
             '@mionkit/test-server': resolve(__dirname, '../test-server'),
+            '@mionkit/platform-node': resolve(__dirname, '../platform-node'),
         },
     },
 });

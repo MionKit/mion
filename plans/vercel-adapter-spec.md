@@ -1,4 +1,4 @@
-# `@mionkit/vercel` — Vercel Platform Adapter
+# `@mionkit/platform-vercel` — Vercel Platform Adapter
 
 ## Context
 
@@ -6,18 +6,18 @@ Mion has platform adapters for Node.js, Bun, AWS Lambda, and Google Cloud Functi
 
 ## Package Location
 
-`packages/vercel/` — workspace of the mion monorepo.
+`packages/platform-vercel/` — workspace of the mion monorepo.
 
 ## Files
 
 ```
-packages/vercel/
+packages/platform-vercel/
 ├── index.ts                    # Barrel export
 ├── package.json
 ├── tsconfig.json
 ├── tsconfig.build.json
-├── vite.config.ts              # Dual CJS/ESM build (pattern: packages/bun/vite.config.ts)
-├── vitest.config.ts            # Test config (pattern: packages/aws/vitest.config.ts)
+├── vite.config.ts              # Dual CJS/ESM build (pattern: packages/platform-bun/vite.config.ts)
+├── vitest.config.ts            # Test config (pattern: packages/platform-aws/vitest.config.ts)
 └── src/
     ├── vercelHandler.ts        # Core adapter
     ├── types.ts                # VercelHandlerOptions
@@ -29,7 +29,7 @@ packages/vercel/
 
 ```json
 {
-  "name": "@mionkit/vercel",
+  "name": "@mionkit/platform-vercel",
   "version": "0.7.2",
   "description": "mion adapter for Vercel serverless functions",
   "dependencies": {
@@ -64,7 +64,7 @@ export const DEFAULT_VERCEL_OPTIONS: VercelHandlerOptions = {
 
 ### `src/vercelHandler.ts`
 
-Directly adapted from `packages/bun/src/bunHttp.ts` — both use Web `Request`/`Response`.
+Directly adapted from `packages/platform-bun/src/bunHttp.ts` — both use Web `Request`/`Response`.
 
 **Exported functions:**
 - `setVercelHandlerOpts(options?)` — configure adapter options
@@ -89,7 +89,7 @@ Directly adapted from `packages/bun/src/bunHttp.ts` — both use Web `Request`/`
 
 ### `src/vercelHandler.spec.ts`
 
-Follow `packages/aws/src/awsLambda.spec.ts` pattern:
+Follow `packages/platform-aws/src/awsLambda.spec.ts` pattern:
 
 ```typescript
 import {initRouter, registerRoutes, resetRouter, route} from '@mionkit/router';
@@ -113,25 +113,25 @@ Test cases:
 
 ## Build & Config
 
-**`vite.config.ts`** — same pattern as `packages/bun/vite.config.ts`:
+**`vite.config.ts`** — same pattern as `packages/platform-bun/vite.config.ts`:
 - Dual CJS/ESM output to `.dist/esm/` and `.dist/cjs/`
 - External: `@mionkit/core`, `@mionkit/router`, all non-relative imports
 - `cjsPackageJsonPlugin`, `vite-plugin-dts`
 
-**`vitest.config.ts`** — same pattern as `packages/aws/vitest.config.ts`:
+**`vitest.config.ts`** — same pattern as `packages/platform-aws/vitest.config.ts`:
 - `mionPlugin` with deepkit type compilation
 - Resolve aliases for `@mionkit/*` packages
 
 **Root changes:**
-- Add `"packages/vercel"` to root `package.json` workspaces
-- Add `'packages/vercel/vitest.config.ts'` to root `vitest.config.ts` projects
+- Add `"packages/platform-vercel"` to root `package.json` workspaces
+- Add `'packages/platform-vercel/vitest.config.ts'` to root `vitest.config.ts` projects
 
 ## Key Reference Files
 
 | File | Role |
 |------|------|
-| `packages/bun/src/bunHttp.ts` | Primary pattern for adapter implementation |
-| `packages/bun/vite.config.ts` | Build config pattern (dual CJS/ESM) |
-| `packages/bun/src/types.ts` | Options interface pattern |
-| `packages/aws/src/awsLambda.spec.ts` | Test pattern |
-| `packages/aws/vitest.config.ts` | Vitest config pattern |
+| `packages/platform-bun/src/bunHttp.ts` | Primary pattern for adapter implementation |
+| `packages/platform-bun/vite.config.ts` | Build config pattern (dual CJS/ESM) |
+| `packages/platform-bun/src/types.ts` | Options interface pattern |
+| `packages/platform-aws/src/awsLambda.spec.ts` | Test pattern |
+| `packages/platform-aws/vitest.config.ts` | Vitest config pattern |

@@ -14,7 +14,7 @@ export default defineConfig({
         }),
     ],
     test: {
-        name: 'gcloud',
+        name: 'platform-gcloud',
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],
@@ -26,13 +26,13 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            '@mionkit/gcloud': resolve(__dirname, '.'),
+            '@mionkit/platform-gcloud': resolve(__dirname, '.'),
             '@mionkit/core': resolve(__dirname, '../core'),
             '@mionkit/router': resolve(__dirname, '../router'),
             '@mionkit/run-types': resolve(__dirname, '../run-types'),
             '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
             '@mionkit/test-server': resolve(__dirname, '../test-server'),
-            '@mionkit/node': resolve(__dirname, '../node'),
+            '@mionkit/platform-node': resolve(__dirname, '../platform-node'),
         },
     },
 });

@@ -281,7 +281,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                 const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
                 if (file.startsWith(clientSrcPath)) {
                     const include = pureFnOptions.include || ['**/*.ts', '**/*.tsx'];
-                    const exclude = pureFnOptions.exclude || ['**/node_modules/**', '**/.dist/**', '**/dist/**'];
+                    const exclude = pureFnOptions.exclude || ['../node_modules/**', '**/.dist/**', '**/dist/**'];
                     if (isIncluded(file, include, exclude)) {
                         // Clear cache and invalidate virtual module
                         extractedFns = null;

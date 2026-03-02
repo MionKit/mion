@@ -1,4 +1,4 @@
-import {GoogleCFOptions, googleCFHandler, setGoogleCFOpts} from '@mionkit/gcloud';
+import {GoogleCFOptions, googleCFHandler, setGoogleCFOpts} from '@mionkit/platform-gcloud';
 import './myApi.routes';
 
 // set options specific for GC Cloud Functions

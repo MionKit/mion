@@ -2,7 +2,7 @@
 
 ## Context
 
-`@mionkit/nextjs` provides the runtime logic and utility functions needed to make mion work seamlessly alongside Next.js and turbopack. This includes dev proxy configuration, build orchestration, and any Next.js-specific utilities. Separated from `@mionkit/starter` (generic scaffolding) and `@mionkit/vercel` (platform adapter) for clean concerns.
+`@mionkit/nextjs` provides the runtime logic and utility functions needed to make mion work seamlessly alongside Next.js and turbopack. This includes dev proxy configuration, build orchestration, and any Next.js-specific utilities. Separated from `@mionkit/starter` (generic scaffolding) and `@mionkit/platform-vercel` (platform adapter) for clean concerns.
 
 ## Package Location
 
@@ -167,14 +167,14 @@ export function generateNextConfigPatch(opts: MionNextConfig): string
 
 ```typescript
 import './routes.ts';
-import {createVercelHandler, setVercelHandlerOpts} from '@mionkit/vercel';
+import {createVercelHandler, setVercelHandlerOpts} from '@mionkit/platform-vercel';
 
 setVercelHandlerOpts({basePath: '/api/mion'});
 export const {GET, POST, PUT, DELETE, PATCH} = createVercelHandler();
 
 // Dev: start standalone Node server
 if (process.env.NODE_ENV !== 'production') {
-    const {startNodeServer} = await import('@mionkit/node');
+    const {startNodeServer} = await import('@mionkit/platform-node');
     startNodeServer({port: 3001});
 }
 ```
@@ -226,5 +226,5 @@ Same patterns as other packages:
 
 | File | Role |
 |------|------|
-| `packages/bun/vite.config.ts` | Build config pattern |
-| `packages/aws/vitest.config.ts` | Vitest config pattern |
+| `packages/platform-bun/vite.config.ts` | Build config pattern |
+| `packages/platform-aws/vitest.config.ts` | Vitest config pattern |

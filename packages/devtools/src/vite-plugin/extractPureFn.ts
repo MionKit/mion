@@ -18,7 +18,7 @@ import {isIncluded} from './mionVitePlugin.ts';
 /** Scans the client source directory and extracts all pure functions */
 export function scanClientSource(options: ServerPureFunctionsOptions): ExtractedPureFn[] {
     const include = options.include || ['**/*.ts', '**/*.tsx'];
-    const exclude = options.exclude || ['**/node_modules/**', '**/.dist/**', '**/dist/**'];
+    const exclude = options.exclude || ['../node_modules/**', '**/.dist/**', '**/dist/**'];
     const clientSrcPath = resolve(options.clientSrcPath);
     const fns: ExtractedPureFn[] = [];
 

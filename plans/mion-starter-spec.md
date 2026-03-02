@@ -104,18 +104,18 @@ Zero dependencies. Uses Node.js built-in `readline`, `fs`, `path`.
   "dependencies": {
     "@mionkit/core": "^0.7.2",
     "@mionkit/router": "^0.7.2",
-    "@mionkit/vercel": "^0.7.2"
+    "@mionkit/platform-vercel": "^0.7.2"
   },
   "devDependencies": {
     "@mionkit/devtools": "^0.8.0",
-    "@mionkit/node": "^0.7.2",
+    "@mionkit/platform-node": "^0.7.2",
     "vite": "^7.3.1",
     "vite-node": "^5.3.0"
   }
 }
 ```
 
-Dependencies vary by deployment target (Vercel shown above). Node standalone uses `@mionkit/node` in deps, no `@mionkit/vercel`.
+Dependencies vary by deployment target (Vercel shown above). Node standalone uses `@mionkit/platform-node` in deps, no `@mionkit/platform-vercel`.
 
 ### `api/src/routes.ts` (generated)
 
@@ -164,7 +164,7 @@ When adding Nuxt support later:
 - Add `cli/templates/nuxt/` with Nuxt-specific templates
 - Add detection in `detect.ts` for `nuxt.config.ts`
 - `@mionkit/nuxt` package provides runtime helpers (like `@mionkit/nextjs` does for Next.js)
-- `@mionkit/vercel` adapter is reused across frameworks
+- `@mionkit/platform-vercel` adapter is reused across frameworks
 
 ## `starters/nextjs/` Reference Project
 

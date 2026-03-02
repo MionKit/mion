@@ -14,11 +14,9 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mionkit/gcloud`
+# `@mionkit/platform-aws`
 
-ent.
-
-This package contains handler functions to run mion on [Google Cloud functions](https://cloud.google.com/functions/docs/concepts/nodejs-runtimG).
+This package contains handler functions to run mion on AWS Lambda.
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
