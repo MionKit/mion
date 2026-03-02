@@ -61,6 +61,16 @@ function mionVitePlugin(options) {
   return {
     name: "mion",
     enforce: "pre",
+    config(config) {
+      if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== "true") {
+        const aliases = config.resolve?.alias;
+        if (aliases && !Array.isArray(aliases)) {
+          for (const mod of src_vitePlugin_constants.REFLECTION_MODULES) {
+            delete aliases[mod];
+          }
+        }
+      }
+    },
     configResolved(config) {
       if (aotOptions) {
         aotCacheDir = src_vitePlugin_aotDiskCache.resolveCacheDir(aotOptions, config.cacheDir);
@@ -86,6 +96,9 @@ function mionVitePlugin(options) {
       if (id === src_vitePlugin_constants.VIRTUAL_AOT_PURE_FNS) return src_vitePlugin_constants.resolveVirtualId(id);
       if (id === src_vitePlugin_constants.VIRTUAL_AOT_ROUTER_CACHE) return src_vitePlugin_constants.resolveVirtualId(id);
       if (id === src_vitePlugin_constants.VIRTUAL_AOT_CACHES) return src_vitePlugin_constants.resolveVirtualId(id);
+      if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== "true" && src_vitePlugin_constants.REFLECTION_MODULES.includes(id)) {
+        return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_STUB_PREFIX + id);
+      }
       return null;
     },
     load(id) {
@@ -121,6 +134,11 @@ function mionVitePlugin(options) {
           return src_vitePlugin_aotCacheGenerator.generateNoopCombinedModule();
         }
         return src_vitePlugin_aotCacheGenerator.generateCombinedCachesModule();
+      }
+      for (const mod of src_vitePlugin_constants.REFLECTION_MODULES) {
+        if (id === src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_STUB_PREFIX + mod)) {
+          return { code: "export default {}", syntheticNamedExports: true };
+        }
       }
       return null;
     },
