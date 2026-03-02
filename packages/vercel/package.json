@@ -1,0 +1,56 @@
+{
+  "name": "@mionkit/vercel",
+  "version": "0.7.2",
+  "type": "module",
+  "description": "mion adapter for Vercel serverless functions",
+  "keywords": [
+    "typescript",
+    "API",
+    "RPC",
+    "json",
+    "server",
+    "serverless",
+    "framework",
+    "vercel"
+  ],
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./.dist/esm/index.d.ts",
+      "require": "./.dist/cjs/index.cjs",
+      "default": "./.dist/esm/index.js"
+    }
+  },
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "dev": "vite build --watch",
+    "dev:test": "vitest watch",
+    "lint": "npx eslint src",
+    "format": "prettier --write src/**/*.ts",
+    "build": "vite build",
+    "clean": "rimraf .dist & rimraf .coverage",
+    "fresh-start": "npm run clean && rimraf node_modules"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionkit/core": "^0.7.2",
+    "@mionkit/router": "^0.7.2"
+  }
+}

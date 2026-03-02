@@ -89,7 +89,8 @@
     "packages/quick-start",
     "packages/router",
     "packages/run-types",
-    "packages/test-server"
+    "packages/test-server",
+    "packages/vercel"
   ],
   "dependencies": {
     "typescript": "5.9.3"

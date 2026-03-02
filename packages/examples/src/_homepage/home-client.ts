@@ -15,7 +15,7 @@ if (user) {
     user.createdAt;
 //         ^?
 
-// @annotate: Native Classes are automatically restored to their original types
+// @annotate: Native Classes Like Set are automatically serialized/deserialized
 
     user.tags;
 //        ^?
