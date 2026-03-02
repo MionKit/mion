@@ -52,12 +52,13 @@
 - always try to use npm commands from packages instead `npx whatever command` if there is an npm command Available.
 
 ## ⚠️ Devtools Rebuild Requirement
-The `@mionkit/devtools` package exports point to built output (`./build/`), not source. Other packages (client, test-server, router, etc.) import the **built** vite plugin and eslint rules via `@mionkit/devtools/vite-plugin` and `@mionkit/devtools/eslint`.
+- The `@mionkit/devtools` package exports point to built output (`./build/`), not source. Other packages (client, test-server, router, etc.) import the **built** vite plugin and eslint rules via `@mionkit/devtools/vite-plugin` and `@mionkit/devtools/eslint`.
+- After modifying any devtools source files, you MUST rebuild before running tests in other packages:
 
-**After modifying any devtools source files, you MUST rebuild before running tests in other packages:**
 ```bash
 npm run build -w @mionkit/devtools
 ```
+
 - Devtools' own tests (`npx vitest run --project devtools`) import source directly and do NOT need a rebuild
 - Client, test-server, and any package using `mionVitePlugin` require the rebuilt output
 - Use `npm run dev -w @mionkit/devtools` for watch mode during active development
@@ -73,11 +74,11 @@ npm run build -w @mionkit/devtools
 - code examples can be imported using code-import component
 
 ## ⚠️⚠️⚠️ CRITICAL: TYPE IMPORTS ⚠️⚠️⚠️
-
-**NEVER USE `import type` FOR TYPES THAT NEED RUNTIME REFLECTION!**
-
-The type compiler needs the actual import statement to preserve type metadata.
-Using `import type` strips the metadata and causes silent failures.
+NEVER USE `import type` FOR TYPES THAT NEED RUNTIME REFLECTION!
+- The type compiler needs the actual import statement to preserve type metadata.
+- Using `import type` strips the metadata and causes silent failures.
+- This applies to: : Any type imports used for run-types, type-formats, or any other types that need type reflection
+- If tests fail silently with (type metadata not found), CHECK YOUR IMPORTS FIRST
 
 ```ts
 // ❌ WRONG - This breaks reflection!
@@ -86,10 +87,3 @@ import type {TypeFormatParams, Brand} from '@mionkit/core';
 // ✅ CORRECT - Use regular import for types that need reflection
 import {TypeFormatParams, Brand} from '@mionkit/core';
 ```
-
-This applies to:
-- Any type imports used for run-types, type-formats, or any other types that need type reflection
-
-**If tests fail silently with (type metadata not found), CHECK YOUR IMPORTS FIRST!**
-
----
