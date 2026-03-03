@@ -21,6 +21,7 @@
   "browser": {},
   "exports": {
     ".": {
+      "source": "./index.ts",
       "types": "./.dist/esm/index.d.ts",
       "require": "./.dist/cjs/index.cjs",
       "default": "./.dist/esm/index.js"

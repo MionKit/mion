@@ -3,6 +3,8 @@ import {resolve} from 'path';
 import {mionPlugin} from '@mionkit/devtools/vite-plugin';
 
 export default defineConfig({
+    resolve: {conditions: ['source']},
+    ssr: {resolve: {conditions: ['source']}},
     plugins: [
         mionPlugin({
             runTypes: {
@@ -26,16 +28,6 @@ export default defineConfig({
         env: {
             // Prevent test-server modules from auto-starting servers when imported
             MION_TEST_SERVER_AUTO_START: 'false',
-        },
-    },
-    resolve: {
-        alias: {
-            '@mionkit/router': resolve(__dirname, '.'),
-            '@mionkit/core': resolve(__dirname, '../core'),
-            '@mionkit/run-types': resolve(__dirname, '../run-types'),
-            '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
-            '@mionkit/test-server': resolve(__dirname, '../test-server'),
-            '@mionkit/platform-node': resolve(__dirname, '../platform-node'),
         },
     },
 });

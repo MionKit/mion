@@ -1,7 +1,8 @@
 import {defineConfig} from 'vitest/config';
-import {resolve} from 'path';
 
 export default defineConfig({
+    resolve: {conditions: ['source']},
+    ssr: {resolve: {conditions: ['source']}},
     test: {
         name: 'core',
         globals: true,
@@ -11,11 +12,6 @@ export default defineConfig({
             provider: 'v8',
             reporter: ['text', 'html'],
             include: ['src/**'],
-        },
-    },
-    resolve: {
-        alias: {
-            '@mionkit/core': resolve(__dirname, '.'),
         },
     },
 });

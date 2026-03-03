@@ -25,6 +25,7 @@ export * from './src/mocking/constants.mock.ts';
 export * from './src/mocking/mockRegistry.ts';
 export * from './src/mocking/mockType.ts';
 export * from './src/mocking/mockUtils.ts';
+export * from './src/run-types-pure-fns.ts';
 
 // TODO: decide if we want to export all nodes or not
 export type * from './src/nodes/atomic/any.ts';

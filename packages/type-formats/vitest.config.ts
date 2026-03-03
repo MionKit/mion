@@ -3,6 +3,8 @@ import {resolve} from 'path';
 import {mionPlugin} from '@mionkit/devtools/vite-plugin';
 
 export default defineConfig({
+    resolve: {conditions: ['source']},
+    ssr: {resolve: {conditions: ['source']}},
     plugins: [
         mionPlugin({
             runTypes: {
@@ -22,16 +24,6 @@ export default defineConfig({
             provider: 'v8',
             reporter: ['text', 'html'],
             include: ['src/**'],
-        },
-    },
-    resolve: {
-        alias: {
-            '@mionkit/type-formats': resolve(__dirname, '.'),
-            '@mionkit/type-formats/StringFormats': resolve(__dirname, 'StringFormats.ts'),
-            '@mionkit/type-formats/NumberFormats': resolve(__dirname, 'NumberFormats.ts'),
-            '@mionkit/type-formats/BigintFormats': resolve(__dirname, 'BigintFormats.ts'),
-            '@mionkit/run-types': resolve(__dirname, '../run-types'),
-            '@mionkit/core': resolve(__dirname, '../core'),
         },
     },
 });

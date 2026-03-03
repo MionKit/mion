@@ -1,7 +1,6 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
-// Import from source to ensure we use the latest code during development (not stale build artifacts)
-import {mionPlugin} from '../devtools/src/vite-plugin/index.ts';
+import {mionPlugin} from '@mionkit/devtools/vite-plugin';
 
 export default defineConfig({
     plugins: [
@@ -19,17 +18,8 @@ export default defineConfig({
             },
         }) as any,
     ],
-    resolve: {
-        alias: {
-            '@mionkit/test-server': resolve(__dirname, '.'),
-            '@mionkit/core': resolve(__dirname, '../core'),
-            '@mionkit/router': resolve(__dirname, '../router'),
-            '@mionkit/platform-node': resolve(__dirname, '../platform-node'),
-            '@mionkit/platform-vercel': resolve(__dirname, '../platform-vercel'),
-            '@mionkit/run-types': resolve(__dirname, '../run-types'),
-            '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
-        },
-    },
+    resolve: {conditions: ['source']},
+    ssr: {resolve: {conditions: ['source']}},
     build: {
         lib: {
             entry: {

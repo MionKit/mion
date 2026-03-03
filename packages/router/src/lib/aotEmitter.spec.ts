@@ -20,7 +20,7 @@ import {
     cpf_formatErr,
     cpf_safeIterableKey,
     cpf_sanitizeCompiledFn,
-} from '@mionkit/run-types/src/run-types-pure-fns.ts';
+} from '@mionkit/run-types';
 
 /** Re-registers run-types pure functions after resetJitFnCaches() */
 function reRegisterRunTypesPureFns(): void {

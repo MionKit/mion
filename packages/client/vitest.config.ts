@@ -3,6 +3,8 @@ import {resolve} from 'path';
 import {mionVitePlugin} from '@mionkit/devtools/vite-plugin';
 
 export default defineConfig({
+    resolve: {conditions: ['source']},
+    ssr: {resolve: {conditions: ['source']}},
     plugins: [
         mionVitePlugin({
             runTypes: {
@@ -33,17 +35,6 @@ export default defineConfig({
             provider: 'v8',
             reporter: ['text', 'html'],
             include: ['src/**'],
-        },
-    },
-    resolve: {
-        alias: {
-            '@mionkit/client': resolve(__dirname, '.'),
-            '@mionkit/core': resolve(__dirname, '../core'),
-            '@mionkit/run-types': resolve(__dirname, '../run-types'),
-            '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
-            '@mionkit/router': resolve(__dirname, '../router'),
-            '@mionkit/platform-node': resolve(__dirname, '../platform-node'),
-            '@mionkit/test-server': resolve(__dirname, '../test-server'),
         },
     },
 });
