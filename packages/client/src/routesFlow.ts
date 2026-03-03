@@ -8,7 +8,7 @@
 import {PURE_SERVER_FN_NAMESPACE, RpcError} from '@mionkit/core';
 import type {HSubRequest, RSubRequest, SubRequest, WorkflowResult} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
-import {MapFromServerFnRef} from '@mionkit/core/src/types/pureFunctions.types.ts';
+import {MapFromServerFnRef} from '@mionkit/core';
 
 /** Creates and executes a routesFlow request with multiple routes */
 export async function routesFlow<

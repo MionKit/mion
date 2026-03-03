@@ -16,7 +16,7 @@ import type {
     SubRequest,
     WorkflowResult,
 } from './types.ts';
-import type {MapFromServerFnRef} from '@mionkit/core/src/types/pureFunctions.types.ts';
+import type {MapFromServerFnRef} from '@mionkit/core';
 import type {MionClient} from './client.ts';
 import {TypedEvent} from './typedEvent.ts';
 import {isMapFromRef} from './routesFlow.ts';

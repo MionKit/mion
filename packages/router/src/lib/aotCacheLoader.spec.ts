@@ -25,7 +25,7 @@ import {
     cpf_formatErr,
     cpf_safeIterableKey,
     cpf_sanitizeCompiledFn,
-} from '@mionkit/run-types/src/run-types-pure-fns.ts';
+} from '@mionkit/run-types';
 
 const JIT_FN_IDS = ['is', 'te', 'tj', 'fj', 'sj', 'tBi', 'fBi'];
 

@@ -22,21 +22,25 @@
   "browser": {},
   "exports": {
     "./NumberFormats": {
+      "source": "./NumberFormats.ts",
       "types": "./.dist/esm/NumberFormats.d.ts",
       "require": "./.dist/cjs/NumberFormats.cjs",
       "default": "./.dist/esm/NumberFormats.js"
     },
     "./StringFormats": {
+      "source": "./StringFormats.ts",
       "types": "./.dist/esm/StringFormats.d.ts",
       "require": "./.dist/cjs/StringFormats.cjs",
       "default": "./.dist/esm/StringFormats.js"
     },
     "./BigintFormats": {
+      "source": "./BigintFormats.ts",
       "types": "./.dist/esm/BigintFormats.d.ts",
       "require": "./.dist/cjs/BigintFormats.cjs",
       "default": "./.dist/esm/BigintFormats.js"
     },
     "./constants": {
+      "source": "./constants.ts",
       "types": "./.dist/esm/src/constants.d.ts",
       "require": "./.dist/cjs/src/constants.cjs",
       "default": "./.dist/esm/src/constants.js"
