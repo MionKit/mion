@@ -16,6 +16,7 @@ export default defineConfig({
             'packages/devtools/vitest.config.ts',
             'packages/drizze/vitest.config.ts',
             'packages/platform-vercel/vitest.config.ts',
+            'packages/platform-cloudflare/vitest.config.ts',
         ],
         coverage: {
             provider: 'v8',
