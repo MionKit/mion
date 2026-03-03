@@ -125,7 +125,7 @@ function restoreCompiledJitFn(
 function restoreCreateJitFn(fnData: JitCompiledFnData, jUtil: JITUtils): JitCompiledFn {
     const fnName = fnData.jitFnHash;
     // fnData.code already contains the complete function with context (e.g., "const x = ...; return function fnName(args){...}")
-    const fnWithContext = fnData.code;
+    const fnWithContext = `'use strict'; ${fnData.code}`;
     try {
         // Create wrapper function that works as a factory and returns the actual jit function
         const wrapperWithContext = new Function('utl', fnWithContext) as (utl: JITUtils) => (...args: any[]) => any;
@@ -154,7 +154,7 @@ function restoreCreateJitFn(fnData: JitCompiledFnData, jUtil: JITUtils): JitComp
 function restorePureFunction(pureFnData: PureFunctionData, jUtil: JITUtils): CompiledPureFunction {
     const fnName = pureFnData.fnName;
     // pureFnData.code already contains the complete function with context
-    const fnWithContext = pureFnData.code;
+    const fnWithContext = `'use strict'; ${pureFnData.code}`;
     try {
         // Create wrapper function that works as a factory and returns the actual pure function
         const wrapperWithContext = new Function('utl', fnWithContext) as PureFunctionFactory;

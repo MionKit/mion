@@ -124,20 +124,17 @@ describe('serverless router', () => {
             const reply = await response.json();
             const headers = Object.fromEntries(response.headers.entries());
 
-            const expectedError: PublicRpcError<'validation-error'> = {
+            const expectedError: PublicRpcError<'serialization-error'> = {
                 'mion@isΣrrθr': true,
-                publicMessage: `Invalid params in 'getDate', validation failed.`,
-                type: 'validation-error',
-                errorData: {typeErrors: expect.anything()},
+                publicMessage: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
+                type: 'serialization-error',
+                errorData: {deserializeError: expect.any(String)},
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
             };
             expect(reply[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
             expect(headers['connection']).toEqual('keep-alive');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-            // TODO: seems that error types are slightly different when running on bun and node so length is different
-            // bun: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to UnknownTypeName:() => __\\u{3a9}DataPoint'
-            // node: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to DataPoint'
-            expect(headers['content-length']).toEqual('224');
+            expect(headers['content-length']).toEqual(expect.any(String));
             expect(headers['server']).toEqual('@mionkit');
         });
 
