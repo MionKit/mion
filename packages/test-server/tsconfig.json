@@ -12,6 +12,7 @@
       "@mionkit/core": ["core/index.ts"],
       "@mionkit/router": ["router/index.ts"],
       "@mionkit/platform-node": ["node/index.ts"],
+      "@mionkit/platform-cloudflare": ["platform-cloudflare/index.ts"],
       "@mionkit/platform-vercel": ["platform-vercel/index.ts"],
       "@mionkit/type-formats": ["type-formats/index.ts"],
       "@mionkit/type-formats/*": ["type-formats/*"],
@@ -25,11 +26,12 @@
     {"path": "../core"},
     {"path": "../router"},
     {"path": "../platform-node"},
+    {"path": "../platform-cloudflare"},
     {"path": "../platform-vercel"},
     {"path": "../type-formats"},
     {"path": "../run-types"}
   ],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", ".dist", "build", "vite.config.ts", "vite.edge.config.ts"]
+  "exclude": ["node_modules", ".dist", "build", "vite.config.ts", "vite.edge.config.ts", "vite.cloudflare.config.ts"]
 }

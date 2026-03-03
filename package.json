@@ -59,6 +59,7 @@
     "@deepkit/core": "1.0.19",
     "@deepkit/type-compiler": "1.0.19",
     "@edge-runtime/vm": "^5.0.0",
+    "miniflare": "^3.20241106.1",
     "@playwright/mcp": "^0.0.56",
     "@types/aws-lambda": "^8.10.108",
     "@types/node": "^24.0.0",
@@ -91,7 +92,8 @@
     "packages/router",
     "packages/run-types",
     "packages/test-server",
-    "packages/platform-vercel"
+    "packages/platform-vercel",
+    "packages/platform-cloudflare"
   ],
   "dependencies": {
     "typescript": "5.9.3"
