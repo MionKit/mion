@@ -37,7 +37,8 @@
     {"path": "./packages/platform-bun"},
     {"path": "./packages/devtools"},
     {"path": "./packages/quick-start"},
-    {"path": "./packages/test-server"}
+    {"path": "./packages/test-server"},
+    {"path": "./packages/starter"}
   ],
   "files": [],
   "exclude": ["node_modules", ".dist"],
