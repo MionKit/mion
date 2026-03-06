@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "paths": {
+      "@mionkit/*": ["../../*"]
+    }
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", "nextjs/app"]
+}

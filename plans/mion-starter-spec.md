@@ -61,6 +61,7 @@ Zero dependencies. Uses Node.js built-in `readline`, `fs`, `path`.
    - No match → error with instructions
 
 2. **Prompt deployment target** (stdin, no external deps):
+
    ```
    ? Deployment target:
      > Vercel Serverless (default)
@@ -96,7 +97,7 @@ Zero dependencies. Uses Node.js built-in `readline`, `fs`, `path`.
   "private": true,
   "type": "module",
   "main": "./dist/server.js",
-  "exports": { ".": "./src/routes.ts", "./dist/*": "./dist/*" },
+  "exports": {".": "./src/routes.ts", "./dist/*": "./dist/*"},
   "scripts": {
     "dev": "vite-node src/server.ts",
     "build": "vite build"
@@ -123,8 +124,8 @@ Dependencies vary by deployment target (Vercel shown above). Node standalone use
 import {initMionRouter, route, Routes} from '@mionkit/router';
 
 const routes = {
-    hello: route((ctx, name: string): string => `Hello ${name}!`),
-    getTime: route((ctx): Date => new Date()),
+  hello: route((ctx, name: string): string => `Hello ${name}!`),
+  getTime: route((ctx): Date => new Date()),
 } satisfies Routes;
 
 export const myApi = await initMionRouter(routes, {prefix: 'api/v1'});
@@ -139,28 +140,29 @@ import {resolve} from 'path';
 import {mionPlugin} from '@mionkit/devtools/vite-plugin';
 
 export default defineConfig({
-    plugins: [
-        mionPlugin({
-            runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-        }),
-    ],
-    build: {
-        lib: {entry: resolve(__dirname, 'src/server.ts'), formats: ['es']},
-        outDir: 'dist',
-        emptyOutDir: true,
-        sourcemap: true,
-        minify: false,
-        rollupOptions: {
-            external: [/^@mionkit\//, /^[^./]/],
-            output: {format: 'es', entryFileNames: '[name].js'},
-        },
+  plugins: [
+    mionPlugin({
+      runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
+    }),
+  ],
+  build: {
+    lib: {entry: resolve(__dirname, 'src/server.ts'), formats: ['es']},
+    outDir: 'dist',
+    emptyOutDir: true,
+    sourcemap: true,
+    minify: false,
+    rollupOptions: {
+      external: [/^@mionkit\//, /^[^./]/],
+      output: {format: 'es', entryFileNames: '[name].js'},
     },
+  },
 });
 ```
 
 ## Extensibility
 
 When adding Nuxt support later:
+
 - Add `cli/templates/nuxt/` with Nuxt-specific templates
 - Add detection in `detect.ts` for `nuxt.config.ts`
 - `@mionkit/nuxt` package provides runtime helpers (like `@mionkit/nextjs` does for Next.js)
@@ -169,6 +171,7 @@ When adding Nuxt support later:
 ## `starters/nextjs/` Reference Project
 
 Full working Next.js + mion project. Same pattern as `website/`:
+
 - Own `package.json`, `package-lock.json`, `node_modules/`
 - NOT in root workspaces
 - Contains integration tests
@@ -199,6 +202,6 @@ starters/nextjs/
 
 ## Key Reference Files
 
-| File | Role |
-|------|------|
+| File                   | Role                                              |
+| ---------------------- | ------------------------------------------------- |
 | `website/package.json` | Standalone project pattern (for starters/nextjs/) |
