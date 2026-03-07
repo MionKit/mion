@@ -35,11 +35,7 @@ export function setVercelHandlerOpts(options?: Partial<VercelHandlerOptions>) {
 async function handleRequest(req: Request): Promise<Response> {
     const reqUrl = req.url;
     const urlObj = new URL(reqUrl);
-    let path = urlObj.pathname;
-    // Strip basePath prefix to get the mion route path
-    if (vercelOptions.basePath && path.startsWith(vercelOptions.basePath)) {
-        path = path.slice(vercelOptions.basePath.length) || '/';
-    }
+    const path = urlObj.pathname;
     const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
     const contentType = req.headers.get('content-type') || '';
     const isBinary = contentType.startsWith('application/octet-stream');

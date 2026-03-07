@@ -126,22 +126,6 @@ describe('vercel handler (edge runtime)', () => {
         });
     });
 
-    describe('with basePath stripping', () => {
-        beforeAll(async () => {
-            vm = createEdgeVM();
-            await vm.evaluate(`EdgeTestServer.setup({ basePath: '/api/mion' })`);
-        });
-
-        it('should strip basePath and route correctly', async () => {
-            const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
-            const result = await callHandler(vm, '/api/mion/api/getDate', JSON.stringify(requestData));
-            const parsedResponse = JSON.parse(result.body);
-
-            expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
-            expect(result.status).toBe(200);
-        });
-    });
-
     describe('with serializer=json', () => {
         beforeAll(async () => {
             vm = createEdgeVM();
