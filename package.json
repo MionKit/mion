@@ -93,8 +93,7 @@
     "packages/run-types",
     "packages/test-server",
     "packages/platform-vercel",
-    "packages/platform-cloudflare",
-    "packages/starter"
+    "packages/platform-cloudflare"
   ],
   "dependencies": {
     "typescript": "5.9.3"
