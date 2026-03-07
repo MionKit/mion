@@ -19,11 +19,11 @@
     }
     return Object.freeze(Object.defineProperty(n, Symbol.toStringTag, { value: "Module" }));
   }
-  const __ΩReadonly$3 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
-  const __ΩOmit$1 = ["T", "K", () => __ΩPick$4, () => __ΩExclude$1, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
-  const __ΩRecord$8 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩReadonly$1 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
+  const __ΩOmit$1 = ["T", "K", () => __ΩPick$3, () => __ΩExclude$1, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
+  const __ΩRecord$4 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   const __ΩIterableIterator = ["T", "TReturn", "TNext", () => __ΩIterator, 0, () => Symbol.iterator, "IterableIterator", `b!"c""c#Pe"!e""e"#o$$Pe#!e#"e##o%$1&Mw'y`];
-  const __ΩPick$4 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
+  const __ΩPick$3 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩExclude$1 = ["T", "U", "Exclude", 'l6!Re$!RPe#!e$"qk#%QRb!b"Pde"!p)w#y'];
   const __ΩIterator = ["T", "TReturn", "TNext", "param0", () => __ΩIteratorResult, "next", "value", () => __ΩIteratorResult, "return", "e", () => __ΩIteratorResult, "throw", "Iterator", `b!"c""c#PPPPGPe%#GJ@2$e#!e#"o%#1&Pe#"2'8e#!e#"o(#1)8P"2*8e#!e#"o+#1,8Mw-y`];
   const __ΩIteratorResult = ["T", "TReturn", () => __ΩIteratorYieldResult, () => __ΩIteratorReturnResult, "IteratorResult", 'b!"c"Pe"!o#"e""o$"Jw%y'];
@@ -32,29 +32,29 @@
   const __ΩCallContext = ["ContextData", "path", () => __ΩMionRequest, "request", () => __ΩMionResponse, "response", "shared", "MethodsExecutionChain", "executionChain", "urlQuery", "routesFlowRouteIds", "CallContext", `"c!P&4"9n#4$9n%4&9e"!4'"w(4)9&4*89&F4+89Mw,y`];
   const __ΩRawRequestBody = ["AnyObject", "RawRequestBody", 'P&_W"w!Jw"y'];
   const __ΩRawResponseBody = ["AnyObject", "RawResponseBody", 'P&_W"w!Jw"y'];
-  const __ΩMionRequest = [() => __ΩReadonly$3, () => __ΩOmit$1, () => __ΩMionHeaders, "append", "set", "delete", "headers", () => __ΩRawRequestBody, "rawBody", "SerializerCode", "bodyType", () => __ΩReadonly$3, "AnyObject", "body", () => __ΩReadonly$3, () => __ΩRecord$8, "RpcError", "thrownErrors", "MionRequest", `Pn#P.$.%.&Jo"#o!"4'9n(4)9"w*4+9"w-o,"4.9&"w1o0#o/"4289Mw3y`];
-  const __ΩMionResponse = ["statusCode", () => __ΩReadonly$3, () => __ΩMionHeaders, "headers", () => __ΩRawResponseBody, "rawBody", "SerializerCode", "serializer", () => __ΩReadonly$3, () => __ΩResponseBody, "body", "hasErrors", "DataViewSerializer", "binSerializer", "MionResponse", `P'4!9n#o""4$9n%4&9"w'4(9n*o)"4+9)4,9P"w--J4.89Mw/y`];
+  const __ΩMionRequest = [() => __ΩReadonly$1, () => __ΩOmit$1, () => __ΩMionHeaders, "append", "set", "delete", "headers", () => __ΩRawRequestBody, "rawBody", "SerializerCode", "bodyType", () => __ΩReadonly$1, "AnyObject", "body", () => __ΩReadonly$1, () => __ΩRecord$4, "RpcError", "thrownErrors", "MionRequest", `Pn#P.$.%.&Jo"#o!"4'9n(4)9"w*4+9"w-o,"4.9&"w1o0#o/"4289Mw3y`];
+  const __ΩMionResponse = ["statusCode", () => __ΩReadonly$1, () => __ΩMionHeaders, "headers", () => __ΩRawResponseBody, "rawBody", "SerializerCode", "serializer", () => __ΩReadonly$1, () => __ΩResponseBody, "body", "hasErrors", "DataViewSerializer", "binSerializer", "MionResponse", `P'4!9n#o""4$9n%4&9"w'4(9n*o)"4+9)4,9P"w--J4.89Mw/y`];
   const __ΩMionHeaders = ["name", "value", "append", "delete", "set", "get", "has", () => __ΩIterableIterator, "entries", () => __ΩIterableIterator, "keys", () => __ΩIterableIterator, "values", "MionHeaders", `PP&2!&2"$1#P&2!$1$P&2!&2"$1%P&2!P&-,J1&P&2!)1'PP&&Go("1)P&o*"1+P&o,"1-Mw.y`];
   const __ΩContextDataFactory = ["ContextData", "", "ContextDataFactory", 'b!Pe"!/"w#y'];
-  const __ΩResponseBody = [() => __ΩRecord$8, () => __ΩRecord$8, "RpcError", "@thrownErrors", "ResponseBody", 'P&"o!#&"w#o"#4$8Mw%y'];
+  const __ΩResponseBody = [() => __ΩRecord$4, () => __ΩRecord$4, "RpcError", "@thrownErrors", "ResponseBody", 'P&"o!#&"w#o"#4$8Mw%y'];
   const __ΩRoutesFlowExecutionResult = ["MethodsExecutionChain", "executionChain", "routesFlowRouteIds", "RoutesFlowMapping", "mappings", "RoutesFlowExecutionResult", 'P"w!4"&F4#8"w$F4%8Mw&y'];
-  const __ΩPartial$2 = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
-  const __ΩPick$3 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
+  const __ΩPartial = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
+  const __ΩPick$2 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩRemoteMethod = ["AnyHandler", "H", "MethodWithJitFns", "RemoteMethodOpts", "options", "handler", "args", "", "methodCaller", "RemoteMethod", `"w!c"P"w#"w$4%e"!4&P"@2'"/(4)8Mw*y`];
   const __ΩRouteMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.route, "type", "RouteOnlyOptions", "options", "RouteMethod", `"c!Pe"!o""i#4$"w%4&Mw'y`];
   const __ΩMiddleFnMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.middleFn, "type", "MiddleFnMethod", '"c!Pe"!o""i#4$Mw%y'];
   const __ΩHeadersMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.headersMiddleFn, "type", "HeadersMethodWithJitFns", "headersParam", "HeadersMethod", `"c!Pe"!o""i#4$"w%4&Mw'y`];
   const __ΩRawMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.rawMiddleFn, "type", "RemoteMethodOpts", false, "validateParams", false, "validateReturn", "options", "RawMethod", `"c!Pe"!o""i#4$P"w%P.&4'.(4)8MK4*Mw+y`];
-  const __ΩRouteOptions = [() => __ΩPartial$2, () => __ΩPick$3, () => __ΩRouteMethod, "options", "description", "validateParams", "validateReturn", "serializer", "RouteOptions", `n#.$fP.%.&.'.(Jo"#o!"w)y`];
-  const __ΩMiddleFnOptions = [() => __ΩPartial$2, () => __ΩPick$3, () => __ΩMiddleFnMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "MiddleFnOptions", `n#.$fP.%.&.'.(Jo"#o!"w)y`];
-  const __ΩHeadersMiddleFnOptions = [() => __ΩPartial$2, () => __ΩPick$3, () => __ΩHeadersMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "HeadersMiddleFnOptions", `n#.$fP.%.&.'.(Jo"#o!"w)y`];
-  const __ΩRawMiddleFnOptions = [() => __ΩPartial$2, () => __ΩPick$3, () => __ΩRawMethod, "options", "description", "runOnError", "RawMiddleFnOptions", `n#.$fP.%.&Jo"#o!"w'y`];
+  const __ΩRouteOptions = [() => __ΩPartial, () => __ΩPick$2, () => __ΩRouteMethod, "options", "description", "validateParams", "validateReturn", "serializer", "RouteOptions", `n#.$fP.%.&.'.(Jo"#o!"w)y`];
+  const __ΩMiddleFnOptions = [() => __ΩPartial, () => __ΩPick$2, () => __ΩMiddleFnMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "MiddleFnOptions", `n#.$fP.%.&.'.(Jo"#o!"w)y`];
+  const __ΩHeadersMiddleFnOptions = [() => __ΩPartial, () => __ΩPick$2, () => __ΩHeadersMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "HeadersMiddleFnOptions", `n#.$fP.%.&.'.(Jo"#o!"w)y`];
+  const __ΩRawMiddleFnOptions = [() => __ΩPartial, () => __ΩPick$2, () => __ΩRawMethod, "options", "description", "runOnError", "RawMiddleFnOptions", `n#.$fP.%.&Jo"#o!"w'y`];
   const __ΩMethodsExecutionChain = ["routeIndex", () => __ΩRemoteMethod, "methods", "SerializerCode", "serializer", "MethodsExecutionChain", `P'4!n"F4#"w$4%Mw&y`];
-  const __ΩPick$2 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
-  const __ΩRouteDef = ["H", () => __ΩPick$2, () => __ΩRouteMethod, "type", "handler", () => __ΩRouteOptions, "options", "RouteDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
-  const __ΩMiddleFnDef = ["H", () => __ΩPick$2, () => __ΩMiddleFnMethod, "type", "handler", () => __ΩMiddleFnOptions, "options", "MiddleFnDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
-  const __ΩHeadersMiddleFnDef = ["H", () => __ΩPick$2, () => __ΩHeadersMethod, "type", "handler", () => __ΩHeadersMiddleFnOptions, "options", "HeadersMiddleFnDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
-  const __ΩRawMiddleFnDef = ["H", () => __ΩPick$2, () => __ΩRawMethod, "type", "handler", () => __ΩRawMiddleFnOptions, "options", "RawMiddleFnDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
+  const __ΩPick$1 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
+  const __ΩRouteDef = ["H", () => __ΩPick$1, () => __ΩRouteMethod, "type", "handler", () => __ΩRouteOptions, "options", "RouteDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
+  const __ΩMiddleFnDef = ["H", () => __ΩPick$1, () => __ΩMiddleFnMethod, "type", "handler", () => __ΩMiddleFnOptions, "options", "MiddleFnDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
+  const __ΩHeadersMiddleFnDef = ["H", () => __ΩPick$1, () => __ΩHeadersMethod, "type", "handler", () => __ΩHeadersMiddleFnOptions, "options", "HeadersMiddleFnDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
+  const __ΩRawMiddleFnDef = ["H", () => __ΩPick$1, () => __ΩRawMethod, "type", "handler", () => __ΩRawMiddleFnOptions, "options", "RawMiddleFnDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
   const DEFAULT_CORE_OPTIONS = {
     /** automatically generate and uuid */
     autoGenerateErrorId: false
@@ -115,7 +115,7 @@
   const __ΩPureFunctionFactory = ["JITUtils", "jitUtils", () => __ΩPureFunction, "", "PureFunctionFactory", 'P"w!2"n#/$w%y'];
   const __ΩPureFunctionData = ["namespace", "paramNames", "code", "fnName", "bodyHash", "pureFnDependencies", "PureFunctionData", `P&4!9&F4"9&4#9&4$9&4%9&F4&9Mw'y`];
   const __ΩCompiledPureFunction = [() => __ΩPureFunctionData, () => __ΩPureFunctionFactory, "createPureFn", () => __ΩPureFunction, "fn", "CompiledPureFunction", 'Pn!n"4#n$4%8Mw&y'];
-  const __ΩRecord$7 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩRecord$3 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   const SerializerModes = {
     /** Use prepareForJson (mutates original objects), and leaves JSON.stringify to the platform adapter */
     json: 1,
@@ -125,31 +125,27 @@
     stringifyJson: 3
   };
   const __ΩSerializerMode = [() => SerializerModes, "SerializerMode", 'i!gw"y'];
-  const __ΩSerializerCode = [() => SerializerModes, () => __ΩSerializerMode, "SerializerCode", 'i!n"fw#y'];
   const __ΩCoreOptions = ["autoGenerateErrorId", "CoreOptions", 'P)4!Mw"y'];
   const __ΩJitFnArgs = ["vλl", "JitFnArgs", 'P&4!&&LMw"y'];
   const __ΩJitCompiledFnData = ["typeName", "fnID", "jitFnHash", () => __ΩJitFnArgs, "args", () => __ΩJitFnArgs, "defaultParamValues", "isNoop", "code", "jitDependencies", "pureFnDependencies", "paramNames", "JitCompiledFnData", `P&4!9&4"9&4#9n$4%9n&4'9)4(89&4)9&F4*9&F4+9&F4,8Mw-y`];
   const __ΩJitCompiledFn = [() => __ΩAnyFn, "Fn", () => __ΩJitCompiledFnData, "JITUtils", "utl", "", "createJitFn", "fn", "JitCompiledFn", `n!c"Pn#P"w$2%e#!/&4'9e"!4(9Mw)y`];
-  const __ΩJitFunctionsCache = [() => __ΩRecord$7, () => __ΩJitCompiledFn, "JitFunctionsCache", '&n"o!#w#y'];
-  const __ΩPureFunctionsCache = [() => __ΩRecord$7, () => __ΩRecord$7, () => __ΩCompiledPureFunction, "PureFunctionsCache", '&&n#o"#o!#w$y'];
-  const __ΩFnsDataCache = [() => __ΩRecord$7, () => __ΩJitCompiledFnData, "FnsDataCache", '&n"o!#w#y'];
-  const __ΩPureFnsDataCache = [() => __ΩRecord$7, () => __ΩRecord$7, () => __ΩPureFunctionData, "PureFnsDataCache", '&&n#o"#o!#w$y'];
+  const __ΩJitFunctionsCache = [() => __ΩRecord$3, () => __ΩJitCompiledFn, "JitFunctionsCache", '&n"o!#w#y'];
+  const __ΩPureFunctionsCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩCompiledPureFunction, "PureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩFnsDataCache = [() => __ΩRecord$3, () => __ΩJitCompiledFnData, "FnsDataCache", '&n"o!#w#y'];
+  const __ΩPureFnsDataCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩPureFunctionData, "PureFnsDataCache", '&&n#o"#o!#w$y'];
   const __ΩSrcCodeJitCompiledFn = [() => __ΩJitCompiledFnData, "JITUtils", "utl", () => __ΩAnyFn, "", "createJitFn", "fn", "SrcCodeJitCompiledFn", `Pn!P"w"2#n$/%4&9-4'9Mw(y`];
   const __ΩSrcCodeCompiledPureFunction = [() => __ΩPureFunctionData, "JITUtils", "utl", () => __ΩAnyFn, "", "createPureFn", "fn", "SrcCodeCompiledPureFunction", `Pn!P"w"2#n$/%4&9-4'9Mw(y`];
-  const __ΩSrcCodeJITCompiledFnsCache = [() => __ΩRecord$7, () => __ΩSrcCodeJitCompiledFn, "SrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
-  const __ΩSrcCodePureFunctionsCache = [() => __ΩRecord$7, () => __ΩRecord$7, () => __ΩSrcCodeCompiledPureFunction, "SrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩSrcCodeJITCompiledFnsCache = [() => __ΩRecord$3, () => __ΩSrcCodeJitCompiledFn, "SrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
+  const __ΩSrcCodePureFunctionsCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩSrcCodeCompiledPureFunction, "SrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
   const __ΩAnyFn = ["args", "", "AnyFn", 'P"@2!"/"w#y'];
-  const __ΩAnyObject = [() => __ΩRecord$7, "AnyObject", '&#o!#w"y'];
-  const __ΩRecord$6 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩAnyObject = [() => __ΩRecord$3, "AnyObject", '&#o!#w"y'];
+  const __ΩRecord$2 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   const __ΩMethodMetadata = ["type", "id", "isAsync", "hasReturnData", "paramNames", "paramsJitHash", "returnJitHash", () => __ΩHeadersMetaData, "headersParam", () => __ΩHeadersMetaData, "headersReturn", "middleFnIds", "pointer", "nestLevel", "MethodMetadata", `P'4!&4")4#)4$&F4%8&4&&4'n(4)8n*4+8&F4,8&F4-'4.Mw/y`];
   const __ΩRemoteMethodOpts = ["runOnError", "validateParams", "validateReturn", "description", () => __ΩSerializerMode, "serializer", "RemoteMethodOpts", `P)4!8)4"8)4#8&4$8n%4&8Mw'y`];
   const __ΩMethodWithOptions = [() => __ΩMethodMetadata, () => __ΩRemoteMethodOpts, "options", "MethodWithOptions", 'Pn!n"4#Mw$y'];
-  const __ΩMethodsCache = [() => __ΩRecord$6, () => __ΩMethodWithOptions, "MethodsCache", '&n"o!#w#y'];
+  const __ΩMethodsCache = [() => __ΩRecord$2, () => __ΩMethodWithOptions, "MethodsCache", '&n"o!#w#y'];
   const __ΩHeadersMetaData = ["headerNames", "jitHash", "HeadersMetaData", 'P&F4!&4"Mw#y'];
   const __ΩSerializableMethodsData = [() => __ΩMethodsCache, "methods", () => __ΩFnsDataCache, "deps", () => __ΩPureFnsDataCache, "purFnDeps", "SerializableMethodsData", `Pn!4"n#4$n%4&Mw'y`];
-  const __ΩDataView = [() => __ΩArrayBufferLike, "TArrayBuffer", "buffer", "byteLength", "byteOffset", "littleEndian", "getFloat32", "getFloat64", "getInt8", "getInt16", "getInt32", "getUint8", "getUint16", "getUint32", "value", "setFloat32", "setFloat64", "setInt8", "setInt16", "setInt32", "setUint8", "setUint16", "setUint32", "DataView", `n!c"Pe"!4#9'4$9'4%9P'2%)2&8'1'P'2%)2&8'1(P'2%'1)P'2%)2&8'1*P'2%)2&8'1+P'2%'1,P'2%)2&8'1-P'2%)2&8'1.P'2%'2/)2&8$10P'2%'2/)2&8$11P'2%'2/$12P'2%'2/)2&8$13P'2%'2/)2&8$14P'2%'2/$15P'2%'2/)2&8$16P'2%'2/)2&8$17Mw8y`];
-  const __ΩArrayBufferLike = [() => __ΩArrayBufferTypes, () => __ΩArrayBufferTypes, "ArrayBufferLike", 'n!n"gfw#y'];
-  const __ΩArrayBufferTypes = ["ArrayBuffer", "ArrayBufferTypes", 'P_4!Mw"y'];
   const STR = 1;
   const NUM = 2;
   const POW_2_32 = 2 ** 32;
@@ -160,19 +156,17 @@
     maxCacheSize: 1e3,
     bufferSize: 2 ** 24,
     averageResponseSizeMultiplier: 2,
-    responseAverageSizes: (Map.Ω = [["&"], ["'"]], /* @__PURE__ */ new Map()),
-    stringBytesCache: (Map.Ω = [["&"], ["W"]], /* @__PURE__ */ new Map())
+    responseAverageSizes: /* @__PURE__ */ new Map(),
+    stringBytesCache: /* @__PURE__ */ new Map()
   };
   const textEncoder = new TextEncoder();
   const textDecoder = new TextDecoder();
   let opts = { ...DEFAULT_OPTIONS };
   function createDataViewSerializer(routeId, workflowRouteIds) {
     const size = calculateBufferSizeForRequest(routeId, workflowRouteIds);
-    if (size >= POW_2_32)
-      throw new Error("bufferSize option must be strictly less than 2 ** 32");
+    if (size >= POW_2_32) throw new Error("bufferSize option must be strictly less than 2 ** 32");
     return new DataViewSerializerImpl(routeId, size);
   }
-  createDataViewSerializer.__type = ["routeId", "workflowRouteIds", "DataViewSerializer", "createDataViewSerializer", 'P&2!&F2"8"w#/$'];
   function createDataViewDeserializer(routeId, input) {
     if (ArrayBuffer.isView(input)) {
       const buffer = input.buffer;
@@ -180,7 +174,6 @@
     }
     return new DataViewDeserializerImpl(routeId, input);
   }
-  createDataViewDeserializer.__type = ["routeId", "BinaryInput", "input", "DataViewDeserializer", "createDataViewDeserializer", 'P&2!"w"2#"w$/%'];
   class DataViewSerializerImpl {
     buffer;
     uint8View;
@@ -239,8 +232,7 @@
       const written = result.written;
       this.view.setUint32(this.index, written, LE);
       this.index += 4 + written;
-      if (opts.stringBytesCache.size >= opts.maxCacheSize)
-        evictStringBytesCache();
+      if (opts.stringBytesCache.size >= opts.maxCacheSize) evictStringBytesCache();
       opts.stringBytesCache.set(str, this.uint8View.slice(this.index - written, this.index));
     }
     serFloat64(n) {
@@ -263,11 +255,6 @@
       const newBitmask = this.view.getUint8(bitMaskIndex) | 1 << bitIndex;
       this.view.setUint8(bitMaskIndex, newBitmask);
     }
-    static __type = ["buffer", "uint8View", "routeId", "index", function() {
-      return 0;
-    }, () => __ΩDataView, "view", "hasEnded", function() {
-      return false;
-    }, "size", "constructor", "reset", "resize", "StrictArrayBuffer", "getBuffer", "getBufferView", "markAsEnded", "getLength", "str", "skipCache", "serString", "n", "serFloat64", "serEnum", "bitMaskIndex", "bitIndex", "setBitMask", "DataViewSerializer", "DataViewSerializerImpl", `_3!9W3";&3#9'3$>%n&3')3(>)P&2#'2*"0+P$0,P'2*$0-P"w.0/PW00P$01P'02P&23)248$05P'26$07PP'&J26$08P'29'2:$0;5"w<x"w=`];
   }
   class DataViewDeserializerImpl {
     buffer;
@@ -313,11 +300,9 @@
       const key = this.desString();
       const len = key.length;
       if (len === 9) {
-        if (key === "__proto__" || key === "prototype")
-          throw new Error(`Unsafe property name: ${key}`);
+        if (key === "__proto__" || key === "prototype") throw new Error(`Unsafe property name: ${key}`);
       } else if (len === 11) {
-        if (key === "constructor")
-          throw new Error(`Unsafe property name: ${key}`);
+        if (key === "constructor") throw new Error(`Unsafe property name: ${key}`);
       }
       return key;
     }
@@ -336,11 +321,6 @@
       }
       return this.desString();
     }
-    static __type = ["StrictArrayBuffer", "buffer", "uint8View", "routeId", "index", function() {
-      return 0;
-    }, () => __ΩDataView, "view", "hasEnded", function() {
-      return false;
-    }, "byteOffset", "byteLength", "constructor", "reset", "setBuffer", "markAsEnded", "getLength", "desString", "desSafePropName", "desFloat64", "desEnum", "DataViewDeserializer", "DataViewDeserializerImpl", `"w!3"9W3#;&3$9'3%>&n'3()3)>*P&2$"w!2"'2+8'2,8"0-P$0.P"w!2"'2+8'2,8$0/P$00P'01P&02P&03P'04PP'&J055"w6x"w7`];
   }
   function calculateBufferSizeForRequest(routeId, workflowRouteIds) {
     if (!workflowRouteIds || workflowRouteIds.length === 0) {
@@ -352,20 +332,16 @@
     }
     return totalSize;
   }
-  calculateBufferSizeForRequest.__type = ["routeId", "workflowRouteIds", "calculateBufferSizeForRequest", `P&2!&F2"8'/#`];
   function calculateDefaultBufferSize(routeId) {
     const size = opts.responseAverageSizes.get(routeId);
-    if (!size)
-      return opts.bufferSize;
+    if (!size) return opts.bufferSize;
     return size * opts.averageResponseSizeMultiplier;
   }
-  calculateDefaultBufferSize.__type = ["routeId", "calculateDefaultBufferSize", `P&2!'/"`];
   function updateResponseSize(routeId, responseSize) {
     const currentSize = opts.responseAverageSizes.get(routeId) || opts.bufferSize;
     const average = (currentSize + responseSize) / 2;
     opts.responseAverageSizes.set(routeId, Math.floor(average));
   }
-  updateResponseSize.__type = ["routeId", "responseSize", "updateResponseSize", `P&2!'2""/#`];
   function evictStringBytesCache() {
     const entries = Array.from(opts.stringBytesCache.entries());
     opts.stringBytesCache.clear();
@@ -373,71 +349,55 @@
       opts.stringBytesCache.set(entries[i][0], entries[i][1]);
     }
   }
-  evictStringBytesCache.__type = ["evictStringBytesCache", "P$/!"];
-  function __assignType$c(fn, args) {
-    fn.__type = args;
-    return fn;
-  }
   function restoreCompiledJitFns(jitCache, pureCache, jUtil) {
-    const visitedPure = (Set.Ω = [["&"]], /* @__PURE__ */ new Set());
-    const visitedJit = (Set.Ω = [["&"]], /* @__PURE__ */ new Set());
+    const visitedPure = /* @__PURE__ */ new Set();
+    const visitedJit = /* @__PURE__ */ new Set();
     for (const namespace in pureCache) {
       const nsCache = pureCache[namespace];
       const keysPureFns = Object.keys(nsCache);
-      keysPureFns.forEach(__assignType$c((key) => restoreCompiledPureFn(pureCache, namespace, key, jUtil, visitedPure), ["key", "", 'P"2!"/"']));
+      keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, namespace, key, jUtil, visitedPure));
     }
     const keysJitFns = Object.keys(jitCache);
-    keysJitFns.forEach(__assignType$c((key) => restoreCompiledJitFn(jitCache, pureCache, key, jUtil, visitedPure, visitedJit), ["key", "", 'P"2!"/"']));
+    keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key, jUtil, visitedPure, visitedJit));
   }
-  restoreCompiledJitFns.__type = ["PersistedJitFunctionsCache", "FnsDataCache", "jitCache", "PureFunctionsCache", "PersistedPureFunctionsCache", "PureFnsDataCache", "pureCache", () => __ΩJITUtils, "jUtil", "restoreCompiledJitFns", `PP"w!"w"J2#P"w$"w%"w&J2'n(2)$/*`];
   function restoreCompiledPureFn(pureCache, namespace, fnName, jUtil, visited) {
     const visitedKey = `${namespace}:${fnName}`;
-    if (visited.has(visitedKey))
-      return;
+    if (visited.has(visitedKey)) return;
     visited.add(visitedKey);
     const nsCache = pureCache[namespace];
-    if (!nsCache)
-      throw new Error(`Pure function namespace ${namespace} not found`);
+    if (!nsCache) throw new Error(`Pure function namespace ${namespace} not found`);
     const pureCompiled = nsCache[fnName];
-    if (!pureCompiled)
-      throw new Error(`Pure function ${fnName} not found in namespace ${namespace}`);
-    if (pureCompiled.fn)
-      return;
+    if (!pureCompiled) throw new Error(`Pure function ${fnName} not found in namespace ${namespace}`);
+    if (pureCompiled.fn) return;
     const dependencies = pureCompiled.pureFnDependencies;
-    dependencies.forEach(__assignType$c((depName) => restoreCompiledPureFn(pureCache, namespace, depName, jUtil, visited), ["depName", "", 'P"2!"/"']));
+    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, namespace, depName, jUtil, visited));
     if (pureCompiled.createPureFn) {
       pureCompiled.fn = pureCompiled.createPureFn(jUtil);
       return;
     }
     restorePureFunction(pureCompiled, jUtil);
   }
-  restoreCompiledPureFn.__type = ["PureFunctionsCache", "PersistedPureFunctionsCache", "PureFnsDataCache", "pureCache", "namespace", "fnName", () => __ΩJITUtils, "jUtil", "visited", "restoreCompiledPureFn", `PP"w!"w""w#J2$&2%&2&n'2(&D2)"/*`];
   function restoreCompiledJitFn(jitCache, pureCache, fnHash, jUtil, visitedPure, visitedJit) {
-    if (visitedJit.has(fnHash))
-      return;
+    if (visitedJit.has(fnHash)) return;
     visitedJit.add(fnHash);
     const jitCompiled = jitCache[fnHash];
-    if (!jitCompiled)
-      throw new Error(`Jit function ${fnHash} not found`);
-    if (jitCompiled.fn)
-      return;
+    if (!jitCompiled) throw new Error(`Jit function ${fnHash} not found`);
+    if (jitCompiled.fn) return;
     const pureDependencies = jitCompiled.pureFnDependencies;
-    pureDependencies.forEach(__assignType$c((dep) => {
+    pureDependencies.forEach((dep) => {
       const parts = dep.split("::");
-      if (parts.length !== 2)
-        throw new Error(`Invalid pure function dependency format: ${dep}, expected "namespace::fnHash"`);
+      if (parts.length !== 2) throw new Error(`Invalid pure function dependency format: ${dep}, expected "namespace::fnHash"`);
       const [namespace, fnHash2] = parts;
       restoreCompiledPureFn(pureCache, namespace, fnHash2, jUtil, visitedPure);
-    }, ["dep", "", 'P"2!"/"']));
+    });
     const dependencies = jitCompiled.jitDependencies;
-    dependencies.forEach(__assignType$c((dep) => restoreCompiledJitFn(jitCache, pureCache, dep, jUtil, visitedPure, visitedJit), ["dep", "", 'P"2!"/"']));
+    dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep, jUtil, visitedPure, visitedJit));
     if (jitCompiled.createJitFn) {
       jitCompiled.fn = jitCompiled.createJitFn(jUtil);
       return;
     }
     restoreCreateJitFn(jitCompiled, jUtil);
   }
-  restoreCompiledJitFn.__type = ["PersistedJitFunctionsCache", "FnsDataCache", "jitCache", "PureFunctionsCache", "PersistedPureFunctionsCache", "PureFnsDataCache", "pureCache", "fnHash", () => __ΩJITUtils, "jUtil", "visitedPure", "visitedJit", "restoreCompiledJitFn", `PP"w!"w"J2#P"w$"w%"w&J2'&2(n)2*&D2+&D2,"/-`];
   function restoreCreateJitFn(fnData, jUtil) {
     const fnName = fnData.jitFnHash;
     const fnWithContext = `'use strict'; ${fnData.code}`;
@@ -455,7 +415,6 @@
       });
     }
   }
-  restoreCreateJitFn.__type = ["JitCompiledFnData", "fnData", () => __ΩJITUtils, "jUtil", "JitCompiledFn", "restoreCreateJitFn", 'P"w!2"n#2$"w%/&'];
   function restorePureFunction(pureFnData, jUtil) {
     const fnName = pureFnData.fnName;
     const fnWithContext = `'use strict'; ${pureFnData.code}`;
@@ -473,52 +432,44 @@
       });
     }
   }
-  restorePureFunction.__type = ["PureFunctionData", "pureFnData", () => __ΩJITUtils, "jUtil", "CompiledPureFunction", "restorePureFunction", 'P"w!2"n#2$"w%/&'];
-  const __ΩRecord$5 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
-  function __assignType$b(fn, args) {
-    fn.__type = args;
-    return fn;
-  }
   const jitFnsCache$1 = {};
   const pureFnsCache$1 = {};
-  const deserializeFnsRegistry = (Map.Ω = [["&"], ["DeserializeClassFn", '"w!']], /* @__PURE__ */ new Map());
-  const serializableClassRegistry = (Map.Ω = [["&"], ["SerializableClass", '"w!']], /* @__PURE__ */ new Map());
-  const __ΩJITUtils = ["JitCompiledFn", "comp", "addToJitCache", "removeFromJitCache", "jitFnHash", "getJIT", "args", "", "getJitFn", "hasJitFn", "namespace", () => __ΩCompiledPureFunction, "compiledFn", "addPureFn", "name", () => __ΩPureFunction, "usePureFn", () => __ΩPureFunction, "getPureFn", () => __ΩCompiledPureFunction, "getCompiledPureFn", "hasPureFn", () => __ΩCompiledPureFunction, "findCompiledPureFn", "cls", "setSerializableClass", "className", "SerializableClass", "useSerializeClass", "getSerializeClass", "DeserializeClassFn", "deserializeFn", "setDeserializeFn", "useDeserializeFn", "getDeserializeFn", "JITUtils", `PP"w!2"$1#P"w!2"$1$P&2%P"w!-J1&P&2%P"@2'"/(1)P&2%)1*P&2+n,2-$1.P&2+&2/n011P&2+&2/Pn2-J13P&2+&2/Pn4-J15P&2+&2/)16P&2/Pn7-J18P"29$1:P&2;"w<1=P&2;P"w<-J1>P"29"w?2@$1AP&2;"w?1BP&2;P"w?-J1CMwDy`];
+  const deserializeFnsRegistry = /* @__PURE__ */ new Map();
+  const serializableClassRegistry = /* @__PURE__ */ new Map();
   const jitUtils = {
-    addToJitCache: __assignType$b(function addToJitCache(comp) {
+    addToJitCache(comp) {
       jitFnsCache$1[comp.jitFnHash] = comp;
-    }, ["JitCompiledFn", "comp", "addToJitCache", 'P"w!2""/#']),
-    removeFromJitCache: __assignType$b(function removeFromJitCache(comp) {
-      if (!jitFnsCache$1[comp.jitFnHash])
-        return;
+    },
+    removeFromJitCache(comp) {
+      if (!jitFnsCache$1[comp.jitFnHash]) return;
       jitFnsCache$1[comp.jitFnHash] = void 0;
-    }, ["JitCompiledFn", "comp", "removeFromJitCache", 'P"w!2""/#']),
-    getJIT: __assignType$b(function getJIT(jitFnHash) {
+    },
+    getJIT(jitFnHash) {
       return jitFnsCache$1[jitFnHash];
-    }, ["jitFnHash", "JitCompiledFn", "getJIT", 'P&2!P"w"-J/#']),
-    getJitFn: __assignType$b(function getJitFn(jitFnHash) {
+    },
+    getJitFn(jitFnHash) {
       const comp = jitFnsCache$1[jitFnHash];
-      if (!comp)
-        throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
+      if (!comp) throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
       return comp.fn;
-    }, ["jitFnHash", "args", "", "getJitFn", 'P&2!P"@2""/#/$']),
-    hasJitFn: __assignType$b(function hasJitFn(jitFnHash) {
+    },
+    hasJitFn(jitFnHash) {
       return !!jitFnsCache$1[jitFnHash]?.fn;
-    }, ["jitFnHash", "hasJitFn", 'P&2!"/"']),
+    },
     /**
      * Checks if key map can be serialized/deserialized with json and still works as a key for a map.
      * ie: if a map key is an string, it can be serialized to json and deserialized back an still will identify the correct map entry.
      * ie: if a map entry is an object, the object can not be serialized/deserialized and wont work as the same key for entry map as they are not same memory ref.
      *  */
-    addPureFn: __assignType$b(function addPureFn(namespace, compiledFn) {
+    addPureFn(namespace, compiledFn) {
       const fnHash = compiledFn.fnName;
-      if (!fnHash)
-        throw new Error("Pure function must have a name and must be unique");
+      if (!fnHash) throw new Error("Pure function must have a name and must be unique");
       const nsCache = ensureNamespace(namespace);
       const existing = nsCache[fnHash];
       if (existing) {
         if (existing.bodyHash && compiledFn.bodyHash && existing.bodyHash !== compiledFn.bodyHash) {
-          console.warn(`Pure function ${namespace}::${fnHash} body hash mismatch. Existing: ${existing.bodyHash}, New: ${compiledFn.bodyHash}. Replacing with new version.`);
+          console.warn(
+            `Pure function ${namespace}::${fnHash} body hash mismatch. Existing: ${existing.bodyHash}, New: ${compiledFn.bodyHash}. Replacing with new version.`
+          );
           nsCache[fnHash] = compiledFn;
           return compiledFn;
         }
@@ -526,90 +477,76 @@
       }
       nsCache[fnHash] = compiledFn;
       return compiledFn;
-    }, ["namespace", () => __ΩCompiledPureFunction, "compiledFn", () => __ΩCompiledPureFunction, "addPureFn", 'P&2!n"2#n$/%']),
-    usePureFn: __assignType$b(function usePureFn(namespace, fnHash) {
+    },
+    usePureFn(namespace, fnHash) {
       const nsCache = pureFnsCache$1[namespace];
-      if (!nsCache)
-        throw new Error(`Pure function namespace ${namespace} not found`);
+      if (!nsCache) throw new Error(`Pure function namespace ${namespace} not found`);
       const compiled = nsCache[fnHash];
-      if (!compiled)
-        throw new Error(`Pure function with name ${fnHash} not found in namespace ${namespace}`);
+      if (!compiled) throw new Error(`Pure function with name ${fnHash} not found in namespace ${namespace}`);
       initPureFunction(compiled);
       return compiled.fn;
-    }, ["namespace", "fnHash", () => __ΩPureFunction, "usePureFn", 'P&2!&2"n#/$']),
-    getPureFn: __assignType$b(function getPureFn(namespace, fnHash) {
+    },
+    getPureFn(namespace, fnHash) {
       const nsCache = pureFnsCache$1[namespace];
-      if (!nsCache)
-        return;
+      if (!nsCache) return;
       const compiled = nsCache[fnHash];
-      if (!compiled)
-        return;
+      if (!compiled) return;
       initPureFunction(compiled);
       return compiled.fn;
-    }, ["namespace", "fnHash", () => __ΩPureFunction, "getPureFn", 'P&2!&2"Pn#-J/$']),
-    getCompiledPureFn: __assignType$b(function getCompiledPureFn(namespace, fnHash) {
+    },
+    getCompiledPureFn(namespace, fnHash) {
       const nsCache = pureFnsCache$1[namespace];
-      if (!nsCache)
-        return;
+      if (!nsCache) return;
       return nsCache[fnHash];
-    }, ["namespace", "fnHash", () => __ΩCompiledPureFunction, "getCompiledPureFn", 'P&2!&2"Pn#-J/$']),
-    hasPureFn: __assignType$b(function hasPureFn(namespace, fnHash) {
+    },
+    hasPureFn(namespace, fnHash) {
       const nsCache = pureFnsCache$1[namespace];
-      if (!nsCache)
-        return false;
+      if (!nsCache) return false;
       return !!nsCache[fnHash];
-    }, ["namespace", "fnHash", "hasPureFn", 'P&2!&2")/#']),
-    findCompiledPureFn: __assignType$b(function findCompiledPureFn(fnHash) {
+    },
+    findCompiledPureFn(fnHash) {
       for (const namespace of Object.keys(pureFnsCache$1)) {
         const nsCache = pureFnsCache$1[namespace];
-        if (nsCache && nsCache[fnHash])
-          return nsCache[fnHash];
+        if (nsCache && nsCache[fnHash]) return nsCache[fnHash];
       }
       return void 0;
-    }, ["fnHash", () => __ΩCompiledPureFunction, "findCompiledPureFn", 'P&2!Pn"-J/#']),
-    setSerializableClass: __assignType$b(function setSerializableClass(cls) {
+    },
+    setSerializableClass(cls) {
       const className = cls.name;
       const existingClass = serializableClassRegistry.get(className);
-      if (existingClass && existingClass !== cls)
-        throw new Error(`Deserializable Class ${className} already registered`);
+      if (existingClass && existingClass !== cls) throw new Error(`Deserializable Class ${className} already registered`);
       serializableClassRegistry.set(className, cls);
-    }, ["cls", "setSerializableClass", 'P"2!"/"']),
-    useSerializeClass: __assignType$b(function useSerializeClass(className) {
+    },
+    useSerializeClass(className) {
       const cls = serializableClassRegistry.get(className);
-      if (!cls)
-        throw new Error(`Serializable class with name ${className} not found, be sure to register it first`);
+      if (!cls) throw new Error(`Serializable class with name ${className} not found, be sure to register it first`);
       return cls;
-    }, ["className", "SerializableClass", "useSerializeClass", 'P&2!"w"/#']),
-    getSerializeClass: __assignType$b(function getSerializeClass(className) {
+    },
+    getSerializeClass(className) {
       return serializableClassRegistry.get(className);
-    }, ["className", "SerializableClass", "getSerializeClass", 'P&2!P"w"-J/#']),
-    setDeserializeFn: __assignType$b(function setDeserializeFn(cls, deserializeFn) {
+    },
+    setDeserializeFn(cls, deserializeFn) {
       const className = cls.name;
       const fn = deserializeFnsRegistry.get(className);
-      if (fn && fn !== deserializeFn)
-        throw new Error(`Deserialize function for class ${className} already exists`);
-      if (fn)
-        return;
+      if (fn && fn !== deserializeFn) throw new Error(`Deserialize function for class ${className} already exists`);
+      if (fn) return;
       deserializeFnsRegistry.set(className, deserializeFn);
-    }, ["cls", "DeserializeClassFn", "deserializeFn", "setDeserializeFn", 'P"2!"w"2#"/$']),
-    useDeserializeFn: __assignType$b(function useDeserializeFn(className) {
+    },
+    useDeserializeFn(className) {
       const fn = deserializeFnsRegistry.get(className);
-      if (!fn)
-        throw new Error(`Deserialize function for class ${className} not found, be sure to register it first`);
+      if (!fn) throw new Error(`Deserialize function for class ${className} not found, be sure to register it first`);
       return fn;
-    }, ["className", "DeserializeClassFn", "useDeserializeFn", 'P&2!"w"/#']),
-    getDeserializeFn: __assignType$b(function getDeserializeFn(className) {
+    },
+    getDeserializeFn(className) {
       return deserializeFnsRegistry.get(className);
-    }, ["className", "DeserializeClassFn", "getDeserializeFn", 'P&2!P"w"-J/#'])
+    }
   };
   function getJitUtils() {
     return jitUtils;
   }
-  getJitUtils.__type = [() => __ΩJITUtils, "getJitUtils", 'Pn!/"'];
   function addAOTCaches(aotFnsCache, aotPureCache) {
     restoreCaches(aotFnsCache, aotPureCache);
   }
-  addAOTCaches.__type = ["PersistedJitFunctionsCache", "aotFnsCache", "PersistedPureFunctionsCache", "aotPureCache", "addAOTCaches", 'P"w!2""w#2$"/%'];
   function restoreCaches(fnsCache, pureCache) {
     for (const key in fnsCache) {
       if (!(key in jitFnsCache$1)) {
@@ -624,7 +561,9 @@
         const incoming = sourceNsCache[key];
         if (existing) {
           if (existing.bodyHash && incoming.bodyHash && existing.bodyHash !== incoming.bodyHash) {
-            console.warn(`Pure function ${namespace}::${key} cache eviction: bodyHash mismatch (cached: ${existing.bodyHash}, server: ${incoming.bodyHash})`);
+            console.warn(
+              `Pure function ${namespace}::${key} cache eviction: bodyHash mismatch (cached: ${existing.bodyHash}, server: ${incoming.bodyHash})`
+            );
             nsCache[key] = { ...incoming };
           }
         } else {
@@ -634,50 +573,41 @@
     }
     restoreCompiledJitFns(jitFnsCache$1, pureFnsCache$1, getJitUtils());
   }
-  restoreCaches.__type = ["PersistedJitFunctionsCache", "FnsDataCache", "fnsCache", "PersistedPureFunctionsCache", "PureFnsDataCache", "pureCache", "restoreCaches", `PP"w!"w"J2#P"w$"w%J2&"/'`];
   function getJitFnCaches() {
     return {
       jitFnsCache: jitFnsCache$1,
       pureFnsCache: pureFnsCache$1
     };
   }
-  getJitFnCaches.__type = ["getJitFnCaches", 'P"/!'];
   function ensureNamespace(namespace) {
     if (!pureFnsCache$1[namespace]) {
       pureFnsCache$1[namespace] = {};
     }
     return pureFnsCache$1[namespace];
   }
-  ensureNamespace.__type = ["namespace", () => __ΩRecord$5, () => __ΩCompiledPureFunction, "ensureNamespace", 'P&2!&n#o"#/$'];
   function randomUUID_V7() {
     const uuid = crypto.randomUUID();
     const timestamp = BigInt(Date.now());
     const tHex = timestamp.toString(16).padStart(12, "0");
     return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
   }
-  randomUUID_V7.__type = ["randomUUID_V7", "P&/!"];
   function getENV(key) {
     if (typeof process !== "undefined" && process.env) {
       return process.env[key];
     }
     return void 0;
   }
-  getENV.__type = ["key", "getENV", 'P&2!P&-J/"'];
   let isTest = void 0;
   function isTestEnv() {
-    if (isTest !== void 0)
-      return isTest;
+    if (isTest !== void 0) return isTest;
     isTest = getENV("VITEST") !== void 0 || getENV("NODE_ENV") === "test";
     return isTest;
   }
-  isTestEnv.__type = ["isTestEnv", 'P"/!'];
   function initPureFunction(compiled) {
-    if (compiled.fn)
-      return;
+    if (compiled.fn) return;
     compiled.fn = compiled.createPureFn(getJitUtils());
   }
-  initPureFunction.__type = ["CompiledPureFunction", "compiled", "initPureFunction", 'P"w!2"!/#'];
-  const __ΩReadonly$2 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
+  const __ΩReadonly = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
   let options = { ...DEFAULT_CORE_OPTIONS };
   function setErrorOptions(opts2) {
     options = opts2;
@@ -766,10 +696,8 @@
       });
       Object.setPrototypeOf(this, RpcError.prototype);
     }
-    static __type = ["ErrType", "ErrData", () => TypedError, "id", "publicMessage", () => __ΩReadonly$2, "errorData", "statusCode", "AnyErrorParams", "param0", "constructor", "RpcErrorParams", "RpcError", `b!"c"Pe"!7#P'&J3$89&3%9e!"o&"3'89'3(8P"w)2*"0+5e!!6""w,x"w-`];
+    static __type = ["ErrType", "ErrData", () => TypedError, "id", "publicMessage", () => __ΩReadonly, "errorData", "statusCode", "AnyErrorParams", "param0", "constructor", "RpcErrorParams", "RpcError", `b!"c"Pe"!7#P'&J3$89&3%9e!"o&"3'89'3(8P"w)2*"0+5e!!6""w,x"w-`];
   }
-  const __ΩRecord$4 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
-  const __ΩReturnType$2 = ["T", "args", "", "ReturnType", `l>e"!R"RPde#!P"@2"h"!/#qk#'QRb!Pde"!p)w$y`];
   function serializeBinaryBody$1(path, executionChain, body, isResponse, workflowRouteIds) {
     try {
       const serializer = createDataViewSerializer(path, workflowRouteIds);
@@ -788,79 +716,65 @@
       serializer.markAsEnded();
       return { serializer, buffer: serializer.getBuffer() };
     } catch (err) {
-      if (err instanceof RpcError)
-        throw err;
+      if (err instanceof RpcError) throw err;
       throw new RpcError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
-        type: isResponse ? "binary-response-Serialization-error" : "binary-request-Serialization-error",
+        type: "binary-response-Serialization-error",
         publicMessage: `Failed to serialize body to binary: ${err?.message || "unknown error"}`,
         originalError: err
       });
     }
   }
-  serializeBinaryBody$1.__type = ["path", "MethodWithJitFns", "executionChain", () => __ΩRecord$4, "body", "isResponse", "workflowRouteIds", "DataViewSerializer", "serializer", () => __ΩReturnType$2, "getBuffer", "buffer", "serializeBinaryBody", `P&2!"w"F2#&"o$#2%)2&&F2'8P"w(4)"w(.+fo*"4,M/-`];
   function serializeMethod(key, method, value, serializer, isResponse) {
-    const toBinary = isResponse ? method.returnJitFns.toBinary : method.paramsJitFns.toBinary;
+    const toBinary = method.returnJitFns.toBinary;
     if (!toBinary?.fn)
       throw new RpcError({
         type: "missing-toBinary-jit-fn",
         publicMessage: `Missing toBinary JIT function for method ${method.id}`
       });
-    if (toBinary.isNoop)
-      return false;
-    if (key === MION_ROUTES.thrownErrors)
-      return false;
-    if (isResponse && (!method.hasReturnData || typeof value === "undefined"))
-      return false;
-    if (!isResponse && typeof value === "undefined")
-      return false;
+    if (toBinary.isNoop) return false;
+    if (key === MION_ROUTES.thrownErrors) return false;
+    if (!method.hasReturnData || typeof value === "undefined") return false;
     serializer.serString(key);
     toBinary.fn(value, serializer);
     return true;
   }
-  serializeMethod.__type = ["key", "MethodWithJitFns", "method", "value", "DataViewSerializer", "serializer", "isResponse", "serializeMethod", `P&2!"w"2#"2$"w%2&)2')/(`];
-  const __ΩPick$1 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
-  function __assignType$a(fn, args) {
-    fn.__type = args;
-    return fn;
-  }
   const methodsCache = {};
-  const methodsOptionsCache = {};
-  const jitFunctionsCache = (Map.Ω = [["&"], ["JitCompiledFunctions", '"w!']], /* @__PURE__ */ new Map());
-  const headerJitFunctionsCache = (Map.Ω = [["&"], [() => __ΩPick$1, "JitCompiledFunctions", "isType", "typeErrors", '"w"P.#.$Jo!#']], /* @__PURE__ */ new Map());
+  const jitFunctionsCache = /* @__PURE__ */ new Map();
+  const headerJitFunctionsCache = /* @__PURE__ */ new Map();
   const routesCache = {
     /**
      * Get method metadata from the router cache by id.
      * @param id - The method id
      * @returns The method metadata or undefined if not found
      */
-    getMetadata: __assignType$a(function getMetadata(id) {
+    getMetadata(id) {
       return methodsCache[id];
-    }, ["id", "MethodWithOptions", "getMetadata", 'P&2!P"w"-J/#']),
+    },
     /**
      * Set method metadata in the router cache
      * @param id - The method id
      * @param methodData - The method metadata
      */
-    setMetadata: __assignType$a(function setMetadata(id, methodData) {
+    setMetadata(id, methodData) {
       methodsCache[id] = methodData;
-    }, ["id", "MethodWithOptions", "methodData", "setMetadata", 'P&2!"w"2#$/$']),
+    },
     /**
      * Check if the router cache contains a method by id.
      * @param id - The method id
      * @returns True if the method exists in the cache
      */
-    hasMetadata: __assignType$a(function hasMetadata(id) {
+    hasMetadata(id) {
       return id in methodsCache;
-    }, ["id", "hasMetadata", 'P&2!)/"']),
+    },
     /**
      * Get the raw router cache object.
      * Use with caution - prefer using get/set/has methods.
      * @returns The router cache object
      */
-    getCache: __assignType$a(function getCache() {
+    getCache() {
       return methodsCache;
-    }, ["MethodsCache", "getCache", 'P"w!/"']),
+    },
     /**
      * Get method metadata with JIT functions restored from the router cache by id.
      * This augments the MethodWithOptions with paramsJitFns and returnJitFns.
@@ -868,7 +782,7 @@
      * @param id - The method id
      * @returns The method metadata with JIT functions or undefined if not found
      */
-    getMethodJitFns: __assignType$a(function getMethodJitFns(id) {
+    getMethodJitFns(id) {
       if (id in methodsCache) {
         const cached = methodsCache[id];
         if (cached.paramsJitFns && cached.returnJitFns) {
@@ -876,8 +790,7 @@
         }
       }
       const metadata = this.getMetadata(id);
-      if (!metadata)
-        return void 0;
+      if (!metadata) return void 0;
       const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash);
       const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash);
       const headersParam = metadata.headersParam ? { ...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash) } : void 0;
@@ -891,36 +804,27 @@
       };
       methodsCache[id] = result;
       return result;
-    }, ["id", "MethodWithOptsAndJitFns", "getMethodJitFns", 'P&2!P"w"-J/#']),
+    },
     /**
      * Get method metadata with JIT functions restored from the router cache by id.
      * @param id
      * @returns
      */
-    useMethodJitFns: __assignType$a(function useMethodJitFns(id) {
+    useMethodJitFns(id) {
       const MethodWithOptsAndJitFns = this.getMethodJitFns(id);
-      if (!MethodWithOptsAndJitFns)
-        throw new Error(`Metadata for remote method ${id} not found`);
+      if (!MethodWithOptsAndJitFns) throw new Error(`Metadata for remote method ${id} not found`);
       return MethodWithOptsAndJitFns;
-    }, ["id", "useMethodJitFns", 'P&2!!/"']),
+    },
     /**
      * Set method metadata with JIT functions in the router cache.
      * This stores the complete MethodWithOptsAndJitFns object directly.
      * @param id - The method id
      * @param MethodWithOptsAndJitFns - The method metadata with JIT functions
      */
-    setMethodJitFns: __assignType$a(function setMethodJitFns(id, MethodWithOptsAndJitFns) {
+    setMethodJitFns(id, MethodWithOptsAndJitFns) {
       methodsCache[id] = MethodWithOptsAndJitFns;
-    }, ["id", "MethodWithOptsAndJitFns", "setMethodJitFns", 'P&2!"w"2"$/#'])
+    }
   };
-  ({
-    getMethodOptions: __assignType$a(function getMethodOptions(id) {
-      return methodsOptionsCache[id];
-    }, ["id", "RemoteMethodOpts", "getMethodOptions", 'P&2!P"w"-J/#']),
-    setMethodOptions: __assignType$a(function setMethodOptions(id, options2) {
-      methodsOptionsCache[id] = options2;
-    }, ["id", "RemoteMethodOpts", "options", "setMethodOptions", 'P&2!"w"2#$/$'])
-  });
   function addRoutesToCache(newCache) {
     for (const key in newCache) {
       if (!(key in methodsCache)) {
@@ -928,7 +832,6 @@
       }
     }
   }
-  addRoutesToCache.__type = ["MethodsCache", "newCache", "addRoutesToCache", 'P"w!2""/#'];
   function getJitFnHashes(jitHash) {
     return {
       isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
@@ -940,13 +843,10 @@
       fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`
     };
   }
-  getJitFnHashes.__type = ["jitHash", "JitFunctionsHashes", "getJitFnHashes", 'P&2!"w"/#'];
   function getJitFunctionsFromHash(jitHash) {
-    if (jitHash === EMPTY_HASH)
-      return noopJitFns;
+    if (jitHash === EMPTY_HASH) return noopJitFns;
     const cached = jitFunctionsCache.get(jitHash);
-    if (cached)
-      return cached;
+    if (cached) return cached;
     const hashes = getJitFnHashes(jitHash);
     const jUtils = getJitUtils();
     const jitFns = {
@@ -959,17 +859,14 @@
       fromBinary: jUtils.getJIT(hashes.fromBinary)
     };
     for (const key in jitFns) {
-      if (!jitFns[key])
-        throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
+      if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
     }
     jitFunctionsCache.set(jitHash, jitFns);
     return jitFns;
   }
-  getJitFunctionsFromHash.__type = ["jitHash", "JitCompiledFunctions", "getJitFunctionsFromHash", 'P&2!"w"/#'];
   function getHeaderJitFunctionsFromHash(jitHash) {
     const cached = headerJitFunctionsCache.get(jitHash);
-    if (cached)
-      return cached;
+    if (cached) return cached;
     const hashes = getJitFnHashes(jitHash);
     const jUtils = getJitUtils();
     const jitFns = {
@@ -979,23 +876,18 @@
     headerJitFunctionsCache.set(jitHash, jitFns);
     return jitFns;
   }
-  getHeaderJitFunctionsFromHash.__type = ["jitHash", () => __ΩPick$1, "JitCompiledFunctions", "isType", "typeErrors", "getHeaderJitFunctionsFromHash", 'P&2!"w#P.$.%Jo"#/&'];
   function getRouterItemId(itemPointer) {
     return itemPointer.join(ROUTER_ITEM_SEPARATOR_CHAR);
   }
-  getRouterItemId.__type = ["itemPointer", "getRouterItemId", 'P&F2!"/"'];
   function getRoutePath(pathPointer, routerOptions2) {
     const pathId = getRouterItemId(pathPointer);
     const prefix = routerOptions2.prefix.startsWith(ROUTE_PATH_ROOT) ? routerOptions2.prefix : `${ROUTE_PATH_ROOT}${routerOptions2.prefix}`;
     const routePath = prefix.endsWith(PATH_SEPARATOR) ? `${prefix}${pathId}` : `${prefix}${PATH_SEPARATOR}${pathId}`;
     return routerOptions2.suffix ? routePath + routerOptions2.suffix : routePath;
   }
-  getRoutePath.__type = ["pathPointer", "prefix", "suffix", "routerOptions", "getRoutePath", 'P&F2!P&4"&4#M2$"/%'];
   function resetRoutesCache() {
-    for (const k in methodsCache)
-      delete methodsCache[k];
+    for (const k in methodsCache) delete methodsCache[k];
   }
-  resetRoutesCache.__type = ["resetRoutesCache", 'P"/!'];
   const noopJitFns = {
     isType: fakeJitFn(JIT_FUNCTION_IDS.isType),
     typeErrors: fakeJitFn(JIT_FUNCTION_IDS.typeErrors),
@@ -1024,12 +916,9 @@
       }
     };
   }
-  fakeJitFn.__type = ["fnID", "JitCompiledFn", "fakeJitFn", 'P&2!"w"/#'];
   function getNoopJitFns() {
     return noopJitFns;
   }
-  getNoopJitFns.__type = ["JitCompiledFunctions", "getNoopJitFns", 'P"w!/"'];
-  const __ΩRecord$3 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   function deserializeBinaryBody(path, buffer, isResponse) {
     try {
       const deserializer = createDataViewDeserializer(path, buffer);
@@ -1053,32 +942,29 @@
       deserializer.markAsEnded();
       return { deserializer, body };
     } catch (err) {
-      if (err instanceof RpcError)
-        throw err;
+      if (err instanceof RpcError) throw err;
       throw new RpcError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
-        type: isResponse ? "binary-response-Deserialize-error" : "binary-request-Deserialization-error",
+        type: "binary-request-Deserialization-error",
         publicMessage: `Failed to deserialize body from binary: ${err?.message || "unknown error"}`,
         originalError: err
       });
     }
   }
-  deserializeBinaryBody.__type = ["path", "BinaryInput", "buffer", "isResponse", "DataViewDeserializer", "deserializer", () => __ΩRecord$3, "body", "deserializeBinaryBody", `P&2!"w"2#)2$P"w%4&&"o'#4(M/)`];
   function deserializeMethod(key, method, deserializer, isResponse) {
-    const jitFns = isResponse ? method.returnJitFns : method.paramsJitFns;
+    const jitFns = method.paramsJitFns;
     try {
       return jitFns.fromBinary.fn(void 0, deserializer);
     } catch (e) {
       throw new RpcError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
-        type: isResponse ? "binary-response-method-Deserialization-error" : "binary-request-method-Deserialization-error",
+        type: "binary-request-method-Deserialization-error",
         publicMessage: `Failed to deserialize method ${key} from binary`,
         originalError: e,
         errorData: { methodId: key }
       });
     }
   }
-  deserializeMethod.__type = ["key", "MethodWithJitFns", "method", "DataViewDeserializer", "deserializer", "isResponse", "deserializeMethod", `P&2!"w"2#"w$2%)2&"/'`];
   class HeadersSubset {
     headers;
     constructor(headers) {
@@ -1087,8 +973,6 @@
     static __type = ["Required", "Optional", "headers", "constructor", "HeadersSubset", `l+&R&R&R&Rb!!c"PPde#!N#!Pde#"N%"K3#9PPPde$!N'!Pde$"N)"K2#"0$5w%`];
   }
   const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
-  Map.Ω = [["&"], ["&"]], /* @__PURE__ */ new Map();
-  Map.Ω = [["&"], ["&"]], /* @__PURE__ */ new Map();
   const __ΩRouterEntry = [() => __ΩRoutes, () => __ΩMiddleFnDef, () => __ΩRouteDef, () => __ΩRawMiddleFnDef, () => __ΩHeadersMiddleFnDef, "RouterEntry", 'Pn!n"n#n$n%Jw&y'];
   const __ΩRoutes = [() => __ΩRouterEntry, "Routes", 'P&n!LMw"y'];
   const __ΩRouterOptions = ["Req", "ContextData", () => __ΩCoreOptions, "prefix", "suffix", "request", "path", "", "pathTransform", () => __ΩContextDataFactory, "contextDataFactory", () => __ΩSerializerMode, "serializer", "RunTypeOptions", "runTypeOptions", "getPublicRoutesData", "autoGenerateErrorId", "skipClientRoutes", "aot", "maxContextPoolSize", "maxRoutesFlowsCacheSize", "RouterOptions", `"c!"c"Pn#&4$&4%Pe#!2&&2'&/(4)8e""o*"4+8n,4-"w.4/)40)41)42)43'44'45Mw6y`];
@@ -1126,7 +1010,6 @@
   isPublicExecutable.__type = [() => __ΩRemoteMethod, "entry", "isPublicExecutable", 'Pn!2"!/#'];
   const __ΩMayReturnError = ["RpcError", "MayReturnError", 'P$"w!P"w!$J`Jw"y'];
   const __ΩHandler = ["Context", "Params", "Ret", "context", "parameters", "", "Handler", '"c!"Fc""c#Pe"!2$e""@2%Pe##e##`J/&w\'y'];
-  const __ΩAnyHandler = ["Context", "Params", "Ret", () => __ΩHandler, "AnyHandler", '"c!"c""c#e!!e!"e!#o$$w%y'];
   const IS_TEST_ENV = getENV("JEST_WORKER_ID") !== void 0 || getENV("NODE_ENV") === "test";
   const ROUTE_DEFAULT_PARAMS = ["context"];
   const HEADER_HOOK_DEFAULT_PARAMS = ["context", "headers"];
@@ -1162,34 +1045,26 @@
     return parts.filter(Boolean).join("/");
   }
   join.__type = ["parts", "join", 'P&@2!&/"'];
-  const __ΩReadonly$1 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
   let persistedMethods = {};
   function addToPersistedMethods(id, method) {
-    if (!shouldCompile() || !!persistedMethods[id])
-      return;
+    if (!shouldCompile() || !!persistedMethods[id]) return;
     persistedMethods[id] = method;
   }
-  addToPersistedMethods.__type = ["id", () => __ΩRemoteMethod, "method", "addToPersistedMethods", 'P&2!n"2#"/$'];
   function getPersistedMethod(id, handler) {
     const method = persistedMethods?.[id];
-    if (!method)
-      return;
+    if (!method) return;
     return restorePersistedMethod(method, handler);
   }
-  getPersistedMethod.__type = ["id", () => __ΩAnyHandler, "handler", () => __ΩRemoteMethod, "getPersistedMethod", 'P&2!n"2#Pn$-J/%'];
   function getPersistedMethodMetadata(id) {
     const method = persistedMethods[id];
     return method;
   }
-  getPersistedMethodMetadata.__type = ["id", () => __ΩMethodMetadata, "getPersistedMethodMetadata", 'P&2!Pn"-J/#'];
   function getPersistedMethods() {
     return persistedMethods;
   }
-  getPersistedMethods.__type = [() => __ΩReadonly$1, () => __ΩMethodsCache, "getPersistedMethods", 'Pn"o!"/#'];
   function resetPersistedMethods() {
     persistedMethods = {};
   }
-  resetPersistedMethods.__type = ["resetPersistedMethods", 'P"/!'];
   function restorePersistedMethod(method, handler) {
     const restored = method;
     if (restored.paramsJitFns && restored.returnJitFns && restored.paramNames && !!restored.handler)
@@ -1197,15 +1072,12 @@
     restored.handler = handler;
     restored.paramsJitFns = getJitFunctionsFromHash(method.paramsJitHash);
     restored.returnJitFns = getJitFunctionsFromHash(method.returnJitHash);
-    if (IS_TEST_ENV)
-      restored.isRestored = true;
+    if (IS_TEST_ENV) restored.isRestored = true;
     return restored;
   }
-  restorePersistedMethod.__type = [() => __ΩMethodMetadata, "method", () => __ΩAnyHandler, "handler", () => __ΩRemoteMethod, "restorePersistedMethod", 'Pn!2"n#2$n%/&'];
   function shouldCompile() {
     return getENV("MION_COMPILE") === "true";
   }
-  shouldCompile.__type = ["shouldCompile", 'P"/!'];
   function loadCompiledMethods(compiledMethods) {
     for (const [key, value] of Object.entries(compiledMethods)) {
       if (!(key in persistedMethods)) {
@@ -1213,11 +1085,10 @@
       }
     }
   }
-  loadCompiledMethods.__type = [() => __ΩMethodsCache, "compiledMethods", "loadCompiledMethods", 'Pn!2""/#'];
   const __ΩOmit = ["T", "K", () => __ΩPick, () => __ΩExclude, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
   const __ΩPick = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩExclude = ["T", "U", "Exclude", 'l6!Re$!RPe#!e$"qk#%QRb!b"Pde"!p)w#y'];
-  function __assignType$9(fn, args) {
+  function __assignType$5(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1240,7 +1111,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return runTypesModule;
     if (runTypesLoadPromise)
       return runTypesLoadPromise;
-    runTypesLoadPromise = Promise.resolve().then(() => runTypes$1).then(__assignType$9((module) => {
+    runTypesLoadPromise = Promise.resolve().then(() => runTypes$1).then(__assignType$5((module) => {
       runTypesModule = {
         JitFunctions: module.JitFunctions,
         reflectFunction: module.reflectFunction,
@@ -1410,7 +1281,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   function getReturnHeadersRunType(handlerRunType, rt) {
     const returnRunType = handlerRunType.getReturnType();
     if (rt.isUnionRunType(returnRunType)) {
-      const headersSubset = returnRunType.getChildRunTypes().find(__assignType$9((child) => isHeaderSubSetRunType(child, rt), ["child", "", 'P"2!"/"']));
+      const headersSubset = returnRunType.getChildRunTypes().find(__assignType$5((child) => isHeaderSubSetRunType(child, rt), ["child", "", 'P"2!"/"']));
       if (!headersSubset)
         return void 0;
       return headersSubset;
@@ -1519,7 +1390,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       options: opts2
     };
   }
-  route.__type = ["handler", () => __ΩRouteOptions, "opts", () => __ΩRouteDef, "route", 'P"2!n"2#8"o$"/%'];
   function rawMiddleFn(handler, opts2) {
     return {
       type: HandlerType$1.rawMiddleFn,
@@ -1527,8 +1397,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       options: opts2
     };
   }
-  rawMiddleFn.__type = ["handler", () => __ΩRawMiddleFnOptions, "opts", () => __ΩRawMiddleFnDef, "rawMiddleFn", 'P"2!n"2#8"o$"/%'];
-  const __ΩError = ["name", "message", "stack", "Error", 'P&4!&4"&4#8Mw$y'];
   function getRouterFatalErrorResponse(returnErr, respHeaders) {
     const body = {
       "@thrownErrors": { [MION_ROUTES.platformError]: returnErr }
@@ -1546,7 +1414,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     };
     return response;
   }
-  getRouterFatalErrorResponse.__type = [() => RpcError, "returnErr", "MionHeaders", "respHeaders", "MionResponse", "getRouterFatalErrorResponse", 'PP&7!2""w#2$"w%/&'];
   function onExecutableError(context, executable, err) {
     const response = context.response;
     const path = executable.id;
@@ -1556,15 +1423,13 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       originalError: err,
       type: "unknown-error"
     });
-    if (!response.hasErrors)
-      response.headers.set("x-rpc-error", rpcError.type);
+    if (!response.hasErrors) response.headers.set("x-rpc-error", rpcError.type);
     response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
     response.hasErrors = true;
     const thrownErrors = context.request.thrownErrors || {};
     thrownErrors[path] = rpcError;
     context.request.thrownErrors = thrownErrors;
   }
-  onExecutableError.__type = ["CallContext", "context", "RemoteMethod", "executable", () => RpcError, () => __ΩError, "err", "onExecutableError", `P"w!2""w#2$P"P&7%n&J2'"/(`];
   function deserializeRequestBody(context) {
     if (!context.request.rawBody)
       return;
@@ -1742,24 +1607,17 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     mionDeserializeRequest: rawMiddleFn(deserializeRequestBody, { runOnError: true }),
     mionSerializeResponse: rawMiddleFn(serializeResponseBody, { runOnError: true })
   };
-  const __ΩRecord$2 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
-  function __assignType$8(fn, args) {
-    fn.__type = args;
-    return fn;
-  }
   const mionInternalRoutes$1 = Object.values(MION_ROUTES);
   const publicMethods = /* @__PURE__ */ new Map();
   function resetRemoteMethodsMetadata() {
     publicMethods.clear();
   }
-  resetRemoteMethodsMetadata.__type = ["resetRemoteMethodsMetadata", 'P"/!'];
   function getPublicApi(routes) {
     return recursiveGetSerializableRoutes(routes);
   }
-  getPublicApi.__type = ["routes", "PublicApi", "getPublicApi", 'P"2!"w"/#'];
   function recursiveGetSerializableRoutes(routes, currentPointer = [], publicData = {}) {
     const entries = Object.entries(routes);
-    entries.forEach(__assignType$8(([key, item]) => {
+    entries.forEach(([key, item]) => {
       const itemPointer = [...currentPointer, key];
       const id = getRouterItemId(itemPointer);
       if (isPrivateDefinition(item, id)) {
@@ -1773,14 +1631,12 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         const subRoutes = routes[key];
         publicData[key] = recursiveGetSerializableRoutes(subRoutes, itemPointer);
       }
-    }, ["RouterEntry", "param0", "", 'PP&"w!G2""/#']));
+    });
     return publicData;
   }
-  recursiveGetSerializableRoutes.__type = ["routes", "currentPointer", () => [], "AnyObject", "publicData", () => ({}), "recursiveGetSerializableRoutes", `P"2!&F2">#"w$2%>&"w$/'`];
   function getSerializableMethod(executable) {
     const existing = publicMethods.get(executable.id);
-    if (existing)
-      return existing;
+    if (existing) return existing;
     const newRemoteMethod = {
       type: executable.type,
       id: executable.id,
@@ -1793,22 +1649,19 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       ...executable.paramNames ? { paramNames: executable.paramNames } : {},
       options: executable.options
     };
-    if (executable.headersParam)
-      newRemoteMethod.headersParam = executable.headersParam;
+    if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
     if (executable.type === HandlerType$1.route) {
       const path = getRoutePath(executable.pointer, getRouterOptions());
-      const pathPointers = getRouteExecutionChain(path)?.methods.filter(__assignType$8((exec) => isPublicExecutable(exec), ["exec", "", 'P"2!"/"'])).map(__assignType$8((exec) => exec.pointer, ["exec", "", 'P"2!"/"'])) || [];
-      newRemoteMethod.middleFnIds = pathPointers.map(__assignType$8((pointer) => getRouterItemId(pointer), ["pointer", "", 'P"2!"/"'])).filter(__assignType$8((id) => {
-        if (mionInternalRoutes$1.includes(id))
-          return false;
+      const pathPointers = getRouteExecutionChain(path)?.methods.filter((exec) => isPublicExecutable(exec)).map((exec) => exec.pointer) || [];
+      newRemoteMethod.middleFnIds = pathPointers.map((pointer) => getRouterItemId(pointer)).filter((id) => {
+        if (mionInternalRoutes$1.includes(id)) return false;
         const exec = getMiddleFnExecutable(id);
         return exec && isPublicExecutable(exec);
-      }, ["id", "", 'P"2!"/"']));
+      });
     }
     publicMethods.set(executable.id, newRemoteMethod);
     return newRemoteMethod;
   }
-  getSerializableMethod.__type = ["RemoteMethod", "executable", "MethodWithOptions", "getSerializableMethod", 'P"w!2""w#/$'];
   function serializePureDeps(namespacedDepHash, purFnDeps, depth = 0) {
     if (depth >= MAX_STACK_DEPTH)
       throw new Error(`Max depth reached serializing pure function dependencies, for: ${namespacedDepHash}`);
@@ -1816,46 +1669,36 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     if (parts.length !== 2)
       throw new Error(`Invalid pure function dependency format: ${namespacedDepHash}, expected "namespace::fnHash"`);
     const [namespace, fnHash] = parts;
-    if (!purFnDeps[namespace])
-      purFnDeps[namespace] = {};
-    if (purFnDeps[namespace][fnHash])
-      return;
+    if (!purFnDeps[namespace]) purFnDeps[namespace] = {};
+    if (purFnDeps[namespace][fnHash]) return;
     const pureDep = getJitUtils().getCompiledPureFn(namespace, fnHash);
-    if (!pureDep)
-      throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
+    if (!pureDep) throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
     const serializedPureDep = { ...pureDep, pureFnDependencies: [...pureDep.pureFnDependencies] };
     purFnDeps[namespace][fnHash] = serializedPureDep;
-    pureDep.pureFnDependencies.forEach(__assignType$8((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1), ["depFnHash", "", 'P"2!"/"']));
+    pureDep.pureFnDependencies.forEach((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1));
   }
-  serializePureDeps.__type = ["namespacedDepHash", "PureFnsDataCache", "purFnDeps", "depth", "serializePureDeps", 'P&2!"w"2#"2$"/%'];
   function serializeJitFn(jitFnHash, deps, purFnDeps, depth = 0) {
     if (depth >= MAX_STACK_DEPTH)
       throw new Error(`Max depth reached serializing jit function dependencies for jitHash: ${jitFnHash}`);
     const jitFn = getJitUtils().getJIT(jitFnHash);
-    if (!jitFn)
-      throw new Error(`Jit function ${jitFnHash} not found`);
-    if (deps[jitFnHash])
-      return;
+    if (!jitFn) throw new Error(`Jit function ${jitFnHash} not found`);
+    if (deps[jitFnHash]) return;
     const serializedJitFn = getSerializableJitCompiler(jitFn);
     deps[jitFnHash] = serializedJitFn;
-    jitFn.jitDependencies.forEach(__assignType$8((h) => serializeJitFn(h, deps, purFnDeps, depth + 1), ["h", "", 'P"2!"/"']));
-    jitFn.pureFnDependencies.forEach(__assignType$8((h) => serializePureDeps(h, purFnDeps), ["h", "", 'P"2!"/"']));
+    jitFn.jitDependencies.forEach((h) => serializeJitFn(h, deps, purFnDeps, depth + 1));
+    jitFn.pureFnDependencies.forEach((h) => serializePureDeps(h, purFnDeps));
   }
-  serializeJitFn.__type = ["jitFnHash", () => __ΩRecord$2, "JitCompiledFnData", "deps", "PureFnsDataCache", "purFnDeps", "depth", "serializeJitFn", `P&2!&"w#o"#2$"w%2&"2'"/(`];
   function serializeMethodDeps(method, deps, purFnDeps) {
     const { paramsJitHash, returnJitHash } = method;
     if (paramsJitHash !== EMPTY_HASH) {
       const paramsJitHashes = getJitFnHashes(paramsJitHash);
-      for (const k in paramsJitHashes)
-        serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+      for (const k in paramsJitHashes) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
     }
     if (returnJitHash !== EMPTY_HASH) {
       const returnJitHashes = getJitFnHashes(returnJitHash);
-      for (const k in returnJitHashes)
-        serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+      for (const k in returnJitHashes) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
     }
   }
-  serializeMethodDeps.__type = ["MethodWithOptions", "method", () => __ΩRecord$2, "JitCompiledFnData", "deps", "PureFnsDataCache", "purFnDeps", "serializeMethodDeps", `P"w!2"&"w$o##2%"w&2'"/(`];
   function getSerializableJitCompiler(comp) {
     return {
       typeName: comp.typeName,
@@ -1870,8 +1713,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       ...comp.paramNames ? { paramNames: [...comp.paramNames] } : {}
     };
   }
-  getSerializableJitCompiler.__type = ["JitCompiledFn", "comp", "JitCompiledFnData", "getSerializableJitCompiler", 'P"w!2""w#/$'];
-  function __assignType$7(fn, args) {
+  function __assignType$4(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1889,8 +1731,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const errorData = {};
     const maxMethods = (getRouterOptions.Ω = [[() => __ΩClientRouteOptions, "n!"]], getRouterOptions()).getAllRemoteMethodsMaxNumber || defaultClientRouteOptions.getAllRemoteMethodsMaxNumber;
     const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
-    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$7((id) => !mionInternalRoutes.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
-    idsToReturn.forEach(__assignType$7((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData), ["id", "", 'P"2!"/"']));
+    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$4((id) => !mionInternalRoutes.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
+    idsToReturn.forEach(__assignType$4((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData), ["id", "", 'P"2!"/"']));
     if (Object.keys(errorData).length)
       return new RpcError({
         type: "rpc-metadata-not-found",
@@ -1907,8 +1749,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         type: "rpc-metadata-not-found",
         publicMessage: `Route ${path} not found`
       });
-    const privateExecutables = executables.methods.filter(__assignType$7((e) => !isPrivateExecutable(e), ["e", "", 'P"2!"/"']));
-    return mionGetRemoteMethodsDataById(ctx, privateExecutables.map(__assignType$7((e) => e.id, ["e", "", 'P"2!"/"'])), getAllRemoteMethods);
+    const privateExecutables = executables.methods.filter(__assignType$4((e) => !isPrivateExecutable(e), ["e", "", 'P"2!"/"']));
+    return mionGetRemoteMethodsDataById(ctx, privateExecutables.map(__assignType$4((e) => e.id, ["e", "", 'P"2!"/"'])), getAllRemoteMethods);
   }
   mionGetRemoteMethodsDataByPath.__type = ["ctx", "path", "getAllRemoteMethods", () => __ΩSerializableMethodsData, "rpc-metadata-not-found", () => RpcError, "mionGetRemoteMethodsDataByPath", `P"2!&2")2#8Pn$P.%7&J/'`];
   function addRequiredRemoteMethodsToResponse(id, resp, errorData) {
@@ -1926,7 +1768,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return;
     const method = getSerializableMethod(executable);
     methods[id] = method;
-    method.middleFnIds?.forEach(__assignType$7((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData), ["middleFnId", "", 'P"2!"/"']));
+    method.middleFnIds?.forEach(__assignType$4((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData), ["middleFnId", "", 'P"2!"/"']));
     serializeMethodDeps(method, deps, purFnDeps);
   }
   addRequiredRemoteMethodsToResponse.__type = ["id", () => __ΩSerializableMethodsData, "resp", () => __ΩAnyObject, "errorData", "addRequiredRemoteMethodsToResponse", 'P&2!n"2#n$2%$/&'];
@@ -1937,7 +1779,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     [MION_ROUTES.methodsMetadataByPath]: route(mionGetRemoteMethodsDataByPath, { serializer: "stringifyJson" })
   };
   const __ΩRecord$1 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
-  function __assignType$6(fn, args) {
+  function __assignType$3(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1949,7 +1791,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * thrown Errors are not strongly typed and are all serialized/deserialized as RpcError<string>.
      * this also prevents users to register a route with the same name.
      */
-    [MION_ROUTES.thrownErrors]: route(__assignType$6((ctx) => {
+    [MION_ROUTES.thrownErrors]: route(__assignType$3((ctx) => {
       return ctx.request.thrownErrors || {};
     }, ["CallContext", "ctx", () => __ΩRecord$1, () => RpcError, "", 'P"w!2"&P&7$o##/%'])),
     /**
@@ -1958,7 +1800,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * The route is called by dispatch logic when no matching route is found.
      * Throws an RpcError that will be caught and stored in thrownErrors by the router.
      */
-    [MION_ROUTES.notFound]: route(__assignType$6((ctx) => {
+    [MION_ROUTES.notFound]: route(__assignType$3((ctx) => {
       throw new RpcError({
         statusCode: StatusCodes.NOT_FOUND,
         publicMessage: `Route not found`,
@@ -1972,7 +1814,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * This route is used for serialization/deserialization of platform errors.
      * This also prevents users to register a route with the same name.
      */
-    [MION_ROUTES.platformError]: route(__assignType$6((_ctx) => {
+    [MION_ROUTES.platformError]: route(__assignType$3((_ctx) => {
       return new RpcError({
         publicMessage: "Platform error",
         type: "platform-error"
@@ -1980,7 +1822,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }, ["CallContext", "_ctx", () => RpcError, "", 'P"w!2"P&7#/$']))
   };
   const serverPureFnsCache = {};
-  function __assignType$5(fn, args) {
+  function __assignType$2(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -2039,7 +1881,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         publicMessage: "RoutesFlow request requires at least one route path in query string."
       });
     }
-    const routeIds = routePaths.map(__assignType$5((path) => path.startsWith("/") ? path.slice(1) : path, ["path", "", 'P"2!"/"']));
+    const routeIds = routePaths.map(__assignType$2((path) => path.startsWith("/") ? path.slice(1) : path, ["path", "", 'P"2!"/"']));
     let executionChain = routesFlowCache.get(urlQuery);
     if (executionChain)
       return { executionChain, routesFlowRouteIds: routeIds, mappings };
@@ -2054,8 +1896,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     let resolvedSerializer;
     let firstRouteIndex = -1;
     const defaultSerializerCode = SerializerModes[opts2.serializer];
-    const startMiddleFnIds = new Set(startMiddleFns.map(__assignType$5((m) => m.id, ["m", "", 'P"2!"/"'])));
-    const endMiddleFnIds = new Set(endMiddleFns.map(__assignType$5((m) => m.id, ["m", "", 'P"2!"/"'])));
+    const startMiddleFnIds = new Set(startMiddleFns.map(__assignType$2((m) => m.id, ["m", "", 'P"2!"/"'])));
+    const endMiddleFnIds = new Set(endMiddleFns.map(__assignType$2((m) => m.id, ["m", "", 'P"2!"/"'])));
     for (const routePath of routePaths) {
       const transformedPath = opts2.pathTransform?.(rawRequest, routePath) || routePath;
       const chain = getRouteExecutionChain(transformedPath);
@@ -2134,7 +1976,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         method: createMappingMethod(mapping)
       });
     }
-    insertions.sort(__assignType$5((a, b) => b.index - a.index, ["a", "b", "", 'P"2!"2""/#']));
+    insertions.sort(__assignType$2((a, b) => b.index - a.index, ["a", "b", "", 'P"2!"2""/#']));
     for (const { index, method } of insertions) {
       middleMethods.splice(index, 0, method);
     }
@@ -2164,7 +2006,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   }
   createMappingMethod.__type = ["RoutesFlowMapping", "mapping", () => __ΩRemoteMethod, "createMappingMethod", 'P"w!2"n#/$'];
   function createMappingHandler(mapping) {
-    return __assignType$5((ctx) => {
+    return __assignType$2((ctx) => {
       const sourceOutput = ctx.response.body[mapping.fromId];
       const entry = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE]?.[mapping.bodyHash];
       if (!entry?.fn) {
@@ -2189,7 +2031,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   function clearContextPool() {
     contextPool = [];
   }
-  clearContextPool.__type = ["clearContextPool", "P$/!"];
   function createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery) {
     const transformedPath = opts2.pathTransform?.(rawRequest, path) || path;
     const { executionChain, routesFlowRouteIds } = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts2);
@@ -2217,10 +2058,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       routesFlowRouteIds
     };
   }
-  createCallContext.__type = ["path", "RouterOptions", "opts", "RawRequestBody", "reqRawBody", "rawRequest", "MionHeaders", "reqHeaders", "respHeaders", () => __ΩSerializerCode, "reqBodyType", "urlQuery", "CallContext", "createCallContext", `P&2!"w"2#"w$2%#2&"w'2("w'2)n*2+8&2,8"w-/.`];
   function acquireCallContext(usePooling, path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery) {
-    if (!usePooling)
-      return createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
+    if (!usePooling) return createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
     const pooledContext = contextPool.pop();
     const transformedPath = opts2.pathTransform?.(rawRequest, path) || path;
     if (pooledContext) {
@@ -2249,7 +2088,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
   }
-  acquireCallContext.__type = ["usePooling", "path", "RouterOptions", "opts", "RawRequestBody", "reqRawBody", "rawRequest", "MionHeaders", "reqHeaders", "respHeaders", () => __ΩSerializerCode, "reqBodyType", "urlQuery", "CallContext", "acquireCallContext", `P)2!&2""w#2$"w%2&#2'"w(2)"w(2*n+2,8&2-8"w.//`];
   function releaseCallContext(ctx, maxPoolSize) {
     if (contextPool.length < maxPoolSize) {
       const mutableCtx = ctx;
@@ -2274,18 +2112,13 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       contextPool.push(ctx);
     }
   }
-  releaseCallContext.__type = ["CallContext", "ctx", "maxPoolSize", "releaseCallContext", `P"w!2"'2#$/$`];
   function getRequestBodyType(rawBody) {
-    if (typeof rawBody === "string")
-      return SerializerModes.stringifyJson;
-    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array)
-      return SerializerModes.binary;
+    if (typeof rawBody === "string") return SerializerModes.stringifyJson;
+    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array) return SerializerModes.binary;
     return SerializerModes.json;
   }
-  getRequestBodyType.__type = ["RawRequestBody", "rawBody", () => __ΩSerializerCode, "getRequestBodyType", 'P"w!2"n#/$'];
   function getExecutionChain(originalPath, transformedPath, urlQuery, rawRequest, opts2) {
-    if (originalPath === WORKFLOW_PATH)
-      return getRoutesFlowExecutionChain(rawRequest, opts2, urlQuery);
+    if (originalPath === WORKFLOW_PATH) return getRoutesFlowExecutionChain(rawRequest, opts2, urlQuery);
     let executionChain = getRouteExecutionChain(transformedPath);
     if (!executionChain) {
       executionChain = getRouteExecutionChain(NOT_FOUND_PATH);
@@ -2299,16 +2132,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return { executionChain };
   }
-  getExecutionChain.__type = ["originalPath", "transformedPath", "urlQuery", "rawRequest", "RouterOptions", "opts", "RoutesFlowExecutionResult", "getExecutionChain", `P&2!&2"P&-J2##2$"w%2&"w'/(`];
-  const __ΩReadonly = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
-  const __ΩPartial$1 = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
-  const __ΩReturnType$1 = ["T", "args", "", "ReturnType", `l>e"!R"RPde#!P"@2"h"!/#qk#'QRb!Pde"!p)w$y`];
-  function __assignType$4(fn, args) {
-    fn.__type = args;
-    return fn;
-  }
-  const __ΩRouterKeyEntryList = ["RouterEntry", "RouterKeyEntryList", 'P&"w!GFw"y'];
-  const __ΩRoutesWithId = ["pathPointer", "Routes", "routes", "RoutesWithId", 'P&F4!"w"4#Mw$y'];
   const flatRouter = /* @__PURE__ */ new Map();
   const middleFnsById = /* @__PURE__ */ new Map();
   const routesById = /* @__PURE__ */ new Map();
@@ -2328,11 +2151,11 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   let endMiddleFnsDef = { ...defaultEndMiddleFns };
   let startMiddleFns = [];
   let endMiddleFns = [];
-  const getRouteExecutionChain = __assignType$4((path) => flatRouter.get(path), ["path", "", 'P&2!"/"']);
-  const getRouteExecutable = __assignType$4((id) => routesById.get(id), ["id", "", 'P&2!"/"']);
-  const getMiddleFnExecutable = __assignType$4((id) => middleFnsById.get(id), ["id", "", 'P&2!"/"']);
-  const getRouterOptions = __assignType$4(() => routerOptions, [() => __ΩReadonly, "", 'P"o!"/"']);
-  const getAnyExecutable = __assignType$4((id) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id), ["id", "", 'P&2!"/"']);
+  const getRouteExecutionChain = (path) => flatRouter.get(path);
+  const getRouteExecutable = (id) => routesById.get(id);
+  const getMiddleFnExecutable = (id) => middleFnsById.get(id);
+  const getRouterOptions = () => routerOptions;
+  const getAnyExecutable = (id) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
   const resetRouter = () => {
     flatRouter.clear();
     middleFnsById.clear();
@@ -2359,28 +2182,21 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     await emitAOTCaches$1();
     return publicApi;
   }
-  initMionRouter.__type = ["routes", () => __ΩPartial$1, "RouterOptions", "opts", "PublicApi", "initMionRouter", 'P"2!"w#o""2$8"w%`/&'];
   async function initRouter(opts2) {
-    if (isRouterInitialized)
-      throw new Error("Router has already been initialized");
+    if (isRouterInitialized) throw new Error("Router has already been initialized");
     routerOptions = { ...routerOptions, ...opts2 };
     validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
-    if (routerOptions.aot)
-      await loadAOTCaches$1();
+    if (routerOptions.aot) await loadAOTCaches$1();
     isRouterInitialized = true;
     await registerRoutes({ ...mionErrorsRoutes });
-    if (!routerOptions.skipClientRoutes)
-      await registerRoutes({ ...mionClientRoutes });
-    if (!isTestEnv())
-      console.log("mion router initialized", { routerOptions });
+    if (!routerOptions.skipClientRoutes) await registerRoutes({ ...mionClientRoutes });
+    if (!isTestEnv()) console.log("mion router initialized", { routerOptions });
     return routerOptions;
   }
-  initRouter.__type = [() => __ΩPartial$1, "RouterOptions", "opts", () => __ΩReadonly, "initRouter", 'P"w"o!"2#8"w"o$"`/%'];
   async function registerRoutes(routes) {
-    if (!isRouterInitialized)
-      throw new Error("initRouter should be called first");
+    if (!isRouterInitialized) throw new Error("initRouter should be called first");
     startMiddleFns = await getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
     endMiddleFns = await getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
     await recursiveFlatRoutes(routes);
@@ -2389,12 +2205,9 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return {};
   }
-  registerRoutes.__type = ["routes", "PublicApi", "registerRoutes", 'P"2!"w"`/#'];
   function isPrivateDefinition(entry, id) {
-    if (isRoute(entry))
-      return false;
-    if (isRawMiddleFnDef(entry))
-      return true;
+    if (isRoute(entry)) return false;
+    if (isRawMiddleFnDef(entry)) return true;
     try {
       const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
       if (!executable)
@@ -2404,32 +2217,24 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return false;
     }
   }
-  isPrivateDefinition.__type = ["RouterEntry", "entry", "id", "isPrivateDefinition", 'P"w!2"&2#!/$'];
   function isPrivateExecutable(executable) {
-    if (executable.type === HandlerType$1.rawMiddleFn)
-      return true;
-    if (executable.type === HandlerType$1.route)
-      return false;
+    if (executable.type === HandlerType$1.rawMiddleFn) return true;
+    if (executable.type === HandlerType$1.route) return false;
     const hasPublicParams = !!executable.paramNames?.length;
     const hasHeaderParams = !!executable.headersParam?.headerNames?.length;
     return !hasPublicParams && !hasHeaderParams && !executable.hasReturnData;
   }
-  isPrivateExecutable.__type = ["RemoteMethod", "executable", "isPrivateExecutable", 'P"w!2")/#'];
   function getTotalExecutables() {
     return routesById.size + middleFnsById.size + rawMiddleFnsById.size;
   }
-  getTotalExecutables.__type = ["getTotalExecutables", "P'/!"];
   function getAllExecutablesIds() {
-    if (allExecutablesIds)
-      return allExecutablesIds;
+    if (allExecutablesIds) return allExecutablesIds;
     allExecutablesIds = [...routesById.keys(), ...middleFnsById.keys(), ...rawMiddleFnsById.keys()];
     return allExecutablesIds;
   }
-  getAllExecutablesIds.__type = ["getAllExecutablesIds", "P&F/!"];
   function shouldFullGenerateSpec() {
     return routerOptions.getPublicRoutesData || getENV("GENERATE_ROUTER_SPEC") === "true" || getENV("MION_COMPILE") === "true";
   }
-  shouldFullGenerateSpec.__type = ["shouldFullGenerateSpec", "P)/!"];
   function getRouteExecutableFromPath(path) {
     const executionChain = flatRouter.get(path);
     if (!executionChain) {
@@ -2437,19 +2242,15 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return executionChain.methods[executionChain.routeIndex];
   }
-  getRouteExecutableFromPath.__type = ["path", "RouteMethod", "getRouteExecutableFromPath", 'P&2!"w"/#'];
   async function loadAOTCaches$1() {
     const loader = await Promise.resolve().then(() => aotCacheLoader);
     return loader.loadAOTCaches();
   }
-  loadAOTCaches$1.__type = ["loadAOTCaches", 'P"/!'];
   async function emitAOTCaches$1() {
-    if (getENV("MION_COMPILE") !== "true")
-      return;
+    if (getENV("MION_COMPILE") !== "true") return;
     const aotEmitter$1 = await Promise.resolve().then(() => aotEmitter);
     return aotEmitter$1.emitAOTCaches();
   }
-  emitAOTCaches$1.__type = ["emitAOTCaches", 'P"/!'];
   async function recursiveFlatRoutes(routes, currentPointer = [], preMiddleFns = [], postMiddleFns = [], nestLevel = 0) {
     if (nestLevel > MAX_ROUTE_NESTING)
       throw new Error("Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels");
@@ -2463,14 +2264,15 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       let routeEntry;
       if (typeof key !== "string" || !isNaN(key))
         throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
-      if (key.includes(","))
-        throw new Error(`Invalid route: ${join(...newPointer)}. Route names cannot contain commas.`);
+      if (key.includes(",")) throw new Error(`Invalid route: ${join(...newPointer)}. Route names cannot contain commas.`);
       if (key === WORKFLOW_KEY)
         throw new Error(`Invalid route: ${join(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
       if (isAnyMiddleFnDef(item)) {
         routeEntry = await getExecutableFromAnyMiddleFn(item, newPointer, nestLevel);
         if (middleFnNames.has(routeEntry.id))
-          throw new Error(`Invalid middleFn: ${join(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`);
+          throw new Error(
+            `Invalid middleFn: ${join(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`
+          );
         middleFnNames.add(routeEntry.id);
       } else if (isRoute(item)) {
         routeEntry = await getExecutableFromRoute(item, newPointer, nestLevel);
@@ -2486,10 +2288,18 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         const itemType = typeof item;
         throw new Error(`Invalid route: ${join(...newPointer)}. Type <${itemType}> is not a valid route.`);
       }
-      minus1Props = await recursiveCreateExecutionChainAsync(routeEntry, newPointer, preMiddleFns, postMiddleFns, nestLevel, index, entries, minus1Props);
+      minus1Props = await recursiveCreateExecutionChainAsync(
+        routeEntry,
+        newPointer,
+        preMiddleFns,
+        postMiddleFns,
+        nestLevel,
+        index,
+        entries,
+        minus1Props
+      );
     }
   }
-  recursiveFlatRoutes.__type = ["Routes", "routes", "currentPointer", () => [], "RemoteMethod", "preMiddleFns", () => [], "postMiddleFns", () => [], "nestLevel", "recursiveFlatRoutes", `P"w!2"&F2#>$"w%F2&>'"w%F2(>)"2*"/+`];
   async function recursiveCreateExecutionChainAsync(routeEntry, currentPointer, preMiddleFns, postMiddleFns, nestLevel, index, routeKeyedEntries, minus1Props) {
     const minus1 = getEntry(index - 1, routeKeyedEntries);
     const plus1 = getEntry(index + 1, routeKeyedEntries);
@@ -2500,14 +2310,11 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     } else {
       for (let i = 0; i < routeKeyedEntries.length; i++) {
         const [k, entry] = routeKeyedEntries[i];
-        if (!isAnyMiddleFnDef(entry))
-          continue;
+        if (!isAnyMiddleFnDef(entry)) continue;
         const newPointer = [...currentPointer.slice(0, -1), k];
         const executable = await getExecutableFromAnyMiddleFn(entry, newPointer, nestLevel);
-        if (i < index)
-          props.preLevelMiddleFns.push(executable);
-        if (i > index)
-          props.postLevelMiddleFns.push(executable);
+        if (i < index) props.preLevelMiddleFns.push(executable);
+        if (i > index) props.postLevelMiddleFns.push(executable);
       }
     }
     const isExec = isExecutable(routeEntry);
@@ -2529,23 +2336,25 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       };
       flatRouter.set(path, executionChain);
     } else if (!isExec) {
-      await recursiveFlatRoutes(routeEntry.routes, routeEntry.pathPointer, [...preMiddleFns, ...props.preLevelMiddleFns], [...props.postLevelMiddleFns, ...postMiddleFns], nestLevel + 1);
+      await recursiveFlatRoutes(
+        routeEntry.routes,
+        routeEntry.pathPointer,
+        [...preMiddleFns, ...props.preLevelMiddleFns],
+        [...props.postLevelMiddleFns, ...postMiddleFns],
+        nestLevel + 1
+      );
     }
     return props;
   }
-  recursiveCreateExecutionChainAsync.__type = ["RemoteMethod", () => __ΩRoutesWithId, "routeEntry", "currentPointer", "preMiddleFns", "postMiddleFns", "nestLevel", "index", () => __ΩRouterKeyEntryList, "routeKeyedEntries", () => __ΩReturnType$1, () => getRouteEntryProperties, "minus1Props", "recursiveCreateExecutionChainAsync", `PP"w!n"J2#&F2$"w!F2%"w!F2&'2''2(n)2*Pi,o+",J2-"/.`];
   async function getExecutableFromAnyMiddleFn(middleFn, middleFnPointer, nestLevel) {
-    if (isRawMiddleFnDef(middleFn))
-      return getExecutableFromRawMiddleFn(middleFn, middleFnPointer, nestLevel);
+    if (isRawMiddleFnDef(middleFn)) return getExecutableFromRawMiddleFn(middleFn, middleFnPointer, nestLevel);
     return getExecutableFromMiddleFn(middleFn, middleFnPointer, nestLevel);
   }
-  getExecutableFromAnyMiddleFn.__type = ["MiddleFnDef", "HeadersMiddleFnDef", "RawMiddleFnDef", "middleFn", "middleFnPointer", "nestLevel", "getExecutableFromAnyMiddleFn", `PP"w!"w""w#J2$&F2%'2&"/'`];
   async function getExecutableFromMiddleFn(middleFn, middleFnPointer, nestLevel) {
     const isHeader = isHeadersMiddleFnDef(middleFn);
     const middleFnId = getRouterItemId(middleFnPointer);
     const existing = middleFnsById.get(middleFnId);
-    if (existing)
-      return existing;
+    if (existing) return existing;
     const compiledMethod = getPersistedMethod(middleFnId, middleFn.handler);
     let executable;
     if (compiledMethod) {
@@ -2572,12 +2381,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     routesCache.setMethodJitFns(middleFnId, executable);
     return executable;
   }
-  getExecutableFromMiddleFn.__type = ["MiddleFnDef", "HeadersMiddleFnDef", "middleFn", "middleFnPointer", "nestLevel", "MiddleFnMethod", "HeadersMethod", "getExecutableFromMiddleFn", `PP"w!"w"J2#&F2$'2%P"w&"w'J\`/(`];
   async function getExecutableFromRawMiddleFn(middleFn, middleFnPointer, nestLevel) {
     const middleFnId = getRouterItemId(middleFnPointer);
     const existing = rawMiddleFnsById.get(middleFnId);
-    if (existing)
-      return existing;
+    if (existing) return existing;
     const reflectionData = await getRawMethodReflection(middleFn.handler, middleFnId, routerOptions);
     const executable = {
       id: middleFnId,
@@ -2597,12 +2404,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     routesCache.setMethodJitFns(middleFnId, executable);
     return executable;
   }
-  getExecutableFromRawMiddleFn.__type = ["RawMiddleFnDef", "middleFn", "middleFnPointer", "nestLevel", "RawMethod", "getExecutableFromRawMiddleFn", 'P"w!2"&F2#\'2$"w%`/&'];
   async function getExecutableFromRoute(route2, routePointer, nestLevel) {
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
-    if (existing)
-      return existing;
+    if (existing) return existing;
     const compiledMethod = getPersistedMethod(routeId, route2.handler);
     let executable;
     if (compiledMethod) {
@@ -2630,11 +2435,9 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     routesCache.setMethodJitFns(routeId, executable);
     return executable;
   }
-  getExecutableFromRoute.__type = ["Route", "route", "routePointer", "nestLevel", "RouteMethod", "getExecutableFromRoute", 'P"w!2"&F2#\'2$"w%`/&'];
   function getEntry(index, keyEntryList) {
     return keyEntryList[index]?.[1];
   }
-  getEntry.__type = ["index", () => __ΩRouterKeyEntryList, "keyEntryList", "getEntry", `P'2!n"2#"/$`];
   function getRouteEntryProperties(minus1, zero, plus1) {
     const minus1IsRoute = minus1 && isRoute(minus1);
     const zeroIsRoute = zero.type === HandlerType$1.route;
@@ -2648,7 +2451,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       postLevelMiddleFns: []
     };
   }
-  getRouteEntryProperties.__type = ["RouterEntry", "minus1", "RemoteMethod", () => __ΩRoutesWithId, "zero", "plus1", "getRouteEntryProperties", `PP"w!-J2"P"w#n$J2%P"w!-J2&"/'`];
   async function getExecutablesFromMiddleFnsCollection(middleFnsDef) {
     const results = [];
     for (const [key, middleFn] of Object.entries(middleFnsDef)) {
@@ -2662,16 +2464,13 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return results;
   }
-  getExecutablesFromMiddleFnsCollection.__type = ["MiddleFnsCollection", "middleFnsDef", "RawMethod", "MiddleFnMethod", "HeadersMethod", "getExecutablesFromMiddleFnsCollection", 'P"w!2"P"w#"w$"w%JF`/&'];
   function validateSharedDataFactory(opts2) {
-    if (!opts2?.contextDataFactory)
-      return;
+    if (!opts2?.contextDataFactory) return;
     const testSharedData = opts2.contextDataFactory();
     if (typeof testSharedData !== "object" || Array.isArray(testSharedData) || testSharedData === null || Object.keys(testSharedData).length === 0) {
       throw new Error("contextDataFactory must return a plain object with at least one property");
     }
   }
-  validateSharedDataFactory.__type = [() => __ΩPartial$1, "RouterOptions", "opts", "validateSharedDataFactory", 'P"w"o!"2#8$/$'];
   function getSerializerCodeFromMode(mode) {
     switch (mode) {
       case "binary":
@@ -2683,15 +2482,20 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         return SerializerModes.json;
     }
   }
-  getSerializerCodeFromMode.__type = [() => __ΩSerializerMode, "mode", () => __ΩSerializerCode, "getSerializerCodeFromMode", 'PPn!-J2"n#/$'];
-  function __assignType$3(fn, args) {
-    fn.__type = args;
-    return fn;
-  }
   async function dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, rawRequest, rawResponse, reqBodyType, urlQuery) {
     const opts2 = getRouterOptions();
     const usePooling = opts2.maxContextPoolSize > 0;
-    const context = acquireCallContext(usePooling, path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
+    const context = acquireCallContext(
+      usePooling,
+      path,
+      opts2,
+      reqRawBody,
+      rawRequest,
+      reqHeaders,
+      respHeaders,
+      reqBodyType,
+      urlQuery
+    );
     try {
       await runExecutionChain(context, rawRequest, rawResponse, opts2);
       return context.response;
@@ -2703,20 +2507,17 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       }
     }
   }
-  dispatchRoute.__type = ["path", "RawRequestBody", "reqRawBody", "MionHeaders", "reqHeaders", "respHeaders", "rawRequest", "rawResponse", () => __ΩSerializerCode, "reqBodyType", "urlQuery", "MionResponse", "dispatchRoute", 'P&2!"w"2#"w$2%"w$2&"2\'"2(8n)2*8&2+8"w,`/-'];
   async function runExecutionChain(context, rawRequest, rawResponse, opts2) {
     const { response, request } = context;
     const executionList = context.executionChain.methods;
     response.serializer = context.executionChain.serializer;
     for (let i = 0; i < executionList.length; i++) {
       const executable = executionList[i];
-      if (response.hasErrors && !executable.options.runOnError)
-        continue;
+      if (response.hasErrors && !executable.options.runOnError) continue;
       try {
         const methodCaller = executable.methodCaller || getMethodCaller(executable);
         const result = await methodCaller(context, executable, request, response, opts2, rawRequest, rawResponse);
-        if (result === void 0 || !executable.hasReturnData)
-          continue;
+        if (result === void 0 || !executable.hasReturnData) continue;
         if (executable.headersReturn && result instanceof HeadersSubset) {
           const headersMap = result.headers;
           for (const name in headersMap) {
@@ -2734,37 +2535,30 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return context.response;
   }
-  runExecutionChain.__type = ["CallContext", "context", "rawRequest", "rawResponse", "RouterOptions", "opts", "MionResponse", "runExecutionChain", 'P"w!2"#2##2$"w%2&"w\'`/('];
   async function runRawMiddleFn(context, executable, req, resp, opts2, rawRequest, rawResponse) {
     const result = await executable.handler(context, rawRequest, rawResponse, opts2);
     return result;
   }
-  runRawMiddleFn.__type = ["CallContext", "context", () => __ΩRawMethod, "executable", "req", "resp", "RouterOptions", "opts", "rawRequest", "rawResponse", "runRawMiddleFn", `P"w!2"n#2$"2%"2&"w'2(#2)#2*"/+`];
   async function runHeadersMiddleFn(context, executable, request) {
     const headerNames = executable.headersParam.headerNames;
     const params = deserializeBodyParamsOrThrow(request, executable);
     const headersMap = {};
-    headerNames.forEach(__assignType$3((name) => {
+    headerNames.forEach((name) => {
       const value = request.headers.get(name);
-      if (value)
-        headersMap[name] = value;
-    }, ["name", "", 'P"2!"/"']));
+      if (value) headersMap[name] = value;
+    });
     const headersSubset = new HeadersSubset(headersMap);
     validateHeaderParamsOrThrow(headersSubset, executable);
-    if (executable.options.validateParams)
-      validateParametersOrThrow(params, executable);
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable);
     const result = await executable.handler(context, headersSubset, ...params);
     return result;
   }
-  runHeadersMiddleFn.__type = ["CallContext", "context", () => __ΩHeadersMethod, "executable", "MionRequest", "request", "runHeadersMiddleFn", `P"w!2"n#2$"w%2&"/'`];
   async function runRouteOrMiddleFn(context, executable, request) {
     const params = deserializeBodyParamsOrThrow(request, executable);
-    if (executable.options.validateParams)
-      validateParametersOrThrow(params, executable);
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable);
     const result = await executable.handler(context, ...params);
     return result;
   }
-  runRouteOrMiddleFn.__type = ["CallContext", "context", () => __ΩHeadersMethod, "executable", "MionRequest", "request", "runRouteOrMiddleFn", `P"w!2"n#2$"w%2&"/'`];
   function getMethodCaller(executable) {
     if (executable.type === HandlerType$1.rawMiddleFn) {
       executable.methodCaller = runRawMiddleFn;
@@ -2775,13 +2569,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return executable.methodCaller;
   }
-  getMethodCaller.__type = [() => __ΩRemoteMethod, "executable", "getMethodCaller", 'Pn!2""/#'];
   function deserializeBodyParamsOrThrow(request, executable) {
     const params = request.body[executable.id] || [];
-    if (request.bodyType === SerializerModes.binary)
-      return params;
-    if (executable.paramsJitFns.restoreFromJson.isNoop)
-      return params;
+    if (request.bodyType === SerializerModes.binary) return params;
+    if (executable.paramsJitFns.restoreFromJson.isNoop) return params;
     try {
       request.body[executable.id] = executable.paramsJitFns.restoreFromJson.fn(params);
       return request.body[executable.id];
@@ -2797,10 +2588,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       });
     }
   }
-  deserializeBodyParamsOrThrow.__type = ["MionRequest", "request", () => __ΩRemoteMethod, "executable", "deserializeBodyParamsOrThrow", 'P"w!2"n#2$"F/%'];
   function validateParametersOrThrow(params, executable) {
-    if (executable.paramsJitFns.isType.isNoop)
-      return;
+    if (executable.paramsJitFns.isType.isNoop) return;
     if (!executable.paramsJitFns.isType.fn(params)) {
       const validationError = new RpcError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
@@ -2813,7 +2602,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       throw validationError;
     }
   }
-  validateParametersOrThrow.__type = ["params", () => __ΩRemoteMethod, "executable", "validateParametersOrThrow", 'P"F2!n"2#$/$'];
   function validateHeaderParamsOrThrow(headers, executable) {
     if (!executable.headersParam.jitFns.isType.fn(headers)) {
       const validationError = new RpcError({
@@ -2827,16 +2615,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       throw validationError;
     }
   }
-  validateHeaderParamsOrThrow.__type = [() => HeadersSubset, "headers", () => __ΩHeadersMethod, "executable", "validateHeaderParamsOrThrow", 'PP&&7!2"n#2$$/%'];
   const DEFAULT_CLOUDFLARE_OPTIONS = {
     defaultResponseHeaders: {},
     basePath: ""
   };
-  const __ΩPartial = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
-  function __assignType$2(fn, args) {
-    fn.__type = args;
-    return fn;
-  }
   let cloudflareOptions = { ...DEFAULT_CLOUDFLARE_OPTIONS };
   let defaultHeaders = [["server", "@mionkit"]];
   function resetCloudflareHandlerOpts() {
@@ -2844,7 +2626,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     defaultHeaders = [["server", "@mionkit"]];
     resetRouter();
   }
-  resetCloudflareHandlerOpts.__type = ["resetCloudflareHandlerOpts", 'P"/!'];
   function setCloudflareHandlerOpts(options2) {
     cloudflareOptions = {
       ...cloudflareOptions,
@@ -2853,7 +2634,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     defaultHeaders = [["server", "@mionkit"], ...Object.entries(cloudflareOptions.defaultResponseHeaders)];
     return cloudflareOptions;
   }
-  setCloudflareHandlerOpts.__type = [() => __ΩPartial, "CloudflareHandlerOptions", "options", "setCloudflareHandlerOpts", 'P"w"o!"2#8"/$'];
   async function handleRequest(req, env, ctx) {
     const reqUrl = req.url;
     const urlObj = new URL(reqUrl);
@@ -2869,7 +2649,16 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const responseHeaders = new Headers(defaultHeaders);
     const platformContext = env !== void 0 || ctx !== void 0 ? { env, ctx } : void 0;
     try {
-      const platformResp = await dispatchRoute(path, rawBody, req.headers, responseHeaders, req, platformContext, reqBodyType, urlQuery);
+      const platformResp = await dispatchRoute(
+        path,
+        rawBody,
+        req.headers,
+        responseHeaders,
+        req,
+        platformContext,
+        reqBodyType,
+        urlQuery
+      );
       return reply(platformResp, responseHeaders);
     } catch (e) {
       const error = e instanceof RpcError ? e : new RpcError({
@@ -2880,18 +2669,15 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return fatalFail(error, responseHeaders);
     }
   }
-  handleRequest.__type = ["req", "env", "CloudflareExecutionContext", "ctx", "handleRequest", 'P!2!"2"8"w#2$8!`/%'];
   function createCloudflareHandler() {
     return {
-      fetch: __assignType$2((req, env, ctx) => (handleRequest.Ω = [["!"]], handleRequest(req, env, ctx)), ["req", "env", "CloudflareExecutionContext", "ctx", "", 'P!2!!2"8"w#2$8"/%'])
+      fetch: (req, env, ctx) => handleRequest(req, env, ctx)
     };
   }
-  createCloudflareHandler.__type = ["createCloudflareHandler", 'P"/!'];
   function fatalFail(err, responseHeaders) {
     const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
     return reply(routeResponse, responseHeaders);
   }
-  fatalFail.__type = [() => RpcError, "err", "responseHeaders", "fatalFail", 'PP&7!2""2#!/$'];
   function reply(mionResp, responseHeaders) {
     const bodyType = mionResp.serializer;
     switch (bodyType) {
@@ -2927,7 +2713,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       }
     }
   }
-  reply.__type = [() => __ΩMionResponse, "mionResp", "responseHeaders", "reply", 'Pn!2""2#!/$'];
   const __ΩReturnType = ["T", "args", "", "ReturnType", `l>e"!R"RPde#!P"@2"h"!/#qk#'QRb!Pde"!p)w$y`];
   const __ΩRecord = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   function __assignType$1(fn, args) {
