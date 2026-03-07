@@ -88,6 +88,8 @@ export type RouteParamsType<PM extends PublicMethod> = Parameters<ExtractHandler
 export type RouteParamType<PM extends PublicMethod, Index extends number> = Parameters<ExtractHandler<PM>>[Index];
 /** Extracts the headers parameter (first param) from a PublicHeadersFn handler */
 export type HeadersParamsType<PM extends PublicHeadersFn> = Parameters<ExtractHandler<PM>>[0];
+/** Extracts the success return type from a PublicRoute, PublicMiddleFn, or PublicHeadersFn */
+export type RouteReturnType<PM extends PublicMethod> = HandlerSuccessResponse<ExtractHandler<PM>>;
 
 export type HandlerResponse<PH extends PublicHandler> = Awaited<ReturnType<PH>>;
 export type HandlerSuccessResponse<PH extends PublicHandler> = Exclude<HandlerResponse<PH>, RpcError<string>>;
