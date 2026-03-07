@@ -1,10 +1,10 @@
-// This file demonstrates INVALID usage for the @mionkit/no-type-imports rule
+// This file demonstrates INVALID usage for the @mionjs/no-type-imports rule
 // Types used in routes/middleFns should NOT be imported with the 'type' keyword
 
 // start:type-imports-invalid
 // ❌ WRONG: Type-only import - types are erased at runtime
 import type {User, Product} from './types.ts';
-import {route, middleFn} from '@mionkit/router';
+import {route, middleFn} from '@mionjs/router';
 
 // Types imported with 'type' keyword are erased at runtime
 // mion cannot generate validation/serialization functions for them

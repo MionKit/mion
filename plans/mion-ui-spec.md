@@ -1,8 +1,8 @@
-# `@mionkit/ui` — Package Specification
+# `@mionjs/ui` — Package Specification
 
 ## Context
 
-Mion is a type-driven framework where TypeScript types are the single source of truth. The `@mionkit/drizze` package already maps types to database columns via `toDrizzlePGTable<T>()` using a `extractTypeInfo` + base mapper + override merge pattern. This spec applies the same architectural pattern to generate Vue 3 form schemas from TypeScript types.
+Mion is a type-driven framework where TypeScript types are the single source of truth. The `@mionjs/drizze` package already maps types to database columns via `toDrizzlePGTable<T>()` using a `extractTypeInfo` + base mapper + override merge pattern. This spec applies the same architectural pattern to generate Vue 3 form schemas from TypeScript types.
 
 **Goal**: Define a type once, get a fully functional form with validation, labels, input types, and HTML attributes — all inferred automatically.
 
@@ -401,9 +401,9 @@ packages/ui/
 ```json
 {
   "dependencies": {
-    "@mionkit/core": "workspace:*",
-    "@mionkit/run-types": "workspace:*",
-    "@mionkit/type-formats": "workspace:*"
+    "@mionjs/core": "workspace:*",
+    "@mionjs/run-types": "workspace:*",
+    "@mionjs/type-formats": "workspace:*"
   },
   "peerDependencies": {
     "vue": "^3.4.0",
@@ -430,7 +430,7 @@ packages/ui/
 | Friendly errors     | `packages/core/src/types/formats/friendlyErrors.types.ts` | Error display integration                         |
 | Disk cache pattern  | `packages/devtools/src/vite-plugin/aotDiskCache.ts`       | Cache invalidation via hash                       |
 
-**Note**: `extractTypeInfo` and `PropertyInfo` should ideally be extracted to `@mionkit/run-types` so both drizze and ui can import from there without cross-dependency.
+**Note**: `extractTypeInfo` and `PropertyInfo` should ideally be extracted to `@mionjs/run-types` so both drizze and ui can import from there without cross-dependency.
 
 ---
 

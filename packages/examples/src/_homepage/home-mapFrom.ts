@@ -1,4 +1,4 @@
-import {initClient, routesFlow, mapFrom} from '@mionkit/client';
+import {initClient, routesFlow, mapFrom} from '@mionjs/client';
 import type {MyApi} from './home-server.ts';
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 

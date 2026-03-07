@@ -59,7 +59,7 @@ describe('Build Verification', () => {
                 '║                                                                              ║',
                 '║ Or from the monorepo root:                                                   ║',
                 '║                                                                              ║',
-                '║   npm run build -w @mionkit/core && npm run build -w @mionkit/run-types ...  ║',
+                '║   npm run build -w @mionjs/core && npm run build -w @mionjs/run-types ...  ║',
                 '║                                                                              ║',
                 '╚══════════════════════════════════════════════════════════════════════════════╝',
                 '',

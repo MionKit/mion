@@ -7,12 +7,12 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
-import type {CompiledPureFunction, TypeFormatValue} from '@mionkit/core';
+import type {CompiledPureFunction, TypeFormatValue} from '@mionjs/core';
 import type {AnyClass, JitFnID, RunType} from '../types.ts';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes.ts';
 import type {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler.ts';
 import type {PropertyRunType} from '../nodes/member/property.ts';
-import {createHashLiteral} from '@mionkit/core';
+import {createHashLiteral} from '@mionjs/core';
 import {validPropertyNameRegExp} from '../constants.ts';
 import {ReflectionSubKind} from '../constants.kind.ts';
 import {getJitFnSettings} from './jitFnsRegistry.ts';

@@ -13,7 +13,7 @@
  * Uses initMionRouter which automatically calls emitAOTCaches() when MION_COMPILE=true.
  */
 
-import {initMionRouter, route, middleFn, Routes, PublicApi} from '@mionkit/router';
+import {initMionRouter, route, middleFn, Routes, PublicApi} from '@mionjs/router';
 
 interface User {
     id: string;

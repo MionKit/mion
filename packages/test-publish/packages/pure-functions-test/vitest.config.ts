@@ -1,6 +1,6 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
-import {pureFunctionsPlugin} from '@mionkit/devtools';
+import {pureFunctionsPlugin} from '@mionjs/devtools';
 
 export default defineConfig({
     plugins: [

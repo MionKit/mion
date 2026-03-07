@@ -6,10 +6,10 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import type {Mutable} from '@mionkit/core';
+import type {Mutable} from '@mionjs/core';
 import type {Routes} from '../types/general.ts';
 import type {MionResponse, RawRequestBody} from '../types/context.ts';
-import {HeadersSubset, SerializerModes} from '@mionkit/core';
+import {HeadersSubset, SerializerModes} from '@mionjs/core';
 import {headersFn, middleFn, route} from '../lib/handlers.ts';
 import {getRouterOptions, getRouteExecutionChain, initMionRouter, resetRouter} from '../router.ts';
 import {createCallContext} from '../callContext.ts';

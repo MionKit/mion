@@ -76,7 +76,7 @@ const x = 5;
 describe('extractPureFnsFromSource - pureServerFn with PureFnDef', () => {
     it('should extract a named function expression with TypeScript types', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 
 interface User {
     id: number;
@@ -104,7 +104,7 @@ export const mapUsersFn = pureServerFn({
 
     it('should extract multiple pure functions from one file with types', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 
 export const fn1 = pureServerFn({
     pureFn: function addOne(x: number): number {
@@ -129,7 +129,7 @@ export const fn2 = pureServerFn({
 
     it('should extract function with multiple typed parameters', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 
 export const combine = pureServerFn({
     pureFn: function combine(a: string, b: string, c: string): string {
@@ -144,7 +144,7 @@ export const combine = pureServerFn({
 
     it('should extract function with no parameters', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 
 export const getDefault = pureServerFn({
     pureFn: function getDefault(): number {
@@ -168,7 +168,7 @@ export function hello(): string { return 'world'; }
 
     it('should generate deterministic hashes for the same function', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 
 export const fn = pureServerFn({
     pureFn: function myFn(x: number): number {
@@ -183,11 +183,11 @@ export const fn = pureServerFn({
 
     it('should generate different hashes for different function bodies', () => {
         const source1 = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({ pureFn: function myFn(x: number): number { return x + 1; } });
 `;
         const source2 = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({ pureFn: function myFn(x: number): number { return x + 2; } });
 `;
         const result1 = extractPureFnsFromSource(source1, 'test.ts');
@@ -197,7 +197,7 @@ export const fn = pureServerFn({ pureFn: function myFn(x: number): number { retu
 
     it('should assign pureServerFn namespace by default', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({ pureFn: function myFn(x: any): any { return x; } });
 `;
         const result = extractPureFnsFromSource(source, 'test.ts');
@@ -207,7 +207,7 @@ export const fn = pureServerFn({ pureFn: function myFn(x: any): any { return x; 
 
     it('should handle functions with complex type annotations', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 
 interface User {
     id: number;
@@ -233,7 +233,7 @@ export const fn = pureServerFn({
 
     it('should handle generic type parameters', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 
 export const fn = pureServerFn({
     pureFn: function identity<T>(x: T): T {
@@ -248,7 +248,7 @@ export const fn = pureServerFn({
 
     it('should handle type assertions in function body', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 
 export const fn = pureServerFn({
     pureFn: function castValue(x: unknown): string {
@@ -265,7 +265,7 @@ export const fn = pureServerFn({
 
     it('should accept anonymous functions and use bodyHash as fnName', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function(x: number): number {
         return x + 1;
@@ -281,7 +281,7 @@ export const fn = pureServerFn({
 
     it('should extract pureServerFn with explicit namespace property', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(x: number): number {
         return x + 1;
@@ -297,7 +297,7 @@ export const fn = pureServerFn({
 
     it('should extract pureServerFn with explicit fnName property', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function(x: number): number {
         return x + 1;
@@ -312,7 +312,7 @@ export const fn = pureServerFn({
 
     it('should extract pureServerFn with isFactory property', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFactory(jitUtils: any) {
         return function inner(x: number) {
@@ -329,7 +329,7 @@ export const fn = pureServerFn({
 
     it('should resolve a variable reference to its object literal initializer', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 const def = { pureFn: function myFn(x: number) { return x; } };
 export const fn = pureServerFn(def);
 `;
@@ -341,7 +341,7 @@ export const fn = pureServerFn(def);
 
     it('should resolve a variable reference with all PureFnDef properties', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 const myDef = {
     pureFn: function addOne(x: number): number { return x + 1; },
     namespace: 'myNs',
@@ -358,7 +358,7 @@ export const fn = pureServerFn(myDef);
 
     it('should throw when variable reference cannot be resolved', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn(unknownDef);
 `;
         expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
@@ -367,7 +367,7 @@ export const fn = pureServerFn(unknownDef);
 
     it('should throw with import-specific message when argument is a named import', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 import {myFn} from './myModule';
 export const fn = pureServerFn(myFn);
 `;
@@ -377,7 +377,7 @@ export const fn = pureServerFn(myFn);
 
     it('should throw with import-specific message when argument is a default import', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 import myFn from './myModule';
 export const fn = pureServerFn(myFn);
 `;
@@ -387,7 +387,7 @@ export const fn = pureServerFn(myFn);
 
     it('should throw with import-specific message when pureFn property is an import', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 import {myFn} from './myModule';
 export const fn = pureServerFn({ pureFn: myFn });
 `;
@@ -397,7 +397,7 @@ export const fn = pureServerFn({ pureFn: myFn });
 
     it('should throw when variable resolves to a non-object-literal', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 const def = getSomeDef();
 export const fn = pureServerFn(def);
 `;
@@ -407,7 +407,7 @@ export const fn = pureServerFn(def);
 
     it('should throw when pureFn property is missing', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({ namespace: 'test' });
 `;
         expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
@@ -418,7 +418,7 @@ export const fn = pureServerFn({ namespace: 'test' });
 describe('extractPureFnsFromSource - pureServerFn with plain function', () => {
     it('should extract a named function expression and always use bodyHash as fnName', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn(function addOne(x: number): number {
     return x + 1;
 });
@@ -438,7 +438,7 @@ export const fn = pureServerFn(function addOne(x: number): number {
 
     it('should extract an arrow function with expression body', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn((x: number) => x + 1);
 `;
         const result = extractPureFnsFromSource(source, 'test.ts');
@@ -451,7 +451,7 @@ export const fn = pureServerFn((x: number) => x + 1);
 
     it('should extract an arrow function with block body', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn((users: any[]) => {
     return users.map((u: any) => ({id: u.id}));
 });
@@ -464,7 +464,7 @@ export const fn = pureServerFn((users: any[]) => {
 
     it('should extract multiple plain function calls from one file', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn1 = pureServerFn(function addOne(x: number) { return x + 1; });
 export const fn2 = pureServerFn((x: number) => x * 2);
 `;
@@ -477,11 +477,11 @@ export const fn2 = pureServerFn((x: number) => x * 2);
 
     it('should produce same hash as equivalent PureFnDef form', () => {
         const plainSource = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn(function addOne(x) { return x + 1; });
 `;
         const defSource = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({ pureFn: function addOne(x) { return x + 1; } });
 `;
         const plainResult = extractPureFnsFromSource(plainSource, 'test.ts');
@@ -492,7 +492,7 @@ export const fn = pureServerFn({ pureFn: function addOne(x) { return x + 1; } })
 
     it('should handle mixed plain function and PureFnDef calls in one file', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn1 = pureServerFn((x: number) => x + 1);
 export const fn2 = pureServerFn({
     pureFn: function double(x: number) { return x * 2; },
@@ -507,7 +507,7 @@ export const fn2 = pureServerFn({
 
     it('should resolve a variable reference that holds a function', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 const myFn = function addOne(x) { return x + 1; };
 export const fn = pureServerFn(myFn);
 `;
@@ -519,7 +519,7 @@ export const fn = pureServerFn(myFn);
 
     it('should validate purity for plain functions (reject closure variables)', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 const SECRET = 'hidden';
 export const fn = pureServerFn((x: string) => x + SECRET);
 `;
@@ -529,7 +529,7 @@ export const fn = pureServerFn((x: string) => x + SECRET);
 
     it('should validate purity for plain functions (reject this)', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn(function myFn() { return this.value; });
 `;
         expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
@@ -539,7 +539,7 @@ export const fn = pureServerFn(function myFn() { return this.value; });
 describe('purity validation', () => {
     it('should reject functions using eval', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(x: string): any {
         return eval(x);
@@ -552,7 +552,7 @@ export const fn = pureServerFn({
 
     it('should reject functions using require', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(): any {
         const fs = require('fs');
@@ -565,7 +565,7 @@ export const fn = pureServerFn({
 
     it('should reject functions using dynamic import', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(): Promise<any> {
         return import('./secret');
@@ -577,7 +577,7 @@ export const fn = pureServerFn({
 
     it('should reject functions using this', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(): any {
         return this.value;
@@ -589,7 +589,7 @@ export const fn = pureServerFn({
 
     it('should reject functions using fetch', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(url: string): Promise<Response> {
         return fetch(url);
@@ -601,7 +601,7 @@ export const fn = pureServerFn({
 
     it('should reject functions using setTimeout', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(): void {
         setTimeout(() => {}, 1000);
@@ -613,7 +613,7 @@ export const fn = pureServerFn({
 
     it('should reject functions accessing closure variables', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 const SECRET: string = 'hidden';
 export const fn = pureServerFn({
     pureFn: function myFn(x: string): string {
@@ -627,7 +627,7 @@ export const fn = pureServerFn({
 
     it('should reject functions using process', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(): string | undefined {
         return process.env.SECRET;
@@ -639,7 +639,7 @@ export const fn = pureServerFn({
 
     it('should reject functions using window', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(): string {
         return window.location.href;
@@ -651,7 +651,7 @@ export const fn = pureServerFn({
 
     it('should reject functions using await', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(): number {
         const result = await Promise.resolve(1);
@@ -664,7 +664,7 @@ export const fn = pureServerFn({
 
     it('should allow functions using Math', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(x: number): number {
         return Math.floor(x);
@@ -677,7 +677,7 @@ export const fn = pureServerFn({
 
     it('should allow functions using JSON', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(x: object): string {
         return JSON.stringify(x);
@@ -690,7 +690,7 @@ export const fn = pureServerFn({
 
     it('should allow functions using Array methods with typed callbacks', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(items: number[]): number[] {
         return items.filter((x: number) => x > 0).map((x: number) => x * 2);
@@ -705,7 +705,7 @@ export const fn = pureServerFn({
 
     it('should allow functions with typed local variable declarations', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function myFn(x: number): number {
         const doubled: number = x * 2;
@@ -722,7 +722,7 @@ export const fn = pureServerFn({
 
     it('should allow functions with typed destructuring', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 
 interface User {
     name: string;
@@ -742,7 +742,7 @@ export const fn = pureServerFn({
 
     it('should allow factory functions with local variables and params only', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 
 export const myFactory = pureServerFn({
     pureFn: function myFactory(jitUtils: any) {
@@ -763,7 +763,7 @@ export const myFactory = pureServerFn({
 
     it('should reject factory functions accessing closure variables', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 const OUTER = 42;
 export const fn = pureServerFn({
     pureFn: function factory() { return OUTER; },
@@ -776,7 +776,7 @@ export const fn = pureServerFn({
 
     it('should reject factory functions using forbidden identifiers', () => {
         const source = `
-import {pureServerFn} from '@mionkit/server-pure-functions';
+import {pureServerFn} from '@mionjs/server-pure-functions';
 export const fn = pureServerFn({
     pureFn: function factory() { return setTimeout; },
     isFactory: true
@@ -790,7 +790,7 @@ export const fn = pureServerFn({
 describe('extractPureFnsFromSource - mapFrom', () => {
     it('should extract an arrow mapper from mapFrom(source, mapper)', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, (value: number) => value * 2);
 `;
@@ -808,7 +808,7 @@ export const ref = mapFrom(sub, (value: number) => value * 2);
 
     it('should extract a named function expression mapper', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, function extractId(item: {id: number}): number {
     return item.id;
@@ -824,7 +824,7 @@ export const ref = mapFrom(sub, function extractId(item: {id: number}): number {
 
     it('should extract mapper with block body', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, (user: any) => {
     const name = user.name;
@@ -839,7 +839,7 @@ export const ref = mapFrom(sub, (user: any) => {
 
     it('should extract multiple mapFrom() calls from one file', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref1 = mapFrom(sub, (x: number) => x + 1);
 export const ref2 = mapFrom(sub, (x: number) => x * 2);
@@ -853,7 +853,7 @@ export const ref2 = mapFrom(sub, (x: number) => x * 2);
 
     it('should generate deterministic hashes', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, (x: number) => x + 1);
 `;
@@ -864,12 +864,12 @@ export const ref = mapFrom(sub, (x: number) => x + 1);
 
     it('should generate different hashes for different mapper bodies', () => {
         const source1 = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, (x: number) => x + 1);
 `;
         const source2 = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, (x: number) => x + 2);
 `;
@@ -880,7 +880,7 @@ export const ref = mapFrom(sub, (x: number) => x + 2);
 
     it('should validate purity — reject closure variables', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 const SECRET = 'hidden';
 export const ref = mapFrom(sub, (x: string) => x + SECRET);
@@ -891,7 +891,7 @@ export const ref = mapFrom(sub, (x: string) => x + SECRET);
 
     it('should validate purity — reject forbidden identifiers', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, (url: string) => fetch(url));
 `;
@@ -901,7 +901,7 @@ export const ref = mapFrom(sub, (url: string) => fetch(url));
 
     it('should validate purity — reject this keyword', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, function() { return this.value; });
 `;
@@ -910,7 +910,7 @@ export const ref = mapFrom(sub, function() { return this.value; });
 
     it('should throw when mapper is imported from another module', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 import {myMapper} from './helpers';
 const sub = {} as any;
 export const ref = mapFrom(sub, myMapper);
@@ -921,7 +921,7 @@ export const ref = mapFrom(sub, myMapper);
 
     it('should throw when mapper cannot be resolved', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, unknownMapper);
 `;
@@ -931,7 +931,7 @@ export const ref = mapFrom(sub, unknownMapper);
 
     it('should throw when mapper is not a function', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, 'notAFunction');
 `;
@@ -941,7 +941,7 @@ export const ref = mapFrom(sub, 'notAFunction');
 
     it('should resolve a variable reference holding a mapper function', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 const myMapper = (x: number) => x + 1;
 export const ref = mapFrom(sub, myMapper);
@@ -959,7 +959,7 @@ export const ref = mapFrom(sub, myMapper);
 
     it('should handle calls that already have 3 arguments (already transformed)', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, (x: number) => x + 1, 'existingHash');
 `;
@@ -977,7 +977,7 @@ describe('extractPureFnsFromSource - registerPureFnFactory', () => {
     return h >= 0 && h <= 23;
   };`;
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('mion', 'isHours', function () {
     ${fnBody}
 });
@@ -1000,7 +1000,7 @@ export const cpf = registerPureFnFactory('mion', 'isHours', function () {
     return isDate(parts[0], parts[1], parts[2]);
   };`;
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('mionFormats', 'isDateString_YMD', function (jUtil) {
     ${fnBody}
 });
@@ -1018,7 +1018,7 @@ export const cpf = registerPureFnFactory('mionFormats', 'isDateString_YMD', func
     return x + 1;
   };`;
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('test', 'arrowFn', (jUtils) => {
     ${fnBody}
 });
@@ -1039,7 +1039,7 @@ export const cpf = registerPureFnFactory('test', 'arrowFn', (jUtils) => {
     return x * 2;
   };`;
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf1 = registerPureFnFactory('mion', 'fn1', function () {
     ${fnBody1}
 });
@@ -1057,7 +1057,7 @@ export const cpf2 = registerPureFnFactory('mion', 'fn2', function () {
 
     it('should generate deterministic hashes', () => {
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('mion', 'testFn', function () {
     return function t(x) { return x; };
 });
@@ -1069,11 +1069,11 @@ export const cpf = registerPureFnFactory('mion', 'testFn', function () {
 
     it('should generate different hashes for different function bodies', () => {
         const source1 = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('mion', 'fn', function () { return function t(x) { return x + 1; }; });
 `;
         const source2 = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('mion', 'fn', function () { return function t(x) { return x + 2; }; });
 `;
         const r1 = extractPureFnsFromSource(source1, 'test.ts', 'registerPureFnFactory');
@@ -1083,11 +1083,11 @@ export const cpf = registerPureFnFactory('mion', 'fn', function () { return func
 
     it('should include functionID in hash input (different IDs produce different hashes)', () => {
         const source1 = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('mion', 'fn1', function () { return function t(x) { return x; }; });
 `;
         const source2 = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('mion', 'fn2', function () { return function t(x) { return x; }; });
 `;
         const r1 = extractPureFnsFromSource(source1, 'test.ts', 'registerPureFnFactory');
@@ -1100,7 +1100,7 @@ export const cpf = registerPureFnFactory('mion', 'fn2', function () { return fun
     return p.isLower ? s === s.toLowerCase() : true;
   };`;
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 interface Params { isLower?: boolean; }
 export const cpf = registerPureFnFactory('mion', 'typedFn', function (jUtil: any) {
     return function check(s: string, p: Params): boolean {
@@ -1121,7 +1121,7 @@ export const cpf = registerPureFnFactory('mion', 'typedFn', function (jUtil: any
 
     it('should throw when namespace is not a string literal', () => {
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 const ns = 'mion';
 export const cpf = registerPureFnFactory(ns, 'fn', function () { return function t() {}; });
 `;
@@ -1131,7 +1131,7 @@ export const cpf = registerPureFnFactory(ns, 'fn', function () { return function
 
     it('should throw when factoryFn is not a function expression', () => {
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 const myFn = () => {};
 export const cpf = registerPureFnFactory('mion', 'fn', myFn);
 `;
@@ -1141,7 +1141,7 @@ export const cpf = registerPureFnFactory('mion', 'fn', myFn);
 
     it('should throw with import-specific message when factoryFn is an import', () => {
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 import {myFactory} from './myModule';
 export const cpf = registerPureFnFactory('mion', 'fn', myFactory);
 `;

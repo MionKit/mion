@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
-import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
-import {TypeFormat, RunTypeOptions, BaseRunTypeFormat, registerFormatter} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionjs/run-types';
+import {TypeFormat, RunTypeOptions, BaseRunTypeFormat, registerFormatter} from '@mionjs/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype.ts';
-import {FormatParams_DateTime} from '@mionkit/core';
+import {FormatParams_DateTime} from '@mionjs/core';
 import {DEFAULT_TIME_FORMAT_PARAMS, TimeStringRunTypeFormat} from './time.runtype.ts';
 import {stringIgnoreProps} from './stringFormat.runtype.ts';
 import {paramVal} from '../utils.ts';

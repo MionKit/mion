@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {initRouter, registerRoutes, route, getRouteExecutionChain, resetRouter} from '@mionkit/router';
+import {initRouter, registerRoutes, route, getRouteExecutionChain, resetRouter} from '@mionjs/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp.ts';
-import {CallContext} from '@mionkit/router';
-import {serializeBinaryBody, deserializeBinaryBody} from '@mionkit/core';
+import {CallContext} from '@mionjs/router';
+import {serializeBinaryBody, deserializeBinaryBody} from '@mionjs/core';
 import {Server} from 'bun';
 
 // Increase timeout for tests that involve type reflection (can be slow when running in parallel)
@@ -70,7 +70,7 @@ describe('bun router binary serialization should', () => {
         expect(responseBody.getDate).toBeDefined();
         expect(responseBody.getDate.date).toEqual(new Date('2022-04-22T00:17:00.000Z'));
         expect(headers['content-type']).toEqual('application/octet-stream');
-        expect(headers['server']).toEqual('@mionkit');
+        expect(headers['server']).toEqual('@mionjs');
     });
 
     test('send binary request and receive binary response with complex objects', async () => {
@@ -95,7 +95,7 @@ describe('bun router binary serialization should', () => {
         expect(responseBody.changeUserName.name).toEqual('NewName');
         expect(responseBody.changeUserName.surname).toEqual('Doe');
         expect(headers['content-type']).toEqual('application/octet-stream');
-        expect(headers['server']).toEqual('@mionkit');
+        expect(headers['server']).toEqual('@mionjs');
     });
 
     test('handle optional parameters in binary mode', async () => {

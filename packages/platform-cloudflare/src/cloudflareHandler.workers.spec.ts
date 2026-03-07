@@ -9,7 +9,7 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {Miniflare} from 'miniflare';
 import {readFileSync} from 'fs';
 import {resolve} from 'path';
-import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionkit/core';
+import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
 /** Path to the pre-built cloudflare bundle (all deps inlined + AOT caches) */
 const CLOUDFLARE_BUNDLE_PATH = resolve(__dirname, '../../test-server/build/test-server-cloudflare.js');
@@ -81,7 +81,7 @@ describe('cloudflare handler (workerd runtime)', () => {
 
             expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
             expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(result.headers['server']).toEqual('@mionkit');
+            expect(result.headers['server']).toEqual('@mionjs');
         });
 
         it('should get an error when sending invalid parameters', async () => {
@@ -98,7 +98,7 @@ describe('cloudflare handler (workerd runtime)', () => {
             };
             expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
             expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(result.headers['server']).toEqual('@mionkit');
+            expect(result.headers['server']).toEqual('@mionjs');
         });
 
         it('should set response headers from route response', async () => {
@@ -129,7 +129,7 @@ describe('cloudflare handler (workerd runtime)', () => {
             expect(result.headers['x-app-name']).toEqual('MyApp');
             expect(result.headers['x-instance-id']).toEqual('3089');
             expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(result.headers['server']).toEqual('@mionkit');
+            expect(result.headers['server']).toEqual('@mionjs');
         });
     });
 
@@ -172,7 +172,7 @@ describe('cloudflare handler (workerd runtime)', () => {
 
             expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
             expect(result.headers['content-type']).toContain('application/json');
-            expect(result.headers['server']).toEqual('@mionkit');
+            expect(result.headers['server']).toEqual('@mionjs');
         });
 
         it('should get an ok response from a route with complex objects', async () => {
@@ -182,7 +182,7 @@ describe('cloudflare handler (workerd runtime)', () => {
 
             expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
             expect(result.headers['content-type']).toContain('application/json');
-            expect(result.headers['server']).toEqual('@mionkit');
+            expect(result.headers['server']).toEqual('@mionjs');
         });
     });
 });

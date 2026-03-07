@@ -27,11 +27,11 @@ import {
     isRoutes,
     isAnyMiddleFnDef,
 } from './types/guards.ts';
-import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv, resetRoutesCache} from '@mionkit/core';
+import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv, resetRoutesCache} from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
-import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionkit/core';
-import {setErrorOptions} from '@mionkit/core';
+import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionjs/core';
+import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache.ts';
 import {mionClientRoutes} from './routes/client.routes.ts';

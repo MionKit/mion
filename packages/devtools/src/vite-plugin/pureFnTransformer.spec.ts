@@ -23,7 +23,7 @@ function transformWithPureFn(source: string, filePath = 'test.ts'): {output: str
 describe('pureFnTransformer - pureServerFn', () => {
     it('should inject bodyHash as 2nd string argument', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 export const fn = pureServerFn({
     pureFn: function addOne(x) { return x + 1; }
 });
@@ -40,7 +40,7 @@ export const fn = pureServerFn({
 
     it('should handle multiple pureServerFn calls in one file', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 export const fn1 = pureServerFn({
     pureFn: function addOne(x) { return x + 1; }
 });
@@ -56,7 +56,7 @@ export const fn2 = pureServerFn({
 
     it('should be idempotent — skip calls that already have 2 arguments', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 export const fn = pureServerFn({
     pureFn: function addOne(x) { return x + 1; }
 }, 'existingHash');
@@ -77,7 +77,7 @@ export const fn = pureServerFn({
 
     it('should handle pureServerFn with custom namespace and fnName', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 export const fn = pureServerFn({
     pureFn: function myFn(x) { return x; },
     namespace: 'customNs',
@@ -92,7 +92,7 @@ export const fn = pureServerFn({
 
     it('should handle variable reference as argument', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 const myDef = {
     pureFn: function addOne(x) { return x + 1; },
     fnName: 'addOne'
@@ -107,7 +107,7 @@ export const fn = pureServerFn(myDef);
 
     it('should handle TypeScript type annotations', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 interface User { id: number; name: string; }
 export const fn = pureServerFn({
     pureFn: function mapUsers(users: User[]): {userId: number}[] {
@@ -122,7 +122,7 @@ export const fn = pureServerFn({
 
     it('should inject bodyHash for plain function expression', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 export const fn = pureServerFn(function addOne(x) { return x + 1; });
 `;
         const {output, collected} = transformWithPureFn(source);
@@ -135,7 +135,7 @@ export const fn = pureServerFn(function addOne(x) { return x + 1; });
 
     it('should inject bodyHash for plain arrow function', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 export const fn = pureServerFn((x) => x + 1);
 `;
         const {output, collected} = transformWithPureFn(source);
@@ -145,7 +145,7 @@ export const fn = pureServerFn((x) => x + 1);
 
     it('should be idempotent for plain function with existing hash', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 export const fn = pureServerFn((x) => x + 1, 'existingHash');
 `;
         const {output, collected} = transformWithPureFn(source);
@@ -155,7 +155,7 @@ export const fn = pureServerFn((x) => x + 1, 'existingHash');
 
     it('should handle mixed plain and PureFnDef calls', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 export const fn1 = pureServerFn((x) => x + 1);
 export const fn2 = pureServerFn({
     pureFn: function double(x) { return x * 2; }
@@ -171,7 +171,7 @@ export const fn2 = pureServerFn({
 describe('pureFnTransformer - registerPureFnFactory', () => {
     it('should inject ParsedFactoryFn as 4th argument', () => {
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('mion', 'isHours', function () {
     return function is_h(hours) {
         const h = Number(hours);
@@ -191,7 +191,7 @@ export const cpf = registerPureFnFactory('mion', 'isHours', function () {
 
     it('should handle multiple registerPureFnFactory calls', () => {
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf1 = registerPureFnFactory('mion', 'fn1', function () {
     return function a(x) { return x + 1; };
 });
@@ -208,7 +208,7 @@ export const cpf2 = registerPureFnFactory('mion', 'fn2', function () {
 
     it('should be idempotent — skip calls that already have 4 arguments', () => {
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('mion', 'fn', function () {
     return function t(x) { return x; };
 }, {bodyHash: 'existing', paramNames: [], code: 'return x;'});
@@ -219,7 +219,7 @@ export const cpf = registerPureFnFactory('mion', 'fn', function () {
 
     it('should inject correct paramNames for factory with parameter', () => {
         const source = `
-import {registerPureFnFactory} from '@mionkit/core';
+import {registerPureFnFactory} from '@mionjs/core';
 export const cpf = registerPureFnFactory('mionFormats', 'dateFn', function (jUtil) {
     const dep = jUtil.getPureFn('mionFormats', 'isDate');
     return function check(v) { return dep(v); };
@@ -241,7 +241,7 @@ export const cpf = registerPureFnFactory('mionFormats', 'dateFn', function (jUti
 describe('pureFnTransformer - mapFrom', () => {
     it('should inject bodyHash as 3rd string argument', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, (x) => x + 1);
 `;
@@ -254,7 +254,7 @@ export const ref = mapFrom(sub, (x) => x + 1);
 
     it('should handle multiple mapFrom() calls in one file', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref1 = mapFrom(sub, (x) => x + 1);
 export const ref2 = mapFrom(sub, (x) => x * 2);
@@ -267,7 +267,7 @@ export const ref2 = mapFrom(sub, (x) => x * 2);
 
     it('should be idempotent — skip calls that already have 3 arguments', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, (x) => x + 1, 'existingHash');
 `;
@@ -278,7 +278,7 @@ export const ref = mapFrom(sub, (x) => x + 1, 'existingHash');
 
     it('should handle named function expression as mapper', () => {
         const source = `
-import {mapFrom} from '@mionkit/client';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 export const ref = mapFrom(sub, function extractName(user) { return user.name; });
 `;
@@ -292,7 +292,7 @@ export const ref = mapFrom(sub, function extractName(user) { return user.name; }
 describe('pureFnTransformer - mixed file', () => {
     it('should handle both pureServerFn and registerPureFnFactory in the same file', () => {
         const source = `
-import {pureServerFn, registerPureFnFactory} from '@mionkit/core';
+import {pureServerFn, registerPureFnFactory} from '@mionjs/core';
 
 export const fn = pureServerFn({
     pureFn: function addOne(x) { return x + 1; }
@@ -314,8 +314,8 @@ export const cpf = registerPureFnFactory('mion', 'double', function () {
 
     it('should handle pureServerFn and mapFrom() in the same file', () => {
         const source = `
-import {pureServerFn} from '@mionkit/core';
-import {mapFrom} from '@mionkit/client';
+import {pureServerFn} from '@mionjs/core';
+import {mapFrom} from '@mionjs/client';
 const sub = {} as any;
 
 export const fn = pureServerFn((x) => x + 1);

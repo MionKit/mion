@@ -13,8 +13,8 @@ import {serializeResponseBody, deserializeRequestBody} from './serializer.routes
 import {createCallContext} from '../callContext.ts';
 import {headersFromRecord} from '../lib/headers.ts';
 import type {MionResponse, RawRequestBody} from '../types/context.ts';
-import type {Mutable, BinaryInput} from '@mionkit/core';
-import {createDataViewDeserializer, serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mionkit/core';
+import type {Mutable, BinaryInput} from '@mionjs/core';
+import {createDataViewDeserializer, serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mionjs/core';
 
 // Test types
 interface User {

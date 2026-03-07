@@ -6,10 +6,10 @@
  * ######## */
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {initRouter, registerRoutes, route} from '@mionkit/router';
+import {initRouter, registerRoutes, route} from '@mionjs/router';
 import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandlerOpts} from './cloudflareHandler.ts';
-import type {CallContext, Route} from '@mionkit/router';
-import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionkit/core';
+import type {CallContext, Route} from '@mionjs/router';
+import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
 describe('cloudflare handler', () => {
     type SimpleUser = {
@@ -69,7 +69,7 @@ describe('cloudflare handler', () => {
 
             expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
             expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-            expect(response.headers.get('server')).toEqual('@mionkit');
+            expect(response.headers.get('server')).toEqual('@mionjs');
         });
 
         it('should get an error when sending invalid parameters', async () => {
@@ -88,7 +88,7 @@ describe('cloudflare handler', () => {
             };
             expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
             expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-            expect(response.headers.get('server')).toEqual('@mionkit');
+            expect(response.headers.get('server')).toEqual('@mionjs');
         });
 
         it('should set response headers from route response', async () => {
@@ -127,7 +127,7 @@ describe('cloudflare handler', () => {
             expect(response.headers.get('x-app-name')).toEqual('MyApp');
             expect(response.headers.get('x-instance-id')).toEqual('3089');
             expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-            expect(response.headers.get('server')).toEqual('@mionkit');
+            expect(response.headers.get('server')).toEqual('@mionjs');
 
             // Restore state
             resetCloudflareHandlerOpts();
@@ -182,7 +182,7 @@ describe('cloudflare handler', () => {
             expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
             // Response.json() adds charset=utf-8 automatically
             expect(response.headers.get('content-type')).toContain('application/json');
-            expect(response.headers.get('server')).toEqual('@mionkit');
+            expect(response.headers.get('server')).toEqual('@mionjs');
         });
 
         it('should get an ok response from a route with complex objects', async () => {
@@ -194,7 +194,7 @@ describe('cloudflare handler', () => {
 
             expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
             expect(response.headers.get('content-type')).toContain('application/json');
-            expect(response.headers.get('server')).toEqual('@mionkit');
+            expect(response.headers.get('server')).toEqual('@mionjs');
         });
     });
 });

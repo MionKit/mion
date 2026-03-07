@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mionkit/drizzle`
+# `@mionjs/drizzle`
 
 🚀 Auto-generate Drizzle ORM table schemas from TypeScript types and **mion Type Formats**.
 

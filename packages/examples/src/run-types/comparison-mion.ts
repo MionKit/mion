@@ -1,4 +1,4 @@
-import {Routes, route} from '@mionkit/router';
+import {Routes, route} from '@mionjs/router';
 
 interface Article {
     id: string;

@@ -1,4 +1,4 @@
-import {RpcError, MION_ROUTES, Mutable, StatusCodes, SerializerModes} from '@mionkit/core';
+import {RpcError, MION_ROUTES, Mutable, StatusCodes, SerializerModes} from '@mionjs/core';
 import type {CallContext, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context.ts';
 import type {RemoteMethod} from '../types/remoteMethods.ts';
 

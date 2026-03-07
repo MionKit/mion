@@ -16,7 +16,7 @@ import type {
     RoutesFlowExecutionResult,
 } from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
-import {Mutable, StatusCodes, SerializerModes, SerializerCode, RpcError} from '@mionkit/core';
+import {Mutable, StatusCodes, SerializerModes, SerializerCode, RpcError} from '@mionjs/core';
 import {getRoutesFlowExecutionChain} from './routesFlow.ts';
 
 // ############# POOL STATE #############

@@ -35,7 +35,7 @@ export function resolveVirtualId(id: string): string {
 // ============ Reflection Stubs (for excludeReflection) ============
 
 /** Modules stubbed out when excludeReflection is enabled (not needed at runtime in AOT mode) */
-export const REFLECTION_MODULES = ['@mionkit/run-types', '@deepkit/type', '@deepkit/core'];
+export const REFLECTION_MODULES = ['@mionjs/run-types', '@deepkit/type', '@deepkit/core'];
 
 /** Prefix for virtual stub module IDs */
 export const VIRTUAL_STUB_PREFIX = 'virtual:mion-stub/';

@@ -1,5 +1,5 @@
-import {initMionRouter, route, Routes} from '@mionkit/router';
-import {startNodeServer} from '@mionkit/platform-node';
+import {initMionRouter, route, Routes} from '@mionjs/router';
+import {startNodeServer} from '@mionjs/platform-node';
 // @annotate: Automatic Validation and Serialization from Typescript types
 
 interface User {

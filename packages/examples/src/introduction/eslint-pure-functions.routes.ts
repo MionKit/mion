@@ -1,8 +1,8 @@
 /* eslint-disable */
-// This file demonstrates the ESLint rules for @mionkit pure functions
+// This file demonstrates the ESLint rules for @mionjs pure functions
 // The rules are disabled for this file so you can see both valid and invalid examples
-import {pureServerFn, registerPureFnFactory} from '@mionkit/core';
-import {mapFrom} from '@mionkit/client';
+import {pureServerFn, registerPureFnFactory} from '@mionjs/core';
+import {mapFrom} from '@mionjs/client';
 
 // ========================================
 // ✅ VALID EXAMPLES

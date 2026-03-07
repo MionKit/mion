@@ -20,7 +20,7 @@ import {
     FormatParams_Time,
     FormatParams_UUID,
     FormatParams_IP,
-} from '@mionkit/core';
+} from '@mionjs/core';
 
 // ############### Date Pure Functions ###############
 

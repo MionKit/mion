@@ -6,7 +6,7 @@
  * ######## */
 // ###### !IMPORTANT: all imports should be types only to prevent circular dependencies ######
 import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature, TypeTuple} from '@deepkit/type';
-import type {TypeFormatParams} from '@mionkit/core';
+import type {TypeFormatParams} from '@mionjs/core';
 import type {JitFunctions} from './constants.functions.ts';
 import type {ReflectionSubKind} from './constants.kind.ts';
 import type {BaseRunTypeFormat} from './lib/baseRunTypeFormat.ts';

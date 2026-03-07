@@ -1,4 +1,4 @@
-import {CallContext, middleFn, Routes} from '@mionkit/router';
+import {CallContext, middleFn, Routes} from '@mionjs/router';
 import {myApp} from './full-example.app.ts';
 
 const routes = {

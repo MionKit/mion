@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyObject, RpcError, MION_ROUTES, SerializableMethodsData} from '@mionkit/core';
+import {AnyObject, RpcError, MION_ROUTES, SerializableMethodsData} from '@mionjs/core';
 import {
     getMiddleFnExecutable,
     getRouteExecutable,

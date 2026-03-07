@@ -1,4 +1,4 @@
-# `@mionkit/platform-vercel` — Vercel Platform Adapter
+# `@mionjs/platform-vercel` — Vercel Platform Adapter
 
 ## Context
 
@@ -29,12 +29,12 @@ packages/platform-vercel/
 
 ```json
 {
-  "name": "@mionkit/platform-vercel",
+  "name": "@mionjs/platform-vercel",
   "version": "0.7.2",
   "description": "mion adapter for Vercel serverless functions",
   "dependencies": {
-    "@mionkit/core": "^0.7.2",
-    "@mionkit/router": "^0.7.2"
+    "@mionjs/core": "^0.7.2",
+    "@mionjs/router": "^0.7.2"
   }
 }
 ```
@@ -92,7 +92,7 @@ Directly adapted from `packages/platform-bun/src/bunHttp.ts` — both use Web `R
 Follow `packages/platform-aws/src/awsLambda.spec.ts` pattern:
 
 ```typescript
-import {initRouter, registerRoutes, resetRouter, route} from '@mionkit/router';
+import {initRouter, registerRoutes, resetRouter, route} from '@mionjs/router';
 import {createVercelHandler, resetVercelHandlerOpts, setVercelHandlerOpts} from './vercelHandler.ts';
 
 const createRequest = (body: string, path: string, method = 'POST') =>
@@ -115,12 +115,12 @@ Test cases:
 
 **`vite.config.ts`** — same pattern as `packages/platform-bun/vite.config.ts`:
 - Dual CJS/ESM output to `.dist/esm/` and `.dist/cjs/`
-- External: `@mionkit/core`, `@mionkit/router`, all non-relative imports
+- External: `@mionjs/core`, `@mionjs/router`, all non-relative imports
 - `cjsPackageJsonPlugin`, `vite-plugin-dts`
 
 **`vitest.config.ts`** — same pattern as `packages/platform-aws/vitest.config.ts`:
 - `mionPlugin` with deepkit type compilation
-- Resolve aliases for `@mionkit/*` packages
+- Resolve aliases for `@mionjs/*` packages
 
 **Root changes:**
 - Add `"packages/platform-vercel"` to root `package.json` workspaces

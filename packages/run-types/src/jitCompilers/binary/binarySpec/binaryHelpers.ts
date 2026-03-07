@@ -7,10 +7,10 @@
 
 import {JitFunctions} from '../../../constants.functions.ts';
 import {FunctionRunType} from '../../../nodes/function/function.ts';
-import type {DataViewDeserializer, DataViewSerializer, StrictArrayBuffer} from '@mionkit/core';
+import type {DataViewDeserializer, DataViewSerializer, StrictArrayBuffer} from '@mionjs/core';
 import type {InterfaceRunType} from '../../../nodes/collection/interface.ts';
 import type {RunType} from '../../../types.ts';
-import {createDataViewDeserializer, createDataViewSerializer, setSerializationOptions, getENV} from '@mionkit/core';
+import {createDataViewDeserializer, createDataViewSerializer, setSerializationOptions, getENV} from '@mionjs/core';
 import {afterAll, expect} from 'vitest';
 
 const DEBUG = getENV('DEBUG_JIT') === 'print';

@@ -1,4 +1,4 @@
-import {FormatString} from '@mionkit/type-formats/StringFormats';
+import {FormatString} from '@mionjs/type-formats/StringFormats';
 
 // Username: 3-20 chars, lowercase, trimmed
 type Username = FormatString<{

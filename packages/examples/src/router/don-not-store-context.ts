@@ -1,5 +1,5 @@
-import {HeadersSubset} from '@mionkit/core';
-import {Routes, initMionRouter, headersFn, route} from '@mionkit/router';
+import {HeadersSubset} from '@mionjs/core';
+import {Routes, initMionRouter, headersFn, route} from '@mionjs/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 let currentSharedData: any = null;

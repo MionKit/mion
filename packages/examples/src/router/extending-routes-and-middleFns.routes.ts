@@ -1,4 +1,4 @@
-import {Route, MiddleFnDef} from '@mionkit/router';
+import {Route, MiddleFnDef} from '@mionjs/router';
 import {myApp} from './full-example.app.ts';
 
 interface MyRoute extends Route {

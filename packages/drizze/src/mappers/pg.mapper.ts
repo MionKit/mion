@@ -7,12 +7,12 @@
 
 import {integer, boolean, doublePrecision, bigint, timestamp, date, time, uuid, jsonb, inet, varchar} from 'drizzle-orm/pg-core';
 import {ReflectionKind} from '@deepkit/type';
-import {TypedError} from '@mionkit/core';
+import {TypedError} from '@mionjs/core';
 import {BaseColumnMapper} from './base.mapper.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesPostgres, DEFAULT_VARCHAR_LENGTH, DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {getMaxLengthFromParams, getLengthFromParams, isIntegerFormat} from '../core/utils.ts';
-import {FormatName, FormatNames} from '@mionkit/type-formats/constants';
+import {FormatName, FormatNames} from '@mionjs/type-formats/constants';
 
 // ============================================================================
 // Default Mapping Objects

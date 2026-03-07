@@ -9,8 +9,8 @@ import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
 import {routesFlow} from './routesFlow.ts';
 import {HSubRequest, RSubRequest} from './types.ts';
-import {HeadersSubset, PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
-import {TestServerApi} from '@mionkit/test-server';
+import {HeadersSubset, PURE_SERVER_FN_NAMESPACE} from '@mionjs/core';
+import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
 // Alias to avoid vite plugin transformer injecting bodyHash into unit test calls
 import {mapFrom as rawMapFrom} from './routesFlow.ts';

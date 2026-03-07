@@ -1,4 +1,4 @@
-import {FormatEmail} from '@mionkit/type-formats/StringFormats';
+import {FormatEmail} from '@mionjs/type-formats/StringFormats';
 
 type UserEmail = FormatEmail;
 

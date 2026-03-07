@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RpcError} from '@mionkit/core';
+import type {RpcError} from '@mionjs/core';
 import type {ErrorHandler, SuccessHandler} from './types';
 
 /** Central registry for persistent middleFn handlers (both success and error) */

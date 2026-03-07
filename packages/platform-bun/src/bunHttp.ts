@@ -5,21 +5,21 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
+import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, MionResponse as MionResponse} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
-import {getENV, SerializerModes} from '@mionkit/core';
-import {RpcError} from '@mionkit/core';
+import {getENV, SerializerModes} from '@mionjs/core';
+import {RpcError} from '@mionjs/core';
 import {Server} from 'bun';
 
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
-let defaultHeaders: [string, string][] = [['server', '@mionkit']];
+let defaultHeaders: [string, string][] = [['server', '@mionjs']];
 
 export function resetBunHttpOpts() {
     httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
-    defaultHeaders = [['server', '@mionkit']];
+    defaultHeaders = [['server', '@mionjs']];
     resetRouter();
 }
 
@@ -29,7 +29,7 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
         ...options,
     };
     // Pre-build default headers array once
-    defaultHeaders = [['server', '@mionkit'], ...Object.entries(httpOptions.defaultResponseHeaders)];
+    defaultHeaders = [['server', '@mionjs'], ...Object.entries(httpOptions.defaultResponseHeaders)];
     return httpOptions;
 }
 
@@ -97,7 +97,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
         },
         error(errReq) {
             const responseHeaders = new Headers({
-                server: '@mionkit',
+                server: '@mionjs',
                 ...httpOptions.defaultResponseHeaders,
             });
             const error =

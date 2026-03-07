@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import {initClient} from '@mionkit/client';
-import {HeadersSubset} from '@mionkit/core';
+import {initClient} from '@mionjs/client';
+import {HeadersSubset} from '@mionjs/core';
 // importing only the RemoteApi type from server
 import type {MyApi} from './server.routes.ts';
 

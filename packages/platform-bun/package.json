@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/platform-bun",
+  "name": "@mionjs/platform-bun",
   "version": "0.7.2",
   "description": "mion server for bun runtime",
   "keywords": [
@@ -56,8 +56,8 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/core": "^0.7.2",
-    "@mionkit/router": "^0.7.2"
+    "@mionjs/core": "^0.7.2",
+    "@mionjs/router": "^0.7.2"
   },
   "devDependencies": {
     "@deepkit/core": "1.0.19",

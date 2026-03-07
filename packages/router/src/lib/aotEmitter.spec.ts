@@ -8,7 +8,7 @@
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {AOTCacheMessage, serializeCachesToCode} from './aotEmitter.ts';
 import {resetRouter, initRouter, registerRoutes} from '../router.ts';
-import {resetJitFnCaches, getJitUtils, getJitFnCaches} from '@mionkit/core';
+import {resetJitFnCaches, getJitUtils, getJitFnCaches} from '@mionjs/core';
 import {getPersistedMethods} from './methodsCache.ts';
 import {route} from './handlers.ts';
 import {Routes} from '../types/general.ts';
@@ -20,7 +20,7 @@ import {
     cpf_formatErr,
     cpf_safeIterableKey,
     cpf_sanitizeCompiledFn,
-} from '@mionkit/run-types';
+} from '@mionjs/run-types';
 
 /** Re-registers run-types pure functions after resetJitFnCaches() */
 function reRegisterRunTypesPureFns(): void {

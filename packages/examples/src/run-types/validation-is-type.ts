@@ -1,4 +1,4 @@
-import {createIsTypeFn} from '@mionkit/run-types';
+import {createIsTypeFn} from '@mionjs/run-types';
 
 interface User {
     name: string;

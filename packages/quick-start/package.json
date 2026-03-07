@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/quick-start",
+  "name": "@mionjs/quick-start",
   "version": "0.6.0",
   "private": true,
   "description": "mion quick start node example",
@@ -40,11 +40,11 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/platform-aws": "^0.7.0",
-    "@mionkit/platform-bun": "^0.7.0",
-    "@mionkit/core": "^0.7.0",
-    "@mionkit/platform-node": "^0.7.0",
-    "@mionkit/router": "^0.7.0"   
+    "@mionjs/platform-aws": "^0.7.0",
+    "@mionjs/platform-bun": "^0.7.0",
+    "@mionjs/core": "^0.7.0",
+    "@mionjs/platform-node": "^0.7.0",
+    "@mionjs/router": "^0.7.0"   
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.108",

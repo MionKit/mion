@@ -15,20 +15,20 @@ ruleTester.run('no-typeof-runtype', rule, {
         // Valid usage with explicit types
         {
             code: `
-                import { runType } from '@mionkit/run-types';
+                import { runType } from '@mionjs/run-types';
                 type User = { name: string; age: number };
                 const rtUser = runType<User>();
             `,
         },
         {
             code: `
-                import { runType } from '@mionkit/run-types';
+                import { runType } from '@mionjs/run-types';
                 const rtString = runType<string>();
             `,
         },
         {
             code: `
-                import { runType } from '@mionkit/run-types';
+                import { runType } from '@mionjs/run-types';
                 const rtNumber = runType<number>();
             `,
         },
@@ -43,13 +43,13 @@ ruleTester.run('no-typeof-runtype', rule, {
         // Different function name should be allowed
         {
             code: `
-                import { runType } from '@mionkit/run-types';
+                import { runType } from '@mionjs/run-types';
                 const user = { name: 'John', age: 34 };
                 const otherFunction = <T>() => {};
                 const result = otherFunction<typeof user>();
             `,
         },
-        // No import from @mionkit/run-types
+        // No import from @mionjs/run-types
         {
             code: `
                 const runType = <T>() => {};
@@ -68,7 +68,7 @@ ruleTester.run('no-typeof-runtype', rule, {
         // Valid usage with other run-type functions
         {
             code: `
-                import { isTypeFn, typeErrorsFn } from '@mionkit/run-types';
+                import { isTypeFn, typeErrorsFn } from '@mionjs/run-types';
                 type User = { name: string; age: number };
                 const isUserType = isTypeFn<User>();
                 const getUserErrors = typeErrorsFn<User>();
@@ -79,7 +79,7 @@ ruleTester.run('no-typeof-runtype', rule, {
         // Invalid usage with typeof
         {
             code: `
-                import { runType } from '@mionkit/run-types';
+                import { runType } from '@mionjs/run-types';
                 const user = { name: 'John', age: 34 };
                 const rtUser = runType<typeof user>();
             `,
@@ -91,7 +91,7 @@ ruleTester.run('no-typeof-runtype', rule, {
         },
         {
             code: `
-                import { runType } from '@mionkit/run-types';
+                import { runType } from '@mionjs/run-types';
                 const reg = /abc/i;
                 const rtReg = runType<typeof reg>();
             `,
@@ -103,7 +103,7 @@ ruleTester.run('no-typeof-runtype', rule, {
         },
         {
             code: `
-                import { runType } from '@mionkit/run-types';
+                import { runType } from '@mionjs/run-types';
                 const sym = Symbol('hello');
                 const rtSym = runType<typeof sym>();
             `,
@@ -116,7 +116,7 @@ ruleTester.run('no-typeof-runtype', rule, {
         // Multiple typeof usages
         {
             code: `
-                import { runType } from '@mionkit/run-types';
+                import { runType } from '@mionjs/run-types';
                 const user = { name: 'John', age: 34 };
                 const reg = /abc/i;
                 const rtUser = runType<typeof user>();
@@ -134,7 +134,7 @@ ruleTester.run('no-typeof-runtype', rule, {
         // typeof in union types
         {
             code: `
-                import { runType } from '@mionkit/run-types';
+                import { runType } from '@mionjs/run-types';
                 const user = { name: 'John', age: 34 };
                 const rtUnion = runType<string | typeof user>();
             `,
@@ -160,7 +160,7 @@ ruleTester.run('no-typeof-runtype', rule, {
         // Invalid usage with isTypeFn
         {
             code: `
-                import { isTypeFn } from '@mionkit/run-types';
+                import { isTypeFn } from '@mionjs/run-types';
                 const user = { name: 'John', age: 34 };
                 const isUserType = isTypeFn<typeof user>();
             `,
@@ -173,7 +173,7 @@ ruleTester.run('no-typeof-runtype', rule, {
         // Invalid usage with typeErrorsFn
         {
             code: `
-                import { typeErrorsFn } from '@mionkit/run-types';
+                import { typeErrorsFn } from '@mionjs/run-types';
                 const user = { name: 'John', age: 34 };
                 const getUserErrors = typeErrorsFn<typeof user>();
             `,
@@ -186,7 +186,7 @@ ruleTester.run('no-typeof-runtype', rule, {
         // Invalid usage with mockTypeFn
         {
             code: `
-                import { mockTypeFn } from '@mionkit/run-types';
+                import { mockTypeFn } from '@mionjs/run-types';
                 const user = { name: 'John', age: 34 };
                 const mockUser = mockTypeFn<typeof user>();
             `,

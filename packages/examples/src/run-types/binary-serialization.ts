@@ -1,4 +1,4 @@
-import {createToBinaryFn, createFromBinaryFn} from '@mionkit/run-types';
+import {createToBinaryFn, createFromBinaryFn} from '@mionjs/run-types';
 
 interface User {
     name: string;

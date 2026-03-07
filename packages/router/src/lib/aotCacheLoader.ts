@@ -6,7 +6,7 @@
  * ######## */
 
 import {jitFnsCache, pureFnsCache, routerCache} from 'virtual:mion-aot/caches';
-import {addAOTCaches, addRoutesToCache} from '@mionkit/core';
+import {addAOTCaches, addRoutesToCache} from '@mionjs/core';
 import {loadCompiledMethods} from './methodsCache.ts';
 
 /** Loads pre-compiled AOT caches from virtual modules and registers them in the global caches. */

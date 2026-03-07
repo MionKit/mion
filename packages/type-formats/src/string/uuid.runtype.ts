@@ -4,12 +4,12 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
-import {registerFormatter, BaseRunTypeFormat, RunTypeOptions, TypeFormat} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionjs/run-types';
+import {registerFormatter, BaseRunTypeFormat, RunTypeOptions, TypeFormat} from '@mionjs/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
-import {randomUUID_V7} from '@mionkit/core';
+import {randomUUID_V7} from '@mionjs/core';
 import {paramVal} from '../utils.ts';
-import {FormatParams_UUID} from '@mionkit/core';
+import {FormatParams_UUID} from '@mionjs/core';
 import {cpf_isUUID} from '../type-formats-pure-fns.ts';
 
 // UUID validator

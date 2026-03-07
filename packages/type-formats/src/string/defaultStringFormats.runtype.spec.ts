@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {it, expect} from 'vitest';
-import type {TypeFormatError, RunTypeError} from '@mionkit/core';
-import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
+import type {TypeFormatError, RunTypeError} from '@mionjs/core';
+import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionjs/run-types';
 import {FormatString} from './stringFormat.runtype';
 import {
     FormatAlpha,

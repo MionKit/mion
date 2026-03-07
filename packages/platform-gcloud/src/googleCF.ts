@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, SerializerModes} from '@mionkit/core';
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionkit/router';
-import type {MionHeaders, MionResponse} from '@mionkit/router';
+import {RpcError, SerializerModes} from '@mionjs/core';
+import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionjs/router';
+import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants.ts';
 import {GoogleCFOptions} from './types.ts';
@@ -38,7 +38,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     // For binary requests, we need to handle the raw buffer
 
     // TODO use its own express headers wrapper instead headers from record
-    rawResponse.setHeader('server', '@mionkit');
+    rawResponse.setHeader('server', '@mionjs');
     const reqHeaders = headersFromIncomingMessage(rawRequest);
     const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
     const contentType = rawRequest.headers['content-type'] || '';

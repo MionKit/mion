@@ -163,7 +163,7 @@ function loadMionPackageTypes(): Map<string, string> {
       // Get relative path from dist directory
       const relativePath = relative(pkgDistDir, dtsFile)
       // Create virtual node_modules path
-      const virtualPath = `/node_modules/@mionkit/${pkg.name}/${relativePath}`
+      const virtualPath = `/node_modules/@mionjs/${pkg.name}/${relativePath}`
 
       try {
         let content = readFileSync(dtsFile, 'utf-8')

@@ -4,11 +4,11 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode, StrNumber} from '@mionkit/run-types';
-import {registerFormatter, BaseRunTypeFormat, TypeFormat, RunTypeOptions, JitFunctions, randomItem} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode, StrNumber} from '@mionjs/run-types';
+import {registerFormatter, BaseRunTypeFormat, TypeFormat, RunTypeOptions, JitFunctions, randomItem} from '@mionjs/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype.ts';
-import {FormatParams_Url} from '@mionkit/core';
+import {FormatParams_Url} from '@mionjs/core';
 import {DomainRunTypeFormat} from './domain.runtype.ts';
 import {IPRunTypeFormat} from './ip.runtype.ts';
 import {

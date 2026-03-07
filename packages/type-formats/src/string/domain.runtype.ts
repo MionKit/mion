@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode, JitFnID, StrNumber} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode, JitFnID, StrNumber} from '@mionjs/run-types';
 import {
     BaseRunTypeFormat,
     RunTypeOptions,
@@ -13,11 +13,11 @@ import {
     random,
     randomItem,
     JitFunctions,
-} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+} from '@mionjs/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype.ts';
-import {FormatParams_Domain, FormatParams_DomainName, FormatParams_Tld, StringParams, Samples} from '@mionkit/core';
-import {StringValidators} from '@mionkit/core';
+import {FormatParams_Domain, FormatParams_DomainName, FormatParams_Tld, StringParams, Samples} from '@mionjs/core';
+import {StringValidators} from '@mionjs/core';
 import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock.ts';
 import {paramVal} from '../utils.ts';
 

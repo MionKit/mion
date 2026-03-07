@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions, SerializerMode} from '@mionkit/core';
+import {CoreOptions, SerializerMode} from '@mionjs/core';
 import {ContextDataFactory} from './context.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
-import type {RunTypeOptions} from '@mionkit/run-types';
+import type {RunTypeOptions} from '@mionjs/run-types';
 // #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */
@@ -56,7 +56,7 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
     /**
      * Enable AOT (Ahead-of-Time) mode.
      * When true, router will use pre-compiled JIT functions from cache
-     * and will NOT load @mionkit/run-types package.
+     * and will NOT load @mionjs/run-types package.
      * Throws error if any route/middleFn is missing from AOT cache.
      * @default false
      */

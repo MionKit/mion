@@ -6,7 +6,7 @@
  * ######## */
 
 import {it, expect} from 'vitest';
-import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
+import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionjs/run-types';
 import {User, exampleUser, userExamples} from './user.runtype';
 
 // ############### Basic User Validation Tests ###############

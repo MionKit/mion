@@ -1,4 +1,4 @@
-import {FormatStringDateTime} from '@mionkit/type-formats/StringFormats';
+import {FormatStringDateTime} from '@mionjs/type-formats/StringFormats';
 
 // Default: ISO date + ISO time, separated by 'T'
 type ISODateTime = FormatStringDateTime;

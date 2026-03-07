@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
-import {TypeFormat, registerFormatter, getToLiteralFn, BaseRunTypeFormat, RunTypeOptions} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionjs/run-types';
+import {TypeFormat, registerFormatter, getToLiteralFn, BaseRunTypeFormat, RunTypeOptions} from '@mionjs/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
-import {mockString, random, randomItem} from '@mionkit/run-types';
+import {mockString, random, randomItem} from '@mionjs/run-types';
 import {paramVal, regexpEscape} from '../utils.ts';
-import {FormatParam_Pattern, StringParams} from '@mionkit/core';
+import {FormatParam_Pattern, StringParams} from '@mionjs/core';
 
 const defaultMessages = {
     allowedChars: 'Invalid characters',

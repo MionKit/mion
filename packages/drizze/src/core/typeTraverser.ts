@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {runType, getRunTypeFormat, isInterfaceRunType, isPropertyRunType, isPropertySignatureRunType} from '@mionkit/run-types';
-import type {BaseRunType, InterfaceRunType, PropertyRunType} from '@mionkit/run-types';
+import {runType, getRunTypeFormat, isInterfaceRunType, isPropertyRunType, isPropertySignatureRunType} from '@mionjs/run-types';
+import type {BaseRunType, InterfaceRunType, PropertyRunType} from '@mionjs/run-types';
 import {ReflectionKind, type ReceiveType} from '@deepkit/type';
-import {TypedError} from '@mionkit/core';
+import {TypedError} from '@mionjs/core';
 import type {PropertyInfo, TypeInfo} from '../types/common.types.ts';
 
 /** Extracts property information from a TypeScript type using mion's RunType system */

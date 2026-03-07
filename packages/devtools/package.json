@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/devtools",
+  "name": "@mionjs/devtools",
   "version": "0.8.0-alpha.0",
   "description": "Development tooling for mion (ESLint plugin and Vite plugin).",
   "type": "module",

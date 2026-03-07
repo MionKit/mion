@@ -13,8 +13,8 @@
 import {eq} from 'drizzle-orm';
 import {PgDatabase} from 'drizzle-orm/pg-core';
 import {toDrizzlePGTable} from '../postgres.ts';
-import {FormatUUIDv7, FormatEmail} from '@mionkit/type-formats/StringFormats';
-import {FormatInteger, FormatPositiveInt} from '@mionkit/type-formats/NumberFormats';
+import {FormatUUIDv7, FormatEmail} from '@mionjs/type-formats/StringFormats';
+import {FormatInteger, FormatPositiveInt} from '@mionjs/type-formats/NumberFormats';
 import {User, Post, UserWithOptional} from './common.ts';
 
 // -- Setup: build tables and declare a db instance (never instantiated) ------

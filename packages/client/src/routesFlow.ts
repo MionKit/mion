@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PURE_SERVER_FN_NAMESPACE, RpcError} from '@mionkit/core';
+import {PURE_SERVER_FN_NAMESPACE, RpcError} from '@mionjs/core';
 import type {HSubRequest, RSubRequest, SubRequest, WorkflowResult} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
-import {MapFromServerFnRef} from '@mionkit/core';
+import {MapFromServerFnRef} from '@mionjs/core';
 
 /** Creates and executes a routesFlow request with multiple routes */
 export async function routesFlow<
@@ -59,7 +59,7 @@ export const mapFromSymbol = Symbol('MapFromServerFnRef');
 // ║  at build time (see devtools/src/vite-plugin/extractPureFn.ts).             ║
 // ║  Do NOT rename, change the parameter order, or modify the function          ║
 // ║  signature without updating the corresponding AST extraction and            ║
-// ║  transformer logic in @mionkit/devtools.                                    ║
+// ║  transformer logic in @mionjs/devtools.                                    ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 /**
  * Maps the output of one route SubRequest to the input of another within a routesFlow.

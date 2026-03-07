@@ -11,9 +11,9 @@ import {registerRoutes, initRouter, resetRouter} from '../router.ts';
 import {CallContext} from '../types/context.ts';
 import {Routes} from '../types/general.ts';
 import {MiddleFnMethod, RouteMethod} from '../types/remoteMethods.ts';
-import {getJitFnHashes, HandlerType} from '@mionkit/core';
+import {getJitFnHashes, HandlerType} from '@mionjs/core';
 import {middleFn, rawMiddleFn, route} from './handlers.ts';
-import {getJitUtils} from '@mionkit/core';
+import {getJitUtils} from '@mionjs/core';
 
 describe('Public Methods should', () => {
     const privateMiddleFn = middleFn((ctx): void => undefined);

@@ -6,10 +6,10 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import {HandlerType, MethodWithOptions, MethodsCache, RpcError, SerializableMethodsData} from '@mionkit/core';
+import {HandlerType, MethodWithOptions, MethodsCache, RpcError, SerializableMethodsData} from '@mionjs/core';
 import {JitFunctions} from '../constants.functions.ts';
 import {runType} from '../createRunType.ts';
-import {JitCompiledFnData, PureFunctionData} from '@mionkit/core';
+import {JitCompiledFnData, PureFunctionData} from '@mionjs/core';
 
 type MethodsResponse = SerializableMethodsData | RpcError<string>;
 

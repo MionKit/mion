@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MethodsCache, MethodMetadata, getENV, getJitFunctionsFromHash} from '@mionkit/core';
+import {MethodsCache, MethodMetadata, getENV, getJitFunctionsFromHash} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {AnyHandler} from '../types/handlers.ts';
 import {IS_TEST_ENV} from '../constants.ts';

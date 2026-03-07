@@ -11,7 +11,7 @@ import {RawMethod} from './remoteMethods.ts';
 import {HeadersMethod} from './remoteMethods.ts';
 import {RouteMethod} from './remoteMethods.ts';
 import {RemoteMethod} from './remoteMethods.ts';
-import {HandlerType} from '@mionkit/core';
+import {HandlerType} from '@mionjs/core';
 
 // #######  type guards #######
 

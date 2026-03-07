@@ -1,4 +1,4 @@
-import {Routes, initMionRouter, middleFn, route} from '@mionkit/router';
+import {Routes, initMionRouter, middleFn, route} from '@mionjs/router';
 
 const invalidRoutes = {
     authorizationMiddleFn: middleFn((): void => undefined), // middleFn

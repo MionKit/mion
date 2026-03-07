@@ -7,16 +7,16 @@
     "baseUrl": "..",
     "module": "nodeNext",
     "moduleResolution": "nodeNext",
-    "types": ["@mionkit/devtools/virtual-modules", "@types/node"],
+    "types": ["@mionjs/devtools/virtual-modules", "@types/node"],
     "paths": {
-      "@mionkit/core": ["core/index.ts"],
-      "@mionkit/router": ["router/index.ts"],
-      "@mionkit/platform-node": ["node/index.ts"],
-      "@mionkit/platform-cloudflare": ["platform-cloudflare/index.ts"],
-      "@mionkit/platform-vercel": ["platform-vercel/index.ts"],
-      "@mionkit/type-formats": ["type-formats/index.ts"],
-      "@mionkit/type-formats/*": ["type-formats/*"],
-      "@mionkit/run-types": ["run-types/index.ts"]
+      "@mionjs/core": ["core/index.ts"],
+      "@mionjs/router": ["router/index.ts"],
+      "@mionjs/platform-node": ["node/index.ts"],
+      "@mionjs/platform-cloudflare": ["platform-cloudflare/index.ts"],
+      "@mionjs/platform-vercel": ["platform-vercel/index.ts"],
+      "@mionjs/type-formats": ["type-formats/index.ts"],
+      "@mionjs/type-formats/*": ["type-formats/*"],
+      "@mionjs/run-types": ["run-types/index.ts"]
     }
   },
   "ts-node": {

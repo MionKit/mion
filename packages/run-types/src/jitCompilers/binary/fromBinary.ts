@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import {getJitUtils} from '@mionkit/core';
+import {getJitUtils} from '@mionjs/core';
 import {ReflectionSubKind} from '../../constants.kind.ts';
 import {childIsExpression, createIfElseFn, isSafePropName, toLiteral} from '../../lib/utils.ts';
 import {jitBinaryDeserializerArgs, JitFunctions} from '../../constants.functions.ts';

@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/client",
+  "name": "@mionjs/client",
   "targets": {
     "test": {
       "dependsOn": [],

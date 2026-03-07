@@ -9,7 +9,7 @@ import {ReflectionKind} from '@deepkit/type';
 import type {ColumnMapping, PropertyInfo, DrizzleMapperConfig} from '../types/common.types.ts';
 import {DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {shouldBeJson} from '../core/utils.ts';
-import {FormatName} from '@mionkit/type-formats/constants';
+import {FormatName} from '@mionjs/type-formats/constants';
 
 /** Base class for database-specific column mappers */
 export abstract class BaseColumnMapper {

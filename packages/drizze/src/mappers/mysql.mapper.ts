@@ -7,12 +7,12 @@
 
 import {int, boolean, double, bigint, timestamp, date, time, varchar, json, datetime} from 'drizzle-orm/mysql-core';
 import {ReflectionKind} from '@deepkit/type';
-import {TypedError} from '@mionkit/core';
+import {TypedError} from '@mionjs/core';
 import {BaseColumnMapper} from './base.mapper.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesMySQL, DEFAULT_VARCHAR_LENGTH, DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {getMaxLengthFromParams, isIntegerFormat} from '../core/utils.ts';
-import {FormatName, FormatNames} from '@mionkit/type-formats/constants';
+import {FormatName, FormatNames} from '@mionjs/type-formats/constants';
 
 // ============================================================================
 // Default Mapping Objects

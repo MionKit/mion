@@ -1,6 +1,6 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import mionPlugin from '@mionkit/devtools/eslint';
+import mionPlugin from '@mionjs/devtools/eslint';
 
 export default tseslint.config(
   {

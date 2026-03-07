@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initClient} from '@mionkit/client';
-import {isRpcError} from '@mionkit/core';
-import {BinaryTestServerApi} from '@mionkit/test-server';
+import {initClient} from '@mionjs/client';
+import {isRpcError} from '@mionjs/core';
+import {BinaryTestServerApi} from '@mionjs/test-server';
 import Storage from 'dom-storage';
 import {describe, it, expect, beforeAll} from 'vitest';
 

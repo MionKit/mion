@@ -1,4 +1,4 @@
-import {createPrepareForJsonFn, createRestoreFromJsonFn} from '@mionkit/run-types';
+import {createPrepareForJsonFn, createRestoreFromJsonFn} from '@mionjs/run-types';
 
 type Result = string | number | {error: string};
 

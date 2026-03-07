@@ -6,7 +6,7 @@
  * ######## */
 
 declare module 'virtual:mion-server-pure-fns' {
-    import {PersistedPureFunctionsCache} from '@mionkit/core';
+    import {PersistedPureFunctionsCache} from '@mionjs/core';
 
     /** Cache of pure functions keyed by bodyHash, ready to be registered in core */
     export const pureFnsCache: PersistedPureFunctionsCache;

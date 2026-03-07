@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, SerializerModes} from '@mionkit/core';
-import {dispatchRoute, getRouterFatalErrorResponse, headersFromRecord, resetRouter} from '@mionkit/router';
-import type {MionResponse, MionHeaders} from '@mionkit/router';
+import {RpcError, SerializerModes} from '@mionjs/core';
+import {dispatchRoute, getRouterFatalErrorResponse, headersFromRecord, resetRouter} from '@mionjs/router';
+import type {MionResponse, MionHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
 import {AwsLambdaOptions} from '../index.ts';
@@ -35,7 +35,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     const rawBody = rawRequest.body || '';
     const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
     const rawRespHeaders: Record<string, string> = {
-        server: '@mionkit',
+        server: '@mionjs',
         ...lambdaOptions.defaultResponseHeaders,
     };
     const respHeaders = headersFromRecord(rawRespHeaders, true);

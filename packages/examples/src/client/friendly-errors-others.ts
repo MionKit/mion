@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import type {FriendlyErrors} from '@mionkit/core';
-import {getFriendlyErrors} from '@mionkit/core';
+import type {FriendlyErrors} from '@mionjs/core';
+import {getFriendlyErrors} from '@mionjs/core';
 import {User, userFriendlyErrors} from './friendly-errors-map.ts';
-import type {FormatString, FormatEmail} from '@mionkit/type-formats/StringFormats';
+import type {FormatString, FormatEmail} from '@mionjs/type-formats/StringFormats';
 
 // start-narrowing-params
 // Define a simple type with format constraints

@@ -5,20 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, MionResponse} from '@mionkit/router';
+import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, MionResponse} from '@mionjs/router';
 import {DEFAULT_VERCEL_OPTIONS} from './constants.ts';
 import type {VercelHandlerOptions} from './types.ts';
-import {SerializerModes} from '@mionkit/core';
-import {RpcError} from '@mionkit/core';
+import {SerializerModes} from '@mionjs/core';
+import {RpcError} from '@mionjs/core';
 
 // ############# PRIVATE STATE #############
 
 let vercelOptions: Readonly<VercelHandlerOptions> = {...DEFAULT_VERCEL_OPTIONS};
-let defaultHeaders: [string, string][] = [['server', '@mionkit']];
+let defaultHeaders: [string, string][] = [['server', '@mionjs']];
 
 export function resetVercelHandlerOpts() {
     vercelOptions = {...DEFAULT_VERCEL_OPTIONS};
-    defaultHeaders = [['server', '@mionkit']];
+    defaultHeaders = [['server', '@mionjs']];
     resetRouter();
 }
 
@@ -27,7 +27,7 @@ export function setVercelHandlerOpts(options?: Partial<VercelHandlerOptions>) {
         ...vercelOptions,
         ...options,
     };
-    defaultHeaders = [['server', '@mionkit'], ...Object.entries(vercelOptions.defaultResponseHeaders)];
+    defaultHeaders = [['server', '@mionjs'], ...Object.entries(vercelOptions.defaultResponseHeaders)];
     return vercelOptions;
 }
 

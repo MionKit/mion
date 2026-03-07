@@ -6,7 +6,7 @@
  * ######## */
 
 import {HeadersMiddleFnOptions, MiddleFnOptions, RawMiddleFnOptions, RouteOptions} from '../types/remoteMethods.ts';
-import {HandlerType} from '@mionkit/core';
+import {HandlerType} from '@mionjs/core';
 import {Handler, HeaderHandler, RawMiddleFnHandler} from '../types/handlers.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from '../types/definitions.ts';
 

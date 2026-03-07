@@ -1,6 +1,6 @@
 'use strict';
-const http = require('@mionkit/platform-node');
-const router = require('@mionkit/router');
+const http = require('@mionjs/platform-node');
+const router = require('@mionjs/router');
 const apps_src_models = require('./models.js');
 
 const routes = {

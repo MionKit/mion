@@ -19,17 +19,17 @@ const plugin = {
 };
 plugin.configs.recommended = {
   plugins: {
-    "@mionkit": plugin
+    "@mionjs": plugin
   },
   rules: {
-    "@mionkit/no-typeof-runtype": "error",
-    "@mionkit/strong-typed-routes": "error",
-    "@mionkit/no-unreachable-union-types": "error",
-    "@mionkit/no-type-imports": "error",
-    "@mionkit/pure-functions": "error",
-    "@mionkit/type-formats-imports": "error"
+    "@mionjs/no-typeof-runtype": "error",
+    "@mionjs/strong-typed-routes": "error",
+    "@mionjs/no-unreachable-union-types": "error",
+    "@mionjs/no-type-imports": "error",
+    "@mionjs/pure-functions": "error",
+    "@mionjs/type-formats-imports": "error"
     // disabled as seems is not too useful and overlaps with some ts rules
-    // '@mionkit/no-mixed-union-properties': 'warn',
+    // '@mionjs/no-mixed-union-properties': 'warn',
   }
 };
 export {

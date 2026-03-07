@@ -6,9 +6,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicApi, Routes, initMionRouter, route, middleFn} from '@mionkit/router';
-import {setNodeHttpOpts, startNodeServer} from '@mionkit/platform-node';
-import {RpcError} from '@mionkit/core';
+import {PublicApi, Routes, initMionRouter, route, middleFn} from '@mionjs/router';
+import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
+import {RpcError} from '@mionjs/core';
 
 // ============ Simple Types ============
 export type SimpleUser = {name: string; age: number};

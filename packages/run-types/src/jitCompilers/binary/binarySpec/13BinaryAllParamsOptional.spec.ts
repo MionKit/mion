@@ -10,7 +10,7 @@ import {JitFunctions} from '../../../constants.functions.ts';
 import {FunctionRunType} from '../../../nodes/function/function.ts';
 import {reflectFunction} from '../../../createRunType.ts';
 import {serContext, desContext, roundTrip} from './binaryHelpers.ts';
-import {StrictArrayBuffer} from '@mionkit/core';
+import {StrictArrayBuffer} from '@mionjs/core';
 import {normalizeForComparison} from '../../equalsHelpers.ts';
 
 const SERIALIZE_FN = JitFunctions.toBinary;

@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, RunTypeOptions, JitCode} from '@mionkit/run-types';
-import {BaseRunTypeFormat, TypeFormat, registerFormatter} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, RunTypeOptions, JitCode} from '@mionjs/run-types';
+import {BaseRunTypeFormat, TypeFormat, registerFormatter} from '@mionjs/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils.ts';
-import {FormatParams_IP} from '@mionkit/core';
+import {FormatParams_IP} from '@mionjs/core';
 import {cpf_isIPV4, cpf_isIPV6} from '../type-formats-pure-fns.ts';
 
 // IP validator

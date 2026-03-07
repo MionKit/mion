@@ -6,10 +6,10 @@
  * ######## */
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {initRouter, registerRoutes, resetRouter, route, getRouteExecutionChain} from '@mionkit/router';
+import {initRouter, registerRoutes, resetRouter, route, getRouteExecutionChain} from '@mionjs/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF.ts';
-import type {CallContext, Route} from '@mionkit/router';
-import {MION_ROUTES, PublicRpcError, StatusCodes, serializeBinaryBody, deserializeBinaryBody} from '@mionkit/core';
+import type {CallContext, Route} from '@mionjs/router';
+import {MION_ROUTES, PublicRpcError, StatusCodes, serializeBinaryBody, deserializeBinaryBody} from '@mionjs/core';
 import {Server} from 'http';
 import {getTestServer} from '@google-cloud/functions-framework/testing';
 import * as functions from '@google-cloud/functions-framework';
@@ -94,7 +94,7 @@ describe('serverless router', () => {
             expect(headers['connection']).toEqual('keep-alive');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('47');
-            expect(headers['server']).toEqual('@mionkit');
+            expect(headers['server']).toEqual('@mionjs');
         });
 
         it('get an ok response from a route when content type is json', async () => {
@@ -112,7 +112,7 @@ describe('serverless router', () => {
             expect(headers['connection']).toEqual('keep-alive');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('47');
-            expect(headers['server']).toEqual('@mionkit');
+            expect(headers['server']).toEqual('@mionjs');
         });
 
         it('get an error when sending invalid parameters', async () => {
@@ -135,7 +135,7 @@ describe('serverless router', () => {
             expect(headers['connection']).toEqual('keep-alive');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual(expect.any(String));
-            expect(headers['server']).toEqual('@mionkit');
+            expect(headers['server']).toEqual('@mionjs');
         });
 
         it('set response headers from route response', async () => {
@@ -191,7 +191,7 @@ describe('serverless router', () => {
                 expect(headers['connection']).toEqual('keep-alive');
                 expect(headers['content-type']).toEqual('application/json; charset=utf-8');
                 expect(headers['content-length']).toEqual('47');
-                expect(headers['server']).toEqual('@mionkit');
+                expect(headers['server']).toEqual('@mionjs');
             } catch (e) {
                 err = e;
             }
@@ -243,7 +243,7 @@ describe('serverless router', () => {
             expect(headers['connection']).toEqual('keep-alive');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('47');
-            expect(headers['server']).toEqual('@mionkit');
+            expect(headers['server']).toEqual('@mionjs');
         });
 
         it('get an ok response from a route with complex objects (body type O)', async () => {
@@ -259,7 +259,7 @@ describe('serverless router', () => {
             expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
             expect(headers['connection']).toEqual('keep-alive');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(headers['server']).toEqual('@mionkit');
+            expect(headers['server']).toEqual('@mionjs');
         });
     });
 
@@ -306,7 +306,7 @@ describe('serverless router', () => {
             expect(responseBody.getDate).toBeDefined();
             expect(responseBody.getDate.date).toEqual(new Date('2022-04-22T00:17:00.000Z'));
             expect(headers['content-type']).toEqual('application/octet-stream');
-            expect(headers['server']).toEqual('@mionkit');
+            expect(headers['server']).toEqual('@mionjs');
         });
 
         it('should send binary request and receive binary response with complex objects', async () => {
@@ -331,7 +331,7 @@ describe('serverless router', () => {
             expect(responseBody.changeUserName.name).toEqual('NewName');
             expect(responseBody.changeUserName.surname).toEqual('Doe');
             expect(headers['content-type']).toEqual('application/octet-stream');
-            expect(headers['server']).toEqual('@mionkit');
+            expect(headers['server']).toEqual('@mionjs');
         });
 
         it('should handle optional parameters in binary mode', async () => {

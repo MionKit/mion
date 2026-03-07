@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/client",
+  "name": "@mionjs/client",
   "version": "0.7.2",
   "type": "module",
   "description": "Browser client for mion Apps.",
@@ -61,14 +61,14 @@
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a",
   "devDependencies": {
-    "@mionkit/platform-node": "^0.7.2",
-    "@mionkit/router": "^0.7.2",
-    "@mionkit/run-types": "^0.7.2",
-    "@mionkit/test-server": "^0.7.2",
+    "@mionjs/platform-node": "^0.7.2",
+    "@mionjs/router": "^0.7.2",
+    "@mionjs/run-types": "^0.7.2",
+    "@mionjs/test-server": "^0.7.2",
     "dom-storage": "^2.1.0",
     "jest-environment-jsdom": "^29.6.2"
   },
   "dependencies": {
-    "@mionkit/core": "^0.7.2"
+    "@mionjs/core": "^0.7.2"
   }
 }

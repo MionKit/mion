@@ -1,6 +1,6 @@
 import {describe, it, expect, beforeAll} from 'vitest';
-import {resetHashes, resetJitFnCaches, addAOTCaches, getJitUtils} from '@mionkit/core';
-import {PURE_SERVER_FN_NAMESPACE} from '@mionkit/core';
+import {resetHashes, resetJitFnCaches, addAOTCaches, getJitUtils} from '@mionjs/core';
+import {PURE_SERVER_FN_NAMESPACE} from '@mionjs/core';
 
 // Import the virtual module - Vite plugin automatically scans test-client/src
 import {pureFnsCache} from 'virtual:mion-server-pure-fns';

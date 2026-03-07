@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DataOnly, getJitUtils, RpcError} from '@mionkit/core';
+import {DataOnly, getJitUtils, RpcError} from '@mionjs/core';
 import {reflectFunction, runType} from '../createRunType.ts';
 import {mockRegExpsList} from '../mocking/constants.mock.ts';
 import {type RunType} from '../types.ts';

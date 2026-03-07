@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initClient, HSubRequest, RSubRequest, routesFlow} from '@mionkit/client';
-import {isRpcError, HeadersSubset} from '@mionkit/core';
-import {TestServerApi} from '@mionkit/test-server';
+import {initClient, HSubRequest, RSubRequest, routesFlow} from '@mionjs/client';
+import {isRpcError, HeadersSubset} from '@mionjs/core';
+import {TestServerApi} from '@mionjs/test-server';
 import Storage from 'dom-storage';
 import {describe, it, expect, beforeAll} from 'vitest';
 

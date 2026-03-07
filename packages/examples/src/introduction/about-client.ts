@@ -1,4 +1,4 @@
-import {initClient} from '@mionkit/client';
+import {initClient} from '@mionjs/client';
 import type {MyApi} from './about-server.ts';
 
 const {routes} = initClient<MyApi>({

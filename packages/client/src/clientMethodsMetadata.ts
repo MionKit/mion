@@ -6,8 +6,8 @@
  * ######## */
 
 import {jitFnsCache, pureFnsCache, routerCache} from 'virtual:mion-aot/caches';
-import {RpcError, isRpcError, addAOTCaches, addRoutesToCache, resetRoutesCache, resetJitFnCaches, isTestEnv} from '@mionkit/core';
-import {MION_ROUTES} from '@mionkit/core';
+import {RpcError, isRpcError, addAOTCaches, addRoutesToCache, resetRoutesCache, resetJitFnCaches, isTestEnv} from '@mionjs/core';
+import {MION_ROUTES} from '@mionjs/core';
 import {ClientOptions, RequestBody} from './types.ts';
 import type {
     JitCompiledFnData,
@@ -16,11 +16,11 @@ import type {
     PureFunctionData,
     SerializableMethodsData,
     PureFnsDataCache,
-} from '@mionkit/core';
-import {routesCache, addSerializedJitCaches} from '@mionkit/core';
+} from '@mionjs/core';
+import {routesCache, addSerializedJitCaches} from '@mionjs/core';
 import {STORAGE_KEY} from './constants.ts';
 import {deserializeResponseBody} from './serializer.ts';
-import type {MionRoutes} from '@mionkit/router';
+import type {MionRoutes} from '@mionjs/router';
 
 type GetRemoteMethodsMetadataById = MionRoutes[typeof MION_ROUTES.methodsMetadataById]['handler'];
 type MethodsMetadataResponse = Awaited<ReturnType<GetRemoteMethodsMetadataById>>;

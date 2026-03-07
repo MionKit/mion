@@ -8,7 +8,7 @@
 import {ReflectionKind, type TypeLiteral} from '@deepkit/type';
 import type {JitCode, RunType} from '../../types.ts';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
-import type {Mutable} from '@mionkit/core';
+import type {Mutable} from '@mionjs/core';
 import {toLiteral} from '../../lib/utils.ts';
 import {AtomicRunType} from '../../lib/baseRunTypes.ts';
 import {BigIntRunType} from './bigInt.ts';

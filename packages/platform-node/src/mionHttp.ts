@@ -5,16 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionkit/router';
+import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
 import type {NodeHttpOptions} from './types.ts';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {MionHeaders, MionResponse} from '@mionkit/router';
-import {getENV, SerializerModes} from '@mionkit/core';
-import {RpcError} from '@mionkit/core';
+import type {MionHeaders, MionResponse} from '@mionjs/router';
+import {getENV, SerializerModes} from '@mionjs/core';
+import {RpcError} from '@mionjs/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
 
 // ############# PRIVATE STATE #############
@@ -92,7 +92,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     let size = 0;
     const bodyChunks: any[] = [];
 
-    httpResponse.setHeader('server', '@mionkit');
+    httpResponse.setHeader('server', '@mionjs');
     const reqHeaders = headersFromIncomingMessage(httpReq);
     const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
 

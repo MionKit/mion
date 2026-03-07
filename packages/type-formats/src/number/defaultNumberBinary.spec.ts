@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {it, expect} from 'vitest';
-import {JitFunctions, type RunType, runType} from '@mionkit/run-types';
+import {JitFunctions, type RunType, runType} from '@mionjs/run-types';
 import {
     FormatInteger,
     FormatFloat,
@@ -27,7 +27,7 @@ import {
     DataViewSerializer,
     setSerializationOptions,
     StrictArrayBuffer,
-} from '@mionkit/core';
+} from '@mionjs/core';
 
 setSerializationOptions({bufferSize: 1024});
 const SERIALIZE_FN = JitFunctions.toBinary;

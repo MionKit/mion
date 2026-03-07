@@ -7,14 +7,14 @@
 
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {jitFnsCache, pureFnsCache, routerCache} from 'virtual:mion-aot/caches';
-import {routesCache, MION_ROUTES, PureFnDef, HeadersSubset} from '@mionkit/core';
+import {routesCache, MION_ROUTES, PureFnDef, HeadersSubset} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata.ts';
 import {initClient} from './client.ts';
 import {ClientOptions} from './types.ts';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
-import {TestServerApi} from '@mionkit/test-server';
+import {TestServerApi} from '@mionjs/test-server';
 import Storage from 'dom-storage';
-import {pureServerFn} from '@mionkit/core';
+import {pureServerFn} from '@mionjs/core';
 
 // Setup real localStorage for testing (same pattern as other client tests)
 global.localStorage = new Storage(null, {strict: true});

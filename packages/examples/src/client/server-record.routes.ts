@@ -1,5 +1,5 @@
-import {HeadersSubset, RpcError} from '@mionkit/core';
-import {Routes, headersFn, middleFn, initMionRouter, route} from '@mionkit/router';
+import {HeadersSubset, RpcError} from '@mionjs/core';
+import {Routes, headersFn, middleFn, initMionRouter, route} from '@mionjs/router';
 
 const routes = {
     auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {

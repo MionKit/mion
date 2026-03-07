@@ -6,8 +6,8 @@
  * ######## */
 
 // Note: Must use regular import (not `import type`) for reflection to work
-import {FormatUUIDv7, FormatEmail} from '@mionkit/type-formats/StringFormats';
-import {FormatInteger, FormatPositiveInt} from '@mionkit/type-formats/NumberFormats';
+import {FormatUUIDv7, FormatEmail} from '@mionjs/type-formats/StringFormats';
+import {FormatInteger, FormatPositiveInt} from '@mionjs/type-formats/NumberFormats';
 
 // ============================================================================
 // Shared test interfaces

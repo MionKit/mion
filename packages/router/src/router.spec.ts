@@ -21,7 +21,7 @@ import {
 } from './router.ts';
 import {type Routes} from './types/general.ts';
 import {middleFn, route, rawMiddleFn, headersFn} from './lib/handlers.ts';
-import {HandlerType, HeadersSubset} from '@mionkit/core';
+import {HandlerType, HeadersSubset} from '@mionjs/core';
 import {isPublicExecutable} from './types/guards.ts';
 
 describe('Create routes should', () => {

@@ -16,10 +16,10 @@ import {
     serializeBinaryBody as coreSerializeBinaryBody,
     deserializeBinaryBody as coreDeserializeBinaryBody,
     SerializerModes,
-} from '@mionkit/core';
+} from '@mionjs/core';
 import {rawMiddleFn} from '../lib/handlers.ts';
 import {getRouteExecutableFromPath, getRouteExecutable} from '../router.ts';
-import {RpcError} from '@mionkit/core';
+import {RpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {onExecutableError} from '../lib/dispatchError.ts';
 

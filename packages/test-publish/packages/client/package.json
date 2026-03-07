@@ -1,9 +1,9 @@
 {
-  "name": "@mionkit/pure-functions-client",
+  "name": "@mionjs/pure-functions-client",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@mionkit/devtools": "^0.8.0-alpha.0"
+    "@mionjs/devtools": "^0.8.0-alpha.0"
   }
 }

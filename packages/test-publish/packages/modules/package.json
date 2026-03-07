@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/test-publish-modules",
+  "name": "@mionjs/test-publish-modules",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -10,16 +10,16 @@
     "format": "prettier --write src/**/*.ts"
   },
   "dependencies": {
-    "@mionkit/platform-aws": "^0.7.2",
-    "@mionkit/platform-bun": "^0.7.2",
-    "@mionkit/client": "^0.7.2",
-    "@mionkit/core": "^0.7.2",
-    "@mionkit/platform-gcloud": "^0.7.2",
-    "@mionkit/platform-node": "^0.7.2",
-    "@mionkit/router": "^0.7.2",
-    "@mionkit/run-types": "^0.7.2",
-    "@mionkit/test-server": "^0.7.2",
-    "@mionkit/type-formats": "^0.7.2"
+    "@mionjs/platform-aws": "^0.7.2",
+    "@mionjs/platform-bun": "^0.7.2",
+    "@mionjs/client": "^0.7.2",
+    "@mionjs/core": "^0.7.2",
+    "@mionjs/platform-gcloud": "^0.7.2",
+    "@mionjs/platform-node": "^0.7.2",
+    "@mionjs/router": "^0.7.2",
+    "@mionjs/run-types": "^0.7.2",
+    "@mionjs/test-server": "^0.7.2",
+    "@mionjs/type-formats": "^0.7.2"
   },
   "devDependencies": {
     "dom-storage": "^2.1.0"

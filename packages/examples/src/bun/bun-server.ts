@@ -1,4 +1,4 @@
-import {initMionBun} from '@mionkit/platform-bun';
+import {initMionBun} from '@mionjs/platform-bun';
 import {routes} from './bun-routes.ts';
 
 const server = Bun.serve({

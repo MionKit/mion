@@ -1,4 +1,4 @@
-# @mionkit/test-server
+# @mionjs/test-server
 
 > ⚠️ **Internal Package** - This package is private and not published to npm.
 
@@ -8,8 +8,8 @@ Centralized test server utilities for mion packages. Provides pre-configured tes
 
 Multiple packages in the mion monorepo need to test client-server communication:
 
-- `@mionkit/client` - Tests client functionality against a real server
-- `@mionkit/test-publish` - Verifies built packages work correctly
+- `@mionjs/client` - Tests client functionality against a real server
+- `@mionjs/test-publish` - Verifies built packages work correctly
 
 Instead of duplicating server code in each package, this package provides:
 
@@ -23,9 +23,9 @@ Instead of duplicating server code in each package, this package provides:
 ### Basic Usage
 
 ```typescript
-import {initClient} from '@mionkit/client';
-import {createTestServerMiddleFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionkit/test-server';
-import type {TestServerApi} from '@mionkit/test-server';
+import {initClient} from '@mionjs/client';
+import {createTestServerMiddleFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionjs/test-server';
+import type {TestServerApi} from '@mionjs/test-server';
 
 describe('My Tests', () => {
   const serverMiddleFns = createTestServerMiddleFns({
@@ -49,7 +49,7 @@ describe('My Tests', () => {
 ### Binary Serialization Tests
 
 ```typescript
-import type {BinaryTestServerApi} from '@mionkit/test-server';
+import type {BinaryTestServerApi} from '@mionjs/test-server';
 
 const serverMiddleFns = createTestServerMiddleFns({
   port: TEST_PORT_MAPPING.binarySerialization,
@@ -95,7 +95,7 @@ The `TestServerManager` class:
 ## Building
 
 ```bash
-npm run build -w @mionkit/test-server
+npm run build -w @mionjs/test-server
 ```
 
 This compiles the servers with runtime type reflection, producing output in `.dist/`.

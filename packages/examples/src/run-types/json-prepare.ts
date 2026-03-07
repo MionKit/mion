@@ -1,4 +1,4 @@
-import {createPrepareForJsonFn} from '@mionkit/run-types';
+import {createPrepareForJsonFn} from '@mionjs/run-types';
 
 interface Event {
     name: string;

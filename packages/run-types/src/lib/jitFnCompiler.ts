@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, CompiledPureFunction} from '@mionkit/core';
-import {MAX_STACK_DEPTH, getJitUtils, quickHash} from '@mionkit/core';
+import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, CompiledPureFunction} from '@mionjs/core';
+import {MAX_STACK_DEPTH, getJitUtils, quickHash} from '@mionjs/core';
 import type {TypeFunction} from '@deepkit/type';
 import type {Mutable, JitFnID, StrNumber, JitCode, RunTypeOptions, JitCompilerOpts, RunTypeChildAccessor} from '../types.ts';
 import type {BaseRunType} from './baseRunTypes.ts';

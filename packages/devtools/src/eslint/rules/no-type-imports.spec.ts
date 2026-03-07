@@ -16,7 +16,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import { User } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, id: number): User => ({ id, name: 'John' }));
             `,
         },
@@ -24,7 +24,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import { UserInput } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, user: UserInput): string => user.name);
             `,
         },
@@ -32,7 +32,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import { LogData } from './types';
-                import { middleFn } from '@mionkit/router';
+                import { middleFn } from '@mionjs/router';
                 middleFn((ctx, data: LogData): void => { console.log(data); });
             `,
         },
@@ -40,21 +40,21 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { InternalType } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, name: string): string => name);
             `,
         },
         // Valid: inline type definition (no import)
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, user: { id: number; name: string }): string => user.name);
             `,
         },
         // Valid: primitive types (no import needed)
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, name: string, age: number): boolean => age > 18);
             `,
         },
@@ -70,7 +70,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import { User, Product } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, user: User, product: Product): string => user.name + product.name);
             `,
         },
@@ -79,7 +79,7 @@ ruleTester.run('no-type-imports', rule, {
             code: `
                 import type { InternalType } from './internal';
                 import { User } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, user: User): string => user.name);
             `,
         },
@@ -89,7 +89,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { User } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, id: number): User => ({ id, name: 'John' }));
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'User'}}],
@@ -98,7 +98,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { UserInput } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, user: UserInput): string => user.name);
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'UserInput'}}],
@@ -107,7 +107,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { LogData } from './types';
-                import { middleFn } from '@mionkit/router';
+                import { middleFn } from '@mionjs/router';
                 middleFn((ctx, data: LogData): void => { console.log(data); });
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'LogData'}}],
@@ -116,7 +116,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { AuthData } from './types';
-                import { headersFn } from '@mionkit/router';
+                import { headersFn } from '@mionjs/router';
                 headersFn((ctx, headers: { auth: string }, data: AuthData): void => { console.log(data); });
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'AuthData'}}],
@@ -125,7 +125,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import { type User } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, id: number): User => ({ id, name: 'John' }));
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'User'}}],
@@ -134,7 +134,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { User } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, user: User): User => user);
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'User'}}],
@@ -143,7 +143,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { User } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx): User[] => []);
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'User'}}],
@@ -152,7 +152,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { User } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx): User | null => null);
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'User'}}],
@@ -161,7 +161,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { User } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx): Promise<User> => Promise.resolve({ id: 1, name: 'John' }));
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'User'}}],
@@ -170,7 +170,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { User, Product } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, user: User): Product => ({ id: 1, name: 'Product' }));
             `,
             errors: [
@@ -182,7 +182,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { User } from './types';
-                import { Handler } from '@mionkit/router';
+                import { Handler } from '@mionjs/router';
                 const getUser: Handler = (ctx, id: number): User => ({ id, name: 'John' });
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'User'}}],
@@ -191,7 +191,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { User } from './types';
-                import { Handler } from '@mionkit/router';
+                import { Handler } from '@mionjs/router';
                 const getUser = ((ctx, id: number): User => ({ id, name: 'John' })) satisfies Handler;
             `,
             errors: [{messageId: 'noTypeImports', data: {typeName: 'User'}}],
@@ -200,7 +200,7 @@ ruleTester.run('no-type-imports', rule, {
         {
             code: `
                 import type { User } from './types';
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 /**
                  * @mion:route
                  */

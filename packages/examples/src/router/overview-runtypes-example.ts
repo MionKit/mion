@@ -1,4 +1,4 @@
-import {Routes, route} from '@mionkit/router';
+import {Routes, route} from '@mionjs/router';
 import {memoryStoreService} from './full-example.app.ts';
 
 // Your TypeScript types ARE the validation schema

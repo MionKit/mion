@@ -9,7 +9,7 @@ import {describe, it, expect} from 'vitest';
 import {toDrizzleSqliteTable} from './sqlite.ts';
 import {text, integer} from 'drizzle-orm/sqlite-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {FormatUUIDv7, FormatEmail} from '@mionkit/type-formats/StringFormats';
+import {FormatUUIDv7, FormatEmail} from '@mionjs/type-formats/StringFormats';
 
 // Test interfaces
 interface SimpleUser {

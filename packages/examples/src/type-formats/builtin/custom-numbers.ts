@@ -1,4 +1,4 @@
-import {FormatNumber} from '@mionkit/type-formats/NumberFormats';
+import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
 
 // Age with valid range
 type Age = FormatNumber<{

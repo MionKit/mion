@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionHeaders, headersFromRecord} from '@mionkit/router';
+import {MionHeaders, headersFromRecord} from '@mionjs/router';
 import {IncomingMessage, ServerResponse} from 'http';
 
 export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHeaders {

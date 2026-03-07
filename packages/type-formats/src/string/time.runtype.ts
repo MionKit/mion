@@ -4,12 +4,12 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BrandTime} from '@mionkit/core';
-import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionkit/run-types';
-import {BaseRunTypeFormat, TypeFormat, RunTypeOptions, registerFormatter} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import type {BrandTime} from '@mionjs/core';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, JitCode} from '@mionjs/run-types';
+import {BaseRunTypeFormat, TypeFormat, RunTypeOptions, registerFormatter} from '@mionjs/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils.ts';
-import {FormatParams_Time} from '@mionkit/core';
+import {FormatParams_Time} from '@mionjs/core';
 import {
     cpf_isTimeString_ISO_TZ,
     cpf_isTimeString_ISO,

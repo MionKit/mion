@@ -60,8 +60,8 @@ const TYPE_FORMATS_FORMAT_TYPES = /* @__PURE__ */ new Set([
   "FormatCapitalize"
 ]);
 const FORMAT_TYPES_BY_PACKAGE = /* @__PURE__ */ new Map([
-  ["@mionkit/run-types", RUN_TYPES_FORMAT_TYPES],
-  ["@mionkit/type-formats", TYPE_FORMATS_FORMAT_TYPES]
+  ["@mionjs/run-types", RUN_TYPES_FORMAT_TYPES],
+  ["@mionjs/type-formats", TYPE_FORMATS_FORMAT_TYPES]
 ]);
 export {
   FORMAT_TYPES_BY_PACKAGE,

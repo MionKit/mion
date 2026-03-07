@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {FormatParam, FormatParamLiteral} from '@mionkit/core';
-import {isFormatParamMeta} from '@mionkit/run-types';
+import type {FormatParam, FormatParamLiteral} from '@mionjs/core';
+import {isFormatParamMeta} from '@mionjs/run-types';
 
 /** Returns the literal value of a FormatParam */
 export function paramVal<L extends FormatParamLiteral>(p: FormatParam<L>): L {

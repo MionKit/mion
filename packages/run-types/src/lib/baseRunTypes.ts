@@ -5,7 +5,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {MAX_STACK_DEPTH, JitCompiledFn, createUniqueHash, getJitUtils, getENV} from '@mionkit/core';
+import {MAX_STACK_DEPTH, JitCompiledFn, createUniqueHash, getJitUtils, getENV} from '@mionjs/core';
 import type {
     RunType,
     Mutable,

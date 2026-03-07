@@ -2,7 +2,7 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
-import {mionPlugin} from '@mionkit/devtools/vite-plugin';
+import {mionPlugin} from '@mionjs/devtools/vite-plugin';
 
 // Get all TypeScript files from a directory (excluding spec/test files)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
@@ -65,7 +65,7 @@ export default defineConfig({
                 preserveModules: true,
                 preserveModulesRoot: '.',
             },
-            external: ['@mionkit/core', '@mionkit/run-types', /^[^./]/],
+            external: ['@mionjs/core', '@mionjs/run-types', /^[^./]/],
         },
     },
 });

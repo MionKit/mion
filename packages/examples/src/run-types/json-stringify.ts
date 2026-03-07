@@ -1,4 +1,4 @@
-import {createStringifyJsonFn} from '@mionkit/run-types';
+import {createStringifyJsonFn} from '@mionjs/run-types';
 
 interface Event {
     name: string;

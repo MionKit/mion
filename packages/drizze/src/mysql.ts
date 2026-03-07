@@ -8,7 +8,7 @@
 import {mysqlTable, type MySqlTableWithColumns, type MySqlColumnBuilderBase} from 'drizzle-orm/mysql-core';
 import type {BuildColumns} from 'drizzle-orm/column-builder';
 import type {ReceiveType} from '@deepkit/type';
-import {TypedError} from '@mionkit/core';
+import {TypedError} from '@mionjs/core';
 import {extractTypeInfo} from './core/typeTraverser.ts';
 import {validateConfig} from './core/validator.ts';
 import {MySQLColumnMapper} from './mappers/mysql.mapper.ts';

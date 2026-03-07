@@ -2620,10 +2620,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     basePath: ""
   };
   let cloudflareOptions = { ...DEFAULT_CLOUDFLARE_OPTIONS };
-  let defaultHeaders = [["server", "@mionkit"]];
+  let defaultHeaders = [["server", "@mionjs"]];
   function resetCloudflareHandlerOpts() {
     cloudflareOptions = { ...DEFAULT_CLOUDFLARE_OPTIONS };
-    defaultHeaders = [["server", "@mionkit"]];
+    defaultHeaders = [["server", "@mionjs"]];
     resetRouter();
   }
   function setCloudflareHandlerOpts(options2) {
@@ -2631,7 +2631,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       ...cloudflareOptions,
       ...options2
     };
-    defaultHeaders = [["server", "@mionkit"], ...Object.entries(cloudflareOptions.defaultResponseHeaders)];
+    defaultHeaders = [["server", "@mionjs"], ...Object.entries(cloudflareOptions.defaultResponseHeaders)];
     return cloudflareOptions;
   }
   async function handleRequest(req, env, ctx) {

@@ -1,7 +1,7 @@
-import {toDrizzlePGTable} from '@mionkit/drizzle';
+import {toDrizzlePGTable} from '@mionjs/drizzle';
 import {uuid, timestamp} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {FormatUUIDv7} from '@mionkit/type-formats/StringFormats';
+import {FormatUUIDv7} from '@mionjs/type-formats/StringFormats';
 
 /** User entity */
 interface User {

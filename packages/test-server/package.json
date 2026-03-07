@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/test-server",
+  "name": "@mionjs/test-server",
   "version": "0.7.2",
   "description": "Test server utilities for mion packages",
   "keywords": [
@@ -51,11 +51,11 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/core": "^0.7.2",
-    "@mionkit/platform-node": "^0.7.2",
-    "@mionkit/platform-cloudflare": "^0.7.2",
-    "@mionkit/platform-vercel": "^0.7.2",
-    "@mionkit/router": "^0.7.2",
-    "@mionkit/type-formats": "^0.7.2"
+    "@mionjs/core": "^0.7.2",
+    "@mionjs/platform-node": "^0.7.2",
+    "@mionjs/platform-cloudflare": "^0.7.2",
+    "@mionjs/platform-vercel": "^0.7.2",
+    "@mionjs/router": "^0.7.2",
+    "@mionjs/type-formats": "^0.7.2"
   }
 }

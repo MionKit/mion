@@ -1,4 +1,4 @@
-import {initMionGcloud} from '@mionkit/platform-gcloud';
+import {initMionGcloud} from '@mionjs/platform-gcloud';
 import {routes} from './gcloud-routes.ts';
 
 export const api = initMionGcloud(routes);

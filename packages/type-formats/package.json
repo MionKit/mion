@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/type-formats",
+  "name": "@mionjs/type-formats",
   "version": "0.7.2",
   "type": "module",
   "description": "mion standard middleFns and routes",
@@ -73,7 +73,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/core": "^0.7.2",
-    "@mionkit/run-types": "0.7.2"
+    "@mionjs/core": "^0.7.2",
+    "@mionjs/run-types": "0.7.2"
   }
 }

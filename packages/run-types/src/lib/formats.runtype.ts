@@ -8,7 +8,7 @@
 
 import {TypeAnnotation} from '@deepkit/core';
 // ⚠️ CRITICAL: Do NOT use `import type` - Deepkit needs the actual import for reflection!
-import {TypeFormatParams, Brand, TypeFormatPrimitives} from '@mionkit/core';
+import {TypeFormatParams, Brand, TypeFormatPrimitives} from '@mionjs/core';
 
 /**
  * A base type that satisfies some extra constrains. (at the moment only Branded types of strings and numbers are supported)

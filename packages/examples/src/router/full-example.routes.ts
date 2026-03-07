@@ -1,5 +1,5 @@
-import {RpcError, HeadersSubset} from '@mionkit/core';
-import {headersFn, rawMiddleFn, middleFn, Routes, initMionRouter, route} from '@mionkit/router';
+import {RpcError, HeadersSubset} from '@mionjs/core';
+import {headersFn, rawMiddleFn, middleFn, Routes, initMionRouter, route} from '@mionjs/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app.ts';
 import {User} from './full-example.app.ts';
 

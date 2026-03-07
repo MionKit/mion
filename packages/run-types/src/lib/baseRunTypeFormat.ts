@@ -5,7 +5,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {TypeFormatParams, CompiledPureFunction, TypeFormatValue, JitCompiledFn} from '@mionkit/core';
+import type {TypeFormatParams, CompiledPureFunction, TypeFormatValue, JitCompiledFn} from '@mionjs/core';
 import type {BaseRunType} from './baseRunTypes.ts';
 import {createJitCompiler, type JitFnCompiler, type JitErrorsFnCompiler} from './jitFnCompiler.ts';
 import type {JitFnID, Mutable, StrNumber, JitCode, RunTypeOptions} from '../types.ts';
@@ -13,7 +13,7 @@ import {JitFunctions} from '../constants.functions.ts';
 import {ReflectionKind} from '@deepkit/type';
 import {dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats.ts';
 import {getFormatterHash} from './utils.ts';
-import {getENV, getJitUtils} from '@mionkit/core';
+import {getENV, getJitUtils} from '@mionjs/core';
 
 /**
  * Base class for all RunType formatters.

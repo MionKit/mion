@@ -1,5 +1,5 @@
-import {HeadersSubset} from '@mionkit/core';
-import {initMionRouter, Routes, CallContext, registerRoutes, route, headersFn} from '@mionkit/router';
+import {HeadersSubset} from '@mionjs/core';
+import {initMionRouter, Routes, CallContext, registerRoutes, route, headersFn} from '@mionjs/router';
 
 export type Shared = () => Record<string, any>;
 export type Context = CallContext<Shared>;

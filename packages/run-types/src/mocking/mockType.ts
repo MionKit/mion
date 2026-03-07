@@ -29,7 +29,7 @@ import {getRunTypeFormat, getRunTypeTransformer} from '../lib/formats.ts';
 import {JIT_STACK_TRACE_MESSAGE} from '../constants.ts';
 import {JitFunctions} from '../constants.functions.ts';
 import type {ArrayRunType} from '../nodes/member/array.ts';
-import {getJitUtils} from '@mionkit/core';
+import {getJitUtils} from '@mionjs/core';
 import {MockJitCompiler, type JitFnCompiler} from '../lib/jitFnCompiler.ts';
 
 export function mockType(runType: BaseRunType, comp: JitFnCompiler, stack: BaseRunType[] = []): any {

@@ -85,7 +85,7 @@ function matchGlob(filePath: string, pattern: string): boolean {
  * @example
  * ```ts
  * // vite.config.ts
- * import {mionPlugin} from '@mionkit/devtools/vite-plugin';
+ * import {mionPlugin} from '@mionjs/devtools/vite-plugin';
  *
  * export default defineConfig({
  *   plugins: [

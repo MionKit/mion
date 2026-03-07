@@ -18,7 +18,7 @@ import {
     ToBinaryFn,
     ToCodeFn,
     TypeErrorsFn,
-} from '@mionkit/core';
+} from '@mionjs/core';
 import {BaseRunType} from './lib/baseRunTypes.ts';
 import {registerJitFunctionCompiler} from './lib/jitFnsRegistry.ts';
 

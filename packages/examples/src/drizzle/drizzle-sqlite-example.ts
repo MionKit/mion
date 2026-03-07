@@ -1,8 +1,8 @@
-import {toDrizzleSqliteTable} from '@mionkit/drizzle';
+import {toDrizzleSqliteTable} from '@mionjs/drizzle';
 import {text, integer} from 'drizzle-orm/sqlite-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {FormatUUIDv7, FormatEmail} from '@mionkit/type-formats/StringFormats';
-import {FormatInteger} from '@mionkit/type-formats/NumberFormats';
+import {FormatUUIDv7, FormatEmail} from '@mionjs/type-formats/StringFormats';
+import {FormatInteger} from '@mionjs/type-formats/NumberFormats';
 
 /** User entity with format types for intelligent column mapping */
 interface User {

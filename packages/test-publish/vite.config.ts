@@ -4,22 +4,22 @@ import {resolve} from 'path';
 /**
  * Vite configuration for test-publish package.
  * This config ensures consistent module resolution with the Vitest config.
- * All @mionkit/* packages resolve to their built .dist folders.
+ * All @mionjs/* packages resolve to their built .dist folders.
  */
 export default defineConfig({
     resolve: {
         alias: {
-            '@mionkit/core': resolve(__dirname, '../core/.dist/esm'),
-            '@mionkit/run-types': resolve(__dirname, '../run-types/.dist/esm'),
-            '@mionkit/type-formats': resolve(__dirname, '../type-formats/.dist/esm'),
-            '@mionkit/router': resolve(__dirname, '../router/.dist/esm'),
-            '@mionkit/platform-node': resolve(__dirname, '../platform-node/.dist/esm'),
-            '@mionkit/client': resolve(__dirname, '../client/.dist/esm'),
-            '@mionkit/test-server': resolve(__dirname, '../test-server/.dist/esm'),
-            '@mionkit/platform-aws': resolve(__dirname, '../platform-aws/.dist/esm'),
-            '@mionkit/platform-gcloud': resolve(__dirname, '../platform-gcloud/.dist/esm'),
-            '@mionkit/devtools': resolve(__dirname, '../devtools/.dist/esm'),
-            '@mionkit/platform-bun': resolve(__dirname, '../platform-bun/.dist/esm'),
+            '@mionjs/core': resolve(__dirname, '../core/.dist/esm'),
+            '@mionjs/run-types': resolve(__dirname, '../run-types/.dist/esm'),
+            '@mionjs/type-formats': resolve(__dirname, '../type-formats/.dist/esm'),
+            '@mionjs/router': resolve(__dirname, '../router/.dist/esm'),
+            '@mionjs/platform-node': resolve(__dirname, '../platform-node/.dist/esm'),
+            '@mionjs/client': resolve(__dirname, '../client/.dist/esm'),
+            '@mionjs/test-server': resolve(__dirname, '../test-server/.dist/esm'),
+            '@mionjs/platform-aws': resolve(__dirname, '../platform-aws/.dist/esm'),
+            '@mionjs/platform-gcloud': resolve(__dirname, '../platform-gcloud/.dist/esm'),
+            '@mionjs/devtools': resolve(__dirname, '../devtools/.dist/esm'),
+            '@mionjs/platform-bun': resolve(__dirname, '../platform-bun/.dist/esm'),
         },
     },
 });
