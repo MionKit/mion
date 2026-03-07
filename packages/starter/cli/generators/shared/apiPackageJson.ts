@@ -14,7 +14,7 @@ export function generateApiPackageJson(opts: ApiPackageJsonOpts): string {
 
     const devDeps: Record<string, string> = {
         '@mionkit/devtools': '^0.8.0',
-        'vite': '^7.3.1',
+        vite: '^7.3.1',
         'vite-node': '^5.3.0',
     };
 

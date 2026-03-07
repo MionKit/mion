@@ -6,5 +6,5 @@
     "rootDir": "."
   },
   "include": ["."],
-  "exclude": ["node_modules", ".dist", "vite.config.ts", "templates"]
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "starters", "scripts"]
 }

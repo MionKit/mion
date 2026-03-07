@@ -5,6 +5,7 @@ export type DeployTarget = 'vercel-serverless' | 'standalone-node' | 'standalone
 export interface InitOptions {
     deployTarget: DeployTarget;
     basePath: string;
+    withExample?: boolean;
 }
 
 const DEPLOY_OPTIONS: {label: string; value: DeployTarget}[] = [
@@ -33,7 +34,11 @@ export async function promptInitOptions(): Promise<InitOptions> {
         const basePath = basePathAnswer || '/api/mion';
         console.log(`  > ${basePath}\n`);
 
-        return {deployTarget, basePath};
+        const exampleAnswer = await ask('? Include example API (orders showcase)? [y/N]: ');
+        const withExample = exampleAnswer.toLowerCase() === 'y' || exampleAnswer.toLowerCase() === 'yes';
+        console.log(`  > ${withExample ? 'Yes' : 'No'}\n`);
+
+        return {deployTarget, basePath, withExample};
     } finally {
         rl.close();
     }
