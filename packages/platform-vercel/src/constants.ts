@@ -9,5 +9,4 @@ import {VercelHandlerOptions} from './types.ts';
 
 export const DEFAULT_VERCEL_OPTIONS: VercelHandlerOptions = {
     defaultResponseHeaders: {},
-    basePath: '/api/mion',
 };

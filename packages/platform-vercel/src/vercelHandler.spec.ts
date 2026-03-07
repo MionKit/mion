@@ -54,7 +54,7 @@ describe('vercel handler', () => {
 
         beforeAll(async () => {
             resetVercelHandlerOpts();
-            setVercelHandlerOpts({basePath: ''});
+            setVercelHandlerOpts();
             await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
             handler = createVercelHandler();
@@ -109,7 +109,6 @@ describe('vercel handler', () => {
             await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
             setVercelHandlerOpts({
-                basePath: '',
                 defaultResponseHeaders: {
                     'x-app-name': 'MyApp',
                     'x-instance-id': '3089',
@@ -131,33 +130,10 @@ describe('vercel handler', () => {
 
             // Restore state
             resetVercelHandlerOpts();
-            setVercelHandlerOpts({basePath: ''});
+            setVercelHandlerOpts();
             await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
             handler = createVercelHandler();
-        });
-    });
-
-    describe('with basePath stripping', () => {
-        let handler: ReturnType<typeof createVercelHandler>;
-
-        beforeAll(async () => {
-            resetVercelHandlerOpts();
-            setVercelHandlerOpts({basePath: '/api/mion'});
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
-            await registerRoutes({changeUserName, getDate});
-            handler = createVercelHandler();
-        });
-
-        it('should strip basePath and route correctly', async () => {
-            const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
-            const req = createRequest(JSON.stringify(requestData), '/api/mion/api/getDate');
-
-            const response = await handler.POST(req);
-            const parsedResponse = await response.json();
-
-            expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
-            expect(response.status).toBe(200);
         });
     });
 
@@ -166,7 +142,7 @@ describe('vercel handler', () => {
 
         beforeAll(async () => {
             resetVercelHandlerOpts();
-            setVercelHandlerOpts({basePath: ''});
+            setVercelHandlerOpts();
             await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
             await registerRoutes({changeUserName, getDate});
             handler = createVercelHandler();
