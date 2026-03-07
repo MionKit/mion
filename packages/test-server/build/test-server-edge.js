@@ -2616,8 +2616,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
   }
   const DEFAULT_VERCEL_OPTIONS = {
-    defaultResponseHeaders: {},
-    basePath: "/api/mion"
+    defaultResponseHeaders: {}
   };
   let vercelOptions = { ...DEFAULT_VERCEL_OPTIONS };
   let defaultHeaders = [["server", "@mionjs"]];
@@ -2637,10 +2636,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   async function handleRequest(req) {
     const reqUrl = req.url;
     const urlObj = new URL(reqUrl);
-    let path = urlObj.pathname;
-    if (vercelOptions.basePath && path.startsWith(vercelOptions.basePath)) {
-      path = path.slice(vercelOptions.basePath.length) || "/";
-    }
+    const path = urlObj.pathname;
     const urlQuery = urlObj.search ? urlObj.search.slice(1) : void 0;
     const contentType = req.headers.get("content-type") || "";
     const isBinary = contentType.startsWith("application/octet-stream");

@@ -8,4 +8,3 @@
 export * from './src/types.ts';
 export * from './src/vercelHandler.ts';
 export * from './src/constants.ts';
-export * from './src/devServer.ts';

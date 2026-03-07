@@ -22,6 +22,12 @@
       "types": "./.dist/esm/index.d.ts",
       "require": "./.dist/cjs/index.cjs",
       "default": "./.dist/esm/index.js"
+    },
+    "./dev-server": {
+      "source": "./src/devServer.ts",
+      "types": "./.dist/esm/src/devServer.d.ts",
+      "require": "./.dist/cjs/src/devServer.cjs",
+      "default": "./.dist/esm/src/devServer.js"
     }
   },
   "directories": {
