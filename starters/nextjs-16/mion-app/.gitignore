@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# mion api workspace build output
+api/node_modules
+api/dist
+api/.dist
