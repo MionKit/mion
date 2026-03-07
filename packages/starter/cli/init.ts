@@ -5,12 +5,12 @@ import {promptInitOptions, type InitOptions, type DeployTarget} from './prompts.
 import {writeFiles, readJson, writeJson, type GeneratedFile} from './fileGenerator.ts';
 import {generateApiPackageJson} from './generators/shared/apiPackageJson.ts';
 import {getNextjsRootScripts} from './generators/nextjs/rootScripts.ts';
-import {readTemplate} from './readTemplate.ts';
+import {readStarterFile, readStarterTsConfig} from './readStarterFile.ts';
 
-const SERVER_TEMPLATES: Record<DeployTarget, string> = {
-    'vercel-serverless': 'nextjs/api/src/server.vercel.ts',
-    'standalone-node': 'nextjs/api/src/server.node.ts',
-    'standalone-bun': 'nextjs/api/src/server.bun.ts',
+const SERVER_FILES: Record<DeployTarget, string> = {
+    'vercel-serverless': 'nextjs-16/mion-app/api/src/vercel-serverless.ts',
+    'standalone-node': 'nextjs-16/mion-app/api/src/server.node.ts',
+    'standalone-bun': 'nextjs-16/mion-app/api/src/server.bun.ts',
 };
 
 /** Main init command: scaffolds mion into the current project */
@@ -23,7 +23,7 @@ export async function init(cwd: string, providedOptions?: InitOptions): Promise<
         throw new Error(
             'Could not detect a supported meta-framework in this directory.\n' +
                 'Supported: Next.js (next.config.{js,ts,mjs})\n\n' +
-                'Make sure you run this command from your project root.',
+                'Make sure you run this command from your project root.'
         );
     }
     console.log(`Detected: ${project.framework} (${project.configFile})`);
@@ -48,17 +48,40 @@ export async function init(cwd: string, providedOptions?: InitOptions): Promise<
     if (project.framework === 'nextjs') {
         // api/ workspace files
         files.push(
-            {path: 'api/package.json', content: generateApiPackageJson({projectName: project.name, deployTarget: options.deployTarget})},
-            {path: 'api/tsconfig.json', content: readTemplate('nextjs/api/tsconfig.json')},
-            {path: 'api/vite.config.ts', content: readTemplate('nextjs/api/vite.config.ts')},
-            {path: 'api/src/routes.ts', content: readTemplate('nextjs/api/src/routes.ts', {PREFIX: routerPrefix})},
+            {
+                path: 'api/package.json',
+                content: generateApiPackageJson({projectName: project.name, deployTarget: options.deployTarget}),
+            },
+            {path: 'api/tsconfig.json', content: readStarterTsConfig('nextjs-16/mion-app/api/tsconfig.json')},
+            {
+                path: 'api/vite.config.ts',
+                content: readStarterFile('nextjs-16/mion-app/api/vite.config.ts', {SERVER_ENTRY: 'server.ts'}),
+            }
         );
+
+        if (options.withExample) {
+            // Full example: api.ts with orders handler + showcase page
+            files.push(
+                {path: 'api/src/api.ts', content: readStarterFile('nextjs-16/mion-app/api/src/api.ts', {PREFIX: routerPrefix})},
+                {path: 'api/src/handlers/orders.ts', content: readStarterFile('nextjs-16/mion-app/api/src/handlers/orders.ts')},
+                {
+                    path: 'app/orders/page.tsx',
+                    content: readStarterFile('nextjs-16/mion-app/app/orders/page.tsx', {
+                        PREFIX: routerPrefix,
+                        API_WORKSPACE: apiWorkspaceName,
+                    }),
+                }
+            );
+        } else {
+            // Minimal api entry point
+            files.push({path: 'api/src/api.ts', content: generateMinimalApi(routerPrefix)});
+        }
 
         // Server entry point (varies by deploy target)
         const serverReplacements = options.deployTarget === 'vercel-serverless' ? {BASE_PATH: options.basePath} : undefined;
         files.push({
             path: 'api/src/server.ts',
-            content: readTemplate(SERVER_TEMPLATES[options.deployTarget], serverReplacements),
+            content: readStarterFile(SERVER_FILES[options.deployTarget], serverReplacements),
         });
 
         // Catch-all route for Vercel serverless
@@ -66,7 +89,7 @@ export async function init(cwd: string, providedOptions?: InitOptions): Promise<
             const catchAllDir = getCatchAllDir(cwd);
             files.push({
                 path: `${catchAllDir}/route.ts`,
-                content: readTemplate('nextjs/app/api/[...mion]/route.ts', {API_WORKSPACE: apiWorkspaceName}),
+                content: readStarterFile('nextjs-16/mion-app/app/api/[...mion]/route.ts', {API_WORKSPACE: apiWorkspaceName}),
             });
         }
 
@@ -81,7 +104,8 @@ export async function init(cwd: string, providedOptions?: InitOptions): Promise<
 
     // 7. Modify root package.json
     console.log('\nUpdating root package.json:');
-    updateRootPackageJson(cwd, rootScripts);
+    const rootDependencies: Record<string, string> = {'@mionkit/client': '^0.7.2'};
+    updateRootPackageJson(cwd, rootScripts, rootDependencies);
 
     // 8. Print instructions
     printInstructions(options.deployTarget);
@@ -94,8 +118,8 @@ function getCatchAllDir(cwd: string): string {
     return 'src/app/api/[...mion]';
 }
 
-/** Updates the root package.json with workspaces and scripts */
-function updateRootPackageJson(cwd: string, scripts: Record<string, string>): void {
+/** Updates the root package.json with workspaces, scripts, and dependencies */
+function updateRootPackageJson(cwd: string, scripts: Record<string, string>, dependencies: Record<string, string>): void {
     const pkgPath = join(cwd, 'package.json');
     const pkg = readJson<Record<string, unknown>>(pkgPath);
 
@@ -107,6 +131,14 @@ function updateRootPackageJson(cwd: string, scripts: Record<string, string>): vo
         console.log('  added workspaces: ["api"]');
     }
 
+    // Add dependencies
+    const existingDeps = (pkg.dependencies as Record<string, string>) || {};
+    for (const [name, version] of Object.entries(dependencies)) {
+        existingDeps[name] = version;
+        console.log(`  added dependency "${name}": "${version}"`);
+    }
+    pkg.dependencies = existingDeps;
+
     // Add/update scripts
     const existingScripts = (pkg.scripts as Record<string, string>) || {};
     for (const [name, command] of Object.entries(scripts)) {
@@ -116,6 +148,22 @@ function updateRootPackageJson(cwd: string, scripts: Record<string, string>): vo
     pkg.scripts = existingScripts;
 
     writeJson(pkgPath, pkg);
+}
+
+/** Generates a minimal api.ts with hello/getTime routes */
+function generateMinimalApi(prefix: string): string {
+    return [
+        `import {initMionRouter, route, Routes} from '@mionkit/router';`,
+        ``,
+        `const routes = {`,
+        `    hello: route((ctx, name: string): string => \`Hello \${name}!\`),`,
+        `    getTime: route((ctx): Date => new Date()),`,
+        `} satisfies Routes;`,
+        ``,
+        `export const myApi = await initMionRouter(routes, {prefix: '${prefix}'});`,
+        `export type MyApi = typeof myApi;`,
+        ``,
+    ].join('\n');
 }
 
 function printInstructions(deployTarget: string): void {
