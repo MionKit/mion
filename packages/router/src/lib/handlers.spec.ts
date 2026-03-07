@@ -12,7 +12,7 @@ import {dispatchRoute} from '../dispatch.ts';
 import {route, headersFn, middleFn, rawMiddleFn} from './handlers.ts';
 import {MionHeaders} from '../types/context.ts';
 import {headersFromRecord} from './headers.ts';
-import {HandlerType, HeadersSubset} from '@mionkit/core';
+import {HandlerType, HeadersSubset} from '@mionjs/core';
 
 describe('route & middleFns init functions', () => {
     type RawRequest = {

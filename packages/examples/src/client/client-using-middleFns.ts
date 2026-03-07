@@ -1,6 +1,6 @@
-import {initClient} from '@mionkit/client';
+import {initClient} from '@mionjs/client';
 import type {MyApi} from './server.routes.ts';
-import {HeadersSubset} from '@mionkit/core';
+import {HeadersSubset} from '@mionjs/core';
 
 const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 

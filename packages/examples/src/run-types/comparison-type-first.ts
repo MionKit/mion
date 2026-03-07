@@ -1,5 +1,5 @@
-import {createIsTypeFn} from '@mionkit/run-types';
-import {FormatEmail} from '@mionkit/type-formats/StringFormats';
+import {createIsTypeFn} from '@mionjs/run-types';
+import {FormatEmail} from '@mionjs/type-formats/StringFormats';
 
 // run-types example - TypeScript is source of truth
 interface User {

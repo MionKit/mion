@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, HeadersSubset} from '@mionkit/core';
-import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn} from '@mionkit/router';
-import {setNodeHttpOpts, startNodeServer} from '@mionkit/platform-node';
+import {RpcError, HeadersSubset} from '@mionjs/core';
+import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn} from '@mionjs/router';
+import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
-import {FormatString, FormatEmail, FormatUUIDv4} from '@mionkit/type-formats/StringFormats';
-import {FormatNumber} from '@mionkit/type-formats/NumberFormats';
+import {FormatString, FormatEmail, FormatUUIDv4} from '@mionjs/type-formats/StringFormats';
+import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
 // Import server pure functions extracted from client source at build time.
 // for this specific scenario server function are defined in packages/client/src/vitePlugin.e2e.spec.ts
 import {serverPureFnsCache} from 'virtual:mion-server-pure-fns';
@@ -168,7 +168,7 @@ async function startServer() {
 
         console.log(`Test server started on port ${port}`);
 
-        // Note: Graceful shutdown is already handled by @mionkit/platform-node package
+        // Note: Graceful shutdown is already handled by @mionjs/platform-node package
         // It automatically listens for SIGINT and closes the server gracefully
     } catch (error) {
         console.error('Failed to start test server:', error);

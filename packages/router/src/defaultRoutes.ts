@@ -23,8 +23,8 @@
  * - mion@methodsMetadataByPath: Remote methods metadata by path
  */
 
-import {middleFn, initMionRouter} from '@mionkit/router';
-import type {Routes} from '@mionkit/router';
+import {middleFn, initMionRouter} from '@mionjs/router';
+import type {Routes} from '@mionjs/router';
 
 const routes = {
     // Only required as initMionRouter needs at least one route/middleFn

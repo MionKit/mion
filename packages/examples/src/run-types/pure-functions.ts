@@ -1,4 +1,4 @@
-import {GenericPureFunction, registerPureFnClosure} from '@mionkit/core';
+import {GenericPureFunction, registerPureFnClosure} from '@mionjs/core';
 
 /** @reflection never */
 export function isOdd() {

@@ -7,7 +7,7 @@ function buildRouterImportCache(program) {
   for (const statement of program.body) {
     if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
       const source = statement.source.value;
-      if (source === "@mionkit/router" || source === "@mionkit/router/") {
+      if (source === "@mionjs/router" || source === "@mionjs/router/") {
         for (const specifier of statement.specifiers) {
           if (specifier.type === AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === AST_NODE_TYPES.Identifier) {
             const name = specifier.imported.name;

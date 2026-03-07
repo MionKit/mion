@@ -19,11 +19,11 @@ import {
     Result,
     WorkflowResult,
 } from './types.ts';
-import type {RemoteApi} from '@mionkit/router';
-import {registerErrorDeserializers} from '@mionkit/core';
-import {getRouterItemId} from '@mionkit/core';
+import type {RemoteApi} from '@mionjs/router';
+import {registerErrorDeserializers} from '@mionjs/core';
+import {getRouterItemId} from '@mionjs/core';
 import {MionClientRequest} from './request.ts';
-import type {RunTypeError} from '@mionkit/core';
+import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './handlersRegistry.ts';
 import {MionSubRequest, findSubRequestError} from './subRequest.ts';
 

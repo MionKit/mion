@@ -13,7 +13,7 @@ import {getJitUtils, type JITUtils} from '../jit/jitUtils.ts';
 // ║  at build time (see devtools/src/vite-plugin/extractPureFn.ts).             ║
 // ║  Do NOT rename, change the parameter order, or modify the function          ║
 // ║  signature without updating the corresponding AST extraction and            ║
-// ║  transformer logic in @mionkit/devtools.                                    ║
+// ║  transformer logic in @mionjs/devtools.                                    ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
 /**

@@ -1,5 +1,5 @@
-import {RpcError, HeadersSubset} from '@mionkit/core';
-import {Routes, headersFn, middleFn, initMionRouter, route} from '@mionkit/router';
+import {RpcError, HeadersSubset} from '@mionjs/core';
+import {Routes, headersFn, middleFn, initMionRouter, route} from '@mionjs/router';
 import {Logger} from 'Logger';
 
 export type User = {id: string; name: string; surname: string};

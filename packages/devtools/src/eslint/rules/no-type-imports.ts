@@ -12,11 +12,11 @@ const ROUTER_FUNCTIONS = ['route', 'middleFn', 'headersFn'] as const;
 /** List of handler types that can be used with type annotations */
 const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
 
-/** Cache for imports from @mionkit/router - computed once per file */
+/** Cache for imports from @mionjs/router - computed once per file */
 interface MionRouterImports {
-    /** Set of function names imported from @mionkit/router (route, middleFn, headersFn) */
+    /** Set of function names imported from @mionjs/router (route, middleFn, headersFn) */
     routerFunctions: Set<string>;
-    /** Set of type names imported from @mionkit/router (Handler, HeaderHandler) */
+    /** Set of type names imported from @mionjs/router (Handler, HeaderHandler) */
     handlerTypes: Set<string>;
 }
 
@@ -32,7 +32,7 @@ interface TypeRefWithNode {
     node: TSESTree.Node;
 }
 
-/** Builds a cache of all imports from @mionkit/router */
+/** Builds a cache of all imports from @mionjs/router */
 function buildRouterImportCache(program: TSESTree.Program): MionRouterImports {
     const routerFunctions = new Set<string>();
     const handlerTypes = new Set<string>();
@@ -40,7 +40,7 @@ function buildRouterImportCache(program: TSESTree.Program): MionRouterImports {
     for (const statement of program.body) {
         if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
             const source = statement.source.value;
-            if (source === '@mionkit/router' || source === '@mionkit/router/') {
+            if (source === '@mionjs/router' || source === '@mionjs/router/') {
                 for (const specifier of statement.specifiers) {
                     if (
                         specifier.type === AST_NODE_TYPES.ImportSpecifier &&
@@ -88,7 +88,7 @@ function buildTypeOnlyImportCache(program: TSESTree.Program): TypeOnlyImports {
     return {typeOnlyImports};
 }
 
-/** Checks if a call expression is calling router functions from @mionkit/router */
+/** Checks if a call expression is calling router functions from @mionjs/router */
 function getRouterFunctionName(node: TSESTree.CallExpression, importCache: MionRouterImports): string | null {
     if (node.callee.type !== AST_NODE_TYPES.Identifier) return null;
     const functionName = node.callee.name;

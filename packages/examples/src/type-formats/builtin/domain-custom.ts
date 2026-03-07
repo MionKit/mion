@@ -1,4 +1,4 @@
-import {FormatDomainStrict} from '@mionkit/type-formats/StringFormats';
+import {FormatDomainStrict} from '@mionjs/type-formats/StringFormats';
 
 type SocialMediaDomain = FormatDomainStrict<{
     maxLength: 200;

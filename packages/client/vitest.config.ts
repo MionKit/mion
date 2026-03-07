@@ -1,6 +1,6 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
-import {mionVitePlugin} from '@mionkit/devtools/vite-plugin';
+import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 
 export default defineConfig({
     resolve: {conditions: ['source']},

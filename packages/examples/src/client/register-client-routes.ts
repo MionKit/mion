@@ -1,4 +1,4 @@
-import {Routes, initMionRouter} from '@mionkit/router';
+import {Routes, initMionRouter} from '@mionjs/router';
 
 const routes = {
     // ... my Application Routes

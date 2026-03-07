@@ -1,8 +1,8 @@
 // ####### Executables #######
 
-import type {HeadersMethodWithJitFns, MethodWithJitFns, RemoteMethodOpts, RouteOnlyOptions, SerializerCode} from '@mionkit/core'; // do not import type only
+import type {HeadersMethodWithJitFns, MethodWithJitFns, RemoteMethodOpts, RouteOnlyOptions, SerializerCode} from '@mionjs/core'; // do not import type only
 import type {AnyHandler, Handler, HeaderHandler, RawMiddleFnHandler} from './handlers.ts'; // do not import type only
-import {HandlerType} from '@mionkit/core'; // do not import type only
+import {HandlerType} from '@mionjs/core'; // do not import type only
 
 /** Contains the handlers for middleFns and routes */
 export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodWithJitFns {

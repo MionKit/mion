@@ -14,9 +14,9 @@ import {
     routesCache,
     resetRoutesCache,
     getJitUtils,
-} from '@mionkit/core';
+} from '@mionjs/core';
 import {getPersistedMethods, resetPersistedMethods} from './methodsCache.ts';
-import type {MethodsCache, PersistedJitFunctionsCache} from '@mionkit/core';
+import type {MethodsCache, PersistedJitFunctionsCache} from '@mionjs/core';
 import {
     cpf_asJSONString,
     cpf_getUnknownKeysFromArray,
@@ -25,7 +25,7 @@ import {
     cpf_formatErr,
     cpf_safeIterableKey,
     cpf_sanitizeCompiledFn,
-} from '@mionkit/run-types';
+} from '@mionjs/run-types';
 
 const JIT_FN_IDS = ['is', 'te', 'tj', 'fj', 'sj', 'tBi', 'fBi'];
 

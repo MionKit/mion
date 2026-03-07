@@ -6,7 +6,7 @@
  * ######## */
 
 /**
- * @mionkit/test-server
+ * @mionjs/test-server
  *
  * Centralized test server for mion packages.
  * Provides pre-built test servers with runtime type reflection for testing

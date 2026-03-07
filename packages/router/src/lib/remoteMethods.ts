@@ -15,7 +15,7 @@ import type {
     PureFunctionData,
     MethodWithOptions,
     PureFnsDataCache,
-} from '@mionkit/core';
+} from '@mionjs/core';
 import {isRoute, isHeadersMiddleFnDef, isMiddleFnDef, isPublicExecutable} from '../types/guards.ts';
 import {
     getMiddleFnExecutable,
@@ -33,7 +33,7 @@ import {
     HandlerType,
     EMPTY_HASH,
     MION_ROUTES,
-} from '@mionkit/core';
+} from '@mionjs/core';
 
 /** Internal mion route IDs that should not be exposed to clients */
 const mionInternalRoutes = Object.values(MION_ROUTES) as string[];

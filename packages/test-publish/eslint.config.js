@@ -1,12 +1,12 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import mionPlugin from '@mionkit/devtools/eslint';
+import mionPlugin from '@mionjs/devtools/eslint';
 
 const mionRules = {
-  '@mionkit/no-typeof-runtype': 'error',
-  '@mionkit/strong-typed-routes': 'error',
-  '@mionkit/no-unreachable-union-types': 'error',
-  '@mionkit/no-type-imports': 'error',
+  '@mionjs/no-typeof-runtype': 'error',
+  '@mionjs/strong-typed-routes': 'error',
+  '@mionjs/no-unreachable-union-types': 'error',
+  '@mionjs/no-type-imports': 'error',
 };
 
 export default tseslint.config(
@@ -29,7 +29,7 @@ export default tseslint.config(
   tseslint.configs.recommended,
   {
     plugins: {
-      '@mionkit': mionPlugin,
+      '@mionjs': mionPlugin,
     },
     languageOptions: {
       parserOptions: {

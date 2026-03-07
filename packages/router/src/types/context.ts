@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyObject, DataViewSerializer, SerializerCode} from '@mionkit/core';
-import type {RpcError} from '@mionkit/core';
-import type {RoutesFlowMapping} from '@mionkit/core';
+import type {AnyObject, DataViewSerializer, SerializerCode} from '@mionjs/core';
+import type {RpcError} from '@mionjs/core';
+import type {RoutesFlowMapping} from '@mionjs/core';
 import type {MethodsExecutionChain} from './remoteMethods.ts';
 
 // ####### Call Context #######

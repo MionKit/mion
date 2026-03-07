@@ -12,4 +12,4 @@ import {
     FormatUInt8,
     FormatUInt16,
     FormatUInt32,
-} from '@mionkit/type-formats/NumberFormats';
+} from '@mionjs/type-formats/NumberFormats';

@@ -1,4 +1,4 @@
-import {BunHttpOptions, startBunServer} from '@mionkit/platform-bun';
+import {BunHttpOptions, startBunServer} from '@mionjs/platform-bun';
 import './myApi.routes';
 
 // init a bun server with options specific for bun

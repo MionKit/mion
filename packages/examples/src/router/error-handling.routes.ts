@@ -1,5 +1,5 @@
-import {RpcError} from '@mionkit/core';
-import {Route, route} from '@mionkit/router';
+import {RpcError} from '@mionjs/core';
+import {Route, route} from '@mionjs/router';
 import type {Pet} from './full-example.app.ts';
 import {myApp} from './full-example.app.ts';
 

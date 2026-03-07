@@ -8,7 +8,7 @@ import {describe, it, expect} from 'vitest';
 import {runType} from '../../createRunType.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import {getJITFnHash} from '../../lib/createJitFunction.ts';
-import {getJitUtils} from '@mionkit/core';
+import {getJitUtils} from '@mionjs/core';
 import {NonSerializableRunType} from './nonSerializable.ts';
 import {FunctionRunType} from '../function/function.ts';
 import {RunType} from '../../types.ts';

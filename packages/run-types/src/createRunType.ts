@@ -61,7 +61,7 @@ import {ReflectionSubKind} from './constants.kind.ts';
 import {SetRunType} from './nodes/native/set.ts';
 import {SymbolRunType} from './nodes/atomic/symbol.ts';
 import {NonSerializableRunType} from './nodes/native/nonSerializable.ts';
-import {registerErrorDeserializers} from '@mionkit/core';
+import {registerErrorDeserializers} from '@mionjs/core';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
     const start = Date.now();

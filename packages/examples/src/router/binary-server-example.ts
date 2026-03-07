@@ -1,5 +1,5 @@
-import {PublicApi, Routes, initMionRouter, route} from '@mionkit/router';
-import {FormatInt32, FormatUInt8, FormatUInt16, FormatFloat} from '@mionkit/type-formats/NumberFormats';
+import {PublicApi, Routes, initMionRouter, route} from '@mionjs/router';
+import {FormatInt32, FormatUInt8, FormatUInt16, FormatFloat} from '@mionjs/type-formats/NumberFormats';
 
 /** Sensor reading with optimized numeric types for binary serialization */
 export type SensorReading = {

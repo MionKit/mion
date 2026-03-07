@@ -6,7 +6,7 @@
  * ######## */
 
 import {Type, TypeIndexSignature, TypeProperty, ReflectionKind, TypeClass, typeAnnotation} from '@deepkit/type';
-import {MAX_STACK_DEPTH, TypeFormatParams} from '@mionkit/core';
+import {MAX_STACK_DEPTH, TypeFormatParams} from '@mionjs/core';
 import {ReflectionSubKind} from '../constants.kind.ts';
 import {hasType, hasTypes, hasParameters} from './guards.ts';
 import {getFormatterFromCache, defaultIgnoreFormatProps} from './formats.ts';

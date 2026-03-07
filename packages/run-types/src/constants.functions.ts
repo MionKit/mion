@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {type JitFnArgs, JIT_FUNCTION_IDS} from '@mionkit/core';
+import {type JitFnArgs, JIT_FUNCTION_IDS} from '@mionjs/core';
 
 /** Javascript code types */
 export const CodeTypes = {

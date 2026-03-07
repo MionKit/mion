@@ -10,12 +10,12 @@ import {registerRoutes, resetRouter, initRouter} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
-import {RpcError} from '@mionkit/core';
+import {RpcError} from '@mionjs/core';
 import {middleFn, route} from './lib/handlers.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {clearRoutesFlowCache, getRoutesFlowCacheSize, getCachedRoutesFlow} from './routesFlow.ts';
 import {WORKFLOW_KEY, WORKFLOW_PATH} from './constants.ts';
-import type {RoutesFlowQuery} from '@mionkit/core';
+import type {RoutesFlowQuery} from '@mionjs/core';
 
 /** Helper to encode a RoutesFlowQuery as base64 JSON (same format the client sends) */
 function encodeRoutesFlowQuery(query: RoutesFlowQuery): string {

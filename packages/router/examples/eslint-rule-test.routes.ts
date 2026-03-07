@@ -1,7 +1,7 @@
-// This file demonstrates the ESLint rules for @mionkit/router
+// This file demonstrates the ESLint rules for @mionjs/router
 // The rules are disabled for this file so you can see both valid and invalid examples
-import {HeadersSubset} from '@mionkit/core';
-import {route, middleFn, headersFn, Handler, HeaderHandler, CallContext} from '@mionkit/router';
+import {HeadersSubset} from '@mionjs/core';
+import {route, middleFn, headersFn, Handler, HeaderHandler, CallContext} from '@mionjs/router';
 
 // ========================================
 // ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
@@ -83,7 +83,7 @@ route((ctx): Result => ({success: false, error: 'failed'}));
 // ========================================
 
 // ========================================
-// Rule: @mionkit/strong-typed-routes
+// Rule: @mionjs/strong-typed-routes
 // ========================================
 
 // 1. Direct inline handlers missing types
@@ -141,7 +141,7 @@ function invalidHeadersFnJSDoc(c: CallContext, {headers}): void {
 } // Missing param type
 
 // ========================================
-// Rule: @mionkit/no-unreachable-union-types
+// Rule: @mionjs/no-unreachable-union-types
 // ========================================
 
 // 1. Unreachable union type in return (subset before superset)
@@ -195,7 +195,7 @@ type OptionalParamBlocking = {name?: string} | {name: string; age: number}; // S
 route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
 
 // ========================================
-// Rule: @mionkit/no-type-imports
+// Rule: @mionjs/no-type-imports
 // ========================================
 
 // start:no-type-imports
@@ -219,10 +219,10 @@ const logUser = middleFn((ctx, user: User): void => {
 export const routes = {getUser, createProduct, logUser};
 
 // ========================================
-// Rule: @mionkit/pure-functions
+// Rule: @mionjs/pure-functions
 // ========================================
 
-import {pureServerFn, registerPureFnFactory} from '@mionkit/core';
+import {pureServerFn, registerPureFnFactory} from '@mionjs/core';
 
 // ========================================
 // ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
@@ -379,17 +379,17 @@ function wrapFactory(factory: () => (x: number) => number) {
 }
 
 // ========================================
-// Rule: @mionkit/type-formats-imports
+// Rule: @mionjs/type-formats-imports
 // ========================================
 
 // ✅ VALID: Regular imports preserve type metadata for runtime reflection
-import {FormatEmail, FormatUrl} from '@mionkit/type-formats/StringFormats';
-import {FormatNumber, FormatInteger} from '@mionkit/type-formats/NumberFormats';
-import {FormatBigInt} from '@mionkit/type-formats/BigintFormats';
-import {TypeFormat} from '@mionkit/run-types';
+import {FormatEmail, FormatUrl} from '@mionjs/type-formats/StringFormats';
+import {FormatNumber, FormatInteger} from '@mionjs/type-formats/NumberFormats';
+import {FormatBigInt} from '@mionjs/type-formats/BigintFormats';
+import {TypeFormat} from '@mionjs/run-types';
 
 // ❌ INVALID: Type-only imports strip metadata, causing silent validation failures
-import type {FormatStringTime, FormatStringDate} from '@mionkit/type-formats/StringFormats';
-import type {FormatFloat} from '@mionkit/type-formats/NumberFormats';
-import {type FormatBigInt64} from '@mionkit/type-formats/BigintFormats';
-import type {TypeFormat as TF} from '@mionkit/run-types';
+import type {FormatStringTime, FormatStringDate} from '@mionjs/type-formats/StringFormats';
+import type {FormatFloat} from '@mionjs/type-formats/NumberFormats';
+import {type FormatBigInt64} from '@mionjs/type-formats/BigintFormats';
+import type {TypeFormat as TF} from '@mionjs/run-types';

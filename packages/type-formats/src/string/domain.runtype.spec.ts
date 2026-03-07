@@ -6,8 +6,8 @@
  * ######## */
 
 import {it, expect} from 'vitest';
-import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
-import {RunTypeError} from '@mionkit/core';
+import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionjs/run-types';
+import {RunTypeError} from '@mionjs/core';
 import {FormatDomainStrict, FormatDomain} from './domain.runtype';
 
 it('should validate custom domain values', async () => {

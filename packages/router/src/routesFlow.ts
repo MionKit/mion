@@ -13,14 +13,14 @@ import {
     HandlerType,
     getNoopJitFns,
     PURE_SERVER_FN_NAMESPACE,
-} from '@mionkit/core';
+} from '@mionjs/core';
 import {serverPureFnsCache} from 'virtual:mion-server-pure-fns';
 import {getRouteExecutionChain, getRouterOptions, startMiddleFns, endMiddleFns} from './router.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
 import {RoutesFlowExecutionResult} from './types/context.ts';
 import type {CallContext} from './types/context.ts';
-import type {RoutesFlowQuery, RoutesFlowMapping} from '@mionkit/core';
+import type {RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/core';
 
 // ############# ROUTES_FLOW CACHE #############
 

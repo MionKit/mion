@@ -4,8 +4,8 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {TypeFormatError, StrNumber, RunTypeError} from '@mionkit/core';
-import {registerPureFnFactory} from '@mionkit/core';
+import type {TypeFormatError, StrNumber, RunTypeError} from '@mionjs/core';
+import {registerPureFnFactory} from '@mionjs/core';
 
 export const cpf_asJSONString = registerPureFnFactory('mion', 'asJSONString', function () {
     // @ts-expect-error 2867

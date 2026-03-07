@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, routesCache} from '@mionkit/core';
+import {RpcError, routesCache} from '@mionjs/core';
 import {RequestErrors, SubRequest} from './types.ts';
 import type {MionClientRequest} from './request.ts';
 

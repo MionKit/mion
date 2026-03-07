@@ -8,8 +8,8 @@
 import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
 import {routesFlow} from './routesFlow.ts';
-import {isRpcError} from '@mionkit/core';
-import {BinaryTestServerApi} from '@mionkit/test-server';
+import {isRpcError} from '@mionjs/core';
+import {BinaryTestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL_BINARY} from '../globalSetup.ts';
 
 // THIS TESTS ARE INTENDED TO E2E TESTING OF THE BINARY SERIALIZER

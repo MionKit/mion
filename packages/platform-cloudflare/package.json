@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/platform-cloudflare",
+  "name": "@mionjs/platform-cloudflare",
   "version": "0.7.2",
   "type": "module",
   "description": "mion adapter for Cloudflare Workers",
@@ -52,7 +52,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/core": "^0.7.2",
-    "@mionkit/router": "^0.7.2"
+    "@mionjs/core": "^0.7.2",
+    "@mionjs/router": "^0.7.2"
   }
 }

@@ -1,6 +1,6 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
-import {mionPlugin} from '@mionkit/devtools/vite-plugin';
+import {mionPlugin} from '@mionjs/devtools/vite-plugin';
 
 export default defineConfig({
     plugins: [
@@ -40,7 +40,7 @@ export default defineConfig({
                 preserveModules: true,
                 preserveModulesRoot: '.',
             },
-            external: ['@mionkit/core', '@mionkit/router', '@mionkit/platform-node', '@mionkit/type-formats', /^[^./]/],
+            external: ['@mionjs/core', '@mionjs/router', '@mionjs/platform-node', '@mionjs/type-formats', /^[^./]/],
         },
     },
 });

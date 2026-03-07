@@ -1,6 +1,6 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
-import {mionPlugin} from '@mionkit/devtools/vite-plugin';
+import {mionPlugin} from '@mionjs/devtools/vite-plugin';
 
 export default defineConfig({
     plugins: [
@@ -27,12 +27,12 @@ export default defineConfig({
                 entryFileNames: '[name].js',
             },
             external: [
-                '@mionkit/core',
-                '@mionkit/router',
-                '@mionkit/platform-node',
-                '@mionkit/platform-aws',
-                '@mionkit/platform-bun',
-                '@mionkit/platform-gcloud',
+                '@mionjs/core',
+                '@mionjs/router',
+                '@mionjs/platform-node',
+                '@mionjs/platform-aws',
+                '@mionjs/platform-bun',
+                '@mionjs/platform-gcloud',
                 /^node:/,
             ],
         },

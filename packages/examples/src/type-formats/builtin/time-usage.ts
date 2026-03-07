@@ -1,4 +1,4 @@
-import {FormatStringTime} from '@mionkit/type-formats/StringFormats';
+import {FormatStringTime} from '@mionjs/type-formats/StringFormats';
 
 // Default ISO format with timezone
 type ISOTime = FormatStringTime; // 'HH:mm:ss[.mmm]TZ'

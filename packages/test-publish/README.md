@@ -1,4 +1,4 @@
-# @mionkit/test-publish
+# @mionjs/test-publish
 
 > ⚠️ **Internal Package** - This package is private and not published to npm.
 
@@ -18,7 +18,7 @@ During development, tests run against TypeScript source files using `ts-jest`. H
 2. **Test** - Runs Vitest against TypeScript source files (`.spec.ts`)
 3. **Clean** - Removes build artifacts after tests complete
 
-The tests import from the built `@mionkit/*` packages (which resolve to their `.dist` folders via Vitest aliases), not from TypeScript source files. This ensures we're testing the actual published artifacts.
+The tests import from the built `@mionjs/*` packages (which resolve to their `.dist` folders via Vitest aliases), not from TypeScript source files. This ensures we're testing the actual published artifacts.
 
 ## Prerequisites
 
@@ -35,10 +35,10 @@ These tests are **excluded from the default `npm run test`** command to avoid ru
 
 ```bash
 # Run all build verification tests (recommended)
-npm run verify -w @mionkit/test-publish
+npm run verify -w @mionjs/test-publish
 
 # Or use the longer form
-npm run test:build-verification -w @mionkit/test-publish
+npm run test:build-verification -w @mionjs/test-publish
 ```
 
 ## Test Files
@@ -51,11 +51,11 @@ npm run test:build-verification -w @mionkit/test-publish
 ## Important Notes
 
 - **Private package** - Not published to npm, only used internally
-- **Tests built artifacts** - Imports from `@mionkit/*` packages which resolve to `.dist` directories
+- **Tests built artifacts** - Imports from `@mionjs/*` packages which resolve to `.dist` directories
 - **TypeScript native** - Vitest runs TypeScript tests directly without pre-compilation
 - **Auto-cleanup** - Build artifacts are cleaned before and after tests
 - **Sequential execution** - Tests run sequentially to avoid port conflicts
-- **Uses @mionkit/test-server** - Depends on the test-server package for server utilities
+- **Uses @mionjs/test-server** - Depends on the test-server package for server utilities
 
 ## When to Run These Tests
 

@@ -9,8 +9,8 @@ import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody
 import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import {getRouterOptions} from './router.ts';
-import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionkit/core';
-import {RpcError, HandlerType, ValidationError} from '@mionkit/core';
+import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionjs/core';
+import {RpcError, HandlerType, ValidationError} from '@mionjs/core';
 import {onExecutableError} from './lib/dispatchError.ts';
 import {acquireCallContext, releaseCallContext} from './callContext.ts';
 

@@ -10,7 +10,7 @@ const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
 function resolveVirtualId(id) {
   return "\0" + id + ".ts";
 }
-const REFLECTION_MODULES = ["@mionkit/run-types", "@deepkit/type", "@deepkit/core"];
+const REFLECTION_MODULES = ["@mionjs/run-types", "@deepkit/type", "@deepkit/core"];
 const VIRTUAL_STUB_PREFIX = "virtual:mion-stub/";
 exports.BODY_HASH_LENGTH = BODY_HASH_LENGTH;
 exports.PURE_SERVER_FN_NAMESPACE = PURE_SERVER_FN_NAMESPACE;

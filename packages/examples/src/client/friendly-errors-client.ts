@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import {getFriendlyErrors} from '@mionkit/core';
-import {RouteParamType, initClient} from '@mionkit/client';
+import {getFriendlyErrors} from '@mionjs/core';
+import {RouteParamType, initClient} from '@mionjs/client';
 import type {MyApi} from './friendly-errors-server.ts';
 import {userFriendlyErrors} from './friendly-errors-map.ts';
 

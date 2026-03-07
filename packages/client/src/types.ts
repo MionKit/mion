@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
-import type {Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionkit/core';
-import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionkit/router';
+import {RpcError} from '@mionjs/core';
+import type {Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
+import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {TypedEvent} from './typedEvent.ts';
 
 /** Result type for call() and callWithMiddleFns() methods - 4-tuple pattern */

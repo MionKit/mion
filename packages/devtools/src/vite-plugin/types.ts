@@ -9,7 +9,7 @@ export interface AOTCacheOptions {
      * (internal mion routes + your custom routes).
      *
      * If NOT provided, the plugin will automatically use the built-in defaultRoutes.ts
-     * from @mionkit/router to generate caches for internal mion routes only.
+     * from @mionjs/router to generate caches for internal mion routes only.
      * Your custom routes will be fetched at runtime via fetchRemoteMethodsMetadata().
      *
      * For best performance, provide your server's start script to pre-cache all routes.
@@ -43,7 +43,7 @@ export interface AOTCacheOptions {
     cache?: boolean | string;
 
     /**
-     * Stub out @mionkit/run-types and @deepkit/* modules during the bundle build.
+     * Stub out @mionjs/run-types and @deepkit/* modules during the bundle build.
      * When AOT caches are pre-compiled, these modules are not needed at runtime
      * and can be replaced with empty stubs to reduce bundle size.
      * Useful for edge runtime builds where bundle size matters.

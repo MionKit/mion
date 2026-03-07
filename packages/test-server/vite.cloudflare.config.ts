@@ -22,14 +22,14 @@ export default defineConfig({
     ],
     resolve: {
         alias: {
-            '@mionkit/test-server': resolve(__dirname, '.'),
-            '@mionkit/core': resolve(__dirname, '../core'),
-            '@mionkit/router': resolve(__dirname, '../router'),
-            '@mionkit/platform-cloudflare': resolve(__dirname, '../platform-cloudflare'),
-            '@mionkit/type-formats': resolve(__dirname, '../type-formats'),
+            '@mionjs/test-server': resolve(__dirname, '.'),
+            '@mionjs/core': resolve(__dirname, '../core'),
+            '@mionjs/router': resolve(__dirname, '../router'),
+            '@mionjs/platform-cloudflare': resolve(__dirname, '../platform-cloudflare'),
+            '@mionjs/type-formats': resolve(__dirname, '../type-formats'),
             // Aliases needed for AOT child process (dev: packages aren't built).
             // During bundle build, the plugin stubs these before aliases are reached.
-            '@mionkit/run-types': resolve(__dirname, '../run-types'),
+            '@mionjs/run-types': resolve(__dirname, '../run-types'),
             '@deepkit/type': resolve(__dirname, '../../node_modules/@deepkit/type'),
             '@deepkit/core': resolve(__dirname, '../../node_modules/@deepkit/core'),
             // Polyfill Node.js 'path' module for workerd runtime compatibility

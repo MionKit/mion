@@ -1,4 +1,4 @@
-import {FormatStringDate} from '@mionkit/type-formats/StringFormats';
+import {FormatStringDate} from '@mionjs/type-formats/StringFormats';
 
 // Default ISO format
 type ISODate = FormatStringDate; // 'YYYY-MM-DD'

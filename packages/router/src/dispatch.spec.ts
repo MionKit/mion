@@ -10,7 +10,7 @@ import {registerRoutes, resetRouter, initRouter} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {CallContext, MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
-import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes} from '@mionkit/core';
+import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {headersFn, middleFn, route} from './lib/handlers.ts';
 import {headersFromRecord} from './lib/headers.ts';
 

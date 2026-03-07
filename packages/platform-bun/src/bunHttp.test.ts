@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {initRouter, registerRoutes, route} from '@mionkit/router';
+import {initRouter, registerRoutes, route} from '@mionjs/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp.ts';
-import {CallContext} from '@mionkit/router';
-import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionkit/core';
+import {CallContext} from '@mionjs/router';
+import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
 import {Server} from 'bun';
 
 // Increase timeout for tests that involve type reflection (can be slow when running in parallel)
@@ -73,7 +73,7 @@ describe('bun router should', () => {
         expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('47');
-        expect(headers['server']).toEqual('@mionkit');
+        expect(headers['server']).toEqual('@mionjs');
     });
 
     test('get an error when sending invalid parameters', async () => {
@@ -96,7 +96,7 @@ describe('bun router should', () => {
         expect(reply[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('224');
-        expect(headers['server']).toEqual('@mionkit');
+        expect(headers['server']).toEqual('@mionjs');
     });
 
     test('set response headers from route response', async () => {
@@ -141,7 +141,7 @@ describe('bun router should', () => {
         expect(headers['x-instance-id']).toEqual('3089');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         // expect(headers['content-length']).toEqual('107');
-        expect(headers['server']).toEqual('@mionkit');
+        expect(headers['server']).toEqual('@mionjs');
 
         smallServer.stop(true);
 
@@ -201,7 +201,7 @@ describe('bun router should', () => {
 
         expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['server']).toEqual('@mionkit');
+        expect(headers['server']).toEqual('@mionjs');
 
         // Stop the test server
         testServer.stop(true);
@@ -237,7 +237,7 @@ describe('bun router should', () => {
 
         expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['server']).toEqual('@mionkit');
+        expect(headers['server']).toEqual('@mionjs');
 
         // Stop the test server
         testServer.stop(true);

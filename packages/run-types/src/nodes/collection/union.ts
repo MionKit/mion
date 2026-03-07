@@ -49,7 +49,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * Returns isType check for a union child with loose matching.
      * Uses first-match strategy: returns first matching type in declaration order.
      * For all-optional types (weak types), ensures at least one property matches or is empty object.
-     * Note: Use ESLint rules @mionkit/no-unreachable-union-types and @mionkit/no-mixed-union-properties
+     * Note: Use ESLint rules @mionjs/no-unreachable-union-types and @mionjs/no-mixed-union-properties
      * to detect overlapping union types at compile time.
      * @see union.spec.ts 'Union Obj' and 'Union Mixed' test suites for examples.
      */

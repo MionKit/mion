@@ -8,7 +8,7 @@
  * - Objects containing arrays, Maps, and Sets as properties
  */
 
-import type {FriendlyErrors, FriendlyErrorsResult, BrandEmail} from '@mionkit/core';
+import type {FriendlyErrors, FriendlyErrorsResult, BrandEmail} from '@mionjs/core';
 
 // ============================================================================
 // Type Definitions

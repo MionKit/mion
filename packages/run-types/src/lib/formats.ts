@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CompiledPureFunction, TypeFormatParams, TypeFormatValue} from '@mionkit/core';
+import {CompiledPureFunction, TypeFormatParams, TypeFormatValue} from '@mionjs/core';
 import {ReflectionKindName} from '../constants.kind.ts';
 import type {FormatAnnotation} from '../types.ts';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';

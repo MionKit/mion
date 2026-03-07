@@ -13,17 +13,17 @@ const ROUTER_FUNCTIONS = ['route', 'middleFn', 'headersFn'] as const;
 const HANDLER_TYPES = ['Handler', 'HeaderHandler'] as const;
 
 /**
- * Cache for imports from @mionkit/router - computed once per file
+ * Cache for imports from @mionjs/router - computed once per file
  */
 interface MionRouterImports {
-    /** Set of function names imported from @mionkit/router (route, middleFn, headersFn) */
+    /** Set of function names imported from @mionjs/router (route, middleFn, headersFn) */
     routerFunctions: Set<string>;
-    /** Set of type names imported from @mionkit/router (Handler, HeaderHandler) */
+    /** Set of type names imported from @mionjs/router (Handler, HeaderHandler) */
     handlerTypes: Set<string>;
 }
 
 /**
- * Builds a cache of all imports from @mionkit/router
+ * Builds a cache of all imports from @mionjs/router
  * This is called once per file in the Program visitor
  */
 function buildImportCache(program: TSESTree.Program): MionRouterImports {
@@ -33,8 +33,8 @@ function buildImportCache(program: TSESTree.Program): MionRouterImports {
     for (const statement of program.body) {
         if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
             const source = statement.source.value;
-            // Check for @mionkit/router package
-            if (source === '@mionkit/router' || source === '@mionkit/router/') {
+            // Check for @mionjs/router package
+            if (source === '@mionjs/router' || source === '@mionjs/router/') {
                 for (const specifier of statement.specifiers) {
                     if (
                         specifier.type === AST_NODE_TYPES.ImportSpecifier &&
@@ -57,7 +57,7 @@ function buildImportCache(program: TSESTree.Program): MionRouterImports {
 }
 
 /**
- * Checks if a call expression is calling router functions from @mionkit/router
+ * Checks if a call expression is calling router functions from @mionjs/router
  * Uses the cached import information for performance
  */
 function getRouterFunctionName(node: TSESTree.CallExpression, importCache: MionRouterImports): string | null {
@@ -68,7 +68,7 @@ function getRouterFunctionName(node: TSESTree.CallExpression, importCache: MionR
 
     const functionName = node.callee.name;
 
-    // Check if this function is imported from @mionkit/router
+    // Check if this function is imported from @mionjs/router
     if (importCache.routerFunctions.has(functionName)) {
         return functionName;
     }
@@ -284,7 +284,7 @@ function getReturnTypeReportNode(
 }
 
 /**
- * Checks if a type annotation references Handler or HeaderHandler from @mionkit/router
+ * Checks if a type annotation references Handler or HeaderHandler from @mionjs/router
  * Uses the cached import information for performance
  */
 function getHandlerTypeFromAnnotation(
@@ -304,7 +304,7 @@ function getHandlerTypeFromAnnotation(
 }
 
 /**
- * Checks if a satisfies expression references Handler or HeaderHandler from @mionkit/router
+ * Checks if a satisfies expression references Handler or HeaderHandler from @mionjs/router
  * Uses the cached import information for performance
  */
 function getHandlerTypeFromSatisfies(

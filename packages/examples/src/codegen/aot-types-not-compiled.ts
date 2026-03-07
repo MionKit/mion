@@ -1,5 +1,5 @@
-import {Routes, route} from '@mionkit/router';
-import {runType} from '@mionkit/run-types';
+import {Routes, route} from '@mionjs/router';
+import {runType} from '@mionjs/run-types';
 
 interface User {
     id: string;

@@ -1,6 +1,6 @@
-import type {AnyObject} from '@mionkit/core';
-import {RpcError, HeadersSubset} from '@mionkit/core';
-import {initMionRouter, Routes, CallContext, route, headersFn, rawMiddleFn, middleFn} from '@mionkit/router';
+import type {AnyObject} from '@mionjs/core';
+import {RpcError, HeadersSubset} from '@mionjs/core';
+import {initMionRouter, Routes, CallContext, route, headersFn, rawMiddleFn, middleFn} from '@mionjs/router';
 import {IncomingMessage} from 'http';
 
 export type HttpRequest = IncomingMessage & {body: string};

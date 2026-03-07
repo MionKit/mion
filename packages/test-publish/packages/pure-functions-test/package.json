@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/pure-functions-test",
+  "name": "@mionjs/pure-functions-test",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mionkit/core": "^0.7.2",
-    "@mionkit/devtools": "^0.8.0-alpha.0"
+    "@mionjs/core": "^0.7.2",
+    "@mionjs/devtools": "^0.8.0-alpha.0"
   },
   "devDependencies": {
     "vitest": "^2.0.0"

@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Prettify, RpcError, MethodMetadata} from '@mionkit/core';
+import type {Prettify, RpcError, MethodMetadata} from '@mionjs/core';
 import type {CallContext} from './context.ts';
 import type {Routes} from './general.ts';
 import type {Handler} from './handlers.ts';
 import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
-import {HandlerType} from '@mionkit/core'; // do not import type only
+import {HandlerType} from '@mionjs/core'; // do not import type only
 
 // ####### Raw MiddleFns #######
 

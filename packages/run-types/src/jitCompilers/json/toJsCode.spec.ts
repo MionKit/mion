@@ -9,7 +9,7 @@ import {it, expect} from 'vitest';
 import {runType} from '../../createRunType.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import {createToJavascriptFn} from '../../createRunTypeFunctions.ts';
-import {SrcCodeJITCompiledFnsCache, SrcCodePureFunctionsCache, JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
+import {SrcCodeJITCompiledFnsCache, SrcCodePureFunctionsCache, JitFunctionsCache, PureFunctionsCache} from '@mionjs/core';
 
 it('toJSCode should transform functions to code using toString()', () => {
     // Create a type with a function

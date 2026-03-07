@@ -1,5 +1,5 @@
-import {initMionRouter, route} from '@mionkit/router';
-import type {CallContext, Routes} from '@mionkit/router';
+import {initMionRouter, route} from '@mionjs/router';
+import type {CallContext, Routes} from '@mionjs/router';
 import type {User} from './full-example.app.ts';
 
 interface ContextData {

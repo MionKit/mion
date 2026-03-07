@@ -7,12 +7,12 @@
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {initClient} from './client.ts';
-import {getFriendlyErrors} from '@mionkit/core';
-import type {FriendlyErrors} from '@mionkit/core';
+import {getFriendlyErrors} from '@mionjs/core';
+import type {FriendlyErrors} from '@mionjs/core';
 import type {RouteParamsType} from './types.ts';
-import {FormatEmail} from '@mionkit/type-formats/StringFormats';
+import {FormatEmail} from '@mionjs/type-formats/StringFormats';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
-import {TestServerApi} from '@mionkit/test-server';
+import {TestServerApi} from '@mionjs/test-server';
 
 // Mock localStorage for method metadata storage
 // eslint-disable-next-line @typescript-eslint/no-require-imports

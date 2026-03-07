@@ -18,13 +18,13 @@ import {
     HandlerType,
     RouteOnlyOptions,
     RemoteMethodOpts,
-} from '@mionkit/core';
+} from '@mionjs/core';
 import {middleFn, rawMiddleFn, route} from '../lib/handlers.ts';
 import {Routes} from '../types/general.ts';
 import {mionClientRoutes} from './client.routes.ts';
 import {headersFromRecord} from '../lib/headers.ts';
 import {dispatchRoute} from '../dispatch.ts';
-import {runType, JitFunctions} from '@mionkit/run-types';
+import {runType, JitFunctions} from '@mionjs/run-types';
 import {getSerializableMethod} from '../lib/remoteMethods.ts';
 
 type RawRequest = {

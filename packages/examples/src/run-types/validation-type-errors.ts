@@ -1,4 +1,4 @@
-import {createTypeErrorsFn} from '@mionkit/run-types';
+import {createTypeErrorsFn} from '@mionjs/run-types';
 
 interface User {
     name: string;

@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
-import type {RunTypeError} from '@mionkit/core';
+import {RpcError} from '@mionjs/core';
+import type {RunTypeError} from '@mionjs/core';
 import type {
     CallWithMiddleFnsResult,
     HSubRequest,
@@ -16,7 +16,7 @@ import type {
     SubRequest,
     WorkflowResult,
 } from './types.ts';
-import type {MapFromServerFnRef} from '@mionkit/core';
+import type {MapFromServerFnRef} from '@mionjs/core';
 import type {MionClient} from './client.ts';
 import {TypedEvent} from './typedEvent.ts';
 import {isMapFromRef} from './routesFlow.ts';

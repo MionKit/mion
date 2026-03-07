@@ -18,13 +18,13 @@ type MessageIds =
     | 'importedArgument'
     | 'unresolvedArgument';
 
-/** Cache of pure function imports from @mionkit/core and @mionkit/client */
+/** Cache of pure function imports from @mionjs/core and @mionjs/client */
 interface PureFnImports {
     /** Maps local name -> imported name for pureServerFn/registerPureFnFactory/mapFrom */
     pureFnNames: Map<string, string>;
 }
 
-/** Builds a cache of pure function imports from @mionkit/core and @mionkit/client */
+/** Builds a cache of pure function imports from @mionjs/core and @mionjs/client */
 function buildPureFnImportCache(program: TSESTree.Program): PureFnImports {
     const pureFnNames = new Map<string, string>();
 

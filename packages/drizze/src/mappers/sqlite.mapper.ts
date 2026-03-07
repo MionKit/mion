@@ -7,12 +7,12 @@
 
 import {text, integer, real, blob} from 'drizzle-orm/sqlite-core';
 import {ReflectionKind} from '@deepkit/type';
-import {TypedError} from '@mionkit/core';
+import {TypedError} from '@mionjs/core';
 import {BaseColumnMapper} from './base.mapper.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesSQLite} from '../types/common.types.ts';
 import {isIntegerFormat} from '../core/utils.ts';
-import {FormatName, FormatNames} from '@mionkit/type-formats/constants';
+import {FormatName, FormatNames} from '@mionjs/type-formats/constants';
 
 // ============================================================================
 // Default Mapping Objects

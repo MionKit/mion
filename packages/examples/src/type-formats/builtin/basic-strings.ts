@@ -4,7 +4,7 @@ import {
     FormatNumeric,
     FormatLowercase,
     FormatUppercase,
-} from '@mionkit/type-formats/StringFormats';
+} from '@mionjs/type-formats/StringFormats';
 
 type Username = FormatAlphaNumeric; // Letters and numbers only
 type Name = FormatAlpha; // Letters only (supports Unicode)

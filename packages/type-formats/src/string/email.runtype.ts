@@ -4,14 +4,14 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, StrNumber, JitFnID, JitCode} from '@mionkit/run-types';
-import {BaseRunTypeFormat, TypeFormat, RunTypeOptions, registerFormatter, JitFunctions, randomItem} from '@mionkit/run-types';
+import type {BaseRunType, JitFnCompiler, JitErrorsFnCompiler, StrNumber, JitFnID, JitCode} from '@mionjs/run-types';
+import {BaseRunTypeFormat, TypeFormat, RunTypeOptions, registerFormatter, JitFunctions, randomItem} from '@mionjs/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {DEFAULT_STRICT_DOMAIN_PARAMS} from './domain.runtype.ts';
-import {FormatParams_Email} from '@mionkit/core';
+import {FormatParams_Email} from '@mionjs/core';
 import {StringRunTypeFormat, stringIgnoreProps} from './stringFormat.runtype.ts';
-import {StringValidators} from '@mionkit/core';
-import {Samples} from '@mionkit/core';
+import {StringValidators} from '@mionjs/core';
+import {Samples} from '@mionjs/core';
 import {DomainRunTypeFormat} from './domain.runtype.ts';
 import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock.ts'; // do not import using type
 import {paramVal} from '../utils.ts';

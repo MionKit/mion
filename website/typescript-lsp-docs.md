@@ -35,7 +35,7 @@ so the ::twoslash-code component will see code fully resolved. we just need to m
 the ::twoslash-code component is able to process the slot content and run it by twoslash 
 
 ```MDC
-import {initClient} from '@mionkit/client';
+import {initClient} from '@mionjs/client';
 import type {MyApi} from './about-server.ts';
 
 const {routes} = initClient<MyApi>({
@@ -56,9 +56,9 @@ example();
   - `packages/examples/src/introduction/about-server.ts`
 - Convert relative imports to named package imports:
   - Change: `import type {MyApi} from './about-server.ts';`
-  - To: `import type {MyApi} from '@mionkit/examples/src/introduction/about-server.ts';`
+  - To: `import type {MyApi} from '@mionjs/examples/src/introduction/about-server.ts';`
 - we need to geneate d.ts files fol all mion packages, so you can compile the examples and esure d.ts files are emitted correctly.
-- Configure twoslash to resolve all @mionkit packages in virtual file system (might neet to pass references to all mion packages)
+- Configure twoslash to resolve all @mionjs packages in virtual file system (might neet to pass references to all mion packages)
 - Ensure all example files are properly exported from package
 
 **Success Criteria:**
@@ -152,7 +152,7 @@ What you already have (good)
 
 Consistent named imports like:
 ```ts
-import { createRouter } from "@mionkit/router"
+import { createRouter } from "@mionjs/router"
 ```
 
 The critical constraint (the missing piece)
@@ -179,9 +179,9 @@ Think of Twoslash as this:
 
 So your job is to make this virtual view true:
 ```bash
-/node_modules/@mionkit/router/index.d.ts
-/node_modules/@mionkit/server/index.d.ts
-/node_modules/@mionkit/client/index.d.ts
+/node_modules/@mionjs/router/index.d.ts
+/node_modules/@mionjs/server/index.d.ts
+/node_modules/@mionjs/client/index.d.ts
 /examples/example.ts
 ```
 Recommended architecture (this works very well)
@@ -224,10 +224,10 @@ packages/client/dist/client.d.ts
 Programmatically:
 ```ts
 const extraFiles = {
-  "node_modules/@mionkit/router/index.d.ts":
+  "node_modules/@mionjs/router/index.d.ts":
     fs.readFileSync("packages/router/dist/index.d.ts", "utf8"),
 
-  "node_modules/@mionkit/server/index.d.ts":
+  "node_modules/@mionjs/server/index.d.ts":
     fs.readFileSync("packages/server/dist/index.d.ts", "utf8"),
 }
 runTwoSlash(code, {
@@ -257,7 +257,7 @@ Twoslash only needs:
 - correct module names
 
 Minimal checklist
-✅ Always import from @mionkit/*
+✅ Always import from @mionjs/*
 ✅ One examples package = source of truth
 ✅ Emit .d.ts for every workspace package
 ✅ Mount them as node_modules/* in Twoslash

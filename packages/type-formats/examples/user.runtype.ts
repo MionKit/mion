@@ -13,11 +13,11 @@ import {
     FormatUrlHttp,
     FormatStringDate,
     FormatStringDateTime,
-} from '@mionkit/type-formats/StringFormats';
+} from '@mionjs/type-formats/StringFormats';
 // Import brand types for type assertions
-import {BrandUUID, BrandEmail, BrandUrl, BrandDate, BrandDateTime} from '@mionkit/core';
+import {BrandUUID, BrandEmail, BrandUrl, BrandDate, BrandDateTime} from '@mionjs/core';
 // Import number formats types
-import {FormatNumber, FormatPositiveInt, FormatPositive} from '@mionkit/type-formats/NumberFormats';
+import {FormatNumber, FormatPositiveInt, FormatPositive} from '@mionjs/type-formats/NumberFormats';
 
 /**
  * Example User object demonstrating various Runtype Formats

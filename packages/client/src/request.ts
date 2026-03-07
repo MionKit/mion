@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {ResponseBody} from '@mionkit/router';
+import type {ResponseBody} from '@mionjs/router';
 import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledMiddleFnsCache} from './types.ts';
-import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionkit/core';
-import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionkit/core';
-import {getRoutePath} from '@mionkit/core';
+import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/core';
+import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionjs/core';
+import {getRoutePath} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
 import {validateSubRequests} from './validation.ts';
 import {serializeRequestBody, deserializeResponseBody} from './serializer.ts';

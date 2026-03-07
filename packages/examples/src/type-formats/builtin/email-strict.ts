@@ -1,4 +1,4 @@
-import {FormatEmailStrict} from '@mionkit/type-formats/StringFormats';
+import {FormatEmailStrict} from '@mionjs/type-formats/StringFormats';
 
 // Valid
 ('user@example.com'); // ✓

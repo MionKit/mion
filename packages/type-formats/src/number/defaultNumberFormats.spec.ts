@@ -6,8 +6,8 @@
  * ######## */
 
 import {it, expect} from 'vitest';
-import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
-import {RunTypeError, TypeFormatError} from '@mionkit/core';
+import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionjs/run-types';
+import {RunTypeError, TypeFormatError} from '@mionjs/core';
 import {
     FormatInteger,
     FormatFloat,

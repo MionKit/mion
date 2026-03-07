@@ -13,13 +13,13 @@ import type {
     JitFunctions,
     BaseFnCompiler,
     jitBinaryDeserializerArgs,
-} from '@mionkit/run-types';
+} from '@mionjs/run-types';
 // TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionkit/run-types';
+import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random} from '@mionjs/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {paramVal} from '../utils.ts';
-import {FormatParams_Number} from '@mionkit/core';
+import {FormatParams_Number} from '@mionjs/core';
 
 type BinarySerializer = BaseFnCompiler<typeof jitBinarySerializerArgs, typeof JitFunctions.toBinary.id>;
 type BinaryDeserializer = BaseFnCompiler<typeof jitBinaryDeserializerArgs, typeof JitFunctions.fromBinary.id>;

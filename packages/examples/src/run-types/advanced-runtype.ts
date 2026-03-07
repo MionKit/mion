@@ -1,4 +1,4 @@
-import {runType, reflectFunction} from '@mionkit/run-types';
+import {runType, reflectFunction} from '@mionjs/run-types';
 
 interface User {
     id: string;

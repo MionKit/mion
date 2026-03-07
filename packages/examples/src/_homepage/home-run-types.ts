@@ -1,4 +1,4 @@
-import {createIsTypeFn, createStringifyJsonFn, createMockTypeFn, createToBinaryFn} from '@mionkit/run-types';
+import {createIsTypeFn, createStringifyJsonFn, createMockTypeFn, createToBinaryFn} from '@mionjs/run-types';
 interface User {
     id: string;
     name: string;

@@ -5,16 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MethodWithJitFns, AnyFn, JitCompiledFunctions, MethodMetadata} from '@mionkit/core';
+import type {MethodWithJitFns, AnyFn, JitCompiledFunctions, MethodMetadata} from '@mionjs/core';
 // Type-only imports from run-types - these don't load the module at runtime
-import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnCompiler} from '@mionkit/run-types';
+import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnCompiler} from '@mionjs/run-types';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants.ts';
-import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns} from '@mionkit/core';
+import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns} from '@mionjs/core';
 import {getPersistedMethodMetadata} from './methodsCache.ts';
 
-// ############ This file is the only one importing '@mionkit/run-types' within the router ########
+// ############ This file is the only one importing '@mionjs/run-types' within the router ########
 // In AOT mode, run-types is NOT loaded - all reflection data comes from the AOT cache
 
 type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
@@ -34,7 +34,7 @@ export class AOTCacheError extends Error {
 }
 
 // ############ Run-Types Module Loading ############
-type RunTypesModule = typeof import('@mionkit/run-types');
+type RunTypesModule = typeof import('@mionjs/run-types');
 // Type definition for the dynamically imported run-types module
 interface RunTypesFunctions {
     JitFunctions: RunTypesModule['JitFunctions'];
@@ -49,7 +49,7 @@ interface RunTypesFunctions {
 let runTypesModule: RunTypesFunctions | null = null;
 let runTypesLoadPromise: Promise<RunTypesFunctions> | null = null;
 
-/** Dynamically loads the @mionkit/run-types module. The module is cached after first load. */
+/** Dynamically loads the @mionjs/run-types module. The module is cached after first load. */
 async function loadRunTypesModule(): Promise<RunTypesFunctions> {
     // Return cached module if already loaded
     if (runTypesModule) return runTypesModule;
@@ -58,7 +58,7 @@ async function loadRunTypesModule(): Promise<RunTypesFunctions> {
     if (runTypesLoadPromise) return runTypesLoadPromise;
 
     // Start loading the module
-    runTypesLoadPromise = import('@mionkit/run-types').then((module) => {
+    runTypesLoadPromise = import('@mionjs/run-types').then((module) => {
         runTypesModule = {
             JitFunctions: module.JitFunctions,
             reflectFunction: module.reflectFunction,

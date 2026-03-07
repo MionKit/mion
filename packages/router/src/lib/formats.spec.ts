@@ -10,13 +10,13 @@ import {registerRoutes, resetRouter, initRouter, getRouteExecutable} from '../ro
 import {dispatchRoute} from '../dispatch.ts';
 import {MionHeaders} from '../types/context.ts';
 import {Routes} from '../types/general.ts';
-import {MION_ROUTES, JitCompiledFnData, PureFunctionData, RunTypeError} from '@mionkit/core';
+import {MION_ROUTES, JitCompiledFnData, PureFunctionData, RunTypeError} from '@mionjs/core';
 import {route} from './handlers.ts';
 import {headersFromRecord} from './headers.ts';
 import {getSerializableMethod, serializeMethodDeps} from './remoteMethods.ts';
 // Import format types (regular import to ensure JIT functions are created)
-import {FormatString} from '@mionkit/type-formats/StringFormats';
-import {FormatNumber} from '@mionkit/type-formats/NumberFormats';
+import {FormatString} from '@mionjs/type-formats/StringFormats';
+import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
 
 type RawRequest = {
     headers: MionHeaders;

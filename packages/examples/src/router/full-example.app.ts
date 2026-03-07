@@ -1,4 +1,4 @@
-import type {CallContext} from '@mionkit/router';
+import type {CallContext} from '@mionjs/router';
 
 export interface User {
     id: number;

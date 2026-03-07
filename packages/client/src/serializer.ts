@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {ResponseBody} from '@mionkit/router';
+import type {ResponseBody} from '@mionjs/router';
 import {
     type MethodWithJitFns,
     RpcError,
@@ -16,7 +16,7 @@ import {
     type SerializerMode,
     serializeBinaryBody as coreSerializeBinaryBody,
     deserializeBinaryBody as coreDeserializeBinaryBody,
-} from '@mionkit/core';
+} from '@mionjs/core';
 import type {MionClientRequest} from './request.ts';
 import {DEFAULT_PREFILL_OPTIONS} from './constants.ts';
 

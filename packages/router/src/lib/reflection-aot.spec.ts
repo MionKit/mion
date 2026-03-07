@@ -18,9 +18,9 @@ import {
     getJitFunctionsFromHash,
     addRoutesToCache,
     getJitUtils,
-} from '@mionkit/core';
+} from '@mionjs/core';
 import type {Routes} from '../types/general.ts';
-import type {MethodsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache} from '@mionkit/core';
+import type {MethodsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache} from '@mionjs/core';
 import {
     cpf_asJSONString,
     cpf_getUnknownKeysFromArray,
@@ -29,7 +29,7 @@ import {
     cpf_formatErr,
     cpf_safeIterableKey,
     cpf_sanitizeCompiledFn,
-} from '@mionkit/run-types';
+} from '@mionjs/run-types';
 
 /** Re-registers run-types pure functions after resetJitFnCaches() */
 function reRegisterRunTypesPureFns(): void {

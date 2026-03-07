@@ -7,7 +7,7 @@
 
 import type {Routes} from '../types/general.ts';
 import type {CallContext} from '../types/context.ts';
-import {RpcError, MION_ROUTES, StatusCodes} from '@mionkit/core';
+import {RpcError, MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {route} from '../lib/handlers.ts';
 
 export const mionErrorsRoutes = {

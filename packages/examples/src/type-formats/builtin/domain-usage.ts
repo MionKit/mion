@@ -1,4 +1,4 @@
-import {FormatDomain, FormatDomainStrict} from '@mionkit/type-formats/StringFormats';
+import {FormatDomain, FormatDomainStrict} from '@mionjs/type-formats/StringFormats';
 
 type QuickDomain = FormatDomain;
 type DetailedDomain = FormatDomainStrict;

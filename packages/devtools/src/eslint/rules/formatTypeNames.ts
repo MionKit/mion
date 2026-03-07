@@ -8,13 +8,13 @@
 /**
  * Single source of truth for all TypeFormat type names that must NOT use `import type`.
  * Deepkit's type compiler needs actual imports to preserve type metadata for runtime reflection.
- * When new format types are added to @mionkit/type-formats or @mionkit/run-types, update this file.
+ * When new format types are added to @mionjs/type-formats or @mionjs/run-types, update this file.
  */
 
-/** Format type names from @mionkit/run-types that must not use `import type` */
+/** Format type names from @mionjs/run-types that must not use `import type` */
 export const RUN_TYPES_FORMAT_TYPES = new Set(['TypeFormat']);
 
-/** Format type names from @mionkit/type-formats that must not use `import type` */
+/** Format type names from @mionjs/type-formats that must not use `import type` */
 export const TYPE_FORMATS_FORMAT_TYPES = new Set([
     // Number formats (numberFormat.runtype.ts + defaultNumberFormats.ts)
     'FormatNumber',
@@ -87,6 +87,6 @@ export const TYPE_FORMATS_FORMAT_TYPES = new Set([
 
 /** Maps a source package prefix to the set of format type names from that package */
 export const FORMAT_TYPES_BY_PACKAGE = new Map<string, Set<string>>([
-    ['@mionkit/run-types', RUN_TYPES_FORMAT_TYPES],
-    ['@mionkit/type-formats', TYPE_FORMATS_FORMAT_TYPES],
+    ['@mionjs/run-types', RUN_TYPES_FORMAT_TYPES],
+    ['@mionjs/type-formats', TYPE_FORMATS_FORMAT_TYPES],
 ]);

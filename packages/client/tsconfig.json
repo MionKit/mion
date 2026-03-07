@@ -5,7 +5,7 @@
     "lib": ["es6", "ES2023", "DOM"],
     "composite": true,
     "rootDir": ".",
-    "types": ["@mionkit/devtools/virtual-modules"]
+    "types": ["@mionjs/devtools/virtual-modules"]
   },
   "references": [
     {"path": "../core"},

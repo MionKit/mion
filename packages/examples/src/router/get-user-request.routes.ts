@@ -1,4 +1,4 @@
-import {Routes, initMionRouter, route} from '@mionkit/router';
+import {Routes, initMionRouter, route} from '@mionjs/router';
 import {userRepository} from 'MyModels';
 import type {User} from 'MyModels';
 

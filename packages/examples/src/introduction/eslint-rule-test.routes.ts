@@ -1,8 +1,8 @@
 /* eslint-disable */
-// This file demonstrates the ESLint rules for @mionkit/router
+// This file demonstrates the ESLint rules for @mionjs/router
 // The rules are disabled for this file so you can see both valid and invalid examples
-import {HeadersSubset} from '@mionkit/core';
-import {route, middleFn, headersFn, Handler, HeaderHandler, CallContext} from '@mionkit/router';
+import {HeadersSubset} from '@mionjs/core';
+import {route, middleFn, headersFn, Handler, HeaderHandler, CallContext} from '@mionjs/router';
 
 // ========================================
 // ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
@@ -98,7 +98,7 @@ route((ctx): Result => ({success: false, error: 'failed'}));
 // ========================================
 
 // ========================================
-// Rule: @mionkit/strong-typed-routes
+// Rule: @mionjs/strong-typed-routes
 // ========================================
 
 // start:strong-typed-invalid-inline
@@ -166,7 +166,7 @@ function invalidHeadersFnJSDoc(c: CallContext, {headers}): void {
 // end:strong-typed-invalid-jsdoc
 
 // ========================================
-// Rule: @mionkit/no-unreachable-union-types
+// Rule: @mionjs/no-unreachable-union-types
 // ========================================
 
 // start:unreachable-union-basic
@@ -230,7 +230,7 @@ route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
 // end:unreachable-union-complex
 
 // ========================================
-// Rule: @mionkit/no-mixed-union-properties , !!RULE DISABLED AS DOES NOT ADD MUCH VALUE!!
+// Rule: @mionjs/no-mixed-union-properties , !!RULE DISABLED AS DOES NOT ADD MUCH VALUE!!
 // ========================================
 
 // // 1. Return object with properties from multiple union types

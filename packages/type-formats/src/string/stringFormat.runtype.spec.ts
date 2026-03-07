@@ -6,9 +6,9 @@
  * ######## */
 
 import {it, expect} from 'vitest';
-import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn, runType, getFormatterParams} from '@mionkit/run-types';
-import type {BaseRunType} from '@mionkit/run-types';
-import {RunTypeError, TypeFormatError} from '@mionkit/core';
+import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn, runType, getFormatterParams} from '@mionjs/run-types';
+import type {BaseRunType} from '@mionjs/run-types';
+import {RunTypeError, TypeFormatError} from '@mionjs/core';
 import {FormatString} from './stringFormat.runtype';
 
 // #### maxLength ####

@@ -1,4 +1,4 @@
-import {pureServerFn} from '@mionkit/devtools';
+import {pureServerFn} from '@mionjs/devtools';
 
 const SECRET = 'hidden-value';
 

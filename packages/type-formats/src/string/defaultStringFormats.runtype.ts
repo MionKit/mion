@@ -6,7 +6,7 @@
  * ######## */
 
 import {FormatString} from './stringFormat.runtype.ts';
-import {StringParams} from '@mionkit/core';
+import {StringParams} from '@mionjs/core';
 
 // ############### Default String Formats ###############
 

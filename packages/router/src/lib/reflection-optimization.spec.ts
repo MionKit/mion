@@ -10,7 +10,7 @@ import {initRouter, registerRoutes, resetRouter, getRouteExecutable, getMiddleFn
 import {route, middleFn} from './handlers.ts';
 import {getHandlerReflection} from './reflection.ts';
 import {DEFAULT_ROUTE_OPTIONS} from '../constants.ts';
-import {EMPTY_HASH, getNoopJitFns} from '@mionkit/core';
+import {EMPTY_HASH, getNoopJitFns} from '@mionjs/core';
 import {getSerializableMethod} from './remoteMethods.ts';
 import {getPersistedMethod, setPersistedMethods} from './methodsCache.ts';
 

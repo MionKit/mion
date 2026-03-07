@@ -8,5 +8,5 @@ module.exports = {
   collectCoverageFrom: ['src/**'],
   testMatch: ['**/?(*.)+(spec).ts?(x)'],
   modulePathIgnorePatterns: ['xyz-Template'],
-  moduleNameMapper: {'^@mionkit/(.*)$': '<rootDir>/../$1'},
+  moduleNameMapper: {'^@mionjs/(.*)$': '<rootDir>/../$1'},
 };

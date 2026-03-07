@@ -8,8 +8,8 @@
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {initClient} from './client.ts';
 import {HSubRequest, RSubRequest} from './types.ts';
-import {isRpcError, HeadersSubset} from '@mionkit/core';
-import {TestServerApi} from '@mionkit/test-server';
+import {isRpcError, HeadersSubset} from '@mionjs/core';
+import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
 
 // Mock localStorage for method metadata storage (still needed for clientMethodsMetadata)

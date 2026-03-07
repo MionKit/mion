@@ -1,4 +1,4 @@
-import {Routes, route} from '@mionkit/router';
+import {Routes, route} from '@mionjs/router';
 import {memoryStoreService as db} from './full-example.app.ts';
 
 export const routes = {

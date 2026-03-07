@@ -9,8 +9,8 @@
  * - Objects containing arrays, Maps, and Sets as properties
  */
 
-import {getFriendlyErrors} from '@mionkit/core';
-import type {RunTypeError, FriendlyErrorsResult} from '@mionkit/core';
+import {getFriendlyErrors} from '@mionjs/core';
+import type {RunTypeError, FriendlyErrorsResult} from '@mionjs/core';
 import {
     tagListErrors,
     userListErrors,

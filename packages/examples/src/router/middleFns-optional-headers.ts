@@ -1,5 +1,5 @@
-import {HeadersSubset} from '@mionkit/core';
-import {headersFn} from '@mionkit/router';
+import {HeadersSubset} from '@mionjs/core';
+import {headersFn} from '@mionjs/router';
 
 // HeadersSubset<RequiredHeaders, OptionalHeaders>
 // - First type parameter: required headers (must be present)

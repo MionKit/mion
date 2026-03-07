@@ -6,7 +6,7 @@
  * ######## */
 
 /**
- * Inlined from @mionkit/core/src/utils.ts to avoid the vite plugin depending on core.
+ * Inlined from @mionjs/core/src/utils.ts to avoid the vite plugin depending on core.
  * Keep in sync with the original implementation.
  */
 

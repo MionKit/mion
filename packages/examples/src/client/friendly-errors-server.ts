@@ -1,8 +1,8 @@
-import {FormatString, FormatEmail, FormatStringDateTime} from '@mionkit/type-formats/StringFormats';
-import {FormatNumber} from '@mionkit/type-formats/NumberFormats';
-import {FormatBigInt} from '@mionkit/type-formats/BigintFormats';
-import {initMionRouter, route} from '@mionkit/router';
-import {RpcError} from '@mionkit/core';
+import {FormatString, FormatEmail, FormatStringDateTime} from '@mionjs/type-formats/StringFormats';
+import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
+import {FormatBigInt} from '@mionjs/type-formats/BigintFormats';
+import {initMionRouter, route} from '@mionjs/router';
+import {RpcError} from '@mionjs/core';
 
 type UserWithFormats = {
     name: FormatString<{maxLength: 100; minLength: 2}>;

@@ -1,4 +1,4 @@
-import {FormatEmailPunycode} from '@mionkit/type-formats/StringFormats';
+import {FormatEmailPunycode} from '@mionjs/type-formats/StringFormats';
 
 type InternationalEmail = FormatEmailPunycode;
 

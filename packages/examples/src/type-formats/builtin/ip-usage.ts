@@ -1,4 +1,4 @@
-import {FormatIP, FormatIPv4, FormatIPv6, FormatIPWithPort} from '@mionkit/type-formats/StringFormats';
+import {FormatIP, FormatIPv4, FormatIPv6, FormatIPWithPort} from '@mionjs/type-formats/StringFormats';
 
 type AnyIP = FormatIP; // IPv4 or IPv6
 type OnlyV4 = FormatIPv4; // IPv4 only

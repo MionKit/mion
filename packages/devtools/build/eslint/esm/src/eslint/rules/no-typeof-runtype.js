@@ -23,7 +23,7 @@ function isRunTypeFromMionKit(node, context) {
   for (const statement of program.body) {
     if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
       const source = statement.source.value;
-      if (source === "@mionkit/run-types" || source === "@mionkit/run-types/" || typeof source === "string" && (source.endsWith("/runType") || source.endsWith("/runTypeFunctions"))) {
+      if (source === "@mionjs/run-types" || source === "@mionjs/run-types/" || typeof source === "string" && (source.endsWith("/runType") || source.endsWith("/runTypeFunctions"))) {
         for (const specifier of statement.specifiers) {
           if (specifier.type === AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === AST_NODE_TYPES.Identifier && runTypeFunctions.includes(specifier.imported.name)) {
             return true;
@@ -38,7 +38,7 @@ const rule = {
   meta: {
     type: "problem",
     docs: {
-      description: "Disallow using `typeof` with run-type functions from @mionkit/run-types"
+      description: "Disallow using `typeof` with run-type functions from @mionjs/run-types"
     },
     messages: {
       noTypeof: "Do not use `typeof` with `{{functionName}}()`. Use explicit type definitions instead."

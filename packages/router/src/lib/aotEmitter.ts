@@ -14,9 +14,9 @@ import {
     SrcCodeJITCompiledFnsCache,
     SrcCodePureFunctionsCache,
     JIT_FUNCTION_IDS,
-} from '@mionkit/core';
+} from '@mionjs/core';
 import {getPersistedMethods} from './methodsCache.ts';
-import {createToJavascriptFn} from '@mionkit/run-types';
+import {createToJavascriptFn} from '@mionjs/run-types';
 
 /** IPC message type for AOT cache emission */
 export interface AOTCacheMessage {

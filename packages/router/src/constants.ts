@@ -6,7 +6,7 @@
  * ######## */
 
 import {RouterOptions} from './types/general.ts';
-import {getENV, MION_ROUTES, PATH_SEPARATOR} from '@mionkit/core';
+import {getENV, MION_ROUTES, PATH_SEPARATOR} from '@mionjs/core';
 
 export const IS_TEST_ENV = getENV('JEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
 

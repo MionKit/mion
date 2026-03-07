@@ -7,7 +7,7 @@
  * ######## */
 
 import type {Type, TypeClass, TypeMethod, TypeObjectLiteral, TypeParameter} from '@deepkit/type';
-import type {AnyClass, FormatParamMeta, TypeFormatValue} from '@mionkit/core';
+import type {AnyClass, FormatParamMeta, TypeFormatValue} from '@mionjs/core';
 import {isType, ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind.ts';
 import {nativeUtilityStringTypes, nonSerializableClasses, nonSerializableGlobals} from '../constants.ts';

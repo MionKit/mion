@@ -4,7 +4,7 @@ import {
     createStringifyJsonFn,
     createRestoreFromJsonFn,
     createMockTypeFn,
-} from '@mionkit/run-types';
+} from '@mionjs/run-types';
 
 interface BlogPost {
     id: string;

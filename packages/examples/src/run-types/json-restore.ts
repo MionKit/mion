@@ -1,4 +1,4 @@
-import {createRestoreFromJsonFn} from '@mionkit/run-types';
+import {createRestoreFromJsonFn} from '@mionjs/run-types';
 
 interface Event {
     name: string;

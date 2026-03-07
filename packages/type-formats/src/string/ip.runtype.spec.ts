@@ -6,8 +6,8 @@
  * ######## */
 
 import {it, expect} from 'vitest';
-import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
-import {RunTypeError} from '@mionkit/core';
+import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionjs/run-types';
+import {RunTypeError} from '@mionjs/core';
 import {FormatIP, FormatIPv4, FormatIPv4WithPort, FormatIPv6, FormatIPv6WithPort} from './ip.runtype';
 
 it('should validate IPV4 values', async () => {

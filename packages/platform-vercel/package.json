@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/platform-vercel",
+  "name": "@mionjs/platform-vercel",
   "version": "0.7.2",
   "type": "module",
   "description": "mion adapter for Vercel serverless functions",
@@ -51,7 +51,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/core": "^0.7.2",
-    "@mionkit/router": "^0.7.2"
+    "@mionjs/core": "^0.7.2",
+    "@mionjs/router": "^0.7.2"
   }
 }

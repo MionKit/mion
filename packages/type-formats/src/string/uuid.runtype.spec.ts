@@ -6,9 +6,9 @@
  * ######## */
 
 import {it, expect} from 'vitest';
-import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionkit/run-types';
-import {RunTypeError} from '@mionkit/core';
-import {randomUUID_V7} from '@mionkit/core';
+import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionjs/run-types';
+import {RunTypeError} from '@mionjs/core';
+import {randomUUID_V7} from '@mionjs/core';
 import {FormatUUIDv4, FormatUUIDv7} from './uuid.runtype';
 
 // ####### UUID v4 #######

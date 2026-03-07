@@ -11,8 +11,8 @@ import {dispatchRoute} from '../dispatch.ts';
 import {route, headersFn, middleFn} from './handlers.ts';
 import {headersFromRecord} from './headers.ts';
 import {MionHeaders} from '../types/context.ts';
-import {HeadersSubset, RpcError, StatusCodes} from '@mionkit/core';
-import {JitFunctions, runType} from '@mionkit/run-types';
+import {HeadersSubset, RpcError, StatusCodes} from '@mionjs/core';
+import {JitFunctions, runType} from '@mionjs/run-types';
 
 type RawRequest = {
     headers: MionHeaders;

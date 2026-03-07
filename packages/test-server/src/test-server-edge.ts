@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Routes, initMionRouter, route, resetRouter} from '@mionkit/router';
-import {CallContext, Route} from '@mionkit/router';
-import {createVercelHandler, resetVercelHandlerOpts, setVercelHandlerOpts} from '@mionkit/platform-vercel';
+import {Routes, initMionRouter, route, resetRouter} from '@mionjs/router';
+import {CallContext, Route} from '@mionjs/router';
+import {createVercelHandler, resetVercelHandlerOpts, setVercelHandlerOpts} from '@mionjs/platform-vercel';
 
 // ############# Types #############
 

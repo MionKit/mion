@@ -14,7 +14,7 @@
   - `platform-aws`, `platform-gcloud`, `platform-bun`, `platform-node`, `platform-vercel`: Platform-specific adapters
   - `cli`: Command-line interface (not yet implemented)
   - `devtools`: Vite plugin, ESLint plugin, and dev tooling for mion
-- Run commands in specific package: `npm run <command> -w @mionkit/<packageName>`
+- Run commands in specific package: `npm run <command> -w @mionjs/<packageName>`
 - Or navigate to package directory and run commands locally
 - all devDependencies should be installed root level not in the packages
 
@@ -52,16 +52,16 @@
 - always try to use npm commands from packages instead `npx whatever command` if there is an npm command Available.
 
 ## ⚠️ Devtools Rebuild Requirement
-- The `@mionkit/devtools` package exports point to built output (`./build/`), not source. Other packages (client, test-server, router, etc.) import the **built** vite plugin and eslint rules via `@mionkit/devtools/vite-plugin` and `@mionkit/devtools/eslint`.
+- The `@mionjs/devtools` package exports point to built output (`./build/`), not source. Other packages (client, test-server, router, etc.) import the **built** vite plugin and eslint rules via `@mionjs/devtools/vite-plugin` and `@mionjs/devtools/eslint`.
 - After modifying any devtools source files, you MUST rebuild before running tests in other packages:
 
 ```bash
-npm run build -w @mionkit/devtools
+npm run build -w @mionjs/devtools
 ```
 
 - Devtools' own tests (`npx vitest run --project devtools`) import source directly and do NOT need a rebuild
 - Client, test-server, and any package using `mionVitePlugin` require the rebuilt output
-- Use `npm run dev -w @mionkit/devtools` for watch mode during active development
+- Use `npm run dev -w @mionjs/devtools` for watch mode during active development
 
 ## Code examples
 - There is a special package called `examples` that contains code examples that should compile
@@ -82,8 +82,8 @@ NEVER USE `import type` FOR TYPES THAT NEED RUNTIME REFLECTION!
 
 ```ts
 // ❌ WRONG - This breaks reflection!
-import type {TypeFormatParams, Brand} from '@mionkit/core';
+import type {TypeFormatParams, Brand} from '@mionjs/core';
 
 // ✅ CORRECT - Use regular import for types that need reflection
-import {TypeFormatParams, Brand} from '@mionkit/core';
+import {TypeFormatParams, Brand} from '@mionjs/core';
 ```

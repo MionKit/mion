@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/drizzle",
+  "name": "@mionjs/drizzle",
   "version": "0.7.2",
   "type": "module",
   "description": "drizzle extension for mion run-types",
@@ -53,9 +53,9 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/core": "^0.7.2",
-    "@mionkit/run-types": "^0.7.2",
-    "@mionkit/type-formats": "^0.7.2",
+    "@mionjs/core": "^0.7.2",
+    "@mionjs/run-types": "^0.7.2",
+    "@mionjs/type-formats": "^0.7.2",
     "drizzle-orm": "^0.38.0"
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"

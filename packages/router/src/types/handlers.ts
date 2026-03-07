@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeadersSubset} from '@mionkit/core';
+import {HeadersSubset} from '@mionjs/core';
 import {CallContext} from './context.ts';
 import {RouterOptions} from './general.ts';
 import {MayReturnError} from './publicMethods.ts';

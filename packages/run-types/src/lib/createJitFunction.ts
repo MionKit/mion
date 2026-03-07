@@ -1,4 +1,4 @@
-import {getENV, getJitUtils, type JITUtils} from '@mionkit/core';
+import {getENV, getJitUtils, type JITUtils} from '@mionjs/core';
 import type {JitFnID, Mutable, RunTypeOptions} from '../types.ts';
 import {BaseFnCompiler, JitCompilerLike, printClosure} from './jitFnCompiler.ts';
 import type {BaseRunType} from './baseRunTypes.ts';

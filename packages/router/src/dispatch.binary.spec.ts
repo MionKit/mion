@@ -9,8 +9,8 @@ import {describe, it, expect, beforeEach} from 'vitest';
 import {registerRoutes, resetRouter, initRouter, getRouteExecutionChain} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {headersFromRecord} from './lib/headers.ts';
-import {serializeBinaryBody, deserializeBinaryBody, isRpcError, SerializerModes} from '@mionkit/core';
-import {binaryTestRoutes, ComplexUser, NestedData} from '@mionkit/test-server';
+import {serializeBinaryBody, deserializeBinaryBody, isRpcError, SerializerModes} from '@mionjs/core';
+import {binaryTestRoutes, ComplexUser, NestedData} from '@mionjs/test-server';
 
 // THIS TESTS ARE INTENDED TO TEST BINARY SERIALIZATION AT ROUTER LEVEL USING DISPATCH
 

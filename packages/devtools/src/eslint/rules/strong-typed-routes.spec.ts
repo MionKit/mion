@@ -15,42 +15,42 @@ ruleTester.run('strong-typed-routes', rule, {
         // Valid route with explicit types
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, name: string): string => \`hello \${name}\`);
             `,
         },
         // Valid middleFn with explicit types
         {
             code: `
-                import { middleFn } from '@mionkit/router';
+                import { middleFn } from '@mionjs/router';
                 middleFn((ctx, data: number): void => { console.log(data); });
             `,
         },
         // Valid headersFn with explicit types
         {
             code: `
-                import { headersFn } from '@mionkit/router';
+                import { headersFn } from '@mionjs/router';
                 headersFn((ctx, [token]: [string]): boolean => true);
             `,
         },
         // Valid function expression
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route(function(ctx, name: string): string { return \`hello \${name}\`; });
             `,
         },
         // Valid with multiple parameters
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, name: string, age: number): string => \`hello \${name}, age \${age}\`);
             `,
         },
         // Valid with only context parameter (no other params to check)
         {
             code: `
-                import { middleFn } from '@mionkit/router';
+                import { middleFn } from '@mionjs/router';
                 middleFn((ctx): void => { console.log('middleFn'); });
             `,
         },
@@ -64,7 +64,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Different function names should be ignored
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 const otherFunction = (ctx, name) => \`hello \${name}\`;
                 otherFunction(null, 'test');
             `,
@@ -72,21 +72,21 @@ ruleTester.run('strong-typed-routes', rule, {
         // rawMiddleFn should be ignored (not in the list)
         {
             code: `
-                import { rawMiddleFn } from '@mionkit/router';
+                import { rawMiddleFn } from '@mionjs/router';
                 rawMiddleFn((ctx, req, resp) => undefined);
             `,
         },
         // Valid with rest parameters
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, ...args: string[]): void => { console.log(args); });
             `,
         },
         // Valid with function declaration reference
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 function sayHello(ctx, name: string): string { return \`hello \${name}\`; }
                 route(sayHello);
             `,
@@ -94,7 +94,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Valid with arrow function variable reference
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 const sayHello = (ctx, name: string): string => \`hello \${name}\`;
                 route(sayHello);
             `,
@@ -102,7 +102,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Valid with function expression variable reference
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 const sayHello = function(ctx, name: string): string { return \`hello \${name}\`; };
                 route(sayHello);
             `,
@@ -110,7 +110,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Valid with headersFn function reference
         {
             code: `
-                import { headersFn } from '@mionkit/router';
+                import { headersFn } from '@mionjs/router';
                 const authHandler = (ctx, [token]: [string]): void => { console.log(token); };
                 headersFn(authHandler);
             `,
@@ -118,7 +118,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Valid with middleFn function reference
         {
             code: `
-                import { middleFn } from '@mionkit/router';
+                import { middleFn } from '@mionjs/router';
                 function logHandler(ctx, data: number): void { console.log(data); }
                 middleFn(logHandler);
             `,
@@ -126,28 +126,28 @@ ruleTester.run('strong-typed-routes', rule, {
         // Valid with Handler type annotation
         {
             code: `
-                import { Handler } from '@mionkit/router';
+                import { Handler } from '@mionjs/router';
                 const sayHello: Handler = (ctx, name: string): string => \`hello \${name}\`;
             `,
         },
         // Valid with HeaderHandler type annotation
         {
             code: `
-                import { HeaderHandler } from '@mionkit/router';
+                import { HeaderHandler } from '@mionjs/router';
                 const authHandler: HeaderHandler = (ctx, [token]: [string]): void => { console.log(token); };
             `,
         },
         // Valid with Handler satisfies expression
         {
             code: `
-                import { Handler } from '@mionkit/router';
+                import { Handler } from '@mionjs/router';
                 const sayHello = ((ctx, name: string): string => \`hello \${name}\`) satisfies Handler;
             `,
         },
         // Valid with HeaderHandler satisfies expression
         {
             code: `
-                import { HeaderHandler } from '@mionkit/router';
+                import { HeaderHandler } from '@mionjs/router';
                 const authHandler = ((ctx, [token]: [string]): void => { console.log(token); }) satisfies HeaderHandler;
             `,
         },
@@ -185,49 +185,49 @@ ruleTester.run('strong-typed-routes', rule, {
         // Valid with default boolean parameter (primitive - type can be inferred)
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, enabled = true): string => enabled ? 'yes' : 'no');
             `,
         },
         // Valid with default string parameter (primitive - type can be inferred)
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, name = 'default'): string => \`hello \${name}\`);
             `,
         },
         // Valid with default number parameter (primitive - type can be inferred)
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, count = 0): number => count + 1);
             `,
         },
         // Valid with default null parameter (primitive - type can be inferred)
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, value = null): string => value ?? 'default');
             `,
         },
         // Valid with default negative number parameter
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, offset = -1): number => offset);
             `,
         },
         // Valid with default parameter and explicit type (still valid)
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, enabled: boolean = true): string => enabled ? 'yes' : 'no');
             `,
         },
         // Valid headersFn with default boolean parameter
         {
             code: `
-                import { headersFn } from '@mionkit/router';
+                import { headersFn } from '@mionjs/router';
                 headersFn((ctx, h: {headers: {token: string}}, returnSession = false): void => { console.log(returnSession); });
             `,
         },
@@ -236,7 +236,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Missing return type
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, name: string) => \`hello \${name}\`);
             `,
             errors: [
@@ -248,7 +248,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Missing parameter type
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, name): string => \`hello \${name}\`);
             `,
             errors: [
@@ -260,7 +260,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Missing both return type and parameter type
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, name) => \`hello \${name}\`);
             `,
             errors: [
@@ -271,7 +271,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Missing types in middleFn
         {
             code: `
-                import { middleFn } from '@mionkit/router';
+                import { middleFn } from '@mionjs/router';
                 middleFn((ctx, data) => { console.log(data); });
             `,
             errors: [
@@ -282,7 +282,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Missing types in headersFn
         {
             code: `
-                import { headersFn } from '@mionkit/router';
+                import { headersFn } from '@mionjs/router';
                 headersFn((ctx, [token]) => true);
             `,
             errors: [
@@ -293,7 +293,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Function expression missing types
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route(function(ctx, name) { return \`hello \${name}\`; });
             `,
             errors: [
@@ -304,7 +304,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Multiple parameters missing types
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, name, age) => \`hello \${name}, age \${age}\`);
             `,
             errors: [
@@ -316,7 +316,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Some parameters missing types
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, name: string, age): string => \`hello \${name}, age \${age}\`);
             `,
             errors: [
@@ -328,7 +328,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Rest parameter missing type
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, ...args): void => { console.log(args); });
             `,
             errors: [
@@ -340,7 +340,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Function declaration reference missing types
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 function sayHello(ctx, name) { return \`hello \${name}\`; }
                 route(sayHello);
             `,
@@ -352,7 +352,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Arrow function variable reference missing types
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 const sayHello = (ctx, name) => \`hello \${name}\`;
                 route(sayHello);
             `,
@@ -364,7 +364,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Function expression variable reference missing return type
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 const sayHello = function(ctx, name: string) { return \`hello \${name}\`; };
                 route(sayHello);
             `,
@@ -377,7 +377,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Function declaration reference missing parameter type
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 function sayHello(ctx, name): string { return \`hello \${name}\`; }
                 route(sayHello);
             `,
@@ -390,7 +390,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // headersFn function reference missing types
         {
             code: `
-                import { headersFn } from '@mionkit/router';
+                import { headersFn } from '@mionjs/router';
                 const authHandler = (ctx, [token]) => { console.log(token); };
                 headersFn(authHandler);
             `,
@@ -402,7 +402,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Handler type annotation missing types
         {
             code: `
-                import { Handler } from '@mionkit/router';
+                import { Handler } from '@mionjs/router';
                 const sayHello: Handler = (ctx, name) => \`hello \${name}\`;
             `,
             errors: [
@@ -413,7 +413,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // HeaderHandler type annotation missing return type
         {
             code: `
-                import { HeaderHandler } from '@mionkit/router';
+                import { HeaderHandler } from '@mionjs/router';
                 const authHandler: HeaderHandler = (ctx, [token]: [string]) => { console.log(token); };
             `,
             errors: [
@@ -425,7 +425,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Handler satisfies expression missing parameter type
         {
             code: `
-                import { Handler } from '@mionkit/router';
+                import { Handler } from '@mionjs/router';
                 const sayHello = ((ctx, name): string => \`hello \${name}\`) satisfies Handler;
             `,
             errors: [
@@ -437,7 +437,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // HeaderHandler satisfies expression missing both types
         {
             code: `
-                import { HeaderHandler } from '@mionkit/router';
+                import { HeaderHandler } from '@mionjs/router';
                 const authHandler = ((ctx, [token]) => { console.log(token); }) satisfies HeaderHandler;
             `,
             errors: [
@@ -493,7 +493,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Default parameter with non-primitive value (object) requires explicit type
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, options = {}): string => 'result');
             `,
             errors: [
@@ -505,7 +505,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Default parameter with non-primitive value (array) requires explicit type
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, items = []): string => 'result');
             `,
             errors: [
@@ -517,7 +517,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Default parameter with non-primitive value (function call) requires explicit type
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, date = new Date()): string => 'result');
             `,
             errors: [
@@ -529,7 +529,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Default parameter with non-primitive value (identifier/variable) requires explicit type
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 const defaultValue = {foo: 'bar'};
                 route((ctx, options = defaultValue): string => 'result');
             `,
@@ -542,7 +542,7 @@ ruleTester.run('strong-typed-routes', rule, {
         // Mix of valid primitive default and invalid non-primitive default
         {
             code: `
-                import { route } from '@mionkit/router';
+                import { route } from '@mionjs/router';
                 route((ctx, enabled = true, options = {}): string => 'result');
             `,
             errors: [

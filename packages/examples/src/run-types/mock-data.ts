@@ -1,4 +1,4 @@
-import {createMockTypeFn} from '@mionkit/run-types';
+import {createMockTypeFn} from '@mionjs/run-types';
 
 // start-basic
 interface User {
@@ -22,8 +22,8 @@ const user = mockUser();
 // end-basic
 
 // start-formats
-import {FormatEmail} from '@mionkit/type-formats/StringFormats';
-import {FormatPositiveInt} from '@mionkit/type-formats/NumberFormats';
+import {FormatEmail} from '@mionjs/type-formats/StringFormats';
+import {FormatPositiveInt} from '@mionjs/type-formats/NumberFormats';
 
 interface ValidatedUser {
     email: FormatEmail;

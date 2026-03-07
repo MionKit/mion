@@ -1,4 +1,4 @@
-import {reflectFunction} from '@mionkit/run-types';
+import {reflectFunction} from '@mionjs/run-types';
 
 function sayHello(name: string): string {
     return `Hello ${name}`;

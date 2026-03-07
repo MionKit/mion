@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {BaseRunType} from '@mionkit/run-types';
+import type {BaseRunType} from '@mionjs/run-types';
 import type {ReflectionKind} from '@deepkit/type';
 import type {
     BrandEmail,
@@ -28,7 +28,7 @@ import type {
     BrandUInt8,
     BrandUInt16,
     BrandUInt32,
-} from '@mionkit/core';
+} from '@mionjs/core';
 
 /** Supported database types */
 export type DatabaseType = 'postgres' | 'mysql' | 'sqlite';
@@ -40,7 +40,7 @@ type ExtractBrandName<T> = T extends {brand: infer B extends string} ? B : never
 
 /** Union of all brand name strings from formatBrands.types.ts.
  * Used as the shared key set for database-specific BrandColumnMap types.
- * If a new brand is added to @mionkit/core, add it here to trigger compile-time
+ * If a new brand is added to @mionjs/core, add it here to trigger compile-time
  * errors in any database map that hasn't been updated. */
 export type AllBrandNames =
     | ExtractBrandName<BrandEmail>
@@ -66,7 +66,7 @@ export type AllBrandNames =
 
 // ############### Drizzle Column Type Constants ###############
 // NOTE: These string values must match the drizzle-orm function names exactly.
-// Run `npm run validate:drizzle-types -w @mionkit/drizzle` to verify.
+// Run `npm run validate:drizzle-types -w @mionjs/drizzle` to verify.
 
 /** PostgreSQL-specific drizzle column types */
 export const DrizzleTypesPostgres = {

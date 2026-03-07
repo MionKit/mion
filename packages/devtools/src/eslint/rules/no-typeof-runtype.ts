@@ -29,10 +29,10 @@ function containsTypeof(typeNode: TSESTree.Node | null): boolean {
 }
 
 /**
- * Checks if a call expression is calling runType or related functions from @mionkit/run-types
+ * Checks if a call expression is calling runType or related functions from @mionjs/run-types
  * @param node The call expression node
  * @param context The ESLint context
- * @returns True if it's a runType or related function call from @mionkit/run-types
+ * @returns True if it's a runType or related function call from @mionjs/run-types
  */
 function isRunTypeFromMionKit(node: TSESTree.CallExpression, context: TSESLint.RuleContext<any, any>): boolean {
     // List of functions that should not use typeof
@@ -47,14 +47,14 @@ function isRunTypeFromMionKit(node: TSESTree.CallExpression, context: TSESLint.R
     const sourceCode = context.sourceCode;
     const program = sourceCode.ast;
 
-    // Look for import statements that import runType or related functions from @mionkit/run-types or relative paths
+    // Look for import statements that import runType or related functions from @mionjs/run-types or relative paths
     for (const statement of program.body) {
         if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
             const source = statement.source.value;
-            // Check for @mionkit/run-types package or relative imports that end with runType or runTypeFunctions
+            // Check for @mionjs/run-types package or relative imports that end with runType or runTypeFunctions
             if (
-                source === '@mionkit/run-types' ||
-                source === '@mionkit/run-types/' ||
+                source === '@mionjs/run-types' ||
+                source === '@mionjs/run-types/' ||
                 (typeof source === 'string' && (source.endsWith('/runType') || source.endsWith('/runTypeFunctions')))
             ) {
                 // Check if any of the runType functions are imported
@@ -78,7 +78,7 @@ const rule: TSESLint.RuleModule<'noTypeof', []> = {
     meta: {
         type: 'problem',
         docs: {
-            description: 'Disallow using `typeof` with run-type functions from @mionkit/run-types',
+            description: 'Disallow using `typeof` with run-type functions from @mionjs/run-types',
         },
         messages: {
             noTypeof: 'Do not use `typeof` with `{{functionName}}()`. Use explicit type definitions instead.',
@@ -89,7 +89,7 @@ const rule: TSESLint.RuleModule<'noTypeof', []> = {
     create(context) {
         return {
             CallExpression(node: TSESTree.CallExpression) {
-                // Ensure the function being called is a run-type function from @mionkit/run-types
+                // Ensure the function being called is a run-type function from @mionjs/run-types
                 if (isRunTypeFromMionKit(node, context)) {
                     // Check if type arguments contain typeof
                     const typeArguments = (node as any).typeArguments || (node as any).typeParameters;

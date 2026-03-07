@@ -2620,10 +2620,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     basePath: "/api/mion"
   };
   let vercelOptions = { ...DEFAULT_VERCEL_OPTIONS };
-  let defaultHeaders = [["server", "@mionkit"]];
+  let defaultHeaders = [["server", "@mionjs"]];
   function resetVercelHandlerOpts() {
     vercelOptions = { ...DEFAULT_VERCEL_OPTIONS };
-    defaultHeaders = [["server", "@mionkit"]];
+    defaultHeaders = [["server", "@mionjs"]];
     resetRouter();
   }
   function setVercelHandlerOpts(options2) {
@@ -2631,7 +2631,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       ...vercelOptions,
       ...options2
     };
-    defaultHeaders = [["server", "@mionkit"], ...Object.entries(vercelOptions.defaultResponseHeaders)];
+    defaultHeaders = [["server", "@mionjs"], ...Object.entries(vercelOptions.defaultResponseHeaders)];
     return vercelOptions;
   }
   async function handleRequest(req) {
