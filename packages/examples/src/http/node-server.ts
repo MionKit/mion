@@ -1,9 +1,9 @@
-import {createServer} from 'http';
-import {initMionHttp} from '@mionjs/platform-node';
+import {startNodeServer} from '@mionjs/platform-node';
+import {initMionRouter} from '@mionjs/router';
 import {routes} from './node-routes.ts';
 
-const server = createServer(initMionHttp(routes));
+await initMionRouter(routes);
 
-server.listen(3000, () => {
-    console.log('Server running at http://localhost:3000');
-});
+const server = await startNodeServer({port: 3000});
+
+console.log('Server running at http://localhost:3000');

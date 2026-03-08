@@ -1,7 +1,9 @@
-import {initMionHttp} from '@mionjs/platform-node';
+import {startNodeServer} from '@mionjs/platform-node';
+import {initMionRouter} from '@mionjs/router';
 import {routes} from './node-routes.ts';
 
-const handler = initMionHttp(routes, {
-    prefix: '/api', // API prefix
-    // ... other router options
+await initMionRouter(routes, {
+    basePath: 'api', // API prefix
 });
+
+await startNodeServer({port: 3000});
