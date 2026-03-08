@@ -134,7 +134,7 @@ describe('RoutesFlow routes', () => {
         });
 
         it('should execute routesFlow with prefix', async () => {
-            await initRouter({prefix: 'api/v1'});
+            await initRouter({basePath: 'api/v1'});
             await registerRoutes(routes);
 
             const request = getDefaultRequest({

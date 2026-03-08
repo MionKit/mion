@@ -35,6 +35,6 @@ const routes = {
 } satisfies Routes;
 
 // Initialize the router - this will call emitAOTCaches() automatically when MION_COMPILE=true
-export const testApiPromise: Promise<PublicApi<typeof routes>> = initMionRouter(routes, {prefix: 'api/v1'});
+export const testApiPromise: Promise<PublicApi<typeof routes>> = initMionRouter(routes, {basePath: 'api/v1'});
 
 export {routes};

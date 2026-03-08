@@ -9,7 +9,7 @@ import {describe, it, expect, beforeAll} from 'vitest';
 import {initRouter, registerRoutes, resetRouter, route} from '@mionjs/router';
 import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambda.ts';
 import createEvent from '@serverless/event-mocks';
-import type {CallContext, Route} from '@mionjs/router';
+import type {CallContext, Route, RouterOptions} from '@mionjs/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
@@ -77,7 +77,7 @@ describe('serverless router', () => {
         beforeAll(async () => {
             resetAwsLambdaOpts();
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
         });
 
@@ -132,9 +132,9 @@ describe('serverless router', () => {
         });
 
         it('get default headers', async () => {
-            const routerOpts = {
+            const routerOpts: Partial<RouterOptions> = {
                 contextDataFactory: getSharedData,
-                prefix: 'api/',
+                basePath: 'api/',
             };
             const awsOpts = {
                 defaultResponseHeaders: {
@@ -164,7 +164,7 @@ describe('serverless router', () => {
             // Restore router state for subsequent tests
             resetAwsLambdaOpts();
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
         });
     });
@@ -173,7 +173,7 @@ describe('serverless router', () => {
         beforeAll(async () => {
             resetAwsLambdaOpts();
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
             await registerRoutes({changeUserName, getDate});
         });
 

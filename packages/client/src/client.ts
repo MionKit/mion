@@ -10,7 +10,7 @@ import {
     CallWithMiddleFnsResult,
     ClientOptions,
     HSubRequest,
-    InitOptions,
+    InitClientOptions,
     RSubRequest,
     SubRequest,
     RequestErrors,
@@ -28,7 +28,7 @@ import {HandlersRegistry} from './handlersRegistry.ts';
 import {MionSubRequest, findSubRequestError} from './subRequest.ts';
 
 export function initClient<RM extends RemoteApi>(
-    options: InitOptions
+    options: InitClientOptions
 ): {client: MionClient; routes: ClientRoutes<RM>; middleFns: ClientMiddleFns<RM>} {
     registerErrorDeserializers();
     const clientOptions = {

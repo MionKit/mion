@@ -33,9 +33,13 @@ export type SerializerCode = (typeof SerializerModes)[SerializerMode];
 
 // ########################################## Options ##########################################
 
-export type CoreOptions = {
+export type CoreRouterOptions = {
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
+    /** basePath for all routes */
+    basePath: string;
+    /** suffix for all routes, ie file extension etc */
+    suffix: string;
 };
 
 // ##########################################  Errors ##########################################

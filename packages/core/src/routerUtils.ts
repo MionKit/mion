@@ -7,7 +7,7 @@
 
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants.ts';
 import type {RemoteMethodOpts, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
-import type {JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
+import type {CoreRouterOptions, JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
 import {getJitUtils} from './jit/jitUtils.ts';
 
 const methodsCache: MethodsCache = {};
@@ -227,12 +227,12 @@ export function getRouterItemId(itemPointer: string[]) {
 }
 
 /** Gets a route path from a route pointer */
-export function getRoutePath(pathPointer: string[], routerOptions: {prefix: string; suffix: string}) {
+export function getRoutePath(pathPointer: string[], routerOptions: CoreRouterOptions) {
     const pathId = getRouterItemId(pathPointer);
-    const prefix = routerOptions.prefix.startsWith(ROUTE_PATH_ROOT)
-        ? routerOptions.prefix
-        : `${ROUTE_PATH_ROOT}${routerOptions.prefix}`;
-    const routePath = prefix.endsWith(PATH_SEPARATOR) ? `${prefix}${pathId}` : `${prefix}${PATH_SEPARATOR}${pathId}`;
+    const basePath = routerOptions.basePath.startsWith(ROUTE_PATH_ROOT)
+        ? routerOptions.basePath
+        : `${ROUTE_PATH_ROOT}${routerOptions.basePath}`;
+    const routePath = basePath.endsWith(PATH_SEPARATOR) ? `${basePath}${pathId}` : `${basePath}${PATH_SEPARATOR}${pathId}`;
     return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
 }
 

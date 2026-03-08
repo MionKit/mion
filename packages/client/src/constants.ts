@@ -14,7 +14,7 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
         headers: {'Content-Type': 'application/json'},
     },
     /** Prefix for all routes, i.e: api/v1 */
-    prefix: '',
+    basePath: '',
     /** Suffix for all routes, i.e: .json */
     suffix: '',
     /** Enables automatic parameter validation */

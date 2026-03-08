@@ -8,7 +8,7 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {initRouter, registerRoutes, resetRouter, route, getRouteExecutionChain} from '@mionjs/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF.ts';
-import type {CallContext, Route} from '@mionjs/router';
+import type {CallContext, Route, RouterOptions} from '@mionjs/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes, serializeBinaryBody, deserializeBinaryBody} from '@mionjs/core';
 import {Server} from 'http';
 import {getTestServer} from '@google-cloud/functions-framework/testing';
@@ -73,7 +73,7 @@ describe('serverless router', () => {
         beforeAll(async () => {
             resetGoogleCFOpts();
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
             server = await initServer(port);
         });
@@ -155,9 +155,9 @@ describe('serverless router', () => {
 
         it('get default headers', async () => {
             const smallPort = port + 1;
-            const routerOpts = {
+            const routerOpts: Partial<RouterOptions> = {
                 contextDataFactory: getSharedData,
-                prefix: 'api/',
+                basePath: 'api/',
             };
             const httpOpts = {
                 abcd: 'hello',
@@ -201,7 +201,7 @@ describe('serverless router', () => {
             // Restore router state for the main server
             resetGoogleCFOpts();
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
 
             if (err) throw err;
@@ -222,7 +222,7 @@ describe('serverless router', () => {
         beforeAll(async () => {
             resetGoogleCFOpts();
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
             await registerRoutes({changeUserName, getDate});
             server2 = await initServer2(port2);
         });

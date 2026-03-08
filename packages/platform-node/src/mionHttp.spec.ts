@@ -67,7 +67,7 @@ describe('node http router', () => {
     describe('with serializer=stringifyJson (default)', () => {
         beforeAll(async () => {
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
         });
 
@@ -166,7 +166,7 @@ describe('node http router', () => {
 
             // Restore router state for the shared server
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
         });
 
@@ -200,7 +200,7 @@ describe('node http router', () => {
             resetNodeHttpOpts();
             setNodeHttpOpts({port});
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
             await registerRoutes({changeUserName, getDate});
         });
 
@@ -239,7 +239,7 @@ describe('node http router', () => {
             resetNodeHttpOpts();
             setNodeHttpOpts({port});
             resetRouter();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'binary'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
             await registerRoutes({changeUserName, getDate});
         });
 

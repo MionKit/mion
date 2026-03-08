@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions, SerializerMode} from '@mionjs/core';
+import {CoreRouterOptions, SerializerMode} from '@mionjs/core';
 import {ContextDataFactory} from './context.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
 import type {RunTypeOptions} from '@mionjs/run-types';
@@ -25,10 +25,10 @@ export interface Routes {
 // ####### Router Options #######
 
 /** Global Router Options */
-export interface RouterOptions<Req = any, ContextData extends Record<string, any> = any> extends CoreOptions {
-    /** prefix for all routes, i.e: api/v1.
+export interface RouterOptions<Req = any, ContextData extends Record<string, any> = any> extends CoreRouterOptions {
+    /** basePath for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
-    prefix: string;
+    basePath: string;
     /** suffix for all routes, i.e: .json.
      * Not path separators is added between the route and the suffix */
     suffix: string;

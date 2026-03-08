@@ -196,7 +196,7 @@ describe('Create routes should', () => {
     });
 
     it('add prefix & suffix to routes', async () => {
-        await initRouter({prefix: 'api/v1', suffix: '.json'});
+        await initRouter({basePath: 'api/v1', suffix: '.json'});
         await registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)

@@ -48,7 +48,7 @@ const edgeRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
     if (typeof process !== 'undefined' && process.env?.MION_COMPILE === 'true') {
         await initMionRouter(edgeRoutes, {
             contextDataFactory: getSharedData,
-            prefix: 'api/',
+            basePath: 'api/',
         });
     }
 })();
@@ -66,12 +66,11 @@ export async function setup(options?: EdgeSetupOptions) {
     resetVercelHandlerOpts();
     resetRouter();
     setVercelHandlerOpts({
-        basePath: options?.basePath ?? '',
         defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
     });
     await initMionRouter(edgeRoutes, {
         contextDataFactory: getSharedData,
-        prefix: 'api/',
+        basePath: 'api/',
         serializer: options?.serializer,
         aot: true, // Use pre-compiled AOT caches (bundled via virtual modules)
     });

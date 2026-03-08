@@ -125,7 +125,7 @@
     stringifyJson: 3
   };
   const __ΩSerializerMode = [() => SerializerModes, "SerializerMode", 'i!gw"y'];
-  const __ΩCoreOptions = ["autoGenerateErrorId", "CoreOptions", 'P)4!Mw"y'];
+  const __ΩCoreRouterOptions = ["autoGenerateErrorId", "basePath", "suffix", "CoreRouterOptions", 'P)4!&4"&4#Mw$y'];
   const __ΩJitFnArgs = ["vλl", "JitFnArgs", 'P&4!&&LMw"y'];
   const __ΩJitCompiledFnData = ["typeName", "fnID", "jitFnHash", () => __ΩJitFnArgs, "args", () => __ΩJitFnArgs, "defaultParamValues", "isNoop", "code", "jitDependencies", "pureFnDependencies", "paramNames", "JitCompiledFnData", `P&4!9&4"9&4#9n$4%9n&4'9)4(89&4)9&F4*9&F4+9&F4,8Mw-y`];
   const __ΩJitCompiledFn = [() => __ΩAnyFn, "Fn", () => __ΩJitCompiledFnData, "JITUtils", "utl", "", "createJitFn", "fn", "JitCompiledFn", `n!c"Pn#P"w$2%e#!/&4'9e"!4(9Mw)y`];
@@ -611,7 +611,7 @@
   function setErrorOptions(opts2) {
     options = opts2;
   }
-  setErrorOptions.__type = ["CoreOptions", "opts", "setErrorOptions", 'P"w!2""/#'];
+  setErrorOptions.__type = ["CoreRouterOptions", "opts", "setErrorOptions", 'P"w!2""/#'];
   class TypedError extends Error {
     /**
      * Unique error identifier,
@@ -880,8 +880,8 @@
   }
   function getRoutePath(pathPointer, routerOptions2) {
     const pathId = getRouterItemId(pathPointer);
-    const prefix = routerOptions2.prefix.startsWith(ROUTE_PATH_ROOT) ? routerOptions2.prefix : `${ROUTE_PATH_ROOT}${routerOptions2.prefix}`;
-    const routePath = prefix.endsWith(PATH_SEPARATOR) ? `${prefix}${pathId}` : `${prefix}${PATH_SEPARATOR}${pathId}`;
+    const basePath = routerOptions2.basePath.startsWith(ROUTE_PATH_ROOT) ? routerOptions2.basePath : `${ROUTE_PATH_ROOT}${routerOptions2.basePath}`;
+    const routePath = basePath.endsWith(PATH_SEPARATOR) ? `${basePath}${pathId}` : `${basePath}${PATH_SEPARATOR}${pathId}`;
     return routerOptions2.suffix ? routePath + routerOptions2.suffix : routePath;
   }
   function resetRoutesCache() {
@@ -974,7 +974,7 @@
   const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
   const __ΩRouterEntry = [() => __ΩRoutes, () => __ΩMiddleFnDef, () => __ΩRouteDef, () => __ΩRawMiddleFnDef, () => __ΩHeadersMiddleFnDef, "RouterEntry", 'Pn!n"n#n$n%Jw&y'];
   const __ΩRoutes = [() => __ΩRouterEntry, "Routes", 'P&n!LMw"y'];
-  const __ΩRouterOptions = ["Req", "ContextData", () => __ΩCoreOptions, "prefix", "suffix", "request", "path", "", "pathTransform", () => __ΩContextDataFactory, "contextDataFactory", () => __ΩSerializerMode, "serializer", "RunTypeOptions", "runTypeOptions", "getPublicRoutesData", "autoGenerateErrorId", "skipClientRoutes", "aot", "maxContextPoolSize", "maxRoutesFlowsCacheSize", "RouterOptions", `"c!"c"Pn#&4$&4%Pe#!2&&2'&/(4)8e""o*"4+8n,4-"w.4/)40)41)42)43'44'45Mw6y`];
+  const __ΩRouterOptions = ["Req", "ContextData", () => __ΩCoreRouterOptions, "basePath", "suffix", "request", "path", "", "pathTransform", () => __ΩContextDataFactory, "contextDataFactory", () => __ΩSerializerMode, "serializer", "RunTypeOptions", "runTypeOptions", "getPublicRoutesData", "autoGenerateErrorId", "skipClientRoutes", "aot", "maxContextPoolSize", "maxRoutesFlowsCacheSize", "RouterOptions", `"c!"c"Pn#&4$&4%Pe#!2&&2'&/(4)8e""o*"4+8n,4-"w.4/)40)41)42)43'44'45Mw6y`];
   function isMiddleFnDef(entry) {
     return entry.type === HandlerType$1.middleFn;
   }
@@ -1014,7 +1014,7 @@
   const HEADER_HOOK_DEFAULT_PARAMS = ["context", "headers"];
   const DEFAULT_ROUTE_OPTIONS = {
     /** Prefix for all routes, i.e: api/v1. Path separator is added between the prefix and the route */
-    prefix: "",
+    basePath: "",
     /** Suffix for all routes, i.e: .json. No path separator is added between the route and the suffix */
     suffix: "",
     /** Function that transforms the path before finding a route */
@@ -1037,7 +1037,6 @@
     maxRoutesFlowsCacheSize: 100
   };
   const MAX_ROUTE_NESTING = 10;
-  const NOT_FOUND_PATH = `${PATH_SEPARATOR}${MION_ROUTES.notFound}`;
   const WORKFLOW_KEY = `mion-routes-flow`;
   const WORKFLOW_PATH = `${PATH_SEPARATOR}${WORKFLOW_KEY}`;
   function join(...parts) {
@@ -2117,10 +2116,13 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return SerializerModes.json;
   }
   function getExecutionChain(originalPath, transformedPath, urlQuery, rawRequest, opts2) {
-    if (originalPath === WORKFLOW_PATH) return getRoutesFlowExecutionChain(rawRequest, opts2, urlQuery);
+    const hasPrefix = !!opts2.basePath;
+    const isRoutesFlowPath = hasPrefix ? originalPath.endsWith(WORKFLOW_PATH) : originalPath === WORKFLOW_PATH;
+    if (isRoutesFlowPath) return getRoutesFlowExecutionChain(rawRequest, opts2, urlQuery);
     let executionChain = getRouteExecutionChain(transformedPath);
     if (!executionChain) {
-      executionChain = getRouteExecutionChain(NOT_FOUND_PATH);
+      const notFoundPath = getRoutePath([MION_ROUTES.notFound], opts2);
+      executionChain = getRouteExecutionChain(notFoundPath);
       if (!executionChain) {
         throw new RpcError({
           statusCode: StatusCodes.UNEXPECTED_ERROR,
@@ -2737,7 +2739,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     if (typeof process !== "undefined" && process.env?.MION_COMPILE === "true") {
       await initMionRouter(edgeRoutes, {
         contextDataFactory: getSharedData,
-        prefix: "api/"
+        basePath: "api/"
       });
     }
   })();
@@ -2746,12 +2748,11 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     resetVercelHandlerOpts();
     resetRouter();
     setVercelHandlerOpts({
-      basePath: options2?.basePath ?? "",
       defaultResponseHeaders: options2?.defaultResponseHeaders ?? {}
     });
     await initMionRouter(edgeRoutes, {
       contextDataFactory: getSharedData,
-      prefix: "api/",
+      basePath: "api/",
       serializer: options2?.serializer,
       aot: true
       // Use pre-compiled AOT caches (bundled via virtual modules)

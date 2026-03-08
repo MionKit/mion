@@ -170,7 +170,7 @@ function getExecutionChain(
     rawRequest: unknown,
     opts: RouterOptions
 ): RoutesFlowExecutionResult {
-    const hasPrefix = !!opts.prefix;
+    const hasPrefix = !!opts.basePath;
     // Handle routesFlow path - check if the original path ends with the workflow key
     // This works with any prefix (e.g., /mion-routes-flow, /api/v1/mion-routes-flow)
     const isRoutesFlowPath = hasPrefix ? originalPath.endsWith(WORKFLOW_PATH) : originalPath === WORKFLOW_PATH;

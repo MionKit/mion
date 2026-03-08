@@ -48,7 +48,7 @@ const cloudflareRoutes = {changeUserName, getDate, updateHeaders} satisfies Rout
     if (typeof process !== 'undefined' && process.env?.MION_COMPILE === 'true') {
         await initMionRouter(cloudflareRoutes, {
             contextDataFactory: getSharedData,
-            prefix: 'api/',
+            basePath: 'api/',
         });
     }
 })();
@@ -71,7 +71,7 @@ export async function setup(options?: CloudflareSetupOptions) {
     });
     await initMionRouter(cloudflareRoutes, {
         contextDataFactory: getSharedData,
-        prefix: 'api/',
+        basePath: 'api/',
         serializer: options?.serializer,
         aot: true, // Use pre-compiled AOT caches (bundled via virtual modules)
     });

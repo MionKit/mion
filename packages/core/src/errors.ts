@@ -6,7 +6,7 @@
  * ######## */
 
 import type {
-    CoreOptions,
+    CoreRouterOptions,
     AnyErrorParams,
     TypedErrorParams,
     DataOnly,
@@ -36,9 +36,9 @@ export interface ValidationErrorData {
  */
 export type ValidationError = RpcError<'validation-error', ValidationErrorData>;
 
-let options: CoreOptions = {...DEFAULT_CORE_OPTIONS};
+let options: CoreRouterOptions = {...DEFAULT_CORE_OPTIONS};
 
-export function setErrorOptions(opts: CoreOptions) {
+export function setErrorOptions(opts: CoreRouterOptions) {
     options = opts;
 }
 

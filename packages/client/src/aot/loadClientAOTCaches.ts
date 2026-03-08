@@ -10,7 +10,7 @@ import {jitFnsCache} from 'virtual:client-mion-aot/jit-fns';
 import {pureFnsCache} from 'virtual:client-mion-aot/pure-fns';
 import {routerCache} from 'virtual:client-mion-aot/router-cache';
 import {initClient} from '../client.ts';
-import {InitOptions} from '../types.ts';
+import {InitClientOptions} from '../types.ts';
 import type {RemoteApi} from '@mionjs/router';
 
 /** Loads the pre-generated minimal AOT caches into the client's global cache. */
@@ -20,7 +20,7 @@ export function loadClientAotCaches() {
 }
 
 /** Loads pre-generated AOT caches and initializes the client in one call. */
-export function initAOTClient<RM extends RemoteApi>(options: InitOptions) {
+export function initAOTClient<RM extends RemoteApi>(options: InitClientOptions) {
     loadClientAotCaches();
     return initClient<RM>(options);
 }

@@ -116,7 +116,7 @@ describe('mion vite plugin: e2e with real server', () => {
         options = {
             baseURL,
             fetchOptions: {},
-            prefix: '',
+            basePath: '',
             suffix: '',
             validateParams: true,
             autoGenerateErrorId: false,

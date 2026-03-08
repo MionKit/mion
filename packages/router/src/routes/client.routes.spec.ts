@@ -18,6 +18,7 @@ import {
     HandlerType,
     RouteOnlyOptions,
     RemoteMethodOpts,
+    CoreRouterOptions,
 } from '@mionjs/core';
 import {middleFn, rawMiddleFn, route} from '../lib/handlers.ts';
 import {Routes} from '../types/general.ts';
@@ -265,8 +266,9 @@ describe('Client Routes should', () => {
 
     const methodsId = MION_ROUTES.methodsMetadataById;
     const routeMethodsId = MION_ROUTES.methodsMetadataByPath;
-    const methodsPath = getRoutePath([methodsId], {prefix: '', suffix: ''});
-    const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
+    const emptyRouterOpts: CoreRouterOptions = {basePath: '', suffix: '', autoGenerateErrorId: false};
+    const methodsPath = getRoutePath([methodsId], emptyRouterOpts);
+    const routeMethodsPath = getRoutePath([routeMethodsId], emptyRouterOpts);
     const jitFnRt = runType<JitCompiledFnData>();
     const isJitCompiledFn = jitFnRt.createJitFunction(JitFunctions.isType);
     const restoreJitCompiledFn = jitFnRt.createJitFunction(JitFunctions.restoreFromJson);
@@ -440,7 +442,8 @@ describe('Restore Client Routes jit functions', () => {
     } satisfies Routes;
 
     const routeMethodsId = MION_ROUTES.methodsMetadataByPath;
-    const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
+    const emptyRouterOpts: CoreRouterOptions = {basePath: '', suffix: '', autoGenerateErrorId: false};
+    const routeMethodsPath = getRoutePath([routeMethodsId], emptyRouterOpts);
 
     afterEach(() => resetRouter());
 

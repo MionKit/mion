@@ -55,7 +55,7 @@ describe('cloudflare handler', () => {
         beforeAll(async () => {
             resetCloudflareHandlerOpts();
             setCloudflareHandlerOpts({basePath: ''});
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
             handler = createCloudflareHandler();
         });
@@ -106,7 +106,7 @@ describe('cloudflare handler', () => {
 
         it('should include default headers', async () => {
             resetCloudflareHandlerOpts();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
             setCloudflareHandlerOpts({
                 basePath: '',
@@ -132,7 +132,7 @@ describe('cloudflare handler', () => {
             // Restore state
             resetCloudflareHandlerOpts();
             setCloudflareHandlerOpts({basePath: ''});
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
             handler = createCloudflareHandler();
         });
@@ -144,7 +144,7 @@ describe('cloudflare handler', () => {
         beforeAll(async () => {
             resetCloudflareHandlerOpts();
             setCloudflareHandlerOpts({basePath: '/api/mion'});
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate});
             handler = createCloudflareHandler();
         });
@@ -167,7 +167,7 @@ describe('cloudflare handler', () => {
         beforeAll(async () => {
             resetCloudflareHandlerOpts();
             setCloudflareHandlerOpts({basePath: ''});
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
             await registerRoutes({changeUserName, getDate});
             handler = createCloudflareHandler();
         });

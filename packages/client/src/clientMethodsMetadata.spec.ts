@@ -25,7 +25,7 @@ describe('fetchRemoteMethodsMetadata', () => {
         options = {
             baseURL,
             fetchOptions: {},
-            prefix: '',
+            basePath: '',
             suffix: '',
             validateParams: true,
             autoGenerateErrorId: false,
