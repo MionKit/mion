@@ -32,7 +32,7 @@ export interface RawMethod<H extends RawMiddleFnHandler = any> extends RemoteMet
 }
 
 export type RouteOptions = Partial<
-    Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'serializer'>
+    Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'serializer' | 'isMutation'>
 >;
 export type MiddleFnOptions = Partial<
     Pick<MiddleFnMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>

@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError, HeadersSubset} from '@mionjs/core';
-import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn} from '@mionjs/router';
+import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn, query, mutation, rawMiddleFn} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
 import {FormatString, FormatEmail, FormatUUIDv4} from '@mionjs/type-formats/StringFormats';
@@ -149,6 +149,25 @@ const routes = {
         if (!pureFn?.fn) throw new RpcError({publicMessage: `Pure function "${fnName}" not found`, type: 'pure-fn-not-found'});
         return arg !== undefined ? pureFn.fn(arg) : pureFn.fn();
     }),
+
+    // rawMiddleFn to capture HTTP method from the raw IncomingMessage into ctx.shared
+    captureHttpMethod: rawMiddleFn((ctx, rawReq: any): void => {
+        ctx.shared.httpMethod = rawReq?.method || 'UNKNOWN';
+    }),
+
+    // query() route — client should use GET with ?data= for small payloads
+    getRequestInfo: query((ctx, message: string): {message: string; httpMethod: string; urlQuery: string | undefined} => ({
+        message,
+        httpMethod: ctx.shared.httpMethod || 'UNKNOWN',
+        urlQuery: ctx.urlQuery,
+    })),
+
+    // mutation() route — client should always use POST
+    mutateRequestInfo: mutation((ctx, message: string): {message: string; httpMethod: string; urlQuery: string | undefined} => ({
+        message,
+        httpMethod: ctx.shared.httpMethod || 'UNKNOWN',
+        urlQuery: ctx.urlQuery,
+    })),
 } satisfies Routes;
 
 // Get port from command line args or use default
@@ -158,7 +177,7 @@ async function startServer() {
     try {
         // Initialize router with routes using initMionRouter
         // This automatically registers internal mion routes (methodsMetadataById, etc.)
-        await initMionRouter(routes, {contextDataFactory: () => ({user: null}), skipClientRoutes: false});
+        await initMionRouter(routes, {contextDataFactory: () => ({user: null, httpMethod: null}), skipClientRoutes: false});
 
         // Set HTTP options
         setNodeHttpOpts({port});

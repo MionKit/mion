@@ -21,6 +21,24 @@ export function route<H extends Handler>(handler: H, opts?: RouteOptions): Route
     };
 }
 
+/** Route handler for read-only queries. Uses GET with ?data=base64url on the client when payload fits. */
+export function query<H extends Handler>(handler: H, opts?: RouteOptions): RouteDef<H> {
+    return {
+        type: HandlerType.route,
+        handler,
+        options: {...opts, isMutation: false},
+    };
+}
+
+/** Route handler for mutations. Explicit alias for route() with isMutation: true. */
+export function mutation<H extends Handler>(handler: H, opts?: RouteOptions): RouteDef<H> {
+    return {
+        type: HandlerType.route,
+        handler,
+        options: {...opts, isMutation: true},
+    };
+}
+
 export function middleFn<H extends Handler>(handler: H, opts?: MiddleFnOptions): MiddleFnDef<H> {
     return {
         type: HandlerType.middleFn,

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionjs/router';
+import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
@@ -14,6 +14,7 @@ import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {getENV, SerializerModes} from '@mionjs/core';
+import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
 
@@ -126,8 +127,13 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const buffer = Buffer.concat(bodyChunks);
         const contentType = httpReq.headers['content-type'] || '';
         const isBinary = contentType.startsWith('application/octet-stream');
-        const reqRawBody = isBinary ? buffer : buffer.toString();
-        const reqBodyType = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
+        let reqRawBody: any = isBinary ? buffer : buffer.toString();
+        let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
+        const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
+        if (queryBody) {
+            reqRawBody = queryBody.rawBody;
+            reqBodyType = queryBody.bodyType;
+        }
 
         try {
             const mionResponse = await dispatchRoute(

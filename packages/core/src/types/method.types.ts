@@ -48,11 +48,14 @@ export interface RemoteMethodOpts {
     description?: string;
     /** Per-route serializer mode override. If not set, uses router's default serialize option. */
     serializer?: SerializerMode;
+    /** Whether this route mutates data. Only set for route handlers, undefined for middleFns. */
+    isMutation?: boolean;
 }
 
 export interface RouteOnlyOptions extends RemoteMethodOpts {
     runOnError: false;
     serializer: SerializerMode;
+    isMutation: boolean;
 }
 export interface MethodWithOptions extends MethodMetadata {
     options: RemoteMethodOpts;

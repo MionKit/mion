@@ -6,7 +6,8 @@
  * ######## */
 
 import {RpcError, SerializerModes} from '@mionjs/core';
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter} from '@mionjs/router';
+import type {SerializerCode} from '@mionjs/core';
+import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody} from '@mionjs/router';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants.ts';
@@ -43,14 +44,19 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
     const contentType = rawRequest.headers['content-type'] || '';
     const isBinary = contentType.startsWith('application/octet-stream');
-    const rawBody = isBinary ? (rawRequest as any).rawBody : rawRequest.body;
-    const reqBodyType = isBinary
+    let rawBody = isBinary ? (rawRequest as any).rawBody : rawRequest.body;
+    let reqBodyType: SerializerCode = isBinary
         ? SerializerModes.binary
         : typeof rawBody === 'string'
           ? SerializerModes.stringifyJson
           : SerializerModes.json;
     // Extract query string from Express request
     const urlQuery = rawRequest.originalUrl?.includes('?') ? rawRequest.originalUrl.split('?')[1] : undefined;
+    const queryBody = decodeQueryBody(urlQuery, rawBody);
+    if (queryBody) {
+        rawBody = queryBody.rawBody;
+        reqBodyType = queryBody.bodyType;
+    }
 
     try {
         const routeResponse = await dispatchRoute(
