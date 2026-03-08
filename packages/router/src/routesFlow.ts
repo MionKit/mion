@@ -13,6 +13,7 @@ import {
     HandlerType,
     getNoopJitFns,
     PURE_SERVER_FN_NAMESPACE,
+    fromBase64Url,
 } from '@mionjs/core';
 import {serverPureFnsCache} from 'virtual:mion-server-pure-fns';
 import {getRouteExecutionChain, getRouterOptions, startMiddleFns, endMiddleFns} from './router.ts';
@@ -64,16 +65,17 @@ function addToRoutesFlowCache(query: string, chain: MethodsExecutionChain): void
 
 // ############# QUERY PARSING #############
 
-/** Decodes a base64-encoded JSON routesFlow query string */
+/** Decodes a base64url-encoded JSON routesFlow query string, expects `data=<base64url>` format */
 function decodeRoutesFlowQuery(urlQuery: string): RoutesFlowQuery {
     try {
-        const jsonString = atob(urlQuery);
+        const dataParam = urlQuery.startsWith('data=') ? urlQuery.slice(5) : urlQuery;
+        const jsonString = fromBase64Url(dataParam);
         return JSON.parse(jsonString) as RoutesFlowQuery;
     } catch (e: any) {
         throw new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,
             type: 'routesFlow-invalid-query',
-            publicMessage: 'RoutesFlow query string is not valid base64-encoded JSON.',
+            publicMessage: 'RoutesFlow query string is not valid base64url-encoded JSON.',
             errorData: {parseError: e?.message || 'Unknown error'},
         });
     }

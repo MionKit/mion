@@ -10,16 +10,16 @@ import {registerRoutes, resetRouter, initRouter} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
-import {RpcError} from '@mionjs/core';
+import {RpcError, toBase64Url} from '@mionjs/core';
 import {middleFn, route} from './lib/handlers.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {clearRoutesFlowCache, getRoutesFlowCacheSize, getCachedRoutesFlow} from './routesFlow.ts';
 import {WORKFLOW_KEY, WORKFLOW_PATH} from './constants.ts';
 import type {RoutesFlowQuery} from '@mionjs/core';
 
-/** Helper to encode a RoutesFlowQuery as base64 JSON (same format the client sends) */
+/** Helper to encode a RoutesFlowQuery as base64url JSON with data= prefix (same format the client sends) */
 function encodeRoutesFlowQuery(query: RoutesFlowQuery): string {
-    return Buffer.from(JSON.stringify(query)).toString('base64');
+    return `data=${toBase64Url(JSON.stringify(query))}`;
 }
 
 // RoutesFlows allow calling multiple routes in a single request, with shared context between them
@@ -258,14 +258,14 @@ describe('RoutesFlow routes', () => {
             ).rejects.toThrow('RoutesFlow request requires a query string with route paths.');
         });
 
-        it('should throw error for invalid base64 query string', async () => {
+        it('should throw error for invalid base64url query string', async () => {
             await initRouter();
             await registerRoutes(routes);
 
             const request = getDefaultRequest({route1: []});
             const routesFlowPath = WORKFLOW_PATH;
-            // Invalid base64 (not valid JSON when decoded)
-            const urlQuery = Buffer.from('not-valid-json').toString('base64');
+            // Invalid base64url (not valid JSON when decoded)
+            const urlQuery = `data=${toBase64Url('not-valid-json')}`;
 
             await expect(
                 dispatchRoute(
@@ -278,7 +278,7 @@ describe('RoutesFlow routes', () => {
                     undefined,
                     urlQuery
                 )
-            ).rejects.toThrow('RoutesFlow query string is not valid base64-encoded JSON.');
+            ).rejects.toThrow('RoutesFlow query string is not valid base64url-encoded JSON.');
         });
 
         it('should apply pathTransform to routesFlow route paths', async () => {

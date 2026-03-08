@@ -8,7 +8,7 @@
 import type {ResponseBody} from '@mionjs/router';
 import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledMiddleFnsCache} from './types.ts';
 import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/core';
-import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset} from '@mionjs/core';
+import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset, toBase64Url} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
 import {validateSubRequests} from './validation.ts';
@@ -33,7 +33,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
             const routePaths = workflowSubRequests.map((sr) => getRoutePath(sr.pointer, this.options));
             const query = buildRoutesFlowQuery(routePaths, workflowSubRequests);
             const flowPath = getRoutePath([ROUTES_FLOW_KEY], this.options);
-            this.path = `${flowPath}?${btoa(JSON.stringify(query))}`;
+            this.path = `${flowPath}?data=${toBase64Url(JSON.stringify(query))}`;
             this.requestId = 'mion-routes-flow';
             workflowSubRequests.forEach((sr) => this.addSubRequest(sr));
         } else {
