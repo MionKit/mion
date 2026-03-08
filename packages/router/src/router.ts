@@ -478,7 +478,7 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
                 validateReturn: route.options?.validateReturn ?? false,
                 description: route.options?.description,
                 serializer: route.options?.serializer ?? routerOptions.serializer,
-                isMutation: route.options?.isMutation ?? true,
+                isMutation: route.options?.isMutation,
             },
         };
         addToPersistedMethods(routeId, executable);

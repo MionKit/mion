@@ -320,6 +320,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
     private isQueryRoute(): boolean {
         if (this.workflowSubRequests) return false;
         const meta = routesCache.getMetadata(this.requestId);
+        // strict false value required for queries
         return meta?.options?.isMutation === false;
     }
 

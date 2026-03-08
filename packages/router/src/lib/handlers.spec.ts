@@ -9,7 +9,7 @@ import {describe, it, expect} from 'vitest';
 import {Routes} from '../types/general.ts';
 import {registerRoutes, initRouter} from '../router.ts';
 import {dispatchRoute} from '../dispatch.ts';
-import {route, headersFn, middleFn, rawMiddleFn} from './handlers.ts';
+import {route, headersFn, middleFn, rawMiddleFn, query, mutation} from './handlers.ts';
 import {MionHeaders} from '../types/context.ts';
 import {headersFromRecord} from './headers.ts';
 import {HandlerType, HeadersSubset} from '@mionjs/core';
@@ -55,6 +55,29 @@ describe('route & middleFns init functions', () => {
             type: HandlerType.route,
             handler: expect.any(Function),
         });
+    });
+
+    it('should initialize a query object with isMutation: false', () => {
+        const q = query((ctx, id: number): string => `id: ${id}`);
+        expect(q).toEqual({
+            type: HandlerType.route,
+            handler: expect.any(Function),
+            options: {isMutation: false},
+        });
+    });
+
+    it('should initialize a mutation object with isMutation: true', () => {
+        const m = mutation((ctx, name: string): string => `name: ${name}`);
+        expect(m).toEqual({
+            type: HandlerType.route,
+            handler: expect.any(Function),
+            options: {isMutation: true},
+        });
+    });
+
+    it('route() should not set isMutation (undefined)', () => {
+        const r = route((ctx, name: string): string => `name: ${name}`);
+        expect(r.options).toBeUndefined();
     });
 
     it('should be able to still use reflection an validate param', async () => {

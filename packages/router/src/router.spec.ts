@@ -20,7 +20,7 @@ import {
     addEndMiddleFns,
 } from './router.ts';
 import {type Routes} from './types/general.ts';
-import {middleFn, route, rawMiddleFn, headersFn} from './lib/handlers.ts';
+import {middleFn, route, rawMiddleFn, headersFn, query, mutation} from './lib/handlers.ts';
 import {HandlerType, HeadersSubset} from '@mionjs/core';
 import {isPublicExecutable} from './types/guards.ts';
 
@@ -191,6 +191,31 @@ describe('Create routes should', () => {
                 options: expect.objectContaining({
                     runOnError: false,
                 }),
+            })
+        );
+    });
+
+    it('set isMutation correctly for route(), query() and mutation()', async () => {
+        await initRouter();
+        await registerRoutes({
+            getUser: query((): null => null),
+            createUser: mutation((): null => null),
+            sayHello: route((): null => null),
+        });
+
+        expect(getRouteExecutable('getUser')).toEqual(
+            expect.objectContaining({
+                options: expect.objectContaining({isMutation: false}),
+            })
+        );
+        expect(getRouteExecutable('createUser')).toEqual(
+            expect.objectContaining({
+                options: expect.objectContaining({isMutation: true}),
+            })
+        );
+        expect(getRouteExecutable('sayHello')).toEqual(
+            expect.objectContaining({
+                options: expect.objectContaining({isMutation: undefined}),
             })
         );
     });
