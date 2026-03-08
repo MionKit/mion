@@ -1,7 +1,9 @@
-import {initMionBun} from '@mionjs/platform-bun';
+import {startBunServer} from '@mionjs/platform-bun';
+import {initMionRouter} from '@mionjs/router';
 import {routes} from './bun-routes.ts';
 
-const handler = initMionBun(routes, {
-    prefix: '/api', // API prefix
-    // ... other router options
+await initMionRouter(routes, {
+    basePath: 'api', // API prefix
 });
+
+await startBunServer({port: 3000});

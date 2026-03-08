@@ -1,7 +1,11 @@
-import {initMionGcloud} from '@mionjs/platform-gcloud';
+import {googleCFHandler, setGoogleCFOpts} from '@mionjs/platform-gcloud';
+import {initMionRouter} from '@mionjs/router';
 import {routes} from './gcloud-routes.ts';
 
-export const api = initMionGcloud(routes, {
-    prefix: '/api', // API prefix
-    // ... other router options
+await initMionRouter(routes, {
+    basePath: 'api', // API prefix
 });
+
+setGoogleCFOpts({});
+
+export const api = googleCFHandler;

@@ -1,7 +1,11 @@
-import {initMionAws} from '@mionjs/platform-aws';
+import {awsLambdaHandler, setAwsLambdaOpts} from '@mionjs/platform-aws';
+import {initMionRouter} from '@mionjs/router';
 import {routes} from './aws-routes.ts';
 
-export const handler = initMionAws(routes, {
-    prefix: '/api', // API prefix
-    // ... other router options
+await initMionRouter(routes, {
+    basePath: 'api', // API prefix
 });
+
+setAwsLambdaOpts({});
+
+export const handler = awsLambdaHandler;
