@@ -20,6 +20,7 @@ export * from './src/lib/dispatchError.ts';
 export * from './src/lib/headers.ts';
 export * from './src/lib/remoteMethods.ts';
 export * from './src/lib/handlers.ts';
+export * from './src/lib/queryBody.ts';
 export * from './src/lib/methodsCache.ts';
 // Note: aotEmitter.ts is NOT exported here to avoid loading it in production.
 // It is dynamically imported only when MION_COMPILE=true.

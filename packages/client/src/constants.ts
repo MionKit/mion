@@ -25,6 +25,9 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
     serializer: 'stringifyJson',
 };
 
+/** Maximum safe URL length for GET requests with ?data= query param */
+export const MAX_GET_URL_LENGTH = 4096;
+
 export const STORAGE_KEY = 'mionkit:client';
 
 /** RoutesFlow route key - matches router constant */

@@ -13,7 +13,7 @@ import {getRoutePath} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
 import {validateSubRequests} from './validation.ts';
 import {serializeRequestBody, deserializeResponseBody} from './serializer.ts';
-import {ROUTES_FLOW_KEY} from './constants.ts';
+import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH} from './constants.ts';
 
 export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList extends HSubRequest<any>[]> {
     readonly path: string;
@@ -67,15 +67,41 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
             const headersFromParams = extractRequestHeaders(this);
 
             const url = new URL(this.path, this.options.baseURL);
-            const fetchOptions: RequestInit = {
-                ...this.options.fetchOptions,
-                headers: {
-                    ...this.options.fetchOptions.headers,
-                    ...headersFromParams,
-                    'Content-Type': serialized.contentType,
-                },
-                body: serialized.body as BodyInit,
-            };
+            let fetchOptions: RequestInit;
+
+            if (this.isQueryRoute() && serialized.contentType.includes('json')) {
+                const encoded = toBase64Url(serialized.body as string);
+                const testUrl = new URL(this.path, this.options.baseURL);
+                testUrl.searchParams.set('data', encoded);
+
+                if (testUrl.toString().length <= MAX_GET_URL_LENGTH) {
+                    url.searchParams.set('data', encoded);
+                    fetchOptions = {
+                        ...this.options.fetchOptions,
+                        method: 'GET',
+                        headers: {...this.options.fetchOptions.headers, ...headersFromParams},
+                        body: undefined,
+                    };
+                } else {
+                    fetchOptions = {
+                        ...this.options.fetchOptions,
+                        method: 'POST',
+                        headers: {
+                            ...this.options.fetchOptions.headers,
+                            ...headersFromParams,
+                            'Content-Type': serialized.contentType,
+                        },
+                        body: serialized.body as BodyInit,
+                    };
+                }
+            } else {
+                fetchOptions = {
+                    ...this.options.fetchOptions,
+                    method: 'POST',
+                    headers: {...this.options.fetchOptions.headers, ...headersFromParams, 'Content-Type': serialized.contentType},
+                    body: serialized.body as BodyInit,
+                };
+            }
             this.response = await fetch(url, fetchOptions);
         } catch (error: any) {
             this.onError(error, 'Error executing request', errors);
@@ -288,6 +314,13 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
             const cacheKey = this.getPrefilledMiddleFnCacheKey(id);
             this.prefilledMiddleFnsCache.delete(cacheKey);
         });
+    }
+
+    /** Returns true if the route is a query (isMutation === false) and not a routesFlow */
+    private isQueryRoute(): boolean {
+        if (this.workflowSubRequests) return false;
+        const meta = routesCache.getMetadata(this.requestId);
+        return meta?.options?.isMutation === false;
     }
 
     private getPrefilledMiddleFnCacheKey(id: string): string {

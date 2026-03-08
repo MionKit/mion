@@ -6,7 +6,8 @@
  * ######## */
 
 import {RpcError, SerializerModes} from '@mionjs/core';
-import {dispatchRoute, getRouterFatalErrorResponse, headersFromRecord, resetRouter} from '@mionjs/router';
+import type {SerializerCode} from '@mionjs/core';
+import {dispatchRoute, getRouterFatalErrorResponse, headersFromRecord, resetRouter, decodeQueryBody} from '@mionjs/router';
 import type {MionResponse, MionHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
@@ -32,7 +33,7 @@ export function setAwsLambdaOpts(routerOptions?: Partial<AwsLambdaOptions>) {
 }
 
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
-    const rawBody = rawRequest.body || '';
+    let rawBody: any = rawRequest.body || '';
     const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
     const rawRespHeaders: Record<string, string> = {
         server: '@mionjs',
@@ -40,7 +41,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     };
     const respHeaders = headersFromRecord(rawRespHeaders, true);
     // AWS Lambda always receives body as string (JSON)
-    const reqBodyType = SerializerModes.stringifyJson;
+    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // Reconstruct query string from AWS parsed query parameters
     const urlQuery = rawRequest.queryStringParameters
         ? Object.entries(rawRequest.queryStringParameters)
@@ -48,6 +49,11 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
               .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v!)}`)
               .join('&')
         : undefined;
+    const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
+    if (queryBody) {
+        rawBody = queryBody.rawBody;
+        reqBodyType = queryBody.bodyType;
+    }
 
     try {
         const routeResponse = await dispatchRoute(

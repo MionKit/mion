@@ -902,4 +902,64 @@ describe('client', () => {
             }
         });
     });
+
+    // ========== Query vs Mutation (GET vs POST) E2E Tests ==========
+
+    describe('query() and mutation() handlers', () => {
+        let routes: ReturnType<typeof initClient<MyApi>>['routes'];
+        let middleFns: ReturnType<typeof initClient<MyApi>>['middleFns'];
+        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+        beforeEach(() => {
+            const client = initClient<MyApi>({baseURL});
+            routes = client.routes;
+            middleFns = client.middleFns;
+            middleFns.auth(authHeaders).prefill();
+        });
+
+        afterEach(async () => {
+            await middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('query() route should use GET and send data in URL query', async () => {
+            const [result, error] = await routes.getRequestInfo('hello from query').call();
+
+            expect(error).toBeUndefined();
+            expect(result).toBeDefined();
+            expect(result?.message).toBe('hello from query');
+            expect(result?.httpMethod).toBe('GET');
+            expect(result?.urlQuery).toContain('data=');
+        });
+
+        it('mutation() route should use POST', async () => {
+            const [result, error] = await routes.mutateRequestInfo('hello from mutation').call();
+
+            expect(error).toBeUndefined();
+            expect(result).toBeDefined();
+            expect(result?.message).toBe('hello from mutation');
+            expect(result?.httpMethod).toBe('POST');
+            // mutation routes send body via POST/PUT, urlQuery may be undefined
+        });
+
+        it('query() route should work with callWithMiddleFns', async () => {
+            const [result, error] = await routes.getRequestInfo('with middlefns').callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+            });
+
+            expect(error).toBeUndefined();
+            expect(result).toBeDefined();
+            expect(result?.message).toBe('with middlefns');
+        });
+
+        it('mutation() route should work with callWithMiddleFns', async () => {
+            const [result, error] = await routes.mutateRequestInfo('mutate with middlefns').callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+            });
+
+            expect(error).toBeUndefined();
+            expect(result).toBeDefined();
+            expect(result?.message).toBe('mutate with middlefns');
+            expect(result?.httpMethod).toBe('POST');
+        });
+    });
 });

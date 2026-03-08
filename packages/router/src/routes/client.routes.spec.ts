@@ -164,6 +164,7 @@ describe('Client Routes should', () => {
         validateParams: true,
         validateReturn: false,
         description: undefined,
+        isMutation: true,
     };
     const defaultMiddleFnOpts: RemoteMethodOpts = {
         runOnError: false,

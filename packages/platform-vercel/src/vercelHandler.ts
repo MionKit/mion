@@ -5,10 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, MionResponse} from '@mionjs/router';
+import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, MionResponse} from '@mionjs/router';
 import {DEFAULT_VERCEL_OPTIONS} from './constants.ts';
 import type {VercelHandlerOptions} from './types.ts';
 import {SerializerModes} from '@mionjs/core';
+import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 
 // ############# PRIVATE STATE #############
@@ -39,8 +40,17 @@ async function handleRequest(req: Request): Promise<Response> {
     const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
     const contentType = req.headers.get('content-type') || '';
     const isBinary = contentType.startsWith('application/octet-stream');
-    const rawBody = req.body ? (isBinary ? await req.arrayBuffer() : ((await req.json()) as Record<string, unknown>)) : {};
-    const reqBodyType = isBinary ? SerializerModes.binary : SerializerModes.json;
+    let rawBody: any = req.body
+        ? isBinary
+            ? await req.arrayBuffer()
+            : ((await req.json()) as Record<string, unknown>)
+        : undefined;
+    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.json;
+    const queryBody = decodeQueryBody(urlQuery, rawBody);
+    if (queryBody) {
+        rawBody = queryBody.rawBody;
+        reqBodyType = queryBody.bodyType;
+    }
     const responseHeaders = new Headers(defaultHeaders);
 
     try {

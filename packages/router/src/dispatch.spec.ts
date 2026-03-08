@@ -10,9 +10,10 @@ import {registerRoutes, resetRouter, initRouter} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {CallContext, MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
-import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes} from '@mionjs/core';
-import {headersFn, middleFn, route} from './lib/handlers.ts';
+import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
+import {headersFn, middleFn, route, query, mutation} from './lib/handlers.ts';
 import {headersFromRecord} from './lib/headers.ts';
+import {decodeQueryBody} from './lib/queryBody.ts';
 
 type RawRequest = {
     headers: MionHeaders;
@@ -582,6 +583,102 @@ describe('Dispatch routes', () => {
                 type: 'validation-error',
             });
         });
+    });
+});
+
+describe('Query body decoding (data in URL query)', () => {
+    type SimpleUser = {
+        name: string;
+        surname: string;
+    };
+    const shared = {auth: {me: null as any}};
+    const getSharedData = (): typeof shared => shared;
+
+    /** Simulates what platform adapters do: decode query body before dispatch */
+    function decodeAndDispatch(path: string, rawBody: any, urlQuery: string | undefined) {
+        const queryBody = decodeQueryBody(urlQuery, rawBody);
+        const finalBody = queryBody ? queryBody.rawBody : rawBody;
+        const finalBodyType = queryBody ? queryBody.bodyType : undefined;
+        return dispatchRoute(
+            path,
+            finalBody,
+            headersFromRecord({}),
+            headersFromRecord({}),
+            {headers: headersFromRecord({})},
+            {},
+            finalBodyType,
+            urlQuery
+        );
+    }
+
+    beforeEach(() => resetRouter());
+
+    it('should dispatch a query route with base64url-encoded body in ?data= param', async () => {
+        await initRouter({contextDataFactory: getSharedData});
+        const getUser = query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+        await registerRoutes({getUser});
+
+        const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
+        const encoded = toBase64Url(body);
+
+        const response = await decodeAndDispatch('/getUser', undefined, `data=${encoded}`);
+        expect(response.hasErrors).toBeFalsy();
+        expect(response.body['getUser']).toEqual('Leo Tungsten');
+    });
+
+    it('should dispatch a mutation route with base64url-encoded body in ?data= param', async () => {
+        await initRouter({contextDataFactory: getSharedData});
+        const updateUser = mutation(
+            (ctx, user: SimpleUser): SimpleUser => ({name: user.name.toUpperCase(), surname: user.surname})
+        );
+        await registerRoutes({updateUser});
+
+        const body = JSON.stringify({updateUser: [{name: 'Leo', surname: 'Tungsten'}]});
+        const encoded = toBase64Url(body);
+
+        const response = await decodeAndDispatch('/updateUser', undefined, `data=${encoded}`);
+        expect(response.hasErrors).toBeFalsy();
+        expect(response.body['updateUser']).toEqual({name: 'LEO', surname: 'Tungsten'});
+    });
+
+    it('should prefer rawBody over query data when both are present', async () => {
+        await initRouter({contextDataFactory: getSharedData});
+        const getUser = query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+        await registerRoutes({getUser});
+
+        const bodyFromPost = JSON.stringify({getUser: [{name: 'FromBody', surname: 'Post'}]});
+        const bodyFromQuery = JSON.stringify({getUser: [{name: 'FromQuery', surname: 'Get'}]});
+        const encoded = toBase64Url(bodyFromQuery);
+
+        const response = await decodeAndDispatch('/getUser', bodyFromPost, `data=${encoded}`);
+        expect(response.hasErrors).toBeFalsy();
+        expect(response.body['getUser']).toEqual('FromBody Post');
+    });
+
+    it('should handle ?data= with other query params', async () => {
+        await initRouter({contextDataFactory: getSharedData});
+        const getUser = query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+        await registerRoutes({getUser});
+
+        const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
+        const encoded = toBase64Url(body);
+
+        const response = await decodeAndDispatch('/getUser', undefined, `foo=bar&data=${encoded}&baz=qux`);
+        expect(response.hasErrors).toBeFalsy();
+        expect(response.body['getUser']).toEqual('Leo Tungsten');
+    });
+
+    it('should work with route() handler (backward compat) using query body', async () => {
+        await initRouter({contextDataFactory: getSharedData});
+        const getUser = route((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+        await registerRoutes({getUser});
+
+        const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
+        const encoded = toBase64Url(body);
+
+        const response = await decodeAndDispatch('/getUser', undefined, `data=${encoded}`);
+        expect(response.hasErrors).toBeFalsy();
+        expect(response.body['getUser']).toEqual('Leo Tungsten');
     });
 });
 
