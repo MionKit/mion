@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionjs/core';
-import type {Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
+import type {CoreRouterOptions, Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {TypedEvent} from './typedEvent.ts';
 
@@ -59,26 +59,29 @@ export type WorkflowRouteErrors<Routes extends RSubRequest<any>[]> = {
 };
 // type-routesFlow-route-errors-end
 
-export type ClientOptions = {
-    baseURL: string;
-    fetchOptions: RequestInit;
-    /** prefix for all routes, i.e: api/v1 */
-    prefix: string;
-    /** suffix for all routes, i.e: .json */
-    suffix: string;
-    /** enable automatic parameter validation, defaults to true */
-    validateParams: boolean;
+export interface ClientOptions extends CoreRouterOptions {
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
+    /** basePath for all routes, i.e: api/v1 */
+    basePath: string;
+    /** suffix for all routes, i.e: .json */
+    suffix: string;
+    /**  default fetch options */
+    fetchOptions: RequestInit;
+    /** enable automatic parameter validation, defaults to true */
+    validateParams: boolean;
     /** Default serializer mode */
     serializer: SerializerMode;
-};
+
+    // WTF is This why we are not using basePath?
+    baseURL: string;
+}
 
 type PublicHandler = (...args: any[]) => Promise<any>;
 type PublicMethod = PublicRoute | PublicMiddleFn | PublicHeadersFn;
 type ExtractHandler<PM extends PublicMethod> = PM extends {handler: infer H} ? H : never;
 
-export type InitOptions = Partial<ClientOptions> & {baseURL: string};
+export type InitClientOptions = Partial<ClientOptions> & {baseURL: string};
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
 

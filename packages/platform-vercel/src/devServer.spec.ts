@@ -52,7 +52,7 @@ describe('vercel dev server (node) - stringifyJson', () => {
     beforeAll(async () => {
         resetVercelHandlerOpts();
         setVercelHandlerOpts();
-        await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+        await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
         await registerRoutes({changeUserName, getDate, updateHeaders});
         server = await startVercelDevServer({port});
     });
@@ -119,7 +119,7 @@ describe('vercel dev server (node) - serializer=json', () => {
     beforeAll(async () => {
         resetVercelHandlerOpts();
         setVercelHandlerOpts();
-        await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
+        await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
         await registerRoutes({changeUserName, getDate});
         server = await startVercelDevServer({port});
     });

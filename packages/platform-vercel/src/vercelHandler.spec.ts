@@ -55,7 +55,7 @@ describe('vercel handler', () => {
         beforeAll(async () => {
             resetVercelHandlerOpts();
             setVercelHandlerOpts();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
             handler = createVercelHandler();
         });
@@ -106,7 +106,7 @@ describe('vercel handler', () => {
 
         it('should include default headers', async () => {
             resetVercelHandlerOpts();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
             setVercelHandlerOpts({
                 defaultResponseHeaders: {
@@ -131,7 +131,7 @@ describe('vercel handler', () => {
             // Restore state
             resetVercelHandlerOpts();
             setVercelHandlerOpts();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
             handler = createVercelHandler();
         });
@@ -143,7 +143,7 @@ describe('vercel handler', () => {
         beforeAll(async () => {
             resetVercelHandlerOpts();
             setVercelHandlerOpts();
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'json'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'json'});
             await registerRoutes({changeUserName, getDate});
             handler = createVercelHandler();
         });

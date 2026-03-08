@@ -122,7 +122,7 @@ describe('Public Methods should', () => {
     });
 
     it('generate public data when suing prefix and suffix', async () => {
-        await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
+        await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true, basePath: 'v1', suffix: '.json'});
         const testR = {
             auth: paramsMiddleFn,
             route1,

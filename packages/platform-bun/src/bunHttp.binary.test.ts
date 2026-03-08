@@ -39,7 +39,7 @@ describe('bun router binary serialization should', () => {
         resetBunHttpOpts();
 
         // Initialize router with binary serialization
-        await initRouter({contextDataFactory: getSharedData, prefix: 'api/', serializer: 'binary'});
+        await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
         await registerRoutes({changeUserName, getDate});
         setBunHttpOpts({port});
         server = await startBunServer();

@@ -208,10 +208,10 @@ describe('Dispatch routes', () => {
             const options = {
                 contextDataFactory: getSharedData,
                 pathTransform: (req, path: string): string => {
-                    const rPath = path.replace(`${options.prefix}/`, `${options.prefix}/${req.method.toLowerCase()}`);
+                    const rPath = path.replace(`${options.basePath}/`, `${options.basePath}/${req.method.toLowerCase()}`);
                     return rPath;
                 },
-                prefix: 'api/v1',
+                basePath: 'api/v1',
             };
             await initRouter(options);
             await registerRoutes({
@@ -223,7 +223,7 @@ describe('Dispatch routes', () => {
         });
 
         it('dispatch routes with prefix', async () => {
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/v1'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/v1'});
             await registerRoutes({changeUserName});
 
             const id = 'changeUserName';
@@ -241,7 +241,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return not-found for route without prefix when prefix is configured', async () => {
-            await initRouter({contextDataFactory: getSharedData, prefix: 'api/v1'});
+            await initRouter({contextDataFactory: getSharedData, basePath: 'api/v1'});
             await registerRoutes({changeUserName});
 
             const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);

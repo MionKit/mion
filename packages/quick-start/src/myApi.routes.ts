@@ -4,7 +4,7 @@ import {RouterOptions, initMionRouter, headersFn, middleFn, route} from '@mionjs
 export type User = {id: string; name: string; surname: string};
 
 // set options and init router
-export const routerOptions: Partial<RouterOptions> = {prefix: 'api/v1'};
+export const routerOptions: Partial<RouterOptions> = {basePath: 'api/v1'};
 export const myApi = initMionRouter(
     // all function parameters will be automatically validated before the function is called
     {

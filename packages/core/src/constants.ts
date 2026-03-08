@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CoreOptions} from './types/general.types.ts';
+import type {CoreRouterOptions} from './types/general.types.ts';
 
-export const DEFAULT_CORE_OPTIONS: CoreOptions = {
+export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
     /** automatically generate and uuid */
     autoGenerateErrorId: false,
 };

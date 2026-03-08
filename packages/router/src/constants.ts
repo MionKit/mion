@@ -15,7 +15,7 @@ export const HEADER_HOOK_DEFAULT_PARAMS = ['context', 'headers'];
 
 export const DEFAULT_ROUTE_OPTIONS = {
     /** Prefix for all routes, i.e: api/v1. Path separator is added between the prefix and the route */
-    prefix: '',
+    basePath: '',
     /** Suffix for all routes, i.e: .json. No path separator is added between the route and the suffix */
     suffix: '',
     /** Function that transforms the path before finding a route */
