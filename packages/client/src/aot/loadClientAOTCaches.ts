@@ -5,26 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/**
- * Static AOT caches entry point for non-Vite users.
- *
- * Import this module and call loadClientAotCaches() before using the client:
- *
- * ```ts
- * import { loadClientAotCaches } from '@mionjs/client/aot';
- * loadClientAotCaches();
- *
- * import { initClient } from '@mionjs/client';
- * ```
- *
- * In source (dev/test): virtual modules are resolved by the Vite plugin.
- * In production: the built `aot/build/esm/index.js` imports from disk files.
- */
-
 import {addAOTCaches, addRoutesToCache} from '@mionjs/core';
 import {jitFnsCache} from 'virtual:client-mion-aot/jit-fns';
 import {pureFnsCache} from 'virtual:client-mion-aot/pure-fns';
 import {routerCache} from 'virtual:client-mion-aot/router-cache';
+import {initClient} from '../client.ts';
+import {InitOptions} from '../types.ts';
+import type {RemoteApi} from '@mionjs/router';
 
 /** Loads the pre-generated minimal AOT caches into the client's global cache. */
 export function loadClientAotCaches() {
@@ -32,4 +19,8 @@ export function loadClientAotCaches() {
     addRoutesToCache(routerCache);
 }
 
-export {jitFnsCache, pureFnsCache, routerCache};
+/** Loads pre-generated AOT caches and initializes the client in one call. */
+export function initAOTClient<RM extends RemoteApi>(options: InitOptions) {
+    loadClientAotCaches();
+    return initClient<RM>(options);
+}

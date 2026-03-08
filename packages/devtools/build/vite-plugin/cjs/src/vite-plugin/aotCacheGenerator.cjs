@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const child_process = require("child_process");
-const fs = require("fs");
 const path = require("path");
 const src_vitePlugin_resolveModule = require("./resolveModule.cjs");
 const DEFAULT_TIMEOUT = 3e4;
@@ -151,82 +150,6 @@ export const pureFnsCache = {};
 export const routerCache = {};
 `;
 }
-const DEFAULT_DISK_PREFIX = "client-aot-";
-function writeAOTCachesToDisk(data, outDir, prefix) {
-  const p = prefix ?? DEFAULT_DISK_PREFIX;
-  const esmDir = path.join(outDir, "esm");
-  const cjsDir = path.join(outDir, "cjs");
-  fs.mkdirSync(esmDir, { recursive: true });
-  fs.mkdirSync(cjsDir, { recursive: true });
-  fs.writeFileSync(path.join(esmDir, `${p}jit-fns.js`), generateJitFnsModule(data.jitFnsCode));
-  fs.writeFileSync(path.join(esmDir, `${p}pure-fns.js`), generatePureFnsModule(data.pureFnsCode));
-  fs.writeFileSync(path.join(esmDir, `${p}router-cache.js`), generateRouterCacheModule(data.routerCacheCode));
-  fs.writeFileSync(path.join(esmDir, "index.js"), generateDiskCombinedModule(p));
-  fs.writeFileSync(path.join(cjsDir, `${p}jit-fns.cjs`), generateCjsModule("jitFnsCache", data.jitFnsCode));
-  fs.writeFileSync(path.join(cjsDir, `${p}pure-fns.cjs`), generateCjsModule("pureFnsCache", data.pureFnsCode));
-  fs.writeFileSync(path.join(cjsDir, `${p}router-cache.cjs`), generateCjsModule("routerCache", data.routerCacheCode));
-  fs.writeFileSync(path.join(cjsDir, "index.cjs"), generateCjsCombinedModule(p));
-  fs.writeFileSync(path.join(cjsDir, "package.json"), '{"type": "commonjs"}\n');
-  const jitDts = `import type { PersistedJitFunctionsCache } from '@mionjs/core';
-export declare const jitFnsCache: PersistedJitFunctionsCache;
-`;
-  const pureDts = `import type { PersistedPureFunctionsCache } from '@mionjs/core';
-export declare const pureFnsCache: PersistedPureFunctionsCache;
-`;
-  const routerDts = `import type { MethodsCache } from '@mionjs/core';
-export declare const routerCache: MethodsCache;
-`;
-  const indexDts = `export declare function loadClientAotCaches(): void;
-export { jitFnsCache } from './${p}jit-fns.js';
-export { pureFnsCache } from './${p}pure-fns.js';
-export { routerCache } from './${p}router-cache.js';
-`;
-  fs.writeFileSync(path.join(esmDir, `${p}jit-fns.d.ts`), jitDts);
-  fs.writeFileSync(path.join(esmDir, `${p}pure-fns.d.ts`), pureDts);
-  fs.writeFileSync(path.join(esmDir, `${p}router-cache.d.ts`), routerDts);
-  fs.writeFileSync(path.join(esmDir, "index.d.ts"), indexDts);
-  fs.writeFileSync(path.join(cjsDir, `${p}jit-fns.d.ts`), jitDts);
-  fs.writeFileSync(path.join(cjsDir, `${p}pure-fns.d.ts`), pureDts);
-  fs.writeFileSync(path.join(cjsDir, `${p}router-cache.d.ts`), routerDts);
-  fs.writeFileSync(path.join(cjsDir, "index.d.ts"), indexDts);
-  console.log(`[mion] AOT cache files written to ${outDir}`);
-}
-function generateDiskCombinedModule(prefix) {
-  return `/* Auto-generated combined AOT caches - do not edit */
-import { addAOTCaches, addRoutesToCache } from '@mionjs/core';
-import { jitFnsCache } from './${prefix}jit-fns.js';
-import { pureFnsCache } from './${prefix}pure-fns.js';
-import { routerCache } from './${prefix}router-cache.js';
-
-export function loadClientAotCaches() {
-    addAOTCaches(jitFnsCache, pureFnsCache);
-    addRoutesToCache(routerCache);
-}
-
-export { jitFnsCache, pureFnsCache, routerCache };
-`;
-}
-function generateCjsModule(exportName, code) {
-  return `/* Auto-generated AOT cache - do not edit */
-const ${exportName} = ${code};
-module.exports = { ${exportName} };
-`;
-}
-function generateCjsCombinedModule(prefix) {
-  return `/* Auto-generated combined AOT caches - do not edit */
-const { addAOTCaches, addRoutesToCache } = require('@mionjs/core');
-const { jitFnsCache } = require('./${prefix}jit-fns.cjs');
-const { pureFnsCache } = require('./${prefix}pure-fns.cjs');
-const { routerCache } = require('./${prefix}router-cache.cjs');
-
-function loadClientAotCaches() {
-    addAOTCaches(jitFnsCache, pureFnsCache);
-    addRoutesToCache(routerCache);
-}
-
-module.exports = { loadClientAotCaches, jitFnsCache, pureFnsCache, routerCache };
-`;
-}
 exports.generateAOTCaches = generateAOTCaches;
 exports.generateCombinedCachesModule = generateCombinedCachesModule;
 exports.generateJitFnsModule = generateJitFnsModule;
@@ -235,5 +158,4 @@ exports.generateNoopModule = generateNoopModule;
 exports.generatePureFnsModule = generatePureFnsModule;
 exports.generateRouterCacheModule = generateRouterCacheModule;
 exports.logAOTCaches = logAOTCaches;
-exports.writeAOTCachesToDisk = writeAOTCachesToDisk;
 //# sourceMappingURL=aotCacheGenerator.cjs.map

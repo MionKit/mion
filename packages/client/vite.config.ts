@@ -4,7 +4,7 @@ import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
 import {mionPlugin, cjsPackageJsonPlugin} from '@mionjs/devtools/vite-plugin';
 
-// Get all TypeScript files from a directory (excluding spec/test and aot files)
+// Get all TypeScript files from a directory (excluding spec/test files)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
     const entries: Record<string, string> = {};
     const files = readdirSync(dir);
@@ -14,9 +14,8 @@ function getSourceFiles(dir: string, base = ''): Record<string, string> {
         const relativePath = base ? `${base}/${file}` : file;
 
         if (statSync(fullPath).isDirectory()) {
-            if (file === 'aot') continue; // aot entry is built via writeToDisk, not rollup
             Object.assign(entries, getSourceFiles(fullPath, relativePath));
-        } else if (file.endsWith('.ts') && !file.endsWith('.spec.ts') && !file.endsWith('.test.ts')) {
+        } else if (file.endsWith('.ts') && !file.endsWith('.spec.ts') && !file.endsWith('.test.ts') && !file.endsWith('.d.ts')) {
             const name = relativePath.replace(/\.ts$/, '');
             entries[name] = fullPath;
         }
@@ -48,14 +47,13 @@ export default defineConfig({
             aotCaches: {
                 startServerScript: resolve(__dirname, '../router/src/defaultRoutes.ts'),
                 serverViteConfig: resolve(__dirname, '../router/vite.config.ts'),
-                writeToDisk: resolve(__dirname, '.dist/aot'),
-                writeToDiskId: 'client-mion-aot',
+                customVirtualModuleId: 'client-mion-aot',
             },
         }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
             include: ['index.ts', 'src/**/*.ts'],
-            exclude: ['**/*.spec.ts', '**/*.test.ts', 'src/aot/**', 'test/**'],
+            exclude: ['**/*.spec.ts', '**/*.test.ts', 'test/**'],
             pathsToAliases: false,
         }),
     ],
@@ -85,7 +83,7 @@ export default defineConfig({
                     preserveModulesRoot: '.',
                 },
             ],
-            external: [/^[^./]/],
+            external: (id: string) => /^[^./]/.test(id) && !id.startsWith('virtual:client-mion-aot'),
         },
     },
 });
