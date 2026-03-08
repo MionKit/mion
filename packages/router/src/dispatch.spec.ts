@@ -222,6 +222,44 @@ describe('Dispatch routes', () => {
             expect(response.body[routeId]).toEqual('hello');
         });
 
+        it('dispatch routes with prefix', async () => {
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/v1'});
+            await registerRoutes({changeUserName});
+
+            const id = 'changeUserName';
+            const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
+
+            const response = await dispatchRoute(
+                '/api/v1/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
+            expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+        });
+
+        it('return not-found for route without prefix when prefix is configured', async () => {
+            await initRouter({contextDataFactory: getSharedData, prefix: 'api/v1'});
+            await registerRoutes({changeUserName});
+
+            const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
+
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
+            // Should hit not-found since the path doesn't include the prefix
+            const error = response.body[MION_ROUTES.thrownErrors]?.[MION_ROUTES.notFound] as RpcError<string>;
+            expect(error).toBeDefined();
+            expect(error.type).toEqual('route-not-found');
+        });
+
         // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another middleFn it wil work
         it('support async handlers and ensure execution in order', async () => {
             await initRouter({contextDataFactory: getSharedData});

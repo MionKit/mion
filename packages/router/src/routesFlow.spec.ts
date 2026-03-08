@@ -133,6 +133,35 @@ describe('RoutesFlow routes', () => {
             expect(response.body.routeSum).toBe(30);
         });
 
+        it('should execute routesFlow with prefix', async () => {
+            await initRouter({prefix: 'api/v1'});
+            await registerRoutes(routes);
+
+            const request = getDefaultRequest({
+                route1: [],
+                routeX2: [5],
+            });
+            // Client sends the routesFlow request to the prefixed path
+            const routesFlowPath = '/api/v1/mion-routes-flow';
+            // Route paths inside the query also include the prefix
+            const urlQuery = encodeRoutesFlowQuery({routes: ['/api/v1/route1', '/api/v1/routeX2']});
+
+            const response = await dispatchRoute(
+                routesFlowPath,
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                undefined,
+                undefined,
+                urlQuery
+            );
+
+            expect(response.hasErrors).toBe(false);
+            expect(response.body.route1).toBe('result1');
+            expect(response.body.routeX2).toBe(10);
+        });
+
         it('should deduplicate shared middleFns', async () => {
             clearRoutesFlowCache();
             await initRouter({contextDataFactory: () => ({middleFnCalled: 0})});

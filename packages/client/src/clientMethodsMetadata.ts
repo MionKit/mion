@@ -7,7 +7,7 @@
 
 import {jitFnsCache, pureFnsCache, routerCache} from 'virtual:mion-aot/caches';
 import {RpcError, isRpcError, addAOTCaches, addRoutesToCache, resetRoutesCache, resetJitFnCaches, isTestEnv} from '@mionjs/core';
-import {MION_ROUTES} from '@mionjs/core';
+import {MION_ROUTES, getRoutePath} from '@mionjs/core';
 import {ClientOptions, RequestBody} from './types.ts';
 import type {
     JitCompiledFnData,
@@ -38,7 +38,8 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
         [MION_ROUTES.methodsMetadataById]: [missingAfterLocal, shouldReturnAllMethods],
     };
     try {
-        const url = new URL(MION_ROUTES.methodsMetadataById, options.baseURL);
+        const path = getRoutePath([MION_ROUTES.methodsMetadataById], options);
+        const url = new URL(path, options.baseURL);
         const response = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},

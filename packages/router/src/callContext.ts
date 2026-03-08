@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {NOT_FOUND_PATH, WORKFLOW_PATH} from './constants.ts';
+import {WORKFLOW_PATH} from './constants.ts';
 import {getRouteExecutionChain} from './router.ts';
 import type {
     CallContext,
@@ -16,7 +16,7 @@ import type {
     RoutesFlowExecutionResult,
 } from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
-import {Mutable, StatusCodes, SerializerModes, SerializerCode, RpcError} from '@mionjs/core';
+import {Mutable, StatusCodes, SerializerModes, SerializerCode, RpcError, MION_ROUTES, getRoutePath} from '@mionjs/core';
 import {getRoutesFlowExecutionChain} from './routesFlow.ts';
 
 // ############# POOL STATE #############
@@ -170,14 +170,17 @@ function getExecutionChain(
     rawRequest: unknown,
     opts: RouterOptions
 ): RoutesFlowExecutionResult {
-    // Handle routesFlow path - build merged execution chain from multiple routes
-    // Compare with original path since WORKFLOW_PATH is not transformed
-    if (originalPath === WORKFLOW_PATH) return getRoutesFlowExecutionChain(rawRequest, opts, urlQuery);
+    const hasPrefix = !!opts.prefix;
+    // Handle routesFlow path - check if the original path ends with the workflow key
+    // This works with any prefix (e.g., /mion-routes-flow, /api/v1/mion-routes-flow)
+    const isRoutesFlowPath = hasPrefix ? originalPath.endsWith(WORKFLOW_PATH) : originalPath === WORKFLOW_PATH;
+    if (isRoutesFlowPath) return getRoutesFlowExecutionChain(rawRequest, opts, urlQuery);
 
     // Normal path - get execution chain from router using transformed path
     let executionChain = getRouteExecutionChain(transformedPath);
     if (!executionChain) {
-        executionChain = getRouteExecutionChain(NOT_FOUND_PATH);
+        const notFoundPath = getRoutePath([MION_ROUTES.notFound], opts);
+        executionChain = getRouteExecutionChain(notFoundPath);
         if (!executionChain) {
             throw new RpcError({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
