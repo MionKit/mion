@@ -60,21 +60,20 @@ export type WorkflowRouteErrors<Routes extends RSubRequest<any>[]> = {
 // type-routesFlow-route-errors-end
 
 export interface ClientOptions extends CoreRouterOptions {
-    /** automatically generate and uuid */
-    autoGenerateErrorId: boolean;
+    /** Base URL of the server, i.e: http://localhost:3000 */
+    baseURL: string;
     /** basePath for all routes, i.e: api/v1 */
     basePath: string;
     /** suffix for all routes, i.e: .json */
     suffix: string;
+    /** automatically generate and uuid */
+    autoGenerateErrorId: boolean;
     /**  default fetch options */
     fetchOptions: RequestInit;
     /** enable automatic parameter validation, defaults to true */
     validateParams: boolean;
     /** Default serializer mode */
     serializer: SerializerMode;
-
-    // WTF is This why we are not using basePath?
-    baseURL: string;
 }
 
 type PublicHandler = (...args: any[]) => Promise<any>;
