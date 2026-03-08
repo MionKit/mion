@@ -58,8 +58,7 @@ function mionVitePlugin(options) {
   let aotData = null;
   let aotGenerationPromise = null;
   let aotCacheDir = "";
-  const diskVirtualPrefix = aotOptions?.writeToDiskId ? `virtual:${aotOptions.writeToDiskId}` : null;
-  const diskFilePrefix = aotOptions?.writeToDiskId ? `${aotOptions.writeToDiskId}-` : void 0;
+  const diskVirtualPrefix = aotOptions?.customVirtualModuleId ? `virtual:${aotOptions.customVirtualModuleId}` : null;
   const DISK_VIRTUAL_JIT_FNS = diskVirtualPrefix ? `${diskVirtualPrefix}/jit-fns` : null;
   const DISK_VIRTUAL_PURE_FNS = diskVirtualPrefix ? `${diskVirtualPrefix}/pure-fns` : null;
   const DISK_VIRTUAL_ROUTER_CACHE = diskVirtualPrefix ? `${diskVirtualPrefix}/router-cache` : null;
@@ -183,11 +182,6 @@ function mionVitePlugin(options) {
           registerPureFnFactoryCount > 0 ? `${registerPureFnFactoryCount} registerPureFnFactory` : ""
         ].filter(Boolean);
         console.log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(", ")})`);
-      }
-    },
-    closeBundle() {
-      if (aotOptions?.writeToDisk && aotData) {
-        src_vitePlugin_aotCacheGenerator.writeAOTCachesToDisk(aotData, path.resolve(aotOptions.writeToDisk), diskFilePrefix);
       }
     },
     handleHotUpdate({ file, server }) {

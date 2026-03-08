@@ -4,7 +4,7 @@ import { createDeepkitConfig, createPureFnTransformerFactory } from "./transform
 import { scanClientSource } from "./extractPureFn.js";
 import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX } from "./constants.js";
-import { generateAOTCaches, logAOTCaches, writeAOTCachesToDisk, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
+import { generateAOTCaches, logAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
 function isIncluded(filePath, include, exclude) {
   const isTs = /\.(ts|tsx|js|jsx)$/.test(filePath);
@@ -39,8 +39,7 @@ function mionVitePlugin(options) {
   let aotData = null;
   let aotGenerationPromise = null;
   let aotCacheDir = "";
-  const diskVirtualPrefix = aotOptions?.writeToDiskId ? `virtual:${aotOptions.writeToDiskId}` : null;
-  const diskFilePrefix = aotOptions?.writeToDiskId ? `${aotOptions.writeToDiskId}-` : void 0;
+  const diskVirtualPrefix = aotOptions?.customVirtualModuleId ? `virtual:${aotOptions.customVirtualModuleId}` : null;
   const DISK_VIRTUAL_JIT_FNS = diskVirtualPrefix ? `${diskVirtualPrefix}/jit-fns` : null;
   const DISK_VIRTUAL_PURE_FNS = diskVirtualPrefix ? `${diskVirtualPrefix}/pure-fns` : null;
   const DISK_VIRTUAL_ROUTER_CACHE = diskVirtualPrefix ? `${diskVirtualPrefix}/router-cache` : null;
@@ -164,11 +163,6 @@ function mionVitePlugin(options) {
           registerPureFnFactoryCount > 0 ? `${registerPureFnFactoryCount} registerPureFnFactory` : ""
         ].filter(Boolean);
         console.log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(", ")})`);
-      }
-    },
-    closeBundle() {
-      if (aotOptions?.writeToDisk && aotData) {
-        writeAOTCachesToDisk(aotData, resolve(aotOptions.writeToDisk), diskFilePrefix);
       }
     },
     handleHotUpdate({ file, server }) {

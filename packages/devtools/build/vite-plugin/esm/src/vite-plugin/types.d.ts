@@ -6,8 +6,7 @@ export interface AOTCacheOptions {
     excludedPureFns?: string[];
     cache?: boolean | string;
     excludeReflection?: boolean;
-    writeToDisk?: string | false;
-    writeToDiskId?: string;
+    customVirtualModuleId?: string;
 }
 export interface PureServerFnRegistryEntry {
     readonly namespace: string;
