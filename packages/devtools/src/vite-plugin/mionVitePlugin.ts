@@ -277,7 +277,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             // Pure function transformer (runs first — sees clean AST)
             const collected: ExtractedPureFn[] | undefined = hasPureFns ? [] : undefined;
             if (hasPureFns) {
-                before.push(createPureFnTransformerFactory(code, fileName, collected));
+                before.push(createPureFnTransformerFactory(code, fileName, collected, pureFnOptions?.noViteClient));
             }
 
             // Deepkit has two functions: type metadata emission (follows include/exclude filters)
@@ -291,7 +291,10 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                 before.push(...deepkitConfig!.beforeTransformers);
             }
 
-            const compilerOptions = deepkitConfig!.compilerOptions ?? defaultCompilerOptions;
+            const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
+            const compilerOptions = fileName.endsWith('.tsx')
+                ? {...baseCompilerOptions, jsx: ts.JsxEmit.ReactJSX}
+                : baseCompilerOptions;
 
             const result = ts.transpileModule(code, {
                 compilerOptions,

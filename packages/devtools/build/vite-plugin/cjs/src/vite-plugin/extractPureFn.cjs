@@ -46,11 +46,11 @@ function scanClientSource(options) {
           const hasMapFrom = code.includes("mapFrom");
           if (!hasPureFn && !hasMapFrom) continue;
           if (hasPureFn) {
-            const extracted = extractPureFnsFromSource(code, fullPath);
+            const extracted = extractPureFnsFromSource(code, fullPath, "pureServerFn", options.noViteClient);
             fns.push(...extracted);
           }
           if (hasMapFrom) {
-            const extracted = extractPureFnsFromSource(code, fullPath, "mapFrom");
+            const extracted = extractPureFnsFromSource(code, fullPath, "mapFrom", options.noViteClient);
             fns.push(...extracted);
           }
         } catch (err) {
@@ -62,10 +62,10 @@ function scanClientSource(options) {
   scanDir(clientSrcPath);
   return fns;
 }
-function extractPureFnsFromSource(source, filePath, fnName = "pureServerFn") {
+function extractPureFnsFromSource(source, filePath, fnName = "pureServerFn", noViteClient = false) {
   const results = [];
   if (!source.includes(fnName)) return results;
-  const jsSource = stripTypes(source);
+  const jsSource = stripTypes(source, filePath);
   const sourceFile = ts__namespace.createSourceFile(filePath, jsSource, ts__namespace.ScriptTarget.Latest, true, ts__namespace.ScriptKind.JS);
   function visit(node) {
     if (ts__namespace.isCallExpression(node)) {
@@ -75,10 +75,10 @@ function extractPureFnsFromSource(source, filePath, fnName = "pureServerFn") {
           const extracted = extractDataFromRegisterPureFnFactoryAST(node, sourceFile, filePath);
           results.push(extracted);
         } else if (fnName === "mapFrom") {
-          const extracted = extractDataFromMapFromCallAST(node, sourceFile, filePath);
+          const extracted = extractDataFromMapFromCallAST(node, sourceFile, filePath, noViteClient);
           results.push(extracted);
         } else {
-          const extracted = extractDataFromPureFnDefAST(node, sourceFile, filePath);
+          const extracted = extractDataFromPureFnDefAST(node, sourceFile, filePath, noViteClient);
           results.push(extracted);
         }
       }
@@ -88,10 +88,11 @@ function extractPureFnsFromSource(source, filePath, fnName = "pureServerFn") {
   visit(sourceFile);
   return results;
 }
-function stripTypes(code) {
+function stripTypes(code, filePath) {
   try {
+    const loader = filePath?.endsWith(".tsx") ? "tsx" : "ts";
     const result = esbuild.transformSync(code, {
-      loader: "ts",
+      loader,
       target: "esnext",
       minify: false
     });
@@ -100,10 +101,35 @@ function stripTypes(code) {
     throw new PurityError(err.message || String(err), "<esbuild>", 0);
   }
 }
-function extractDataFromPureFnDefAST(call, sourceFile, filePath) {
+function extractDataFromPureFnDefAST(call, sourceFile, filePath, noViteClient = false) {
   if (call.arguments.length < 1 || call.arguments.length > 2) {
     throw new PurityError(
-      "pureServerFn() requires 1 or 2 arguments: a function/PureFnDef and an optional bodyHash string",
+      "pureServerFn() requires 1 or 2 arguments: a function/PureFnDef and an optional name/bodyHash string",
+      filePath,
+      call.getStart(sourceFile)
+    );
+  }
+  let userProvidedName;
+  if (call.arguments.length === 2) {
+    const nameArg = call.arguments[1];
+    if (!ts__namespace.isStringLiteral(nameArg)) {
+      throw new PurityError(
+        "pureServerFn() second argument (name/bodyHash) must be a string literal",
+        filePath,
+        nameArg.getStart(sourceFile)
+      );
+    }
+    if (nameArg.text.length === 0) {
+      throw new PurityError(
+        "pureServerFn() second argument (name/bodyHash) must not be an empty string",
+        filePath,
+        nameArg.getStart(sourceFile)
+      );
+    }
+    userProvidedName = nameArg.text;
+  } else if (noViteClient) {
+    throw new PurityError(
+      "pureServerFn() requires a name as the second argument (string literal) when noViteClient is enabled",
       filePath,
       call.getStart(sourceFile)
     );
@@ -128,10 +154,10 @@ function extractDataFromPureFnDefAST(call, sourceFile, filePath) {
     arg = resolved;
   }
   if (ts__namespace.isFunctionExpression(arg) || ts__namespace.isArrowFunction(arg)) {
-    return buildExtractedPureFn(arg, src_vitePlugin_constants.PURE_SERVER_FN_NAMESPACE, void 0, false, sourceFile, filePath);
+    return buildExtractedPureFn(arg, src_vitePlugin_constants.PURE_SERVER_FN_NAMESPACE, void 0, false, sourceFile, filePath, userProvidedName);
   }
   if (ts__namespace.isObjectLiteralExpression(arg)) {
-    return extractPureFnDefFromObjectLiteral(arg, sourceFile, filePath);
+    return extractPureFnDefFromObjectLiteral(arg, sourceFile, filePath, userProvidedName);
   }
   throw new PurityError(
     "pureServerFn() first argument must be a function, an object literal (PureFnDef), or a variable referencing one",
@@ -139,10 +165,35 @@ function extractDataFromPureFnDefAST(call, sourceFile, filePath) {
     call.arguments[0].getStart(sourceFile)
   );
 }
-function extractDataFromMapFromCallAST(call, sourceFile, filePath) {
+function extractDataFromMapFromCallAST(call, sourceFile, filePath, noViteClient = false) {
   if (call.arguments.length < 2 || call.arguments.length > 3) {
     throw new PurityError(
-      "mapFrom() requires 2 or 3 arguments: a SubRequest source, a mapper function, and an optional bodyHash string",
+      "mapFrom() requires 2 or 3 arguments: a SubRequest source, a mapper function, and an optional name/bodyHash string",
+      filePath,
+      call.getStart(sourceFile)
+    );
+  }
+  let userProvidedName;
+  if (call.arguments.length === 3) {
+    const nameArg = call.arguments[2];
+    if (!ts__namespace.isStringLiteral(nameArg)) {
+      throw new PurityError(
+        "mapFrom() third argument (name/bodyHash) must be a string literal",
+        filePath,
+        nameArg.getStart(sourceFile)
+      );
+    }
+    if (nameArg.text.length === 0) {
+      throw new PurityError(
+        "mapFrom() third argument (name/bodyHash) must not be an empty string",
+        filePath,
+        nameArg.getStart(sourceFile)
+      );
+    }
+    userProvidedName = nameArg.text;
+  } else if (noViteClient) {
+    throw new PurityError(
+      "mapFrom() requires a name as the third argument (string literal) when noViteClient is enabled",
       filePath,
       call.getStart(sourceFile)
     );
@@ -167,7 +218,7 @@ function extractDataFromMapFromCallAST(call, sourceFile, filePath) {
     arg = resolved;
   }
   if (ts__namespace.isFunctionExpression(arg) || ts__namespace.isArrowFunction(arg)) {
-    return buildExtractedPureFn(arg, src_vitePlugin_constants.PURE_SERVER_FN_NAMESPACE, void 0, false, sourceFile, filePath);
+    return buildExtractedPureFn(arg, src_vitePlugin_constants.PURE_SERVER_FN_NAMESPACE, void 0, false, sourceFile, filePath, userProvidedName);
   }
   throw new PurityError(
     "mapFrom() second argument (mapper) must be a function expression or arrow function",
@@ -278,7 +329,7 @@ function resolveVariableInitializer(name, sourceFile) {
   visit(sourceFile);
   return result;
 }
-function extractPureFnDefFromObjectLiteral(objLiteral, sourceFile, filePath) {
+function extractPureFnDefFromObjectLiteral(objLiteral, sourceFile, filePath, userProvidedName) {
   let pureFn;
   let namespace = src_vitePlugin_constants.PURE_SERVER_FN_NAMESPACE;
   let fnName;
@@ -355,9 +406,9 @@ function extractPureFnDefFromObjectLiteral(objLiteral, sourceFile, filePath) {
     throw new PurityError("PureFnDef must have a pureFn property", filePath, objLiteral.getStart(sourceFile));
   }
   const explicitFnName = fnName ?? (ts__namespace.isFunctionExpression(pureFn) && pureFn.name ? pureFn.name.text : void 0);
-  return buildExtractedPureFn(pureFn, namespace, explicitFnName, isFactory, sourceFile, filePath);
+  return buildExtractedPureFn(pureFn, namespace, explicitFnName, isFactory, sourceFile, filePath, userProvidedName);
 }
-function buildExtractedPureFn(fnNode, namespace, explicitFnName, isFactory, sourceFile, filePath) {
+function buildExtractedPureFn(fnNode, namespace, explicitFnName, isFactory, sourceFile, filePath, userProvidedName) {
   const paramNames = fnNode.parameters.map((param) => {
     if (!ts__namespace.isIdentifier(param.name)) {
       throw new PurityError(
@@ -372,6 +423,18 @@ function buildExtractedPureFn(fnNode, namespace, explicitFnName, isFactory, sour
   const fnTypeLabel = isFactory ? "factory functions" : "pure functions";
   validatePurity(bodyNode, new Set(paramNames), explicitFnName, sourceFile, filePath, fnTypeLabel);
   const bodyText = getBodyText(bodyNode, sourceFile);
+  if (userProvidedName) {
+    return {
+      namespace,
+      fnName: userProvidedName,
+      paramNames,
+      fnBody: bodyText,
+      bodyHash: userProvidedName,
+      dependencies: /* @__PURE__ */ new Set(),
+      sourceFile: filePath,
+      isFactory
+    };
+  }
   const normalizedBody = bodyText.replace(/[ \t]+/g, " ").trim();
   const bodyHash = crypto.createHash("sha256").update(namespace + normalizedBody).digest("base64url").slice(0, src_vitePlugin_constants.BODY_HASH_LENGTH);
   const fnName = explicitFnName || bodyHash;

@@ -84,13 +84,13 @@ function createDeepkitConfig(options = {}) {
     afterTransformers: [typeCompiler.declarationTransformer, requireToImport]
   };
 }
-function createPureFnTransformerFactory(originalSource, filePath, collector) {
+function createPureFnTransformerFactory(originalSource, filePath, collector, noViteClient = false) {
   const hasPureServerFn = originalSource.includes("pureServerFn");
   const hasFactory = originalSource.includes("registerPureFnFactory");
   const hasMapFrom = originalSource.includes("mapFrom");
-  const pureServerFns = hasPureServerFn ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "pureServerFn") : [];
+  const pureServerFns = hasPureServerFn ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "pureServerFn", noViteClient) : [];
   const factoryFns = hasFactory ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "registerPureFnFactory") : [];
-  const mapFromFns = hasMapFrom ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "mapFrom") : [];
+  const mapFromFns = hasMapFrom ? src_vitePlugin_extractPureFn.extractPureFnsFromSource(originalSource, filePath, "mapFrom", noViteClient) : [];
   return (context) => {
     let pureIdx = 0;
     let factoryIdx = 0;

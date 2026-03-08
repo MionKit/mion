@@ -11,6 +11,7 @@ import noUnreachableUnionTypes from './rules/no-unreachable-union-types.ts';
 import noMixedUnionProperties from './rules/no-mixed-union-properties.ts';
 import noTypeImports from './rules/no-type-imports.ts';
 import pureFunctions from './rules/pure-functions.ts';
+import noViteClient from './rules/no-vite-client.ts';
 import typeFormatsImports from './rules/type-formats-imports.ts';
 
 const plugin = {
@@ -21,6 +22,7 @@ const plugin = {
         'no-mixed-union-properties': noMixedUnionProperties,
         'no-type-imports': noTypeImports,
         'pure-functions': pureFunctions,
+        'no-vite-client': noViteClient,
         'type-formats-imports': typeFormatsImports,
     },
     configs: {} as Record<string, unknown>,

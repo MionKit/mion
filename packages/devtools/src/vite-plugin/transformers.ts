@@ -121,15 +121,16 @@ export function createDeepkitConfig(options: DeepkitTypeOptions = {}): DeepkitCo
 export function createPureFnTransformerFactory(
     originalSource: string,
     filePath: string,
-    collector?: ExtractedPureFn[]
+    collector?: ExtractedPureFn[],
+    noViteClient = false
 ): ts.CustomTransformerFactory {
     const hasPureServerFn = originalSource.includes('pureServerFn');
     const hasFactory = originalSource.includes('registerPureFnFactory');
     const hasMapFrom = originalSource.includes('mapFrom');
 
-    const pureServerFns = hasPureServerFn ? extractPureFnsFromSource(originalSource, filePath, 'pureServerFn') : [];
+    const pureServerFns = hasPureServerFn ? extractPureFnsFromSource(originalSource, filePath, 'pureServerFn', noViteClient) : [];
     const factoryFns = hasFactory ? extractPureFnsFromSource(originalSource, filePath, 'registerPureFnFactory') : [];
-    const mapFromFns = hasMapFrom ? extractPureFnsFromSource(originalSource, filePath, 'mapFrom') : [];
+    const mapFromFns = hasMapFrom ? extractPureFnsFromSource(originalSource, filePath, 'mapFrom', noViteClient) : [];
 
     return (context: ts.TransformationContext): ts.CustomTransformer => {
         let pureIdx = 0;
