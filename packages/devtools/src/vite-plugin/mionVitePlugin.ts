@@ -31,6 +31,7 @@ import {
     generateCombinedCachesModule,
     generateNoopModule,
     generateNoopCombinedModule,
+    writeAOTCachesToDisk,
     AOTCacheData,
 } from './aotCacheGenerator.ts';
 import {getOrGenerateAOTCaches, updateDiskCache, resolveCacheDir} from './aotDiskCache.ts';
@@ -129,6 +130,15 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
     // Resolved cache directory from Vite's config — set in configResolved
     let aotCacheDir = '';
 
+    // Prefixed virtual module IDs for writeToDisk (e.g., 'virtual:client-mion-aot/jit-fns')
+    const diskVirtualPrefix = aotOptions?.writeToDiskId ? `virtual:${aotOptions.writeToDiskId}` : null;
+    // Disk file name prefix derived from writeToDiskId (e.g., 'client-mion-aot-')
+    const diskFilePrefix = aotOptions?.writeToDiskId ? `${aotOptions.writeToDiskId}-` : undefined;
+    const DISK_VIRTUAL_JIT_FNS = diskVirtualPrefix ? `${diskVirtualPrefix}/jit-fns` : null;
+    const DISK_VIRTUAL_PURE_FNS = diskVirtualPrefix ? `${diskVirtualPrefix}/pure-fns` : null;
+    const DISK_VIRTUAL_ROUTER_CACHE = diskVirtualPrefix ? `${diskVirtualPrefix}/router-cache` : null;
+    const DISK_VIRTUAL_CACHES = diskVirtualPrefix ? `${diskVirtualPrefix}/caches` : null;
+
     return {
         name: 'mion',
         enforce: 'pre',
@@ -181,6 +191,12 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             if (id === VIRTUAL_AOT_ROUTER_CACHE) return resolveVirtualId(id);
             if (id === VIRTUAL_AOT_CACHES) return resolveVirtualId(id);
 
+            // Prefixed AOT virtual modules (for disk-backed caches, e.g., virtual:mion-aot-client/*)
+            if (DISK_VIRTUAL_JIT_FNS && id === DISK_VIRTUAL_JIT_FNS) return resolveVirtualId(id);
+            if (DISK_VIRTUAL_PURE_FNS && id === DISK_VIRTUAL_PURE_FNS) return resolveVirtualId(id);
+            if (DISK_VIRTUAL_ROUTER_CACHE && id === DISK_VIRTUAL_ROUTER_CACHE) return resolveVirtualId(id);
+            if (DISK_VIRTUAL_CACHES && id === DISK_VIRTUAL_CACHES) return resolveVirtualId(id);
+
             // Stub out reflection modules in the bundle build (not needed at runtime in AOT mode)
             if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== 'true' && REFLECTION_MODULES.includes(id)) {
                 return resolveVirtualId(VIRTUAL_STUB_PREFIX + id);
@@ -204,34 +220,38 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             }
 
             // AOT JIT functions + pure functions module
-            if (id === resolveVirtualId(VIRTUAL_AOT_JIT_FNS)) {
-                if (!aotData) {
-                    return generateNoopModule('No-op: AOT JIT caches not generated');
-                }
+            if (
+                id === resolveVirtualId(VIRTUAL_AOT_JIT_FNS) ||
+                (DISK_VIRTUAL_JIT_FNS && id === resolveVirtualId(DISK_VIRTUAL_JIT_FNS))
+            ) {
+                if (!aotData) return generateNoopModule('No-op: AOT JIT caches not generated');
                 return generateJitFnsModule(aotData.jitFnsCode);
             }
 
             // AOT pure functions module (standalone)
-            if (id === resolveVirtualId(VIRTUAL_AOT_PURE_FNS)) {
-                if (!aotData) {
-                    return generateNoopModule('No-op: AOT pure fns not generated');
-                }
+            if (
+                id === resolveVirtualId(VIRTUAL_AOT_PURE_FNS) ||
+                (DISK_VIRTUAL_PURE_FNS && id === resolveVirtualId(DISK_VIRTUAL_PURE_FNS))
+            ) {
+                if (!aotData) return generateNoopModule('No-op: AOT pure fns not generated');
                 return generatePureFnsModule(aotData.pureFnsCode);
             }
 
             // AOT router cache module
-            if (id === resolveVirtualId(VIRTUAL_AOT_ROUTER_CACHE)) {
-                if (!aotData) {
-                    return generateNoopModule('No-op: AOT router cache not generated');
-                }
+            if (
+                id === resolveVirtualId(VIRTUAL_AOT_ROUTER_CACHE) ||
+                (DISK_VIRTUAL_ROUTER_CACHE && id === resolveVirtualId(DISK_VIRTUAL_ROUTER_CACHE))
+            ) {
+                if (!aotData) return generateNoopModule('No-op: AOT router cache not generated');
                 return generateRouterCacheModule(aotData.routerCacheCode);
             }
 
             // Combined AOT caches module (imports all 3 above, registers and re-exports)
-            if (id === resolveVirtualId(VIRTUAL_AOT_CACHES)) {
-                if (!aotData) {
-                    return generateNoopCombinedModule();
-                }
+            if (
+                id === resolveVirtualId(VIRTUAL_AOT_CACHES) ||
+                (DISK_VIRTUAL_CACHES && id === resolveVirtualId(DISK_VIRTUAL_CACHES))
+            ) {
+                if (!aotData) return generateNoopCombinedModule();
                 return generateCombinedCachesModule();
             }
 
@@ -302,6 +322,13 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
                     registerPureFnFactoryCount > 0 ? `${registerPureFnFactoryCount} registerPureFnFactory` : '',
                 ].filter(Boolean);
                 console.log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(', ')})`);
+            }
+        },
+
+        closeBundle() {
+            // Write AOT caches to disk after the build (runs after emptyOutDir)
+            if (aotOptions?.writeToDisk && aotData) {
+                writeAOTCachesToDisk(aotData, resolve(aotOptions.writeToDisk), diskFilePrefix);
             }
         },
 

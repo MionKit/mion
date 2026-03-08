@@ -6,7 +6,8 @@
  * ######## */
 
 import {fork, ChildProcess} from 'child_process';
-import {resolve, dirname} from 'path';
+import {writeFileSync, mkdirSync} from 'fs';
+import {resolve, dirname, join} from 'path';
 import {AOTCacheOptions} from './types.ts';
 import {resolveModule} from './resolveModule.ts';
 
@@ -229,5 +230,87 @@ export function generateNoopCombinedModule(): string {
 export const jitFnsCache = {};
 export const pureFnsCache = {};
 export const routerCache = {};
+`;
+}
+
+// ============ Write to Disk ============
+
+const DEFAULT_DISK_PREFIX = 'client-aot-';
+
+/** Writes AOT cache modules to disk as ESM, CJS, and .d.ts files. */
+export function writeAOTCachesToDisk(data: AOTCacheData, outDir: string, prefix?: string): void {
+    const p = prefix ?? DEFAULT_DISK_PREFIX;
+    const esmDir = join(outDir, 'esm');
+    const cjsDir = join(outDir, 'cjs');
+    mkdirSync(esmDir, {recursive: true});
+    mkdirSync(cjsDir, {recursive: true});
+
+    // --- ESM modules ---
+    writeFileSync(join(esmDir, `${p}jit-fns.js`), generateJitFnsModule(data.jitFnsCode));
+    writeFileSync(join(esmDir, `${p}pure-fns.js`), generatePureFnsModule(data.pureFnsCode));
+    writeFileSync(join(esmDir, `${p}router-cache.js`), generateRouterCacheModule(data.routerCacheCode));
+    writeFileSync(join(esmDir, 'index.js'), generateDiskCombinedModule(p));
+
+    // --- CJS modules ---
+    writeFileSync(join(cjsDir, `${p}jit-fns.cjs`), generateCjsModule('jitFnsCache', data.jitFnsCode));
+    writeFileSync(join(cjsDir, `${p}pure-fns.cjs`), generateCjsModule('pureFnsCache', data.pureFnsCode));
+    writeFileSync(join(cjsDir, `${p}router-cache.cjs`), generateCjsModule('routerCache', data.routerCacheCode));
+    writeFileSync(join(cjsDir, 'index.cjs'), generateCjsCombinedModule(p));
+    writeFileSync(join(cjsDir, 'package.json'), '{"type": "commonjs"}\n');
+
+    // --- Type declarations ---
+    const jitDts = `import type { PersistedJitFunctionsCache } from '@mionjs/core';\nexport declare const jitFnsCache: PersistedJitFunctionsCache;\n`;
+    const pureDts = `import type { PersistedPureFunctionsCache } from '@mionjs/core';\nexport declare const pureFnsCache: PersistedPureFunctionsCache;\n`;
+    const routerDts = `import type { MethodsCache } from '@mionjs/core';\nexport declare const routerCache: MethodsCache;\n`;
+    const indexDts = `export declare function loadClientAotCaches(): void;\nexport { jitFnsCache } from './${p}jit-fns.js';\nexport { pureFnsCache } from './${p}pure-fns.js';\nexport { routerCache } from './${p}router-cache.js';\n`;
+
+    writeFileSync(join(esmDir, `${p}jit-fns.d.ts`), jitDts);
+    writeFileSync(join(esmDir, `${p}pure-fns.d.ts`), pureDts);
+    writeFileSync(join(esmDir, `${p}router-cache.d.ts`), routerDts);
+    writeFileSync(join(esmDir, 'index.d.ts'), indexDts);
+    writeFileSync(join(cjsDir, `${p}jit-fns.d.ts`), jitDts);
+    writeFileSync(join(cjsDir, `${p}pure-fns.d.ts`), pureDts);
+    writeFileSync(join(cjsDir, `${p}router-cache.d.ts`), routerDts);
+    writeFileSync(join(cjsDir, 'index.d.ts'), indexDts);
+
+    console.log(`[mion] AOT cache files written to ${outDir}`);
+}
+
+/** Generates a combined ESM entry module that imports from prefixed disk files. */
+function generateDiskCombinedModule(prefix: string): string {
+    return `/* Auto-generated combined AOT caches - do not edit */
+import { addAOTCaches, addRoutesToCache } from '@mionjs/core';
+import { jitFnsCache } from './${prefix}jit-fns.js';
+import { pureFnsCache } from './${prefix}pure-fns.js';
+import { routerCache } from './${prefix}router-cache.js';
+
+export function loadClientAotCaches() {
+    addAOTCaches(jitFnsCache, pureFnsCache);
+    addRoutesToCache(routerCache);
+}
+
+export { jitFnsCache, pureFnsCache, routerCache };
+`;
+}
+
+/** Generates a CJS module exporting a single named cache. */
+function generateCjsModule(exportName: string, code: string): string {
+    return `/* Auto-generated AOT cache - do not edit */\nconst ${exportName} = ${code};\nmodule.exports = { ${exportName} };\n`;
+}
+
+/** Generates a combined CJS entry module that requires from prefixed disk files. */
+function generateCjsCombinedModule(prefix: string): string {
+    return `/* Auto-generated combined AOT caches - do not edit */
+const { addAOTCaches, addRoutesToCache } = require('@mionjs/core');
+const { jitFnsCache } = require('./${prefix}jit-fns.cjs');
+const { pureFnsCache } = require('./${prefix}pure-fns.cjs');
+const { routerCache } = require('./${prefix}router-cache.cjs');
+
+function loadClientAotCaches() {
+    addAOTCaches(jitFnsCache, pureFnsCache);
+    addRoutesToCache(routerCache);
+}
+
+module.exports = { loadClientAotCaches, jitFnsCache, pureFnsCache, routerCache };
 `;
 }
