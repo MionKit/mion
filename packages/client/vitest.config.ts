@@ -16,6 +16,7 @@ export default defineConfig({
             aotCaches: {
                 startServerScript: resolve(__dirname, '../router/src/defaultRoutes.ts'),
                 serverViteConfig: resolve(__dirname, '../router/vite.config.ts'),
+                writeToDiskId: 'client-mion-aot',
             },
         }) as any,
     ],

@@ -29,6 +29,7 @@ type GlobalErrorResponse = Awaited<ReturnType<GlobalErrorRoute>>;
 
 /** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(methodIds: string[], options: ClientOptions) {
+    validateClientCaches();
     restoreFromLocalStorage(methodIds, options);
     const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
     if (!missingAfterLocal.length) return;
@@ -219,17 +220,17 @@ function registerAOTCaches() {
 }
 
 /** Validates that required MION_ROUTES are loaded in the cache. Skipped in test environments. */
+let clientCachesValidated = false;
 function validateClientCaches() {
-    if (isTestEnv()) return;
+    if (clientCachesValidated || isTestEnv()) return;
+    clientCachesValidated = true;
 
     const requiredRoutes = Object.values(MION_ROUTES);
     const missingRoutes = requiredRoutes.filter((routeId) => !routesCache.hasMetadata(routeId));
     if (missingRoutes.length > 0) {
         throw new Error(
             `AOT cache not loaded: Required MION_ROUTES not found in router cache: ${missingRoutes.join(', ')}. ` +
-                `Make sure to import 'virtual:mion-aot/caches' before using the client.`
+                `Make sure to import '@mionjs/client/aot' or 'virtual:mion-aot/caches' before using the client.`
         );
     }
 }
-
-validateClientCaches();

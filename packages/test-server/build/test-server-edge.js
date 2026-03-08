@@ -587,8 +587,7 @@
   }
   function randomUUID_V7() {
     const uuid = crypto.randomUUID();
-    const timestamp = BigInt(Date.now());
-    const tHex = timestamp.toString(16).padStart(12, "0");
+    const tHex = Date.now().toString(16).padStart(12, "0");
     return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
   }
   function getENV(key) {

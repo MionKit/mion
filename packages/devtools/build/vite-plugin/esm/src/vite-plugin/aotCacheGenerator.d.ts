@@ -12,3 +12,4 @@ export declare function generateRouterCacheModule(routerCacheCode: string): stri
 export declare function generateCombinedCachesModule(): string;
 export declare function generateNoopModule(comment: string): string;
 export declare function generateNoopCombinedModule(): string;
+export declare function writeAOTCachesToDisk(data: AOTCacheData, outDir: string, prefix?: string): void;

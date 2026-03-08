@@ -52,6 +52,29 @@ export interface AOTCacheOptions {
      * always uses the real modules to generate caches.
      */
     excludeReflection?: boolean;
+
+    /**
+     * Write AOT cache modules to disk as real files (ESM + CJS + .d.ts).
+     * Useful for shipping pre-built caches with a package (e.g. @mionjs/client/aot)
+     * so projects not using Vite can still use the client.
+     * - string: output directory path (e.g. './aot/build')
+     * - false/undefined: disabled (default)
+     */
+    writeToDisk?: string | false;
+
+    /**
+     * Virtual module base name for disk-backed AOT caches. Used for both:
+     * - Virtual module prefix: `virtual:{id}/jit-fns`, `virtual:{id}/pure-fns`, etc.
+     * - Disk file name prefix: `{id}-jit-fns.js`, `{id}-pure-fns.js`, etc.
+     *
+     * The virtual modules resolve to the same AOT data as the standard `virtual:mion-aot/*` modules,
+     * allowing source files to import from them during dev/test while the built output (written via
+     * `writeToDisk`) uses the disk file imports.
+     *
+     * Required when `writeToDisk` is set.
+     * Example: `'client-mion-aot'` → virtual: `virtual:client-mion-aot/jit-fns`, files: `client-mion-aot-jit-fns.js`
+     */
+    writeToDiskId?: string;
 }
 
 /** Serializable registry entry for a single pure function */

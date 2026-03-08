@@ -26,17 +26,17 @@
       "default": "./.dist/esm/index.js"
     },
     "./aot": {
-      "types": "./aot/build/esm/index.d.ts",
-      "require": "./aot/build/cjs/index.cjs",
-      "default": "./aot/build/esm/index.js"
+      "source": "./src/aot/loadClientAOTCaches.ts",
+      "types": "./.dist/aot/esm/index.d.ts",
+      "require": "./.dist/aot/cjs/index.cjs",
+      "default": "./.dist/aot/esm/index.js"
     }
   },
   "directories": {
     "lib": ".dist"
   },
   "files": [
-    ".dist",
-    "aot/build"
+    ".dist"
   ],
   "repository": {
     "type": "git",
@@ -52,7 +52,7 @@
     "lint": "npx eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
-    "clean": "rimraf .dist & rimraf .coverage & rimraf aot/build",
+    "clean": "rimraf .dist & rimraf .coverage",
     "fresh-start": "npm run clean && rimraf node_modules",
     "run-test-server": "ts-node --project test/tsconfig.json test/test-server.ts"
   },

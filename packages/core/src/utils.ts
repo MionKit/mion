@@ -8,11 +8,12 @@
 import {getJitUtils} from './jit/jitUtils.ts';
 import type {CompiledPureFunction} from './types/pureFunctions.types.ts';
 
-/** Generates a random UUID V7, no hyphens are included in the uuid */
+/** Generates a random UUID V7 (RFC 9562),
+ * uses crypto.randomUUID() (v4) as random source as it's a native C++ binding that batches entropy,
+ * might be faster than allocating typed arrays via crypto.getRandomValues */
 export function randomUUID_V7(): string {
     const uuid = crypto.randomUUID();
-    const timestamp = BigInt(Date.now());
-    const tHex = timestamp.toString(16).padStart(12, '0');
+    const tHex = Date.now().toString(16).padStart(12, '0');
     return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
 }
 
