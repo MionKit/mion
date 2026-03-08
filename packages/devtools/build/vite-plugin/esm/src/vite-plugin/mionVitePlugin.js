@@ -132,7 +132,7 @@ function mionVitePlugin(options) {
       const after = [];
       const collected = hasPureFns ? [] : void 0;
       if (hasPureFns) {
-        before.push(createPureFnTransformerFactory(code, fileName, collected));
+        before.push(createPureFnTransformerFactory(code, fileName, collected, pureFnOptions?.noViteClient));
       }
       if (deepkitConfig) {
         after.push(...deepkitConfig.afterTransformers);
@@ -140,7 +140,8 @@ function mionVitePlugin(options) {
       if (needsDeepkit) {
         before.push(...deepkitConfig.beforeTransformers);
       }
-      const compilerOptions = deepkitConfig.compilerOptions ?? defaultCompilerOptions;
+      const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
+      const compilerOptions = fileName.endsWith(".tsx") ? { ...baseCompilerOptions, jsx: ts.JsxEmit.ReactJSX } : baseCompilerOptions;
       const result = ts.transpileModule(code, {
         compilerOptions,
         fileName,

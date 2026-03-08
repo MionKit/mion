@@ -71,6 +71,60 @@ const x = 5;
         // Types should be stripped from the parameter
         expect(output).toContain('(u) => u.id');
     });
+
+    it('should strip types from TSX files with JSX syntax', () => {
+        const input = `
+const App = ({name}: {name: string}) => <div>{name}</div>;
+const x: number = 5;
+`;
+        const output = stripTypes(input, 'component.tsx');
+        expect(output).toContain('const x = 5;');
+        // JSX is transformed to function calls by esbuild
+        expect(output).not.toContain('<div>');
+    });
+});
+
+describe('extractPureFnsFromSource - TSX files', () => {
+    it('should extract pureServerFn from a .tsx file with JSX', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/client';
+
+const MyComponent = () => <div>Hello</div>;
+
+const double = pureServerFn((x) => x * 2);
+`;
+        const results = extractPureFnsFromSource(source, 'MyComponent.tsx', 'pureServerFn');
+        expect(results).toHaveLength(1);
+        expect(results[0].fnBody).toContain('x * 2');
+    });
+
+    it('should extract mapFrom from a .tsx file with JSX', () => {
+        const source = `
+import {mapFrom} from '@mionjs/client';
+
+const Header = () => <h1>Title</h1>;
+
+const mapped = mapFrom(someSource, (data) => data.value);
+`;
+        const results = extractPureFnsFromSource(source, 'Page.tsx', 'mapFrom');
+        expect(results).toHaveLength(1);
+        expect(results[0].fnBody).toContain('data.value');
+    });
+
+    it('should extract registerPureFnFactory from a .tsx file with JSX', () => {
+        const source = `
+import {registerPureFnFactory} from '@mionjs/client';
+
+const Layout = () => <main>Content</main>;
+
+registerPureFnFactory('myNs', 'multiply', (factor) => (x) => x * factor);
+`;
+        const results = extractPureFnsFromSource(source, 'Layout.tsx', 'registerPureFnFactory');
+        expect(results).toHaveLength(1);
+        expect(results[0].namespace).toBe('myNs');
+        expect(results[0].fnName).toBe('multiply');
+        expect(results[0].isFactory).toBe(true);
+    });
 });
 
 describe('extractPureFnsFromSource - pureServerFn with PureFnDef', () => {
@@ -1149,5 +1203,138 @@ export const cpf = registerPureFnFactory('mion', 'fn', myFactory);
         expect(() => extractPureFnsFromSource(source, 'test.ts', 'registerPureFnFactory')).toThrow(
             /imported from another module/
         );
+    });
+});
+
+describe('extractPureFnsFromSource - user-provided names', () => {
+    it('should use user-provided name as bodyHash and fnName for pureServerFn', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/core';
+export const fn = pureServerFn((x) => x + 1, 'addOne');
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(1);
+        expect(result[0].bodyHash).toBe('addOne');
+        expect(result[0].fnName).toBe('addOne');
+        expect(result[0].fnBody).toContain('return x + 1');
+    });
+
+    it('should use user-provided name as bodyHash and fnName for mapFrom', () => {
+        const source = `
+import {mapFrom} from '@mionjs/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (x) => x * 2, 'doubleMapper');
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        expect(result).toHaveLength(1);
+        expect(result[0].bodyHash).toBe('doubleMapper');
+        expect(result[0].fnName).toBe('doubleMapper');
+        expect(result[0].fnBody).toContain('return x * 2');
+    });
+
+    it('should use user-provided name for pureServerFn with PureFnDef object', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/core';
+export const fn = pureServerFn({ pureFn: (x) => x + 1, fnName: 'ignored' }, 'myName');
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(1);
+        expect(result[0].bodyHash).toBe('myName');
+        expect(result[0].fnName).toBe('myName');
+    });
+
+    it('should throw when pureServerFn name argument is not a string literal', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/core';
+const name = 'addOne';
+export const fn = pureServerFn((x) => x + 1, name);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/must be a string literal/);
+    });
+
+    it('should throw when mapFrom name argument is not a string literal', () => {
+        const source = `
+import {mapFrom} from '@mionjs/client';
+const sub = {} as any;
+const name = 'mapper';
+export const ref = mapFrom(sub, (x) => x + 1, name);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/must be a string literal/);
+    });
+
+    it('should throw when pureServerFn name is an empty string', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/core';
+export const fn = pureServerFn((x) => x + 1, '');
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/must not be an empty string/);
+    });
+
+    it('should throw when mapFrom name is an empty string', () => {
+        const source = `
+import {mapFrom} from '@mionjs/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (x) => x + 1, '');
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/must not be an empty string/);
+    });
+
+    it('should still compute hash when no name is provided (regression)', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/core';
+export const fn = pureServerFn((x) => x + 1);
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts');
+        expect(result).toHaveLength(1);
+        expect(result[0].bodyHash.length).toBe(BODY_HASH_LENGTH);
+        expect(result[0].fnName).toBe(result[0].bodyHash);
+    });
+});
+
+describe('extractPureFnsFromSource - noViteClient option', () => {
+    it('should throw when noViteClient is true and pureServerFn has no name', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/core';
+export const fn = pureServerFn((x) => x + 1);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'pureServerFn', true)).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'pureServerFn', true)).toThrow(/noViteClient/);
+    });
+
+    it('should throw when noViteClient is true and mapFrom has no name', () => {
+        const source = `
+import {mapFrom} from '@mionjs/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (x) => x + 1);
+`;
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom', true)).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom', true)).toThrow(/noViteClient/);
+    });
+
+    it('should succeed when noViteClient is true and pureServerFn has a name', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/core';
+export const fn = pureServerFn((x) => x + 1, 'addOne');
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'pureServerFn', true);
+        expect(result).toHaveLength(1);
+        expect(result[0].bodyHash).toBe('addOne');
+        expect(result[0].fnName).toBe('addOne');
+    });
+
+    it('should succeed when noViteClient is true and mapFrom has a name', () => {
+        const source = `
+import {mapFrom} from '@mionjs/client';
+const sub = {} as any;
+export const ref = mapFrom(sub, (x) => x + 1, 'addOneMapper');
+`;
+        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom', true);
+        expect(result).toHaveLength(1);
+        expect(result[0].bodyHash).toBe('addOneMapper');
+        expect(result[0].fnName).toBe('addOneMapper');
     });
 });

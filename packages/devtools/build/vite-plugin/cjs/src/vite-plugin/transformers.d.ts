@@ -7,4 +7,4 @@ export interface DeepkitConfig {
     afterTransformers: ts.CustomTransformerFactory[];
 }
 export declare function createDeepkitConfig(options?: DeepkitTypeOptions): DeepkitConfig;
-export declare function createPureFnTransformerFactory(originalSource: string, filePath: string, collector?: ExtractedPureFn[]): ts.CustomTransformerFactory;
+export declare function createPureFnTransformerFactory(originalSource: string, filePath: string, collector?: ExtractedPureFn[], noViteClient?: boolean): ts.CustomTransformerFactory;

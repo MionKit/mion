@@ -25,6 +25,7 @@ export interface ServerPureFunctionsOptions {
     clientSrcPath: string;
     include?: string[];
     exclude?: string[];
+    noViteClient?: boolean;
 }
 export interface ExtractedPureFn {
     namespace: string;

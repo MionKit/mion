@@ -5,6 +5,7 @@ const src_eslint_rules_noUnreachableUnionTypes = require("./src/eslint/rules/no-
 const src_eslint_rules_noMixedUnionProperties = require("./src/eslint/rules/no-mixed-union-properties.cjs");
 const src_eslint_rules_noTypeImports = require("./src/eslint/rules/no-type-imports.cjs");
 const src_eslint_rules_pureFunctions = require("./src/eslint/rules/pure-functions.cjs");
+const src_eslint_rules_noViteClient = require("./src/eslint/rules/no-vite-client.cjs");
 const src_eslint_rules_typeFormatsImports = require("./src/eslint/rules/type-formats-imports.cjs");
 const plugin = {
   rules: {
@@ -14,6 +15,7 @@ const plugin = {
     "no-mixed-union-properties": src_eslint_rules_noMixedUnionProperties,
     "no-type-imports": src_eslint_rules_noTypeImports,
     "pure-functions": src_eslint_rules_pureFunctions,
+    "no-vite-client": src_eslint_rules_noViteClient,
     "type-formats-imports": src_eslint_rules_typeFormatsImports
   },
   configs: {}
