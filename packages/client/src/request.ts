@@ -13,7 +13,7 @@ import {getRoutePath} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
 import {validateSubRequests} from './validation.ts';
 import {serializeRequestBody, deserializeResponseBody} from './serializer.ts';
-import {ROUTES_FLOW_PATH} from './constants.ts';
+import {ROUTES_FLOW_KEY} from './constants.ts';
 
 export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList extends HSubRequest<any>[]> {
     readonly path: string;
@@ -32,7 +32,8 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
         if (workflowSubRequests && workflowSubRequests.length > 0) {
             const routePaths = workflowSubRequests.map((sr) => getRoutePath(sr.pointer, this.options));
             const query = buildRoutesFlowQuery(routePaths, workflowSubRequests);
-            this.path = `${ROUTES_FLOW_PATH}?${btoa(JSON.stringify(query))}`;
+            const flowPath = getRoutePath([ROUTES_FLOW_KEY], this.options);
+            this.path = `${flowPath}?${btoa(JSON.stringify(query))}`;
             this.requestId = 'mion-routes-flow';
             workflowSubRequests.forEach((sr) => this.addSubRequest(sr));
         } else {
