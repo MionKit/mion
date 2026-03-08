@@ -596,6 +596,9 @@
     }
     return void 0;
   }
+  function fromBase64Url(encoded) {
+    return atob(encoded.replace(/-/g, "+").replace(/_/g, "/"));
+  }
   let isTest = void 0;
   function isTestEnv() {
     if (isTest !== void 0) return isTest;
@@ -1849,13 +1852,14 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   addToRoutesFlowCache.__type = ["query", () => __ΩMethodsExecutionChain, "chain", "addToRoutesFlowCache", 'P&2!n"2#$/$'];
   function decodeRoutesFlowQuery(urlQuery) {
     try {
-      const jsonString = atob(urlQuery);
+      const dataParam = urlQuery.startsWith("data=") ? urlQuery.slice(5) : urlQuery;
+      const jsonString = fromBase64Url(dataParam);
       return JSON.parse(jsonString);
     } catch (e) {
       throw new RpcError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: "routesFlow-invalid-query",
-        publicMessage: "RoutesFlow query string is not valid base64-encoded JSON.",
+        publicMessage: "RoutesFlow query string is not valid base64url-encoded JSON.",
         errorData: { parseError: e?.message || "Unknown error" }
       });
     }
