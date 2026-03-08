@@ -30,6 +30,18 @@ export function getENV(key: string): string | undefined {
     return undefined;
 }
 
+// ############# Base64 URL #############
+
+/** Encodes a string to URL-safe base64 (RFC 4648 §5) without padding */
+export function toBase64Url(str: string): string {
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** Decodes a URL-safe base64 string (RFC 4648 §5) back to a string */
+export function fromBase64Url(encoded: string): string {
+    return atob(encoded.replace(/-/g, '+').replace(/_/g, '/'));
+}
+
 let isTest: boolean | undefined = undefined;
 export function isTestEnv() {
     if (isTest !== undefined) return isTest;
