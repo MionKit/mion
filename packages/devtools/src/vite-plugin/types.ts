@@ -54,6 +54,13 @@ export interface AOTCacheOptions {
     excludeReflection?: boolean;
 
     /**
+     * In-process AOT generation using ssrLoadModule (for same-Vite-process scenarios like Nuxt).
+     * Instead of spawning a child process, loads the server entry directly in the dev server.
+     * Dev-mode only. Production builds use startServerScript (IPC approach).
+     */
+    inProcess?: InProcessAOTOptions;
+
+    /**
      * Register additional virtual modules with a custom prefix, resolving to the same AOT cache data.
      * Useful for creating a separate entry point (e.g. `@mionjs/client/aot`) that imports from
      * these prefixed virtual modules in source, while Vite/Rollup resolves and bundles them
@@ -130,6 +137,14 @@ export interface ParsedFactoryFn {
     readonly paramNames: string[];
     /** The normalized function body code */
     readonly code: string;
+}
+
+/** In-process AOT generation options (for same-Vite-process scenarios like Nuxt) */
+export interface InProcessAOTOptions {
+    /** Path to the server entry module (loaded via ssrLoadModule) */
+    serverEntry: string;
+    /** Name of the exported async init function. Defaults to 'initApi' */
+    initFn?: string;
 }
 
 /** Reflection mode for deepkit type compiler */

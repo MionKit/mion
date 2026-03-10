@@ -25,6 +25,12 @@
       "types": "./.dist/esm/index.d.ts",
       "require": "./.dist/cjs/index.cjs",
       "default": "./.dist/esm/index.js"
+    },
+    "./aot": {
+      "source": "./src/lib/aotEmitter.ts",
+      "types": "./.dist/esm/src/lib/aotEmitter.d.ts",
+      "require": "./.dist/cjs/src/lib/aotEmitter.cjs",
+      "default": "./.dist/esm/src/lib/aotEmitter.js"
     }
   },
   "directories": {

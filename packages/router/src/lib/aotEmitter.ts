@@ -39,6 +39,13 @@ const EXCLUDED_JIT_FN_IDS = [JIT_FUNCTION_IDS.toJSCode];
 /** Pure function names to exclude from AOT caches */
 const EXCLUDED_PURE_FN_NAMES = ['sanitizeCompiledFn'];
 
+/** Returns serialized caches for in-process AOT generation (no IPC needed). Call after initMionRouter(). */
+export async function getSerializedCaches(): Promise<SerializedCaches> {
+    const {jitFnsCache, pureFnsCache} = getJitFnCaches();
+    const routerCache = getPersistedMethods();
+    return serializeCachesToCode(jitFnsCache, pureFnsCache, routerCache);
+}
+
 /**
  * Emits AOT caches to the parent process via IPC when running in MION_COMPILE mode.
  * This function is called automatically at the end of initMionRouter() and can also

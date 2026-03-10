@@ -15,11 +15,12 @@ export declare function mionVitePlugin(options: MionPluginOptions): {
     config(config: any): void;
     configResolved(config: any): void;
     buildStart(): Promise<void>;
+    configureServer(server: any): void;
     resolveId(id: any): string | null;
-    load(id: any): string | {
+    load(id: any): Promise<string | {
         code: string;
         syntheticNamedExports: boolean;
-    } | null;
+    } | null>;
     transform(code: string, fileName: string): {
         code: string;
         map: string | undefined;

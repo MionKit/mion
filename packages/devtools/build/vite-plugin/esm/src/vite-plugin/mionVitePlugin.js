@@ -3,8 +3,8 @@ import * as ts from "typescript";
 import { createDeepkitConfig, createPureFnTransformerFactory } from "./transformers.js";
 import { scanClientSource } from "./extractPureFn.js";
 import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
-import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX } from "./constants.js";
-import { generateAOTCaches, logAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
+import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX } from "./constants.js";
+import { generateAOTCaches, logAOTCaches, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, generateInProcessAOTCaches } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
 function parseVueModuleId(id) {
   const qIdx = id.indexOf("?");
@@ -35,6 +35,22 @@ function matchGlob(filePath, pattern) {
   const regex = new RegExp("^" + pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*") + "$");
   return regex.test(filePath);
 }
+const AOT_MODULE_TYPES = ["jit-fns", "pure-fns", "router-cache", "caches"];
+function buildAOTVirtualModuleMaps(customVirtualModuleId) {
+  const aotVirtualModules = /* @__PURE__ */ new Map();
+  const aotResolvedIds = /* @__PURE__ */ new Map();
+  for (const type of AOT_MODULE_TYPES) {
+    const defaultId = `virtual:mion-aot/${type}`;
+    aotVirtualModules.set(defaultId, type);
+    aotResolvedIds.set(resolveVirtualId(defaultId), type);
+    if (customVirtualModuleId) {
+      const customId = `virtual:${customVirtualModuleId}/${type}`;
+      aotVirtualModules.set(customId, type);
+      aotResolvedIds.set(resolveVirtualId(customId), type);
+    }
+  }
+  return { aotVirtualModules, aotResolvedIds };
+}
 function mionVitePlugin(options) {
   let extractedFns = null;
   const pureFnOptions = options.serverPureFunctions;
@@ -51,11 +67,9 @@ function mionVitePlugin(options) {
   let aotData = null;
   let aotGenerationPromise = null;
   let aotCacheDir = "";
-  const diskVirtualPrefix = aotOptions?.customVirtualModuleId ? `virtual:${aotOptions.customVirtualModuleId}` : null;
-  const DISK_VIRTUAL_JIT_FNS = diskVirtualPrefix ? `${diskVirtualPrefix}/jit-fns` : null;
-  const DISK_VIRTUAL_PURE_FNS = diskVirtualPrefix ? `${diskVirtualPrefix}/pure-fns` : null;
-  const DISK_VIRTUAL_ROUTER_CACHE = diskVirtualPrefix ? `${diskVirtualPrefix}/router-cache` : null;
-  const DISK_VIRTUAL_CACHES = diskVirtualPrefix ? `${diskVirtualPrefix}/caches` : null;
+  const inProcessOptions = aotOptions?.inProcess ?? null;
+  let inProcessLoadModule = null;
+  const { aotVirtualModules, aotResolvedIds } = buildAOTVirtualModuleMaps(aotOptions?.customVirtualModuleId);
   return {
     name: "mion",
     enforce: "pre",
@@ -76,7 +90,7 @@ function mionVitePlugin(options) {
       }
     },
     async buildStart() {
-      if (aotOptions && process.env.MION_COMPILE !== "true") {
+      if (aotOptions && process.env.MION_COMPILE !== "true" && !inProcessOptions) {
         try {
           console.log("[mion] Generating AOT caches...");
           aotGenerationPromise = getOrGenerateAOTCaches(aotOptions, aotCacheDir);
@@ -89,22 +103,41 @@ function mionVitePlugin(options) {
         }
       }
     },
+    configureServer(server) {
+      if (!inProcessOptions) return;
+      inProcessLoadModule = (url) => server.ssrLoadModule(url);
+      const startInProcessAOT = () => {
+        console.log("[mion] Generating in-process AOT caches...");
+        aotGenerationPromise = generateInProcessAOTCaches(inProcessLoadModule, inProcessOptions).then((data) => {
+          aotData = data;
+          console.log("[mion] In-process AOT caches generated successfully");
+          logAOTCaches(data);
+          for (const resolvedId of aotResolvedIds.keys()) {
+            const mod = server.moduleGraph.getModuleById(resolvedId);
+            if (mod) server.moduleGraph.invalidateModule(mod);
+          }
+          return data;
+        }).catch((err) => {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`[mion] Failed to generate in-process AOT caches: ${message}`);
+          throw err;
+        });
+      };
+      if (server.httpServer) {
+        server.httpServer.once("listening", startInProcessAOT);
+      } else {
+        setTimeout(startInProcessAOT, 0);
+      }
+    },
     resolveId(id) {
       if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
-      if (id === VIRTUAL_AOT_JIT_FNS) return resolveVirtualId(id);
-      if (id === VIRTUAL_AOT_PURE_FNS) return resolveVirtualId(id);
-      if (id === VIRTUAL_AOT_ROUTER_CACHE) return resolveVirtualId(id);
-      if (id === VIRTUAL_AOT_CACHES) return resolveVirtualId(id);
-      if (DISK_VIRTUAL_JIT_FNS && id === DISK_VIRTUAL_JIT_FNS) return resolveVirtualId(id);
-      if (DISK_VIRTUAL_PURE_FNS && id === DISK_VIRTUAL_PURE_FNS) return resolveVirtualId(id);
-      if (DISK_VIRTUAL_ROUTER_CACHE && id === DISK_VIRTUAL_ROUTER_CACHE) return resolveVirtualId(id);
-      if (DISK_VIRTUAL_CACHES && id === DISK_VIRTUAL_CACHES) return resolveVirtualId(id);
+      if (aotVirtualModules.has(id)) return resolveVirtualId(id);
       if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== "true" && REFLECTION_MODULES.includes(id)) {
         return resolveVirtualId(VIRTUAL_STUB_PREFIX + id);
       }
       return null;
     },
-    load(id) {
+    async load(id) {
       if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
         if (!pureFnOptions) {
           return generateServerPureFnsVirtualModule([]);
@@ -114,21 +147,28 @@ function mionVitePlugin(options) {
         }
         return generateServerPureFnsVirtualModule(extractedFns);
       }
-      if (id === resolveVirtualId(VIRTUAL_AOT_JIT_FNS) || DISK_VIRTUAL_JIT_FNS && id === resolveVirtualId(DISK_VIRTUAL_JIT_FNS)) {
-        if (!aotData) return generateNoopModule("No-op: AOT JIT caches not generated");
-        return generateJitFnsModule(aotData.jitFnsCode);
-      }
-      if (id === resolveVirtualId(VIRTUAL_AOT_PURE_FNS) || DISK_VIRTUAL_PURE_FNS && id === resolveVirtualId(DISK_VIRTUAL_PURE_FNS)) {
-        if (!aotData) return generateNoopModule("No-op: AOT pure fns not generated");
-        return generatePureFnsModule(aotData.pureFnsCode);
-      }
-      if (id === resolveVirtualId(VIRTUAL_AOT_ROUTER_CACHE) || DISK_VIRTUAL_ROUTER_CACHE && id === resolveVirtualId(DISK_VIRTUAL_ROUTER_CACHE)) {
-        if (!aotData) return generateNoopModule("No-op: AOT router cache not generated");
-        return generateRouterCacheModule(aotData.routerCacheCode);
-      }
-      if (id === resolveVirtualId(VIRTUAL_AOT_CACHES) || DISK_VIRTUAL_CACHES && id === resolveVirtualId(DISK_VIRTUAL_CACHES)) {
-        if (!aotData) return generateNoopCombinedModule();
-        return generateCombinedCachesModule();
+      const aotType = aotResolvedIds.get(id);
+      if (aotType) {
+        if (!aotData && aotGenerationPromise) {
+          try {
+            aotData = await aotGenerationPromise;
+          } catch {
+          }
+        }
+        switch (aotType) {
+          case "jit-fns":
+            if (!aotData) return generateNoopModule("No-op: AOT JIT caches not generated");
+            return generateJitFnsModule(aotData.jitFnsCode);
+          case "pure-fns":
+            if (!aotData) return generateNoopModule("No-op: AOT pure fns not generated");
+            return generatePureFnsModule(aotData.pureFnsCode);
+          case "router-cache":
+            if (!aotData) return generateNoopModule("No-op: AOT router cache not generated");
+            return generateRouterCacheModule(aotData.routerCacheCode);
+          case "caches":
+            if (!aotData) return generateNoopCombinedModule();
+            return generateCombinedCachesModule();
+        }
       }
       for (const mod of REFLECTION_MODULES) {
         if (id === resolveVirtualId(VIRTUAL_STUB_PREFIX + mod)) {
@@ -202,25 +242,34 @@ function mionVitePlugin(options) {
           }
         }
       }
-      if (aotOptions && aotOptions.startServerScript && process.env.MION_COMPILE !== "true") {
-        const serverDir = resolve(aotOptions.startServerScript, "..");
-        if (file.startsWith(serverDir)) {
-          generateAOTCaches(aotOptions).then((data) => {
+      if (aotOptions && process.env.MION_COMPILE !== "true") {
+        const serverDir = inProcessOptions ? resolve(inProcessOptions.serverEntry, "..") : aotOptions.startServerScript ? resolve(aotOptions.startServerScript, "..") : null;
+        if (serverDir && file.startsWith(serverDir)) {
+          const regeneratePromise = inProcessOptions && inProcessLoadModule ? (
+            // In-process mode: reset router and re-init via environment runner
+            (async () => {
+              const routerModule = await inProcessLoadModule("@mionjs/router");
+              routerModule.resetRouter();
+              return generateInProcessAOTCaches(inProcessLoadModule, inProcessOptions);
+            })()
+          ) : (
+            // IPC mode: spawn child process
+            generateAOTCaches(aotOptions)
+          );
+          aotGenerationPromise = regeneratePromise;
+          regeneratePromise.then((data) => {
             aotData = data;
             logAOTCaches(data);
-            updateDiskCache(aotOptions, data, aotCacheDir);
-            const modulesToInvalidate = [VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE].map(
-              resolveVirtualId
-            );
-            const invalidatedMods = [];
-            for (const vmId of modulesToInvalidate) {
-              const mod = server.moduleGraph.getModuleById(vmId);
+            if (!inProcessOptions) updateDiskCache(aotOptions, data, aotCacheDir);
+            let invalidatedCount = 0;
+            for (const resolvedId of aotResolvedIds.keys()) {
+              const mod = server.moduleGraph.getModuleById(resolvedId);
               if (mod) {
                 server.moduleGraph.invalidateModule(mod);
-                invalidatedMods.push(mod);
+                invalidatedCount++;
               }
             }
-            if (invalidatedMods.length > 0) {
+            if (invalidatedCount > 0) {
               console.log("[mion] AOT caches regenerated, invalidating virtual modules");
             }
           }).catch((err) => {

@@ -7,7 +7,7 @@
 
 import {fork, ChildProcess} from 'child_process';
 import {resolve, dirname} from 'path';
-import {AOTCacheOptions} from './types.ts';
+import {AOTCacheOptions, InProcessAOTOptions} from './types.ts';
 import {resolveModule} from './resolveModule.ts';
 
 /** AOT cache data returned from the generator */
@@ -153,6 +153,51 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
             }
         }, DEFAULT_TIMEOUT);
     });
+}
+
+/** Loads a module by URL — abstracts over ssrLoadModule and Environment Runner */
+export type ModuleLoader = (url: string) => Promise<Record<string, any>>;
+
+/** Generates AOT caches in-process using a module loader (for same-Vite-process scenarios like Nuxt). */
+export async function generateInProcessAOTCaches(loadModule: ModuleLoader, options: InProcessAOTOptions): Promise<AOTCacheData> {
+    const initFnName = options.initFn || 'initApi';
+
+    // Set MION_COMPILE=true so the router populates its persistedMethods cache
+    // (addToPersistedMethods checks this env var before storing route data)
+    const prevCompile = process.env.MION_COMPILE;
+    process.env.MION_COMPILE = 'true';
+
+    // Load the server module — executes it, so top-level init runs automatically
+    const serverModule = await loadModule(options.serverEntry);
+
+    // Support two patterns:
+    // 1. Function export: export async function initApi() { ... } → call it
+    // 2. Promise export: export const api = initMionRouter(...) → await it (auto-init on module load)
+    const initExport = serverModule[initFnName];
+    if (typeof initExport === 'function') {
+        await initExport();
+    } else if (initExport && typeof initExport.then === 'function') {
+        await initExport;
+    } else {
+        throw new Error(
+            `[mion] Server entry '${options.serverEntry}' does not export '${initFnName}' as a function or Promise. ` +
+                `Set inProcess.initFn to the correct export name.`
+        );
+    }
+
+    // Extract serialized caches from the initialized router
+    const aotEmitter = await loadModule('@mionjs/router/aot');
+    if (typeof aotEmitter.getSerializedCaches !== 'function') {
+        throw new Error(`[mion] @mionjs/router/aot does not export getSerializedCaches. Update @mionjs/router.`);
+    }
+
+    try {
+        return await aotEmitter.getSerializedCaches();
+    } finally {
+        // Restore MION_COMPILE to its previous value
+        if (prevCompile === undefined) delete process.env.MION_COMPILE;
+        else process.env.MION_COMPILE = prevCompile;
+    }
 }
 
 // ============ Logging ============
