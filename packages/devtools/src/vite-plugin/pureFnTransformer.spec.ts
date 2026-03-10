@@ -383,3 +383,49 @@ export function hello() { return x; }
         expect(output).toContain('from "../types/foo.types.ts"');
     });
 });
+
+// ── Vue SFC virtual module paths ────────────────────────────────────
+
+describe('pureFnTransformer - Vue SFC virtual modules', () => {
+    it('should inject bodyHash for code from a .vue.ts synthetic path', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/core';
+export const fn = pureServerFn((x) => x + 1);
+`;
+        const {output, collected} = transformWithPureFn(source, 'Component.vue.ts');
+        expect(collected).toHaveLength(1);
+        expect(collected[0].bodyHash.length).toBe(BODY_HASH_LENGTH);
+        expect(output).toContain(`"${collected[0].bodyHash}"`);
+    });
+
+    it('should inject bodyHash for mapFrom from a .vue.ts synthetic path', () => {
+        const source = `
+import {mapFrom} from '@mionjs/client';
+const sub = {};
+export const ref = mapFrom(sub, (x) => x + 1);
+`;
+        const {output, collected} = transformWithPureFn(source, 'Component.vue.ts');
+        expect(collected).toHaveLength(1);
+        expect(output).toContain(`"${collected[0].bodyHash}"`);
+    });
+
+    it('should handle .vue.tsx synthetic path with JSX compiler options', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/core';
+export const fn = pureServerFn((x) => x + 1);
+`;
+        // .vue.tsx path should work without errors (JSX compiler options applied)
+        const {collected} = transformWithPureFn(source, 'Component.vue.tsx');
+        expect(collected).toHaveLength(1);
+    });
+
+    it('should produce same hash for same function regardless of file path', () => {
+        const source = `
+import {pureServerFn} from '@mionjs/core';
+export const fn = pureServerFn((x) => x + 1);
+`;
+        const {collected: fromTs} = transformWithPureFn(source, 'file.ts');
+        const {collected: fromVue} = transformWithPureFn(source, 'Component.vue.ts');
+        expect(fromTs[0].bodyHash).toBe(fromVue[0].bodyHash);
+    });
+});

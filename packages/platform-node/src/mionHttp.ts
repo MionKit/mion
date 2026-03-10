@@ -84,7 +84,8 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
 
 // ############# PRIVATE METHODS #############
 
-function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerResponse): void {
+// exported as can be used in some server to proxy node requests
+export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerResponse): void {
     let replied = false;
     const nodeUrl = httpReq.url || '/';
     const queryIndex = nodeUrl.indexOf('?');

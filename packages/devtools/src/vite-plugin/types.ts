@@ -92,7 +92,7 @@ export interface PureServerFnRegistry {
 export interface ServerPureFunctionsOptions {
     /** Path to the client package source directory containing pureServerFn() calls */
     clientSrcPath: string;
-    /** Glob patterns for files to scan within clientSrcPath. Defaults to ['**\/*.ts', '**\/*.tsx'] */
+    /** Glob patterns for files to scan within clientSrcPath. Defaults to ['**\/*.ts', '**\/*.tsx', '**\/*.vue'] */
     include?: string[];
     /** Glob patterns for files to exclude from scanning */
     exclude?: string[];

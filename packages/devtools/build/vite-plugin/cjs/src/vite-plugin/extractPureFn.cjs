@@ -25,8 +25,56 @@ function _interopNamespaceDefault(e) {
   return Object.freeze(n);
 }
 const ts__namespace = /* @__PURE__ */ _interopNamespaceDefault(ts);
+function extractVueScriptContent(source) {
+  const openRegex = /<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>/gi;
+  const closeTag = "<\/script>";
+  let combined = "";
+  let lang = "js";
+  let found = false;
+  let openMatch;
+  while ((openMatch = openRegex.exec(source)) !== null) {
+    const attrs = openMatch[1];
+    const contentStart = openMatch.index + openMatch[0].length;
+    const closeIdx = findClosingScriptTag(source, contentStart, closeTag);
+    if (closeIdx === -1) break;
+    found = true;
+    combined += source.slice(contentStart, closeIdx) + "\n";
+    openRegex.lastIndex = closeIdx + closeTag.length;
+    const langMatch = attrs.match(/lang=["'](\w+)["']/);
+    if (langMatch) lang = langMatch[1];
+  }
+  return found ? { content: combined.trim(), lang } : null;
+}
+function findClosingScriptTag(source, start, closeTag) {
+  let i = start;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === "'" || ch === '"' || ch === "`") {
+      i = skipStringLiteral(source, i, ch);
+      continue;
+    }
+    if (ch === "<" && source.slice(i, i + closeTag.length).toLowerCase() === closeTag) {
+      return i;
+    }
+    i++;
+  }
+  return -1;
+}
+function skipStringLiteral(source, start, quote) {
+  let i = start + 1;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === "\\") {
+      i += 2;
+      continue;
+    }
+    if (ch === quote) return i + 1;
+    i++;
+  }
+  return i;
+}
 function scanClientSource(options) {
-  const include = options.include || ["**/*.ts", "**/*.tsx"];
+  const include = options.include || ["**/*.ts", "**/*.tsx", "**/*.vue"];
   const exclude = options.exclude || ["../node_modules/**", "**/.dist/**", "**/dist/**"];
   const clientSrcPath = posix.resolve(options.clientSrcPath);
   const fns = [];
@@ -41,16 +89,23 @@ function scanClientSource(options) {
       } else if (stat.isFile()) {
         if (!src_vitePlugin_mionVitePlugin.isIncluded(fullPath, include, exclude)) continue;
         try {
-          const code = fs.readFileSync(fullPath, "utf-8");
+          let code = fs.readFileSync(fullPath, "utf-8");
+          let effectivePath = fullPath;
+          if (fullPath.endsWith(".vue")) {
+            const scriptBlock = extractVueScriptContent(code);
+            if (!scriptBlock) continue;
+            code = scriptBlock.content;
+            effectivePath = `${fullPath}.${scriptBlock.lang}`;
+          }
           const hasPureFn = code.includes("pureServerFn");
           const hasMapFrom = code.includes("mapFrom");
           if (!hasPureFn && !hasMapFrom) continue;
           if (hasPureFn) {
-            const extracted = extractPureFnsFromSource(code, fullPath, "pureServerFn", options.noViteClient);
+            const extracted = extractPureFnsFromSource(code, effectivePath, "pureServerFn", options.noViteClient);
             fns.push(...extracted);
           }
           if (hasMapFrom) {
-            const extracted = extractPureFnsFromSource(code, fullPath, "mapFrom", options.noViteClient);
+            const extracted = extractPureFnsFromSource(code, effectivePath, "mapFrom", options.noViteClient);
             fns.push(...extracted);
           }
         } catch (err) {
@@ -90,7 +145,12 @@ function extractPureFnsFromSource(source, filePath, fnName = "pureServerFn", noV
 }
 function stripTypes(code, filePath) {
   try {
-    const loader = filePath?.endsWith(".tsx") ? "tsx" : "ts";
+    let loader = "ts";
+    if (filePath) {
+      if (filePath.endsWith(".tsx")) loader = "tsx";
+      else if (filePath.endsWith(".jsx")) loader = "jsx";
+      else if (filePath.endsWith(".js")) loader = "js";
+    }
     const result = esbuild.transformSync(code, {
       loader,
       target: "esnext",
@@ -562,6 +622,7 @@ class PurityError extends Error {
 }
 exports.PurityError = PurityError;
 exports.extractPureFnsFromSource = extractPureFnsFromSource;
+exports.extractVueScriptContent = extractVueScriptContent;
 exports.scanClientSource = scanClientSource;
 exports.stripTypes = stripTypes;
 //# sourceMappingURL=extractPureFn.cjs.map

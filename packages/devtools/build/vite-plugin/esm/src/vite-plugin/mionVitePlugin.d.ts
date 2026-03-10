@@ -1,9 +1,32 @@
-import { Plugin } from 'vite';
 import { ServerPureFunctionsOptions, DeepkitTypeOptions, AOTCacheOptions } from './types.ts';
 export interface MionPluginOptions {
     serverPureFunctions?: ServerPureFunctionsOptions;
     runTypes?: DeepkitTypeOptions;
     aotCaches?: AOTCacheOptions;
 }
+export declare function parseVueModuleId(id: string): {
+    basePath: string;
+    lang: string | null;
+} | null;
 export declare function isIncluded(filePath: string, include: string[], exclude: string[]): boolean;
-export declare function mionVitePlugin(options: MionPluginOptions): Plugin;
+export declare function mionVitePlugin(options: MionPluginOptions): {
+    name: string;
+    enforce: "pre";
+    config(config: any): void;
+    configResolved(config: any): void;
+    buildStart(): Promise<void>;
+    resolveId(id: any): string | null;
+    load(id: any): string | {
+        code: string;
+        syntheticNamedExports: boolean;
+    } | null;
+    transform(code: string, fileName: string): {
+        code: string;
+        map: string | undefined;
+    } | null;
+    buildEnd(): void;
+    handleHotUpdate({ file, server }: {
+        file: any;
+        server: any;
+    }): any[] | undefined;
+};
