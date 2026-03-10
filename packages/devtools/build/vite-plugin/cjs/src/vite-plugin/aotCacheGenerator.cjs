@@ -93,6 +93,32 @@ Make sure the startServerScript calls initMionRouter() and the router is fully i
     }, DEFAULT_TIMEOUT);
   });
 }
+async function generateInProcessAOTCaches(loadModule, options) {
+  const initFnName = options.initFn || "initApi";
+  const prevCompile = process.env.MION_COMPILE;
+  process.env.MION_COMPILE = "true";
+  const serverModule = await loadModule(options.serverEntry);
+  const initExport = serverModule[initFnName];
+  if (typeof initExport === "function") {
+    await initExport();
+  } else if (initExport && typeof initExport.then === "function") {
+    await initExport;
+  } else {
+    throw new Error(
+      `[mion] Server entry '${options.serverEntry}' does not export '${initFnName}' as a function or Promise. Set inProcess.initFn to the correct export name.`
+    );
+  }
+  const aotEmitter = await loadModule("@mionjs/router/aot");
+  if (typeof aotEmitter.getSerializedCaches !== "function") {
+    throw new Error(`[mion] @mionjs/router/aot does not export getSerializedCaches. Update @mionjs/router.`);
+  }
+  try {
+    return await aotEmitter.getSerializedCaches();
+  } finally {
+    if (prevCompile === void 0) delete process.env.MION_COMPILE;
+    else process.env.MION_COMPILE = prevCompile;
+  }
+}
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   const kb = bytes / 1024;
@@ -152,6 +178,7 @@ export const routerCache = {};
 }
 exports.generateAOTCaches = generateAOTCaches;
 exports.generateCombinedCachesModule = generateCombinedCachesModule;
+exports.generateInProcessAOTCaches = generateInProcessAOTCaches;
 exports.generateJitFnsModule = generateJitFnsModule;
 exports.generateNoopCombinedModule = generateNoopCombinedModule;
 exports.generateNoopModule = generateNoopModule;

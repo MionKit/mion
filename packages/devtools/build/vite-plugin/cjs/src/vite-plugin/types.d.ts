@@ -6,6 +6,7 @@ export interface AOTCacheOptions {
     excludedPureFns?: string[];
     cache?: boolean | string;
     excludeReflection?: boolean;
+    inProcess?: InProcessAOTOptions;
     customVirtualModuleId?: string;
 }
 export interface PureServerFnRegistryEntry {
@@ -41,6 +42,10 @@ export interface ParsedFactoryFn {
     readonly bodyHash: string;
     readonly paramNames: string[];
     readonly code: string;
+}
+export interface InProcessAOTOptions {
+    serverEntry: string;
+    initFn?: string;
 }
 export type ReflectionMode = 'default' | 'explicit' | 'never';
 export interface DeepkitTypeOptions {
