@@ -158,7 +158,9 @@ function mionVitePlugin(options) {
     },
     transform(code, fileName) {
       const vueInfo = parseVueModuleId(fileName);
-      const filterPath = vueInfo ? vueInfo.basePath : fileName;
+      const basePath = fileName.includes("?") ? fileName.slice(0, fileName.indexOf("?")) : fileName;
+      const filterPath = vueInfo ? vueInfo.basePath : basePath;
+      if (basePath.endsWith(".vue") && !vueInfo) return null;
       const lang = vueInfo?.lang || "ts";
       const tsFileName = vueInfo ? `${vueInfo.basePath}.${lang}` : fileName;
       const isTsx = tsFileName.endsWith(".tsx") || tsFileName.endsWith(".jsx");

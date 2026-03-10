@@ -281,11 +281,14 @@ export function mionVitePlugin(options: MionPluginOptions) {
         transform(code: string, fileName: string) {
             // For Vue SFC virtual modules, resolve the base path and lang for downstream tools
             const vueInfo = parseVueModuleId(fileName);
-            const filterPath = vueInfo ? vueInfo.basePath : fileName;
+            // Strip any query params (e.g. ?macro=true from Nuxt) to get the real file path
+            const basePath = fileName.includes('?') ? fileName.slice(0, fileName.indexOf('?')) : fileName;
+            const filterPath = vueInfo ? vueInfo.basePath : basePath;
 
-            // Skip bare .vue files — wait for the Vue plugin to extract the <script> block,
-            // then process the virtual module (e.g. Component.vue?vue&type=script&lang=ts)
-            if (filterPath.endsWith('.vue') && !vueInfo) return null;
+            // Skip .vue files unless they are Vue script virtual modules (?vue&type=script).
+            // Bare .vue files and other .vue queries (e.g. ?macro=true from Nuxt) contain raw
+            // SFC content — wait for the Vue plugin to extract the <script> block first.
+            if (basePath.endsWith('.vue') && !vueInfo) return null;
 
             const lang = vueInfo?.lang || 'ts';
             const tsFileName = vueInfo ? `${vueInfo.basePath}.${lang}` : fileName;

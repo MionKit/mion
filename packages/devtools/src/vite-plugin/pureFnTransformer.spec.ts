@@ -418,6 +418,18 @@ describe('mionVitePlugin transform - Vue SFC support', () => {
         expect(result).toBeNull();
     });
 
+    it('should skip .vue files with non-Vue query params (e.g. Nuxt ?macro=true)', () => {
+        const sfcSource = `
+            <template><div>hello</div></template>
+            <script setup lang="ts">
+            import {pureServerFn} from '@mionjs/core';
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = plugin.transform(sfcSource, 'Component.vue?macro=true');
+        expect(result).toBeNull();
+    });
+
     it('should still process regular .ts files normally', () => {
         const tsSource = `
             import {pureServerFn} from '@mionjs/core';
