@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Plugin} from 'vite';
 import {resolve} from 'path';
 import * as ts from 'typescript';
 import {createDeepkitConfig, DeepkitConfig, createPureFnTransformerFactory} from './transformers.ts';
@@ -44,16 +43,31 @@ export interface MionPluginOptions {
     aotCaches?: AOTCacheOptions;
 }
 
+/** Extracts the base file path and lang from a Vue SFC virtual module ID (e.g. Component.vue?vue&type=script&lang=ts) */
+export function parseVueModuleId(id: string): {basePath: string; lang: string | null} | null {
+    const qIdx = id.indexOf('?');
+    if (qIdx === -1) return null;
+    const basePath = id.slice(0, qIdx);
+    if (!basePath.endsWith('.vue')) return null;
+    const params = new URLSearchParams(id.slice(qIdx));
+    if (!params.has('vue') || params.get('type') !== 'script') return null;
+    return {basePath, lang: params.get('lang')};
+}
+
 /** Checks if a file path matches the include/exclude patterns */
 export function isIncluded(filePath: string, include: string[], exclude: string[]): boolean {
-    // Simple pattern matching - check file extension
-    const isTs = /\.(ts|tsx|js|jsx)$/.test(filePath);
-    const isDir = filePath.endsWith('/');
-    if (!isTs && !isDir) return false;
+    // For Vue virtual module IDs, use the base .vue path for matching
+    const vueInfo = parseVueModuleId(filePath);
+    const effectivePath = vueInfo ? vueInfo.basePath : filePath;
+
+    const isTs = /\.(ts|tsx|js|jsx)$/.test(effectivePath);
+    const isVue = effectivePath.endsWith('.vue');
+    const isDir = effectivePath.endsWith('/');
+    if (!isTs && !isVue && !isDir) return false;
 
     // Check exclude patterns
     for (const pattern of exclude) {
-        if (matchGlob(filePath, pattern)) return false;
+        if (matchGlob(effectivePath, pattern)) return false;
     }
 
     return true;
@@ -104,7 +118,7 @@ function matchGlob(filePath: string, pattern: string): boolean {
  * });
  * ```
  */
-export function mionVitePlugin(options: MionPluginOptions): Plugin {
+export function mionVitePlugin(options: MionPluginOptions) {
     let extractedFns: ExtractedPureFn[] | null = null;
     const pureFnOptions = options.serverPureFunctions;
     const runTypesOptions = options.runTypes;
@@ -138,7 +152,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
 
     return {
         name: 'mion',
-        enforce: 'pre',
+        enforce: 'pre' as const, // literal type required: inferred 'string' is not assignable to Vite's 'pre' | 'post'
 
         config(config) {
             // Strip reflection module aliases in bundle build mode so our resolveId can stub them.
@@ -265,9 +279,16 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
         },
 
         transform(code: string, fileName: string) {
+            // For Vue SFC virtual modules, resolve the base path and lang for downstream tools
+            const vueInfo = parseVueModuleId(fileName);
+            const filterPath = vueInfo ? vueInfo.basePath : fileName;
+            const lang = vueInfo?.lang || 'ts';
+            const tsFileName = vueInfo ? `${vueInfo.basePath}.${lang}` : fileName;
+            const isTsx = tsFileName.endsWith('.tsx') || tsFileName.endsWith('.jsx');
+
             const hasPureFns =
                 code.includes('pureServerFn') || code.includes('registerPureFnFactory') || code.includes('mapFrom');
-            const needsDeepkit = deepkitConfig ? deepkitConfig.filter(fileName) : false;
+            const needsDeepkit = deepkitConfig ? deepkitConfig.filter(filterPath) : false;
 
             if (!hasPureFns && !needsDeepkit) return null;
 
@@ -277,7 +298,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             // Pure function transformer (runs first — sees clean AST)
             const collected: ExtractedPureFn[] | undefined = hasPureFns ? [] : undefined;
             if (hasPureFns) {
-                before.push(createPureFnTransformerFactory(code, fileName, collected, pureFnOptions?.noViteClient));
+                before.push(createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient));
             }
 
             // Deepkit has two functions: type metadata emission (follows include/exclude filters)
@@ -292,13 +313,11 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             }
 
             const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
-            const compilerOptions = fileName.endsWith('.tsx')
-                ? {...baseCompilerOptions, jsx: ts.JsxEmit.ReactJSX}
-                : baseCompilerOptions;
+            const compilerOptions = isTsx ? {...baseCompilerOptions, jsx: ts.JsxEmit.ReactJSX} : baseCompilerOptions;
 
             const result = ts.transpileModule(code, {
                 compilerOptions,
-                fileName,
+                fileName: tsFileName,
                 transformers: {before, after},
             });
 
@@ -330,7 +349,7 @@ export function mionVitePlugin(options: MionPluginOptions): Plugin {
             if (pureFnOptions) {
                 const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
                 if (file.startsWith(clientSrcPath)) {
-                    const include = pureFnOptions.include || ['**/*.ts', '**/*.tsx'];
+                    const include = pureFnOptions.include || ['**/*.ts', '**/*.tsx', '**/*.vue'];
                     const exclude = pureFnOptions.exclude || ['../node_modules/**', '**/.dist/**', '**/dist/**'];
                     if (isIncluded(file, include, exclude)) {
                         // Clear cache and invalidate virtual module

@@ -6,12 +6,24 @@ import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_AOT_CACHES, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX } from "./constants.js";
 import { generateAOTCaches, logAOTCaches, generateNoopModule, generateJitFnsModule, generatePureFnsModule, generateRouterCacheModule, generateNoopCombinedModule, generateCombinedCachesModule } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
+function parseVueModuleId(id) {
+  const qIdx = id.indexOf("?");
+  if (qIdx === -1) return null;
+  const basePath = id.slice(0, qIdx);
+  if (!basePath.endsWith(".vue")) return null;
+  const params = new URLSearchParams(id.slice(qIdx));
+  if (!params.has("vue") || params.get("type") !== "script") return null;
+  return { basePath, lang: params.get("lang") };
+}
 function isIncluded(filePath, include, exclude) {
-  const isTs = /\.(ts|tsx|js|jsx)$/.test(filePath);
-  const isDir = filePath.endsWith("/");
-  if (!isTs && !isDir) return false;
+  const vueInfo = parseVueModuleId(filePath);
+  const effectivePath = vueInfo ? vueInfo.basePath : filePath;
+  const isTs = /\.(ts|tsx|js|jsx)$/.test(effectivePath);
+  const isVue = effectivePath.endsWith(".vue");
+  const isDir = effectivePath.endsWith("/");
+  if (!isTs && !isVue && !isDir) return false;
   for (const pattern of exclude) {
-    if (matchGlob(filePath, pattern)) return false;
+    if (matchGlob(effectivePath, pattern)) return false;
   }
   return true;
 }
@@ -47,6 +59,7 @@ function mionVitePlugin(options) {
   return {
     name: "mion",
     enforce: "pre",
+    // literal type required: inferred 'string' is not assignable to Vite's 'pre' | 'post'
     config(config) {
       if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== "true") {
         const aliases = config.resolve?.alias;
@@ -125,14 +138,19 @@ function mionVitePlugin(options) {
       return null;
     },
     transform(code, fileName) {
+      const vueInfo = parseVueModuleId(fileName);
+      const filterPath = vueInfo ? vueInfo.basePath : fileName;
+      const lang = vueInfo?.lang || "ts";
+      const tsFileName = vueInfo ? `${vueInfo.basePath}.${lang}` : fileName;
+      const isTsx = tsFileName.endsWith(".tsx") || tsFileName.endsWith(".jsx");
       const hasPureFns = code.includes("pureServerFn") || code.includes("registerPureFnFactory") || code.includes("mapFrom");
-      const needsDeepkit = deepkitConfig ? deepkitConfig.filter(fileName) : false;
+      const needsDeepkit = deepkitConfig ? deepkitConfig.filter(filterPath) : false;
       if (!hasPureFns && !needsDeepkit) return null;
       const before = [];
       const after = [];
       const collected = hasPureFns ? [] : void 0;
       if (hasPureFns) {
-        before.push(createPureFnTransformerFactory(code, fileName, collected, pureFnOptions?.noViteClient));
+        before.push(createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient));
       }
       if (deepkitConfig) {
         after.push(...deepkitConfig.afterTransformers);
@@ -141,10 +159,10 @@ function mionVitePlugin(options) {
         before.push(...deepkitConfig.beforeTransformers);
       }
       const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
-      const compilerOptions = fileName.endsWith(".tsx") ? { ...baseCompilerOptions, jsx: ts.JsxEmit.ReactJSX } : baseCompilerOptions;
+      const compilerOptions = isTsx ? { ...baseCompilerOptions, jsx: ts.JsxEmit.ReactJSX } : baseCompilerOptions;
       const result = ts.transpileModule(code, {
         compilerOptions,
-        fileName,
+        fileName: tsFileName,
         transformers: { before, after }
       });
       if (collected && collected.length > 0) {
@@ -170,7 +188,7 @@ function mionVitePlugin(options) {
       if (pureFnOptions) {
         const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
         if (file.startsWith(clientSrcPath)) {
-          const include = pureFnOptions.include || ["**/*.ts", "**/*.tsx"];
+          const include = pureFnOptions.include || ["**/*.ts", "**/*.tsx", "**/*.vue"];
           const exclude = pureFnOptions.exclude || ["../node_modules/**", "**/.dist/**", "**/dist/**"];
           if (isIncluded(file, include, exclude)) {
             extractedFns = null;
@@ -214,6 +232,7 @@ function mionVitePlugin(options) {
 }
 export {
   isIncluded,
-  mionVitePlugin
+  mionVitePlugin,
+  parseVueModuleId
 };
 //# sourceMappingURL=mionVitePlugin.js.map

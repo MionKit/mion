@@ -15,9 +15,82 @@ import {readdirSync, statSync, readFileSync} from 'fs';
 import {resolve, join} from 'path/posix';
 import {isIncluded} from './mionVitePlugin.ts';
 
+/**
+ * Extracts all <script> block contents and lang attributes from a Vue SFC source.
+ * Uses a regex + state machine approach instead of a full XML/HTML AST parser. Vue SFCs have
+ * a simple, well-defined structure (top-level <script> blocks only) so this is sufficient.
+ * This avoids adding @vue/compiler-sfc as a dependency just for keyword detection in the
+ * scan pipeline. The Vite transform pipeline relies on @vitejs/plugin-vue for proper parsing.
+ * A small string-literal tracker skips </script> inside quotes so embedded script tags
+ * in string literals (e.g. injecting a header script as pure text) don't break extraction.
+ */
+export function extractVueScriptContent(source: string): {content: string; lang: string} | null {
+    // Matches <script ...> allowing > inside quoted attribute values (e.g. generic="T extends Foo<Bar>")
+    const openRegex = /<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>/gi;
+    const closeTag = '</script>';
+    let combined = '';
+    let lang = 'js';
+    let found = false;
+
+    let openMatch: RegExpExecArray | null;
+    while ((openMatch = openRegex.exec(source)) !== null) {
+        const attrs = openMatch[1];
+        const contentStart = openMatch.index + openMatch[0].length;
+        const closeIdx = findClosingScriptTag(source, contentStart, closeTag);
+        if (closeIdx === -1) break;
+
+        found = true;
+        combined += source.slice(contentStart, closeIdx) + '\n';
+        // Advance the regex past the closing tag so the next iteration finds the next block
+        openRegex.lastIndex = closeIdx + closeTag.length;
+
+        const langMatch = attrs.match(/lang=["'](\w+)["']/);
+        if (langMatch) lang = langMatch[1];
+    }
+
+    return found ? {content: combined.trim(), lang} : null;
+}
+
+/** Finds the position of </script> while skipping occurrences inside string literals */
+function findClosingScriptTag(source: string, start: number, closeTag: string): number {
+    let i = start;
+    while (i < source.length) {
+        const ch = source[i];
+
+        // Skip string literals (single, double, template)
+        if (ch === "'" || ch === '"' || ch === '`') {
+            i = skipStringLiteral(source, i, ch);
+            continue;
+        }
+
+        // Check for closing tag (case-insensitive)
+        if (ch === '<' && source.slice(i, i + closeTag.length).toLowerCase() === closeTag) {
+            return i;
+        }
+
+        i++;
+    }
+    return -1;
+}
+
+/** Advances past a string literal, handling escape sequences and template literal nesting */
+function skipStringLiteral(source: string, start: number, quote: string): number {
+    let i = start + 1;
+    while (i < source.length) {
+        const ch = source[i];
+        if (ch === '\\') {
+            i += 2; // skip escaped character
+            continue;
+        }
+        if (ch === quote) return i + 1;
+        i++;
+    }
+    return i;
+}
+
 /** Scans the client source directory and extracts all pure functions */
 export function scanClientSource(options: ServerPureFunctionsOptions): ExtractedPureFn[] {
-    const include = options.include || ['**/*.ts', '**/*.tsx'];
+    const include = options.include || ['**/*.ts', '**/*.tsx', '**/*.vue'];
     const exclude = options.exclude || ['../node_modules/**', '**/.dist/**', '**/dist/**'];
     const clientSrcPath = resolve(options.clientSrcPath);
     const fns: ExtractedPureFn[] = [];
@@ -37,18 +110,28 @@ export function scanClientSource(options: ServerPureFunctionsOptions): Extracted
                 if (!isIncluded(fullPath, include, exclude)) continue;
 
                 try {
-                    const code = readFileSync(fullPath, 'utf-8');
+                    let code = readFileSync(fullPath, 'utf-8');
+                    let effectivePath = fullPath;
+
+                    // For .vue files, extract script content
+                    if (fullPath.endsWith('.vue')) {
+                        const scriptBlock = extractVueScriptContent(code);
+                        if (!scriptBlock) continue;
+                        code = scriptBlock.content;
+                        effectivePath = `${fullPath}.${scriptBlock.lang}`;
+                    }
+
                     // Quick check: does this file contain pureServerFn or mapFrom?
                     const hasPureFn = code.includes('pureServerFn');
                     const hasMapFrom = code.includes('mapFrom');
                     if (!hasPureFn && !hasMapFrom) continue;
 
                     if (hasPureFn) {
-                        const extracted = extractPureFnsFromSource(code, fullPath, 'pureServerFn', options.noViteClient);
+                        const extracted = extractPureFnsFromSource(code, effectivePath, 'pureServerFn', options.noViteClient);
                         fns.push(...extracted);
                     }
                     if (hasMapFrom) {
-                        const extracted = extractPureFnsFromSource(code, fullPath, 'mapFrom', options.noViteClient);
+                        const extracted = extractPureFnsFromSource(code, effectivePath, 'mapFrom', options.noViteClient);
                         fns.push(...extracted);
                     }
                 } catch (err: any) {
@@ -113,7 +196,12 @@ export function extractPureFnsFromSource(
  */
 export function stripTypes(code: string, filePath?: string): string {
     try {
-        const loader = filePath?.endsWith('.tsx') ? 'tsx' : 'ts';
+        let loader: 'ts' | 'tsx' | 'js' | 'jsx' = 'ts';
+        if (filePath) {
+            if (filePath.endsWith('.tsx')) loader = 'tsx';
+            else if (filePath.endsWith('.jsx')) loader = 'jsx';
+            else if (filePath.endsWith('.js')) loader = 'js';
+        }
         const result = transformSync(code, {
             loader,
             target: 'esnext',

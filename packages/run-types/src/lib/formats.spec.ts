@@ -12,7 +12,7 @@ import {runType} from '../createRunType.ts';
 import {BaseRunTypeFormat} from './baseRunTypeFormat.ts';
 import {BaseRunType} from './baseRunTypes.ts';
 import {registerFormatter, getFormatterParams} from './formats.ts';
-import {TypeFormat} from './formats.runtype.ts';
+import {TypeFormat} from '../formats.runtype.ts';
 import {JitFunctions} from '../constants.functions.ts';
 import {JitFnCompiler, JitErrorsFnCompiler} from './jitFnCompiler.ts';
 import {JitCode} from '../types.ts';
