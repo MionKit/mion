@@ -1,6 +1,7 @@
 import {describe, it, expect} from 'vitest';
 import * as ts from 'typescript';
 import {createPureFnTransformerFactory, createDeepkitConfig} from './transformers.ts';
+import {mionVitePlugin} from './mionVitePlugin.ts';
 import {ExtractedPureFn} from './types.ts';
 import {BODY_HASH_LENGTH} from './constants.ts';
 
@@ -384,36 +385,54 @@ export function hello() { return x; }
     });
 });
 
-// ── Vue SFC virtual module paths ────────────────────────────────────
+// ── mionVitePlugin transform hook — Vue SFC handling ────────────────
 
-describe('pureFnTransformer - Vue SFC virtual modules', () => {
-    it('should inject bodyHash for code from a .vue.ts synthetic path', () => {
-        const source = `
-import {pureServerFn} from '@mionjs/core';
-export const fn = pureServerFn((x) => x + 1);
-`;
-        const {output, collected} = transformWithPureFn(source, 'Component.vue.ts');
-        expect(collected).toHaveLength(1);
-        expect(collected[0].bodyHash.length).toBe(BODY_HASH_LENGTH);
-        expect(output).toContain(`"${collected[0].bodyHash}"`);
+describe('mionVitePlugin transform - Vue SFC support', () => {
+    const plugin = mionVitePlugin({}) as any;
+
+    it('should skip bare .vue files (let Vue plugin extract <script> first)', () => {
+        const sfcSource = `
+            <template><div>hello</div></template>
+            <script setup lang="ts">
+            import {pureServerFn} from '@mionjs/core';
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = plugin.transform(sfcSource, 'Component.vue');
+        expect(result).toBeNull();
     });
 
-    it('should inject bodyHash for mapFrom from a .vue.ts synthetic path', () => {
-        const source = `
-import {mapFrom} from '@mionjs/client';
-const sub = {};
-export const ref = mapFrom(sub, (x) => x + 1);
-`;
-        const {output, collected} = transformWithPureFn(source, 'Component.vue.ts');
-        expect(collected).toHaveLength(1);
-        expect(output).toContain(`"${collected[0].bodyHash}"`);
+    it('should process Vue script virtual module IDs', () => {
+        const scriptSource = `
+            import {pureServerFn} from '@mionjs/core';
+            const fn = pureServerFn((x) => x + 1);
+        `;
+        const result = plugin.transform(scriptSource, 'Component.vue?vue&type=script&setup=true&lang=ts');
+        expect(result).not.toBeNull();
+        expect(result.code).toContain('pureServerFn');
+    });
+
+    it('should skip Vue template virtual module IDs', () => {
+        const templateSource = `<div>hello</div>`;
+        const result = plugin.transform(templateSource, 'Component.vue?vue&type=template');
+        expect(result).toBeNull();
+    });
+
+    it('should still process regular .ts files normally', () => {
+        const tsSource = `
+            import {pureServerFn} from '@mionjs/core';
+            export const fn = pureServerFn((x) => x + 1);
+        `;
+        const result = plugin.transform(tsSource, 'utils.ts');
+        expect(result).not.toBeNull();
+        expect(result.code).toContain('pureServerFn');
     });
 
     it('should handle .vue.tsx synthetic path with JSX compiler options', () => {
         const source = `
-import {pureServerFn} from '@mionjs/core';
-export const fn = pureServerFn((x) => x + 1);
-`;
+            import {pureServerFn} from '@mionjs/core';
+            export const fn = pureServerFn((x) => x + 1);
+        `;
         // .vue.tsx path should work without errors (JSX compiler options applied)
         const {collected} = transformWithPureFn(source, 'Component.vue.tsx');
         expect(collected).toHaveLength(1);
@@ -421,9 +440,9 @@ export const fn = pureServerFn((x) => x + 1);
 
     it('should produce same hash for same function regardless of file path', () => {
         const source = `
-import {pureServerFn} from '@mionjs/core';
-export const fn = pureServerFn((x) => x + 1);
-`;
+            import {pureServerFn} from '@mionjs/core';
+            export const fn = pureServerFn((x) => x + 1);
+        `;
         const {collected: fromTs} = transformWithPureFn(source, 'file.ts');
         const {collected: fromVue} = transformWithPureFn(source, 'Component.vue.ts');
         expect(fromTs[0].bodyHash).toBe(fromVue[0].bodyHash);
