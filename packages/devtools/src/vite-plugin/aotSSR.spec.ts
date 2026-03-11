@@ -1,5 +1,5 @@
 import {describe, it, expect, vi} from 'vitest';
-import {generateSSRAOTCaches} from './aotCacheGenerator.ts';
+import {loadSSRRouterAndGenerateAOTCaches} from './aotCacheGenerator.ts';
 
 const mockCacheData = {
     jitFnsCode: '{test: "jit"}',
@@ -30,7 +30,7 @@ describe('generateSSRAOTCaches', () => {
     it('should load startServerScript and capture emitted AOT caches via process.send', async () => {
         const loadModule = createMockLoader('/app/src/server.ts');
 
-        const result = await generateSSRAOTCaches(loadModule, '/app/src/server.ts');
+        const result = await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
 
         expect(loadModule).toHaveBeenCalledWith('/app/src/server.ts');
         expect(result).toEqual(mockCacheData);
@@ -39,7 +39,7 @@ describe('generateSSRAOTCaches', () => {
     it('should only call loadModule once (no separate router/aot load)', async () => {
         const loadModule = createMockLoader('/app/src/server.ts');
 
-        await generateSSRAOTCaches(loadModule, '/app/src/server.ts');
+        await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
 
         expect(loadModule).toHaveBeenCalledTimes(1);
         expect(loadModule).toHaveBeenCalledWith('/app/src/server.ts');
@@ -57,7 +57,7 @@ describe('generateSSRAOTCaches', () => {
         delete process.env.MION_COMPILE;
 
         try {
-            await generateSSRAOTCaches(loadModule, '/app/src/server.ts');
+            await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
             expect(envDuringLoad).toBe('true');
             expect(process.env.MION_COMPILE).toBeUndefined();
         } finally {
@@ -69,7 +69,7 @@ describe('generateSSRAOTCaches', () => {
         const loadModule = createMockLoader('/app/src/server.ts');
         const originalSend = process.send;
 
-        await generateSSRAOTCaches(loadModule, '/app/src/server.ts');
+        await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
 
         expect(process.send).toBe(originalSend);
     });
@@ -77,7 +77,7 @@ describe('generateSSRAOTCaches', () => {
     it('should propagate errors from loadModule', async () => {
         const loadModule = vi.fn().mockRejectedValue(new Error('Module load failed'));
 
-        await expect(generateSSRAOTCaches(loadModule, '/app/src/server.ts')).rejects.toThrow('Module load failed');
+        await expect(loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts')).rejects.toThrow('Module load failed');
     });
 
     it('should timeout if startServerScript never emits AOT caches', async () => {
@@ -86,7 +86,7 @@ describe('generateSSRAOTCaches', () => {
             // Module loads but never calls process.send
             const loadModule = vi.fn().mockResolvedValue({});
 
-            const promise = generateSSRAOTCaches(loadModule, '/app/src/server.ts');
+            const promise = loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
             // Suppress unhandled rejection from the timeout Promise.race loser
             promise.catch(() => {});
             await vi.advanceTimersByTimeAsync(30_001);

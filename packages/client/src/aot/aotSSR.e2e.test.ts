@@ -101,6 +101,39 @@ async function run() {
         assert.ok(mod.routerCache !== undefined, 'routerCache should be defined');
     });
 
+    console.log('\n--- SSR init timing (race condition regression) ---');
+
+    await test('should generate AOT caches immediately after createServer', async () => {
+        const freshServer = await createServer({
+            configFile: false,
+            resolve: {conditions: ['source']},
+            ssr: {resolve: {conditions: ['source']}},
+            server: {middlewareMode: true},
+            plugins: [
+                mionVitePlugin({
+                    runTypes: {tsConfig: resolve(routerDir, 'tsconfig.json')},
+                    aotCaches: {startServerScript: defaultRoutesPath},
+                }) as any,
+            ],
+        });
+        try {
+            // Immediately load AOT modules — no HTTP requests, no delays
+            const mod = await freshServer.ssrLoadModule('virtual:mion-aot/caches');
+            assert.ok(mod.jitFnsCache !== undefined, 'jitFnsCache should be available immediately');
+            assert.ok(mod.routerCache !== undefined, 'routerCache should be available immediately');
+        } finally {
+            await freshServer.close();
+        }
+    });
+
+    await test('should not require an HTTP request before AOT caches are available', async () => {
+        // Verifies that the plugin does not defer init to the middleware handler.
+        // AOT virtual modules must resolve from ssrLoadModule alone.
+        const mod = await loadModule('virtual:mion-aot/jit-fns');
+        assert.ok(mod.jitFnsCache, 'jitFnsCache should be available without prior HTTP request');
+        assert.ok(Object.keys(mod.jitFnsCache).length > 0, 'jitFnsCache should have entries');
+    });
+
     console.log('\n--- AOT cache content ---');
 
     await test('should generate non-empty router cache', async () => {

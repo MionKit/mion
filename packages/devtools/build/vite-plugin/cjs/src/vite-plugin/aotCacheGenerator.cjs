@@ -93,7 +93,7 @@ Make sure the startServerScript calls initMionRouter() and the router is fully i
     }, DEFAULT_TIMEOUT);
   });
 }
-async function generateSSRAOTCaches(loadModule, startServerScript) {
+async function loadSSRRouterAndGenerateAOTCaches(loadModule, startServerScript) {
   const prevCompile = process.env.MION_COMPILE;
   process.env.MION_COMPILE = "true";
   const originalSend = process.send;
@@ -196,6 +196,6 @@ exports.generateNoopCombinedModule = generateNoopCombinedModule;
 exports.generateNoopModule = generateNoopModule;
 exports.generatePureFnsModule = generatePureFnsModule;
 exports.generateRouterCacheModule = generateRouterCacheModule;
-exports.generateSSRAOTCaches = generateSSRAOTCaches;
+exports.loadSSRRouterAndGenerateAOTCaches = loadSSRRouterAndGenerateAOTCaches;
 exports.logAOTCaches = logAOTCaches;
 //# sourceMappingURL=aotCacheGenerator.cjs.map
