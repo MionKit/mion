@@ -10,13 +10,24 @@ import type {BaseRunType} from '../../lib/baseRunTypes.ts';
 import type {ClassRunType} from '../../nodes/collection/class.ts';
 import type {MethodSignatureRunType} from '../../nodes/member/methodSignature.ts';
 import type {IterableRunType} from '../../nodes/native/Iterable.ts';
-import {ReflectionKind, type TypeMethodSignature, type TypePropertySignature} from '@deepkit/type';
+import {ReflectionKind, type TypeMethodSignature, type TypeObjectLiteral, type TypePropertySignature} from '@deepkit/type';
 import {ReflectionSubKind} from '../../constants.kind.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import {JitFnCompiler} from '../../lib/jitFnCompiler.ts';
 import {isSafePropName} from '../../lib/utils.ts';
 import {createStringifyCompiler, createStringifyIterable} from './stringifyJson.ts';
 import {cpf_sanitizeCompiledFn} from '../../run-types-pure-fns.ts';
+
+/** Gets sibling property/method names from a MethodSignature's parent ObjectLiteral */
+function getParentSiblingNames(srcMS: TypeMethodSignature): Set<string | number | symbol> | undefined {
+    let parent = srcMS.parent as any;
+    // Handle deepkit bug where parent can be TypePropertySignature instead of TypeObjectLiteral
+    if (parent?.kind === ReflectionKind.propertySignature) parent = parent.parent;
+    if (parent?.kind !== ReflectionKind.objectLiteral) return undefined;
+    const types = (parent as TypeObjectLiteral).types;
+    if (!types) return undefined;
+    return new Set(types.map((t: any) => t.name).filter((n: any) => n !== undefined));
+}
 
 export function createToCodeCompiler() {
     const fnID = JitFunctions.toJSCode.id;
@@ -52,14 +63,16 @@ export function createToCodeCompiler() {
                 const isSafe = isSafePropName(accessor);
                 const safeName = isSafe ? name : JSON.stringify(name);
                 const sep = rt.skipCommas ? '' : '+","';
-                if (isCompilingJitFn(rt, comp)) {
-                    // special case for JitFunctions that we know should return undefined for fn param
+                if (isCompilingFnProp(rt, comp)) {
+                    // special case for JitFunctions/PureFunctions that we know should return undefined for fn param
                     return {code: `'undefined'`, type: 'E'};
-                } else if (isCompilingClosureJitFn(rt, comp)) {
-                    // This is an special case for JitFunctions where we want to generate the fn from the JitCompiledFnData instead of fn.toString();
-                    const fnName = comp.opts.isPureFnCode ? `${comp.vλl}.fnName` : `${comp.vλl}.jitFnHash`;
+                } else if (isCompilingClosureFn(rt, comp)) {
+                    // special case for JitFunctions/PureFunctions where we generate the fn from the data instead of fn.toString()
+                    const isPureFn = rt.getChildVarName(comp) === 'createPureFn';
+                    const fnName = isPureFn ? `${comp.vλl}.fnName` : `${comp.vλl}.jitFnHash`;
                     const fnCode = `${comp.vλl}.code`;
-                    const closureCode = `'function get_'+${fnName}+'(utl){'+${fnCode}+'}'`;
+                    const paramList = isPureFn ? `${comp.vλl}.paramNames.join(',')` : `'utl'`;
+                    const closureCode = `'function get_'+${fnName}+'('+${paramList}+'){'+${fnCode}+'}'`;
                     return {code: `'${safeName}:'+${closureCode}${sep}`, type: 'E'};
                 } else if (rt.src.subKind === ReflectionSubKind.params) {
                     const paramsCode = visitJsonStringify(rt, comp);
@@ -117,16 +130,23 @@ export function createToCodeCompiler() {
         }
     }
 
-    function isCompilingClosureJitFn(runType: MethodSignatureRunType, comp: JitFnCompiler) {
-        if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
+    /** Detects if we're compiling a createJitFn or createPureFn closure by checking sibling properties */
+    function isCompilingClosureFn(runType: MethodSignatureRunType, comp: JitFnCompiler): boolean {
         const childName = runType.getChildVarName(comp);
-        return childName === 'createJitFn' || childName === 'createPureFn';
+        if (childName !== 'createJitFn' && childName !== 'createPureFn') return false;
+        const siblings = getParentSiblingNames(runType.src as TypeMethodSignature);
+        if (!siblings) return false;
+        if (!siblings.has('code')) return false;
+        if (childName === 'createJitFn') return siblings.has('jitFnHash');
+        return siblings.has('bodyHash'); // createPureFn
     }
 
-    function isCompilingJitFn(runType: MethodSignatureRunType, comp: JitFnCompiler) {
-        if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
-        const isFn = runType.getChildVarName(comp) === 'fn';
-        return isFn;
+    /** Detects if we're compiling the fn property of a JitCompiledFn or CompiledPureFunction */
+    function isCompilingFnProp(runType: MethodSignatureRunType, comp: JitFnCompiler): boolean {
+        if (runType.getChildVarName(comp) !== 'fn') return false;
+        const siblings = getParentSiblingNames(runType.src as TypeMethodSignature);
+        if (!siblings) return false;
+        return siblings.has('code') && (siblings.has('createJitFn') || siblings.has('createPureFn'));
     }
 
     return compileToCode;

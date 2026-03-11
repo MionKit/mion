@@ -84,8 +84,8 @@ export async function serializeCachesToCode(
     pureFnsCache: PureFunctionsCache,
     routerCache: MethodsCache
 ): Promise<SerializedCaches> {
-    const jitToJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>({isJitFnCode: true});
-    const pureToJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>({isPureFnCode: true});
+    const jitToJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>();
+    const pureToJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>();
     const routerToJSCode = createToJavascriptFn<MethodsCache>();
     // Filter AFTER createToJavascriptFn to exclude compile-time-only items (including those just added)
     const finalJitFns = filterExcludedJitFns(jitFnsCache, EXCLUDED_JIT_FN_IDS);

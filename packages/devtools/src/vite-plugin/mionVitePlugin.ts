@@ -6,6 +6,7 @@
  * ######## */
 
 import {resolve} from 'path';
+import {writeFileSync} from 'fs';
 import * as ts from 'typescript';
 import {createDeepkitConfig, DeepkitConfig, createPureFnTransformerFactory} from './transformers.ts';
 import {ServerPureFunctionsOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
@@ -14,7 +15,7 @@ import {generateServerPureFnsVirtualModule} from './virtualModule.ts';
 import {VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX, resolveVirtualId} from './constants.ts';
 import {
     generateAOTCaches,
-    generateInProcessAOTCaches,
+    generateSSRAOTCaches,
     logAOTCaches,
     generateJitFnsModule,
     generatePureFnsModule,
@@ -158,9 +159,10 @@ export function mionVitePlugin(options: MionPluginOptions) {
     // Resolved cache directory from Vite's config — set in configResolved
     let aotCacheDir = '';
 
-    // In-process AOT: module loader and options
-    const inProcessOptions = aotOptions?.inProcess ?? null;
-    let inProcessLoadModule: ((url: string) => Promise<Record<string, any>>) | null = null;
+    // SSR AOT: module loader (set in configureServer when SSR mode is active)
+    let ssrLoadModule: ((url: string) => Promise<Record<string, any>>) | null = null;
+    /** Whether SSR mode is active — resolved in configResolved from Vite's own config */
+    let ssrEnabled = false;
 
     const {aotVirtualModules, aotResolvedIds} = buildAOTVirtualModuleMaps(aotOptions?.customVirtualModuleId);
 
@@ -186,14 +188,21 @@ export function mionVitePlugin(options: MionPluginOptions) {
             if (aotOptions) {
                 aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
             }
+            // Detect SSR mode from Vite's own config:
+            // middlewareMode means a framework (e.g. Nuxt) manages the HTTP server → SSR
+            // command 'serve' means dev server (not production build)
+            // Exclude vitest: vitest also uses middlewareMode + serve, but should use IPC mode
+            if (aotOptions?.startServerScript && process.env.MION_COMPILE !== 'true') {
+                const isVitest = !!(config as any).test || !!process.env.VITEST;
+                ssrEnabled = !isVitest && config.command === 'serve' && !!config.server.middlewareMode;
+            }
         },
 
         async buildStart() {
             // Generate AOT caches if enabled
             // Skip when already running as the AOT compile child process to prevent infinite recursion
-            // (happens when aotCaches.serverViteConfig points to the same vite config)
-            // Skip when in-process mode is configured — configureServer will handle it
-            if (aotOptions && process.env.MION_COMPILE !== 'true' && !inProcessOptions) {
+            // Skip when SSR mode — configureServer will handle it
+            if (aotOptions && process.env.MION_COMPILE !== 'true' && !ssrEnabled) {
                 try {
                     console.log('[mion] Generating AOT caches...');
                     aotGenerationPromise = getOrGenerateAOTCaches(aotOptions, aotCacheDir);
@@ -208,16 +217,19 @@ export function mionVitePlugin(options: MionPluginOptions) {
         },
 
         configureServer(server) {
-            if (!inProcessOptions) return;
-            inProcessLoadModule = (url: string) => server.ssrLoadModule(url);
+            if (!ssrEnabled || !aotOptions?.startServerScript) return;
 
-            /** Trigger in-process AOT generation and set up module invalidation on completion */
-            const startInProcessAOT = () => {
-                console.log('[mion] Generating in-process AOT caches...');
-                aotGenerationPromise = generateInProcessAOTCaches(inProcessLoadModule!, inProcessOptions!)
+            // SSR mode: use ssrLoadModule to load startServerScript in the same process
+            ssrLoadModule = (url: string) => server.ssrLoadModule(url);
+            const startServerScript = resolve(aotOptions.startServerScript);
+
+            /** Trigger SSR AOT generation and set up module invalidation on completion */
+            const startSSRAOT = () => {
+                console.log('[mion] Generating SSR AOT caches...');
+                aotGenerationPromise = generateSSRAOTCaches(ssrLoadModule!, startServerScript)
                     .then((data) => {
                         aotData = data;
-                        console.log('[mion] In-process AOT caches generated successfully');
+                        console.log('[mion] SSR AOT caches generated successfully');
                         logAOTCaches(data);
                         // Invalidate virtual modules so they reload with real data
                         for (const resolvedId of aotResolvedIds.keys()) {
@@ -228,7 +240,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                     })
                     .catch((err) => {
                         const message = err instanceof Error ? err.message : String(err);
-                        console.error(`[mion] Failed to generate in-process AOT caches: ${message}`);
+                        console.error(`[mion] Failed to generate SSR AOT caches: ${message}`);
                         throw err;
                     });
             };
@@ -237,12 +249,52 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // which only works after server.listen(). Can't call from configureServer or load().
             // Use 'listening' event when available, otherwise defer to next macrotask.
             if (server.httpServer) {
-                server.httpServer.once('listening', startInProcessAOT);
+                server.httpServer.once('listening', startSSRAOT);
             } else {
                 // middlewareMode: framework (e.g. Nuxt) manages the HTTP server.
                 // Defer to macrotask — the framework should have started by then.
-                setTimeout(startInProcessAOT, 0);
+                setTimeout(startSSRAOT, 0);
             }
+
+            // Dev server proxy: route matching requests to mion's httpRequestHandler
+            let requestHandler: ((req: any, res: any) => void) | null = null;
+            let basePath: string | null = null;
+            let initFailed = false;
+
+            server.middlewares.use(async (req: any, res: any, next: () => void) => {
+                try {
+                    // Lazy-init: get basePath and handler after router is initialized
+                    if (!basePath && !initFailed) {
+                        // Wait for SSR AOT generation to complete (router must be initialized)
+                        if (aotGenerationPromise) await aotGenerationPromise.catch(() => {});
+                        const routerModule = await server.ssrLoadModule('@mionjs/router');
+                        const opts = routerModule.getRouterOptions();
+                        basePath = '/' + (opts.basePath || '').replace(/^\//, '');
+                    }
+
+                    if (!basePath || !req.url?.startsWith(basePath)) return next();
+
+                    if (!requestHandler && !initFailed) {
+                        const platformNode = await server.ssrLoadModule('@mionjs/platform-node');
+                        requestHandler = platformNode.httpRequestHandler;
+                        console.log('[mion] Dev server proxy initialized');
+                    }
+
+                    if (requestHandler) {
+                        requestHandler(req, res);
+                    } else {
+                        res.statusCode = 503;
+                        res.end('mion API failed to initialize');
+                    }
+                } catch (err) {
+                    initFailed = true;
+                    console.error('[mion] Dev server proxy error:', err);
+                    if (!res.writableEnded) {
+                        res.statusCode = 500;
+                        res.end('Internal Server Error');
+                    }
+                }
+            });
         },
 
         resolveId(id) {
@@ -277,8 +329,8 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // AOT virtual modules — check resolved ID against the map
             const aotType = aotResolvedIds.get(id);
             if (aotType) {
-                // Wait for in-process AOT generation ONLY for AOT virtual modules.
-                // Awaiting for all modules would deadlock: generateInProcessAOTCaches calls
+                // Wait for SSR AOT generation ONLY for AOT virtual modules.
+                // Awaiting for all modules would deadlock: generateSSRAOTCaches calls
                 // ssrLoadModule which triggers load() for dependency modules, which would
                 // then await the same promise that's trying to load them.
                 if (!aotData && aotGenerationPromise) {
@@ -289,19 +341,36 @@ export function mionVitePlugin(options: MionPluginOptions) {
                     }
                 }
 
+                const debugDir = '/Users/majerez/Projects/mion-starters/nuxt/4/';
+                const writeDebug = (name: string, result: any) => {
+                    const content = typeof result === 'string' ? result : (result?.code ?? '');
+                    writeFileSync(debugDir + name, content);
+                };
                 switch (aotType) {
-                    case 'jit-fns':
+                    case 'jit-fns': {
                         if (!aotData) return generateNoopModule('No-op: AOT JIT caches not generated');
-                        return generateJitFnsModule(aotData.jitFnsCode);
-                    case 'pure-fns':
+                        const code = generateJitFnsModule(aotData.jitFnsCode);
+                        writeDebug('debug-aot-jit-fns.js', code);
+                        return code;
+                    }
+                    case 'pure-fns': {
                         if (!aotData) return generateNoopModule('No-op: AOT pure fns not generated');
-                        return generatePureFnsModule(aotData.pureFnsCode);
-                    case 'router-cache':
+                        const code = generatePureFnsModule(aotData.pureFnsCode);
+                        writeDebug('debug-aot-pure-fns.js', code);
+                        return code;
+                    }
+                    case 'router-cache': {
                         if (!aotData) return generateNoopModule('No-op: AOT router cache not generated');
-                        return generateRouterCacheModule(aotData.routerCacheCode);
-                    case 'caches':
+                        const code = generateRouterCacheModule(aotData.routerCacheCode);
+                        writeDebug('debug-aot-router-cache.js', code);
+                        return code;
+                    }
+                    case 'caches': {
                         if (!aotData) return generateNoopCombinedModule();
-                        return generateCombinedCachesModule();
+                        const code = generateCombinedCachesModule();
+                        writeDebug('debug-aot-caches.js', code);
+                        return code;
+                    }
                 }
             }
 
@@ -413,20 +482,16 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // In dev mode, regenerate AOT caches when server source changes
             // Skip when running as the AOT compile child process
             if (aotOptions && process.env.MION_COMPILE !== 'true') {
-                const serverDir = inProcessOptions
-                    ? resolve(inProcessOptions.serverEntry, '..')
-                    : aotOptions.startServerScript
-                      ? resolve(aotOptions.startServerScript, '..')
-                      : null;
+                const serverDir = aotOptions.startServerScript ? resolve(aotOptions.startServerScript, '..') : null;
 
                 if (serverDir && file.startsWith(serverDir)) {
                     const regeneratePromise =
-                        inProcessOptions && inProcessLoadModule
-                            ? // In-process mode: reset router and re-init via environment runner
+                        ssrEnabled && ssrLoadModule
+                            ? // SSR mode: reset router and re-init via ssrLoadModule
                               (async () => {
-                                  const routerModule = await inProcessLoadModule!('@mionjs/router');
+                                  const routerModule = await ssrLoadModule!('@mionjs/router');
                                   routerModule.resetRouter();
-                                  return generateInProcessAOTCaches(inProcessLoadModule!, inProcessOptions);
+                                  return generateSSRAOTCaches(ssrLoadModule!, resolve(aotOptions.startServerScript!));
                               })()
                             : // IPC mode: spawn child process
                               generateAOTCaches(aotOptions);
@@ -436,7 +501,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                         .then((data) => {
                             aotData = data;
                             logAOTCaches(data);
-                            if (!inProcessOptions) updateDiskCache(aotOptions, data, aotCacheDir);
+                            if (!ssrEnabled) updateDiskCache(aotOptions, data, aotCacheDir);
                             // Invalidate all AOT virtual modules
                             let invalidatedCount = 0;
                             for (const resolvedId of aotResolvedIds.keys()) {

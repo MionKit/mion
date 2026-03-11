@@ -110,19 +110,6 @@ export interface RunTypeOptions {
      * this speeds up isType and typeErrors functions but will not validate array length.
      */
     noIsArrayCheck?: boolean;
-    /**
-     * Used internally by mion!!!
-     * Used when compiling objects that contain jit functions,
-     * this will generate the function's code from JitCompiler data instead of calling function.toString()
-     * TODO: we could skip this and instead check runType is JitCompiler
-     */
-    isJitFnCode?: boolean;
-    /**
-     * Used internally by mion!!!
-     * Used whe compiling objects that contain pure functions,
-     * this will generate the function's code from JitCompiler instead of calling function.toString()
-     */
-    isPureFnCode?: boolean;
 }
 
 export type PartialRunTypeOptions = DeepPartial<RunTypeOptions>;
