@@ -243,9 +243,9 @@ it('toJSCode should throw when trying to handle classes', () => {
 // SrcCode type parameters, but the actual values passed are runtime JitFunctionsCache/PureFunctionsCache
 // (which have real fn and createJitFn/createPureFn). This ensures changes to those types are caught early.
 
-it('toJSCode with isJitFnCode should emit fn as undefined and generate closure from code property', () => {
-    // SrcCode type parameter tells the serializer how to handle fn and createJitFn
-    const toJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>({isJitFnCode: true});
+it('toJSCode should auto-detect JitCompiledFn and emit fn as undefined and generate closure from code property', () => {
+    // SrcCode type parameter provides structural info for auto-detection of createJitFn/fn properties
+    const toJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>();
 
     // Runtime JitFunctionsCache has real fn and createJitFn (like the aotEmitter receives)
     const runtimeCache: JitFunctionsCache = {
@@ -293,9 +293,9 @@ it('toJSCode with isJitFnCode should emit fn as undefined and generate closure f
     expect(typeof createdFn).toBe('function');
 });
 
-it('toJSCode with isPureFnCode should emit fn as undefined and generate closure from code property', () => {
-    // SrcCode type parameter tells the serializer how to handle fn and createJitFn
-    const toJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>({isPureFnCode: true});
+it('toJSCode should auto-detect CompiledPureFunction and emit fn as undefined and generate closure from code property', () => {
+    // SrcCode type parameter provides structural info for auto-detection of createPureFn/fn properties
+    const toJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>();
 
     // Runtime PureFunctionsCache has createPureFn (not createJitFn) and fn
     const runtimeCache: PureFunctionsCache = {
@@ -316,8 +316,8 @@ it('toJSCode with isPureFnCode should emit fn as undefined and generate closure 
     // Cast to SrcCode type like the real aotEmitter does
     const code = toJSCode(runtimeCache as unknown as SrcCodePureFunctionsCache);
 
-    // createPureFn should be a closure using fnName (not jitFnHash) as the function name
-    expect(code).toContain('function get_myPureFn(utl)');
+    // createPureFn should be a closure using fnName and paramNames (not hardcoded utl)
+    expect(code).toContain('function get_myPureFn(val)');
     // The closure body should use the code property
     expect(code).toContain('return function(val){return val*2}');
     expect(code).not.toContain('SHOULD_NOT_APPEAR_IN_OUTPUT');
@@ -344,8 +344,8 @@ it('toJSCode with isPureFnCode should emit fn as undefined and generate closure 
     expect(createdFn(5)).toBe(10);
 });
 
-it('toJSCode with isJitFnCode should handle multiple cache entries', () => {
-    const toJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>({isJitFnCode: true});
+it('toJSCode should auto-detect and handle multiple JitCompiledFn cache entries', () => {
+    const toJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>();
 
     const runtimeCache: JitFunctionsCache = {
         hash_first: {
@@ -389,8 +389,8 @@ it('toJSCode with isJitFnCode should handle multiple cache entries', () => {
     expect(parsed['hash_second'].fn).toBeUndefined();
 });
 
-it('toJSCode with isPureFnCode should handle multiple namespaces and functions', () => {
-    const toJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>({isPureFnCode: true});
+it('toJSCode should auto-detect and handle multiple namespaces and pure functions', () => {
+    const toJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>();
 
     const runtimeCache: PureFunctionsCache = {
         nsA: {
@@ -446,4 +446,35 @@ it('toJSCode with isPureFnCode should handle multiple namespaces and functions',
     expect(parsed.nsB.fnThree.bodyHash).toBe('hashB1');
     expect(typeof parsed.nsB.fnThree.createPureFn).toBe('function');
     expect(parsed.nsB.fnThree.fn).toBeUndefined();
+});
+
+it('toJSCode should use paramNames for pure function closure parameter (not hardcoded utl)', () => {
+    const toJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>();
+
+    const runtimeCache: PureFunctionsCache = {
+        testNs: {
+            myFn: {
+                namespace: 'testNs',
+                paramNames: ['jUtil'],
+                code: 'const dep = jUtil.getPureFn("ns","fn"); return function(v){ return dep(v); }',
+                fnName: 'myFn',
+                bodyHash: 'hash123',
+                pureFnDependencies: ['ns::fn'],
+                createPureFn: () => () => 'test',
+                fn: () => 'test',
+            },
+        },
+    };
+
+    const code = toJSCode(runtimeCache as unknown as SrcCodePureFunctionsCache);
+    // closure should use the actual paramNames (jUtil), not hardcoded utl
+    expect(code).toContain('function get_myFn(jUtil)');
+    expect(code).not.toContain('function get_myFn(utl)');
+    // the code body should be included and reference jUtil correctly
+    expect(code).toContain('jUtil.getPureFn');
+
+    const parsed = eval(`(${code})`);
+    const entry = parsed['testNs']['myFn'];
+    expect(typeof entry.createPureFn).toBe('function');
+    expect(entry.fn).toBeUndefined();
 });

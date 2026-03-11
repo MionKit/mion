@@ -46,7 +46,8 @@
     "access": "public"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run && npm run test:e2e:ssr",
+    "test:e2e:ssr": "node --experimental-strip-types src/aot/aotSSR.e2e.test.ts",
     "dev": "vite build --watch",
     "dev:test": "vitest watch",
     "lint": "npx eslint src",

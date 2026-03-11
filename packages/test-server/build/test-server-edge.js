@@ -2820,7 +2820,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     } else {
       return JSON.stringify(str);
     }
-  };`, fnName: "asJSONString", bodyHash: "4WYkR03dXOzAUe", pureFnDependencies: [], createPureFn: function get_asJSONString(utl) {
+  };`, fnName: "asJSONString", bodyHash: "4WYkR03dXOzAUe", pureFnDependencies: [], createPureFn: function get_asJSONString() {
     if (typeof Bun !== "undefined") return JSON.stringify;
     const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
     const MAX_SCAPE_TEST_LENGTH = 1e3;
@@ -2831,7 +2831,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         return JSON.stringify(str);
       }
     };
-  }, fn: void 0 }, "getUnknownKeysFromArray": { namespace: "mion", paramNames: [], code: 'const MAX_UNKNOWN_KEYS = 10;\n  return function _getUnknownKeysFromArray(obj, keys) {\n    const unknownKeys = [];\n    for (const prop in obj) {\n      let found = false;\n      for (let j = 0; j < keys.length; j++) {\n        if (keys[j] === prop) {\n          found = true;\n          break;\n        }\n      }\n      if (!found) {\n        unknownKeys.push(prop);\n        if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error("Too many unknown keys");\n      }\n    }\n    return unknownKeys;\n  };', fnName: "getUnknownKeysFromArray", bodyHash: "D2CDXI8OoGLGyW", pureFnDependencies: [], createPureFn: function get_getUnknownKeysFromArray(utl) {
+  }, fn: void 0 }, "getUnknownKeysFromArray": { namespace: "mion", paramNames: [], code: 'const MAX_UNKNOWN_KEYS = 10;\n  return function _getUnknownKeysFromArray(obj, keys) {\n    const unknownKeys = [];\n    for (const prop in obj) {\n      let found = false;\n      for (let j = 0; j < keys.length; j++) {\n        if (keys[j] === prop) {\n          found = true;\n          break;\n        }\n      }\n      if (!found) {\n        unknownKeys.push(prop);\n        if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error("Too many unknown keys");\n      }\n    }\n    return unknownKeys;\n  };', fnName: "getUnknownKeysFromArray", bodyHash: "D2CDXI8OoGLGyW", pureFnDependencies: [], createPureFn: function get_getUnknownKeysFromArray() {
     const MAX_UNKNOWN_KEYS = 10;
     return function _getUnknownKeysFromArray(obj, keys) {
       const unknownKeys = [];
@@ -2850,7 +2850,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       }
       return unknownKeys;
     };
-  }, fn: void 0 }, "hasUnknownKeysFromArray": { namespace: "mion", paramNames: [], code: "return function _hasUnknownKeysFromArray(obj, keys) {\n    for (const prop in obj) {\n      let found = false;\n      for (let j = 0; j < keys.length; j++) {\n        if (keys[j] === prop) {\n          found = true;\n          break;\n        }\n      }\n      if (!found) return true;\n    }\n    return false;\n  };", fnName: "hasUnknownKeysFromArray", bodyHash: "K7uzDGNnPwcqQ9", pureFnDependencies: [], createPureFn: function get_hasUnknownKeysFromArray(utl) {
+  }, fn: void 0 }, "hasUnknownKeysFromArray": { namespace: "mion", paramNames: [], code: "return function _hasUnknownKeysFromArray(obj, keys) {\n    for (const prop in obj) {\n      let found = false;\n      for (let j = 0; j < keys.length; j++) {\n        if (keys[j] === prop) {\n          found = true;\n          break;\n        }\n      }\n      if (!found) return true;\n    }\n    return false;\n  };", fnName: "hasUnknownKeysFromArray", bodyHash: "K7uzDGNnPwcqQ9", pureFnDependencies: [], createPureFn: function get_hasUnknownKeysFromArray() {
     return function _hasUnknownKeysFromArray(obj, keys) {
       for (const prop in obj) {
         let found = false;
@@ -2864,13 +2864,13 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       }
       return false;
     };
-  }, fn: void 0 }, "newRunTypeErr": { namespace: "mion", paramNames: [], code: "return function _err(p\\u03BBth, \\u03B5rr, expected, accessPath) {\n    const path = accessPath?.length ? [...p\\u03BBth, ...accessPath] : [...p\\u03BBth];\n    const runTypeErr = { expected, path };\n    \\u03B5rr.push(runTypeErr);\n  };", fnName: "newRunTypeErr", bodyHash: "eCwDrS1nuSv7ge", pureFnDependencies: [], createPureFn: function get_newRunTypeErr(utl) {
+  }, fn: void 0 }, "newRunTypeErr": { namespace: "mion", paramNames: [], code: "return function _err(p\\u03BBth, \\u03B5rr, expected, accessPath) {\n    const path = accessPath?.length ? [...p\\u03BBth, ...accessPath] : [...p\\u03BBth];\n    const runTypeErr = { expected, path };\n    \\u03B5rr.push(runTypeErr);\n  };", fnName: "newRunTypeErr", bodyHash: "eCwDrS1nuSv7ge", pureFnDependencies: [], createPureFn: function get_newRunTypeErr() {
     return function _err(pλth, εrr, expected, accessPath) {
       const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
       const runTypeErr = { expected, path };
       εrr.push(runTypeErr);
     };
-  }, fn: void 0 }, "formatErr": { namespace: "mion", paramNames: [], code: "return function _formatErr(p\\u03BBth, \\u03B5rr, expected, fmtName, paramName, paramVal, fmtPath, accessPath, fmtAccessPath) {\n    const path = accessPath?.length ? [...p\\u03BBth, ...accessPath] : [...p\\u03BBth];\n    const formatPath = fmtAccessPath?.length ? [...fmtPath, ...fmtAccessPath, paramName] : [...fmtPath, paramName];\n    const format = { name: fmtName, formatPath, val: paramVal };\n    const runTypeErr = { expected, path, format };\n    \\u03B5rr.push(runTypeErr);\n  };", fnName: "formatErr", bodyHash: "2isPiuLWPtohVR", pureFnDependencies: [], createPureFn: function get_formatErr(utl) {
+  }, fn: void 0 }, "formatErr": { namespace: "mion", paramNames: [], code: "return function _formatErr(p\\u03BBth, \\u03B5rr, expected, fmtName, paramName, paramVal, fmtPath, accessPath, fmtAccessPath) {\n    const path = accessPath?.length ? [...p\\u03BBth, ...accessPath] : [...p\\u03BBth];\n    const formatPath = fmtAccessPath?.length ? [...fmtPath, ...fmtAccessPath, paramName] : [...fmtPath, paramName];\n    const format = { name: fmtName, formatPath, val: paramVal };\n    const runTypeErr = { expected, path, format };\n    \\u03B5rr.push(runTypeErr);\n  };", fnName: "formatErr", bodyHash: "2isPiuLWPtohVR", pureFnDependencies: [], createPureFn: function get_formatErr() {
     return function _formatErr(pλth, εrr, expected, fmtName, paramName, paramVal, fmtPath, accessPath, fmtAccessPath) {
       const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
       const formatPath = fmtAccessPath?.length ? [...fmtPath, ...fmtAccessPath, paramName] : [...fmtPath, paramName];
@@ -2878,7 +2878,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       const runTypeErr = { expected, path, format };
       εrr.push(runTypeErr);
     };
-  }, fn: void 0 }, "safeIterableKey": { namespace: "mion", paramNames: [], code: 'return function _safeKey(value) {\n    if (value === void 0) return null;\n    if (value === null) return null;\n    const type = typeof value;\n    if (type === "number" || type === "string" || type === "boolean") return value;\n    return null;\n  };', fnName: "safeIterableKey", bodyHash: "BrjL47E-GRjUpQ", pureFnDependencies: [], createPureFn: function get_safeIterableKey(utl) {
+  }, fn: void 0 }, "safeIterableKey": { namespace: "mion", paramNames: [], code: 'return function _safeKey(value) {\n    if (value === void 0) return null;\n    if (value === null) return null;\n    const type = typeof value;\n    if (type === "number" || type === "string" || type === "boolean") return value;\n    return null;\n  };', fnName: "safeIterableKey", bodyHash: "BrjL47E-GRjUpQ", pureFnDependencies: [], createPureFn: function get_safeIterableKey() {
     return function _safeKey(value) {
       if (value === void 0) return null;
       if (value === null) return null;
@@ -5062,6 +5062,12 @@ if (Des.view.getUint8(tbimI0, 1) & (1 << (0))) {ret[0] = fBi_btp3Jb.fn(undefined
   const __ΩSerializedCaches = ["jitFnsCode", "pureFnsCode", "routerCacheCode", "SerializedCaches", 'P&4!&4"&4#Mw$y'];
   const EXCLUDED_JIT_FN_IDS = [JIT_FUNCTION_IDS.toJSCode];
   const EXCLUDED_PURE_FN_NAMES = ["sanitizeCompiledFn"];
+  async function getSerializedCaches() {
+    const { jitFnsCache: jitFnsCache2, pureFnsCache: pureFnsCache2 } = getJitFnCaches();
+    const routerCache2 = getPersistedMethods();
+    return serializeCachesToCode(jitFnsCache2, pureFnsCache2, routerCache2);
+  }
+  getSerializedCaches.__type = [() => __ΩSerializedCaches, "getSerializedCaches", 'Pn!`/"'];
   async function emitAOTCaches() {
     if (getENV("MION_COMPILE") !== "true")
       return;
@@ -5078,8 +5084,8 @@ if (Des.view.getUint8(tbimI0, 1) & (1 << (0))) {ret[0] = fBi_btp3Jb.fn(undefined
   }
   emitAOTCaches.__type = ["emitAOTCaches", "P$`/!"];
   async function serializeCachesToCode(jitFnsCache2, pureFnsCache2, routerCache2) {
-    const jitToJSCode = (runTypes.createToJavascriptFn.Ω = [[() => __ΩSrcCodeJITCompiledFnsCache, "n!"]], runTypes.createToJavascriptFn({ isJitFnCode: true }));
-    const pureToJSCode = (runTypes.createToJavascriptFn.Ω = [[() => __ΩSrcCodePureFunctionsCache, "n!"]], runTypes.createToJavascriptFn({ isPureFnCode: true }));
+    const jitToJSCode = (runTypes.createToJavascriptFn.Ω = [[() => __ΩSrcCodeJITCompiledFnsCache, "n!"]], runTypes.createToJavascriptFn());
+    const pureToJSCode = (runTypes.createToJavascriptFn.Ω = [[() => __ΩSrcCodePureFunctionsCache, "n!"]], runTypes.createToJavascriptFn());
     const routerToJSCode = (runTypes.createToJavascriptFn.Ω = [[() => __ΩMethodsCache, "n!"]], runTypes.createToJavascriptFn());
     const finalJitFns = filterExcludedJitFns(jitFnsCache2, EXCLUDED_JIT_FN_IDS);
     const finalPureFns = filterExcludedPureFns(pureFnsCache2, EXCLUDED_PURE_FN_NAMES);
@@ -5110,6 +5116,7 @@ if (Des.view.getUint8(tbimI0, 1) & (1 << (0))) {ret[0] = fBi_btp3Jb.fn(undefined
     __ΩAOTCacheMessage,
     __ΩSerializedCaches,
     emitAOTCaches,
+    getSerializedCaches,
     serializeCachesToCode
   }, Symbol.toStringTag, { value: "Module" }));
   exports.__ΩEdgeSetupOptions = __ΩEdgeSetupOptions;

@@ -6,22 +6,22 @@
  * ######## */
 
 /**
- * E2E test for in-process AOT cache generation.
+ * E2E test for SSR AOT cache generation.
  *
  * This test runs as a standalone script via Node (NOT inside vitest)
  * because vitest's module runner transport conflicts with creating
  * a second Vite dev server inside a test worker.
  *
- * Run with: node --experimental-strip-types packages/client/src/aotInProcess.e2e.spec.ts
+ * Run with: node --experimental-strip-types packages/client/src/aot/aotSSR.e2e.test.ts
  */
 
-import {createServer, isRunnableDevEnvironment} from 'vite';
+import {createServer} from 'vite';
 import type {ViteDevServer} from 'vite';
 import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 import assert from 'node:assert/strict';
 
-const routerDir = resolve(import.meta.dirname, '../../router');
+const routerDir = resolve(import.meta.dirname, '../../../router');
 const defaultRoutesPath = resolve(routerDir, 'src/defaultRoutes.ts');
 
 let server: ViteDevServer;
@@ -41,37 +41,30 @@ async function test(name: string, fn: () => Promise<void>) {
         });
 }
 
-/** Loads a module using the SSR environment runner (Vite 7+) or ssrLoadModule fallback */
+/** Loads a module using ssrLoadModule (middlewareMode) */
 function createModuleLoader(server: ViteDevServer): (url: string) => Promise<Record<string, any>> {
-    const ssrEnv = (server as any).environments?.ssr;
-    if (ssrEnv && isRunnableDevEnvironment(ssrEnv)) {
-        return (url: string) => ssrEnv.runner.import(url);
-    }
     return (url: string) => server.ssrLoadModule(url);
 }
 
 async function run() {
-    console.log('\n🔧 Creating Vite dev server with in-process AOT...\n');
+    console.log('\n🔧 Creating Vite dev server with SSR AOT...\n');
 
     server = await createServer({
         configFile: false,
         resolve: {conditions: ['source']},
         ssr: {resolve: {conditions: ['source']}},
+        server: {middlewareMode: true},
         plugins: [
             mionVitePlugin({
                 runTypes: {
                     tsConfig: resolve(routerDir, 'tsconfig.json'),
                 },
                 aotCaches: {
-                    inProcess: {
-                        serverEntry: defaultRoutesPath,
-                        initFn: 'defaultApi',
-                    },
+                    startServerScript: defaultRoutesPath,
                 },
             }) as any,
         ],
     });
-    await server.listen(0); // needed for environment runner transport
 
     const loadModule = createModuleLoader(server);
 

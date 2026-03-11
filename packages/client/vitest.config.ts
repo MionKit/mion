@@ -25,6 +25,7 @@ export default defineConfig({
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],
+        exclude: ['src/aot/aotSSR.e2e.test.ts'],
         globalSetup: './globalSetup.ts',
         // Prevent test-server from auto-starting when imported
         env: {

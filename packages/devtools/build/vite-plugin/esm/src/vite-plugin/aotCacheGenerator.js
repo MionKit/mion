@@ -91,28 +91,41 @@ Make sure the startServerScript calls initMionRouter() and the router is fully i
     }, DEFAULT_TIMEOUT);
   });
 }
-async function generateInProcessAOTCaches(loadModule, options) {
-  const initFnName = options.initFn || "initApi";
+async function generateSSRAOTCaches(loadModule, startServerScript) {
   const prevCompile = process.env.MION_COMPILE;
   process.env.MION_COMPILE = "true";
-  const serverModule = await loadModule(options.serverEntry);
-  const initExport = serverModule[initFnName];
-  if (typeof initExport === "function") {
-    await initExport();
-  } else if (initExport && typeof initExport.then === "function") {
-    await initExport;
-  } else {
-    throw new Error(
-      `[mion] Server entry '${options.serverEntry}' does not export '${initFnName}' as a function or Promise. Set inProcess.initFn to the correct export name.`
-    );
-  }
-  const aotEmitter = await loadModule("@mionjs/router/aot");
-  if (typeof aotEmitter.getSerializedCaches !== "function") {
-    throw new Error(`[mion] @mionjs/router/aot does not export getSerializedCaches. Update @mionjs/router.`);
-  }
+  const originalSend = process.send;
+  let resolveCapture;
+  const capturePromise = new Promise((resolve2) => {
+    resolveCapture = resolve2;
+  });
+  process.send = (msg) => {
+    if (msg?.type === "mion-aot-caches") {
+      resolveCapture({
+        jitFnsCode: msg.jitFnsCode,
+        pureFnsCode: msg.pureFnsCode,
+        routerCacheCode: msg.routerCacheCode
+      });
+    }
+  };
+  let timeoutId;
   try {
-    return await aotEmitter.getSerializedCaches();
+    await loadModule(startServerScript);
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(
+          new Error(
+            `SSR AOT cache generation timed out (${DEFAULT_TIMEOUT / 1e3}s). Make sure the startServerScript calls initMionRouter() and awaits it.`
+          )
+        ),
+        DEFAULT_TIMEOUT
+      );
+    });
+    return await Promise.race([capturePromise, timeoutPromise]);
   } finally {
+    clearTimeout(timeoutId);
+    if (originalSend) process.send = originalSend;
+    else delete process.send;
     if (prevCompile === void 0) delete process.env.MION_COMPILE;
     else process.env.MION_COMPILE = prevCompile;
   }
@@ -177,12 +190,12 @@ export const routerCache = {};
 export {
   generateAOTCaches,
   generateCombinedCachesModule,
-  generateInProcessAOTCaches,
   generateJitFnsModule,
   generateNoopCombinedModule,
   generateNoopModule,
   generatePureFnsModule,
   generateRouterCacheModule,
+  generateSSRAOTCaches,
   logAOTCaches
 };
 //# sourceMappingURL=aotCacheGenerator.js.map
