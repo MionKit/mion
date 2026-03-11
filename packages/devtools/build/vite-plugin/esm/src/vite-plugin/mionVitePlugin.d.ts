@@ -4,11 +4,6 @@ export interface MionPluginOptions {
     runTypes?: DeepkitTypeOptions;
     aotCaches?: AOTCacheOptions;
 }
-export declare function parseVueModuleId(id: string): {
-    basePath: string;
-    lang: string | null;
-} | null;
-export declare function isIncluded(filePath: string, include: string[], exclude: string[]): boolean;
 export declare function mionVitePlugin(options: MionPluginOptions): {
     name: string;
     enforce: "pre";
@@ -31,3 +26,8 @@ export declare function mionVitePlugin(options: MionPluginOptions): {
         server: any;
     }): any[] | undefined;
 };
+export declare function parseVueModuleId(id: string): {
+    basePath: string;
+    lang: string | null;
+} | null;
+export declare function isIncluded(filePath: string, include: string[], exclude: string[]): boolean;

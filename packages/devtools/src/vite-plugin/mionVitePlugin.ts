@@ -6,7 +6,6 @@
  * ######## */
 
 import {resolve} from 'path';
-import {writeFileSync} from 'fs';
 import * as ts from 'typescript';
 import {createDeepkitConfig, DeepkitConfig, createPureFnTransformerFactory} from './transformers.ts';
 import {ServerPureFunctionsOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
@@ -15,7 +14,7 @@ import {generateServerPureFnsVirtualModule} from './virtualModule.ts';
 import {VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX, resolveVirtualId} from './constants.ts';
 import {
     generateAOTCaches,
-    generateSSRAOTCaches,
+    loadSSRRouterAndGenerateAOTCaches,
     logAOTCaches,
     generateJitFnsModule,
     generatePureFnsModule,
@@ -34,6 +33,380 @@ export interface MionPluginOptions {
     runTypes?: DeepkitTypeOptions;
     /** Options for AOT cache generation - omit to disable */
     aotCaches?: AOTCacheOptions;
+}
+
+/**
+ * Creates the unified mion Vite plugin.
+ * This plugin combines pure function extraction, type compiler transformations,
+ * and AOT cache generation in a single plugin with correct execution order.
+ *
+ * Execution order:
+ * 1. Extract pure functions from original TypeScript source
+ * 2. Apply type metadata transformations to the code
+ *
+ * This ensures pure function extraction happens on clean, untransformed TypeScript.
+ *
+ * @example
+ * ```ts
+ * // vite.config.ts
+ * import {mionPlugin} from '@mionjs/devtools/vite-plugin';
+ *
+ * export default defineConfig({
+ *   plugins: [
+ *     mionPlugin({
+ *       runTypes: {
+ *         tsConfig: './tsconfig.json',
+ *       },
+ *       pureFunctions: {
+ *         clientSrcPath: '../client/src',
+ *       },
+ *       aotCaches: {
+ *         startServerScript: '../server/src/init.ts',
+ *       },
+ *     }),
+ *   ],
+ * });
+ * ```
+ */
+export function mionVitePlugin(options: MionPluginOptions) {
+    let extractedFns: ExtractedPureFn[] | null = null;
+    const pureFnOptions = options.serverPureFunctions;
+    const runTypesOptions = options.runTypes;
+    const aotOptions = options.aotCaches;
+    const deepkitConfig: DeepkitConfig | null = runTypesOptions ? createDeepkitConfig(runTypesOptions) : null;
+
+    // Default compiler options for when deepkit is disabled
+    const defaultCompilerOptions: ts.CompilerOptions = {
+        target: ts.ScriptTarget.ESNext,
+        module: ts.ModuleKind.ESNext,
+    };
+
+    // Pure function injection counters — accumulated during transform, logged in buildEnd
+    let pureServerFnCount = 0;
+    let registerPureFnFactoryCount = 0;
+    let pureFnFilesCount = 0;
+
+    // AOT cache data - populated during buildStart (IPC) or configureServer (in-process)
+    let aotData: AOTCacheData | null = null;
+    let aotGenerationPromise: Promise<AOTCacheData> | null = null;
+
+    // Resolved cache directory from Vite's config — set in configResolved
+    let aotCacheDir = '';
+
+    // SSR AOT: module loader (set in configureServer when SSR mode is active)
+    let ssrLoadModule: ((url: string) => Promise<Record<string, any>>) | null = null;
+    /** Whether SSR mode is active — resolved in configResolved from Vite's own config */
+    let ssrEnabled = false;
+    /** SSR init promise: AOT generation + router/platform module loading */
+    let ssrInitPromise: Promise<void> | null = null;
+
+    const {aotVirtualModules, aotResolvedIds} = buildAOTVirtualModuleMaps(aotOptions?.customVirtualModuleId);
+
+    return {
+        name: 'mion',
+        enforce: 'pre' as const, // literal type required: inferred 'string' is not assignable to Vite's 'pre' | 'post'
+
+        config(config) {
+            // Strip reflection module aliases in bundle build mode so our resolveId can stub them.
+            // Vite's alias plugin runs before our resolveId, so we remove aliases here to prevent
+            // them from transforming bare package names into file paths before we can intercept.
+            if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== 'true') {
+                const aliases = config.resolve?.alias;
+                if (aliases && !Array.isArray(aliases)) {
+                    for (const mod of REFLECTION_MODULES) {
+                        delete (aliases as Record<string, string>)[mod];
+                    }
+                }
+            }
+        },
+
+        configResolved(config) {
+            if (aotOptions) {
+                aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
+            }
+            // Detect SSR mode from Vite's own config:
+            // middlewareMode means a framework (e.g. Nuxt) manages the HTTP server → SSR
+            // command 'serve' means dev server (not production build)
+            // Exclude vitest: vitest also uses middlewareMode + serve, but should use IPC mode
+            if (aotOptions?.startServerScript && process.env.MION_COMPILE !== 'true') {
+                const isVitest = !!(config as any).test || !!process.env.VITEST;
+                ssrEnabled = !isVitest && config.command === 'serve' && !!config.server.middlewareMode;
+            }
+        },
+
+        async buildStart() {
+            // Generate AOT caches if enabled
+            // Skip when already running as the AOT compile child process to prevent infinite recursion
+            // Skip when SSR mode — configureServer will handle it
+            if (aotOptions && process.env.MION_COMPILE !== 'true' && !ssrEnabled) {
+                try {
+                    console.log('[mion] Generating AOT caches...');
+                    aotGenerationPromise = getOrGenerateAOTCaches(aotOptions, aotCacheDir);
+                    aotData = await aotGenerationPromise;
+                    console.log('[mion] AOT caches generated successfully');
+                    logAOTCaches(aotData);
+                } catch (err) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    throw new Error(`[mion] Failed to generate AOT caches: ${message}`);
+                }
+            }
+        },
+
+        configureServer(server) {
+            if (!ssrEnabled || !aotOptions?.startServerScript) return;
+            // SSR mode: use ssrLoadModule to load the server in the same Vite process.
+            // ssrLoadModule uses Vite's internal transform pipeline (not HTTP),
+            ssrLoadModule = (url: string) => server.ssrLoadModule(url);
+            const startServerScript = resolve(aotOptions.startServerScript);
+            // Single init chain: generate AOT caches → load router + platform modules
+            let nodeRequestHandler: ((req: any, res: any) => void) | null = null;
+            let basePath: string | null = null;
+            let initFailed = false;
+
+            console.log('[mion] Generating SSR AOT caches...');
+            ssrInitPromise = loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startServerScript)
+                .then(async (data) => {
+                    aotData = data;
+                    aotGenerationPromise = Promise.resolve(data);
+                    console.log('[mion] SSR AOT caches generated successfully');
+                    logAOTCaches(data);
+                    // Invalidate virtual modules so they reload with real data
+                    for (const resolvedId of aotResolvedIds.keys()) {
+                        const mod = server.moduleGraph.getModuleById(resolvedId);
+                        if (mod) server.moduleGraph.invalidateModule(mod);
+                    }
+                    // Load router and platform modules now that caches are ready
+                    const routerModule = await server.ssrLoadModule('@mionjs/router');
+                    const opts = routerModule.getRouterOptions();
+                    basePath = '/' + (opts.basePath || '').replace(/^\//, '');
+                    const platformNode = await server.ssrLoadModule('@mionjs/platform-node');
+                    nodeRequestHandler = platformNode.httpRequestHandler;
+                    console.log('[mion] Dev server proxy initialized');
+                })
+                .catch((err) => {
+                    initFailed = true;
+                    const message = err instanceof Error ? err.message : String(err);
+                    console.error(`[mion] Failed to initialize SSR: ${message}`);
+                });
+
+            // Dev server proxy: route matching requests to mion's httpRequestHandler
+            server.middlewares.use(async (req: any, res: any, next: () => void) => {
+                try {
+                    if (!basePath && !initFailed) await ssrInitPromise;
+                    if (!basePath || !req.url?.startsWith(basePath)) return next();
+                    if (nodeRequestHandler) {
+                        nodeRequestHandler(req, res);
+                    } else {
+                        res.statusCode = 503;
+                        res.end('mion API failed to initialize');
+                    }
+                } catch (err) {
+                    console.error('[mion] Dev server proxy error:', err);
+                    if (!res.writableEnded) {
+                        res.statusCode = 500;
+                        res.end('Internal Server Error');
+                    }
+                }
+            });
+        },
+
+        resolveId(id) {
+            // Pure functions virtual module — always resolve, returns empty cache if not configured
+            if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
+            // AOT virtual modules (default + custom prefix both resolve)
+            if (aotVirtualModules.has(id)) return resolveVirtualId(id);
+            // Stub out reflection modules in the bundle build (not needed at runtime in AOT mode)
+            if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== 'true' && REFLECTION_MODULES.includes(id)) {
+                return resolveVirtualId(VIRTUAL_STUB_PREFIX + id);
+            }
+            return null;
+        },
+
+        async load(id) {
+            // Pure functions virtual module
+            if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
+                // No serverPureFunctions configured — return empty cache
+                if (!pureFnOptions) return generateServerPureFnsVirtualModule([]);
+                // Lazily scan client source on first load
+                if (!extractedFns) extractedFns = scanClientSource(pureFnOptions);
+                return generateServerPureFnsVirtualModule(extractedFns);
+            }
+
+            // AOT virtual modules — check resolved ID against the map
+            const aotType = aotResolvedIds.get(id);
+            if (aotType) {
+                const initPromise = ssrInitPromise || aotGenerationPromise;
+                if (!aotData && initPromise) await initPromise;
+
+                switch (aotType) {
+                    case 'jit-fns': {
+                        if (!aotData) return generateNoopModule('No-op: AOT JIT caches not generated');
+                        return generateJitFnsModule(aotData.jitFnsCode);
+                    }
+                    case 'pure-fns': {
+                        if (!aotData) return generateNoopModule('No-op: AOT pure fns not generated');
+                        return generatePureFnsModule(aotData.pureFnsCode);
+                    }
+                    case 'router-cache': {
+                        if (!aotData) return generateNoopModule('No-op: AOT router cache not generated');
+                        return generateRouterCacheModule(aotData.routerCacheCode);
+                    }
+                    case 'caches': {
+                        if (!aotData) return generateNoopCombinedModule();
+                        return generateCombinedCachesModule();
+                    }
+                }
+            }
+
+            // Reflection module stubs (empty modules — all reflection is pre-compiled in AOT caches)
+            // syntheticNamedExports tells Rollup to derive named exports from the default export,
+            // so any `import {foo} from '...'` resolves to undefined without build errors.
+            for (const mod of REFLECTION_MODULES) {
+                if (id === resolveVirtualId(VIRTUAL_STUB_PREFIX + mod)) {
+                    return {code: 'export default {}', syntheticNamedExports: true};
+                }
+            }
+
+            return null;
+        },
+
+        transform(code: string, fileName: string) {
+            // For Vue SFC virtual modules, resolve the base path and lang for downstream tools
+            const vueInfo = parseVueModuleId(fileName);
+            // Strip any query params (e.g. ?macro=true from Nuxt) to get the real file path
+            const basePath = fileName.includes('?') ? fileName.slice(0, fileName.indexOf('?')) : fileName;
+            const filterPath = vueInfo ? vueInfo.basePath : basePath;
+
+            // Skip .vue files unless they are Vue script virtual modules (?vue&type=script).
+            // Bare .vue files and other .vue queries (e.g. ?macro=true from Nuxt) contain raw
+            // SFC content — wait for the Vue plugin to extract the <script> block first.
+            if (basePath.endsWith('.vue') && !vueInfo) return null;
+
+            const lang = vueInfo?.lang || 'ts';
+            const tsFileName = vueInfo ? `${vueInfo.basePath}.${lang}` : fileName;
+            const isTsx = tsFileName.endsWith('.tsx') || tsFileName.endsWith('.jsx');
+
+            const hasPureFns =
+                code.includes('pureServerFn') || code.includes('registerPureFnFactory') || code.includes('mapFrom');
+            const needsDeepkit = deepkitConfig ? deepkitConfig.filter(filterPath) : false;
+
+            if (!hasPureFns && !needsDeepkit) return null;
+
+            const before: ts.CustomTransformerFactory[] = [];
+            const after: ts.CustomTransformerFactory[] = [];
+
+            // Pure function transformer (runs first — sees clean AST)
+            const collected: ExtractedPureFn[] | undefined = hasPureFns ? [] : undefined;
+            if (hasPureFns) {
+                before.push(createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient));
+            }
+
+            // Deepkit has two functions: type metadata emission (follows include/exclude filters)
+            // and import restoration (always runs globally for all ts.transpileModule calls).
+            // afterTransformers (including requireToImport) must always be included to convert
+            // deepkit's CJS require() back to ESM imports in the restored import statements.
+            if (deepkitConfig) after.push(...deepkitConfig.afterTransformers);
+            if (needsDeepkit) before.push(...deepkitConfig!.beforeTransformers);
+
+            const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
+            const compilerOptions = isTsx ? {...baseCompilerOptions, jsx: ts.JsxEmit.ReactJSX} : baseCompilerOptions;
+
+            const result = ts.transpileModule(code, {
+                compilerOptions,
+                fileName: tsFileName,
+                transformers: {before, after},
+            });
+
+            // Count injected pure functions (collector is populated synchronously by transpileModule)
+            if (collected && collected.length > 0) {
+                pureFnFilesCount++;
+                for (const fn of collected) {
+                    if (fn.isFactory) registerPureFnFactoryCount++;
+                    else pureServerFnCount++;
+                }
+            }
+
+            return {code: result.outputText, map: result.sourceMapText};
+        },
+
+        buildEnd() {
+            if (pureServerFnCount > 0 || registerPureFnFactoryCount > 0) {
+                const total = pureServerFnCount + registerPureFnFactoryCount;
+                const parts = [
+                    pureServerFnCount > 0 ? `${pureServerFnCount} pureServerFn` : '',
+                    registerPureFnFactoryCount > 0 ? `${registerPureFnFactoryCount} registerPureFnFactory` : '',
+                ].filter(Boolean);
+                console.log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(', ')})`);
+            }
+        },
+
+        handleHotUpdate({file, server}) {
+            // In dev mode, re-scan when client source changes (for pure functions)
+            if (pureFnOptions) {
+                const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
+                if (file.startsWith(clientSrcPath)) {
+                    const include = pureFnOptions.include || ['**/*.ts', '**/*.tsx', '**/*.vue'];
+                    const exclude = pureFnOptions.exclude || ['../node_modules/**', '**/.dist/**', '**/dist/**'];
+                    if (isIncluded(file, include, exclude)) {
+                        // Clear cache and invalidate virtual module
+                        extractedFns = null;
+                        const mod = server.moduleGraph.getModuleById(resolveVirtualId(VIRTUAL_SERVER_PURE_FNS));
+                        if (mod) {
+                            server.moduleGraph.invalidateModule(mod);
+                            return [mod];
+                        }
+                    }
+                }
+            }
+
+            // In dev mode, regenerate AOT caches when server source changes
+            // Skip when running as the AOT compile child process
+            if (aotOptions && process.env.MION_COMPILE !== 'true') {
+                const serverDir = aotOptions.startServerScript ? resolve(aotOptions.startServerScript, '..') : null;
+
+                if (serverDir && file.startsWith(serverDir)) {
+                    const regeneratePromise =
+                        ssrEnabled && ssrLoadModule
+                            ? // SSR mode: reset router and re-init via ssrLoadModule
+                              (async () => {
+                                  const routerModule = await ssrLoadModule!('@mionjs/router');
+                                  routerModule.resetRouter();
+                                  return loadSSRRouterAndGenerateAOTCaches(
+                                      ssrLoadModule!,
+                                      resolve(aotOptions.startServerScript!)
+                                  );
+                              })()
+                            : // IPC mode: spawn child process
+                              generateAOTCaches(aotOptions);
+
+                    aotGenerationPromise = regeneratePromise;
+                    regeneratePromise
+                        .then((data) => {
+                            aotData = data;
+                            logAOTCaches(data);
+                            if (!ssrEnabled) updateDiskCache(aotOptions, data, aotCacheDir);
+                            // Invalidate all AOT virtual modules
+                            let invalidatedCount = 0;
+                            for (const resolvedId of aotResolvedIds.keys()) {
+                                const mod = server.moduleGraph.getModuleById(resolvedId);
+                                if (mod) {
+                                    server.moduleGraph.invalidateModule(mod);
+                                    invalidatedCount++;
+                                }
+                            }
+                            if (invalidatedCount > 0) {
+                                console.log('[mion] AOT caches regenerated, invalidating virtual modules');
+                            }
+                        })
+                        .catch((err) => {
+                            console.error('[mion] Failed to regenerate AOT caches:', err.message);
+                        });
+                }
+            }
+
+            return undefined;
+        },
+    };
 }
 
 /** Extracts the base file path and lang from a Vue SFC virtual module ID (e.g. Component.vue?vue&type=script&lang=ts) */
@@ -99,429 +472,4 @@ function buildAOTVirtualModuleMaps(customVirtualModuleId?: string) {
         }
     }
     return {aotVirtualModules, aotResolvedIds};
-}
-
-/**
- * Creates the unified mion Vite plugin.
- * This plugin combines pure function extraction, type compiler transformations,
- * and AOT cache generation in a single plugin with correct execution order.
- *
- * Execution order:
- * 1. Extract pure functions from original TypeScript source
- * 2. Apply type metadata transformations to the code
- *
- * This ensures pure function extraction happens on clean, untransformed TypeScript.
- *
- * @example
- * ```ts
- * // vite.config.ts
- * import {mionPlugin} from '@mionjs/devtools/vite-plugin';
- *
- * export default defineConfig({
- *   plugins: [
- *     mionPlugin({
- *       runTypes: {
- *         tsConfig: './tsconfig.json',
- *       },
- *       pureFunctions: {
- *         clientSrcPath: '../client/src',
- *       },
- *       aotCaches: {
- *         startServerScript: '../server/src/init.ts',
- *       },
- *     }),
- *   ],
- * });
- * ```
- */
-export function mionVitePlugin(options: MionPluginOptions) {
-    let extractedFns: ExtractedPureFn[] | null = null;
-    const pureFnOptions = options.serverPureFunctions;
-    const runTypesOptions = options.runTypes;
-    const aotOptions = options.aotCaches;
-    const deepkitConfig: DeepkitConfig | null = runTypesOptions ? createDeepkitConfig(runTypesOptions) : null;
-
-    // Default compiler options for when deepkit is disabled
-    const defaultCompilerOptions: ts.CompilerOptions = {
-        target: ts.ScriptTarget.ESNext,
-        module: ts.ModuleKind.ESNext,
-    };
-
-    // Pure function injection counters — accumulated during transform, logged in buildEnd
-    let pureServerFnCount = 0;
-    let registerPureFnFactoryCount = 0;
-    let pureFnFilesCount = 0;
-
-    // AOT cache data - populated during buildStart (IPC) or configureServer (in-process)
-    let aotData: AOTCacheData | null = null;
-    let aotGenerationPromise: Promise<AOTCacheData> | null = null;
-
-    // Resolved cache directory from Vite's config — set in configResolved
-    let aotCacheDir = '';
-
-    // SSR AOT: module loader (set in configureServer when SSR mode is active)
-    let ssrLoadModule: ((url: string) => Promise<Record<string, any>>) | null = null;
-    /** Whether SSR mode is active — resolved in configResolved from Vite's own config */
-    let ssrEnabled = false;
-
-    const {aotVirtualModules, aotResolvedIds} = buildAOTVirtualModuleMaps(aotOptions?.customVirtualModuleId);
-
-    return {
-        name: 'mion',
-        enforce: 'pre' as const, // literal type required: inferred 'string' is not assignable to Vite's 'pre' | 'post'
-
-        config(config) {
-            // Strip reflection module aliases in bundle build mode so our resolveId can stub them.
-            // Vite's alias plugin runs before our resolveId, so we remove aliases here to prevent
-            // them from transforming bare package names into file paths before we can intercept.
-            if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== 'true') {
-                const aliases = config.resolve?.alias;
-                if (aliases && !Array.isArray(aliases)) {
-                    for (const mod of REFLECTION_MODULES) {
-                        delete (aliases as Record<string, string>)[mod];
-                    }
-                }
-            }
-        },
-
-        configResolved(config) {
-            if (aotOptions) {
-                aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
-            }
-            // Detect SSR mode from Vite's own config:
-            // middlewareMode means a framework (e.g. Nuxt) manages the HTTP server → SSR
-            // command 'serve' means dev server (not production build)
-            // Exclude vitest: vitest also uses middlewareMode + serve, but should use IPC mode
-            if (aotOptions?.startServerScript && process.env.MION_COMPILE !== 'true') {
-                const isVitest = !!(config as any).test || !!process.env.VITEST;
-                ssrEnabled = !isVitest && config.command === 'serve' && !!config.server.middlewareMode;
-            }
-        },
-
-        async buildStart() {
-            // Generate AOT caches if enabled
-            // Skip when already running as the AOT compile child process to prevent infinite recursion
-            // Skip when SSR mode — configureServer will handle it
-            if (aotOptions && process.env.MION_COMPILE !== 'true' && !ssrEnabled) {
-                try {
-                    console.log('[mion] Generating AOT caches...');
-                    aotGenerationPromise = getOrGenerateAOTCaches(aotOptions, aotCacheDir);
-                    aotData = await aotGenerationPromise;
-                    console.log('[mion] AOT caches generated successfully');
-                    logAOTCaches(aotData);
-                } catch (err) {
-                    const message = err instanceof Error ? err.message : String(err);
-                    throw new Error(`[mion] Failed to generate AOT caches: ${message}`);
-                }
-            }
-        },
-
-        configureServer(server) {
-            if (!ssrEnabled || !aotOptions?.startServerScript) return;
-
-            // SSR mode: use ssrLoadModule to load startServerScript in the same process
-            ssrLoadModule = (url: string) => server.ssrLoadModule(url);
-            const startServerScript = resolve(aotOptions.startServerScript);
-
-            /** Trigger SSR AOT generation and set up module invalidation on completion */
-            const startSSRAOT = () => {
-                console.log('[mion] Generating SSR AOT caches...');
-                aotGenerationPromise = generateSSRAOTCaches(ssrLoadModule!, startServerScript)
-                    .then((data) => {
-                        aotData = data;
-                        console.log('[mion] SSR AOT caches generated successfully');
-                        logAOTCaches(data);
-                        // Invalidate virtual modules so they reload with real data
-                        for (const resolvedId of aotResolvedIds.keys()) {
-                            const mod = server.moduleGraph.getModuleById(resolvedId);
-                            if (mod) server.moduleGraph.invalidateModule(mod);
-                        }
-                        return data;
-                    })
-                    .catch((err) => {
-                        const message = err instanceof Error ? err.message : String(err);
-                        console.error(`[mion] Failed to generate SSR AOT caches: ${message}`);
-                        throw err;
-                    });
-            };
-
-            // ssrLoadModule requires the server's module runner transport to be ready,
-            // which only works after server.listen(). Can't call from configureServer or load().
-            // Use 'listening' event when available, otherwise defer to next macrotask.
-            if (server.httpServer) {
-                server.httpServer.once('listening', startSSRAOT);
-            } else {
-                // middlewareMode: framework (e.g. Nuxt) manages the HTTP server.
-                // Defer to macrotask — the framework should have started by then.
-                setTimeout(startSSRAOT, 0);
-            }
-
-            // Dev server proxy: route matching requests to mion's httpRequestHandler
-            let requestHandler: ((req: any, res: any) => void) | null = null;
-            let basePath: string | null = null;
-            let initFailed = false;
-
-            server.middlewares.use(async (req: any, res: any, next: () => void) => {
-                try {
-                    // Lazy-init: get basePath and handler after router is initialized
-                    if (!basePath && !initFailed) {
-                        // Wait for SSR AOT generation to complete (router must be initialized)
-                        if (aotGenerationPromise) await aotGenerationPromise.catch(() => {});
-                        const routerModule = await server.ssrLoadModule('@mionjs/router');
-                        const opts = routerModule.getRouterOptions();
-                        basePath = '/' + (opts.basePath || '').replace(/^\//, '');
-                    }
-
-                    if (!basePath || !req.url?.startsWith(basePath)) return next();
-
-                    if (!requestHandler && !initFailed) {
-                        const platformNode = await server.ssrLoadModule('@mionjs/platform-node');
-                        requestHandler = platformNode.httpRequestHandler;
-                        console.log('[mion] Dev server proxy initialized');
-                    }
-
-                    if (requestHandler) {
-                        requestHandler(req, res);
-                    } else {
-                        res.statusCode = 503;
-                        res.end('mion API failed to initialize');
-                    }
-                } catch (err) {
-                    initFailed = true;
-                    console.error('[mion] Dev server proxy error:', err);
-                    if (!res.writableEnded) {
-                        res.statusCode = 500;
-                        res.end('Internal Server Error');
-                    }
-                }
-            });
-        },
-
-        resolveId(id) {
-            // Pure functions virtual module — always resolve, returns empty cache if not configured
-            if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
-
-            // AOT virtual modules (default + custom prefix both resolve)
-            if (aotVirtualModules.has(id)) return resolveVirtualId(id);
-
-            // Stub out reflection modules in the bundle build (not needed at runtime in AOT mode)
-            if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== 'true' && REFLECTION_MODULES.includes(id)) {
-                return resolveVirtualId(VIRTUAL_STUB_PREFIX + id);
-            }
-
-            return null;
-        },
-
-        async load(id) {
-            // Pure functions virtual module
-            if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
-                if (!pureFnOptions) {
-                    // No serverPureFunctions configured — return empty cache
-                    return generateServerPureFnsVirtualModule([]);
-                }
-                // Lazily scan client source on first load
-                if (!extractedFns) {
-                    extractedFns = scanClientSource(pureFnOptions);
-                }
-                return generateServerPureFnsVirtualModule(extractedFns);
-            }
-
-            // AOT virtual modules — check resolved ID against the map
-            const aotType = aotResolvedIds.get(id);
-            if (aotType) {
-                // Wait for SSR AOT generation ONLY for AOT virtual modules.
-                // Awaiting for all modules would deadlock: generateSSRAOTCaches calls
-                // ssrLoadModule which triggers load() for dependency modules, which would
-                // then await the same promise that's trying to load them.
-                if (!aotData && aotGenerationPromise) {
-                    try {
-                        aotData = await aotGenerationPromise;
-                    } catch {
-                        // Error already logged in configureServer/buildStart
-                    }
-                }
-
-                const debugDir = '/Users/majerez/Projects/mion-starters/nuxt/4/';
-                const writeDebug = (name: string, result: any) => {
-                    const content = typeof result === 'string' ? result : (result?.code ?? '');
-                    writeFileSync(debugDir + name, content);
-                };
-                switch (aotType) {
-                    case 'jit-fns': {
-                        if (!aotData) return generateNoopModule('No-op: AOT JIT caches not generated');
-                        const code = generateJitFnsModule(aotData.jitFnsCode);
-                        writeDebug('debug-aot-jit-fns.js', code);
-                        return code;
-                    }
-                    case 'pure-fns': {
-                        if (!aotData) return generateNoopModule('No-op: AOT pure fns not generated');
-                        const code = generatePureFnsModule(aotData.pureFnsCode);
-                        writeDebug('debug-aot-pure-fns.js', code);
-                        return code;
-                    }
-                    case 'router-cache': {
-                        if (!aotData) return generateNoopModule('No-op: AOT router cache not generated');
-                        const code = generateRouterCacheModule(aotData.routerCacheCode);
-                        writeDebug('debug-aot-router-cache.js', code);
-                        return code;
-                    }
-                    case 'caches': {
-                        if (!aotData) return generateNoopCombinedModule();
-                        const code = generateCombinedCachesModule();
-                        writeDebug('debug-aot-caches.js', code);
-                        return code;
-                    }
-                }
-            }
-
-            // Reflection module stubs (empty modules — all reflection is pre-compiled in AOT caches)
-            // syntheticNamedExports tells Rollup to derive named exports from the default export,
-            // so any `import {foo} from '...'` resolves to undefined without build errors.
-            for (const mod of REFLECTION_MODULES) {
-                if (id === resolveVirtualId(VIRTUAL_STUB_PREFIX + mod)) {
-                    return {code: 'export default {}', syntheticNamedExports: true};
-                }
-            }
-
-            return null;
-        },
-
-        transform(code: string, fileName: string) {
-            // For Vue SFC virtual modules, resolve the base path and lang for downstream tools
-            const vueInfo = parseVueModuleId(fileName);
-            // Strip any query params (e.g. ?macro=true from Nuxt) to get the real file path
-            const basePath = fileName.includes('?') ? fileName.slice(0, fileName.indexOf('?')) : fileName;
-            const filterPath = vueInfo ? vueInfo.basePath : basePath;
-
-            // Skip .vue files unless they are Vue script virtual modules (?vue&type=script).
-            // Bare .vue files and other .vue queries (e.g. ?macro=true from Nuxt) contain raw
-            // SFC content — wait for the Vue plugin to extract the <script> block first.
-            if (basePath.endsWith('.vue') && !vueInfo) return null;
-
-            const lang = vueInfo?.lang || 'ts';
-            const tsFileName = vueInfo ? `${vueInfo.basePath}.${lang}` : fileName;
-            const isTsx = tsFileName.endsWith('.tsx') || tsFileName.endsWith('.jsx');
-
-            const hasPureFns =
-                code.includes('pureServerFn') || code.includes('registerPureFnFactory') || code.includes('mapFrom');
-            const needsDeepkit = deepkitConfig ? deepkitConfig.filter(filterPath) : false;
-
-            if (!hasPureFns && !needsDeepkit) return null;
-
-            const before: ts.CustomTransformerFactory[] = [];
-            const after: ts.CustomTransformerFactory[] = [];
-
-            // Pure function transformer (runs first — sees clean AST)
-            const collected: ExtractedPureFn[] | undefined = hasPureFns ? [] : undefined;
-            if (hasPureFns) {
-                before.push(createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient));
-            }
-
-            // Deepkit has two functions: type metadata emission (follows include/exclude filters)
-            // and import restoration (always runs globally for all ts.transpileModule calls).
-            // afterTransformers (including requireToImport) must always be included to convert
-            // deepkit's CJS require() back to ESM imports in the restored import statements.
-            if (deepkitConfig) {
-                after.push(...deepkitConfig.afterTransformers);
-            }
-            if (needsDeepkit) {
-                before.push(...deepkitConfig!.beforeTransformers);
-            }
-
-            const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
-            const compilerOptions = isTsx ? {...baseCompilerOptions, jsx: ts.JsxEmit.ReactJSX} : baseCompilerOptions;
-
-            const result = ts.transpileModule(code, {
-                compilerOptions,
-                fileName: tsFileName,
-                transformers: {before, after},
-            });
-
-            // Count injected pure functions (collector is populated synchronously by transpileModule)
-            if (collected && collected.length > 0) {
-                pureFnFilesCount++;
-                for (const fn of collected) {
-                    if (fn.isFactory) registerPureFnFactoryCount++;
-                    else pureServerFnCount++;
-                }
-            }
-
-            return {code: result.outputText, map: result.sourceMapText};
-        },
-
-        buildEnd() {
-            if (pureServerFnCount > 0 || registerPureFnFactoryCount > 0) {
-                const total = pureServerFnCount + registerPureFnFactoryCount;
-                const parts = [
-                    pureServerFnCount > 0 ? `${pureServerFnCount} pureServerFn` : '',
-                    registerPureFnFactoryCount > 0 ? `${registerPureFnFactoryCount} registerPureFnFactory` : '',
-                ].filter(Boolean);
-                console.log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(', ')})`);
-            }
-        },
-
-        handleHotUpdate({file, server}) {
-            // In dev mode, re-scan when client source changes (for pure functions)
-            if (pureFnOptions) {
-                const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
-                if (file.startsWith(clientSrcPath)) {
-                    const include = pureFnOptions.include || ['**/*.ts', '**/*.tsx', '**/*.vue'];
-                    const exclude = pureFnOptions.exclude || ['../node_modules/**', '**/.dist/**', '**/dist/**'];
-                    if (isIncluded(file, include, exclude)) {
-                        // Clear cache and invalidate virtual module
-                        extractedFns = null;
-                        const mod = server.moduleGraph.getModuleById(resolveVirtualId(VIRTUAL_SERVER_PURE_FNS));
-                        if (mod) {
-                            server.moduleGraph.invalidateModule(mod);
-                            return [mod];
-                        }
-                    }
-                }
-            }
-
-            // In dev mode, regenerate AOT caches when server source changes
-            // Skip when running as the AOT compile child process
-            if (aotOptions && process.env.MION_COMPILE !== 'true') {
-                const serverDir = aotOptions.startServerScript ? resolve(aotOptions.startServerScript, '..') : null;
-
-                if (serverDir && file.startsWith(serverDir)) {
-                    const regeneratePromise =
-                        ssrEnabled && ssrLoadModule
-                            ? // SSR mode: reset router and re-init via ssrLoadModule
-                              (async () => {
-                                  const routerModule = await ssrLoadModule!('@mionjs/router');
-                                  routerModule.resetRouter();
-                                  return generateSSRAOTCaches(ssrLoadModule!, resolve(aotOptions.startServerScript!));
-                              })()
-                            : // IPC mode: spawn child process
-                              generateAOTCaches(aotOptions);
-
-                    aotGenerationPromise = regeneratePromise;
-                    regeneratePromise
-                        .then((data) => {
-                            aotData = data;
-                            logAOTCaches(data);
-                            if (!ssrEnabled) updateDiskCache(aotOptions, data, aotCacheDir);
-                            // Invalidate all AOT virtual modules
-                            let invalidatedCount = 0;
-                            for (const resolvedId of aotResolvedIds.keys()) {
-                                const mod = server.moduleGraph.getModuleById(resolvedId);
-                                if (mod) {
-                                    server.moduleGraph.invalidateModule(mod);
-                                    invalidatedCount++;
-                                }
-                            }
-                            if (invalidatedCount > 0) {
-                                console.log('[mion] AOT caches regenerated, invalidating virtual modules');
-                            }
-                        })
-                        .catch((err) => {
-                            console.error('[mion] Failed to regenerate AOT caches:', err.message);
-                        });
-                }
-            }
-
-            return undefined;
-        },
-    };
 }

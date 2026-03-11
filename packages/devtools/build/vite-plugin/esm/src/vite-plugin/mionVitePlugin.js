@@ -1,57 +1,11 @@
 import { resolve } from "path";
-import { writeFileSync } from "fs";
 import * as ts from "typescript";
 import { createDeepkitConfig, createPureFnTransformerFactory } from "./transformers.js";
 import { scanClientSource } from "./extractPureFn.js";
 import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX } from "./constants.js";
-import { generateAOTCaches, logAOTCaches, generateNoopCombinedModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, generateSSRAOTCaches, generateCombinedCachesModule } from "./aotCacheGenerator.js";
+import { generateAOTCaches, logAOTCaches, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, loadSSRRouterAndGenerateAOTCaches } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
-function parseVueModuleId(id) {
-  const qIdx = id.indexOf("?");
-  if (qIdx === -1) return null;
-  const basePath = id.slice(0, qIdx);
-  if (!basePath.endsWith(".vue")) return null;
-  const params = new URLSearchParams(id.slice(qIdx));
-  if (!params.has("vue") || params.get("type") !== "script") return null;
-  return { basePath, lang: params.get("lang") };
-}
-function isIncluded(filePath, include, exclude) {
-  const vueInfo = parseVueModuleId(filePath);
-  const effectivePath = vueInfo ? vueInfo.basePath : filePath;
-  const isTs = /\.(ts|tsx|js|jsx)$/.test(effectivePath);
-  const isVue = effectivePath.endsWith(".vue");
-  const isDir = effectivePath.endsWith("/");
-  if (!isTs && !isVue && !isDir) return false;
-  for (const pattern of exclude) {
-    if (matchGlob(effectivePath, pattern)) return false;
-  }
-  return true;
-}
-function matchGlob(filePath, pattern) {
-  if (pattern.startsWith("**/")) {
-    const suffix = pattern.slice(3);
-    return filePath.includes(suffix.replace(/\*/g, ""));
-  }
-  const regex = new RegExp("^" + pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*") + "$");
-  return regex.test(filePath);
-}
-const AOT_MODULE_TYPES = ["jit-fns", "pure-fns", "router-cache", "caches"];
-function buildAOTVirtualModuleMaps(customVirtualModuleId) {
-  const aotVirtualModules = /* @__PURE__ */ new Map();
-  const aotResolvedIds = /* @__PURE__ */ new Map();
-  for (const type of AOT_MODULE_TYPES) {
-    const defaultId = `virtual:mion-aot/${type}`;
-    aotVirtualModules.set(defaultId, type);
-    aotResolvedIds.set(resolveVirtualId(defaultId), type);
-    if (customVirtualModuleId) {
-      const customId = `virtual:${customVirtualModuleId}/${type}`;
-      aotVirtualModules.set(customId, type);
-      aotResolvedIds.set(resolveVirtualId(customId), type);
-    }
-  }
-  return { aotVirtualModules, aotResolvedIds };
-}
 function mionVitePlugin(options) {
   let extractedFns = null;
   const pureFnOptions = options.serverPureFunctions;
@@ -70,6 +24,7 @@ function mionVitePlugin(options) {
   let aotCacheDir = "";
   let ssrLoadModule = null;
   let ssrEnabled = false;
+  let ssrInitPromise = null;
   const { aotVirtualModules, aotResolvedIds } = buildAOTVirtualModuleMaps(aotOptions?.customVirtualModuleId);
   return {
     name: "mion",
@@ -112,54 +67,41 @@ function mionVitePlugin(options) {
       if (!ssrEnabled || !aotOptions?.startServerScript) return;
       ssrLoadModule = (url) => server.ssrLoadModule(url);
       const startServerScript = resolve(aotOptions.startServerScript);
-      const startSSRAOT = () => {
-        console.log("[mion] Generating SSR AOT caches...");
-        aotGenerationPromise = generateSSRAOTCaches(ssrLoadModule, startServerScript).then((data) => {
-          aotData = data;
-          console.log("[mion] SSR AOT caches generated successfully");
-          logAOTCaches(data);
-          for (const resolvedId of aotResolvedIds.keys()) {
-            const mod = server.moduleGraph.getModuleById(resolvedId);
-            if (mod) server.moduleGraph.invalidateModule(mod);
-          }
-          return data;
-        }).catch((err) => {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error(`[mion] Failed to generate SSR AOT caches: ${message}`);
-          throw err;
-        });
-      };
-      if (server.httpServer) {
-        server.httpServer.once("listening", startSSRAOT);
-      } else {
-        setTimeout(startSSRAOT, 0);
-      }
-      let requestHandler = null;
+      let nodeRequestHandler = null;
       let basePath = null;
       let initFailed = false;
+      console.log("[mion] Generating SSR AOT caches...");
+      ssrInitPromise = loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startServerScript).then(async (data) => {
+        aotData = data;
+        aotGenerationPromise = Promise.resolve(data);
+        console.log("[mion] SSR AOT caches generated successfully");
+        logAOTCaches(data);
+        for (const resolvedId of aotResolvedIds.keys()) {
+          const mod = server.moduleGraph.getModuleById(resolvedId);
+          if (mod) server.moduleGraph.invalidateModule(mod);
+        }
+        const routerModule = await server.ssrLoadModule("@mionjs/router");
+        const opts = routerModule.getRouterOptions();
+        basePath = "/" + (opts.basePath || "").replace(/^\//, "");
+        const platformNode = await server.ssrLoadModule("@mionjs/platform-node");
+        nodeRequestHandler = platformNode.httpRequestHandler;
+        console.log("[mion] Dev server proxy initialized");
+      }).catch((err) => {
+        initFailed = true;
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[mion] Failed to initialize SSR: ${message}`);
+      });
       server.middlewares.use(async (req, res, next) => {
         try {
-          if (!basePath && !initFailed) {
-            if (aotGenerationPromise) await aotGenerationPromise.catch(() => {
-            });
-            const routerModule = await server.ssrLoadModule("@mionjs/router");
-            const opts = routerModule.getRouterOptions();
-            basePath = "/" + (opts.basePath || "").replace(/^\//, "");
-          }
+          if (!basePath && !initFailed) await ssrInitPromise;
           if (!basePath || !req.url?.startsWith(basePath)) return next();
-          if (!requestHandler && !initFailed) {
-            const platformNode = await server.ssrLoadModule("@mionjs/platform-node");
-            requestHandler = platformNode.httpRequestHandler;
-            console.log("[mion] Dev server proxy initialized");
-          }
-          if (requestHandler) {
-            requestHandler(req, res);
+          if (nodeRequestHandler) {
+            nodeRequestHandler(req, res);
           } else {
             res.statusCode = 503;
             res.end("mion API failed to initialize");
           }
         } catch (err) {
-          initFailed = true;
           console.error("[mion] Dev server proxy error:", err);
           if (!res.writableEnded) {
             res.statusCode = 500;
@@ -178,51 +120,30 @@ function mionVitePlugin(options) {
     },
     async load(id) {
       if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
-        if (!pureFnOptions) {
-          return generateServerPureFnsVirtualModule([]);
-        }
-        if (!extractedFns) {
-          extractedFns = scanClientSource(pureFnOptions);
-        }
+        if (!pureFnOptions) return generateServerPureFnsVirtualModule([]);
+        if (!extractedFns) extractedFns = scanClientSource(pureFnOptions);
         return generateServerPureFnsVirtualModule(extractedFns);
       }
       const aotType = aotResolvedIds.get(id);
       if (aotType) {
-        if (!aotData && aotGenerationPromise) {
-          try {
-            aotData = await aotGenerationPromise;
-          } catch {
-          }
-        }
-        const debugDir = "/Users/majerez/Projects/mion-starters/nuxt/4/";
-        const writeDebug = (name, result) => {
-          const content = typeof result === "string" ? result : result?.code ?? "";
-          writeFileSync(debugDir + name, content);
-        };
+        const initPromise = ssrInitPromise || aotGenerationPromise;
+        if (!aotData && initPromise) await initPromise;
         switch (aotType) {
           case "jit-fns": {
             if (!aotData) return generateNoopModule("No-op: AOT JIT caches not generated");
-            const code = generateJitFnsModule(aotData.jitFnsCode);
-            writeDebug("debug-aot-jit-fns.js", code);
-            return code;
+            return generateJitFnsModule(aotData.jitFnsCode);
           }
           case "pure-fns": {
             if (!aotData) return generateNoopModule("No-op: AOT pure fns not generated");
-            const code = generatePureFnsModule(aotData.pureFnsCode);
-            writeDebug("debug-aot-pure-fns.js", code);
-            return code;
+            return generatePureFnsModule(aotData.pureFnsCode);
           }
           case "router-cache": {
             if (!aotData) return generateNoopModule("No-op: AOT router cache not generated");
-            const code = generateRouterCacheModule(aotData.routerCacheCode);
-            writeDebug("debug-aot-router-cache.js", code);
-            return code;
+            return generateRouterCacheModule(aotData.routerCacheCode);
           }
           case "caches": {
             if (!aotData) return generateNoopCombinedModule();
-            const code = generateCombinedCachesModule();
-            writeDebug("debug-aot-caches.js", code);
-            return code;
+            return generateCombinedCachesModule();
           }
         }
       }
@@ -250,12 +171,8 @@ function mionVitePlugin(options) {
       if (hasPureFns) {
         before.push(createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient));
       }
-      if (deepkitConfig) {
-        after.push(...deepkitConfig.afterTransformers);
-      }
-      if (needsDeepkit) {
-        before.push(...deepkitConfig.beforeTransformers);
-      }
+      if (deepkitConfig) after.push(...deepkitConfig.afterTransformers);
+      if (needsDeepkit) before.push(...deepkitConfig.beforeTransformers);
       const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
       const compilerOptions = isTsx ? { ...baseCompilerOptions, jsx: ts.JsxEmit.ReactJSX } : baseCompilerOptions;
       const result = ts.transpileModule(code, {
@@ -306,7 +223,10 @@ function mionVitePlugin(options) {
             (async () => {
               const routerModule = await ssrLoadModule("@mionjs/router");
               routerModule.resetRouter();
-              return generateSSRAOTCaches(ssrLoadModule, resolve(aotOptions.startServerScript));
+              return loadSSRRouterAndGenerateAOTCaches(
+                ssrLoadModule,
+                resolve(aotOptions.startServerScript)
+              );
             })()
           ) : (
             // IPC mode: spawn child process
@@ -336,6 +256,51 @@ function mionVitePlugin(options) {
       return void 0;
     }
   };
+}
+function parseVueModuleId(id) {
+  const qIdx = id.indexOf("?");
+  if (qIdx === -1) return null;
+  const basePath = id.slice(0, qIdx);
+  if (!basePath.endsWith(".vue")) return null;
+  const params = new URLSearchParams(id.slice(qIdx));
+  if (!params.has("vue") || params.get("type") !== "script") return null;
+  return { basePath, lang: params.get("lang") };
+}
+function isIncluded(filePath, include, exclude) {
+  const vueInfo = parseVueModuleId(filePath);
+  const effectivePath = vueInfo ? vueInfo.basePath : filePath;
+  const isTs = /\.(ts|tsx|js|jsx)$/.test(effectivePath);
+  const isVue = effectivePath.endsWith(".vue");
+  const isDir = effectivePath.endsWith("/");
+  if (!isTs && !isVue && !isDir) return false;
+  for (const pattern of exclude) {
+    if (matchGlob(effectivePath, pattern)) return false;
+  }
+  return true;
+}
+function matchGlob(filePath, pattern) {
+  if (pattern.startsWith("**/")) {
+    const suffix = pattern.slice(3);
+    return filePath.includes(suffix.replace(/\*/g, ""));
+  }
+  const regex = new RegExp("^" + pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*") + "$");
+  return regex.test(filePath);
+}
+const AOT_MODULE_TYPES = ["jit-fns", "pure-fns", "router-cache", "caches"];
+function buildAOTVirtualModuleMaps(customVirtualModuleId) {
+  const aotVirtualModules = /* @__PURE__ */ new Map();
+  const aotResolvedIds = /* @__PURE__ */ new Map();
+  for (const type of AOT_MODULE_TYPES) {
+    const defaultId = `virtual:mion-aot/${type}`;
+    aotVirtualModules.set(defaultId, type);
+    aotResolvedIds.set(resolveVirtualId(defaultId), type);
+    if (customVirtualModuleId) {
+      const customId = `virtual:${customVirtualModuleId}/${type}`;
+      aotVirtualModules.set(customId, type);
+      aotResolvedIds.set(resolveVirtualId(customId), type);
+    }
+  }
+  return { aotVirtualModules, aotResolvedIds };
 }
 export {
   isIncluded,

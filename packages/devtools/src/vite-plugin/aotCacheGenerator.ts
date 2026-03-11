@@ -158,11 +158,15 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
 /** Loads a module by URL — abstracts over ssrLoadModule and Environment Runner */
 export type ModuleLoader = (url: string) => Promise<Record<string, any>>;
 
-/** Generates AOT caches via SSR using a module loader (for same-Vite-process scenarios like Nuxt).
+/**
  *  Loads the startServerScript with MION_COMPILE=true so platform adapters skip server.listen().
+ *  Generates AOT caches via SSR using a module loader (for same-Vite-process scenarios like Nuxt).
  *  Intercepts process.send to capture the AOT caches emitted by the router's emitAOTCaches(),
  *  using the same emission path as IPC mode for reliability. */
-export async function generateSSRAOTCaches(loadModule: ModuleLoader, startServerScript: string): Promise<AOTCacheData> {
+export async function loadSSRRouterAndGenerateAOTCaches(
+    loadModule: ModuleLoader,
+    startServerScript: string
+): Promise<AOTCacheData> {
     // Set MION_COMPILE=true so the router populates its persistedMethods cache
     // and platform adapters (e.g. startNodeServer) skip server.listen()
     const prevCompile = process.env.MION_COMPILE;
