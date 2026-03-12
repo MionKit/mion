@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {join} from 'path';
+/** Lightweight path join for error messages (avoids Node's 'path' module for edge compatibility) */
 import type {Route, RouterOptions, Routes, RouterEntry} from './types/general.ts';
 import type {
     RemoteMethod,
@@ -260,7 +260,9 @@ async function recursiveFlatRoutes(
 
     const entries = Object.entries(routes);
     if (entries.length === 0)
-        throw new Error(`Invalid route: ${currentPointer.length ? join(...currentPointer) : '*'}. Can Not define empty routes`);
+        throw new Error(
+            `Invalid route: ${currentPointer.length ? joinPath(...currentPointer) : '*'}. Can Not define empty routes`
+        );
 
     let minus1Props: ReturnType<typeof getRouteEntryProperties> | null = null;
     for (let index = 0; index < entries.length; index++) {
@@ -269,17 +271,17 @@ async function recursiveFlatRoutes(
         const newPointer = [...currentPointer, key];
         let routeEntry: RemoteMethod | RoutesWithId;
         if (typeof key !== 'string' || !isNaN(key as any))
-            throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
-        if (key.includes(',')) throw new Error(`Invalid route: ${join(...newPointer)}. Route names cannot contain commas.`);
+            throw new Error(`Invalid route: ${joinPath(...newPointer)}. Numeric route names are not allowed`);
+        if (key.includes(',')) throw new Error(`Invalid route: ${joinPath(...newPointer)}. Route names cannot contain commas.`);
         if (key === WORKFLOW_KEY)
-            throw new Error(`Invalid route: ${join(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
+            throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
 
         // generates a middleFn
         if (isAnyMiddleFnDef(item)) {
             routeEntry = await getExecutableFromAnyMiddleFn(item, newPointer, nestLevel);
             if (middleFnNames.has(routeEntry.id))
                 throw new Error(
-                    `Invalid middleFn: ${join(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`
+                    `Invalid middleFn: ${joinPath(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`
                 );
             middleFnNames.add(routeEntry.id);
         }
@@ -288,7 +290,7 @@ async function recursiveFlatRoutes(
         else if (isRoute(item)) {
             routeEntry = await getExecutableFromRoute(item, newPointer, nestLevel);
             if (routeNames.has(routeEntry.id))
-                throw new Error(`Invalid route: ${join(...newPointer)}. Naming collision, duplicated route`);
+                throw new Error(`Invalid route: ${joinPath(...newPointer)}. Naming collision, duplicated route`);
             routeNames.add(routeEntry.id);
         }
 
@@ -303,7 +305,7 @@ async function recursiveFlatRoutes(
         // throws an error if the route is invalid
         else {
             const itemType = typeof item;
-            throw new Error(`Invalid route: ${join(...newPointer)}. Type <${itemType}> is not a valid route.`);
+            throw new Error(`Invalid route: ${joinPath(...newPointer)}. Type <${itemType}> is not a valid route.`);
         }
 
         // recurse into sublevels
@@ -565,4 +567,9 @@ function getSerializerCodeFromMode(mode: SerializerMode | undefined): Serializer
         default:
             return SerializerModes.json;
     }
+}
+
+/** Path replacement as is not available in edge runtime */
+function joinPath(...parts: string[]): string {
+    return parts.filter(Boolean).join('/');
 }
