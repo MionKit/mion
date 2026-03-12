@@ -1,12 +1,15 @@
 import { CompilerOptions } from 'typescript';
 export interface AOTCacheOptions {
-    startServerScript?: string;
-    serverViteConfig?: string;
     excludedFns?: string[];
     excludedPureFns?: string[];
     cache?: boolean | string;
     excludeReflection?: boolean;
     customVirtualModuleId?: string;
+}
+export interface MionServerConfig {
+    startServerScript: string;
+    serverViteConfig?: string;
+    mode: 'onlyAOT' | 'IPC' | 'viteSSR';
 }
 export interface PureServerFnRegistryEntry {
     readonly namespace: string;

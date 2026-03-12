@@ -46,7 +46,7 @@ const cloudflareRoutes = {changeUserName, getDate, updateHeaders} satisfies Rout
 // This code is a no-op in the bundled IIFE (process is undefined in workerd).
 (async () => {
     const mionCompile = typeof process !== 'undefined' ? process.env?.MION_COMPILE : undefined;
-    if (mionCompile === 'true' || mionCompile === 'SSR') {
+    if (mionCompile === 'onlyAOT' || mionCompile === 'viteSSR') {
         await initMionRouter(cloudflareRoutes, {
             contextDataFactory: getSharedData,
             basePath: 'api/',

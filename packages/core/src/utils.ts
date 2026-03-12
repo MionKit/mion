@@ -43,10 +43,19 @@ export function fromBase64Url(encoded: string): string {
 }
 
 let isTest: boolean | undefined = undefined;
-/** Whether the process is in mion compile mode (IPC or SSR) */
+/** Whether the process is in mion compile mode (onlyAOT or viteSSR).
+ * In these modes platform adapters skip server.listen() — the server does NOT start. */
 export function isMionCompileMode(): boolean {
     const val = getENV('MION_COMPILE');
-    return val === 'true' || val === 'SSR';
+    return val === 'onlyAOT' || val === 'viteSSR';
+}
+
+/** Whether AOT caches should be generated and emitted (onlyAOT, viteSSR, or serve).
+ * Unlike isMionCompileMode(), this also includes 'serve' mode where the server DOES start
+ * and keeps running after emitting AOT caches via IPC. */
+export function isMionAOTEmitMode(): boolean {
+    const val = getENV('MION_COMPILE');
+    return val === 'onlyAOT' || val === 'viteSSR' || val === 'serve';
 }
 
 export function isTestEnv() {

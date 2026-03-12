@@ -63,7 +63,7 @@ describe('generateSSRAOTCaches', () => {
 
         try {
             await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
-            expect(envDuringLoad).toBe('SSR');
+            expect(envDuringLoad).toBe('viteSSR');
             expect(process.env.MION_COMPILE).toBeUndefined();
         } finally {
             if (prevCompile !== undefined) process.env.MION_COMPILE = prevCompile;

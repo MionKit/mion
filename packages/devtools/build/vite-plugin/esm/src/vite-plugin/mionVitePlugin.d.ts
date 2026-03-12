@@ -1,8 +1,9 @@
-import { ServerPureFunctionsOptions, DeepkitTypeOptions, AOTCacheOptions } from './types.ts';
+import { ServerPureFunctionsOptions, DeepkitTypeOptions, AOTCacheOptions, MionServerConfig } from './types.ts';
 export interface MionPluginOptions {
     serverPureFunctions?: ServerPureFunctionsOptions;
     runTypes?: DeepkitTypeOptions;
     aotCaches?: AOTCacheOptions;
+    server?: MionServerConfig;
 }
 export declare function mionVitePlugin(options: MionPluginOptions): {
     name: string;
@@ -21,6 +22,7 @@ export declare function mionVitePlugin(options: MionPluginOptions): {
         map: string | undefined;
     } | null;
     buildEnd(): void;
+    closeBundle(): Promise<void>;
     handleHotUpdate({ file, server }: {
         file: any;
         server: any;

@@ -48,16 +48,16 @@ function collectFileStats(dir, baseDir) {
   }
   return entries;
 }
-function computeSourceHash(options) {
-  const serverDir = path.dirname(path.resolve(options.startServerScript));
+function computeSourceHash(serverConfig, aotOptions) {
+  const serverDir = path.dirname(path.resolve(serverConfig.startServerScript));
   const fileStats = collectFileStats(serverDir, serverDir);
   fileStats.sort();
   const hashInput = [
     ...fileStats,
     `cacheVersion:${AOT_DISK_CACHE_VERSION}`,
     `devtoolsVersion:${getDevtoolsVersion()}`,
-    `excludedFns:${JSON.stringify((options.excludedFns || []).slice().sort())}`,
-    `excludedPureFns:${JSON.stringify((options.excludedPureFns || []).slice().sort())}`
+    `excludedFns:${JSON.stringify((aotOptions?.excludedFns || []).slice().sort())}`,
+    `excludedPureFns:${JSON.stringify((aotOptions?.excludedPureFns || []).slice().sort())}`
   ].join("\n");
   return crypto.createHash("sha256").update(hashInput).digest("hex");
 }
@@ -95,33 +95,35 @@ function resolveCacheDir(options, viteCacheDir) {
   if (typeof options.cache === "string") return path.resolve(options.cache);
   return viteCacheDir || path.resolve(process.cwd(), "node_modules/.vite");
 }
-async function getOrGenerateAOTCaches(options, cacheDir) {
+async function getOrGenerateAOTCaches(serverConfig, aotOptions, cacheDir) {
   const forceRegenerate = process.env.MION_AOT_FORCE === "true";
-  const cachingEnabled = cacheDir !== "" && !forceRegenerate && !!options.startServerScript;
+  const cachingEnabled = cacheDir !== "" && !forceRegenerate;
   let hash = "";
   if (cachingEnabled) {
-    hash = computeSourceHash(options);
+    hash = computeSourceHash(serverConfig, aotOptions);
     const cached = readDiskCache(cacheDir);
     if (cached && cached.cacheVersion === AOT_DISK_CACHE_VERSION && cached.hash === hash) {
       console.log("[mion] AOT caches loaded from disk cache (source unchanged)");
       return {
-        jitFnsCode: cached.jitFnsCode,
-        pureFnsCode: cached.pureFnsCode,
-        routerCacheCode: cached.routerCacheCode
+        data: {
+          jitFnsCode: cached.jitFnsCode,
+          pureFnsCode: cached.pureFnsCode,
+          routerCacheCode: cached.routerCacheCode
+        }
       };
     }
   }
-  const data = await src_vitePlugin_aotCacheGenerator.generateAOTCaches(options);
+  const result = await src_vitePlugin_aotCacheGenerator.generateAOTCaches(serverConfig);
   if (cachingEnabled) {
-    if (!hash) hash = computeSourceHash(options);
-    writeDiskCache(cacheDir, hash, data);
+    if (!hash) hash = computeSourceHash(serverConfig, aotOptions);
+    writeDiskCache(cacheDir, hash, result.data);
     console.log("[mion] AOT caches saved to disk cache");
   }
-  return data;
+  return result;
 }
-function updateDiskCache(options, data, cacheDir) {
-  if (!cacheDir || options.cache === false || !options.startServerScript) return;
-  const hash = computeSourceHash(options);
+function updateDiskCache(serverConfig, aotOptions, data, cacheDir) {
+  if (!cacheDir || aotOptions?.cache === false) return;
+  const hash = computeSourceHash(serverConfig, aotOptions);
   writeDiskCache(cacheDir, hash, data);
 }
 exports.computeSourceHash = computeSourceHash;

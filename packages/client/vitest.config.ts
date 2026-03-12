@@ -13,9 +13,12 @@ export default defineConfig({
                     sourceMap: true,
                 },
             },
-            aotCaches: {
+            server: {
                 startServerScript: resolve(__dirname, '../router/src/defaultRoutes.ts'),
                 serverViteConfig: resolve(__dirname, '../router/vite.config.ts'),
+                mode: 'onlyAOT',
+            },
+            aotCaches: {
                 customVirtualModuleId: 'client-mion-aot',
             },
         }) as any,

@@ -46,7 +46,7 @@ const edgeRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 // This code is a no-op in the bundled IIFE (process is undefined in EdgeVM).
 (async () => {
     const mionCompile = typeof process !== 'undefined' ? process.env?.MION_COMPILE : undefined;
-    if (mionCompile === 'true' || mionCompile === 'SSR') {
+    if (mionCompile === 'onlyAOT' || mionCompile === 'viteSSR') {
         await initMionRouter(edgeRoutes, {
             contextDataFactory: getSharedData,
             basePath: 'api/',

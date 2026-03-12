@@ -3,7 +3,7 @@ import {mkdirSync, writeFileSync, rmSync, mkdtempSync} from 'fs';
 import {join} from 'path';
 import {tmpdir} from 'os';
 import {computeSourceHash, resolveCacheDir, getOrGenerateAOTCaches, updateDiskCache} from './aotDiskCache.ts';
-import {AOTCacheOptions} from './types.ts';
+import {MionServerConfig, AOTCacheOptions} from './types.ts';
 
 // Mock generateAOTCaches to avoid spawning real vite-node processes
 vi.mock('./aotCacheGenerator.ts', () => ({
@@ -36,65 +36,55 @@ afterEach(() => {
     vi.clearAllMocks();
 });
 
+function makeServerConfig(overrides?: Partial<MionServerConfig>): MionServerConfig {
+    return {
+        startServerScript: join(serverDir, 'init.ts'),
+        mode: 'onlyAOT',
+        ...overrides,
+    };
+}
+
 describe('computeSourceHash', () => {
     it('should produce a deterministic hash for the same directory', () => {
-        const options: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-        };
-        const hash1 = computeSourceHash(options);
-        const hash2 = computeSourceHash(options);
+        const serverConfig = makeServerConfig();
+        const hash1 = computeSourceHash(serverConfig);
+        const hash2 = computeSourceHash(serverConfig);
         expect(hash1).toBe(hash2);
         expect(hash1).toHaveLength(64); // SHA-256 hex
     });
 
     it('should produce a different hash when excludedFns differ', () => {
-        const base: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-        };
-        const withExclusions: AOTCacheOptions = {
-            ...base,
-            excludedFns: ['someFunction'],
-        };
-        const hash1 = computeSourceHash(base);
-        const hash2 = computeSourceHash(withExclusions);
+        const serverConfig = makeServerConfig();
+        const hash1 = computeSourceHash(serverConfig);
+        const hash2 = computeSourceHash(serverConfig, {excludedFns: ['someFunction']});
         expect(hash1).not.toBe(hash2);
     });
 
     it('should produce a different hash when excludedPureFns differ', () => {
-        const base: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-        };
-        const withExclusions: AOTCacheOptions = {
-            ...base,
-            excludedPureFns: ['pureFn1'],
-        };
-        const hash1 = computeSourceHash(base);
-        const hash2 = computeSourceHash(withExclusions);
+        const serverConfig = makeServerConfig();
+        const hash1 = computeSourceHash(serverConfig);
+        const hash2 = computeSourceHash(serverConfig, {excludedPureFns: ['pureFn1']});
         expect(hash1).not.toBe(hash2);
     });
 
     it('should produce a different hash when a file is added', () => {
-        const options: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-        };
-        const hash1 = computeSourceHash(options);
+        const serverConfig = makeServerConfig();
+        const hash1 = computeSourceHash(serverConfig);
         writeFileSync(join(serverDir, 'newFile.ts'), 'export const x = 1;');
-        const hash2 = computeSourceHash(options);
+        const hash2 = computeSourceHash(serverConfig);
         expect(hash1).not.toBe(hash2);
     });
 
     it('should skip node_modules and test files', () => {
-        const options: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-        };
-        const hash1 = computeSourceHash(options);
+        const serverConfig = makeServerConfig();
+        const hash1 = computeSourceHash(serverConfig);
 
         // Adding test files and node_modules should not change the hash
         writeFileSync(join(serverDir, 'routes.spec.ts'), 'test file');
         mkdirSync(join(serverDir, 'node_modules', 'dep'), {recursive: true});
         writeFileSync(join(serverDir, 'node_modules', 'dep', 'index.ts'), 'dep');
 
-        const hash2 = computeSourceHash(options);
+        const hash2 = computeSourceHash(serverConfig);
         expect(hash1).toBe(hash2);
     });
 });
@@ -128,48 +118,41 @@ describe('getOrGenerateAOTCaches', () => {
     };
 
     it('should generate fresh caches on first run and save to disk', async () => {
-        mockedGenerateAOTCaches.mockResolvedValue(mockData);
+        mockedGenerateAOTCaches.mockResolvedValue({data: mockData});
 
-        const options: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-        };
-
-        const result = await getOrGenerateAOTCaches(options, cacheDir);
-        expect(result).toEqual(mockData);
+        const serverConfig = makeServerConfig();
+        const result = await getOrGenerateAOTCaches(serverConfig, undefined, cacheDir);
+        expect(result.data).toEqual(mockData);
         expect(mockedGenerateAOTCaches).toHaveBeenCalledOnce();
     });
 
     it('should return cached data on second run without regenerating', async () => {
-        mockedGenerateAOTCaches.mockResolvedValue(mockData);
+        mockedGenerateAOTCaches.mockResolvedValue({data: mockData});
 
-        const options: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-        };
+        const serverConfig = makeServerConfig();
 
         // First call - generates and caches
-        await getOrGenerateAOTCaches(options, cacheDir);
+        await getOrGenerateAOTCaches(serverConfig, undefined, cacheDir);
         expect(mockedGenerateAOTCaches).toHaveBeenCalledOnce();
 
         // Second call - should load from disk cache
-        const result = await getOrGenerateAOTCaches(options, cacheDir);
-        expect(result).toEqual(mockData);
+        const result = await getOrGenerateAOTCaches(serverConfig, undefined, cacheDir);
+        expect(result.data).toEqual(mockData);
         expect(mockedGenerateAOTCaches).toHaveBeenCalledOnce(); // Still only 1 call
     });
 
     it('should regenerate when MION_AOT_FORCE is set', async () => {
-        mockedGenerateAOTCaches.mockResolvedValue(mockData);
+        mockedGenerateAOTCaches.mockResolvedValue({data: mockData});
 
-        const options: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-        };
+        const serverConfig = makeServerConfig();
 
         // First call - generates and caches
-        await getOrGenerateAOTCaches(options, cacheDir);
+        await getOrGenerateAOTCaches(serverConfig, undefined, cacheDir);
 
         // Set force flag
         process.env.MION_AOT_FORCE = 'true';
         try {
-            await getOrGenerateAOTCaches(options, cacheDir);
+            await getOrGenerateAOTCaches(serverConfig, undefined, cacheDir);
             expect(mockedGenerateAOTCaches).toHaveBeenCalledTimes(2);
         } finally {
             delete process.env.MION_AOT_FORCE;
@@ -177,36 +160,32 @@ describe('getOrGenerateAOTCaches', () => {
     });
 
     it('should regenerate when source files change', async () => {
-        mockedGenerateAOTCaches.mockResolvedValue(mockData);
+        mockedGenerateAOTCaches.mockResolvedValue({data: mockData});
 
-        const options: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-        };
+        const serverConfig = makeServerConfig();
 
         // First call - generates and caches
-        await getOrGenerateAOTCaches(options, cacheDir);
+        await getOrGenerateAOTCaches(serverConfig, undefined, cacheDir);
 
         // Modify a source file (need small delay to ensure mtime changes)
         await new Promise((r) => setTimeout(r, 50));
         writeFileSync(join(serverDir, 'routes.ts'), 'export const routes = {updated: true};');
 
         // Second call - should regenerate due to hash mismatch
-        await getOrGenerateAOTCaches(options, cacheDir);
+        await getOrGenerateAOTCaches(serverConfig, undefined, cacheDir);
         expect(mockedGenerateAOTCaches).toHaveBeenCalledTimes(2);
     });
 
     it('should skip caching when cacheDir is empty', async () => {
-        mockedGenerateAOTCaches.mockResolvedValue(mockData);
+        mockedGenerateAOTCaches.mockResolvedValue({data: mockData});
 
-        const options: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-            cache: false,
-        };
+        const serverConfig = makeServerConfig();
+        const aotOptions: AOTCacheOptions = {cache: false};
 
         // First call
-        await getOrGenerateAOTCaches(options, '');
+        await getOrGenerateAOTCaches(serverConfig, aotOptions, '');
         // Second call - should regenerate since caching is disabled
-        await getOrGenerateAOTCaches(options, '');
+        await getOrGenerateAOTCaches(serverConfig, aotOptions, '');
         expect(mockedGenerateAOTCaches).toHaveBeenCalledTimes(2);
     });
 });
@@ -219,27 +198,23 @@ describe('updateDiskCache', () => {
     };
 
     it('should write cache that can be read back by getOrGenerateAOTCaches', async () => {
-        mockedGenerateAOTCaches.mockResolvedValue(mockData);
+        mockedGenerateAOTCaches.mockResolvedValue({data: mockData});
 
-        const options: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-        };
+        const serverConfig = makeServerConfig();
 
         // Write cache via updateDiskCache (simulates HMR)
-        updateDiskCache(options, mockData, cacheDir);
+        updateDiskCache(serverConfig, undefined, mockData, cacheDir);
 
         // Should load from disk cache without regenerating
-        const result = await getOrGenerateAOTCaches(options, cacheDir);
-        expect(result).toEqual(mockData);
+        const result = await getOrGenerateAOTCaches(serverConfig, undefined, cacheDir);
+        expect(result.data).toEqual(mockData);
         expect(mockedGenerateAOTCaches).not.toHaveBeenCalled();
     });
 
     it('should be a no-op when cache is disabled', () => {
-        const options: AOTCacheOptions = {
-            startServerScript: join(serverDir, 'init.ts'),
-            cache: false,
-        };
+        const serverConfig = makeServerConfig();
+        const aotOptions: AOTCacheOptions = {cache: false};
         // Should not throw
-        updateDiskCache(options, mockData, '');
+        updateDiskCache(serverConfig, aotOptions, mockData, '');
     });
 });

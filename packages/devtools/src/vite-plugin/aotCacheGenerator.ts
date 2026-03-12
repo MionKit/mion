@@ -7,7 +7,7 @@
 
 import {fork, ChildProcess} from 'child_process';
 import {resolve, dirname} from 'path';
-import {AOTCacheOptions} from './types.ts';
+import {MionServerConfig} from './types.ts';
 import {resolveModule} from './resolveModule.ts';
 
 /** AOT cache data returned from the generator */
@@ -15,6 +15,13 @@ export interface AOTCacheData {
     jitFnsCode: string;
     pureFnsCode: string;
     routerCacheCode: string;
+}
+
+/** AOT cache result including optional persistent child process */
+export interface AOTCacheResult {
+    data: AOTCacheData;
+    /** The child process, only present when server mode is 'IPC' (persist) */
+    childProcess?: ChildProcess;
 }
 
 /** IPC message type from the router's aotEmitter */
@@ -37,18 +44,16 @@ const DEFAULT_TIMEOUT = 30000;
  * 3. vite-node provides the same environment as the actual server build
  *
  * The router's emitAOTCaches() (called automatically from initMionRouter)
- * detects MION_COMPILE=true and sends the serialized caches via IPC.
- *
- * @param options - AOT cache options
- * @param startScriptOverride - Optional override for the start script path (used for default routes)
+ * detects MION_COMPILE and sends the serialized caches via IPC.
  */
-export async function generateAOTCaches(options: AOTCacheOptions, startScriptOverride?: string): Promise<AOTCacheData> {
-    const startScript = resolve(startScriptOverride ?? options.startServerScript!);
+export async function generateAOTCaches(serverConfig: MionServerConfig, startScriptOverride?: string): Promise<AOTCacheResult> {
+    const persist = serverConfig.mode === 'IPC';
+    const startScript = resolve(startScriptOverride ?? serverConfig.startServerScript);
     const scriptDir = dirname(startScript);
 
     // Determine the vite config to use
     // If serverViteConfig is provided, use it; otherwise let vite-node auto-discover
-    const viteConfigArgs = options.serverViteConfig ? ['--config', resolve(options.serverViteConfig)] : [];
+    const viteConfigArgs = serverConfig.serverViteConfig ? ['--config', resolve(serverConfig.serverViteConfig)] : [];
 
     // Resolve vite-node path in both CJS and ESM environments
     let viteNodePath: string;
@@ -69,8 +74,9 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
 
         try {
             // Spawn vite-node as a child process with IPC channel
+            // 'serve' mode tells platform adapters to proceed with server.listen()
             child = fork(viteNodePath, [...viteConfigArgs, startScript], {
-                env: {...process.env, MION_COMPILE: 'true'},
+                env: {...process.env, MION_COMPILE: persist ? 'serve' : 'onlyAOT'},
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
                 cwd: scriptDir,
             });
@@ -86,11 +92,11 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
             return;
         }
 
-        /** Cleanup child process: disconnect IPC, kill, and clear timeout */
+        /** Cleanup child process: disconnect IPC, clear timeout, and optionally kill */
         const cleanup = () => {
             clearTimeout(timeoutId);
             if (child.connected) child.disconnect();
-            child.kill();
+            if (!persist) child.kill();
         };
 
         child.on('message', (msg: unknown) => {
@@ -99,23 +105,30 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
                 resolved = true;
                 cleanup();
                 resolvePromise({
-                    jitFnsCode: message.jitFnsCode,
-                    pureFnsCode: message.pureFnsCode,
-                    routerCacheCode: message.routerCacheCode,
+                    data: {
+                        jitFnsCode: message.jitFnsCode,
+                        pureFnsCode: message.pureFnsCode,
+                        routerCacheCode: message.routerCacheCode,
+                    },
+                    childProcess: persist ? child : undefined,
                 });
             }
         });
 
-        // Capture stderr for error reporting
+        // Capture stderr for error reporting (and pipe through in persist mode)
         child.stderr?.on('data', (data: Buffer) => {
-            stderr += data.toString();
+            const msg = data.toString().trim();
+            if (!resolved) stderr += msg + '\n';
+            if (persist && msg) console.error(`[mion-server] ${msg}`);
         });
 
-        // Also capture stdout for debugging
+        // Pipe stdout through (always in persist mode, only with DEBUG_AOT otherwise)
         child.stdout?.on('data', (data: Buffer) => {
-            // Log to console for debugging during development
-            if (process.env.DEBUG_AOT) {
-                console.log('[mion-aot] stdout:', data.toString());
+            const msg = data.toString().trim();
+            if (persist && msg) {
+                console.log(`[mion-server] ${msg}`);
+            } else if (process.env.DEBUG_AOT && msg) {
+                console.log('[mion-aot] stdout:', msg);
             }
         });
 
@@ -144,6 +157,7 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
         const timeoutId = setTimeout(() => {
             if (!resolved) {
                 cleanup();
+                if (persist) child.kill();
                 reject(
                     new Error(
                         `AOT cache generation timed out (${DEFAULT_TIMEOUT / 1000}s). ` +
@@ -167,7 +181,7 @@ export async function loadSSRRouterAndGenerateAOTCaches(
     startServerScript: string
 ): Promise<AOTCacheData> {
     const prevCompile = process.env.MION_COMPILE;
-    process.env.MION_COMPILE = 'SSR';
+    process.env.MION_COMPILE = 'viteSSR';
 
     try {
         // Load the start server script — triggers initMionRouter(), populates caches,
@@ -182,6 +196,46 @@ export async function loadSSRRouterAndGenerateAOTCaches(
         if (prevCompile === undefined) delete process.env.MION_COMPILE;
         else process.env.MION_COMPILE = prevCompile;
     }
+}
+
+// ============ Persistent child management ============
+
+/** Kills a persistent child process gracefully (SIGTERM then SIGKILL after 5s) */
+export async function killPersistentChild(child: ChildProcess | null): Promise<void> {
+    if (!child || child.killed) return;
+    const pid = child.pid;
+
+    if (pid) {
+        try {
+            process.kill(-pid, 'SIGTERM');
+        } catch {
+            child.kill('SIGTERM');
+        }
+    } else {
+        child.kill('SIGTERM');
+    }
+
+    await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+            if (child && !child.killed) {
+                if (pid) {
+                    try {
+                        process.kill(-pid, 'SIGKILL');
+                    } catch {
+                        child.kill('SIGKILL');
+                    }
+                } else {
+                    child.kill('SIGKILL');
+                }
+            }
+            resolve();
+        }, 5000);
+
+        child!.on('exit', () => {
+            clearTimeout(timeout);
+            resolve();
+        });
+    });
 }
 
 // ============ Logging ============
