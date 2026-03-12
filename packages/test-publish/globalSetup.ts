@@ -12,12 +12,10 @@ import {fileURLToPath} from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/** Ports used by test-publish tests */
-const TEST_SERVER_PORT_JSON = 8086;
-const TEST_SERVER_PORT_BINARY = 8087;
+/** Port used by test-publish tests - single server instance */
+const TEST_SERVER_PORT = 8086;
 
-let jsonServerProcess: ReturnType<typeof spawn> | null = null;
-let binaryServerProcess: ReturnType<typeof spawn> | null = null;
+let serverProcess: ReturnType<typeof spawn> | null = null;
 
 /** Wait for server to be ready by polling */
 async function waitForServer(port: number, timeoutMs = 30000): Promise<void> {
@@ -122,42 +120,32 @@ async function stopServer(serverProcess: ReturnType<typeof spawn> | null, port: 
     await killProcessOnPort(port);
 }
 
-/** Vitest globalSetup - starts test servers before all tests */
+/** Vitest globalSetup - starts the test server before all tests */
 export default async function globalSetup(): Promise<() => Promise<void>> {
     const testServerPackage = path.resolve(__dirname, '../test-server');
-    const jsonScript = path.join(testServerPackage, 'src/test-server-json.ts');
-    const binaryScript = path.join(testServerPackage, 'src/test-server-binary.ts');
+    const serverScript = path.join(testServerPackage, 'src/test-server.ts');
 
-    console.log(`\n🚀 Starting test servers...`);
+    console.log(`\n🚀 Starting test server...`);
 
     // Clean up any existing processes
-    await Promise.all([killProcessOnPort(TEST_SERVER_PORT_JSON), killProcessOnPort(TEST_SERVER_PORT_BINARY)]);
+    await killProcessOnPort(TEST_SERVER_PORT);
 
-    // Start both servers
-    jsonServerProcess = await startServer(TEST_SERVER_PORT_JSON, jsonScript, 'JSON-SERVER');
-    binaryServerProcess = await startServer(TEST_SERVER_PORT_BINARY, binaryScript, 'BINARY-SERVER');
+    // Start the server (serves both JSON and binary routes)
+    serverProcess = await startServer(TEST_SERVER_PORT, serverScript, 'TEST-SERVER');
 
-    // Wait for both servers to be ready
+    // Wait for server to be ready
     try {
-        await Promise.all([waitForServer(TEST_SERVER_PORT_JSON), waitForServer(TEST_SERVER_PORT_BINARY)]);
-        console.log(`✅ JSON server ready on port ${TEST_SERVER_PORT_JSON}`);
-        console.log(`✅ Binary server ready on port ${TEST_SERVER_PORT_BINARY}\n`);
+        await waitForServer(TEST_SERVER_PORT);
+        console.log(`✅ Test server ready on port ${TEST_SERVER_PORT}\n`);
     } catch (error) {
-        // Kill processes if startup failed
-        await Promise.all([
-            stopServer(jsonServerProcess, TEST_SERVER_PORT_JSON),
-            stopServer(binaryServerProcess, TEST_SERVER_PORT_BINARY),
-        ]);
+        await stopServer(serverProcess, TEST_SERVER_PORT);
         throw error;
     }
 
     // Return teardown function
     return async () => {
-        console.log(`\n🛑 Stopping test servers...`);
-        await Promise.all([
-            stopServer(jsonServerProcess, TEST_SERVER_PORT_JSON),
-            stopServer(binaryServerProcess, TEST_SERVER_PORT_BINARY),
-        ]);
-        console.log('✅ Test servers stopped\n');
+        console.log(`\n🛑 Stopping test server...`);
+        await stopServer(serverProcess, TEST_SERVER_PORT);
+        console.log('✅ Test server stopped\n');
     };
 }

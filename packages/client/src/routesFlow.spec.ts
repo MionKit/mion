@@ -11,7 +11,7 @@ import {routesFlow} from './routesFlow.ts';
 import {HSubRequest, RSubRequest} from './types.ts';
 import {HeadersSubset, PURE_SERVER_FN_NAMESPACE} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
-import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
+import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 // Alias to avoid vite plugin transformer injecting bodyHash into unit test calls
 import {mapFrom as rawMapFrom} from './routesFlow.ts';
 // vite plugin DOES inject bodyHash for e2e tests
@@ -32,7 +32,7 @@ describe('routesFlow', () => {
     const someUser = {name: 'John', surname: 'Doe'};
     type MyApi = TestServerApi;
 
-    const baseURL = TEST_SERVER_BASE_URL_JSON;
+    const baseURL = TEST_SERVER_BASE_URL;
 
     describe('routesFlow() function', () => {
         it('should execute a single route in a routesFlow', async () => {
@@ -327,7 +327,7 @@ describe('mapFrom()', () => {
 
 describe('mapFrom e2e in routesFlow', () => {
     type MyApi = TestServerApi;
-    const baseURL = TEST_SERVER_BASE_URL_JSON;
+    const baseURL = TEST_SERVER_BASE_URL;
 
     it('should map output of one route to input of another', async () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});

@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect} from 'vitest';
+import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {initClient} from './client.ts';
 import {routesFlow} from './routesFlow.ts';
-import {isRpcError} from '@mionjs/core';
-import {BinaryTestServerApi} from '@mionjs/test-server';
-import {TEST_SERVER_BASE_URL_BINARY} from '../globalSetup.ts';
+import {isRpcError, HeadersSubset} from '@mionjs/core';
+import {TestServerApi} from '@mionjs/test-server';
+import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
 // THIS TESTS ARE INTENDED TO E2E TESTING OF THE BINARY SERIALIZER
 
@@ -20,50 +20,64 @@ const Storage = require('dom-storage');
 global.localStorage = new Storage(null, {strict: true});
 global.sessionStorage = new Storage(null, {strict: true});
 
-describe('Binary Serialization E2E', () => {
-    type MyApi = BinaryTestServerApi;
+// Helper to create auth headers for the test server's headersFn
+function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
+    return new HeadersSubset({Authorization: token});
+}
 
-    const baseURL = TEST_SERVER_BASE_URL_BINARY;
+describe('Binary Serialization E2E', () => {
+    type MyApi = TestServerApi;
+
+    const baseURL = TEST_SERVER_BASE_URL;
+    const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+    let routes: ReturnType<typeof initClient<MyApi>>['routes'];
+    let middleFns: ReturnType<typeof initClient<MyApi>>['middleFns'];
+
+    beforeEach(() => {
+        const client = initClient<MyApi>({baseURL});
+        routes = client.routes;
+        middleFns = client.middleFns;
+        middleFns.auth(authHeaders).prefill();
+    });
+
+    afterEach(async () => {
+        await middleFns.auth(authHeaders).removePrefill();
+    });
 
     describe('Simple Types', () => {
         it('should serialize and deserialize string echo', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.echo('Hello Binary World!').call();
+            const [result, error] = await routes.binary.echo('Hello Binary World!').call();
             expect(error).toBeUndefined();
             expect(result).toBe('Hello Binary World!');
         });
 
         it('should serialize and deserialize number addition', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.addNumbers(10, 25).call();
+            const [result, error] = await routes.binary.addNumbers(10, 25).call();
             expect(error).toBeUndefined();
             expect(result).toBe(35);
         });
 
         it('should serialize and deserialize simple object', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.getSimpleUser('Alice', 28).call();
+            const [result, error] = await routes.binary.getSimpleUser('Alice', 28).call();
             expect(error).toBeUndefined();
             expect(result).toEqual({name: 'Alice', age: 28});
         });
 
         it('should serialize object as parameter and deserialize string result', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.processSimpleUser({name: 'Bob', age: 35}).call();
+            const [result, error] = await routes.binary.processSimpleUser({name: 'Bob', age: 35}).call();
             expect(error).toBeUndefined();
             expect(result).toBe('User: Bob, Age: 35');
         });
 
         it('should handle boolean values', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.negate(true).call();
+            const [result, error] = await routes.binary.negate(true).call();
             expect(error).toBeUndefined();
             expect(result).toBe(false);
         });
 
         it('should handle void return', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.logMessage('Test message').call();
+            const [result, error] = await routes.binary.logMessage('Test message').call();
             expect(error).toBeUndefined();
             expect(result).toBeUndefined();
         });
@@ -71,36 +85,31 @@ describe('Binary Serialization E2E', () => {
 
     describe('Array Types', () => {
         it('should serialize and deserialize number array sum', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.sumArray([1, 2, 3, 4, 5]).call();
+            const [result, error] = await routes.binary.sumArray([1, 2, 3, 4, 5]).call();
             expect(error).toBeUndefined();
             expect(result).toBe(15);
         });
 
         it('should serialize and deserialize number array transformation', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.doubleArray([1, 2, 3, 4, 5]).call();
+            const [result, error] = await routes.binary.doubleArray([1, 2, 3, 4, 5]).call();
             expect(error).toBeUndefined();
             expect(result).toEqual([2, 4, 6, 8, 10]);
         });
 
         it('should serialize and deserialize string array', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.reverseStrings(['a', 'b', 'c']).call();
+            const [result, error] = await routes.binary.reverseStrings(['a', 'b', 'c']).call();
             expect(error).toBeUndefined();
             expect(result).toEqual(['c', 'b', 'a']);
         });
 
         it('should serialize and deserialize boolean array', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.allTrue([true, true, true]).call();
+            const [result, error] = await routes.binary.allTrue([true, true, true]).call();
             expect(error).toBeUndefined();
             expect(result).toBe(true);
         });
 
         it('should handle boolean array with false values', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.allTrue([true, false, true]).call();
+            const [result, error] = await routes.binary.allTrue([true, false, true]).call();
             expect(error).toBeUndefined();
             expect(result).toBe(false);
         });
@@ -108,16 +117,14 @@ describe('Binary Serialization E2E', () => {
 
     describe('Date Types', () => {
         it('should serialize and deserialize Date return value', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.getCurrentDate().call();
+            const [result, error] = await routes.binary.getCurrentDate().call();
             expect(error).toBeUndefined();
             expect(result).toBeInstanceOf(Date);
         });
 
         it('should serialize Date parameter and deserialize Date result', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
             const inputDate = new Date('2025-01-15T00:00:00Z');
-            const [result, error] = await routes.addDays(inputDate, 5).call();
+            const [result, error] = await routes.binary.addDays(inputDate, 5).call();
             expect(error).toBeUndefined();
             expect(result).toBeInstanceOf(Date);
             expect(result?.getTime()).toBe(new Date('2025-01-20T00:00:00Z').getTime());
@@ -126,8 +133,7 @@ describe('Binary Serialization E2E', () => {
 
     describe('Complex Object Types', () => {
         it('should serialize and deserialize complex object with nested data', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.createComplexUser('user-1', 'John Doe', 'john@example.com').call();
+            const [result, error] = await routes.binary.createComplexUser('user-1', 'John Doe', 'john@example.com').call();
             expect(error).toBeUndefined();
             expect(result).toMatchObject({
                 id: 'user-1',
@@ -148,7 +154,6 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should serialize complex object as parameter and deserialize modified result', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
             const inputUser = {
                 id: 'user-2',
                 name: 'Jane Doe',
@@ -166,7 +171,7 @@ describe('Binary Serialization E2E', () => {
                 scores: [90, 85],
             };
 
-            const [result, error] = await routes.updateComplexUser(inputUser).call();
+            const [result, error] = await routes.binary.updateComplexUser(inputUser).call();
             expect(error).toBeUndefined();
             expect(result?.isActive).toBe(false); // Should be toggled
             expect(result?.tags).toEqual(['premium', 'updated']); // Should have 'updated' added
@@ -176,8 +181,7 @@ describe('Binary Serialization E2E', () => {
 
     describe('Deeply Nested Data', () => {
         it('should serialize and deserialize deeply nested object', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.createNestedData('deep value', [1, 2, 3]).call();
+            const [result, error] = await routes.binary.createNestedData('deep value', [1, 2, 3]).call();
             expect(error).toBeUndefined();
             expect(result).toEqual({
                 level1: {
@@ -192,7 +196,6 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should serialize deeply nested object as parameter', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
             const nestedData = {
                 level1: {
                     level2: {
@@ -204,7 +207,7 @@ describe('Binary Serialization E2E', () => {
                 },
             };
 
-            const [result, error] = await routes.processNestedData(nestedData).call();
+            const [result, error] = await routes.binary.processNestedData(nestedData).call();
             expect(error).toBeUndefined();
             expect(result).toBe('extracted value');
         });
@@ -212,29 +215,25 @@ describe('Binary Serialization E2E', () => {
 
     describe('Optional and Nullable Types', () => {
         it('should handle optional parameters (with value)', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.greet('World', 'Hi').call();
+            const [result, error] = await routes.binary.greet('World', 'Hi').call();
             expect(error).toBeUndefined();
             expect(result).toBe('Hi, World!');
         });
 
         it('should handle optional parameters (without value)', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.greet('World').call();
+            const [result, error] = await routes.binary.greet('World').call();
             expect(error).toBeUndefined();
             expect(result).toBe('Hello, World!');
         });
 
         it('should handle nullable return (with value)', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.findUser('user-123').call();
+            const [result, error] = await routes.binary.findUser('user-123').call();
             expect(error).toBeUndefined();
             expect(result).toEqual({name: 'Found User', age: 30});
         });
 
         it('should handle nullable return (null)', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.findUser('not-found').call();
+            const [result, error] = await routes.binary.findUser('not-found').call();
             expect(error).toBeUndefined();
             expect(result).toEqual(null);
         });
@@ -242,15 +241,13 @@ describe('Binary Serialization E2E', () => {
 
     describe('Error Handling', () => {
         it('should handle RpcError return type (success case)', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.mayFail(false).call();
+            const [result, error] = await routes.binary.mayFail(false).call();
             expect(error).toBeUndefined();
             expect(result).toBe('Success!');
         });
 
         it('should handle RpcError return type (error case)', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-            const [result, error] = await routes.mayFail(true).call();
+            const [result, error] = await routes.binary.mayFail(true).call();
 
             expect(result).toBeUndefined();
             expect(error).not.toBeUndefined();
@@ -261,46 +258,44 @@ describe('Binary Serialization E2E', () => {
 
     describe('MiddleFns with Binary Serialization', () => {
         it('should handle middleFn with optional parameter (with value)', async () => {
-            const {routes, middleFns} = initClient<MyApi>({baseURL});
-            const [result, error, middleFnsResults] = await routes.echo('test').callWithMiddleFns({
-                session: middleFns.session('valid-token'),
+            const [result, error, middleFnsResults] = await routes.binary.echo('test').callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+                binarySession: middleFns.binary.session('valid-token'),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(middleFnsResults?.session).toEqual({valid: true, userId: 'user-123'});
+            expect(middleFnsResults?.binarySession).toEqual({valid: true, userId: 'user-123'});
         });
 
         it('should handle middleFn with optional parameter (without value)', async () => {
-            const {routes, middleFns} = initClient<MyApi>({baseURL});
-            const [result, error, middleFnsResults] = await routes.echo('test').callWithMiddleFns({
-                session: middleFns.session(),
+            const [result, error, middleFnsResults] = await routes.binary.echo('test').callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+                binarySession: middleFns.binary.session(),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(middleFnsResults?.session).toBeNull();
+            expect(middleFnsResults?.binarySession).toBeNull();
         });
 
         it('should handle middleFn returning error-like object', async () => {
-            const {routes, middleFns} = initClient<MyApi>({baseURL});
-            const [result, error, middleFnsResults] = await routes.echo('test').callWithMiddleFns({
-                session: middleFns.session('invalid'),
+            const [result, error, middleFnsResults] = await routes.binary.echo('test').callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+                binarySession: middleFns.binary.session('invalid'),
             });
 
             expect(error).toBeUndefined();
             expect(result).toBe('test');
-            expect(middleFnsResults?.session).toEqual({valid: false});
+            expect(middleFnsResults?.binarySession).toEqual({valid: false});
         });
     });
 
     describe('Multiple Calls', () => {
         it('should handle multiple sequential calls correctly', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-
-            const [result1] = await routes.addNumbers(1, 2).call();
-            const [result2] = await routes.addNumbers(3, 4).call();
-            const [result3] = await routes.addNumbers(5, 6).call();
+            const [result1] = await routes.binary.addNumbers(1, 2).call();
+            const [result2] = await routes.binary.addNumbers(3, 4).call();
+            const [result3] = await routes.binary.addNumbers(5, 6).call();
 
             expect(result1).toBe(3);
             expect(result2).toBe(7);
@@ -308,12 +303,10 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should handle different types in sequential calls', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-
-            const [stringResult] = await routes.echo('hello').call();
-            const [numberResult] = await routes.addNumbers(10, 20).call();
-            const [objectResult] = await routes.getSimpleUser('Test', 25).call();
-            const [arrayResult] = await routes.doubleArray([1, 2, 3]).call();
+            const [stringResult] = await routes.binary.echo('hello').call();
+            const [numberResult] = await routes.binary.addNumbers(10, 20).call();
+            const [objectResult] = await routes.binary.getSimpleUser('Test', 25).call();
+            const [arrayResult] = await routes.binary.doubleArray([1, 2, 3]).call();
 
             expect(stringResult).toBe('hello');
             expect(numberResult).toBe(30);
@@ -324,11 +317,9 @@ describe('Binary Serialization E2E', () => {
 
     describe('RoutesFlow with Binary Serialization', () => {
         it('should serialize and deserialize simple types in a routesFlow', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-
             const [[result1, result2], [error1, error2]] = await routesFlow([
-                routes.echo('Hello Workflow!'),
-                routes.addNumbers(10, 20),
+                routes.binary.echo('Hello Workflow!'),
+                routes.binary.addNumbers(10, 20),
             ]);
 
             expect(error1).toBeUndefined();
@@ -338,11 +329,9 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should serialize and deserialize objects in a routesFlow', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-
             const [[result1, result2], [error1, error2]] = await routesFlow([
-                routes.getSimpleUser('Alice', 28),
-                routes.processSimpleUser({name: 'Bob', age: 35}),
+                routes.binary.getSimpleUser('Alice', 28),
+                routes.binary.processSimpleUser({name: 'Bob', age: 35}),
             ]);
 
             expect(error1).toBeUndefined();
@@ -352,12 +341,10 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should serialize and deserialize arrays in a routesFlow', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-
             const [[result1, result2, result3], [error1, error2, error3]] = await routesFlow([
-                routes.sumArray([1, 2, 3, 4, 5]),
-                routes.doubleArray([10, 20, 30]),
-                routes.reverseStrings(['a', 'b', 'c']),
+                routes.binary.sumArray([1, 2, 3, 4, 5]),
+                routes.binary.doubleArray([10, 20, 30]),
+                routes.binary.reverseStrings(['a', 'b', 'c']),
             ]);
 
             expect(error1).toBeUndefined();
@@ -369,12 +356,11 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should serialize and deserialize Date types in a routesFlow', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
             const inputDate = new Date('2025-01-15T00:00:00Z');
 
             const [[result1, result2], [error1, error2]] = await routesFlow([
-                routes.getCurrentDate(),
-                routes.addDays(inputDate, 5),
+                routes.binary.getCurrentDate(),
+                routes.binary.addDays(inputDate, 5),
             ]);
 
             expect(error1).toBeUndefined();
@@ -385,11 +371,9 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should serialize and deserialize complex objects in a routesFlow', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-
             const [[result1, result2], [error1, error2]] = await routesFlow([
-                routes.createComplexUser('user-1', 'John Doe', 'john@example.com'),
-                routes.createNestedData('deep value', [1, 2, 3]),
+                routes.binary.createComplexUser('user-1', 'John Doe', 'john@example.com'),
+                routes.binary.createNestedData('deep value', [1, 2, 3]),
             ]);
 
             expect(error1).toBeUndefined();
@@ -414,15 +398,14 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should handle mixed types in a single routesFlow', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
             const inputDate = new Date('2025-06-01T12:00:00Z');
 
             const [[result1, result2, result3, result4, result5], [error1, error2, error3, error4, error5]] = await routesFlow([
-                routes.echo('test'),
-                routes.addNumbers(5, 10),
-                routes.getSimpleUser('Test', 25),
-                routes.addDays(inputDate, 3),
-                routes.negate(true),
+                routes.binary.echo('test'),
+                routes.binary.addNumbers(5, 10),
+                routes.binary.getSimpleUser('Test', 25),
+                routes.binary.addDays(inputDate, 3),
+                routes.binary.negate(true),
             ]);
 
             expect(error1).toBeUndefined();
@@ -439,12 +422,11 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should handle routesFlow with middleFns in binary mode', async () => {
-            const {routes, middleFns} = initClient<MyApi>({baseURL});
-
             const [[result1, result2], [error1, error2], middleFnResults] = await routesFlow(
-                [routes.echo('workflow test'), routes.addNumbers(1, 2)],
+                [routes.binary.echo('workflow test'), routes.binary.addNumbers(1, 2)],
                 {
-                    session: middleFns.session('valid-token'),
+                    auth: middleFns.auth(authHeaders),
+                    binarySession: middleFns.binary.session('valid-token'),
                 }
             );
 
@@ -452,13 +434,11 @@ describe('Binary Serialization E2E', () => {
             expect(error2).toBeUndefined();
             expect(result1).toBe('workflow test');
             expect(result2).toBe(3);
-            expect(middleFnResults?.session).toEqual({valid: true, userId: 'user-123'});
+            expect(middleFnResults?.binarySession).toEqual({valid: true, userId: 'user-123'});
         });
 
         it('should handle errors in binary routesFlow', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-
-            const [results, errors] = await routesFlow([routes.mayFail(true), routes.echo('should not reach')]);
+            const [results, errors] = await routesFlow([routes.binary.mayFail(true), routes.binary.echo('should not reach')]);
 
             expect(errors).toBeDefined();
             expect(errors?.[0]).toBeDefined();
