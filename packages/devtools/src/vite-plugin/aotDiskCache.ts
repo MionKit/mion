@@ -8,8 +8,8 @@
 import {createHash} from 'crypto';
 import {readFileSync, writeFileSync, mkdirSync, readdirSync, statSync} from 'fs';
 import {join, resolve, dirname, relative} from 'path';
-import {AOTCacheOptions} from './types.ts';
-import {generateAOTCaches, AOTCacheData} from './aotCacheGenerator.ts';
+import {AOTCacheOptions, MionServerConfig} from './types.ts';
+import {generateAOTCaches, AOTCacheData, AOTCacheResult} from './aotCacheGenerator.ts';
 
 /** Schema for the on-disk cache file */
 interface AOTDiskCacheFile {
@@ -78,8 +78,8 @@ function collectFileStats(dir: string, baseDir: string): string[] {
 }
 
 /** Compute a SHA-256 hash of the server source directory + options */
-export function computeSourceHash(options: AOTCacheOptions): string {
-    const serverDir = dirname(resolve(options.startServerScript!));
+export function computeSourceHash(serverConfig: MionServerConfig, aotOptions?: AOTCacheOptions): string {
+    const serverDir = dirname(resolve(serverConfig.startServerScript));
     const fileStats = collectFileStats(serverDir, serverDir);
     fileStats.sort();
 
@@ -87,8 +87,8 @@ export function computeSourceHash(options: AOTCacheOptions): string {
         ...fileStats,
         `cacheVersion:${AOT_DISK_CACHE_VERSION}`,
         `devtoolsVersion:${getDevtoolsVersion()}`,
-        `excludedFns:${JSON.stringify((options.excludedFns || []).slice().sort())}`,
-        `excludedPureFns:${JSON.stringify((options.excludedPureFns || []).slice().sort())}`,
+        `excludedFns:${JSON.stringify((aotOptions?.excludedFns || []).slice().sort())}`,
+        `excludedPureFns:${JSON.stringify((aotOptions?.excludedPureFns || []).slice().sort())}`,
     ].join('\n');
 
     return createHash('sha256').update(hashInput).digest('hex');
@@ -141,39 +141,50 @@ export function resolveCacheDir(options: AOTCacheOptions, viteCacheDir?: string)
 }
 
 /** Load AOT caches from disk if valid, otherwise generate fresh and save to disk. */
-export async function getOrGenerateAOTCaches(options: AOTCacheOptions, cacheDir: string): Promise<AOTCacheData> {
+export async function getOrGenerateAOTCaches(
+    serverConfig: MionServerConfig,
+    aotOptions: AOTCacheOptions | undefined,
+    cacheDir: string
+): Promise<AOTCacheResult> {
     const forceRegenerate = process.env.MION_AOT_FORCE === 'true';
-    const cachingEnabled = cacheDir !== '' && !forceRegenerate && !!options.startServerScript;
+    const cachingEnabled = cacheDir !== '' && !forceRegenerate;
 
     let hash = '';
     if (cachingEnabled) {
-        hash = computeSourceHash(options);
+        hash = computeSourceHash(serverConfig, aotOptions);
         const cached = readDiskCache(cacheDir);
         if (cached && cached.cacheVersion === AOT_DISK_CACHE_VERSION && cached.hash === hash) {
             console.log('[mion] AOT caches loaded from disk cache (source unchanged)');
             return {
-                jitFnsCode: cached.jitFnsCode,
-                pureFnsCode: cached.pureFnsCode,
-                routerCacheCode: cached.routerCacheCode,
+                data: {
+                    jitFnsCode: cached.jitFnsCode,
+                    pureFnsCode: cached.pureFnsCode,
+                    routerCacheCode: cached.routerCacheCode,
+                },
             };
         }
     }
 
     // Cache miss or caching disabled — generate fresh
-    const data = await generateAOTCaches(options);
+    const result = await generateAOTCaches(serverConfig);
 
     if (cachingEnabled) {
-        if (!hash) hash = computeSourceHash(options);
-        writeDiskCache(cacheDir, hash, data);
+        if (!hash) hash = computeSourceHash(serverConfig, aotOptions);
+        writeDiskCache(cacheDir, hash, result.data);
         console.log('[mion] AOT caches saved to disk cache');
     }
 
-    return data;
+    return result;
 }
 
 /** Update the disk cache after HMR regeneration */
-export function updateDiskCache(options: AOTCacheOptions, data: AOTCacheData, cacheDir: string): void {
-    if (!cacheDir || options.cache === false || !options.startServerScript) return;
-    const hash = computeSourceHash(options);
+export function updateDiskCache(
+    serverConfig: MionServerConfig,
+    aotOptions: AOTCacheOptions | undefined,
+    data: AOTCacheData,
+    cacheDir: string
+): void {
+    if (!cacheDir || aotOptions?.cache === false) return;
+    const hash = computeSourceHash(serverConfig, aotOptions);
     writeDiskCache(cacheDir, hash, data);
 }

@@ -7,14 +7,16 @@
 
 import {resolve} from 'path';
 import * as ts from 'typescript';
+import {ChildProcess} from 'child_process';
 import {createDeepkitConfig, DeepkitConfig, createPureFnTransformerFactory} from './transformers.ts';
-import {ServerPureFunctionsOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions} from './types.ts';
+import {ServerPureFunctionsOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions, MionServerConfig} from './types.ts';
 import {scanClientSource} from './extractPureFn.ts';
 import {generateServerPureFnsVirtualModule} from './virtualModule.ts';
 import {VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX, resolveVirtualId} from './constants.ts';
 import {
     generateAOTCaches,
     loadSSRRouterAndGenerateAOTCaches,
+    killPersistentChild,
     logAOTCaches,
     generateJitFnsModule,
     generatePureFnsModule,
@@ -33,6 +35,13 @@ export interface MionPluginOptions {
     runTypes?: DeepkitTypeOptions;
     /** Options for AOT cache generation - omit to disable */
     aotCaches?: AOTCacheOptions;
+    /** Server configuration - controls how the server process is managed */
+    server?: MionServerConfig;
+}
+
+/** Whether the current process is a child spawned by the mion plugin */
+function isRunningAsChild(): boolean {
+    return process.env.MION_COMPILE === 'onlyAOT' || process.env.MION_COMPILE === 'serve';
 }
 
 /**
@@ -57,11 +66,9 @@ export interface MionPluginOptions {
  *       runTypes: {
  *         tsConfig: './tsconfig.json',
  *       },
- *       pureFunctions: {
- *         clientSrcPath: '../client/src',
- *       },
- *       aotCaches: {
+ *       server: {
  *         startServerScript: '../server/src/init.ts',
+ *         mode: 'onlyAOT',
  *       },
  *     }),
  *   ],
@@ -73,6 +80,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
     const pureFnOptions = options.serverPureFunctions;
     const runTypesOptions = options.runTypes;
     const aotOptions = options.aotCaches;
+    const serverConfig = options.server;
     const deepkitConfig: DeepkitConfig | null = runTypesOptions ? createDeepkitConfig(runTypesOptions) : null;
 
     // Default compiler options for when deepkit is disabled
@@ -95,12 +103,39 @@ export function mionVitePlugin(options: MionPluginOptions) {
 
     // SSR AOT: module loader (set in configureServer when SSR mode is active)
     let ssrLoadModule: ((url: string) => Promise<Record<string, any>>) | null = null;
-    /** Whether SSR mode is active — resolved in configResolved from Vite's own config */
+    /** Whether SSR mode is active — resolved from server config */
     let ssrEnabled = false;
     /** SSR init promise: AOT generation + router/platform module loading */
     let ssrInitPromise: Promise<void> | null = null;
 
+    // Persistent child process for IPC mode
+    let persistentChild: ChildProcess | null = null;
+    let cleanupRegistered = false;
+
     const {aotVirtualModules, aotResolvedIds} = buildAOTVirtualModuleMaps(aotOptions?.customVirtualModuleId);
+
+    /** Kill persistent child process and clear reference */
+    async function cleanupChild() {
+        if (persistentChild) {
+            await killPersistentChild(persistentChild);
+            persistentChild = null;
+        }
+    }
+
+    /** Register process exit handlers (once) */
+    function registerCleanupHandlers() {
+        if (cleanupRegistered) return;
+        cleanupRegistered = true;
+        const onExit = () => {
+            if (persistentChild && !persistentChild.killed) {
+                persistentChild.kill('SIGTERM');
+                persistentChild = null;
+            }
+        };
+        process.on('exit', onExit);
+        process.on('SIGINT', onExit);
+        process.on('SIGTERM', onExit);
+    }
 
     return {
         name: 'mion',
@@ -110,7 +145,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // Strip reflection module aliases in bundle build mode so our resolveId can stub them.
             // Vite's alias plugin runs before our resolveId, so we remove aliases here to prevent
             // them from transforming bare package names into file paths before we can intercept.
-            if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== 'true') {
+            if (aotOptions?.excludeReflection && !isRunningAsChild()) {
                 const aliases = config.resolve?.alias;
                 if (aliases && !Array.isArray(aliases)) {
                     for (const mod of REFLECTION_MODULES) {
@@ -124,27 +159,32 @@ export function mionVitePlugin(options: MionPluginOptions) {
             if (aotOptions) {
                 aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
             }
-            // Detect SSR mode from Vite's own config:
-            // middlewareMode means a framework (e.g. Nuxt) manages the HTTP server → SSR
-            // command 'serve' means dev server (not production build)
-            // Exclude vitest: vitest also uses middlewareMode + serve, but should use IPC mode
-            if (aotOptions?.startServerScript && process.env.MION_COMPILE !== 'true') {
-                const isVitest = !!(config as any).test || !!process.env.VITEST;
-                ssrEnabled = !isVitest && config.command === 'serve' && !!config.server.middlewareMode;
+            // viteSSR mode is now explicit via server config
+            if (serverConfig?.mode === 'viteSSR') {
+                ssrEnabled = true;
             }
         },
 
         async buildStart() {
-            // Generate AOT caches if enabled
-            // Skip when already running as the AOT compile child process to prevent infinite recursion
+            // Generate AOT caches if server is configured
+            // Skip when already running as a child process to prevent infinite recursion
             // Skip when SSR mode — configureServer will handle it
-            if (aotOptions && process.env.MION_COMPILE !== 'true' && !ssrEnabled) {
+            if (serverConfig && !isRunningAsChild() && !ssrEnabled) {
                 try {
                     console.log('[mion] Generating AOT caches...');
-                    aotGenerationPromise = getOrGenerateAOTCaches(aotOptions, aotCacheDir);
-                    aotData = await aotGenerationPromise;
+                    const resultPromise = getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
+                    aotGenerationPromise = resultPromise.then((r) => r.data);
+                    const result = await resultPromise;
+                    aotData = result.data;
                     console.log('[mion] AOT caches generated successfully');
                     logAOTCaches(aotData);
+
+                    // Store persistent child for IPC mode
+                    if (result.childProcess) {
+                        persistentChild = result.childProcess;
+                        registerCleanupHandlers();
+                        console.log(`[mion] Server process persisted (pid: ${persistentChild.pid})`);
+                    }
                 } catch (err) {
                     const message = err instanceof Error ? err.message : String(err);
                     throw new Error(`[mion] Failed to generate AOT caches: ${message}`);
@@ -153,11 +193,11 @@ export function mionVitePlugin(options: MionPluginOptions) {
         },
 
         configureServer(server) {
-            if (!ssrEnabled || !aotOptions?.startServerScript) return;
+            if (!ssrEnabled || !serverConfig) return;
             // SSR mode: use ssrLoadModule to load the server in the same Vite process.
             // ssrLoadModule uses Vite's internal transform pipeline (not HTTP),
             ssrLoadModule = (url: string) => server.ssrLoadModule(url);
-            const startServerScript = resolve(aotOptions.startServerScript);
+            const startServerScript = resolve(serverConfig.startServerScript);
             // Single init chain: generate AOT caches → load router + platform modules
             let nodeRequestHandler: ((req: any, res: any) => void) | null = null;
             let basePath: string | null = null;
@@ -216,7 +256,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // AOT virtual modules (default + custom prefix both resolve)
             if (aotVirtualModules.has(id)) return resolveVirtualId(id);
             // Stub out reflection modules in the bundle build (not needed at runtime in AOT mode)
-            if (aotOptions?.excludeReflection && process.env.MION_COMPILE !== 'true' && REFLECTION_MODULES.includes(id)) {
+            if (aotOptions?.excludeReflection && !isRunningAsChild() && REFLECTION_MODULES.includes(id)) {
                 return resolveVirtualId(VIRTUAL_STUB_PREFIX + id);
             }
             return null;
@@ -340,6 +380,10 @@ export function mionVitePlugin(options: MionPluginOptions) {
             }
         },
 
+        async closeBundle() {
+            await cleanupChild();
+        },
+
         handleHotUpdate({file, server}) {
             // In dev mode, re-scan when client source changes (for pure functions)
             if (pureFnOptions) {
@@ -360,11 +404,14 @@ export function mionVitePlugin(options: MionPluginOptions) {
             }
 
             // In dev mode, regenerate AOT caches when server source changes
-            // Skip when running as the AOT compile child process
-            if (aotOptions && process.env.MION_COMPILE !== 'true') {
-                const serverDir = aotOptions.startServerScript ? resolve(aotOptions.startServerScript, '..') : null;
+            // Skip when running as a child process
+            if (serverConfig && !isRunningAsChild()) {
+                const serverDir = resolve(serverConfig.startServerScript, '..');
 
-                if (serverDir && file.startsWith(serverDir)) {
+                if (file.startsWith(serverDir)) {
+                    // Kill existing persistent child before regenerating
+                    const killPromise = cleanupChild();
+
                     const regeneratePromise =
                         ssrEnabled && ssrLoadModule
                             ? // SSR mode: reset router and re-init via ssrLoadModule
@@ -373,18 +420,26 @@ export function mionVitePlugin(options: MionPluginOptions) {
                                   routerModule.resetRouter();
                                   return loadSSRRouterAndGenerateAOTCaches(
                                       ssrLoadModule!,
-                                      resolve(aotOptions.startServerScript!)
+                                      resolve(serverConfig.startServerScript)
                                   );
                               })()
-                            : // IPC mode: spawn child process
-                              generateAOTCaches(aotOptions);
+                            : // IPC mode: wait for old child to die, then spawn new
+                              killPromise.then(() => generateAOTCaches(serverConfig));
 
-                    aotGenerationPromise = regeneratePromise;
+                    aotGenerationPromise = regeneratePromise.then((r) => ('data' in r ? r.data : r));
                     regeneratePromise
-                        .then((data) => {
+                        .then((result) => {
+                            const data = 'data' in result ? result.data : result;
                             aotData = data;
                             logAOTCaches(data);
-                            if (!ssrEnabled) updateDiskCache(aotOptions, data, aotCacheDir);
+
+                            // Store new persistent child if IPC mode
+                            if ('childProcess' in result && result.childProcess) {
+                                persistentChild = result.childProcess;
+                                console.log(`[mion] Server process re-persisted (pid: ${persistentChild!.pid})`);
+                            }
+
+                            if (!ssrEnabled) updateDiskCache(serverConfig, aotOptions, data, aotCacheDir);
                             // Invalidate all AOT virtual modules
                             let invalidatedCount = 0;
                             for (const resolvedId of aotResolvedIds.keys()) {

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MethodsCache, MethodMetadata, isMionCompileMode, getJitFunctionsFromHash} from '@mionjs/core';
+import {MethodsCache, MethodMetadata, isMionAOTEmitMode, getJitFunctionsFromHash} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {AnyHandler} from '../types/handlers.ts';
 import {IS_TEST_ENV} from '../constants.ts';
@@ -55,7 +55,7 @@ function restorePersistedMethod(method: MethodMetadata, handler: AnyHandler): Re
 }
 
 function shouldCompile() {
-    return isMionCompileMode();
+    return isMionAOTEmitMode();
 }
 
 /**

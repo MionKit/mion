@@ -8,7 +8,7 @@
 import {
     getJitFnCaches,
     getENV,
-    isMionCompileMode,
+    isMionAOTEmitMode,
     JitFunctionsCache,
     PureFunctionsCache,
     MethodsCache,
@@ -53,10 +53,10 @@ export async function getSerializedCaches(): Promise<SerializedCaches> {
  * be called manually for multi-step route registration patterns.
  */
 export async function emitAOTCaches(): Promise<void> {
-    // Only emit in compile mode
-    if (!isMionCompileMode()) return;
-    // SSR mode: caches remain in global state, read directly via getSerializedCaches()
-    if (getENV('MION_COMPILE') === 'SSR') return;
+    // Only emit in AOT generation mode (compile, SSR, or serve)
+    if (!isMionAOTEmitMode()) return;
+    // viteSSR mode: caches remain in global state, read directly via getSerializedCaches()
+    if (getENV('MION_COMPILE') === 'viteSSR') return;
 
     // IPC mode: send to parent process
     if (typeof process.send !== 'function') return;

@@ -69,7 +69,7 @@ describe('emitAOTCaches', () => {
         const originalSend = process.send;
         const mockSend = (() => {}) as any;
         (process as any).send = mockSend;
-        process.env.MION_COMPILE = 'SSR';
+        process.env.MION_COMPILE = 'viteSSR';
 
         await expect(emitAOTCaches()).resolves.toBeUndefined();
         // process.send should not have been replaced or called
@@ -91,7 +91,7 @@ describe('emitAOTCaches', () => {
         const originalEnv = process.env.MION_COMPILE;
         const originalSend = process.send;
 
-        process.env.MION_COMPILE = 'true';
+        process.env.MION_COMPILE = 'onlyAOT';
         (process as any).send = undefined;
 
         // Should not throw and should return early

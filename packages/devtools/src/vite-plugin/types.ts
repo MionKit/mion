@@ -2,28 +2,6 @@ import {CompilerOptions} from 'typescript';
 
 /** AOT cache generation options for the Vite plugin */
 export interface AOTCacheOptions {
-    /**
-     * Path to the server start script that initializes the router.
-     *
-     * If provided, the plugin will run this script to generate AOT caches for ALL routes
-     * (internal mion routes + your custom routes).
-     *
-     * If NOT provided, the plugin will automatically use the built-in defaultRoutes.ts
-     * from @mionjs/router to generate caches for internal mion routes only.
-     * Your custom routes will be fetched at runtime via fetchRemoteMethodsMetadata().
-     *
-     * For best performance, provide your server's start script to pre-cache all routes.
-     */
-    startServerScript?: string;
-
-    /**
-     * Path to the server's vite.config.ts file.
-     * Used by vite-node to run the start script with proper transformations
-     * If not provided, vite-node will auto-discover the config from the
-     * startServerScript's directory.
-     */
-    serverViteConfig?: string;
-
     /** Excluded JIT function IDs */
     excludedFns?: string[];
 
@@ -65,6 +43,37 @@ export interface AOTCacheOptions {
      * Example: `'client-mion-aot'` → `virtual:client-mion-aot/jit-fns`
      */
     customVirtualModuleId?: string;
+}
+
+/** Server configuration for the mion Vite plugin */
+export interface MionServerConfig {
+    /**
+     * Path to the server start script that initializes the router.
+     *
+     * The plugin will run this script to generate AOT caches for ALL routes
+     * (internal mion routes + your custom routes).
+     *
+     * If server is not configured, the plugin will automatically use the built-in defaultRoutes.ts
+     * from @mionjs/router to generate caches for internal mion routes only.
+     * Your custom routes will be fetched at runtime via fetchRemoteMethodsMetadata().
+     */
+    startServerScript: string;
+
+    /**
+     * Path to the server's vite.config.ts file.
+     * Used by vite-node to run the start script with proper transformations.
+     * If not provided, vite-node will auto-discover the config from the
+     * startServerScript's directory.
+     */
+    serverViteConfig?: string;
+
+    /**
+     * Server mode:
+     * - 'onlyAOT': spawn child process, get AOT caches, kill process (default)
+     * - 'IPC': spawn child process, get AOT caches via IPC, keep server running
+     * - 'viteSSR': load in same Vite process as middleware (for Nuxt-like frameworks)
+     */
+    mode: 'onlyAOT' | 'IPC' | 'viteSSR';
 }
 
 /** Serializable registry entry for a single pure function */

@@ -44,9 +44,12 @@ export default defineConfig({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
             },
-            aotCaches: {
+            server: {
                 startServerScript: resolve(__dirname, '../router/src/defaultRoutes.ts'),
                 serverViteConfig: resolve(__dirname, '../router/vite.config.ts'),
+                mode: 'onlyAOT',
+            },
+            aotCaches: {
                 customVirtualModuleId: 'client-mion-aot',
             },
         }),

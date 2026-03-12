@@ -4,10 +4,11 @@ const child_process = require("child_process");
 const path = require("path");
 const src_vitePlugin_resolveModule = require("./resolveModule.cjs");
 const DEFAULT_TIMEOUT = 3e4;
-async function generateAOTCaches(options, startScriptOverride) {
-  const startScript = path.resolve(startScriptOverride ?? options.startServerScript);
+async function generateAOTCaches(serverConfig, startScriptOverride) {
+  const persist = serverConfig.mode === "IPC";
+  const startScript = path.resolve(startScriptOverride ?? serverConfig.startServerScript);
   const scriptDir = path.dirname(startScript);
-  const viteConfigArgs = options.serverViteConfig ? ["--config", path.resolve(options.serverViteConfig)] : [];
+  const viteConfigArgs = serverConfig.serverViteConfig ? ["--config", path.resolve(serverConfig.serverViteConfig)] : [];
   let viteNodePath;
   try {
     viteNodePath = await src_vitePlugin_resolveModule.resolveModule("vite-node/cli", scriptDir);
@@ -24,7 +25,7 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
     let stderr = "";
     try {
       child = child_process.fork(viteNodePath, [...viteConfigArgs, startScript], {
-        env: { ...process.env, MION_COMPILE: "true" },
+        env: { ...process.env, MION_COMPILE: persist ? "serve" : "onlyAOT" },
         stdio: ["pipe", "pipe", "pipe", "ipc"],
         cwd: scriptDir
       });
@@ -41,7 +42,7 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
     const cleanup = () => {
       clearTimeout(timeoutId);
       if (child.connected) child.disconnect();
-      child.kill();
+      if (!persist) child.kill();
     };
     child.on("message", (msg) => {
       const message = msg;
@@ -49,18 +50,26 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
         resolved = true;
         cleanup();
         resolvePromise({
-          jitFnsCode: message.jitFnsCode,
-          pureFnsCode: message.pureFnsCode,
-          routerCacheCode: message.routerCacheCode
+          data: {
+            jitFnsCode: message.jitFnsCode,
+            pureFnsCode: message.pureFnsCode,
+            routerCacheCode: message.routerCacheCode
+          },
+          childProcess: persist ? child : void 0
         });
       }
     });
     child.stderr?.on("data", (data) => {
-      stderr += data.toString();
+      const msg = data.toString().trim();
+      if (!resolved) stderr += msg + "\n";
+      if (persist && msg) console.error(`[mion-server] ${msg}`);
     });
     child.stdout?.on("data", (data) => {
-      if (process.env.DEBUG_AOT) {
-        console.log("[mion-aot] stdout:", data.toString());
+      const msg = data.toString().trim();
+      if (persist && msg) {
+        console.log(`[mion-server] ${msg}`);
+      } else if (process.env.DEBUG_AOT && msg) {
+        console.log("[mion-aot] stdout:", msg);
       }
     });
     child.on("error", (err) => {
@@ -84,6 +93,7 @@ Make sure the startServerScript calls initMionRouter() and the router is fully i
     const timeoutId = setTimeout(() => {
       if (!resolved) {
         cleanup();
+        if (persist) child.kill();
         reject(
           new Error(
             `AOT cache generation timed out (${DEFAULT_TIMEOUT / 1e3}s). Make sure the server start script completes initialization.`
@@ -95,7 +105,7 @@ Make sure the startServerScript calls initMionRouter() and the router is fully i
 }
 async function loadSSRRouterAndGenerateAOTCaches(loadModule, startServerScript) {
   const prevCompile = process.env.MION_COMPILE;
-  process.env.MION_COMPILE = "SSR";
+  process.env.MION_COMPILE = "viteSSR";
   try {
     await loadModule(startServerScript);
     const aotModule = await loadModule("@mionjs/router/aot");
@@ -105,6 +115,39 @@ async function loadSSRRouterAndGenerateAOTCaches(loadModule, startServerScript) 
     if (prevCompile === void 0) delete process.env.MION_COMPILE;
     else process.env.MION_COMPILE = prevCompile;
   }
+}
+async function killPersistentChild(child) {
+  if (!child || child.killed) return;
+  const pid = child.pid;
+  if (pid) {
+    try {
+      process.kill(-pid, "SIGTERM");
+    } catch {
+      child.kill("SIGTERM");
+    }
+  } else {
+    child.kill("SIGTERM");
+  }
+  await new Promise((resolve2) => {
+    const timeout = setTimeout(() => {
+      if (child && !child.killed) {
+        if (pid) {
+          try {
+            process.kill(-pid, "SIGKILL");
+          } catch {
+            child.kill("SIGKILL");
+          }
+        } else {
+          child.kill("SIGKILL");
+        }
+      }
+      resolve2();
+    }, 5e3);
+    child.on("exit", () => {
+      clearTimeout(timeout);
+      resolve2();
+    });
+  });
 }
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -170,6 +213,7 @@ exports.generateNoopCombinedModule = generateNoopCombinedModule;
 exports.generateNoopModule = generateNoopModule;
 exports.generatePureFnsModule = generatePureFnsModule;
 exports.generateRouterCacheModule = generateRouterCacheModule;
+exports.killPersistentChild = killPersistentChild;
 exports.loadSSRRouterAndGenerateAOTCaches = loadSSRRouterAndGenerateAOTCaches;
 exports.logAOTCaches = logAOTCaches;
 //# sourceMappingURL=aotCacheGenerator.cjs.map
