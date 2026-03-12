@@ -24,8 +24,7 @@ export default defineConfig({
         lib: {
             entry: {
                 index: resolve(__dirname, 'index.ts'),
-                'src/test-server-json': resolve(__dirname, 'src/test-server-json.ts'),
-                'src/test-server-binary': resolve(__dirname, 'src/test-server-binary.ts'),
+                'src/test-server-json': resolve(__dirname, 'src/test-server.ts'),
             },
             formats: ['es'],
         },

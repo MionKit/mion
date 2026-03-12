@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* ########
  * 2022 mion
  * Author: Ma-jerez
@@ -15,7 +16,7 @@ import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
 // for this specific scenario server function are defined in packages/client/src/vitePlugin.e2e.spec.ts
 import {serverPureFnsCache} from 'virtual:mion-server-pure-fns';
 
-// Define routes for testing different validation scenarios
+// ============ JSON test types ============
 type User = {name: string; surname: string};
 type Product = {id: string; name: string; price: number};
 
@@ -41,44 +42,179 @@ export type UserWithFormats = {
 // Session info returned by session middleFn
 type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 
+// ============ Binary test types ============
+export type SimpleUser = {name: string; age: number};
+
+export type Address = {
+    street: string;
+    city: string;
+    zip: string;
+    country: string;
+};
+
+export type ComplexUser = {
+    id: string;
+    name: string;
+    email: string;
+    age: number;
+    isActive: boolean;
+    createdAt: Date;
+    address: Address;
+    tags: string[];
+    scores: number[];
+};
+
+export type NestedData = {
+    level1: {
+        level2: {
+            level3: {
+                value: string;
+                numbers: number[];
+            };
+        };
+    };
+};
+
+// ============ Binary routes (defined separately so they can be exported for router-level tests) ============
+const binaryRoutesDef = {
+    // Simple routes for basic binary serialization testing
+    echo: route((_ctx, message: string): string => message, {serializer: 'binary'}),
+    addNumbers: route((_ctx, a: number, b: number): number => a + b, {serializer: 'binary'}),
+    getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {serializer: 'binary'}),
+    processSimpleUser: route((_ctx, user: SimpleUser): string => `User: ${user.name}, Age: ${user.age}`, {serializer: 'binary'}),
+
+    // Array operations
+    sumArray: route((_ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0), {serializer: 'binary'}),
+    doubleArray: route((_ctx, numbers: number[]): number[] => numbers.map((n) => n * 2), {serializer: 'binary'}),
+    reverseStrings: route((_ctx, strings: string[]): string[] => strings.reverse(), {serializer: 'binary'}),
+
+    // Boolean operations
+    negate: route((_ctx, value: boolean): boolean => !value, {serializer: 'binary'}),
+    allTrue: route((_ctx, values: boolean[]): boolean => values.every((v) => v), {serializer: 'binary'}),
+
+    // Date operations
+    getCurrentDate: route((_ctx): Date => new Date(), {serializer: 'binary'}),
+    addDays: route(
+        (_ctx, date: Date, days: number): Date => {
+            const result = new Date(date);
+            result.setDate(result.getDate() + days);
+            return result;
+        },
+        {serializer: 'binary'}
+    ),
+
+    // Complex object operations
+    createComplexUser: route(
+        (_ctx, id: string, name: string, email: string): ComplexUser => ({
+            id,
+            name,
+            email,
+            age: 25,
+            isActive: true,
+            createdAt: new Date('2025-01-01T00:00:00Z'),
+            address: {
+                street: '123 Main St',
+                city: 'Test City',
+                zip: '12345',
+                country: 'Test Country',
+            },
+            tags: ['user', 'active'],
+            scores: [100, 95, 88],
+        }),
+        {serializer: 'binary'}
+    ),
+    updateComplexUser: route(
+        (_ctx, user: ComplexUser): ComplexUser => ({
+            ...user,
+            isActive: !user.isActive,
+            tags: [...user.tags, 'updated'],
+        }),
+        {serializer: 'binary'}
+    ),
+
+    // Deeply nested data
+    processNestedData: route((_ctx, data: NestedData): string => data.level1.level2.level3.value, {serializer: 'binary'}),
+    createNestedData: route(
+        (_ctx, value: string, numbers: number[]): NestedData => ({
+            level1: {level2: {level3: {value, numbers}}},
+        }),
+        {serializer: 'binary'}
+    ),
+
+    // Void return
+    logMessage: route(
+        (_ctx, message: string): void => {
+            console.log(`[Binary Server] ${message}`);
+        },
+        {serializer: 'binary'}
+    ),
+
+    // Error handling
+    mayFail: route(
+        (_ctx, shouldFail: boolean): string | RpcError<'intentional-error'> => {
+            if (shouldFail) return new RpcError({publicMessage: 'Intentional failure', type: 'intentional-error'});
+            return 'Success!';
+        },
+        {serializer: 'binary'}
+    ),
+
+    // Optional parameters
+    greet: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {serializer: 'binary'}),
+
+    // Nullable values
+    findUser: route(
+        (_ctx, id: string): SimpleUser | null => {
+            if (id === 'not-found') return null;
+            return {name: 'Found User', age: 30};
+        },
+        {serializer: 'binary'}
+    ),
+} satisfies Routes;
+
+/** Binary session middleFn, shared between binaryTestRoutes export and the merged server routes */
+const binarySessionDef = middleFn((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
+    if (!token) return null;
+    if (token === 'invalid') return {valid: false};
+    return {valid: true, userId: 'user-123'};
+});
+
+/** Binary routes exported separately for router-level tests (dispatch.binary.spec.ts) */
+export const binaryTestRoutes = {
+    ...binaryRoutesDef,
+    session: binarySessionDef,
+} satisfies Routes;
+
 const routes = {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // ============ Shared middleware ============
     auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
     // MiddleFn that returns session info on every request (optional param for flexibility in tests)
-    session: middleFn(
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        (ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
-            if (!sessionToken) return null;
-            if (sessionToken === 'expired') {
-                return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});
-            }
-            return {
-                userId: 'user-123',
-                role: 'admin',
-                expiresAt: Date.now() + 3600000, // 1 hour from now
-            };
+    session: middleFn((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
+        if (!sessionToken) return null;
+        if (sessionToken === 'expired') {
+            return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});
         }
-    ),
+        return {
+            userId: 'user-123',
+            role: 'admin',
+            expiresAt: Date.now() + 3600000, // 1 hour from now
+        };
+    }),
+
+    // ============ JSON routes (default serializer) ============
     sayHello: route((_ctx, user: User): string | RpcError<'some-error'> => `Hello ${user.name} ${user.surname}`),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     alwaysFails: route((ctx, user: User): User | RpcError<'unknown-error'> => {
         return new RpcError({publicMessage: 'Something fails', type: 'unknown-error'});
     }),
-
-    // Additional routes for testing different validation types
     calculateAge: route((_ctx, birthYear: number): number => new Date().getFullYear() - birthYear),
-
     createProduct: route(
         (_ctx, product: Product): Product => ({
             ...product,
             id: product.id || 'generated-id',
         })
     ),
-
     sumNumbers: route((_ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0)),
-
     greetUser: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'} ${name}`),
 
     utils: {
@@ -98,7 +234,6 @@ const routes = {
     validateName: route((_ctx, name: FormatString<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`),
     validateAge: route((_ctx, age: FormatNumber<{min: 0; max: 150; integer: true}>): string => `Age: ${age}`),
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     log: middleFn((ctx): void => undefined, {runOnError: true}),
 
     // Routes for testing pure functions with UUID validation
@@ -168,6 +303,9 @@ const routes = {
         httpMethod: ctx.shared.httpMethod || 'UNKNOWN',
         urlQuery: ctx.urlQuery,
     })),
+
+    // ============ Binary routes (per-route binary serializer) ============
+    binary: binaryTestRoutes,
 } satisfies Routes;
 
 // Get port from command line args or use default
@@ -195,7 +333,7 @@ async function startServer() {
     }
 }
 
-// Export the API type for the client tests
+// Export the combined API type for the client tests (includes both JSON and binary routes)
 export type TestServerApi = PublicApi<typeof routes>;
 
 // Start the server if this file is run directly

@@ -77,7 +77,7 @@ describe('Build Verification', () => {
 
         // Test-server is special - it provides the test server implementations
         // Note: test-server doesn't need to be fully built, just needs source files available
-        const requiredFiles = ['src/test-server-json.ts', 'src/test-server-binary.ts', 'index.ts'];
+        const requiredFiles = ['src/test-server.ts', 'index.ts'];
 
         const missingFiles: string[] = [];
 

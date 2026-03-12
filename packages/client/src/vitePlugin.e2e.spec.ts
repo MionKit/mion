@@ -11,7 +11,7 @@ import {routesCache, MION_ROUTES, PureFnDef, HeadersSubset} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata.ts';
 import {initClient} from './client.ts';
 import {ClientOptions} from './types.ts';
-import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
+import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 import {TestServerApi} from '@mionjs/test-server';
 import Storage from 'dom-storage';
 import {pureServerFn} from '@mionjs/core';
@@ -109,7 +109,7 @@ describe('mion vite plugin: AOT cache registration', () => {
 // fetches metadata from real server → JIT functions work at runtime
 // ============================================================
 describe('mion vite plugin: e2e with real server', () => {
-    const baseURL = TEST_SERVER_BASE_URL_JSON;
+    const baseURL = TEST_SERVER_BASE_URL;
     let options: ClientOptions;
 
     beforeEach(() => {
@@ -162,7 +162,7 @@ describe('mion vite plugin: e2e with real server', () => {
 // this test requires the test server to have serverPureFunctions.clientSrcPath configured to point to this package
 // ============================================================
 describe('mion vite plugin: pureServerFn e2e', () => {
-    const baseURL = TEST_SERVER_BASE_URL_JSON;
+    const baseURL = TEST_SERVER_BASE_URL;
     type MyApi = TestServerApi;
 
     /** Simple pure function for e2e testing of server pure functions extraction */

@@ -10,7 +10,7 @@ import {initClient} from './client.ts';
 import {HSubRequest, RSubRequest} from './types.ts';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
-import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
+import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
 // Mock localStorage for method metadata storage (still needed for clientMethodsMetadata)
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -28,7 +28,7 @@ describe('client', () => {
     const someUser = {name: 'John', surname: 'Doe'};
     type MyApi = TestServerApi;
 
-    const baseURL = TEST_SERVER_BASE_URL_JSON;
+    const baseURL = TEST_SERVER_BASE_URL;
 
     // Note: prefilledMiddleFnsCache is now per-client instance, so each test with a fresh client starts with empty cache
 

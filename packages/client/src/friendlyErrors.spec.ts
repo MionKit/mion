@@ -11,7 +11,7 @@ import {getFriendlyErrors} from '@mionjs/core';
 import type {FriendlyErrors} from '@mionjs/core';
 import type {RouteParamsType} from './types.ts';
 import {FormatEmail} from '@mionjs/type-formats/StringFormats';
-import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
+import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 import {TestServerApi} from '@mionjs/test-server';
 
 // Mock localStorage for method metadata storage
@@ -23,7 +23,7 @@ global.sessionStorage = new Storage(null, {strict: true});
 describe('friendlyErrors with client validation', () => {
     type MyApi = TestServerApi;
 
-    const baseURL = TEST_SERVER_BASE_URL_JSON;
+    const baseURL = TEST_SERVER_BASE_URL;
 
     // Derive UserWithFormats type from the route without importing it from server
     // This demonstrates how a client can get the type from the API definition

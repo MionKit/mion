@@ -10,14 +10,14 @@ import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMeta
 import {ClientOptions} from './types.ts';
 import {routesCache} from '@mionjs/core';
 import Storage from 'dom-storage';
-import {TEST_SERVER_BASE_URL_JSON} from '../globalSetup.ts';
+import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
 // Setup real localStorage for testing
 global.localStorage = new Storage(null, {strict: true});
 global.sessionStorage = new Storage(null, {strict: true});
 
 describe('fetchRemoteMethodsMetadata', () => {
-    const baseURL = TEST_SERVER_BASE_URL_JSON;
+    const baseURL = TEST_SERVER_BASE_URL;
 
     let options: ClientOptions;
 
