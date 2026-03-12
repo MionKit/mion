@@ -13,10 +13,13 @@ export default defineConfig({
                 },
             },
             aotCaches: {
-                startServerScript: resolve(__dirname, 'src/test-server-edge.ts'),
-                serverViteConfig: resolve(__dirname, 'vite.edge.config.ts'),
                 cache: false, // Disable disk caching for test builds
                 excludeReflection: true,
+            },
+            server: {
+                startServerScript: resolve(__dirname, 'src/test-server-edge.ts'),
+                serverViteConfig: resolve(__dirname, 'vite.edge.config.ts'),
+                mode: 'onlyAOT',
             },
         }) as any,
     ],
@@ -32,8 +35,6 @@ export default defineConfig({
             '@mionjs/run-types': resolve(__dirname, '../run-types'),
             '@deepkit/type': resolve(__dirname, '../../node_modules/@deepkit/type'),
             '@deepkit/core': resolve(__dirname, '../../node_modules/@deepkit/core'),
-            // Polyfill Node.js 'path' module for edge runtime compatibility
-            path: resolve(__dirname, 'src/edge-shims/path.ts'),
         },
     },
     build: {
