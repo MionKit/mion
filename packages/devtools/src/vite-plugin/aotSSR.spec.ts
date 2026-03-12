@@ -7,49 +7,54 @@ const mockCacheData = {
     routerCacheCode: '{test: "router"}',
 };
 
-/** Simulates what emitAOTCaches() does: calls process.send with the cache message */
-function simulateEmitAOTCaches() {
-    (process as any).send({
-        type: 'mion-aot-caches',
-        ...mockCacheData,
-    });
-}
-
-/** Creates a mock loader where loading the startServerScript triggers process.send (like the real router) */
+/** Creates a mock loader that returns serialized caches from @mionjs/router/aot */
 function createMockLoader(startScript: string) {
     return vi.fn((url: string) => {
         if (url === startScript) {
-            // Simulate: module loads → initMionRouter() → emitAOTCaches() → process.send()
-            simulateEmitAOTCaches();
+            // Simulate: module loads → initMionRouter() populates caches (no process.send in SSR mode)
+            return Promise.resolve({});
+        }
+        if (url === '@mionjs/router/aot') {
+            return Promise.resolve({
+                getSerializedCaches: () => Promise.resolve(mockCacheData),
+            });
         }
         return Promise.resolve({});
     });
 }
 
 describe('generateSSRAOTCaches', () => {
-    it('should load startServerScript and capture emitted AOT caches via process.send', async () => {
+    it('should load startServerScript and retrieve caches from @mionjs/router/aot', async () => {
         const loadModule = createMockLoader('/app/src/server.ts');
 
         const result = await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
 
         expect(loadModule).toHaveBeenCalledWith('/app/src/server.ts');
+        expect(loadModule).toHaveBeenCalledWith('@mionjs/router/aot');
         expect(result).toEqual(mockCacheData);
     });
 
-    it('should only call loadModule once (no separate router/aot load)', async () => {
+    it('should call loadModule twice (start script + @mionjs/router/aot)', async () => {
         const loadModule = createMockLoader('/app/src/server.ts');
 
         await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
 
-        expect(loadModule).toHaveBeenCalledTimes(1);
-        expect(loadModule).toHaveBeenCalledWith('/app/src/server.ts');
+        expect(loadModule).toHaveBeenCalledTimes(2);
+        expect(loadModule).toHaveBeenNthCalledWith(1, '/app/src/server.ts');
+        expect(loadModule).toHaveBeenNthCalledWith(2, '@mionjs/router/aot');
     });
 
-    it('should set MION_COMPILE=true before loading and restore after', async () => {
+    it('should set MION_COMPILE=SSR before loading and restore after', async () => {
         let envDuringLoad: string | undefined;
-        const loadModule = vi.fn((_url: string) => {
-            envDuringLoad = process.env.MION_COMPILE;
-            simulateEmitAOTCaches();
+        const loadModule = vi.fn((url: string) => {
+            if (url === '/app/src/server.ts') {
+                envDuringLoad = process.env.MION_COMPILE;
+            }
+            if (url === '@mionjs/router/aot') {
+                return Promise.resolve({
+                    getSerializedCaches: () => Promise.resolve(mockCacheData),
+                });
+            }
             return Promise.resolve({});
         });
 
@@ -58,14 +63,14 @@ describe('generateSSRAOTCaches', () => {
 
         try {
             await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
-            expect(envDuringLoad).toBe('true');
+            expect(envDuringLoad).toBe('SSR');
             expect(process.env.MION_COMPILE).toBeUndefined();
         } finally {
             if (prevCompile !== undefined) process.env.MION_COMPILE = prevCompile;
         }
     });
 
-    it('should restore process.send after completion', async () => {
+    it('should not modify process.send', async () => {
         const loadModule = createMockLoader('/app/src/server.ts');
         const originalSend = process.send;
 
@@ -80,20 +85,17 @@ describe('generateSSRAOTCaches', () => {
         await expect(loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts')).rejects.toThrow('Module load failed');
     });
 
-    it('should timeout if startServerScript never emits AOT caches', async () => {
-        vi.useFakeTimers();
+    it('should restore MION_COMPILE even when loadModule throws', async () => {
+        const prevCompile = process.env.MION_COMPILE;
+        delete process.env.MION_COMPILE;
+
+        const loadModule = vi.fn().mockRejectedValue(new Error('fail'));
+
         try {
-            // Module loads but never calls process.send
-            const loadModule = vi.fn().mockResolvedValue({});
-
-            const promise = loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
-            // Suppress unhandled rejection from the timeout Promise.race loser
-            promise.catch(() => {});
-            await vi.advanceTimersByTimeAsync(30_001);
-
-            await expect(promise).rejects.toThrow('timed out');
+            await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts').catch(() => {});
+            expect(process.env.MION_COMPILE).toBeUndefined();
         } finally {
-            vi.useRealTimers();
+            if (prevCompile !== undefined) process.env.MION_COMPILE = prevCompile;
         }
     });
 });

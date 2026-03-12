@@ -8,6 +8,7 @@
 import {
     getJitFnCaches,
     getENV,
+    isMionCompileMode,
     JitFunctionsCache,
     PureFunctionsCache,
     MethodsCache,
@@ -53,9 +54,11 @@ export async function getSerializedCaches(): Promise<SerializedCaches> {
  */
 export async function emitAOTCaches(): Promise<void> {
     // Only emit in compile mode
-    if (getENV('MION_COMPILE') !== 'true') return;
+    if (!isMionCompileMode()) return;
+    // SSR mode: caches remain in global state, read directly via getSerializedCaches()
+    if (getENV('MION_COMPILE') === 'SSR') return;
 
-    // Only emit if running as child process with IPC
+    // IPC mode: send to parent process
     if (typeof process.send !== 'function') return;
 
     // Get the caches

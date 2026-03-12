@@ -159,63 +159,26 @@ export async function generateAOTCaches(options: AOTCacheOptions, startScriptOve
 export type ModuleLoader = (url: string) => Promise<Record<string, any>>;
 
 /**
- *  Loads the startServerScript with MION_COMPILE=true so platform adapters skip server.listen().
+ *  Loads the startServerScript with MION_COMPILE=SSR so platform adapters skip server.listen().
  *  Generates AOT caches via SSR using a module loader (for same-Vite-process scenarios like Nuxt).
- *  Intercepts process.send to capture the AOT caches emitted by the router's emitAOTCaches(),
- *  using the same emission path as IPC mode for reliability. */
+ *  After loading, retrieves the caches directly from the router's global state via getSerializedCaches(). */
 export async function loadSSRRouterAndGenerateAOTCaches(
     loadModule: ModuleLoader,
     startServerScript: string
 ): Promise<AOTCacheData> {
-    // Set MION_COMPILE=true so the router populates its persistedMethods cache
-    // and platform adapters (e.g. startNodeServer) skip server.listen()
     const prevCompile = process.env.MION_COMPILE;
-    process.env.MION_COMPILE = 'true';
+    process.env.MION_COMPILE = 'SSR';
 
-    // Intercept process.send to capture the AOT cache message emitted by the router.
-    // emitAOTCaches() checks `typeof process.send === 'function'` — on the main process
-    // process.send is undefined, so we temporarily provide it to capture the IPC message.
-    const originalSend = process.send;
-    let resolveCapture: (data: AOTCacheData) => void;
-    const capturePromise = new Promise<AOTCacheData>((resolve) => {
-        resolveCapture = resolve;
-    });
-    (process as any).send = (msg: any) => {
-        if (msg?.type === 'mion-aot-caches') {
-            resolveCapture({
-                jitFnsCode: msg.jitFnsCode,
-                pureFnsCode: msg.pureFnsCode,
-                routerCacheCode: msg.routerCacheCode,
-            });
-        }
-    };
-
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-        // Load the start server script — executes top-level code which initializes routes
-        // but does NOT bind a port thanks to MION_COMPILE=true.
-        // initMionRouter() calls emitAOTCaches() which calls our intercepted process.send.
+        // Load the start server script — triggers initMionRouter(), populates caches,
+        // skips process.send (SSR mode) and skips server.listen() (platform adapters)
         await loadModule(startServerScript);
 
-        // Wait for the captured data (with timeout matching IPC mode)
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            timeoutId = setTimeout(
-                () =>
-                    reject(
-                        new Error(
-                            `SSR AOT cache generation timed out (${DEFAULT_TIMEOUT / 1000}s). ` +
-                                `Make sure the startServerScript calls initMionRouter() and awaits it.`
-                        )
-                    ),
-                DEFAULT_TIMEOUT
-            );
-        });
-        return await Promise.race([capturePromise, timeoutPromise]);
+        // Get caches directly from the router's global state
+        const aotModule = await loadModule('@mionjs/router/aot');
+        const caches: AOTCacheData = await aotModule.getSerializedCaches();
+        return caches;
     } finally {
-        clearTimeout(timeoutId);
-        // Restore process.send and MION_COMPILE
-        if (originalSend) (process as any).send = originalSend;
-        else delete (process as any).send;
         if (prevCompile === undefined) delete process.env.MION_COMPILE;
         else process.env.MION_COMPILE = prevCompile;
     }

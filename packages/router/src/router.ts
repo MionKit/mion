@@ -27,7 +27,15 @@ import {
     isRoutes,
     isAnyMiddleFnDef,
 } from './types/guards.ts';
-import {HandlerType, SerializerModes, SerializerCode, SerializerMode, isTestEnv, resetRoutesCache} from '@mionjs/core';
+import {
+    HandlerType,
+    SerializerModes,
+    SerializerCode,
+    SerializerMode,
+    isTestEnv,
+    isMionCompileMode,
+    resetRoutesCache,
+} from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionjs/core';
@@ -205,7 +213,7 @@ export function getAllExecutablesIds(): string[] {
 
 // used by codegen
 export function shouldFullGenerateSpec(): boolean {
-    return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true' || getENV('MION_COMPILE') === 'true';
+    return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true' || isMionCompileMode();
 }
 
 export function getRouteExecutableFromPath(path: string): RouteMethod {
@@ -225,7 +233,7 @@ async function loadAOTCaches() {
 }
 
 async function emitAOTCaches() {
-    if (getENV('MION_COMPILE') !== 'true') return;
+    if (!isMionCompileMode()) return;
     // Dynamic import resolves relative to this source file.
     // This only runs via vite-node (MION_COMPILE=true), which always resolves from source.
     const aotEmitter = await import('./lib/aotEmitter.ts');

@@ -600,6 +600,10 @@
     return atob(encoded.replace(/-/g, "+").replace(/_/g, "/"));
   }
   let isTest = void 0;
+  function isMionCompileMode() {
+    const val = getENV("MION_COMPILE");
+    return val === "true" || val === "SSR";
+  }
   function isTestEnv() {
     if (isTest !== void 0) return isTest;
     isTest = getENV("VITEST") !== void 0 || getENV("NODE_ENV") === "test";
@@ -1077,7 +1081,7 @@
     return restored;
   }
   function shouldCompile() {
-    return getENV("MION_COMPILE") === "true";
+    return isMionCompileMode();
   }
   function loadCompiledMethods(compiledMethods) {
     for (const [key, value] of Object.entries(compiledMethods)) {
@@ -2238,7 +2242,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return allExecutablesIds;
   }
   function shouldFullGenerateSpec() {
-    return routerOptions.getPublicRoutesData || getENV("GENERATE_ROUTER_SPEC") === "true" || getENV("MION_COMPILE") === "true";
+    return routerOptions.getPublicRoutesData || getENV("GENERATE_ROUTER_SPEC") === "true" || isMionCompileMode();
   }
   function getRouteExecutableFromPath(path) {
     const executionChain = flatRouter.get(path);
@@ -2252,7 +2256,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return loader.loadAOTCaches();
   }
   async function emitAOTCaches$1() {
-    if (getENV("MION_COMPILE") !== "true") return;
+    if (!isMionCompileMode()) return;
     const aotEmitter$1 = await Promise.resolve().then(() => aotEmitter);
     return aotEmitter$1.emitAOTCaches();
   }
@@ -2774,7 +2778,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   }, [() => __ΩContext, "context", "", 'Pn!2"$/#']));
   const edgeRoutes = { changeUserName, getDate, updateHeaders };
   (async () => {
-    if (typeof process !== "undefined" && process.env?.MION_COMPILE === "true") {
+    const mionCompile = typeof process !== "undefined" ? process.env?.MION_COMPILE : void 0;
+    if (mionCompile === "true" || mionCompile === "SSR") {
       await initMionRouter(edgeRoutes, {
         contextDataFactory: getSharedData,
         basePath: "api/"
@@ -5069,7 +5074,9 @@ if (Des.view.getUint8(tbimI0, 1) & (1 << (0))) {ret[0] = fBi_btp3Jb.fn(undefined
   }
   getSerializedCaches.__type = [() => __ΩSerializedCaches, "getSerializedCaches", 'Pn!`/"'];
   async function emitAOTCaches() {
-    if (getENV("MION_COMPILE") !== "true")
+    if (!isMionCompileMode())
+      return;
+    if (getENV("MION_COMPILE") === "SSR")
       return;
     if (typeof process.send !== "function")
       return;

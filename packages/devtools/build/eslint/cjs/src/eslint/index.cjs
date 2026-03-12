@@ -7,6 +7,7 @@ require("./rules/no-type-imports.cjs");
 require("./rules/pure-functions.cjs");
 require("./rules/no-vite-client.cjs");
 require("./rules/type-formats-imports.cjs");
+require("./rules/enforce-type-imports.cjs");
 const index = require("../../index.cjs");
 module.exports = index;
 //# sourceMappingURL=index.cjs.map

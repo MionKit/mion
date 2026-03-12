@@ -62,6 +62,28 @@ describe('emitAOTCaches', () => {
         }
     });
 
+    it('should not call process.send when MION_COMPILE is SSR', async () => {
+        const {emitAOTCaches} = await import('./aotEmitter.ts');
+
+        const originalEnv = process.env.MION_COMPILE;
+        const originalSend = process.send;
+        const mockSend = (() => {}) as any;
+        (process as any).send = mockSend;
+        process.env.MION_COMPILE = 'SSR';
+
+        await expect(emitAOTCaches()).resolves.toBeUndefined();
+        // process.send should not have been replaced or called
+        expect(process.send).toBe(mockSend);
+
+        // Restore
+        if (originalEnv !== undefined) {
+            process.env.MION_COMPILE = originalEnv;
+        } else {
+            delete process.env.MION_COMPILE;
+        }
+        (process as any).send = originalSend;
+    });
+
     it('should not emit when process.send is not available', async () => {
         const {emitAOTCaches} = await import('./aotEmitter.ts');
 
