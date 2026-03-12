@@ -95,39 +95,13 @@ Make sure the startServerScript calls initMionRouter() and the router is fully i
 }
 async function loadSSRRouterAndGenerateAOTCaches(loadModule, startServerScript) {
   const prevCompile = process.env.MION_COMPILE;
-  process.env.MION_COMPILE = "true";
-  const originalSend = process.send;
-  let resolveCapture;
-  const capturePromise = new Promise((resolve2) => {
-    resolveCapture = resolve2;
-  });
-  process.send = (msg) => {
-    if (msg?.type === "mion-aot-caches") {
-      resolveCapture({
-        jitFnsCode: msg.jitFnsCode,
-        pureFnsCode: msg.pureFnsCode,
-        routerCacheCode: msg.routerCacheCode
-      });
-    }
-  };
-  let timeoutId;
+  process.env.MION_COMPILE = "SSR";
   try {
     await loadModule(startServerScript);
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(
-        () => reject(
-          new Error(
-            `SSR AOT cache generation timed out (${DEFAULT_TIMEOUT / 1e3}s). Make sure the startServerScript calls initMionRouter() and awaits it.`
-          )
-        ),
-        DEFAULT_TIMEOUT
-      );
-    });
-    return await Promise.race([capturePromise, timeoutPromise]);
+    const aotModule = await loadModule("@mionjs/router/aot");
+    const caches = await aotModule.getSerializedCaches();
+    return caches;
   } finally {
-    clearTimeout(timeoutId);
-    if (originalSend) process.send = originalSend;
-    else delete process.send;
     if (prevCompile === void 0) delete process.env.MION_COMPILE;
     else process.env.MION_COMPILE = prevCompile;
   }

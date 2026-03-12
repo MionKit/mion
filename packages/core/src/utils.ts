@@ -43,6 +43,12 @@ export function fromBase64Url(encoded: string): string {
 }
 
 let isTest: boolean | undefined = undefined;
+/** Whether the process is in mion compile mode (IPC or SSR) */
+export function isMionCompileMode(): boolean {
+    const val = getENV('MION_COMPILE');
+    return val === 'true' || val === 'SSR';
+}
+
 export function isTestEnv() {
     if (isTest !== undefined) return isTest;
     isTest = getENV('VITEST') !== undefined || getENV('NODE_ENV') === 'test';

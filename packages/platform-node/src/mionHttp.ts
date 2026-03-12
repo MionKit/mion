@@ -13,7 +13,7 @@ import type {NodeHttpOptions} from './types.ts';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
-import {getENV, SerializerModes} from '@mionjs/core';
+import {getENV, isMionCompileMode, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
@@ -40,7 +40,7 @@ export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
 
 export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promise<HttpServer | HttpsServer> {
     const isTest = getENV('NODE_ENV') === 'test';
-    const isCompiling = getENV('MION_COMPILE') === 'true';
+    const isCompiling = isMionCompileMode();
 
     if (options) setNodeHttpOpts(options);
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
