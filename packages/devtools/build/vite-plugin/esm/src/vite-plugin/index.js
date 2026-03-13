@@ -1,4 +1,4 @@
-import { mionVitePlugin, mionVitePlugin as mionVitePlugin2 } from "./mionVitePlugin.js";
+import { mionVitePlugin, mionVitePlugin as mionVitePlugin2, serverReady } from "./mionVitePlugin.js";
 import { cjsPackageJsonPlugin } from "./cjsPackageJsonPlugin.js";
 import { VIRTUAL_AOT_JIT_FNS, VIRTUAL_AOT_PURE_FNS, VIRTUAL_AOT_ROUTER_CACHE, VIRTUAL_SERVER_PURE_FNS } from "./constants.js";
 export {
@@ -8,6 +8,7 @@ export {
   VIRTUAL_SERVER_PURE_FNS as VIRTUAL_PURE_FUNCTIONS,
   cjsPackageJsonPlugin,
   mionVitePlugin as mionPlugin,
-  mionVitePlugin2 as mionVitePlugin
+  mionVitePlugin2 as mionVitePlugin,
+  serverReady
 };
 //# sourceMappingURL=index.js.map

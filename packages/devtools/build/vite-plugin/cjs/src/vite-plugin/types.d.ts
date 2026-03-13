@@ -10,6 +10,8 @@ export interface MionServerConfig {
     startServerScript: string;
     serverViteConfig?: string;
     mode: 'onlyAOT' | 'IPC' | 'viteSSR';
+    port?: number;
+    waitTimeout?: number;
 }
 export interface PureServerFnRegistryEntry {
     readonly namespace: string;

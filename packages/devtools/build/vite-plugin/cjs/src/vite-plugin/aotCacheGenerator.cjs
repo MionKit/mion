@@ -199,6 +199,19 @@ function generateNoopModule(comment) {
   return `/* ${comment} */
 `;
 }
+async function waitForServer(port, timeoutMs = 3e4) {
+  const startTime = Date.now();
+  const checkInterval = 100;
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const response = await fetch(`http://localhost:${port}/`);
+      if (response.ok || response.status === 404) return;
+    } catch {
+    }
+    await new Promise((r) => setTimeout(r, checkInterval));
+  }
+  throw new Error(`[mion] Server failed to become ready on port ${port} within ${timeoutMs}ms`);
+}
 function generateNoopCombinedModule() {
   return `/* No-op: AOT caches not generated */
 export const jitFnsCache = {};
@@ -216,4 +229,5 @@ exports.generateRouterCacheModule = generateRouterCacheModule;
 exports.killPersistentChild = killPersistentChild;
 exports.loadSSRRouterAndGenerateAOTCaches = loadSSRRouterAndGenerateAOTCaches;
 exports.logAOTCaches = logAOTCaches;
+exports.waitForServer = waitForServer;
 //# sourceMappingURL=aotCacheGenerator.cjs.map

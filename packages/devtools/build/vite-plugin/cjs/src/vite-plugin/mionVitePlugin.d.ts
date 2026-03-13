@@ -1,4 +1,6 @@
 import { ServerPureFunctionsOptions, DeepkitTypeOptions, AOTCacheOptions, MionServerConfig } from './types.ts';
+export declare const serverReady: Promise<void>;
+export declare const onServerReady: () => void;
 export interface MionPluginOptions {
     serverPureFunctions?: ServerPureFunctionsOptions;
     runTypes?: DeepkitTypeOptions;

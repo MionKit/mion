@@ -2,9 +2,6 @@ import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 
-// Set test server port so the IPC child process uses the same port as the tests
-process.env.MION_TEST_PORT = '8086';
-
 export default defineConfig({
     // Browser-first resolution (client runs in browser by default, but also supports Node/SSR)
     resolve: {conditions: ['source']},
@@ -21,6 +18,7 @@ export default defineConfig({
                 startServerScript: resolve(__dirname, '../test-server/src/test-server.ts'),
                 serverViteConfig: resolve(__dirname, '../test-server/vite.config.ts'),
                 mode: 'IPC',
+                port: 8086,
             },
             aotCaches: {
                 customVirtualModuleId: 'client-mion-aot',

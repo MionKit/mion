@@ -4,8 +4,23 @@ import { createDeepkitConfig, createPureFnTransformerFactory } from "./transform
 import { scanClientSource } from "./extractPureFn.js";
 import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX } from "./constants.js";
-import { generateAOTCaches, logAOTCaches, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, loadSSRRouterAndGenerateAOTCaches, killPersistentChild } from "./aotCacheGenerator.js";
+import { generateAOTCaches, logAOTCaches, waitForServer, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, loadSSRRouterAndGenerateAOTCaches, killPersistentChild } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
+const READY_KEY = "__mion_server_ready__";
+function getOrCreateServerReady() {
+  if (!globalThis[READY_KEY]) {
+    let _resolve;
+    globalThis[READY_KEY] = {
+      promise: new Promise((r) => {
+        _resolve = r;
+      }),
+      resolve: () => _resolve()
+    };
+  }
+  return globalThis[READY_KEY];
+}
+const serverReady = getOrCreateServerReady().promise;
+const onServerReady = getOrCreateServerReady().resolve;
 function isRunningAsChild() {
   return process.env.MION_COMPILE === "onlyAOT" || process.env.MION_COMPILE === "serve";
 }
@@ -72,6 +87,7 @@ function mionVitePlugin(options) {
     },
     async buildStart() {
       if (serverConfig && !isRunningAsChild() && !ssrEnabled) {
+        if (serverConfig.port) process.env.MION_TEST_PORT = String(serverConfig.port);
         try {
           console.log("[mion] Generating AOT caches...");
           const resultPromise = getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
@@ -84,6 +100,16 @@ function mionVitePlugin(options) {
             persistentChild = result.childProcess;
             registerCleanupHandlers();
             console.log(`[mion] Server process persisted (pid: ${persistentChild.pid})`);
+          }
+          if (serverConfig.port && serverConfig.mode === "IPC") {
+            const timeout = serverConfig.waitTimeout ?? 3e4;
+            console.log(`[mion] Waiting for server on port ${serverConfig.port}...`);
+            waitForServer(serverConfig.port, timeout).then(() => {
+              console.log(`[mion] Server ready on port ${serverConfig.port}`);
+              onServerReady();
+            }).catch((err) => {
+              console.error(`[mion] ${err instanceof Error ? err.message : String(err)}`);
+            });
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -273,6 +299,16 @@ function mionVitePlugin(options) {
               persistentChild = result.childProcess;
               console.log(`[mion] Server process re-persisted (pid: ${persistentChild.pid})`);
             }
+            if (serverConfig.port && serverConfig.mode === "IPC") {
+              const timeout = serverConfig.waitTimeout ?? 3e4;
+              console.log(`[mion] Waiting for restarted server on port ${serverConfig.port}...`);
+              waitForServer(serverConfig.port, timeout).then(() => {
+                console.log(`[mion] Restarted server ready on port ${serverConfig.port}`);
+                onServerReady();
+              }).catch((err) => {
+                console.error(`[mion] ${err instanceof Error ? err.message : String(err)}`);
+              });
+            }
             if (!ssrEnabled) updateDiskCache(serverConfig, aotOptions, data, aotCacheDir);
             let invalidatedCount = 0;
             for (const resolvedId of aotResolvedIds.keys()) {
@@ -342,6 +378,8 @@ function buildAOTVirtualModuleMaps(customVirtualModuleId) {
 export {
   isIncluded,
   mionVitePlugin,
-  parseVueModuleId
+  onServerReady,
+  parseVueModuleId,
+  serverReady
 };
 //# sourceMappingURL=mionVitePlugin.js.map

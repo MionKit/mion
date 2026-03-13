@@ -5,7 +5,7 @@
  * to test that the plugin correctly handles TypeScript in function bodies.
  * The plugin should strip types when generating the virtual module.
  */
-import {pureServerFn} from '@mionjs/devtools';
+import {pureServerFn} from '@mionjs/core';
 
 /** Maps users to their preferences - uses TypeScript type annotations */
 export const mapUsersToPreferences = pureServerFn(function mapUsersToPreferences(users: any[]) {

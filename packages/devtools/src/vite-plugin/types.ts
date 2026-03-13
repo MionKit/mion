@@ -74,6 +74,13 @@ export interface MionServerConfig {
      * - 'viteSSR': load in same Vite process as middleware (for Nuxt-like frameworks)
      */
     mode: 'onlyAOT' | 'IPC' | 'viteSSR';
+
+    /** Port the server listens on. When set in IPC mode, the plugin polls
+     *  this port after AOT caches are received until the server responds. */
+    port?: number;
+
+    /** Max wait time in ms for server readiness polling (default 30000). */
+    waitTimeout?: number;
 }
 
 /** Serializable registry entry for a single pure function */

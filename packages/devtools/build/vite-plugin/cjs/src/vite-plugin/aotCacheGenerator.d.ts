@@ -19,4 +19,5 @@ export declare function generatePureFnsModule(pureFnsCode: string): string;
 export declare function generateRouterCacheModule(routerCacheCode: string): string;
 export declare function generateCombinedCachesModule(): string;
 export declare function generateNoopModule(comment: string): string;
+export declare function waitForServer(port: number, timeoutMs?: number): Promise<void>;
 export declare function generateNoopCombinedModule(): string;
