@@ -26,6 +26,7 @@ import {
     isRoute,
     isRoutes,
     isAnyMiddleFnDef,
+    isPublicExecutable,
 } from './types/guards.ts';
 import {
     HandlerType,
@@ -56,6 +57,7 @@ type RoutesWithId = {
 
 // ############# PRIVATE STATE #############
 
+const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
 const flatRouter: Map<string, MethodsExecutionChain> = new Map(); // Main Router
 const middleFnsById: Map<string, MiddleFnMethod | HeadersMethod | RawMethod> = new Map();
 const routesById: Map<string, RouteMethod> = new Map();
@@ -371,6 +373,9 @@ async function recursiveCreateExecutionChainAsync(
             methods,
             serializer: getSerializerCodeFromMode(routeMethod.options.serializer),
         };
+        const middleFnIds = getPublicMiddleFnIds(methods);
+        // add middleware functions deps, so can be serialized with the router
+        if (middleFnIds.length) routeMethod.middleFnIds = middleFnIds;
         flatRouter.set(path, executionChain);
     } else if (!isExec) {
         await recursiveFlatRoutes(
@@ -497,6 +502,19 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
     routesById.set(routeId, executable);
     routesCache.setMethodJitFns(routeId, executable as any);
     return executable;
+}
+
+/** Returns IDs of public middleware methods from the execution chain, excluding internal mion routes. */
+function getPublicMiddleFnIds(methods: RemoteMethod[]): string[] {
+    const ids = methods
+        .filter((exec) => isPublicExecutable(exec))
+        .map((exec) => getRouterItemId(exec.pointer))
+        .filter((mfId) => {
+            if (mionInternalRoutes.includes(mfId)) return false;
+            const exec = getMiddleFnExecutable(mfId);
+            return exec && isPublicExecutable(exec);
+        });
+    return ids;
 }
 
 function getEntry(index: number, keyEntryList: RouterKeyEntryList) {
