@@ -197,6 +197,9 @@ export function mionVitePlugin(options: MionPluginOptions) {
                             .catch((err) => {
                                 console.error(`[mion] ${err instanceof Error ? err.message : String(err)}`);
                             });
+                    } else {
+                        // onlyAOT mode: no persistent server, resolve immediately
+                        onServerReady();
                     }
                 } catch (err) {
                     const message = err instanceof Error ? err.message : String(err);
@@ -235,6 +238,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                     const platformNode = await server.ssrLoadModule('@mionjs/platform-node');
                     nodeRequestHandler = platformNode.httpRequestHandler;
                     console.log('[mion] Dev server proxy initialized');
+                    onServerReady();
                 })
                 .catch((err) => {
                     initFailed = true;
@@ -558,22 +562,22 @@ function buildAOTVirtualModuleMaps(customVirtualModuleId?: string) {
 
 // #################### SERVER READY ####################
 
-// ── Server readiness promise (shared via globalThis for cross-module-boundary safety) ──
+// Uses globalThis with Symbol.for because vitest loads vitest.config.ts and globalSetup.ts
+// in separate module contexts — without globalThis they'd get different promise instances.
 const READY_KEY = Symbol.for('mion.serverReady');
 function getOrCreateServerReady(): {promise: Promise<void>; resolve: () => void} {
-    if (!globalThis[READY_KEY]) {
+    if (!(globalThis as any)[READY_KEY]) {
         let _resolve: () => void;
-        globalThis[READY_KEY] = {
+        (globalThis as any)[READY_KEY] = {
             promise: new Promise<void>((r) => {
                 _resolve = r;
             }),
             resolve: () => _resolve(),
         };
     }
-    return globalThis[READY_KEY];
+    return (globalThis as any)[READY_KEY];
 }
 
-/** Promise that resolves when the IPC server is ready. Await this in vitest globalSetup. */
+/** Promise that resolves when the server is ready. Await this in vitest globalSetup. */
 export const serverReady: Promise<void> = getOrCreateServerReady().promise;
-/** Callback to resolve the serverReady promise. Pass this as onServerReady in MionServerConfig. */
-export const onServerReady: () => void = getOrCreateServerReady().resolve;
+const onServerReady: () => void = getOrCreateServerReady().resolve;
