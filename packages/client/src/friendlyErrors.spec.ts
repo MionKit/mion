@@ -13,12 +13,7 @@ import type {RouteParamsType} from './types.ts';
 import {FormatEmail} from '@mionjs/type-formats/StringFormats';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 import {TestServerApi} from '@mionjs/test-server';
-
-// Mock localStorage for method metadata storage
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const Storage = require('dom-storage');
-global.localStorage = new Storage(null, {strict: true});
-global.sessionStorage = new Storage(null, {strict: true});
+import {getStorage} from './storage.ts';
 
 describe('friendlyErrors with client validation', () => {
     type MyApi = TestServerApi;
@@ -30,7 +25,7 @@ describe('friendlyErrors with client validation', () => {
     type UserWithFormats = RouteParamsType<MyApi['createUserWithFormats']>;
 
     beforeEach(() => {
-        localStorage.clear();
+        getStorage().clear();
     });
 
     describe('route validation errors with formats', () => {

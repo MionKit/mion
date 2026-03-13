@@ -7,6 +7,7 @@
 
 export * from './src/types.ts';
 export * from './src/constants.ts';
+export * from './src/storage.ts';
 export * from './src/validation.ts';
 export * from './src/serializer.ts';
 export * from './src/clientMethodsMetadata.ts';

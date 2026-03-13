@@ -14,12 +14,6 @@ import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
 // THIS TESTS ARE INTENDED TO E2E TESTING OF THE BINARY SERIALIZER
 
-// Mock localStorage for method metadata storage
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const Storage = require('dom-storage');
-global.localStorage = new Storage(null, {strict: true});
-global.sessionStorage = new Storage(null, {strict: true});
-
 // Helper to create auth headers for the test server's headersFn
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
     return new HeadersSubset({Authorization: token});
