@@ -18,6 +18,7 @@ import {
     loadSSRRouterAndGenerateAOTCaches,
     killPersistentChild,
     logAOTCaches,
+    waitForServer,
     generateJitFnsModule,
     generatePureFnsModule,
     generateRouterCacheModule,
@@ -166,6 +167,8 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // Skip when already running as a child process to prevent infinite recursion
             // Skip when SSR mode — configureServer will handle it
             if (serverConfig && !isRunningAsChild() && !ssrEnabled) {
+                // Set port env before spawning child so the server uses the correct port
+                if (serverConfig.port) process.env.MION_TEST_PORT = String(serverConfig.port);
                 try {
                     console.log('[mion] Generating AOT caches...');
                     const resultPromise = getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
@@ -180,6 +183,20 @@ export function mionVitePlugin(options: MionPluginOptions) {
                         persistentChild = result.childProcess;
                         registerCleanupHandlers();
                         console.log(`[mion] Server process persisted (pid: ${persistentChild.pid})`);
+                    }
+
+                    // Non-blocking: poll server port and resolve serverReady promise (IPC mode)
+                    if (serverConfig.port && serverConfig.mode === 'IPC') {
+                        const timeout = serverConfig.waitTimeout ?? 30000;
+                        console.log(`[mion] Waiting for server on port ${serverConfig.port}...`);
+                        waitForServer(serverConfig.port, timeout)
+                            .then(() => {
+                                console.log(`[mion] Server ready on port ${serverConfig.port}`);
+                                onServerReady();
+                            })
+                            .catch((err) => {
+                                console.error(`[mion] ${err instanceof Error ? err.message : String(err)}`);
+                            });
                     }
                 } catch (err) {
                     const message = err instanceof Error ? err.message : String(err);
@@ -435,6 +452,20 @@ export function mionVitePlugin(options: MionPluginOptions) {
                                 console.log(`[mion] Server process re-persisted (pid: ${persistentChild!.pid})`);
                             }
 
+                            // Non-blocking: poll restarted server and resolve serverReady promise
+                            if (serverConfig.port && serverConfig.mode === 'IPC') {
+                                const timeout = serverConfig.waitTimeout ?? 30000;
+                                console.log(`[mion] Waiting for restarted server on port ${serverConfig.port}...`);
+                                waitForServer(serverConfig.port, timeout)
+                                    .then(() => {
+                                        console.log(`[mion] Restarted server ready on port ${serverConfig.port}`);
+                                        onServerReady();
+                                    })
+                                    .catch((err) => {
+                                        console.error(`[mion] ${err instanceof Error ? err.message : String(err)}`);
+                                    });
+                            }
+
                             if (!ssrEnabled) updateDiskCache(serverConfig, aotOptions, data, aotCacheDir);
                             // Invalidate all AOT virtual modules
                             let invalidatedCount = 0;
@@ -524,3 +555,25 @@ function buildAOTVirtualModuleMaps(customVirtualModuleId?: string) {
     }
     return {aotVirtualModules, aotResolvedIds};
 }
+
+// #################### SERVER READY ####################
+
+// ── Server readiness promise (shared via globalThis for cross-module-boundary safety) ──
+const READY_KEY = Symbol.for('mion.serverReady');
+function getOrCreateServerReady(): {promise: Promise<void>; resolve: () => void} {
+    if (!globalThis[READY_KEY]) {
+        let _resolve: () => void;
+        globalThis[READY_KEY] = {
+            promise: new Promise<void>((r) => {
+                _resolve = r;
+            }),
+            resolve: () => _resolve(),
+        };
+    }
+    return globalThis[READY_KEY];
+}
+
+/** Promise that resolves when the IPC server is ready. Await this in vitest globalSetup. */
+export const serverReady: Promise<void> = getOrCreateServerReady().promise;
+/** Callback to resolve the serverReady promise. Pass this as onServerReady in MionServerConfig. */
+export const onServerReady: () => void = getOrCreateServerReady().resolve;

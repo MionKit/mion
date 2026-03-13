@@ -1,4 +1,4 @@
-export { mionVitePlugin, mionVitePlugin as mionPlugin } from './mionVitePlugin.ts';
+export { mionVitePlugin, mionVitePlugin as mionPlugin, serverReady } from './mionVitePlugin.ts';
 export type { MionPluginOptions } from './mionVitePlugin.ts';
 export type { AOTCacheOptions, MionServerConfig, ServerPureFunctionsOptions as PureFunctionsPluginOptions, DeepkitTypeOptions, } from './types.ts';
 export { cjsPackageJsonPlugin } from './cjsPackageJsonPlugin.ts';

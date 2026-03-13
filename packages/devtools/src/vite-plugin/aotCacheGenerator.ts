@@ -306,6 +306,22 @@ export function generateNoopModule(comment: string): string {
     return `/* ${comment} */\n`;
 }
 
+/** Poll an HTTP port until the server responds (2xx or 404). */
+export async function waitForServer(port: number, timeoutMs = 30000): Promise<void> {
+    const startTime = Date.now();
+    const checkInterval = 100;
+    while (Date.now() - startTime < timeoutMs) {
+        try {
+            const response = await fetch(`http://localhost:${port}/`);
+            if (response.ok || response.status === 404) return;
+        } catch {
+            // Server not ready yet
+        }
+        await new Promise((r) => setTimeout(r, checkInterval));
+    }
+    throw new Error(`[mion] Server failed to become ready on port ${port} within ${timeoutMs}ms`);
+}
+
 /** Generates a no-op combined module that exports empty caches. */
 export function generateNoopCombinedModule(): string {
     return `/* No-op: AOT caches not generated */

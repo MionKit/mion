@@ -5,6 +5,7 @@ const src_vitePlugin_cjsPackageJsonPlugin = require("./src/vite-plugin/cjsPackag
 const src_vitePlugin_constants = require("./src/vite-plugin/constants.cjs");
 exports.mionPlugin = src_vitePlugin_mionVitePlugin.mionVitePlugin;
 exports.mionVitePlugin = src_vitePlugin_mionVitePlugin.mionVitePlugin;
+exports.serverReady = src_vitePlugin_mionVitePlugin.serverReady;
 exports.cjsPackageJsonPlugin = src_vitePlugin_cjsPackageJsonPlugin.cjsPackageJsonPlugin;
 exports.VIRTUAL_AOT_JIT_FNS = src_vitePlugin_constants.VIRTUAL_AOT_JIT_FNS;
 exports.VIRTUAL_AOT_PURE_FNS = src_vitePlugin_constants.VIRTUAL_AOT_PURE_FNS;
