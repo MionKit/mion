@@ -53,14 +53,15 @@ async function run() {
         configFile: false,
         resolve: {conditions: ['source']},
         ssr: {resolve: {conditions: ['source']}},
-        server: {middlewareMode: true},
+        server: {middlewareMode: true, hmr: {port: 24679}},
         plugins: [
             mionVitePlugin({
                 runTypes: {
                     tsConfig: resolve(routerDir, 'tsconfig.json'),
                 },
-                aotCaches: {
+                server: {
                     startServerScript: defaultRoutesPath,
+                    mode: 'viteSSR',
                 },
             }) as any,
         ],
@@ -108,11 +109,11 @@ async function run() {
             configFile: false,
             resolve: {conditions: ['source']},
             ssr: {resolve: {conditions: ['source']}},
-            server: {middlewareMode: true},
+            server: {middlewareMode: true, hmr: {port: 24680}},
             plugins: [
                 mionVitePlugin({
                     runTypes: {tsConfig: resolve(routerDir, 'tsconfig.json')},
-                    aotCaches: {startServerScript: defaultRoutesPath},
+                    server: {startServerScript: defaultRoutesPath, mode: 'viteSSR'},
                 }) as any,
             ],
         });

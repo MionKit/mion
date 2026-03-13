@@ -105,7 +105,9 @@ async function loadSSRRouterAndGenerateAOTCaches(loadModule, startServerScript) 
   const prevCompile = process.env.MION_COMPILE;
   process.env.MION_COMPILE = "viteSSR";
   try {
-    await loadModule(startServerScript);
+    const mod = await loadModule(startServerScript);
+    const promises = Object.values(mod).filter((v) => v instanceof Promise);
+    if (promises.length > 0) await Promise.all(promises);
     const aotModule = await loadModule("@mionjs/router/aot");
     const caches = await aotModule.getSerializedCaches();
     return caches;
