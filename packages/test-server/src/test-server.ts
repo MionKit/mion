@@ -308,8 +308,12 @@ const routes = {
     binary: binaryTestRoutes,
 } satisfies Routes;
 
-// Get port from command line args or use default
-const port = process.argv[2] ? parseInt(process.argv[2], 10) : 8076;
+// Get port from env var, command line args, or use default
+const port = process.env.MION_TEST_PORT
+    ? parseInt(process.env.MION_TEST_PORT, 10)
+    : process.argv[2]
+      ? parseInt(process.argv[2], 10)
+      : 8076;
 
 async function startServer() {
     try {

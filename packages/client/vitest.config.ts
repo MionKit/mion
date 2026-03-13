@@ -2,7 +2,11 @@ import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 
+// Set test server port so the IPC child process uses the same port as the tests
+process.env.MION_TEST_PORT = '8086';
+
 export default defineConfig({
+    // Browser-first resolution (client runs in browser by default, but also supports Node/SSR)
     resolve: {conditions: ['source']},
     ssr: {resolve: {conditions: ['source']}},
     plugins: [
@@ -14,9 +18,9 @@ export default defineConfig({
                 },
             },
             server: {
-                startServerScript: resolve(__dirname, '../router/src/defaultRoutes.ts'),
-                serverViteConfig: resolve(__dirname, '../router/vite.config.ts'),
-                mode: 'onlyAOT',
+                startServerScript: resolve(__dirname, '../test-server/src/test-server.ts'),
+                serverViteConfig: resolve(__dirname, '../test-server/vite.config.ts'),
+                mode: 'IPC',
             },
             aotCaches: {
                 customVirtualModuleId: 'client-mion-aot',
@@ -29,8 +33,9 @@ export default defineConfig({
         environment: 'node',
         include: ['src/**/*.spec.ts'],
         exclude: ['src/aot/aotSSR.e2e.test.ts'],
+        // Wait for the IPC-managed server to be ready before running tests
         globalSetup: './globalSetup.ts',
-        // Prevent test-server from auto-starting when imported
+        // Prevent test-server from auto-starting when imported by test files
         env: {
             MION_TEST_SERVER_AUTO_START: 'false',
         },

@@ -46,7 +46,7 @@ function mionVitePlugin(options) {
   let aotGenerationPromise = null;
   let aotCacheDir = "";
   let ssrLoadModule = null;
-  let ssrEnabled = false;
+  const ssrEnabled = serverConfig?.mode === "viteSSR";
   let ssrInitPromise = null;
   let persistentChild = null;
   let cleanupRegistered = false;
@@ -87,9 +87,6 @@ function mionVitePlugin(options) {
     configResolved(config) {
       if (aotOptions) {
         aotCacheDir = src_vitePlugin_aotDiskCache.resolveCacheDir(aotOptions, config.cacheDir);
-      }
-      if (serverConfig?.mode === "viteSSR") {
-        ssrEnabled = true;
       }
     },
     async buildStart() {

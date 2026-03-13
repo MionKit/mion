@@ -4,7 +4,7 @@ import { createDeepkitConfig, createPureFnTransformerFactory } from "./transform
 import { scanClientSource } from "./extractPureFn.js";
 import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX } from "./constants.js";
-import { generateAOTCaches, logAOTCaches, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, killPersistentChild, loadSSRRouterAndGenerateAOTCaches } from "./aotCacheGenerator.js";
+import { generateAOTCaches, logAOTCaches, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, loadSSRRouterAndGenerateAOTCaches, killPersistentChild } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
 function isRunningAsChild() {
   return process.env.MION_COMPILE === "onlyAOT" || process.env.MION_COMPILE === "serve";
@@ -27,7 +27,7 @@ function mionVitePlugin(options) {
   let aotGenerationPromise = null;
   let aotCacheDir = "";
   let ssrLoadModule = null;
-  let ssrEnabled = false;
+  const ssrEnabled = serverConfig?.mode === "viteSSR";
   let ssrInitPromise = null;
   let persistentChild = null;
   let cleanupRegistered = false;
@@ -68,9 +68,6 @@ function mionVitePlugin(options) {
     configResolved(config) {
       if (aotOptions) {
         aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
-      }
-      if (serverConfig?.mode === "viteSSR") {
-        ssrEnabled = true;
       }
     },
     async buildStart() {

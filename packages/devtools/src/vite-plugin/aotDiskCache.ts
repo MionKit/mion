@@ -147,7 +147,9 @@ export async function getOrGenerateAOTCaches(
     cacheDir: string
 ): Promise<AOTCacheResult> {
     const forceRegenerate = process.env.MION_AOT_FORCE === 'true';
-    const cachingEnabled = cacheDir !== '' && !forceRegenerate;
+    // IPC mode always needs a live child process (the server), so skip disk caching entirely
+    const isIPCMode = serverConfig.mode === 'IPC';
+    const cachingEnabled = cacheDir !== '' && !forceRegenerate && !isIPCMode;
 
     let hash = '';
     if (cachingEnabled) {

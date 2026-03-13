@@ -34,6 +34,7 @@ import {
     SerializerMode,
     isTestEnv,
     isMionCompileMode,
+    isMionAOTEmitMode,
     resetRoutesCache,
 } from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection} from './lib/reflection.ts';
@@ -233,7 +234,7 @@ async function loadAOTCaches() {
 }
 
 async function emitAOTCaches() {
-    if (!isMionCompileMode()) return;
+    if (!isMionAOTEmitMode()) return;
     // Dynamic import resolves relative to this source file.
     // This only runs via vite-node (MION_COMPILE=true), which always resolves from source.
     const aotEmitter = await import('./lib/aotEmitter.ts');
