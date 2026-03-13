@@ -8,17 +8,14 @@
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {jitFnsCache, pureFnsCache, routerCache} from 'virtual:mion-aot/caches';
 import {routesCache, MION_ROUTES, PureFnDef, HeadersSubset} from '@mionjs/core';
-import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata.ts';
+import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
 import {initClient} from './client.ts';
 import {ClientOptions} from './types.ts';
+import {getStorage} from './storage.ts';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
+import {resetClientCaches} from './testUtils.ts';
 import {TestServerApi} from '@mionjs/test-server';
-import Storage from 'dom-storage';
 import {pureServerFn} from '@mionjs/core';
-
-// Setup real localStorage for testing (same pattern as other client tests)
-global.localStorage = new Storage(null, {strict: true});
-global.sessionStorage = new Storage(null, {strict: true});
 
 // ============================================================
 // A. Virtual Module Resolution
@@ -122,7 +119,7 @@ describe('mion vite plugin: e2e with real server', () => {
             autoGenerateErrorId: false,
             serializer: 'stringifyJson',
         };
-        localStorage.clear();
+        getStorage().clear();
     });
 
     afterEach(() => {
@@ -191,7 +188,7 @@ describe('mion vite plugin: pureServerFn e2e', () => {
     const tripleArrowFn = pureServerFn((x: number) => x * 3);
 
     beforeEach(() => {
-        localStorage.clear();
+        getStorage().clear();
     });
 
     afterEach(() => {

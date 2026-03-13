@@ -17,12 +17,6 @@ import {mapFrom as rawMapFrom} from './routesFlow.ts';
 // vite plugin DOES inject bodyHash for e2e tests
 import {mapFrom} from './routesFlow.ts';
 
-// Mock localStorage for method metadata storage
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const Storage = require('dom-storage');
-global.localStorage = new Storage(null, {strict: true});
-global.sessionStorage = new Storage(null, {strict: true});
-
 // Helper to create auth headers for the test server's headersFn
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
     return new HeadersSubset({Authorization: token});

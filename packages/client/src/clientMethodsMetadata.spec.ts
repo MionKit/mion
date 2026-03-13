@@ -6,15 +6,12 @@
  * ######## */
 
 import {vi, describe, beforeEach, afterEach, it, expect} from 'vitest';
-import {fetchRemoteMethodsMetadata, resetClientCaches} from './clientMethodsMetadata.ts';
+import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
 import {ClientOptions} from './types.ts';
 import {routesCache} from '@mionjs/core';
-import Storage from 'dom-storage';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
-
-// Setup real localStorage for testing
-global.localStorage = new Storage(null, {strict: true});
-global.sessionStorage = new Storage(null, {strict: true});
+import {resetClientCaches} from './testUtils.ts';
+import {getStorage} from './storage.ts';
 
 describe('fetchRemoteMethodsMetadata', () => {
     const baseURL = TEST_SERVER_BASE_URL;
@@ -32,8 +29,8 @@ describe('fetchRemoteMethodsMetadata', () => {
             serializer: 'stringifyJson',
         };
 
-        // Clear localStorage
-        localStorage.clear();
+        // Clear storage
+        getStorage().clear();
     });
 
     afterEach(() => {
@@ -101,7 +98,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
         // Verify data was stored in localStorage
         const storageKey = `mionkit:client:serialized-method-data:${baseURL}:sayHello`;
-        const storedData = localStorage.getItem(storageKey);
+        const storedData = getStorage().getItem(storageKey);
         expect(storedData).toBeTruthy();
 
         // Clear the caches to simulate app restart (but keep localStorage)
@@ -129,6 +126,23 @@ describe('fetchRemoteMethodsMetadata', () => {
             // Restore original fetch
             global.fetch = originalFetch;
         }
+    });
+
+    it('should store and restore method metadata from storage', async () => {
+        // Fetch method metadata from server first
+        await fetchRemoteMethodsMetadata(['sayHello'], options);
+        const methodMeta = routesCache.getMetadata('sayHello');
+        expect(methodMeta).toBeDefined();
+
+        // Verify data was stored
+        const storageKey = `mionkit:client:serialized-method-data:${baseURL}:sayHello`;
+        const stored = getStorage().getItem(storageKey);
+        expect(stored).toBeTruthy();
+
+        // Verify stored data can be parsed back correctly
+        const parsed = JSON.parse(stored!);
+        expect(parsed.id).toBe('sayHello');
+        expect(parsed.paramNames).toBeDefined();
     });
 
     it('should handle non-existent routes gracefully', async () => {

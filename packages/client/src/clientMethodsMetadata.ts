@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {jitFnsCache, pureFnsCache, routerCache} from 'virtual:mion-aot/caches';
-import {RpcError, isRpcError, addAOTCaches, addRoutesToCache, resetRoutesCache, resetJitFnCaches, isTestEnv} from '@mionjs/core';
+import {jitFnsCache, pureFnsCache} from 'virtual:mion-aot/caches';
+import {RpcError, isRpcError, addRoutesToCache, isTestEnv} from '@mionjs/core';
 import {MION_ROUTES, getRoutePath} from '@mionjs/core';
 import {ClientOptions, RequestBody} from './types.ts';
 import type {
@@ -20,6 +20,7 @@ import type {
 import {routesCache, addSerializedJitCaches} from '@mionjs/core';
 import {STORAGE_KEY} from './constants.ts';
 import {deserializeResponseBody} from './serializer.ts';
+import {getStorage} from './storage.ts';
 import type {MionRoutes} from '@mionjs/router';
 
 type GetRemoteMethodsMetadataById = MionRoutes[typeof MION_ROUTES.methodsMetadataById]['handler'];
@@ -84,7 +85,7 @@ export function storeDependencies(deps: Record<string, JitCompiledFnData>, pureF
     Object.entries(deps).forEach(([hash, jitFnData]: [string, JitCompiledFnData]) => {
         const key = getJitCompiledFnKey(hash, options);
         try {
-            localStorage.setItem(key, JSON.stringify(jitFnData));
+            getStorage().setItem(key, JSON.stringify(jitFnData));
         } catch (error) {
             console.warn(`Failed to store JIT function dependency ${hash}:`, error);
         }
@@ -95,7 +96,7 @@ export function storeDependencies(deps: Record<string, JitCompiledFnData>, pureF
         Object.entries(nsPureFns).forEach(([fnHash, pureFnData]: [string, PureFunctionData]) => {
             const key = getJitPureFnKey(namespace, fnHash, options);
             try {
-                localStorage.setItem(key, JSON.stringify(pureFnData));
+                getStorage().setItem(key, JSON.stringify(pureFnData));
             } catch (error) {
                 console.warn(`Failed to store pure function dependency ${namespace}::${fnHash}:`, error);
             }
@@ -108,7 +109,7 @@ export function storeMethodsMetadata(methods: MethodsCache, options: ClientOptio
     Object.entries(methods).forEach(([methodId, methodData]) => {
         const key = getSerializedMethodDataKey(methodId, options);
         try {
-            localStorage.setItem(key, JSON.stringify(methodData));
+            getStorage().setItem(key, JSON.stringify(methodData));
         } catch (error) {
             console.warn(`Failed to store method metadata ${methodId}:`, error);
         }
@@ -121,11 +122,11 @@ export function restoreAllDependencies(options: ClientOptions) {
     const pureFnDeps: PureFnsDataCache = {};
     const pureFnKeyPrefix = `${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:`;
 
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
+    for (let i = 0; i < getStorage().length; i++) {
+        const key = getStorage().key(i);
         if (key?.startsWith(`${STORAGE_KEY}:jit-compiled-fn:${options.baseURL}:`)) {
             try {
-                const data = localStorage.getItem(key);
+                const data = getStorage().getItem(key);
                 if (data) {
                     const parsedData = JSON.parse(data);
                     deps[parsedData.jitFnHash] = parsedData;
@@ -136,11 +137,11 @@ export function restoreAllDependencies(options: ClientOptions) {
         }
     }
 
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
+    for (let i = 0; i < getStorage().length; i++) {
+        const key = getStorage().key(i);
         if (key?.startsWith(pureFnKeyPrefix)) {
             try {
-                const data = localStorage.getItem(key);
+                const data = getStorage().getItem(key);
                 if (data) {
                     const parsedData = JSON.parse(data);
                     // Extract namespace from key: "mion:jit-pure-fn:baseURL:namespace:fnHash"
@@ -170,7 +171,7 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
     methodIds.forEach((id) => {
         if (routesCache.hasMetadata(id)) return;
         const methodKey = getSerializedMethodDataKey(id, options);
-        const methodMetaJson = localStorage.getItem(methodKey);
+        const methodMetaJson = getStorage().getItem(methodKey);
         if (methodMetaJson) {
             try {
                 const methodMeta: MethodWithOptions = JSON.parse(methodMetaJson);
@@ -178,7 +179,7 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
                 anyMethodsRestored = true;
             } catch (error) {
                 console.warn(`Failed to restore method metadata for ${id}:`, error);
-                localStorage.removeItem(methodKey);
+                getStorage().removeItem(methodKey);
             }
         }
     });
@@ -198,26 +199,9 @@ function addToCaches(serializableMethodsData: SerializableMethodsData) {
     addRoutesToCache(serializableMethodsData.methods);
 }
 
-/**
- * Resets the client caches and re-registers AOT caches.
- * Mostly useful for testing to simulate app restart.
- */
-export function resetClientCaches() {
-    if (!isTestEnv()) throw new Error('resetClientCaches() can only be called fro testing purposes');
-    resetRoutesCache();
-    resetJitFnCaches();
-    // Re-register AOT caches (virtual module imports only execute once, so we re-register from the saved data)
-    registerAOTCaches();
-}
-
-/** Registers AOT caches from the virtual module data. */
-function registerAOTCaches() {
-    if (Object.keys(jitFnsCache).length > 0 || Object.keys(pureFnsCache).length > 0) {
-        addAOTCaches(jitFnsCache, pureFnsCache);
-    }
-    if (Object.keys(routerCache).length > 0) {
-        addRoutesToCache(routerCache);
-    }
+/** Returns the AOT caches from the virtual module. Used by test utilities to filter and reset caches. */
+export function getAOTCaches() {
+    return {jitFnsCache, pureFnsCache};
 }
 
 /** Validates that required MION_ROUTES are loaded in the cache. Skipped in test environments. */
