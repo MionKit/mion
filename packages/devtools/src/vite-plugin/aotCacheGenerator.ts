@@ -186,7 +186,10 @@ export async function loadSSRRouterAndGenerateAOTCaches(
     try {
         // Load the start server script — triggers initMionRouter(), populates caches,
         // skips process.send (SSR mode) and skips server.listen() (platform adapters)
-        await loadModule(startServerScript);
+        const mod = await loadModule(startServerScript);
+        // Await any Promise-valued exports (e.g. initMionRouter() without top-level await)
+        const promises = Object.values(mod).filter((v): v is Promise<any> => v instanceof Promise);
+        if (promises.length > 0) await Promise.all(promises);
 
         // Get caches directly from the router's global state
         const aotModule = await loadModule('@mionjs/router/aot');
