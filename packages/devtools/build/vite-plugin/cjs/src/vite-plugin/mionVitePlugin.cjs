@@ -25,21 +25,6 @@ function _interopNamespaceDefault(e) {
   return Object.freeze(n);
 }
 const ts__namespace = /* @__PURE__ */ _interopNamespaceDefault(ts);
-const READY_KEY = "__mion_server_ready__";
-function getOrCreateServerReady() {
-  if (!globalThis[READY_KEY]) {
-    let _resolve;
-    globalThis[READY_KEY] = {
-      promise: new Promise((r) => {
-        _resolve = r;
-      }),
-      resolve: () => _resolve()
-    };
-  }
-  return globalThis[READY_KEY];
-}
-const serverReady = getOrCreateServerReady().promise;
-const onServerReady = getOrCreateServerReady().resolve;
 function isRunningAsChild() {
   return process.env.MION_COMPILE === "onlyAOT" || process.env.MION_COMPILE === "serve";
 }
@@ -129,6 +114,8 @@ function mionVitePlugin(options) {
             }).catch((err) => {
               console.error(`[mion] ${err instanceof Error ? err.message : String(err)}`);
             });
+          } else {
+            onServerReady();
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -159,6 +146,7 @@ function mionVitePlugin(options) {
         const platformNode = await server.ssrLoadModule("@mionjs/platform-node");
         nodeRequestHandler = platformNode.httpRequestHandler;
         console.log("[mion] Dev server proxy initialized");
+        onServerReady();
       }).catch((err) => {
         initFailed = true;
         const message = err instanceof Error ? err.message : String(err);
@@ -394,9 +382,23 @@ function buildAOTVirtualModuleMaps(customVirtualModuleId) {
   }
   return { aotVirtualModules, aotResolvedIds };
 }
+const READY_KEY = /* @__PURE__ */ Symbol.for("mion.serverReady");
+function getOrCreateServerReady() {
+  if (!globalThis[READY_KEY]) {
+    let _resolve;
+    globalThis[READY_KEY] = {
+      promise: new Promise((r) => {
+        _resolve = r;
+      }),
+      resolve: () => _resolve()
+    };
+  }
+  return globalThis[READY_KEY];
+}
+const serverReady = getOrCreateServerReady().promise;
+const onServerReady = getOrCreateServerReady().resolve;
 exports.isIncluded = isIncluded;
 exports.mionVitePlugin = mionVitePlugin;
-exports.onServerReady = onServerReady;
 exports.parseVueModuleId = parseVueModuleId;
 exports.serverReady = serverReady;
 //# sourceMappingURL=mionVitePlugin.cjs.map

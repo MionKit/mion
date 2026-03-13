@@ -1,6 +1,4 @@
 import { ServerPureFunctionsOptions, DeepkitTypeOptions, AOTCacheOptions, MionServerConfig } from './types.ts';
-export declare const serverReady: Promise<void>;
-export declare const onServerReady: () => void;
 export interface MionPluginOptions {
     serverPureFunctions?: ServerPureFunctionsOptions;
     runTypes?: DeepkitTypeOptions;
@@ -35,3 +33,4 @@ export declare function parseVueModuleId(id: string): {
     lang: string | null;
 } | null;
 export declare function isIncluded(filePath: string, include: string[], exclude: string[]): boolean;
+export declare const serverReady: Promise<void>;
