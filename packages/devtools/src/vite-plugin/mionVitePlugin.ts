@@ -104,7 +104,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
     // SSR AOT: module loader (set in configureServer when SSR mode is active)
     let ssrLoadModule: ((url: string) => Promise<Record<string, any>>) | null = null;
     /** Whether SSR mode is active — resolved from server config */
-    let ssrEnabled = false;
+    const ssrEnabled = serverConfig?.mode === 'viteSSR';
     /** SSR init promise: AOT generation + router/platform module loading */
     let ssrInitPromise: Promise<void> | null = null;
 
@@ -158,10 +158,6 @@ export function mionVitePlugin(options: MionPluginOptions) {
         configResolved(config) {
             if (aotOptions) {
                 aotCacheDir = resolveCacheDir(aotOptions, config.cacheDir);
-            }
-            // viteSSR mode is now explicit via server config
-            if (serverConfig?.mode === 'viteSSR') {
-                ssrEnabled = true;
             }
         },
 

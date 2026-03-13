@@ -94,7 +94,8 @@ function resolveCacheDir(options, viteCacheDir) {
 }
 async function getOrGenerateAOTCaches(serverConfig, aotOptions, cacheDir) {
   const forceRegenerate = process.env.MION_AOT_FORCE === "true";
-  const cachingEnabled = cacheDir !== "" && !forceRegenerate;
+  const isIPCMode = serverConfig.mode === "IPC";
+  const cachingEnabled = cacheDir !== "" && !forceRegenerate && !isIPCMode;
   let hash = "";
   if (cachingEnabled) {
     hash = computeSourceHash(serverConfig, aotOptions);
