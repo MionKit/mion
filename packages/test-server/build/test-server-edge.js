@@ -602,7 +602,11 @@
   let isTest = void 0;
   function isMionCompileMode() {
     const val = getENV("MION_COMPILE");
-    return val === "true" || val === "SSR";
+    return val === "onlyAOT" || val === "viteSSR";
+  }
+  function isMionAOTEmitMode() {
+    const val = getENV("MION_COMPILE");
+    return val === "onlyAOT" || val === "viteSSR" || val === "serve";
   }
   function isTestEnv() {
     if (isTest !== void 0) return isTest;
@@ -1046,10 +1050,6 @@
   const MAX_ROUTE_NESTING = 10;
   const WORKFLOW_KEY = `mion-routes-flow`;
   const WORKFLOW_PATH = `${PATH_SEPARATOR}${WORKFLOW_KEY}`;
-  function join(...parts) {
-    return parts.filter(Boolean).join("/");
-  }
-  join.__type = ["parts", "join", 'P&@2!&/"'];
   let persistedMethods = {};
   function addToPersistedMethods(id, method) {
     if (!shouldCompile() || !!persistedMethods[id]) return;
@@ -1081,7 +1081,7 @@
     return restored;
   }
   function shouldCompile() {
-    return isMionCompileMode();
+    return isMionAOTEmitMode();
   }
   function loadCompiledMethods(compiledMethods) {
     for (const [key, value] of Object.entries(compiledMethods)) {
@@ -1612,7 +1612,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     mionDeserializeRequest: rawMiddleFn(deserializeRequestBody, { runOnError: true }),
     mionSerializeResponse: rawMiddleFn(serializeResponseBody, { runOnError: true })
   };
-  const mionInternalRoutes$1 = Object.values(MION_ROUTES);
   const publicMethods = /* @__PURE__ */ new Map();
   function resetRemoteMethodsMetadata() {
     publicMethods.clear();
@@ -1655,15 +1654,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       options: executable.options
     };
     if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
-    if (executable.type === HandlerType$1.route) {
-      const path = getRoutePath(executable.pointer, getRouterOptions());
-      const pathPointers = getRouteExecutionChain(path)?.methods.filter((exec) => isPublicExecutable(exec)).map((exec) => exec.pointer) || [];
-      newRemoteMethod.middleFnIds = pathPointers.map((pointer) => getRouterItemId(pointer)).filter((id) => {
-        if (mionInternalRoutes$1.includes(id)) return false;
-        const exec = getMiddleFnExecutable(id);
-        return exec && isPublicExecutable(exec);
-      });
-    }
+    if (executable.middleFnIds) newRemoteMethod.middleFnIds = executable.middleFnIds;
     publicMethods.set(executable.id, newRemoteMethod);
     return newRemoteMethod;
   }
@@ -1726,7 +1717,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   const defaultClientRouteOptions = {
     getAllRemoteMethodsMaxNumber: 100
   };
-  const mionInternalRoutes = Object.values(MION_ROUTES);
+  const mionInternalRoutes$1 = Object.values(MION_ROUTES);
   function mionGetRemoteMethodsDataById(ctx, methodsIds, getAllRemoteMethods) {
     const resp = {
       methods: {},
@@ -1736,7 +1727,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const errorData = {};
     const maxMethods = (getRouterOptions.Ω = [[() => __ΩClientRouteOptions, "n!"]], getRouterOptions()).getAllRemoteMethodsMaxNumber || defaultClientRouteOptions.getAllRemoteMethodsMaxNumber;
     const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
-    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$4((id) => !mionInternalRoutes.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
+    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$4((id) => !mionInternalRoutes$1.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
     idsToReturn.forEach(__assignType$4((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData), ["id", "", 'P"2!"/"']));
     if (Object.keys(errorData).length)
       return new RpcError({
@@ -1762,7 +1753,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const { methods, deps, purFnDeps } = resp;
     if (methods[id])
       return;
-    if (mionInternalRoutes.includes(id))
+    if (mionInternalRoutes$1.includes(id))
       return;
     const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
     if (!executable) {
@@ -2141,6 +2132,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return { executionChain };
   }
+  const mionInternalRoutes = Object.values(MION_ROUTES);
   const flatRouter = /* @__PURE__ */ new Map();
   const middleFnsById = /* @__PURE__ */ new Map();
   const routesById = /* @__PURE__ */ new Map();
@@ -2256,7 +2248,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return loader.loadAOTCaches();
   }
   async function emitAOTCaches$1() {
-    if (!isMionCompileMode()) return;
+    if (!isMionAOTEmitMode()) return;
     const aotEmitter$1 = await Promise.resolve().then(() => aotEmitter);
     return aotEmitter$1.emitAOTCaches();
   }
@@ -2265,28 +2257,30 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       throw new Error("Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels");
     const entries = Object.entries(routes);
     if (entries.length === 0)
-      throw new Error(`Invalid route: ${currentPointer.length ? join(...currentPointer) : "*"}. Can Not define empty routes`);
+      throw new Error(
+        `Invalid route: ${currentPointer.length ? joinPath(...currentPointer) : "*"}. Can Not define empty routes`
+      );
     let minus1Props = null;
     for (let index = 0; index < entries.length; index++) {
       const [key, item] = entries[index];
       const newPointer = [...currentPointer, key];
       let routeEntry;
       if (typeof key !== "string" || !isNaN(key))
-        throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
-      if (key.includes(",")) throw new Error(`Invalid route: ${join(...newPointer)}. Route names cannot contain commas.`);
+        throw new Error(`Invalid route: ${joinPath(...newPointer)}. Numeric route names are not allowed`);
+      if (key.includes(",")) throw new Error(`Invalid route: ${joinPath(...newPointer)}. Route names cannot contain commas.`);
       if (key === WORKFLOW_KEY)
-        throw new Error(`Invalid route: ${join(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
+        throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
       if (isAnyMiddleFnDef(item)) {
         routeEntry = await getExecutableFromAnyMiddleFn(item, newPointer, nestLevel);
         if (middleFnNames.has(routeEntry.id))
           throw new Error(
-            `Invalid middleFn: ${join(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`
+            `Invalid middleFn: ${joinPath(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`
           );
         middleFnNames.add(routeEntry.id);
       } else if (isRoute(item)) {
         routeEntry = await getExecutableFromRoute(item, newPointer, nestLevel);
         if (routeNames.has(routeEntry.id))
-          throw new Error(`Invalid route: ${join(...newPointer)}. Naming collision, duplicated route`);
+          throw new Error(`Invalid route: ${joinPath(...newPointer)}. Naming collision, duplicated route`);
         routeNames.add(routeEntry.id);
       } else if (isRoutes(item)) {
         routeEntry = {
@@ -2295,7 +2289,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         };
       } else {
         const itemType = typeof item;
-        throw new Error(`Invalid route: ${join(...newPointer)}. Type <${itemType}> is not a valid route.`);
+        throw new Error(`Invalid route: ${joinPath(...newPointer)}. Type <${itemType}> is not a valid route.`);
       }
       minus1Props = await recursiveCreateExecutionChainAsync(
         routeEntry,
@@ -2343,6 +2337,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         methods,
         serializer: getSerializerCodeFromMode(routeMethod.options.serializer)
       };
+      const middleFnIds = getPublicMiddleFnIds(methods);
+      if (middleFnIds.length) routeMethod.middleFnIds = middleFnIds;
       flatRouter.set(path, executionChain);
     } else if (!isExec) {
       await recursiveFlatRoutes(
@@ -2445,6 +2441,14 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     routesCache.setMethodJitFns(routeId, executable);
     return executable;
   }
+  function getPublicMiddleFnIds(methods) {
+    const ids = methods.filter((exec) => isPublicExecutable(exec)).map((exec) => getRouterItemId(exec.pointer)).filter((mfId) => {
+      if (mionInternalRoutes.includes(mfId)) return false;
+      const exec = getMiddleFnExecutable(mfId);
+      return exec && isPublicExecutable(exec);
+    });
+    return ids;
+  }
   function getEntry(index, keyEntryList) {
     return keyEntryList[index]?.[1];
   }
@@ -2491,6 +2495,9 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       default:
         return SerializerModes.json;
     }
+  }
+  function joinPath(...parts) {
+    return parts.filter(Boolean).join("/");
   }
   async function dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, rawRequest, rawResponse, reqBodyType, urlQuery) {
     const opts2 = getRouterOptions();
@@ -2779,7 +2786,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   const edgeRoutes = { changeUserName, getDate, updateHeaders };
   (async () => {
     const mionCompile = typeof process !== "undefined" ? process.env?.MION_COMPILE : void 0;
-    if (mionCompile === "true" || mionCompile === "SSR") {
+    if (mionCompile === "onlyAOT" || mionCompile === "viteSSR") {
       await initMionRouter(edgeRoutes, {
         contextDataFactory: getSharedData,
         basePath: "api/"
@@ -5074,9 +5081,9 @@ if (Des.view.getUint8(tbimI0, 1) & (1 << (0))) {ret[0] = fBi_btp3Jb.fn(undefined
   }
   getSerializedCaches.__type = [() => __ΩSerializedCaches, "getSerializedCaches", 'Pn!`/"'];
   async function emitAOTCaches() {
-    if (!isMionCompileMode())
+    if (!isMionAOTEmitMode())
       return;
-    if (getENV("MION_COMPILE") === "SSR")
+    if (getENV("MION_COMPILE") === "viteSSR")
       return;
     if (typeof process.send !== "function")
       return;

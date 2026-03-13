@@ -16,27 +16,9 @@ import type {
     MethodWithOptions,
     PureFnsDataCache,
 } from '@mionjs/core';
-import {isRoute, isHeadersMiddleFnDef, isMiddleFnDef, isPublicExecutable} from '../types/guards.ts';
-import {
-    getMiddleFnExecutable,
-    getRouteExecutable,
-    getRouteExecutionChain,
-    getRouterOptions,
-    isPrivateDefinition,
-} from '../router.ts';
-import {
-    getRoutePath,
-    getRouterItemId,
-    MAX_STACK_DEPTH,
-    getJitFnHashes,
-    getJitUtils,
-    HandlerType,
-    EMPTY_HASH,
-    MION_ROUTES,
-} from '@mionjs/core';
-
-/** Internal mion route IDs that should not be exposed to clients */
-const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
+import {isRoute, isHeadersMiddleFnDef, isMiddleFnDef} from '../types/guards.ts';
+import {getMiddleFnExecutable, getRouteExecutable, isPrivateDefinition} from '../router.ts';
+import {getRouterItemId, MAX_STACK_DEPTH, getJitFnHashes, getJitUtils, EMPTY_HASH} from '@mionjs/core';
 
 // ############# PRIVATE STATE #############
 const publicMethods: Map<string, MethodWithOptions> = new Map();
@@ -99,20 +81,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
         options: executable.options,
     };
     if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
-    if (executable.type === HandlerType.route) {
-        const path = getRoutePath(executable.pointer, getRouterOptions());
-        const pathPointers =
-            getRouteExecutionChain(path)
-                ?.methods.filter((exec) => isPublicExecutable(exec))
-                .map((exec) => exec.pointer) || [];
-        newRemoteMethod.middleFnIds = pathPointers
-            .map((pointer) => getRouterItemId(pointer))
-            .filter((id) => {
-                if (mionInternalRoutes.includes(id)) return false;
-                const exec = getMiddleFnExecutable(id);
-                return exec && isPublicExecutable(exec);
-            });
-    }
+    if (executable.middleFnIds) newRemoteMethod.middleFnIds = executable.middleFnIds;
     publicMethods.set(executable.id, newRemoteMethod);
     return newRemoteMethod as MethodWithOptions;
 }
