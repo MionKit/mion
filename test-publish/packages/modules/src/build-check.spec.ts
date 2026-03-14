@@ -14,7 +14,7 @@ import {existsSync} from 'fs';
  * This test runs first and fails fast if any package is missing its build artifacts.
  */
 describe('Build Verification', () => {
-    const packagesDir = resolve(__dirname, '../../../../');
+    const packagesDir = resolve(__dirname, '../../../../packages');
 
     /** List of packages that must be built before running test-publish tests */
     const requiredPackages = [

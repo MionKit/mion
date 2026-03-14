@@ -52,7 +52,7 @@ async function killProcessOnPort(port: number): Promise<void> {
 
 /** Start a test server process */
 async function startServer(port: number, serverScript: string, label: string): Promise<ReturnType<typeof spawn>> {
-    const testServerPackage = path.resolve(__dirname, '../test-server');
+    const testServerPackage = path.resolve(__dirname, '../packages/test-server');
     const viteConfig = path.join(testServerPackage, 'vite.config.ts');
 
     const serverProcess = spawn('npx', ['vite-node', '--config', viteConfig, serverScript, port.toString()], {
@@ -122,7 +122,7 @@ async function stopServer(serverProcess: ReturnType<typeof spawn> | null, port: 
 
 /** Vitest globalSetup - starts the test server before all tests */
 export default async function globalSetup(): Promise<() => Promise<void>> {
-    const testServerPackage = path.resolve(__dirname, '../test-server');
+    const testServerPackage = path.resolve(__dirname, '../packages/test-server');
     const serverScript = path.join(testServerPackage, 'src/test-server.ts');
 
     console.log(`\n🚀 Starting test server...`);

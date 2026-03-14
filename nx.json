@@ -25,6 +25,6 @@
   },
   "defaultBase": "master",
   "release": {
-    "projects": ["packages/*", "!packages/test-publish", "!packages/test-server"]
+    "projects": ["packages/*", "!packages/test-server"]
   }
 }

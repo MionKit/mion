@@ -27,19 +27,19 @@
     "fresh-start": "npm run clean && rimraf node_modules"
   },
   "dependencies": {
-    "@mionjs/platform-aws": "^0.7.2",
-    "@mionjs/platform-bun": "^0.7.2",
-    "@mionjs/client": "^0.7.2",
-    "@mionjs/core": "^0.7.2",
-    "@mionjs/platform-gcloud": "^0.7.2",
-    "@mionjs/platform-node": "^0.7.2",
-    "@mionjs/router": "^0.7.2",
-    "@mionjs/run-types": "^0.7.2",
-    "@mionjs/test-server": "^0.7.2",
-    "@mionjs/type-formats": "^0.7.2"
+    "@mionjs/platform-aws": "file:../packages/platform-aws",
+    "@mionjs/platform-bun": "file:../packages/platform-bun",
+    "@mionjs/client": "file:../packages/client",
+    "@mionjs/core": "file:../packages/core",
+    "@mionjs/platform-gcloud": "file:../packages/platform-gcloud",
+    "@mionjs/platform-node": "file:../packages/platform-node",
+    "@mionjs/router": "file:../packages/router",
+    "@mionjs/run-types": "file:../packages/run-types",
+    "@mionjs/test-server": "file:../packages/test-server",
+    "@mionjs/type-formats": "file:../packages/type-formats"
   },
   "devDependencies": {
     "dom-storage": "^2.1.0",
-    "@mionjs/devtools": "^0.8.0-alpha.0"
+    "@mionjs/devtools": "file:../packages/devtools"
   }
 }
