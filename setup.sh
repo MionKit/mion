@@ -4,8 +4,8 @@ set -e
 # Update system packages
 sudo apt-get update
 
-# Install Node.js 20.x (required by package.json engines field)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# Install Node.js 24.x (required by package.json engines field)
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
 # Verify Node.js version
@@ -16,7 +16,7 @@ npm --version
 sudo npm install -g npm@latest
 
 # Install lerna globally first
-sudo npm install -g lerna@7.1.5
+sudo npm install -g lerna@9.0.7
 
 # Clear npm cache to avoid potential issues
 npm cache clean --force

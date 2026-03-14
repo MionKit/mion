@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 step=0
-total_steps=8
+total_steps=6
 
 print_step() {
   step=$((step + 1))
@@ -19,12 +19,9 @@ print_step() {
   echo "──────────────────────────────────────────"
 }
 
-# ── Step 1: Fresh install ──
-print_step "Clean everything and fresh install"
-rm -rf node_modules package-lock.json .nx
-find packages -name .dist -type d -exec rm -rf {} + 2>/dev/null || true
-rm -rf packages/devtools/build
-npm install
+# ── Step 1: Fresh start (clean, reinstall, build devtools) ──
+print_step "Fresh start"
+npm run fresh-start
 
 # ── Step 2: Run all tests ──
 print_step "Run all tests"
@@ -46,18 +43,7 @@ npm install --ignore-scripts
 npm run verify
 cd ..
 
-# ── Step 6: Dry-run npm pack for key packages ──
-print_step "Verify package contents (npm pack --dry-run)"
-packages=(core run-types type-formats router client devtools platform-node platform-aws platform-gcloud platform-vercel platform-bun platform-cloudflare drizze)
-for pkg in "${packages[@]}"; do
-  echo ""
-  echo -e "${YELLOW}@mionjs/$pkg${NC}"
-  cd "packages/$pkg"
-  npm pack --dry-run 2>&1
-  cd ../..
-done
-
-# ── Step 7: List packages to publish ──
+# ── Step 6: List packages to publish ──
 print_step "Packages that will be published"
 npx lerna ls --no-private --json
 
