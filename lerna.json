@@ -1,5 +1,5 @@
 {
-  "packages": ["packages/*"],
   "version": "0.7.2",
-  "useWorkspaces": true
+  "loglevel": "error",
+  "$schema": "node_modules/lerna/schemas/lerna-schema.json"
 }
