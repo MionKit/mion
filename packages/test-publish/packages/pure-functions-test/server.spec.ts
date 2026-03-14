@@ -3,19 +3,19 @@ import {resetHashes, resetJitFnCaches, addAOTCaches, getJitUtils} from '@mionjs/
 import {PURE_SERVER_FN_NAMESPACE} from '@mionjs/core';
 
 // Import the virtual module - Vite plugin automatically scans test-client/src
-import {pureFnsCache} from 'virtual:mion-server-pure-fns';
+import {serverPureFnsCache} from 'virtual:mion-server-pure-fns';
 
 beforeAll(() => {
     resetHashes();
     resetJitFnCaches();
     // Register the pure functions from the virtual module into core
-    addAOTCaches({}, pureFnsCache);
+    addAOTCaches({}, serverPureFnsCache);
 });
 
 describe('E2E: Server loads virtual module via Vite plugin', () => {
     it('should have pure functions automatically extracted from client source', () => {
         const jitUtils = getJitUtils();
-        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
+        const namespaceCache = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE];
 
         expect(namespaceCache).toBeDefined();
 
@@ -30,7 +30,7 @@ describe('E2E: Server loads virtual module via Vite plugin', () => {
 
     it('should execute addOne function', () => {
         const jitUtils = getJitUtils();
-        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
+        const namespaceCache = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE];
 
         // Find the addOne function by its code pattern
         const addOneHash = Object.keys(namespaceCache).find((hash) => namespaceCache[hash].code.includes('x + 1'));
@@ -45,7 +45,7 @@ describe('E2E: Server loads virtual module via Vite plugin', () => {
 
     it('should execute mapUsersToPreferences function', () => {
         const jitUtils = getJitUtils();
-        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
+        const namespaceCache = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE];
 
         const mapFnHash = Object.keys(namespaceCache).find((hash) => namespaceCache[hash].code.includes('userId'));
 
@@ -65,7 +65,7 @@ describe('E2E: Server loads virtual module via Vite plugin', () => {
 
     it('should execute combineArrays function', () => {
         const jitUtils = getJitUtils();
-        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
+        const namespaceCache = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE];
 
         const combineHash = Object.keys(namespaceCache).find((hash) => namespaceCache[hash].code.includes('[...a, ...b]'));
 
@@ -77,7 +77,7 @@ describe('E2E: Server loads virtual module via Vite plugin', () => {
 
     it('should execute filterByThreshold function', () => {
         const jitUtils = getJitUtils();
-        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
+        const namespaceCache = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE];
 
         const filterHash = Object.keys(namespaceCache).find((hash) => namespaceCache[hash].code.includes('threshold'));
 
@@ -99,7 +99,7 @@ describe('E2E: Server loads virtual module via Vite plugin', () => {
 
     it('should produce valid bodyHashes that match between virtual module and core cache', () => {
         const jitUtils = getJitUtils();
-        const namespaceCache = pureFnsCache[PURE_SERVER_FN_NAMESPACE];
+        const namespaceCache = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE];
 
         // Verify bodyHash matches between virtual module and core cache
         for (const bodyHash of Object.keys(namespaceCache)) {
