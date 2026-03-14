@@ -35,7 +35,7 @@ export interface MionPluginOptions {
     /** Options for deepkit type transformation - omit to disable */
     runTypes?: DeepkitTypeOptions;
     /** Options for AOT cache generation - omit to disable */
-    aotCaches?: AOTCacheOptions;
+    aotCaches?: AOTCacheOptions | true;
     /** Server configuration - controls how the server process is managed */
     server?: MionServerConfig;
 }
@@ -80,7 +80,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
     let extractedFns: ExtractedPureFn[] | null = null;
     const pureFnOptions = options.serverPureFunctions;
     const runTypesOptions = options.runTypes;
-    const aotOptions = options.aotCaches;
+    const aotOptions: AOTCacheOptions | undefined = options.aotCaches === true ? {} : options.aotCaches;
     const serverConfig = options.server;
     const deepkitConfig: DeepkitConfig | null = runTypesOptions ? createDeepkitConfig(runTypesOptions) : null;
 

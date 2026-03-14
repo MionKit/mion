@@ -6,7 +6,7 @@ export default defineConfig({
     plugins: [
         mionPlugin({
             runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-            aotCaches: {cache: true},
+            aotCaches: true,
             // Starts a router to emit AOT caches and then process dies
             // server never actually start listening
             server: {

@@ -32,7 +32,7 @@ function mionVitePlugin(options) {
   let extractedFns = null;
   const pureFnOptions = options.serverPureFunctions;
   const runTypesOptions = options.runTypes;
-  const aotOptions = options.aotCaches;
+  const aotOptions = options.aotCaches === true ? {} : options.aotCaches;
   const serverConfig = options.server;
   const deepkitConfig = runTypesOptions ? src_vitePlugin_transformers.createDeepkitConfig(runTypesOptions) : null;
   const defaultCompilerOptions = {

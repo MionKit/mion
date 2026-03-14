@@ -2,7 +2,7 @@ import { ServerPureFunctionsOptions, DeepkitTypeOptions, AOTCacheOptions, MionSe
 export interface MionPluginOptions {
     serverPureFunctions?: ServerPureFunctionsOptions;
     runTypes?: DeepkitTypeOptions;
-    aotCaches?: AOTCacheOptions;
+    aotCaches?: AOTCacheOptions | true;
     server?: MionServerConfig;
 }
 export declare function mionVitePlugin(options: MionPluginOptions): {
