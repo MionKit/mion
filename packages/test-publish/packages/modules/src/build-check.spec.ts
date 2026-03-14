@@ -17,14 +17,23 @@ describe('Build Verification', () => {
     const packagesDir = resolve(__dirname, '../../../../');
 
     /** List of packages that must be built before running test-publish tests */
-    const requiredPackages = ['core', 'run-types', 'router', 'node', 'client', 'aws', 'gcloud', 'bun'];
+    const requiredPackages = [
+        'core',
+        'run-types',
+        'router',
+        'platform-node',
+        'client',
+        'platform-aws',
+        'platform-gcloud',
+        'platform-bun',
+    ];
 
     it('should verify all required packages are built', () => {
         const missingBuilds: string[] = [];
 
         for (const pkg of requiredPackages) {
             const esmPath = resolve(packagesDir, pkg, '.dist/esm/index.js');
-            const cjsPath = resolve(packagesDir, pkg, '.dist/cjs/index.js');
+            const cjsPath = resolve(packagesDir, pkg, '.dist/cjs/index.cjs');
             const esmTypesPath = resolve(packagesDir, pkg, '.dist/esm/index.d.ts');
 
             // Check if ESM build exists

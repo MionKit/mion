@@ -22,8 +22,12 @@ export default defineConfig({
     },
     resolve: {
         alias: {
+            // Virtual module shims (must be listed before package aliases)
+            'virtual:mion-aot/caches': resolve(__dirname, './virtual-mion-aot-caches.ts'),
+            'virtual:mion-server-pure-fns': resolve(__dirname, './virtual-mion-server-pure-fns.ts'),
             // All @mionjs/* packages resolve to their built .dist folders
             // This ensures we test the actual published artifacts, not source files
+            '@mionjs/client/aot': resolve(__dirname, '../client/.dist/esm/src/aot/loadClientAOTCaches.js'),
             '@mionjs/core': resolve(__dirname, '../core/.dist/esm'),
             '@mionjs/run-types': resolve(__dirname, '../run-types/.dist/esm'),
             '@mionjs/type-formats': resolve(__dirname, '../type-formats/.dist/esm'),
