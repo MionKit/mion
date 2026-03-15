@@ -15,10 +15,10 @@ echo -e "${GREEN}═════════════════════
 echo ""
 echo -e "${GREEN}[1/4] Checking npm authentication...${NC}"
 echo "──────────────────────────────────────────"
-NPM_USER=$(npm whoami 2>&1) || {
+if ! NPM_USER=$(npm whoami --no-interactive 2>/dev/null); then
   echo -e "${RED}Not logged in to npm. Run 'npm login' first.${NC}"
   exit 1
-}
+fi
 echo -e "Logged in as: ${GREEN}${NPM_USER}${NC}"
 
 # ── Check clean working tree ──
@@ -43,7 +43,8 @@ npx lerna version --no-private
 echo ""
 echo -e "${GREEN}[4/4] Publishing to npm...${NC}"
 echo "──────────────────────────────────────────"
-npx lerna publish from-package --no-private --ignore-scripts
+read -rp "Enter npm OTP code: " OTP
+npx lerna publish from-package --no-private --ignore-scripts --otp="${OTP}"
 
 echo ""
 echo -e "${GREEN}══════════════════════════════════════════${NC}"
