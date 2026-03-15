@@ -1,3 +1,4 @@
+import {resolve} from 'path';
 import {describe, it, expect, vi, afterEach} from 'vitest';
 import {mionVitePlugin} from './mionVitePlugin.ts';
 import {AOT_CACHES_SHIM, VIRTUAL_AOT_CACHES, resolveVirtualId} from './constants.ts';
@@ -96,10 +97,21 @@ describe('resolveId hook - AOT caches', () => {
         return mionVitePlugin({aotCaches: true});
     }
 
-    it('should resolve AOT_CACHES_SHIM to VIRTUAL_AOT_CACHES', () => {
+    it('should resolve bare specifier AOT_CACHES_SHIM to aotCaches.ts source file', () => {
         const plugin = getPlugin();
         const result = plugin.resolveId(AOT_CACHES_SHIM, undefined);
-        expect(result).toBe(resolveVirtualId(VIRTUAL_AOT_CACHES));
+        // resolveCorePath finds @mionjs/core via Node module resolution,
+        // then redirects to source aotCaches.ts so emptyCaches.ts interception works
+        expect(result).toMatch(/src\/aot\/aotCaches\.ts$/);
+    });
+
+    it('should resolve alias-resolved absolute /aot-caches path to aotCaches.ts source', () => {
+        // Simulate Vite alias resolving @mionjs/core/aot-caches to an absolute path
+        const coreDir = resolve(__dirname, '../../../core');
+        const aliasResolved = resolve(coreDir, 'aot-caches');
+        const plugin = getPlugin();
+        const result = plugin.resolveId(aliasResolved, undefined);
+        expect(result).toBe(resolve(coreDir, 'src/aot/aotCaches.ts'));
     });
 
     it('should resolve emptyCaches.ts imported by aotCaches.ts to VIRTUAL_AOT_CACHES', () => {

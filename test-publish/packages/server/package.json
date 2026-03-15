@@ -1,9 +1,0 @@
-{
-  "name": "@mionjs/pure-functions-server",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "@mionjs/core": "file:../../../packages/core"
-  }
-}
