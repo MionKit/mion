@@ -6,11 +6,11 @@
  * ######## */
 
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
-import {initClient} from './client.ts';
-import {routesFlow} from './routesFlow.ts';
+import {initClient} from '../client.ts';
+import {routesFlow} from '../routesFlow.ts';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
-import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
+import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 
 // THIS TESTS ARE INTENDED TO E2E TESTING OF THE BINARY SERIALIZER
 

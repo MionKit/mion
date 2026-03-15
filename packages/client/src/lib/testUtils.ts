@@ -7,7 +7,7 @@
 
 import {addAOTCaches, resetJitFnCaches, resetJitFunctionsCache, MION_ROUTES, getJitFnHashes, routesCache} from '@mionjs/core';
 import type {PersistedJitFunctionsCache} from '@mionjs/core';
-import {getAOTCaches} from './clientMethodsMetadata.ts';
+import {getAOTCaches} from '../aot/aotCaches.ts';
 
 /**
  * Resets client caches preserving MION internal routes and their JIT dependencies.

@@ -24,12 +24,14 @@ import {registerErrorDeserializers} from '@mionjs/core';
 import {getRouterItemId} from '@mionjs/core';
 import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionjs/core';
-import {HandlersRegistry} from './handlersRegistry.ts';
+import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest, findSubRequestError} from './subRequest.ts';
+import {loadAOTCaches} from './aot/aotCaches.ts';
 
 export function initClient<RM extends RemoteApi>(
     options: InitClientOptions
 ): {client: MionClient; routes: ClientRoutes<RM>; middleFns: ClientMiddleFns<RM>} {
+    loadAOTCaches();
     registerErrorDeserializers();
     const clientOptions = {
         ...DEFAULT_PREFILL_OPTIONS,

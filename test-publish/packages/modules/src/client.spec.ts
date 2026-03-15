@@ -6,7 +6,7 @@
  * ######## */
 
 import {HSubRequest, RSubRequest, routesFlow} from '@mionjs/client';
-import {initAOTClient} from '@mionjs/client/aot';
+import {initClient} from '@mionjs/client';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import Storage from 'dom-storage';
@@ -35,7 +35,7 @@ describe('client', () => {
     // Note: prefilledMiddleFnsCache is now per-client instance, so each test with a fresh client starts with empty cache
 
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
-        const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         const expectedAuthSubRequest: RSubRequest<any> & HSubRequest<any> = {
@@ -100,7 +100,7 @@ describe('client', () => {
     });
 
     it('make a route call and get a valid response', async () => {
-        const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         const [greeting, error, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
@@ -114,7 +114,7 @@ describe('client', () => {
     });
 
     it('make a route call using callWithMiddleFns method', async () => {
-        const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         const [greeting, routeError, , middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
@@ -127,7 +127,7 @@ describe('client', () => {
     });
 
     it('return error in result if a route call fails', async () => {
-        const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         const [greeting, routeError] = await routes.alwaysFails(someUser).callWithMiddleFns({
@@ -141,7 +141,7 @@ describe('client', () => {
     });
 
     it('typeErrors method returns validation errors', async () => {
-        const {routes} = initAOTClient<MyApi>({baseURL});
+        const {routes} = initClient<MyApi>({baseURL});
 
         // Test with valid parameters - should return empty array
         const validationResp = await routes.sayHello(someUser).typeErrors();
@@ -152,7 +152,7 @@ describe('client', () => {
     });
 
     it('prefill and remove prefill from a request', async () => {
-        const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('ABYWZ-TOKEN');
 
         const request = middleFns.auth(authHeaders);
@@ -182,7 +182,7 @@ describe('client', () => {
 
     describe('Result pattern', () => {
         it('call() should return data on success', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth middleFn so call() works without callWithMiddleFns
@@ -199,7 +199,7 @@ describe('client', () => {
         });
 
         it('call() should return error on failure', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth middleFn so call() works without callWithMiddleFns
@@ -218,7 +218,7 @@ describe('client', () => {
         });
 
         it('call() should not throw even on error', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth middleFn so call() works without callWithMiddleFns
@@ -241,7 +241,7 @@ describe('client', () => {
         });
 
         it('call() should return typed error that can be checked', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth middleFn so call() works without callWithMiddleFns
@@ -264,7 +264,7 @@ describe('client', () => {
 
     describe('TypedEvent onSuccess handlers', () => {
         it('onSuccess should be called on every successful request', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCallCount = 0;
@@ -300,7 +300,7 @@ describe('client', () => {
         });
 
         it('onSuccess should NOT be called when middleFn fails', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCalled = false;
@@ -333,7 +333,7 @@ describe('client', () => {
         });
 
         it('offSuccess should remove success handler', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCallCount = 0;
@@ -367,7 +367,7 @@ describe('client', () => {
         });
 
         it('both onSuccess and onError can be registered on same TypedEvent', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let successCalled = false;
@@ -400,7 +400,7 @@ describe('client', () => {
         });
 
         it('removePrefill should clear both success and error handlers', async () => {
-            const {middleFns} = initAOTClient<MyApi>({baseURL});
+            const {middleFns} = initClient<MyApi>({baseURL});
 
             // Register handlers
             const typedEvent = middleFns
@@ -426,7 +426,7 @@ describe('client', () => {
         });
 
         it('call() with prefilled middleFns should return middleFnResults/middleFnErrors AND trigger TypedEvent handlers', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let typedEventSuccessCalled = false;
@@ -467,7 +467,7 @@ describe('client', () => {
         });
 
         it('call() with prefilled middleFns should return middleFnErrors AND trigger TypedEvent error handlers', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let typedEventErrorCalled = false;
@@ -504,7 +504,7 @@ describe('client', () => {
         });
 
         it('call() with prefilled middleFns should handle mixed results (middleFn succeeds, route fails)', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let typedEventSuccessCalled = false;
@@ -552,7 +552,7 @@ describe('client', () => {
 
     describe('callWithMiddleFns() API', () => {
         it('callWithMiddleFns should return route data on success', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
@@ -566,7 +566,7 @@ describe('client', () => {
         });
 
         it('callWithMiddleFns should return middleFn data on success', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
@@ -582,7 +582,7 @@ describe('client', () => {
         });
 
         it('callWithMiddleFns should return route error on failure', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [greeting, routeError] = await routes.alwaysFails(someUser).callWithMiddleFns({
@@ -595,7 +595,7 @@ describe('client', () => {
         });
 
         it('callWithMiddleFns should return middleFn error on middleFn failure', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [, , , middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
@@ -609,7 +609,7 @@ describe('client', () => {
         });
 
         it('callWithMiddleFns should never throw', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             let didThrow = false;
@@ -627,7 +627,7 @@ describe('client', () => {
         });
 
         it('callWithMiddleFns should NOT work with empty middleFns object', async () => {
-            const {routes} = initAOTClient<MyApi>({baseURL});
+            const {routes} = initClient<MyApi>({baseURL});
 
             // callWithMiddleFns with empty middleFns object should throw an error
             expect(() => routes.sayHello(someUser).callWithMiddleFns({})).toThrow(
@@ -636,7 +636,7 @@ describe('client', () => {
         });
 
         it('callWithMiddleFns should support partial success (route succeeds, middleFn fails)', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Session middleFn with expired token will fail
@@ -652,7 +652,7 @@ describe('client', () => {
         });
 
         it('callWithMiddleFns should return all middleFn results', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [, , middleFnResults] = await routes.sayHello(someUser).callWithMiddleFns({
@@ -666,7 +666,7 @@ describe('client', () => {
         });
 
         it('callWithMiddleFns should work with multiple middleFns', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
@@ -681,7 +681,7 @@ describe('client', () => {
         });
 
         it('callWithMiddleFns result should have correct types', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [greeting, routeError] = await routes.sayHello(someUser).callWithMiddleFns({
@@ -702,7 +702,7 @@ describe('client', () => {
         });
 
         it('callWithMiddleFns should handle route that always fails', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [greeting, routeError] = await routes.alwaysFails(someUser).callWithMiddleFns({
@@ -720,7 +720,7 @@ describe('client', () => {
 
     describe('Server-side middleFn errors (@thrownErrors)', () => {
         it('validation error should be included in middleFnErrors when sending wrong param type', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Send a string instead of a number to calculateAge route
@@ -747,7 +747,7 @@ describe('client', () => {
         });
 
         it('validation error should be included in middleFnErrors when sending wrong object structure', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Send an object with wrong structure (missing surname)
@@ -771,7 +771,7 @@ describe('client', () => {
         });
 
         it('validation error should be included in middleFnErrors for call() with prefilled middleFns', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth middleFn
@@ -803,7 +803,7 @@ describe('client', () => {
 
     describe('routesFlow() function', () => {
         it('should execute a single route in a routesFlow', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth so it's included automatically
@@ -820,7 +820,7 @@ describe('client', () => {
         });
 
         it('should execute multiple routes in a routesFlow', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth so it's included automatically
@@ -845,7 +845,7 @@ describe('client', () => {
         });
 
         it('should execute routesFlow with explicit middleFns', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [[greeting], [greetingError], , middleFnErrors] = await routesFlow([routes.sayHello(someUser)], {
@@ -858,7 +858,7 @@ describe('client', () => {
         });
 
         it('should handle route errors in routesFlow', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [[failResult], [failError]] = await routesFlow([routes.alwaysFails(someUser)], {
@@ -878,7 +878,7 @@ describe('client', () => {
 
     describe('callWithWorkflow() method', () => {
         it('should execute routesFlow via callWithWorkflow on a subrequest', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Prefill auth so it's included automatically
@@ -899,7 +899,7 @@ describe('client', () => {
         });
 
         it('should execute callWithWorkflow with explicit middleFns', async () => {
-            const {routes, middleFns} = initAOTClient<MyApi>({baseURL});
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const [[greeting, age], [greetingError, ageError], , middleFnErrors] = await routes
@@ -914,7 +914,7 @@ describe('client', () => {
         });
 
         it('proxy should include callWithWorkflow method on subrequests', () => {
-            const {routes} = initAOTClient<MyApi>({baseURL});
+            const {routes} = initClient<MyApi>({baseURL});
             const subRequest = routes.sayHello(someUser);
 
             expect(subRequest.callWithWorkflow).toBeDefined();

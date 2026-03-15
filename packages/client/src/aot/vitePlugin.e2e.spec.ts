@@ -6,14 +6,17 @@
  * ######## */
 
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
-import {jitFnsCache, pureFnsCache, routerCache} from 'virtual:mion-aot/caches';
+import {jitFnsCache} from 'virtual:client-mion-aot/jit-fns';
+import {pureFnsCache} from 'virtual:client-mion-aot/pure-fns';
+import {routerCache} from 'virtual:client-mion-aot/router-cache';
 import {routesCache, MION_ROUTES, PureFnDef, HeadersSubset} from '@mionjs/core';
-import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
-import {initClient} from './client.ts';
-import {ClientOptions} from './types.ts';
-import {getStorage} from './storage.ts';
-import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
-import {resetClientCaches} from './testUtils.ts';
+import {loadAOTCaches} from './aotCaches.ts';
+import {fetchRemoteMethodsMetadata} from '../lib/clientMethodsMetadata.ts';
+import {initClient} from '../client.ts';
+import {ClientOptions} from '../types.ts';
+import {getStorage} from '../lib/storage.ts';
+import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
+import {resetClientCaches} from '../lib/testUtils.ts';
 import {TestServerApi} from '@mionjs/test-server';
 import {pureServerFn} from '@mionjs/core';
 
@@ -22,7 +25,7 @@ import {pureServerFn} from '@mionjs/core';
 // Proves that the plugin's resolveId + load hooks work correctly
 // ============================================================
 describe('mion vite plugin: virtual module resolution', () => {
-    it('should resolve virtual:mion-aot/caches and export all three caches', () => {
+    it('should resolve virtual:client-mion-aot/* and export all three caches', () => {
         expect(jitFnsCache).toBeDefined();
         expect(pureFnsCache).toBeDefined();
         expect(routerCache).toBeDefined();
@@ -77,10 +80,10 @@ describe('mion vite plugin: AOT cache content', () => {
 
 // ============================================================
 // C. AOT Cache Registration
-// Proves that the combined virtual module's side-effect (calling
-// addAOTCaches + addRoutesToCache) registered caches correctly
+// Proves that loadAOTCaches registers caches correctly
 // ============================================================
 describe('mion vite plugin: AOT cache registration', () => {
+    loadAOTCaches();
     it('should auto-register internal routes in routesCache via addRoutesToCache', () => {
         expect(routesCache.hasMetadata(MION_ROUTES.methodsMetadataById)).toBe(true);
         expect(routesCache.hasMetadata(MION_ROUTES.methodsMetadataByPath)).toBe(true);

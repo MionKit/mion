@@ -17,8 +17,8 @@ import {
     serializeBinaryBody as coreSerializeBinaryBody,
     deserializeBinaryBody as coreDeserializeBinaryBody,
 } from '@mionjs/core';
-import type {MionClientRequest} from './request.ts';
-import {DEFAULT_PREFILL_OPTIONS} from './constants.ts';
+import type {MionClientRequest} from '../request.ts';
+import {DEFAULT_PREFILL_OPTIONS} from '../constants.ts';
 
 /** Result of serializing a request body - can be string (JSON) or Uint8Array (binary) */
 export type SerializedBody = string | Uint8Array;
