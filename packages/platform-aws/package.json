@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/platform-aws",
-  "version": "0.8.0-alpha.0",
+  "version": "0.8.1-alpha.0",
   "type": "module",
   "description": "AWS Lambda wrapper for mion router.",
   "keywords": [
@@ -53,8 +53,8 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionjs/core": "^0.8.0-alpha.0",
-    "@mionjs/router": "^0.8.0-alpha.0"
+    "@mionjs/core": "^0.8.1-alpha.0",
+    "@mionjs/router": "^0.8.1-alpha.0"
   },
   "devDependencies": {
     "@serverless/event-mocks": "^1.1.1"
