@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/run-types",
-  "version": "0.8.0-alpha.0",
+  "version": "0.8.1-alpha.0",
   "type": "module",
   "description": "Run time functionality directly from typescript types",
   "keywords": [
@@ -60,7 +60,7 @@
   "dependencies": {
     "@deepkit/core": "1.0.19",
     "@deepkit/type": "1.0.19",
-    "@mionjs/core": "^0.8.0-alpha.0"
+    "@mionjs/core": "^0.8.1-alpha.0"
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }
