@@ -97,16 +97,14 @@ describe('resolveId hook - AOT caches', () => {
         return mionVitePlugin({aotCaches: true});
     }
 
-    it('should resolve bare specifier AOT_CACHES_SHIM to aotCaches.ts source file', () => {
+    it('should resolve bare specifier @mionjs/core/aot-caches to the built aotCaches file', () => {
         const plugin = getPlugin();
         const result = plugin.resolveId(AOT_CACHES_SHIM, undefined);
-        // resolveCorePath finds @mionjs/core via Node module resolution,
-        // then redirects to source aotCaches.ts so emptyCaches.ts interception works
-        expect(result).toMatch(/src\/aot\/aotCaches\.ts$/);
+        // Node module resolution finds the built .dist file via package.json exports
+        expect(result).toMatch(/aotCaches\.(js|cjs|mjs|ts)$/);
     });
 
-    it('should resolve alias-resolved absolute /aot-caches path to aotCaches.ts source', () => {
-        // Simulate Vite alias resolving @mionjs/core/aot-caches to an absolute path
+    it('should resolve alias-resolved absolute /aot-caches path to source aotCaches.ts', () => {
         const coreDir = resolve(__dirname, '../../../core');
         const aliasResolved = resolve(coreDir, 'aot-caches');
         const plugin = getPlugin();
@@ -120,15 +118,31 @@ describe('resolveId hook - AOT caches', () => {
         expect(result).toBe(resolveVirtualId(VIRTUAL_AOT_CACHES));
     });
 
-    it('should not resolve emptyCaches.ts when importer is not aotCaches.ts', () => {
+    it('should resolve emptyCaches.js imported by aotCaches.js to VIRTUAL_AOT_CACHES', () => {
         const plugin = getPlugin();
-        const result = plugin.resolveId('./emptyCaches.ts', '/some/path/other.ts');
-        expect(result).toBeNull();
+        const result = plugin.resolveId('./emptyCaches.js', '/some/path/.dist/esm/src/aot/aotCaches.js');
+        expect(result).toBe(resolveVirtualId(VIRTUAL_AOT_CACHES));
     });
 
-    it('should not resolve aot-caches related ids when aotCaches is not configured', () => {
+    it('should resolve emptyCaches.cjs imported by aotCaches.cjs to VIRTUAL_AOT_CACHES', () => {
+        const plugin = getPlugin();
+        const result = plugin.resolveId('./emptyCaches.cjs', '/some/path/.dist/cjs/src/aot/aotCaches.cjs');
+        expect(result).toBe(resolveVirtualId(VIRTUAL_AOT_CACHES));
+    });
+
+    it('should not resolve emptyCaches when importer is not aotCaches', () => {
+        const plugin = getPlugin();
+        expect(plugin.resolveId('./emptyCaches.ts', '/some/path/other.ts')).toBeNull();
+        expect(plugin.resolveId('./emptyCaches.js', '/some/path/other.js')).toBeNull();
+    });
+
+    it('should not resolve emptyCaches when there is no importer', () => {
+        const plugin = getPlugin();
+        expect(plugin.resolveId('./emptyCaches.ts', undefined)).toBeNull();
+    });
+
+    it('should not resolve emptyCaches when aotCaches is not configured', () => {
         const plugin = mionVitePlugin({});
-        expect(plugin.resolveId(AOT_CACHES_SHIM, undefined)).toBeNull();
         expect(plugin.resolveId('./emptyCaches.ts', '/some/path/aotCaches.ts')).toBeNull();
     });
 });

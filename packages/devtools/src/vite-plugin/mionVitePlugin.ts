@@ -6,6 +6,7 @@
  * ######## */
 
 import {resolve} from 'path';
+import {createRequire} from 'module';
 import {existsSync} from 'fs';
 import * as ts from 'typescript';
 import {ChildProcess} from 'child_process';
@@ -19,7 +20,6 @@ import {
     VIRTUAL_STUB_PREFIX,
     VIRTUAL_AOT_CACHES,
     AOT_CACHES_SHIM,
-    AOT_CACHES_SHIM_SOURCE,
     resolveVirtualId,
 } from './constants.ts';
 import {
@@ -291,26 +291,26 @@ export function mionVitePlugin(options: MionPluginOptions) {
             if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
             // AOT virtual modules (default + custom prefix both resolve)
             if (aotVirtualModules.has(id)) return resolveVirtualId(id);
-            // Swap the empty caches with the virtual AOT caches module.
-            // For source imports: emptyCaches.ts imported by aotCaches.ts is replaced directly.
-            // For pre-built imports: alias-resolved /aot-caches path is redirected to the source
-            // aotCaches.ts so Vite processes it and the emptyCaches.ts interception kicks in.
+            // AOT caches: resolve @mionjs/core/aot-caches to the actual aotCaches file,
+            // then intercept its emptyCaches import and replace with the virtual AOT module.
             if (aotOptions) {
-                if (id.endsWith('/aot-caches')) {
-                    // Absolute path (alias-resolved): check relative to the resolved path
-                    if (existsSync(resolve(id, '..', AOT_CACHES_SHIM_SOURCE))) {
-                        return resolve(id, '..', 'src/aot/aotCaches.ts');
-                    }
-                    // Bare specifier (@mionjs/core/aot-caches): resolve the package location
-                    // using Node module resolution so it works with linked/symlinked packages
-                    // where resolve(id, '..') resolves relative to CWD instead of node_modules.
-                    if (id === AOT_CACHES_SHIM) {
-                        const corePath = resolveCorePath();
-                        if (corePath) return resolve(corePath, 'src/aot/aotCaches.ts');
+                // Bare specifier: use Node's module resolution (respects package.json exports)
+                if (id === AOT_CACHES_SHIM) {
+                    try {
+                        return createRequire(import.meta.url).resolve(AOT_CACHES_SHIM);
+                    } catch {
                         return resolveVirtualId(VIRTUAL_AOT_CACHES);
                     }
                 }
-                if (id.endsWith('emptyCaches.ts') && importer?.endsWith('aotCaches.ts')) {
+                // Alias-resolved absolute path (e.g. Vite alias @mionjs/core → ../core
+                // transforms the import to /path/to/packages/core/aot-caches).
+                // This only happens in monorepo dev where source files always exist.
+                if (id.endsWith('/aot-caches')) {
+                    const sourceFile = resolve(id, '..', 'src/aot/aotCaches.ts');
+                    if (existsSync(sourceFile)) return sourceFile;
+                }
+                // Intercept emptyCaches imports from aotCaches files (any extension)
+                if (/emptyCaches\.(ts|js|mjs|cjs)$/.test(id) && importer && /aotCaches\.(ts|js|mjs|cjs)$/.test(importer)) {
                     return resolveVirtualId(VIRTUAL_AOT_CACHES);
                 }
             }
@@ -535,18 +535,6 @@ export function mionVitePlugin(options: MionPluginOptions) {
             return undefined;
         },
     };
-}
-
-/** Resolves the directory of @mionjs/core by walking up from CWD looking for node_modules/@mionjs/core. Works with linked/symlinked packages. */
-function resolveCorePath(): string | null {
-    let dir = process.cwd();
-    while (true) {
-        const candidate = resolve(dir, 'node_modules/@mionjs/core');
-        if (existsSync(candidate)) return candidate;
-        const parent = resolve(dir, '..');
-        if (parent === dir) return null;
-        dir = parent;
-    }
 }
 
 /** Whether the current process is a child spawned by the mion plugin */

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const path = require("path");
+const module$1 = require("module");
 const fs = require("fs");
 const ts = require("typescript");
 const src_vitePlugin_transformers = require("./transformers.cjs");
@@ -9,6 +10,7 @@ const src_vitePlugin_virtualModule = require("./virtualModule.cjs");
 const src_vitePlugin_constants = require("./constants.cjs");
 const src_vitePlugin_aotCacheGenerator = require("./aotCacheGenerator.cjs");
 const src_vitePlugin_aotDiskCache = require("./aotDiskCache.cjs");
+var _documentCurrentScript = typeof document !== "undefined" ? document.currentScript : null;
 function _interopNamespaceDefault(e) {
   const n = Object.create(null, { [Symbol.toStringTag]: { value: "Module" } });
   if (e) {
@@ -185,17 +187,18 @@ function mionVitePlugin(options) {
       if (id === src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS) return src_vitePlugin_constants.resolveVirtualId(id);
       if (aotVirtualModules.has(id)) return src_vitePlugin_constants.resolveVirtualId(id);
       if (aotOptions) {
-        if (id.endsWith("/aot-caches")) {
-          if (fs.existsSync(path.resolve(id, "..", src_vitePlugin_constants.AOT_CACHES_SHIM_SOURCE))) {
-            return path.resolve(id, "..", "src/aot/aotCaches.ts");
-          }
-          if (id === src_vitePlugin_constants.AOT_CACHES_SHIM) {
-            const corePath = resolveCorePath();
-            if (corePath) return path.resolve(corePath, "src/aot/aotCaches.ts");
+        if (id === src_vitePlugin_constants.AOT_CACHES_SHIM) {
+          try {
+            return module$1.createRequire(typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("src/vite-plugin/mionVitePlugin.cjs", document.baseURI).href).resolve(src_vitePlugin_constants.AOT_CACHES_SHIM);
+          } catch {
             return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES);
           }
         }
-        if (id.endsWith("emptyCaches.ts") && importer?.endsWith("aotCaches.ts")) {
+        if (id.endsWith("/aot-caches")) {
+          const sourceFile = path.resolve(id, "..", "src/aot/aotCaches.ts");
+          if (fs.existsSync(sourceFile)) return sourceFile;
+        }
+        if (/emptyCaches\.(ts|js|mjs|cjs)$/.test(id) && importer && /aotCaches\.(ts|js|mjs|cjs)$/.test(importer)) {
           return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES);
         }
       }
@@ -361,16 +364,6 @@ function mionVitePlugin(options) {
       return void 0;
     }
   };
-}
-function resolveCorePath() {
-  let dir = process.cwd();
-  while (true) {
-    const candidate = path.resolve(dir, "node_modules/@mionjs/core");
-    if (fs.existsSync(candidate)) return candidate;
-    const parent = path.resolve(dir, "..");
-    if (parent === dir) return null;
-    dir = parent;
-  }
 }
 function isRunningAsChild() {
   return process.env.MION_COMPILE === "onlyAOT" || process.env.MION_COMPILE === "serve";
