@@ -12,7 +12,7 @@ export declare function mionVitePlugin(options: MionPluginOptions): {
     configResolved(config: any): void;
     buildStart(): Promise<void>;
     configureServer(server: any): void;
-    resolveId(id: any): string | null;
+    resolveId(id: any, importer: any): string | null;
     load(id: any): Promise<string | {
         code: string;
         syntheticNamedExports: boolean;

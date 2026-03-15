@@ -1,10 +1,9 @@
 import { resolve } from "path";
-import { existsSync } from "fs";
 import * as ts from "typescript";
 import { createDeepkitConfig, createPureFnTransformerFactory } from "./transformers.js";
 import { scanClientSource } from "./extractPureFn.js";
 import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
-import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX, AOT_CACHES_SHIM, VIRTUAL_AOT_CACHES, AOT_CACHES_SHIM_SOURCE } from "./constants.js";
+import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX, VIRTUAL_AOT_CACHES } from "./constants.js";
 import { generateAOTCaches, logAOTCaches, waitForServer, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, loadSSRRouterAndGenerateAOTCaches, killPersistentChild } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
 function isRunningAsChild() {
@@ -153,14 +152,11 @@ function mionVitePlugin(options) {
         }
       });
     },
-    resolveId(id) {
+    resolveId(id, importer) {
       if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
       if (aotVirtualModules.has(id)) return resolveVirtualId(id);
-      if (aotOptions) {
-        if (id === AOT_CACHES_SHIM) return resolveVirtualId(VIRTUAL_AOT_CACHES);
-        if (id.endsWith("/aot-caches") && existsSync(resolve(id, "..", AOT_CACHES_SHIM_SOURCE))) {
-          return resolveVirtualId(VIRTUAL_AOT_CACHES);
-        }
+      if (aotOptions && id.endsWith("emptyCaches.ts") && importer?.endsWith("aotCaches.ts")) {
+        return resolveVirtualId(VIRTUAL_AOT_CACHES);
       }
       if (aotOptions?.excludeReflection && !isRunningAsChild() && REFLECTION_MODULES.includes(id)) {
         return resolveVirtualId(VIRTUAL_STUB_PREFIX + id);
