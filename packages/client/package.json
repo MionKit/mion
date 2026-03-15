@@ -59,7 +59,7 @@
     "@mionjs/platform-node": "^0.8.0-alpha.0",
     "@mionjs/router": "^0.8.0-alpha.0",
     "@mionjs/run-types": "^0.8.0-alpha.0",
-    "@mionjs/test-server": "^0.7.2",
+    "@mionjs/test-server": "^0.8.0-alpha.0",
     "jest-environment-jsdom": "^29.6.2"
   },
   "dependencies": {
