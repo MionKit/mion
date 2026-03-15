@@ -2245,7 +2245,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   }
   async function loadAOTCaches$1() {
     const loader = await Promise.resolve().then(() => aotCacheLoader);
-    return loader.loadAOTCaches();
+    return loader.loadRouterAOTCaches();
   }
   async function emitAOTCaches$1() {
     if (!isMionAOTEmitMode()) return;
@@ -5059,12 +5059,24 @@ if (Des.view.getUint8(tbimI0, 1) & (1 << (0))) {ret[0] = fBi_btp3Jb.fn(undefined
   function loadAOTCaches() {
     addAOTCaches(jitFnsCache, pureFnsCache);
     addRoutesToCache(routerCache);
-    loadCompiledMethods(routerCache);
   }
   loadAOTCaches.__type = ["loadAOTCaches", "P$/!"];
+  function getRawAOTCaches() {
+    return {
+      jitFnsCache,
+      pureFnsCache,
+      routerCache
+    };
+  }
+  getRawAOTCaches.__type = ["getRawAOTCaches", 'P"/!'];
+  function loadRouterAOTCaches() {
+    loadAOTCaches();
+    loadCompiledMethods(getRawAOTCaches().routerCache);
+  }
+  loadRouterAOTCaches.__type = ["loadRouterAOTCaches", "P$/!"];
   const aotCacheLoader = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
     __proto__: null,
-    loadAOTCaches
+    loadRouterAOTCaches
   }, Symbol.toStringTag, { value: "Module" }));
   function __assignType(fn, args) {
     fn.__type = args;
