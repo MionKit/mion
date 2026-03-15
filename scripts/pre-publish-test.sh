@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 step=0
-total_steps=6
+total_steps=7
 
 print_step() {
   step=$((step + 1))
@@ -36,14 +36,18 @@ npm run check-format
 print_step "Build all packages"
 npm run build
 
-# ── Step 5: test-publish verification ──
+# ── Step 5: Sync test-publish versions ──
+print_step "Sync test-publish dependency versions"
+node scripts/sync-test-publish-versions.mjs
+
+# ── Step 6: test-publish verification ──
 print_step "Run test-publish build verification"
 cd test-publish
 npm install --ignore-scripts
 npm run verify
 cd ..
 
-# ── Step 6: List packages to publish ──
+# ── Step 7: List packages to publish ──
 print_step "Packages that will be published"
 npx lerna ls --no-private --json
 

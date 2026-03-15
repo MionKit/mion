@@ -19,9 +19,9 @@
     }
     return Object.freeze(Object.defineProperty(n, Symbol.toStringTag, { value: "Module" }));
   }
-  const __ΩReadonly$3 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
+  const __ΩReadonly$1 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
   const __ΩOmit$1 = ["T", "K", () => __ΩPick$3, () => __ΩExclude$1, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
-  const __ΩRecord$5 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩRecord$4 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   const __ΩIterableIterator = ["T", "TReturn", "TNext", () => __ΩIterator, 0, () => Symbol.iterator, "IterableIterator", `b!"c""c#Pe"!e""e"#o$$Pe#!e#"e##o%$1&Mw'y`];
   const __ΩPick$3 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩExclude$1 = ["T", "U", "Exclude", 'l6!Re$!RPe#!e$"qk#%QRb!b"Pde"!p)w#y'];
@@ -32,23 +32,23 @@
   const __ΩCallContext = ["ContextData", "path", () => __ΩMionRequest, "request", () => __ΩMionResponse, "response", "shared", "MethodsExecutionChain", "executionChain", "urlQuery", "routesFlowRouteIds", "CallContext", `"c!P&4"9n#4$9n%4&9e"!4'"w(4)9&4*89&F4+89Mw,y`];
   const __ΩRawRequestBody = ["AnyObject", "RawRequestBody", 'P&_W"w!Jw"y'];
   const __ΩRawResponseBody = ["AnyObject", "RawResponseBody", 'P&_W"w!Jw"y'];
-  const __ΩMionRequest = [() => __ΩReadonly$3, () => __ΩOmit$1, () => __ΩMionHeaders, "append", "set", "delete", "headers", () => __ΩRawRequestBody, "rawBody", "SerializerCode", "bodyType", () => __ΩReadonly$3, "AnyObject", "body", () => __ΩReadonly$3, () => __ΩRecord$5, "RpcError", "thrownErrors", "MionRequest", `Pn#P.$.%.&Jo"#o!"4'9n(4)9"w*4+9"w-o,"4.9&"w1o0#o/"4289Mw3y`];
-  const __ΩMionResponse = ["statusCode", () => __ΩReadonly$3, () => __ΩMionHeaders, "headers", () => __ΩRawResponseBody, "rawBody", "SerializerCode", "serializer", () => __ΩReadonly$3, () => __ΩResponseBody, "body", "hasErrors", "DataViewSerializer", "binSerializer", "MionResponse", `P'4!9n#o""4$9n%4&9"w'4(9n*o)"4+9)4,9P"w--J4.89Mw/y`];
+  const __ΩMionRequest = [() => __ΩReadonly$1, () => __ΩOmit$1, () => __ΩMionHeaders, "append", "set", "delete", "headers", () => __ΩRawRequestBody, "rawBody", "SerializerCode", "bodyType", () => __ΩReadonly$1, "AnyObject", "body", () => __ΩReadonly$1, () => __ΩRecord$4, "RpcError", "thrownErrors", "MionRequest", `Pn#P.$.%.&Jo"#o!"4'9n(4)9"w*4+9"w-o,"4.9&"w1o0#o/"4289Mw3y`];
+  const __ΩMionResponse = ["statusCode", () => __ΩReadonly$1, () => __ΩMionHeaders, "headers", () => __ΩRawResponseBody, "rawBody", "SerializerCode", "serializer", () => __ΩReadonly$1, () => __ΩResponseBody, "body", "hasErrors", "DataViewSerializer", "binSerializer", "MionResponse", `P'4!9n#o""4$9n%4&9"w'4(9n*o)"4+9)4,9P"w--J4.89Mw/y`];
   const __ΩMionHeaders = ["name", "value", "append", "delete", "set", "get", "has", () => __ΩIterableIterator, "entries", () => __ΩIterableIterator, "keys", () => __ΩIterableIterator, "values", "MionHeaders", `PP&2!&2"$1#P&2!$1$P&2!&2"$1%P&2!P&-,J1&P&2!)1'PP&&Go("1)P&o*"1+P&o,"1-Mw.y`];
   const __ΩContextDataFactory = ["ContextData", "", "ContextDataFactory", 'b!Pe"!/"w#y'];
-  const __ΩResponseBody = [() => __ΩRecord$5, () => __ΩRecord$5, "RpcError", "@thrownErrors", "ResponseBody", 'P&"o!#&"w#o"#4$8Mw%y'];
+  const __ΩResponseBody = [() => __ΩRecord$4, () => __ΩRecord$4, "RpcError", "@thrownErrors", "ResponseBody", 'P&"o!#&"w#o"#4$8Mw%y'];
   const __ΩRoutesFlowExecutionResult = ["MethodsExecutionChain", "executionChain", "routesFlowRouteIds", "RoutesFlowMapping", "mappings", "RoutesFlowExecutionResult", 'P"w!4"&F4#8"w$F4%8Mw&y'];
-  const __ΩPartial$2 = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
+  const __ΩPartial = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
   const __ΩPick$2 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩRemoteMethod = ["AnyHandler", "H", "MethodWithJitFns", "RemoteMethodOpts", "options", "handler", "args", "", "methodCaller", "RemoteMethod", `"w!c"P"w#"w$4%e"!4&P"@2'"/(4)8Mw*y`];
   const __ΩRouteMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.route, "type", "RouteOnlyOptions", "options", "RouteMethod", `"c!Pe"!o""i#4$"w%4&Mw'y`];
   const __ΩMiddleFnMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.middleFn, "type", "MiddleFnMethod", '"c!Pe"!o""i#4$Mw%y'];
   const __ΩHeadersMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.headersMiddleFn, "type", "HeadersMethodWithJitFns", "headersParam", "HeadersMethod", `"c!Pe"!o""i#4$"w%4&Mw'y`];
   const __ΩRawMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.rawMiddleFn, "type", "RemoteMethodOpts", false, "validateParams", false, "validateReturn", "options", "RawMethod", `"c!Pe"!o""i#4$P"w%P.&4'.(4)8MK4*Mw+y`];
-  const __ΩRouteOptions = [() => __ΩPartial$2, () => __ΩPick$2, () => __ΩRouteMethod, "options", "description", "validateParams", "validateReturn", "serializer", "isMutation", "RouteOptions", `n#.$fP.%.&.'.(.)Jo"#o!"w*y`];
-  const __ΩMiddleFnOptions = [() => __ΩPartial$2, () => __ΩPick$2, () => __ΩMiddleFnMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "MiddleFnOptions", `n#.$fP.%.&.'.(Jo"#o!"w)y`];
-  const __ΩHeadersMiddleFnOptions = [() => __ΩPartial$2, () => __ΩPick$2, () => __ΩHeadersMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "HeadersMiddleFnOptions", `n#.$fP.%.&.'.(Jo"#o!"w)y`];
-  const __ΩRawMiddleFnOptions = [() => __ΩPartial$2, () => __ΩPick$2, () => __ΩRawMethod, "options", "description", "runOnError", "RawMiddleFnOptions", `n#.$fP.%.&Jo"#o!"w'y`];
+  const __ΩRouteOptions = [() => __ΩPartial, () => __ΩPick$2, () => __ΩRouteMethod, "options", "description", "validateParams", "validateReturn", "serializer", "isMutation", "RouteOptions", `n#.$fP.%.&.'.(.)Jo"#o!"w*y`];
+  const __ΩMiddleFnOptions = [() => __ΩPartial, () => __ΩPick$2, () => __ΩMiddleFnMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "MiddleFnOptions", `n#.$fP.%.&.'.(Jo"#o!"w)y`];
+  const __ΩHeadersMiddleFnOptions = [() => __ΩPartial, () => __ΩPick$2, () => __ΩHeadersMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "HeadersMiddleFnOptions", `n#.$fP.%.&.'.(Jo"#o!"w)y`];
+  const __ΩRawMiddleFnOptions = [() => __ΩPartial, () => __ΩPick$2, () => __ΩRawMethod, "options", "description", "runOnError", "RawMiddleFnOptions", `n#.$fP.%.&Jo"#o!"w'y`];
   const __ΩMethodsExecutionChain = ["routeIndex", () => __ΩRemoteMethod, "methods", "SerializerCode", "serializer", "MethodsExecutionChain", `P'4!n"F4#"w$4%Mw&y`];
   const __ΩPick$1 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩRouteDef = ["H", () => __ΩPick$1, () => __ΩRouteMethod, "type", "handler", () => __ΩRouteOptions, "options", "RouteDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
@@ -115,7 +115,7 @@
   const __ΩPureFunctionFactory = ["JITUtils", "jitUtils", () => __ΩPureFunction, "", "PureFunctionFactory", 'P"w!2"n#/$w%y'];
   const __ΩPureFunctionData = ["namespace", "paramNames", "code", "fnName", "bodyHash", "pureFnDependencies", "PureFunctionData", `P&4!9&F4"9&4#9&4$9&4%9&F4&9Mw'y`];
   const __ΩCompiledPureFunction = [() => __ΩPureFunctionData, () => __ΩPureFunctionFactory, "createPureFn", () => __ΩPureFunction, "fn", "CompiledPureFunction", 'Pn!n"4#n$4%8Mw&y'];
-  const __ΩRecord$4 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩRecord$3 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   const SerializerModes = {
     /** Use prepareForJson (mutates original objects), and leaves JSON.stringify to the platform adapter */
     json: 1,
@@ -125,26 +125,25 @@
     stringifyJson: 3
   };
   const __ΩSerializerMode = [() => SerializerModes, "SerializerMode", 'i!gw"y'];
-  const __ΩSerializerCode = [() => SerializerModes, () => __ΩSerializerMode, "SerializerCode", 'i!n"fw#y'];
   const __ΩCoreRouterOptions = ["autoGenerateErrorId", "basePath", "suffix", "CoreRouterOptions", 'P)4!&4"&4#Mw$y'];
   const __ΩJitFnArgs = ["vλl", "JitFnArgs", 'P&4!&&LMw"y'];
   const __ΩJitCompiledFnData = ["typeName", "fnID", "jitFnHash", () => __ΩJitFnArgs, "args", () => __ΩJitFnArgs, "defaultParamValues", "isNoop", "code", "jitDependencies", "pureFnDependencies", "paramNames", "JitCompiledFnData", `P&4!9&4"9&4#9n$4%9n&4'9)4(89&4)9&F4*9&F4+9&F4,8Mw-y`];
   const __ΩJitCompiledFn = [() => __ΩAnyFn, "Fn", () => __ΩJitCompiledFnData, "JITUtils", "utl", "", "createJitFn", "fn", "JitCompiledFn", `n!c"Pn#P"w$2%e#!/&4'9e"!4(9Mw)y`];
-  const __ΩJitFunctionsCache = [() => __ΩRecord$4, () => __ΩJitCompiledFn, "JitFunctionsCache", '&n"o!#w#y'];
-  const __ΩPureFunctionsCache = [() => __ΩRecord$4, () => __ΩRecord$4, () => __ΩCompiledPureFunction, "PureFunctionsCache", '&&n#o"#o!#w$y'];
-  const __ΩFnsDataCache = [() => __ΩRecord$4, () => __ΩJitCompiledFnData, "FnsDataCache", '&n"o!#w#y'];
-  const __ΩPureFnsDataCache = [() => __ΩRecord$4, () => __ΩRecord$4, () => __ΩPureFunctionData, "PureFnsDataCache", '&&n#o"#o!#w$y'];
+  const __ΩJitFunctionsCache = [() => __ΩRecord$3, () => __ΩJitCompiledFn, "JitFunctionsCache", '&n"o!#w#y'];
+  const __ΩPureFunctionsCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩCompiledPureFunction, "PureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩFnsDataCache = [() => __ΩRecord$3, () => __ΩJitCompiledFnData, "FnsDataCache", '&n"o!#w#y'];
+  const __ΩPureFnsDataCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩPureFunctionData, "PureFnsDataCache", '&&n#o"#o!#w$y'];
   const __ΩSrcCodeJitCompiledFn = [() => __ΩJitCompiledFnData, "JITUtils", "utl", () => __ΩAnyFn, "", "createJitFn", "fn", "SrcCodeJitCompiledFn", `Pn!P"w"2#n$/%4&9-4'9Mw(y`];
   const __ΩSrcCodeCompiledPureFunction = [() => __ΩPureFunctionData, "JITUtils", "utl", () => __ΩAnyFn, "", "createPureFn", "fn", "SrcCodeCompiledPureFunction", `Pn!P"w"2#n$/%4&9-4'9Mw(y`];
-  const __ΩSrcCodeJITCompiledFnsCache = [() => __ΩRecord$4, () => __ΩSrcCodeJitCompiledFn, "SrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
-  const __ΩSrcCodePureFunctionsCache = [() => __ΩRecord$4, () => __ΩRecord$4, () => __ΩSrcCodeCompiledPureFunction, "SrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩSrcCodeJITCompiledFnsCache = [() => __ΩRecord$3, () => __ΩSrcCodeJitCompiledFn, "SrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
+  const __ΩSrcCodePureFunctionsCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩSrcCodeCompiledPureFunction, "SrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
   const __ΩAnyFn = ["args", "", "AnyFn", 'P"@2!"/"w#y'];
-  const __ΩAnyObject = [() => __ΩRecord$4, "AnyObject", '&#o!#w"y'];
-  const __ΩRecord$3 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩAnyObject = [() => __ΩRecord$3, "AnyObject", '&#o!#w"y'];
+  const __ΩRecord$2 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   const __ΩMethodMetadata = ["type", "id", "isAsync", "hasReturnData", "paramNames", "paramsJitHash", "returnJitHash", () => __ΩHeadersMetaData, "headersParam", () => __ΩHeadersMetaData, "headersReturn", "middleFnIds", "pointer", "nestLevel", "MethodMetadata", `P'4!&4")4#)4$&F4%8&4&&4'n(4)8n*4+8&F4,8&F4-'4.Mw/y`];
   const __ΩRemoteMethodOpts = ["runOnError", "validateParams", "validateReturn", "description", () => __ΩSerializerMode, "serializer", "isMutation", "RemoteMethodOpts", `P)4!8)4"8)4#8&4$8n%4&8P)-J4'8Mw(y`];
   const __ΩMethodWithOptions = [() => __ΩMethodMetadata, () => __ΩRemoteMethodOpts, "options", "MethodWithOptions", 'Pn!n"4#Mw$y'];
-  const __ΩMethodsCache = [() => __ΩRecord$3, () => __ΩMethodWithOptions, "MethodsCache", '&n"o!#w#y'];
+  const __ΩMethodsCache = [() => __ΩRecord$2, () => __ΩMethodWithOptions, "MethodsCache", '&n"o!#w#y'];
   const __ΩHeadersMetaData = ["headerNames", "jitHash", "HeadersMetaData", 'P&F4!&4"Mw#y'];
   const __ΩSerializableMethodsData = [() => __ΩMethodsCache, "methods", () => __ΩFnsDataCache, "deps", () => __ΩPureFnsDataCache, "purFnDeps", "SerializableMethodsData", `Pn!4"n#4$n%4&Mw'y`];
   const STR = 1;
@@ -618,7 +617,7 @@
     if (compiled.fn) return;
     compiled.fn = compiled.createPureFn(getJitUtils());
   }
-  const __ΩReadonly$2 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
+  const __ΩReadonly = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
   let options = { ...DEFAULT_CORE_OPTIONS };
   function setErrorOptions(opts2) {
     options = opts2;
@@ -707,7 +706,7 @@
       });
       Object.setPrototypeOf(this, RpcError.prototype);
     }
-    static __type = ["ErrType", "ErrData", () => TypedError, "id", "publicMessage", () => __ΩReadonly$2, "errorData", "statusCode", "AnyErrorParams", "param0", "constructor", "RpcErrorParams", "RpcError", `b!"c"Pe"!7#P'&J3$89&3%9e!"o&"3'89'3(8P"w)2*"0+5e!!6""w,x"w-`];
+    static __type = ["ErrType", "ErrData", () => TypedError, "id", "publicMessage", () => __ΩReadonly, "errorData", "statusCode", "AnyErrorParams", "param0", "constructor", "RpcErrorParams", "RpcError", `b!"c"Pe"!7#P'&J3$89&3%9e!"o&"3'89'3(8P"w)2*"0+5e!!6""w,x"w-`];
   }
   function serializeBinaryBody$1(path, executionChain, body, isResponse, workflowRouteIds) {
     try {
@@ -1021,7 +1020,6 @@
   isPublicExecutable.__type = [() => __ΩRemoteMethod, "entry", "isPublicExecutable", 'Pn!2"!/#'];
   const __ΩMayReturnError = ["RpcError", "MayReturnError", 'P$"w!P"w!$J`Jw"y'];
   const __ΩHandler = ["Context", "Params", "Ret", "context", "parameters", "", "Handler", '"c!"Fc""c#Pe"!2$e""@2%Pe##e##`J/&w\'y'];
-  const __ΩAnyHandler = ["Context", "Params", "Ret", () => __ΩHandler, "AnyHandler", '"c!"c""c#e!!e!"e!#o$$w%y'];
   const IS_TEST_ENV = getENV("JEST_WORKER_ID") !== void 0 || getENV("NODE_ENV") === "test";
   const ROUTE_DEFAULT_PARAMS = ["context"];
   const HEADER_HOOK_DEFAULT_PARAMS = ["context", "headers"];
@@ -1052,34 +1050,26 @@
   const MAX_ROUTE_NESTING = 10;
   const WORKFLOW_KEY = `mion-routes-flow`;
   const WORKFLOW_PATH = `${PATH_SEPARATOR}${WORKFLOW_KEY}`;
-  const __ΩReadonly$1 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
   let persistedMethods = {};
   function addToPersistedMethods(id, method) {
-    if (!shouldCompile() || !!persistedMethods[id])
-      return;
+    if (!shouldCompile() || !!persistedMethods[id]) return;
     persistedMethods[id] = method;
   }
-  addToPersistedMethods.__type = ["id", () => __ΩRemoteMethod, "method", "addToPersistedMethods", 'P&2!n"2#"/$'];
   function getPersistedMethod(id, handler) {
     const method = persistedMethods?.[id];
-    if (!method)
-      return;
+    if (!method) return;
     return restorePersistedMethod(method, handler);
   }
-  getPersistedMethod.__type = ["id", () => __ΩAnyHandler, "handler", () => __ΩRemoteMethod, "getPersistedMethod", 'P&2!n"2#Pn$-J/%'];
   function getPersistedMethodMetadata(id) {
     const method = persistedMethods[id];
     return method;
   }
-  getPersistedMethodMetadata.__type = ["id", () => __ΩMethodMetadata, "getPersistedMethodMetadata", 'P&2!Pn"-J/#'];
   function getPersistedMethods() {
     return persistedMethods;
   }
-  getPersistedMethods.__type = [() => __ΩReadonly$1, () => __ΩMethodsCache, "getPersistedMethods", 'Pn"o!"/#'];
   function resetPersistedMethods() {
     persistedMethods = {};
   }
-  resetPersistedMethods.__type = ["resetPersistedMethods", 'P"/!'];
   function restorePersistedMethod(method, handler) {
     const restored = method;
     if (restored.paramsJitFns && restored.returnJitFns && restored.paramNames && !!restored.handler)
@@ -1087,15 +1077,12 @@
     restored.handler = handler;
     restored.paramsJitFns = getJitFunctionsFromHash(method.paramsJitHash);
     restored.returnJitFns = getJitFunctionsFromHash(method.returnJitHash);
-    if (IS_TEST_ENV)
-      restored.isRestored = true;
+    if (IS_TEST_ENV) restored.isRestored = true;
     return restored;
   }
-  restorePersistedMethod.__type = [() => __ΩMethodMetadata, "method", () => __ΩAnyHandler, "handler", () => __ΩRemoteMethod, "restorePersistedMethod", 'Pn!2"n#2$n%/&'];
   function shouldCompile() {
     return isMionAOTEmitMode();
   }
-  shouldCompile.__type = ["shouldCompile", 'P"/!'];
   function loadCompiledMethods(compiledMethods) {
     for (const [key, value] of Object.entries(compiledMethods)) {
       if (!(key in persistedMethods)) {
@@ -1103,11 +1090,10 @@
       }
     }
   }
-  loadCompiledMethods.__type = [() => __ΩMethodsCache, "compiledMethods", "loadCompiledMethods", 'Pn!2""/#'];
   const __ΩOmit = ["T", "K", () => __ΩPick, () => __ΩExclude, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
   const __ΩPick = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩExclude = ["T", "U", "Exclude", 'l6!Re$!RPe#!e$"qk#%QRb!b"Pde"!p)w#y'];
-  function __assignType$8(fn, args) {
+  function __assignType$5(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1130,7 +1116,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return runTypesModule;
     if (runTypesLoadPromise)
       return runTypesLoadPromise;
-    runTypesLoadPromise = Promise.resolve().then(() => runTypes$1).then(__assignType$8((module) => {
+    runTypesLoadPromise = Promise.resolve().then(() => runTypes$1).then(__assignType$5((module) => {
       runTypesModule = {
         JitFunctions: module.JitFunctions,
         reflectFunction: module.reflectFunction,
@@ -1300,7 +1286,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   function getReturnHeadersRunType(handlerRunType, rt) {
     const returnRunType = handlerRunType.getReturnType();
     if (rt.isUnionRunType(returnRunType)) {
-      const headersSubset = returnRunType.getChildRunTypes().find(__assignType$8((child) => isHeaderSubSetRunType(child, rt), ["child", "", 'P"2!"/"']));
+      const headersSubset = returnRunType.getChildRunTypes().find(__assignType$5((child) => isHeaderSubSetRunType(child, rt), ["child", "", 'P"2!"/"']));
       if (!headersSubset)
         return void 0;
       return headersSubset;
@@ -1409,7 +1395,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       options: opts2
     };
   }
-  route.__type = ["handler", () => __ΩRouteOptions, "opts", () => __ΩRouteDef, "route", 'P"2!n"2#8"o$"/%'];
   function rawMiddleFn(handler, opts2) {
     return {
       type: HandlerType$1.rawMiddleFn,
@@ -1417,8 +1402,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       options: opts2
     };
   }
-  rawMiddleFn.__type = ["handler", () => __ΩRawMiddleFnOptions, "opts", () => __ΩRawMiddleFnDef, "rawMiddleFn", 'P"2!n"2#8"o$"/%'];
-  const __ΩError = ["name", "message", "stack", "Error", 'P&4!&4"&4#8Mw$y'];
   function getRouterFatalErrorResponse(returnErr, respHeaders) {
     const body = {
       "@thrownErrors": { [MION_ROUTES.platformError]: returnErr }
@@ -1436,7 +1419,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     };
     return response;
   }
-  getRouterFatalErrorResponse.__type = [() => RpcError, "returnErr", "MionHeaders", "respHeaders", "MionResponse", "getRouterFatalErrorResponse", 'PP&7!2""w#2$"w%/&'];
   function onExecutableError(context, executable, err) {
     const response = context.response;
     const path = executable.id;
@@ -1446,15 +1428,13 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       originalError: err,
       type: "unknown-error"
     });
-    if (!response.hasErrors)
-      response.headers.set("x-rpc-error", rpcError.type);
+    if (!response.hasErrors) response.headers.set("x-rpc-error", rpcError.type);
     response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
     response.hasErrors = true;
     const thrownErrors = context.request.thrownErrors || {};
     thrownErrors[path] = rpcError;
     context.request.thrownErrors = thrownErrors;
   }
-  onExecutableError.__type = ["CallContext", "context", "RemoteMethod", "executable", () => RpcError, () => __ΩError, "err", "onExecutableError", `P"w!2""w#2$P"P&7%n&J2'"/(`];
   function deserializeRequestBody(context) {
     if (!context.request.rawBody)
       return;
@@ -1632,23 +1612,16 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     mionDeserializeRequest: rawMiddleFn(deserializeRequestBody, { runOnError: true }),
     mionSerializeResponse: rawMiddleFn(serializeResponseBody, { runOnError: true })
   };
-  const __ΩRecord$2 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
-  function __assignType$7(fn, args) {
-    fn.__type = args;
-    return fn;
-  }
   const publicMethods = /* @__PURE__ */ new Map();
   function resetRemoteMethodsMetadata() {
     publicMethods.clear();
   }
-  resetRemoteMethodsMetadata.__type = ["resetRemoteMethodsMetadata", 'P"/!'];
   function getPublicApi(routes) {
     return recursiveGetSerializableRoutes(routes);
   }
-  getPublicApi.__type = ["routes", "PublicApi", "getPublicApi", 'P"2!"w"/#'];
   function recursiveGetSerializableRoutes(routes, currentPointer = [], publicData = {}) {
     const entries = Object.entries(routes);
-    entries.forEach(__assignType$7(([key, item]) => {
+    entries.forEach(([key, item]) => {
       const itemPointer = [...currentPointer, key];
       const id = getRouterItemId(itemPointer);
       if (isPrivateDefinition(item, id)) {
@@ -1662,14 +1635,12 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         const subRoutes = routes[key];
         publicData[key] = recursiveGetSerializableRoutes(subRoutes, itemPointer);
       }
-    }, ["RouterEntry", "param0", "", 'PP&"w!G2""/#']));
+    });
     return publicData;
   }
-  recursiveGetSerializableRoutes.__type = ["routes", "currentPointer", () => [], "AnyObject", "publicData", () => ({}), "recursiveGetSerializableRoutes", `P"2!&F2">#"w$2%>&"w$/'`];
   function getSerializableMethod(executable) {
     const existing = publicMethods.get(executable.id);
-    if (existing)
-      return existing;
+    if (existing) return existing;
     const newRemoteMethod = {
       type: executable.type,
       id: executable.id,
@@ -1682,14 +1653,11 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       ...executable.paramNames ? { paramNames: executable.paramNames } : {},
       options: executable.options
     };
-    if (executable.headersParam)
-      newRemoteMethod.headersParam = executable.headersParam;
-    if (executable.middleFnIds)
-      newRemoteMethod.middleFnIds = executable.middleFnIds;
+    if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
+    if (executable.middleFnIds) newRemoteMethod.middleFnIds = executable.middleFnIds;
     publicMethods.set(executable.id, newRemoteMethod);
     return newRemoteMethod;
   }
-  getSerializableMethod.__type = ["RemoteMethod", "executable", "MethodWithOptions", "getSerializableMethod", 'P"w!2""w#/$'];
   function serializePureDeps(namespacedDepHash, purFnDeps, depth = 0) {
     if (depth >= MAX_STACK_DEPTH)
       throw new Error(`Max depth reached serializing pure function dependencies, for: ${namespacedDepHash}`);
@@ -1697,46 +1665,36 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     if (parts.length !== 2)
       throw new Error(`Invalid pure function dependency format: ${namespacedDepHash}, expected "namespace::fnHash"`);
     const [namespace, fnHash] = parts;
-    if (!purFnDeps[namespace])
-      purFnDeps[namespace] = {};
-    if (purFnDeps[namespace][fnHash])
-      return;
+    if (!purFnDeps[namespace]) purFnDeps[namespace] = {};
+    if (purFnDeps[namespace][fnHash]) return;
     const pureDep = getJitUtils().getCompiledPureFn(namespace, fnHash);
-    if (!pureDep)
-      throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
+    if (!pureDep) throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
     const serializedPureDep = { ...pureDep, pureFnDependencies: [...pureDep.pureFnDependencies] };
     purFnDeps[namespace][fnHash] = serializedPureDep;
-    pureDep.pureFnDependencies.forEach(__assignType$7((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1), ["depFnHash", "", 'P"2!"/"']));
+    pureDep.pureFnDependencies.forEach((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1));
   }
-  serializePureDeps.__type = ["namespacedDepHash", "PureFnsDataCache", "purFnDeps", "depth", "serializePureDeps", 'P&2!"w"2#"2$"/%'];
   function serializeJitFn(jitFnHash, deps, purFnDeps, depth = 0) {
     if (depth >= MAX_STACK_DEPTH)
       throw new Error(`Max depth reached serializing jit function dependencies for jitHash: ${jitFnHash}`);
     const jitFn = getJitUtils().getJIT(jitFnHash);
-    if (!jitFn)
-      throw new Error(`Jit function ${jitFnHash} not found`);
-    if (deps[jitFnHash])
-      return;
+    if (!jitFn) throw new Error(`Jit function ${jitFnHash} not found`);
+    if (deps[jitFnHash]) return;
     const serializedJitFn = getSerializableJitCompiler(jitFn);
     deps[jitFnHash] = serializedJitFn;
-    jitFn.jitDependencies.forEach(__assignType$7((h) => serializeJitFn(h, deps, purFnDeps, depth + 1), ["h", "", 'P"2!"/"']));
-    jitFn.pureFnDependencies.forEach(__assignType$7((h) => serializePureDeps(h, purFnDeps), ["h", "", 'P"2!"/"']));
+    jitFn.jitDependencies.forEach((h) => serializeJitFn(h, deps, purFnDeps, depth + 1));
+    jitFn.pureFnDependencies.forEach((h) => serializePureDeps(h, purFnDeps));
   }
-  serializeJitFn.__type = ["jitFnHash", () => __ΩRecord$2, "JitCompiledFnData", "deps", "PureFnsDataCache", "purFnDeps", "depth", "serializeJitFn", `P&2!&"w#o"#2$"w%2&"2'"/(`];
   function serializeMethodDeps(method, deps, purFnDeps) {
     const { paramsJitHash, returnJitHash } = method;
     if (paramsJitHash !== EMPTY_HASH) {
       const paramsJitHashes = getJitFnHashes(paramsJitHash);
-      for (const k in paramsJitHashes)
-        serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+      for (const k in paramsJitHashes) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
     }
     if (returnJitHash !== EMPTY_HASH) {
       const returnJitHashes = getJitFnHashes(returnJitHash);
-      for (const k in returnJitHashes)
-        serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+      for (const k in returnJitHashes) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
     }
   }
-  serializeMethodDeps.__type = ["MethodWithOptions", "method", () => __ΩRecord$2, "JitCompiledFnData", "deps", "PureFnsDataCache", "purFnDeps", "serializeMethodDeps", `P"w!2"&"w$o##2%"w&2'"/(`];
   function getSerializableJitCompiler(comp) {
     return {
       typeName: comp.typeName,
@@ -1751,8 +1709,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       ...comp.paramNames ? { paramNames: [...comp.paramNames] } : {}
     };
   }
-  getSerializableJitCompiler.__type = ["JitCompiledFn", "comp", "JitCompiledFnData", "getSerializableJitCompiler", 'P"w!2""w#/$'];
-  function __assignType$6(fn, args) {
+  function __assignType$4(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1770,8 +1727,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const errorData = {};
     const maxMethods = (getRouterOptions.Ω = [[() => __ΩClientRouteOptions, "n!"]], getRouterOptions()).getAllRemoteMethodsMaxNumber || defaultClientRouteOptions.getAllRemoteMethodsMaxNumber;
     const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
-    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$6((id) => !mionInternalRoutes$1.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
-    idsToReturn.forEach(__assignType$6((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData), ["id", "", 'P"2!"/"']));
+    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$4((id) => !mionInternalRoutes$1.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
+    idsToReturn.forEach(__assignType$4((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData), ["id", "", 'P"2!"/"']));
     if (Object.keys(errorData).length)
       return new RpcError({
         type: "rpc-metadata-not-found",
@@ -1788,8 +1745,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         type: "rpc-metadata-not-found",
         publicMessage: `Route ${path} not found`
       });
-    const privateExecutables = executables.methods.filter(__assignType$6((e) => !isPrivateExecutable(e), ["e", "", 'P"2!"/"']));
-    return mionGetRemoteMethodsDataById(ctx, privateExecutables.map(__assignType$6((e) => e.id, ["e", "", 'P"2!"/"'])), getAllRemoteMethods);
+    const privateExecutables = executables.methods.filter(__assignType$4((e) => !isPrivateExecutable(e), ["e", "", 'P"2!"/"']));
+    return mionGetRemoteMethodsDataById(ctx, privateExecutables.map(__assignType$4((e) => e.id, ["e", "", 'P"2!"/"'])), getAllRemoteMethods);
   }
   mionGetRemoteMethodsDataByPath.__type = ["ctx", "path", "getAllRemoteMethods", () => __ΩSerializableMethodsData, "rpc-metadata-not-found", () => RpcError, "mionGetRemoteMethodsDataByPath", `P"2!&2")2#8Pn$P.%7&J/'`];
   function addRequiredRemoteMethodsToResponse(id, resp, errorData) {
@@ -1807,7 +1764,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return;
     const method = getSerializableMethod(executable);
     methods[id] = method;
-    method.middleFnIds?.forEach(__assignType$6((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData), ["middleFnId", "", 'P"2!"/"']));
+    method.middleFnIds?.forEach(__assignType$4((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData), ["middleFnId", "", 'P"2!"/"']));
     serializeMethodDeps(method, deps, purFnDeps);
   }
   addRequiredRemoteMethodsToResponse.__type = ["id", () => __ΩSerializableMethodsData, "resp", () => __ΩAnyObject, "errorData", "addRequiredRemoteMethodsToResponse", 'P&2!n"2#n$2%$/&'];
@@ -1818,7 +1775,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     [MION_ROUTES.methodsMetadataByPath]: route(mionGetRemoteMethodsDataByPath, { serializer: "stringifyJson" })
   };
   const __ΩRecord$1 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
-  function __assignType$5(fn, args) {
+  function __assignType$3(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1830,7 +1787,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * thrown Errors are not strongly typed and are all serialized/deserialized as RpcError<string>.
      * this also prevents users to register a route with the same name.
      */
-    [MION_ROUTES.thrownErrors]: route(__assignType$5((ctx) => {
+    [MION_ROUTES.thrownErrors]: route(__assignType$3((ctx) => {
       return ctx.request.thrownErrors || {};
     }, ["CallContext", "ctx", () => __ΩRecord$1, () => RpcError, "", 'P"w!2"&P&7$o##/%'])),
     /**
@@ -1839,7 +1796,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * The route is called by dispatch logic when no matching route is found.
      * Throws an RpcError that will be caught and stored in thrownErrors by the router.
      */
-    [MION_ROUTES.notFound]: route(__assignType$5((ctx) => {
+    [MION_ROUTES.notFound]: route(__assignType$3((ctx) => {
       throw new RpcError({
         statusCode: StatusCodes.NOT_FOUND,
         publicMessage: `Route not found`,
@@ -1853,7 +1810,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * This route is used for serialization/deserialization of platform errors.
      * This also prevents users to register a route with the same name.
      */
-    [MION_ROUTES.platformError]: route(__assignType$5((_ctx) => {
+    [MION_ROUTES.platformError]: route(__assignType$3((_ctx) => {
       return new RpcError({
         publicMessage: "Platform error",
         type: "platform-error"
@@ -1861,7 +1818,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }, ["CallContext", "_ctx", () => RpcError, "", 'P"w!2"P&7#/$']))
   };
   const serverPureFnsCache = {};
-  function __assignType$4(fn, args) {
+  function __assignType$2(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1921,7 +1878,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         publicMessage: "RoutesFlow request requires at least one route path in query string."
       });
     }
-    const routeIds = routePaths.map(__assignType$4((path) => path.startsWith("/") ? path.slice(1) : path, ["path", "", 'P"2!"/"']));
+    const routeIds = routePaths.map(__assignType$2((path) => path.startsWith("/") ? path.slice(1) : path, ["path", "", 'P"2!"/"']));
     let executionChain = routesFlowCache.get(urlQuery);
     if (executionChain)
       return { executionChain, routesFlowRouteIds: routeIds, mappings };
@@ -1936,8 +1893,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     let resolvedSerializer;
     let firstRouteIndex = -1;
     const defaultSerializerCode = SerializerModes[opts2.serializer];
-    const startMiddleFnIds = new Set(startMiddleFns.map(__assignType$4((m) => m.id, ["m", "", 'P"2!"/"'])));
-    const endMiddleFnIds = new Set(endMiddleFns.map(__assignType$4((m) => m.id, ["m", "", 'P"2!"/"'])));
+    const startMiddleFnIds = new Set(startMiddleFns.map(__assignType$2((m) => m.id, ["m", "", 'P"2!"/"'])));
+    const endMiddleFnIds = new Set(endMiddleFns.map(__assignType$2((m) => m.id, ["m", "", 'P"2!"/"'])));
     for (const routePath of routePaths) {
       const transformedPath = opts2.pathTransform?.(rawRequest, routePath) || routePath;
       const chain = getRouteExecutionChain(transformedPath);
@@ -2016,7 +1973,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         method: createMappingMethod(mapping)
       });
     }
-    insertions.sort(__assignType$4((a, b) => b.index - a.index, ["a", "b", "", 'P"2!"2""/#']));
+    insertions.sort(__assignType$2((a, b) => b.index - a.index, ["a", "b", "", 'P"2!"2""/#']));
     for (const { index, method } of insertions) {
       middleMethods.splice(index, 0, method);
     }
@@ -2046,7 +2003,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   }
   createMappingMethod.__type = ["RoutesFlowMapping", "mapping", () => __ΩRemoteMethod, "createMappingMethod", 'P"w!2"n#/$'];
   function createMappingHandler(mapping) {
-    return __assignType$4((ctx) => {
+    return __assignType$2((ctx) => {
       const sourceOutput = ctx.response.body[mapping.fromId];
       const entry = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE]?.[mapping.bodyHash];
       if (!entry?.fn) {
@@ -2071,7 +2028,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   function clearContextPool() {
     contextPool = [];
   }
-  clearContextPool.__type = ["clearContextPool", "P$/!"];
   function createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery) {
     const transformedPath = opts2.pathTransform?.(rawRequest, path) || path;
     const { executionChain, routesFlowRouteIds } = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts2);
@@ -2099,10 +2055,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       routesFlowRouteIds
     };
   }
-  createCallContext.__type = ["path", "RouterOptions", "opts", "RawRequestBody", "reqRawBody", "rawRequest", "MionHeaders", "reqHeaders", "respHeaders", () => __ΩSerializerCode, "reqBodyType", "urlQuery", "CallContext", "createCallContext", `P&2!"w"2#"w$2%#2&"w'2("w'2)n*2+8&2,8"w-/.`];
   function acquireCallContext(usePooling, path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery) {
-    if (!usePooling)
-      return createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
+    if (!usePooling) return createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
     const pooledContext = contextPool.pop();
     const transformedPath = opts2.pathTransform?.(rawRequest, path) || path;
     if (pooledContext) {
@@ -2131,7 +2085,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
   }
-  acquireCallContext.__type = ["usePooling", "path", "RouterOptions", "opts", "RawRequestBody", "reqRawBody", "rawRequest", "MionHeaders", "reqHeaders", "respHeaders", () => __ΩSerializerCode, "reqBodyType", "urlQuery", "CallContext", "acquireCallContext", `P)2!&2""w#2$"w%2&#2'"w(2)"w(2*n+2,8&2-8"w.//`];
   function releaseCallContext(ctx, maxPoolSize) {
     if (contextPool.length < maxPoolSize) {
       const mutableCtx = ctx;
@@ -2156,20 +2109,15 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       contextPool.push(ctx);
     }
   }
-  releaseCallContext.__type = ["CallContext", "ctx", "maxPoolSize", "releaseCallContext", `P"w!2"'2#$/$`];
   function getRequestBodyType(rawBody) {
-    if (typeof rawBody === "string")
-      return SerializerModes.stringifyJson;
-    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array)
-      return SerializerModes.binary;
+    if (typeof rawBody === "string") return SerializerModes.stringifyJson;
+    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array) return SerializerModes.binary;
     return SerializerModes.json;
   }
-  getRequestBodyType.__type = ["RawRequestBody", "rawBody", () => __ΩSerializerCode, "getRequestBodyType", 'P"w!2"n#/$'];
   function getExecutionChain(originalPath, transformedPath, urlQuery, rawRequest, opts2) {
     const hasPrefix = !!opts2.basePath;
     const isRoutesFlowPath = hasPrefix ? originalPath.endsWith(WORKFLOW_PATH) : originalPath === WORKFLOW_PATH;
-    if (isRoutesFlowPath)
-      return getRoutesFlowExecutionChain(rawRequest, opts2, urlQuery);
+    if (isRoutesFlowPath) return getRoutesFlowExecutionChain(rawRequest, opts2, urlQuery);
     let executionChain = getRouteExecutionChain(transformedPath);
     if (!executionChain) {
       const notFoundPath = getRoutePath([MION_ROUTES.notFound], opts2);
@@ -2184,16 +2132,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return { executionChain };
   }
-  getExecutionChain.__type = ["originalPath", "transformedPath", "urlQuery", "rawRequest", "RouterOptions", "opts", "RoutesFlowExecutionResult", "getExecutionChain", `P&2!&2"P&-J2##2$"w%2&"w'/(`];
-  const __ΩReadonly = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
-  const __ΩPartial$1 = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
-  const __ΩReturnType$1 = ["T", "args", "", "ReturnType", `l>e"!R"RPde#!P"@2"h"!/#qk#'QRb!Pde"!p)w$y`];
-  function __assignType$3(fn, args) {
-    fn.__type = args;
-    return fn;
-  }
-  const __ΩRouterKeyEntryList = ["RouterEntry", "RouterKeyEntryList", 'P&"w!GFw"y'];
-  const __ΩRoutesWithId = ["pathPointer", "Routes", "routes", "RoutesWithId", 'P&F4!"w"4#Mw$y'];
   const mionInternalRoutes = Object.values(MION_ROUTES);
   const flatRouter = /* @__PURE__ */ new Map();
   const middleFnsById = /* @__PURE__ */ new Map();
@@ -2214,11 +2152,11 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   let endMiddleFnsDef = { ...defaultEndMiddleFns };
   let startMiddleFns = [];
   let endMiddleFns = [];
-  const getRouteExecutionChain = __assignType$3((path) => flatRouter.get(path), ["path", "", 'P&2!"/"']);
-  const getRouteExecutable = __assignType$3((id) => routesById.get(id), ["id", "", 'P&2!"/"']);
-  const getMiddleFnExecutable = __assignType$3((id) => middleFnsById.get(id), ["id", "", 'P&2!"/"']);
-  const getRouterOptions = __assignType$3(() => routerOptions, [() => __ΩReadonly, "", 'P"o!"/"']);
-  const getAnyExecutable = __assignType$3((id) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id), ["id", "", 'P&2!"/"']);
+  const getRouteExecutionChain = (path) => flatRouter.get(path);
+  const getRouteExecutable = (id) => routesById.get(id);
+  const getMiddleFnExecutable = (id) => middleFnsById.get(id);
+  const getRouterOptions = () => routerOptions;
+  const getAnyExecutable = (id) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
   const resetRouter = () => {
     flatRouter.clear();
     middleFnsById.clear();
@@ -2245,28 +2183,21 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     await emitAOTCaches$1();
     return publicApi;
   }
-  initMionRouter.__type = ["routes", () => __ΩPartial$1, "RouterOptions", "opts", "PublicApi", "initMionRouter", 'P"2!"w#o""2$8"w%`/&'];
   async function initRouter(opts2) {
-    if (isRouterInitialized)
-      throw new Error("Router has already been initialized");
+    if (isRouterInitialized) throw new Error("Router has already been initialized");
     routerOptions = { ...routerOptions, ...opts2 };
     validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
-    if (routerOptions.aot)
-      await loadAOTCaches$1();
+    if (routerOptions.aot) await loadAOTCaches$1();
     isRouterInitialized = true;
     await registerRoutes({ ...mionErrorsRoutes });
-    if (!routerOptions.skipClientRoutes)
-      await registerRoutes({ ...mionClientRoutes });
-    if (!isTestEnv())
-      console.log("mion router initialized", { routerOptions });
+    if (!routerOptions.skipClientRoutes) await registerRoutes({ ...mionClientRoutes });
+    if (!isTestEnv()) console.log("mion router initialized", { routerOptions });
     return routerOptions;
   }
-  initRouter.__type = [() => __ΩPartial$1, "RouterOptions", "opts", () => __ΩReadonly, "initRouter", 'P"w"o!"2#8"w"o$"`/%'];
   async function registerRoutes(routes) {
-    if (!isRouterInitialized)
-      throw new Error("initRouter should be called first");
+    if (!isRouterInitialized) throw new Error("initRouter should be called first");
     startMiddleFns = await getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
     endMiddleFns = await getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
     await recursiveFlatRoutes(routes);
@@ -2275,12 +2206,9 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return {};
   }
-  registerRoutes.__type = ["routes", "PublicApi", "registerRoutes", 'P"2!"w"`/#'];
   function isPrivateDefinition(entry, id) {
-    if (isRoute(entry))
-      return false;
-    if (isRawMiddleFnDef(entry))
-      return true;
+    if (isRoute(entry)) return false;
+    if (isRawMiddleFnDef(entry)) return true;
     try {
       const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
       if (!executable)
@@ -2290,32 +2218,24 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return false;
     }
   }
-  isPrivateDefinition.__type = ["RouterEntry", "entry", "id", "isPrivateDefinition", 'P"w!2"&2#!/$'];
   function isPrivateExecutable(executable) {
-    if (executable.type === HandlerType$1.rawMiddleFn)
-      return true;
-    if (executable.type === HandlerType$1.route)
-      return false;
+    if (executable.type === HandlerType$1.rawMiddleFn) return true;
+    if (executable.type === HandlerType$1.route) return false;
     const hasPublicParams = !!executable.paramNames?.length;
     const hasHeaderParams = !!executable.headersParam?.headerNames?.length;
     return !hasPublicParams && !hasHeaderParams && !executable.hasReturnData;
   }
-  isPrivateExecutable.__type = ["RemoteMethod", "executable", "isPrivateExecutable", 'P"w!2")/#'];
   function getTotalExecutables() {
     return routesById.size + middleFnsById.size + rawMiddleFnsById.size;
   }
-  getTotalExecutables.__type = ["getTotalExecutables", "P'/!"];
   function getAllExecutablesIds() {
-    if (allExecutablesIds)
-      return allExecutablesIds;
+    if (allExecutablesIds) return allExecutablesIds;
     allExecutablesIds = [...routesById.keys(), ...middleFnsById.keys(), ...rawMiddleFnsById.keys()];
     return allExecutablesIds;
   }
-  getAllExecutablesIds.__type = ["getAllExecutablesIds", "P&F/!"];
   function shouldFullGenerateSpec() {
     return routerOptions.getPublicRoutesData || getENV("GENERATE_ROUTER_SPEC") === "true" || isMionCompileMode();
   }
-  shouldFullGenerateSpec.__type = ["shouldFullGenerateSpec", "P)/!"];
   function getRouteExecutableFromPath(path) {
     const executionChain = flatRouter.get(path);
     if (!executionChain) {
@@ -2323,25 +2243,23 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return executionChain.methods[executionChain.routeIndex];
   }
-  getRouteExecutableFromPath.__type = ["path", "RouteMethod", "getRouteExecutableFromPath", 'P&2!"w"/#'];
   async function loadAOTCaches$1() {
     const loader = await Promise.resolve().then(() => aotCacheLoader);
     return loader.loadAOTCaches();
   }
-  loadAOTCaches$1.__type = ["loadAOTCaches", 'P"/!'];
   async function emitAOTCaches$1() {
-    if (!isMionAOTEmitMode())
-      return;
+    if (!isMionAOTEmitMode()) return;
     const aotEmitter$1 = await Promise.resolve().then(() => aotEmitter);
     return aotEmitter$1.emitAOTCaches();
   }
-  emitAOTCaches$1.__type = ["emitAOTCaches", 'P"/!'];
   async function recursiveFlatRoutes(routes, currentPointer = [], preMiddleFns = [], postMiddleFns = [], nestLevel = 0) {
     if (nestLevel > MAX_ROUTE_NESTING)
       throw new Error("Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels");
     const entries = Object.entries(routes);
     if (entries.length === 0)
-      throw new Error(`Invalid route: ${currentPointer.length ? joinPath(...currentPointer) : "*"}. Can Not define empty routes`);
+      throw new Error(
+        `Invalid route: ${currentPointer.length ? joinPath(...currentPointer) : "*"}. Can Not define empty routes`
+      );
     let minus1Props = null;
     for (let index = 0; index < entries.length; index++) {
       const [key, item] = entries[index];
@@ -2349,14 +2267,15 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       let routeEntry;
       if (typeof key !== "string" || !isNaN(key))
         throw new Error(`Invalid route: ${joinPath(...newPointer)}. Numeric route names are not allowed`);
-      if (key.includes(","))
-        throw new Error(`Invalid route: ${joinPath(...newPointer)}. Route names cannot contain commas.`);
+      if (key.includes(",")) throw new Error(`Invalid route: ${joinPath(...newPointer)}. Route names cannot contain commas.`);
       if (key === WORKFLOW_KEY)
         throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
       if (isAnyMiddleFnDef(item)) {
         routeEntry = await getExecutableFromAnyMiddleFn(item, newPointer, nestLevel);
         if (middleFnNames.has(routeEntry.id))
-          throw new Error(`Invalid middleFn: ${joinPath(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`);
+          throw new Error(
+            `Invalid middleFn: ${joinPath(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`
+          );
         middleFnNames.add(routeEntry.id);
       } else if (isRoute(item)) {
         routeEntry = await getExecutableFromRoute(item, newPointer, nestLevel);
@@ -2372,10 +2291,18 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         const itemType = typeof item;
         throw new Error(`Invalid route: ${joinPath(...newPointer)}. Type <${itemType}> is not a valid route.`);
       }
-      minus1Props = await recursiveCreateExecutionChainAsync(routeEntry, newPointer, preMiddleFns, postMiddleFns, nestLevel, index, entries, minus1Props);
+      minus1Props = await recursiveCreateExecutionChainAsync(
+        routeEntry,
+        newPointer,
+        preMiddleFns,
+        postMiddleFns,
+        nestLevel,
+        index,
+        entries,
+        minus1Props
+      );
     }
   }
-  recursiveFlatRoutes.__type = ["Routes", "routes", "currentPointer", () => [], "RemoteMethod", "preMiddleFns", () => [], "postMiddleFns", () => [], "nestLevel", "recursiveFlatRoutes", `P"w!2"&F2#>$"w%F2&>'"w%F2(>)"2*"/+`];
   async function recursiveCreateExecutionChainAsync(routeEntry, currentPointer, preMiddleFns, postMiddleFns, nestLevel, index, routeKeyedEntries, minus1Props) {
     const minus1 = getEntry(index - 1, routeKeyedEntries);
     const plus1 = getEntry(index + 1, routeKeyedEntries);
@@ -2386,14 +2313,11 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     } else {
       for (let i = 0; i < routeKeyedEntries.length; i++) {
         const [k, entry] = routeKeyedEntries[i];
-        if (!isAnyMiddleFnDef(entry))
-          continue;
+        if (!isAnyMiddleFnDef(entry)) continue;
         const newPointer = [...currentPointer.slice(0, -1), k];
         const executable = await getExecutableFromAnyMiddleFn(entry, newPointer, nestLevel);
-        if (i < index)
-          props.preLevelMiddleFns.push(executable);
-        if (i > index)
-          props.postLevelMiddleFns.push(executable);
+        if (i < index) props.preLevelMiddleFns.push(executable);
+        if (i > index) props.postLevelMiddleFns.push(executable);
       }
     }
     const isExec = isExecutable(routeEntry);
@@ -2414,27 +2338,28 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         serializer: getSerializerCodeFromMode(routeMethod.options.serializer)
       };
       const middleFnIds = getPublicMiddleFnIds(methods);
-      if (middleFnIds.length)
-        routeMethod.middleFnIds = middleFnIds;
+      if (middleFnIds.length) routeMethod.middleFnIds = middleFnIds;
       flatRouter.set(path, executionChain);
     } else if (!isExec) {
-      await recursiveFlatRoutes(routeEntry.routes, routeEntry.pathPointer, [...preMiddleFns, ...props.preLevelMiddleFns], [...props.postLevelMiddleFns, ...postMiddleFns], nestLevel + 1);
+      await recursiveFlatRoutes(
+        routeEntry.routes,
+        routeEntry.pathPointer,
+        [...preMiddleFns, ...props.preLevelMiddleFns],
+        [...props.postLevelMiddleFns, ...postMiddleFns],
+        nestLevel + 1
+      );
     }
     return props;
   }
-  recursiveCreateExecutionChainAsync.__type = ["RemoteMethod", () => __ΩRoutesWithId, "routeEntry", "currentPointer", "preMiddleFns", "postMiddleFns", "nestLevel", "index", () => __ΩRouterKeyEntryList, "routeKeyedEntries", () => __ΩReturnType$1, () => getRouteEntryProperties, "minus1Props", "recursiveCreateExecutionChainAsync", `PP"w!n"J2#&F2$"w!F2%"w!F2&'2''2(n)2*Pi,o+",J2-"/.`];
   async function getExecutableFromAnyMiddleFn(middleFn, middleFnPointer, nestLevel) {
-    if (isRawMiddleFnDef(middleFn))
-      return getExecutableFromRawMiddleFn(middleFn, middleFnPointer, nestLevel);
+    if (isRawMiddleFnDef(middleFn)) return getExecutableFromRawMiddleFn(middleFn, middleFnPointer, nestLevel);
     return getExecutableFromMiddleFn(middleFn, middleFnPointer, nestLevel);
   }
-  getExecutableFromAnyMiddleFn.__type = ["MiddleFnDef", "HeadersMiddleFnDef", "RawMiddleFnDef", "middleFn", "middleFnPointer", "nestLevel", "getExecutableFromAnyMiddleFn", `PP"w!"w""w#J2$&F2%'2&"/'`];
   async function getExecutableFromMiddleFn(middleFn, middleFnPointer, nestLevel) {
     const isHeader = isHeadersMiddleFnDef(middleFn);
     const middleFnId = getRouterItemId(middleFnPointer);
     const existing = middleFnsById.get(middleFnId);
-    if (existing)
-      return existing;
+    if (existing) return existing;
     const compiledMethod = getPersistedMethod(middleFnId, middleFn.handler);
     let executable;
     if (compiledMethod) {
@@ -2461,12 +2386,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     routesCache.setMethodJitFns(middleFnId, executable);
     return executable;
   }
-  getExecutableFromMiddleFn.__type = ["MiddleFnDef", "HeadersMiddleFnDef", "middleFn", "middleFnPointer", "nestLevel", "MiddleFnMethod", "HeadersMethod", "getExecutableFromMiddleFn", `PP"w!"w"J2#&F2$'2%P"w&"w'J\`/(`];
   async function getExecutableFromRawMiddleFn(middleFn, middleFnPointer, nestLevel) {
     const middleFnId = getRouterItemId(middleFnPointer);
     const existing = rawMiddleFnsById.get(middleFnId);
-    if (existing)
-      return existing;
+    if (existing) return existing;
     const reflectionData = await getRawMethodReflection(middleFn.handler, middleFnId, routerOptions);
     const executable = {
       id: middleFnId,
@@ -2486,12 +2409,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     routesCache.setMethodJitFns(middleFnId, executable);
     return executable;
   }
-  getExecutableFromRawMiddleFn.__type = ["RawMiddleFnDef", "middleFn", "middleFnPointer", "nestLevel", "RawMethod", "getExecutableFromRawMiddleFn", 'P"w!2"&F2#\'2$"w%`/&'];
   async function getExecutableFromRoute(route2, routePointer, nestLevel) {
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
-    if (existing)
-      return existing;
+    if (existing) return existing;
     const compiledMethod = getPersistedMethod(routeId, route2.handler);
     let executable;
     if (compiledMethod) {
@@ -2520,21 +2441,17 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     routesCache.setMethodJitFns(routeId, executable);
     return executable;
   }
-  getExecutableFromRoute.__type = ["Route", "route", "routePointer", "nestLevel", "RouteMethod", "getExecutableFromRoute", 'P"w!2"&F2#\'2$"w%`/&'];
   function getPublicMiddleFnIds(methods) {
-    const ids = methods.filter(__assignType$3((exec) => isPublicExecutable(exec), ["exec", "", 'P"2!"/"'])).map(__assignType$3((exec) => getRouterItemId(exec.pointer), ["exec", "", 'P"2!"/"'])).filter(__assignType$3((mfId) => {
-      if (mionInternalRoutes.includes(mfId))
-        return false;
+    const ids = methods.filter((exec) => isPublicExecutable(exec)).map((exec) => getRouterItemId(exec.pointer)).filter((mfId) => {
+      if (mionInternalRoutes.includes(mfId)) return false;
       const exec = getMiddleFnExecutable(mfId);
       return exec && isPublicExecutable(exec);
-    }, ["mfId", "", 'P"2!"/"']));
+    });
     return ids;
   }
-  getPublicMiddleFnIds.__type = ["RemoteMethod", "methods", "getPublicMiddleFnIds", 'P"w!F2"&F/#'];
   function getEntry(index, keyEntryList) {
     return keyEntryList[index]?.[1];
   }
-  getEntry.__type = ["index", () => __ΩRouterKeyEntryList, "keyEntryList", "getEntry", `P'2!n"2#"/$`];
   function getRouteEntryProperties(minus1, zero, plus1) {
     const minus1IsRoute = minus1 && isRoute(minus1);
     const zeroIsRoute = zero.type === HandlerType$1.route;
@@ -2548,7 +2465,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       postLevelMiddleFns: []
     };
   }
-  getRouteEntryProperties.__type = ["RouterEntry", "minus1", "RemoteMethod", () => __ΩRoutesWithId, "zero", "plus1", "getRouteEntryProperties", `PP"w!-J2"P"w#n$J2%P"w!-J2&"/'`];
   async function getExecutablesFromMiddleFnsCollection(middleFnsDef) {
     const results = [];
     for (const [key, middleFn] of Object.entries(middleFnsDef)) {
@@ -2562,16 +2478,13 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return results;
   }
-  getExecutablesFromMiddleFnsCollection.__type = ["MiddleFnsCollection", "middleFnsDef", "RawMethod", "MiddleFnMethod", "HeadersMethod", "getExecutablesFromMiddleFnsCollection", 'P"w!2"P"w#"w$"w%JF`/&'];
   function validateSharedDataFactory(opts2) {
-    if (!opts2?.contextDataFactory)
-      return;
+    if (!opts2?.contextDataFactory) return;
     const testSharedData = opts2.contextDataFactory();
     if (typeof testSharedData !== "object" || Array.isArray(testSharedData) || testSharedData === null || Object.keys(testSharedData).length === 0) {
       throw new Error("contextDataFactory must return a plain object with at least one property");
     }
   }
-  validateSharedDataFactory.__type = [() => __ΩPartial$1, "RouterOptions", "opts", "validateSharedDataFactory", 'P"w"o!"2#8$/$'];
   function getSerializerCodeFromMode(mode) {
     switch (mode) {
       case "binary":
@@ -2583,19 +2496,23 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         return SerializerModes.json;
     }
   }
-  getSerializerCodeFromMode.__type = [() => __ΩSerializerMode, "mode", () => __ΩSerializerCode, "getSerializerCodeFromMode", 'PPn!-J2"n#/$'];
   function joinPath(...parts) {
     return parts.filter(Boolean).join("/");
-  }
-  joinPath.__type = ["parts", "joinPath", 'P&@2!&/"'];
-  function __assignType$2(fn, args) {
-    fn.__type = args;
-    return fn;
   }
   async function dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, rawRequest, rawResponse, reqBodyType, urlQuery) {
     const opts2 = getRouterOptions();
     const usePooling = opts2.maxContextPoolSize > 0;
-    const context = acquireCallContext(usePooling, path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
+    const context = acquireCallContext(
+      usePooling,
+      path,
+      opts2,
+      reqRawBody,
+      rawRequest,
+      reqHeaders,
+      respHeaders,
+      reqBodyType,
+      urlQuery
+    );
     try {
       await runExecutionChain(context, rawRequest, rawResponse, opts2);
       return context.response;
@@ -2607,20 +2524,17 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       }
     }
   }
-  dispatchRoute.__type = ["path", "RawRequestBody", "reqRawBody", "MionHeaders", "reqHeaders", "respHeaders", "rawRequest", "rawResponse", () => __ΩSerializerCode, "reqBodyType", "urlQuery", "MionResponse", "dispatchRoute", 'P&2!"w"2#"w$2%"w$2&"2\'"2(8n)2*8&2+8"w,`/-'];
   async function runExecutionChain(context, rawRequest, rawResponse, opts2) {
     const { response, request } = context;
     const executionList = context.executionChain.methods;
     response.serializer = context.executionChain.serializer;
     for (let i = 0; i < executionList.length; i++) {
       const executable = executionList[i];
-      if (response.hasErrors && !executable.options.runOnError)
-        continue;
+      if (response.hasErrors && !executable.options.runOnError) continue;
       try {
         const methodCaller = executable.methodCaller || getMethodCaller(executable);
         const result = await methodCaller(context, executable, request, response, opts2, rawRequest, rawResponse);
-        if (result === void 0 || !executable.hasReturnData)
-          continue;
+        if (result === void 0 || !executable.hasReturnData) continue;
         if (executable.headersReturn && result instanceof HeadersSubset) {
           const headersMap = result.headers;
           for (const name in headersMap) {
@@ -2638,37 +2552,30 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return context.response;
   }
-  runExecutionChain.__type = ["CallContext", "context", "rawRequest", "rawResponse", "RouterOptions", "opts", "MionResponse", "runExecutionChain", 'P"w!2"#2##2$"w%2&"w\'`/('];
   async function runRawMiddleFn(context, executable, req, resp, opts2, rawRequest, rawResponse) {
     const result = await executable.handler(context, rawRequest, rawResponse, opts2);
     return result;
   }
-  runRawMiddleFn.__type = ["CallContext", "context", () => __ΩRawMethod, "executable", "req", "resp", "RouterOptions", "opts", "rawRequest", "rawResponse", "runRawMiddleFn", `P"w!2"n#2$"2%"2&"w'2(#2)#2*"/+`];
   async function runHeadersMiddleFn(context, executable, request) {
     const headerNames = executable.headersParam.headerNames;
     const params = deserializeBodyParamsOrThrow(request, executable);
     const headersMap = {};
-    headerNames.forEach(__assignType$2((name) => {
+    headerNames.forEach((name) => {
       const value = request.headers.get(name);
-      if (value)
-        headersMap[name] = value;
-    }, ["name", "", 'P"2!"/"']));
+      if (value) headersMap[name] = value;
+    });
     const headersSubset = new HeadersSubset(headersMap);
     validateHeaderParamsOrThrow(headersSubset, executable);
-    if (executable.options.validateParams)
-      validateParametersOrThrow(params, executable);
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable);
     const result = await executable.handler(context, headersSubset, ...params);
     return result;
   }
-  runHeadersMiddleFn.__type = ["CallContext", "context", () => __ΩHeadersMethod, "executable", "MionRequest", "request", "runHeadersMiddleFn", `P"w!2"n#2$"w%2&"/'`];
   async function runRouteOrMiddleFn(context, executable, request) {
     const params = deserializeBodyParamsOrThrow(request, executable);
-    if (executable.options.validateParams)
-      validateParametersOrThrow(params, executable);
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable);
     const result = await executable.handler(context, ...params);
     return result;
   }
-  runRouteOrMiddleFn.__type = ["CallContext", "context", () => __ΩHeadersMethod, "executable", "MionRequest", "request", "runRouteOrMiddleFn", `P"w!2"n#2$"w%2&"/'`];
   function getMethodCaller(executable) {
     if (executable.type === HandlerType$1.rawMiddleFn) {
       executable.methodCaller = runRawMiddleFn;
@@ -2679,13 +2586,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     return executable.methodCaller;
   }
-  getMethodCaller.__type = [() => __ΩRemoteMethod, "executable", "getMethodCaller", 'Pn!2""/#'];
   function deserializeBodyParamsOrThrow(request, executable) {
     const params = request.body[executable.id] || [];
-    if (request.bodyType === SerializerModes.binary)
-      return params;
-    if (executable.paramsJitFns.restoreFromJson.isNoop)
-      return params;
+    if (request.bodyType === SerializerModes.binary) return params;
+    if (executable.paramsJitFns.restoreFromJson.isNoop) return params;
     try {
       request.body[executable.id] = executable.paramsJitFns.restoreFromJson.fn(params);
       return request.body[executable.id];
@@ -2701,10 +2605,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       });
     }
   }
-  deserializeBodyParamsOrThrow.__type = ["MionRequest", "request", () => __ΩRemoteMethod, "executable", "deserializeBodyParamsOrThrow", 'P"w!2"n#2$"F/%'];
   function validateParametersOrThrow(params, executable) {
-    if (executable.paramsJitFns.isType.isNoop)
-      return;
+    if (executable.paramsJitFns.isType.isNoop) return;
     if (!executable.paramsJitFns.isType.fn(params)) {
       const validationError = new RpcError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
@@ -2717,7 +2619,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       throw validationError;
     }
   }
-  validateParametersOrThrow.__type = ["params", () => __ΩRemoteMethod, "executable", "validateParametersOrThrow", 'P"F2!n"2#$/$'];
   function validateHeaderParamsOrThrow(headers, executable) {
     if (!executable.headersParam.jitFns.isType.fn(headers)) {
       const validationError = new RpcError({
@@ -2731,7 +2632,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       throw validationError;
     }
   }
-  validateHeaderParamsOrThrow.__type = [() => HeadersSubset, "headers", () => __ΩHeadersMethod, "executable", "validateHeaderParamsOrThrow", 'PP&&7!2"n#2$$/%'];
   const __ΩQueryBodyResult = ["rawBody", "SerializerCode", "bodyType", "QueryBodyResult", 'P&4!"w"4#Mw$y'];
   function decodeQueryBody(urlQuery, rawBody) {
     if (rawBody)
@@ -2763,7 +2663,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   const DEFAULT_VERCEL_OPTIONS = {
     defaultResponseHeaders: {}
   };
-  const __ΩPartial = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
   let vercelOptions = { ...DEFAULT_VERCEL_OPTIONS };
   let defaultHeaders = [["server", "@mionjs"]];
   function resetVercelHandlerOpts() {
@@ -2771,7 +2670,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     defaultHeaders = [["server", "@mionjs"]];
     resetRouter();
   }
-  resetVercelHandlerOpts.__type = ["resetVercelHandlerOpts", 'P"/!'];
   function setVercelHandlerOpts(options2) {
     vercelOptions = {
       ...vercelOptions,
@@ -2780,7 +2678,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     defaultHeaders = [["server", "@mionjs"], ...Object.entries(vercelOptions.defaultResponseHeaders)];
     return vercelOptions;
   }
-  setVercelHandlerOpts.__type = [() => __ΩPartial, "VercelHandlerOptions", "options", "setVercelHandlerOpts", 'P"w"o!"2#8"/$'];
   async function handleRequest(req) {
     const reqUrl = req.url;
     const urlObj = new URL(reqUrl);
@@ -2797,7 +2694,16 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     const responseHeaders = new Headers(defaultHeaders);
     try {
-      const platformResp = await dispatchRoute(path, rawBody, req.headers, responseHeaders, req, void 0, reqBodyType, urlQuery);
+      const platformResp = await dispatchRoute(
+        path,
+        rawBody,
+        req.headers,
+        responseHeaders,
+        req,
+        void 0,
+        reqBodyType,
+        urlQuery
+      );
       return reply(platformResp, responseHeaders);
     } catch (e) {
       const error = e instanceof RpcError ? e : new RpcError({
@@ -2808,7 +2714,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return fatalFail(error, responseHeaders);
     }
   }
-  handleRequest.__type = ["req", "handleRequest", 'P!2!!`/"'];
   function createVercelHandler() {
     return {
       GET: handleRequest,
@@ -2818,12 +2723,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       PATCH: handleRequest
     };
   }
-  createVercelHandler.__type = ["createVercelHandler", 'P"/!'];
   function fatalFail(err, responseHeaders) {
     const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
     return reply(routeResponse, responseHeaders);
   }
-  fatalFail.__type = [() => RpcError, "err", "responseHeaders", "fatalFail", 'PP&7!2""2#!/$'];
   function reply(mionResp, responseHeaders) {
     const bodyType = mionResp.serializer;
     switch (bodyType) {
@@ -2859,7 +2762,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       }
     }
   }
-  reply.__type = [() => __ΩMionResponse, "mionResp", "responseHeaders", "reply", 'Pn!2""2#!/$'];
   const __ΩReturnType = ["T", "args", "", "ReturnType", `l>e"!R"RPde#!P"@2"h"!/#qk#'QRb!Pde"!p)w$y`];
   const __ΩRecord = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   function __assignType$1(fn, args) {

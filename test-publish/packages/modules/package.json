@@ -10,16 +10,16 @@
     "format": "prettier --write src/**/*.ts"
   },
   "dependencies": {
-    "@mionjs/platform-aws": "^0.7.2",
-    "@mionjs/platform-bun": "^0.7.2",
-    "@mionjs/client": "^0.7.2",
-    "@mionjs/core": "^0.7.2",
-    "@mionjs/platform-gcloud": "^0.7.2",
-    "@mionjs/platform-node": "^0.7.2",
-    "@mionjs/router": "^0.7.2",
-    "@mionjs/run-types": "^0.7.2",
-    "@mionjs/test-server": "^0.7.2",
-    "@mionjs/type-formats": "^0.7.2"
+    "@mionjs/platform-aws": "^0.8.0-alpha.0",
+    "@mionjs/platform-bun": "^0.8.0-alpha.0",
+    "@mionjs/client": "^0.8.0-alpha.0",
+    "@mionjs/core": "^0.8.0-alpha.0",
+    "@mionjs/platform-gcloud": "^0.8.0-alpha.0",
+    "@mionjs/platform-node": "^0.8.0-alpha.0",
+    "@mionjs/router": "^0.8.0-alpha.0",
+    "@mionjs/run-types": "^0.8.0-alpha.0",
+    "@mionjs/test-server": "^0.8.0-alpha.0",
+    "@mionjs/type-formats": "^0.8.0-alpha.0"
   },
   "devDependencies": {
     "dom-storage": "^2.1.0"
