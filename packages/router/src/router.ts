@@ -232,7 +232,7 @@ export function getRouteExecutableFromPath(path: string): RouteMethod {
 
 async function loadAOTCaches() {
     const loader = await import('./aot/aotCacheLoader.ts');
-    return loader.loadAOTCaches();
+    return loader.loadRouterAOTCaches();
 }
 
 async function emitAOTCaches() {

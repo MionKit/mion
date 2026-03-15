@@ -94,7 +94,7 @@ describe('aotCacheLoader', () => {
     });
 
     it('should load JIT functions from virtual module into global jit cache', async () => {
-        const {loadAOTCaches} = await import('./aotCacheLoader.ts');
+        const {loadRouterAOTCaches: loadAOTCaches} = await import('./aotCacheLoader.ts');
         loadAOTCaches();
 
         const jitFns = getJitFunctionsFromHash(MOCK_JIT_HASH);
@@ -104,7 +104,7 @@ describe('aotCacheLoader', () => {
     });
 
     it('should load router cache from virtual module into global routes cache', async () => {
-        const {loadAOTCaches} = await import('./aotCacheLoader.ts');
+        const {loadRouterAOTCaches: loadAOTCaches} = await import('./aotCacheLoader.ts');
         loadAOTCaches();
 
         const metadata = routesCache.getMetadata('testRoute');
@@ -114,7 +114,7 @@ describe('aotCacheLoader', () => {
     });
 
     it('should load router cache into persisted methods cache', async () => {
-        const {loadAOTCaches} = await import('./aotCacheLoader.ts');
+        const {loadRouterAOTCaches: loadAOTCaches} = await import('./aotCacheLoader.ts');
         loadAOTCaches();
 
         const persisted = getPersistedMethods();
@@ -124,7 +124,7 @@ describe('aotCacheLoader', () => {
     });
 
     it('should populate both jit and routes caches so getMethodJitFns works end-to-end', async () => {
-        const {loadAOTCaches} = await import('./aotCacheLoader.ts');
+        const {loadRouterAOTCaches: loadAOTCaches} = await import('./aotCacheLoader.ts');
         loadAOTCaches();
 
         const methodWithJit = routesCache.getMethodJitFns('testRoute');
