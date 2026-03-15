@@ -24,6 +24,12 @@ export const VIRTUAL_AOT_ROUTER_CACHE = 'virtual:mion-aot/router-cache';
 /** Virtual module ID for combined AOT caches (re-exports all 3 cache modules) */
 export const VIRTUAL_AOT_CACHES = 'virtual:mion-aot/caches';
 
+/** The real module that acts as a shim for AOT caches (empty caches). Swapped by the plugin when AOT is enabled. */
+export const AOT_CACHES_SHIM = '@mionjs/core/aot-caches';
+
+/** The shim's source file path suffix, used to verify alias-resolved paths point to the actual shim file. */
+export const AOT_CACHES_SHIM_SOURCE = 'src/aot/emptyCaches.ts';
+
 /** The namespace used for all pureServerFn functions */
 export const PURE_SERVER_FN_NAMESPACE = 'pureServerFn';
 

@@ -26,6 +26,12 @@
       "types": "./.dist/esm/index.d.ts",
       "require": "./.dist/cjs/index.cjs",
       "default": "./.dist/esm/index.js"
+    },
+    "./aot-caches": {
+      "source": "./src/aot/emptyCaches.ts",
+      "types": "./.dist/esm/src/aot/emptyCaches.d.ts",
+      "require": "./.dist/cjs/src/aot/emptyCaches.cjs",
+      "default": "./.dist/esm/src/aot/emptyCaches.js"
     }
   },
   "directories": {

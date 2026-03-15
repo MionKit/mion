@@ -6,12 +6,16 @@ const VIRTUAL_AOT_JIT_FNS = "virtual:mion-aot/jit-fns";
 const VIRTUAL_AOT_PURE_FNS = "virtual:mion-aot/pure-fns";
 const VIRTUAL_AOT_ROUTER_CACHE = "virtual:mion-aot/router-cache";
 const VIRTUAL_AOT_CACHES = "virtual:mion-aot/caches";
+const AOT_CACHES_SHIM = "@mionjs/core/aot-caches";
+const AOT_CACHES_SHIM_SOURCE = "src/aot/emptyCaches.ts";
 const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
 function resolveVirtualId(id) {
   return "\0" + id + ".ts";
 }
 const REFLECTION_MODULES = ["@mionjs/run-types", "@deepkit/type", "@deepkit/core"];
 const VIRTUAL_STUB_PREFIX = "virtual:mion-stub/";
+exports.AOT_CACHES_SHIM = AOT_CACHES_SHIM;
+exports.AOT_CACHES_SHIM_SOURCE = AOT_CACHES_SHIM_SOURCE;
 exports.BODY_HASH_LENGTH = BODY_HASH_LENGTH;
 exports.PURE_SERVER_FN_NAMESPACE = PURE_SERVER_FN_NAMESPACE;
 exports.REFLECTION_MODULES = REFLECTION_MODULES;
