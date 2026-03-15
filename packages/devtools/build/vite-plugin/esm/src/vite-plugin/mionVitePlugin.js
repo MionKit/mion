@@ -7,9 +7,6 @@ import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX, AOT_CACHES_SHIM_SOURCE, AOT_CACHES_SHIM, VIRTUAL_AOT_CACHES } from "./constants.js";
 import { generateAOTCaches, logAOTCaches, waitForServer, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, loadSSRRouterAndGenerateAOTCaches, killPersistentChild } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
-function isRunningAsChild() {
-  return process.env.MION_COMPILE === "onlyAOT" || process.env.MION_COMPILE === "serve";
-}
 function mionVitePlugin(options) {
   let extractedFns = null;
   const pureFnOptions = options.serverPureFunctions;
@@ -169,10 +166,16 @@ function mionVitePlugin(options) {
       if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
       if (aotVirtualModules.has(id)) return resolveVirtualId(id);
       if (aotOptions) {
-        if (id.endsWith("/aot-caches") && existsSync(resolve(id, "..", AOT_CACHES_SHIM_SOURCE))) {
-          return resolve(id, "..", "src/aot/aotCaches.ts");
+        if (id.endsWith("/aot-caches")) {
+          if (existsSync(resolve(id, "..", AOT_CACHES_SHIM_SOURCE))) {
+            return resolve(id, "..", "src/aot/aotCaches.ts");
+          }
+          if (id === AOT_CACHES_SHIM) {
+            const corePath = resolveCorePath();
+            if (corePath) return resolve(corePath, "src/aot/aotCaches.ts");
+            return resolveVirtualId(VIRTUAL_AOT_CACHES);
+          }
         }
-        if (id === AOT_CACHES_SHIM) return resolveVirtualId(VIRTUAL_AOT_CACHES);
         if (id.endsWith("emptyCaches.ts") && importer?.endsWith("aotCaches.ts")) {
           return resolveVirtualId(VIRTUAL_AOT_CACHES);
         }
@@ -339,6 +342,19 @@ function mionVitePlugin(options) {
       return void 0;
     }
   };
+}
+function resolveCorePath() {
+  let dir = process.cwd();
+  while (true) {
+    const candidate = resolve(dir, "node_modules/@mionjs/core");
+    if (existsSync(candidate)) return candidate;
+    const parent = resolve(dir, "..");
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+function isRunningAsChild() {
+  return process.env.MION_COMPILE === "onlyAOT" || process.env.MION_COMPILE === "serve";
 }
 function parseVueModuleId(id) {
   const qIdx = id.indexOf("?");

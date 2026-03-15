@@ -26,9 +26,6 @@ function _interopNamespaceDefault(e) {
   return Object.freeze(n);
 }
 const ts__namespace = /* @__PURE__ */ _interopNamespaceDefault(ts);
-function isRunningAsChild() {
-  return process.env.MION_COMPILE === "onlyAOT" || process.env.MION_COMPILE === "serve";
-}
 function mionVitePlugin(options) {
   let extractedFns = null;
   const pureFnOptions = options.serverPureFunctions;
@@ -188,10 +185,16 @@ function mionVitePlugin(options) {
       if (id === src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS) return src_vitePlugin_constants.resolveVirtualId(id);
       if (aotVirtualModules.has(id)) return src_vitePlugin_constants.resolveVirtualId(id);
       if (aotOptions) {
-        if (id.endsWith("/aot-caches") && fs.existsSync(path.resolve(id, "..", src_vitePlugin_constants.AOT_CACHES_SHIM_SOURCE))) {
-          return path.resolve(id, "..", "src/aot/aotCaches.ts");
+        if (id.endsWith("/aot-caches")) {
+          if (fs.existsSync(path.resolve(id, "..", src_vitePlugin_constants.AOT_CACHES_SHIM_SOURCE))) {
+            return path.resolve(id, "..", "src/aot/aotCaches.ts");
+          }
+          if (id === src_vitePlugin_constants.AOT_CACHES_SHIM) {
+            const corePath = resolveCorePath();
+            if (corePath) return path.resolve(corePath, "src/aot/aotCaches.ts");
+            return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES);
+          }
         }
-        if (id === src_vitePlugin_constants.AOT_CACHES_SHIM) return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES);
         if (id.endsWith("emptyCaches.ts") && importer?.endsWith("aotCaches.ts")) {
           return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES);
         }
@@ -358,6 +361,19 @@ function mionVitePlugin(options) {
       return void 0;
     }
   };
+}
+function resolveCorePath() {
+  let dir = process.cwd();
+  while (true) {
+    const candidate = path.resolve(dir, "node_modules/@mionjs/core");
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.resolve(dir, "..");
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+function isRunningAsChild() {
+  return process.env.MION_COMPILE === "onlyAOT" || process.env.MION_COMPILE === "serve";
 }
 function parseVueModuleId(id) {
   const qIdx = id.indexOf("?");
