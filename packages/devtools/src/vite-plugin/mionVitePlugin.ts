@@ -6,7 +6,6 @@
  * ######## */
 
 import {resolve} from 'path';
-import {existsSync} from 'fs';
 import * as ts from 'typescript';
 import {ChildProcess} from 'child_process';
 import {createDeepkitConfig, DeepkitConfig, createPureFnTransformerFactory} from './transformers.ts';
@@ -18,8 +17,6 @@ import {
     REFLECTION_MODULES,
     VIRTUAL_STUB_PREFIX,
     VIRTUAL_AOT_CACHES,
-    AOT_CACHES_SHIM,
-    AOT_CACHES_SHIM_SOURCE,
     resolveVirtualId,
 } from './constants.ts';
 import {
@@ -276,20 +273,16 @@ export function mionVitePlugin(options: MionPluginOptions) {
             });
         },
 
-        resolveId(id) {
+        resolveId(id, importer) {
             // Pure functions virtual module — always resolve, returns empty cache if not configured
             if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
             // AOT virtual modules (default + custom prefix both resolve)
             if (aotVirtualModules.has(id)) return resolveVirtualId(id);
-            // Swap the AOT caches shim for the virtual module when AOT is enabled.
-            // Handles both bare specifier (@mionjs/core/aot-caches) and alias-resolved absolute paths.
-            if (aotOptions) {
-                if (id === AOT_CACHES_SHIM) return resolveVirtualId(VIRTUAL_AOT_CACHES);
-                // When Vite aliases resolve @mionjs/core to a directory, the id becomes an absolute path.
-                // Verify the shim source file exists at the expected location to avoid false positives.
-                if (id.endsWith('/aot-caches') && existsSync(resolve(id, '..', AOT_CACHES_SHIM_SOURCE))) {
-                    return resolveVirtualId(VIRTUAL_AOT_CACHES);
-                }
+            // Swap emptyCaches.ts (imported by aotCaches.ts) with the virtual AOT caches module.
+            // aotCaches.ts wraps the raw caches with loadAOTCaches() and getRawAOTCaches() functions,
+            // so we only need to replace the underlying data source.
+            if (aotOptions && id.endsWith('emptyCaches.ts') && importer?.endsWith('aotCaches.ts')) {
+                return resolveVirtualId(VIRTUAL_AOT_CACHES);
             }
             // Stub out reflection modules in the bundle build (not needed at runtime in AOT mode)
             if (aotOptions?.excludeReflection && !isRunningAsChild() && REFLECTION_MODULES.includes(id)) {

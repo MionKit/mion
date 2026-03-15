@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const path = require("path");
-const fs = require("fs");
 const ts = require("typescript");
 const src_vitePlugin_transformers = require("./transformers.cjs");
 const src_vitePlugin_extractPureFn = require("./extractPureFn.cjs");
@@ -172,14 +171,11 @@ function mionVitePlugin(options) {
         }
       });
     },
-    resolveId(id) {
+    resolveId(id, importer) {
       if (id === src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS) return src_vitePlugin_constants.resolveVirtualId(id);
       if (aotVirtualModules.has(id)) return src_vitePlugin_constants.resolveVirtualId(id);
-      if (aotOptions) {
-        if (id === src_vitePlugin_constants.AOT_CACHES_SHIM) return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES);
-        if (id.endsWith("/aot-caches") && fs.existsSync(path.resolve(id, "..", src_vitePlugin_constants.AOT_CACHES_SHIM_SOURCE))) {
-          return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES);
-        }
+      if (aotOptions && id.endsWith("emptyCaches.ts") && importer?.endsWith("aotCaches.ts")) {
+        return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES);
       }
       if (aotOptions?.excludeReflection && !isRunningAsChild() && src_vitePlugin_constants.REFLECTION_MODULES.includes(id)) {
         return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_STUB_PREFIX + id);
