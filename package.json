@@ -18,6 +18,7 @@
     "fresh-start": "lerna run fresh-start && rimraf node_modules && npm ci && npm run build -w @mionjs/devtools",
     "deepkit-install": "deepkit-type-install",
     "pre-publish-test": "bash scripts/pre-publish-test.sh",
+    "npm-version": "lerna version",
     "npm-publish": "lerna publish from-package --no-private",
     "prepare": "husky install",
     "copy-benchmarks": "cp -r ../mion-benchmarks/assets/public/* ./website/app/components/content/charts/ && node scripts/copy-benchmarks.js",
