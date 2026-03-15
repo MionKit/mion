@@ -18,7 +18,7 @@ import type {
 } from './types.ts';
 import type {MapFromServerFnRef} from '@mionjs/core';
 import type {MionClient} from './client.ts';
-import {TypedEvent} from './typedEvent.ts';
+import {TypedEvent} from './lib/typedEvent.ts';
 import {isMapFromRef} from './routesFlow.ts';
 
 /** Implementation of both RouteSubRequest and MiddleFnSubRequest interfaces */

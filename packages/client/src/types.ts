@@ -8,7 +8,7 @@
 import {RpcError} from '@mionjs/core';
 import type {CoreRouterOptions, Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
-import type {TypedEvent} from './typedEvent.ts';
+import type {TypedEvent} from './lib/typedEvent.ts';
 
 /** Result type for call() and callWithMiddleFns() methods - 4-tuple pattern */
 export type Result<

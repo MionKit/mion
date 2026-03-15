@@ -33,7 +33,7 @@ export interface AOTCacheOptions {
 
     /**
      * Register additional virtual modules with a custom prefix, resolving to the same AOT cache data.
-     * Useful for creating a separate entry point (e.g. `@mionjs/client/aot`) that imports from
+     * Useful for creating virtual modules (e.g. `virtual:client-mion-aot/*`) that imports from
      * these prefixed virtual modules in source, while Vite/Rollup resolves and bundles them
      * into the build output automatically.
      *

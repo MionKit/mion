@@ -24,12 +24,6 @@
       "types": "./.dist/esm/index.d.ts",
       "require": "./.dist/cjs/index.cjs",
       "default": "./.dist/esm/index.js"
-    },
-    "./aot": {
-      "source": "./src/aot/loadClientAOTCaches.ts",
-      "types": "./.dist/esm/src/aot/loadClientAOTCaches.d.ts",
-      "require": "./.dist/cjs/src/aot/loadClientAOTCaches.cjs",
-      "default": "./.dist/esm/src/aot/loadClientAOTCaches.js"
     }
   },
   "directories": {

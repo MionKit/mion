@@ -6,7 +6,7 @@
  * ######## */
 
 import type {RpcError} from '@mionjs/core';
-import type {ErrorHandler, SuccessHandler} from './types';
+import type {ErrorHandler, SuccessHandler} from '../types.ts';
 
 /** Central registry for persistent middleFn handlers (both success and error) */
 export class HandlersRegistry {

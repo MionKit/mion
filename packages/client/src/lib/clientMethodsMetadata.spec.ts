@@ -7,9 +7,9 @@
 
 import {vi, describe, beforeEach, afterEach, it, expect} from 'vitest';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
-import {ClientOptions} from './types.ts';
+import {ClientOptions} from '../types.ts';
 import {routesCache} from '@mionjs/core';
-import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
+import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import {resetClientCaches} from './testUtils.ts';
 import {getStorage} from './storage.ts';
 

@@ -6,12 +6,12 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {initClient} from './client.ts';
+import {initClient} from '../client.ts';
 import {getFriendlyErrors} from '@mionjs/core';
 import type {FriendlyErrors} from '@mionjs/core';
-import type {RouteParamsType} from './types.ts';
+import type {RouteParamsType} from '../types.ts';
 import {FormatEmail} from '@mionjs/type-formats/StringFormats';
-import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
+import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import {TestServerApi} from '@mionjs/test-server';
 import {getStorage} from './storage.ts';
 

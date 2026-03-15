@@ -10,9 +10,9 @@ import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, Pref
 import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset, toBase64Url} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
-import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
-import {validateSubRequests} from './validation.ts';
-import {serializeRequestBody, deserializeResponseBody} from './serializer.ts';
+import {fetchRemoteMethodsMetadata} from './lib/clientMethodsMetadata.ts';
+import {validateSubRequests} from './lib/validation.ts';
+import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH} from './constants.ts';
 
 export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList extends HSubRequest<any>[]> {

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initAOTClient} from '@mionjs/client/aot';
+import {initClient} from '@mionjs/client';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import Storage from 'dom-storage';
@@ -32,11 +32,11 @@ describe('Binary Serialization E2E', () => {
     type MyApi = TestServerApi;
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-    let routes: ReturnType<typeof initAOTClient<MyApi>>['routes'];
-    let middleFns: ReturnType<typeof initAOTClient<MyApi>>['middleFns'];
+    let routes: ReturnType<typeof initClient<MyApi>>['routes'];
+    let middleFns: ReturnType<typeof initClient<MyApi>>['middleFns'];
 
     beforeEach(() => {
-        const client = initAOTClient<MyApi>({baseURL});
+        const client = initClient<MyApi>({baseURL});
         routes = client.routes;
         middleFns = client.middleFns;
         middleFns.auth(authHeaders).prefill();
