@@ -22,21 +22,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            // Virtual module shims (must be listed before package aliases)
-            'virtual:mion-server-pure-fns': resolve(__dirname, './virtual-mion-server-pure-fns.ts'),
-            // All @mionjs/* packages resolve to their built .dist folders
-            // This ensures we test the actual published artifacts, not source files
-            '@mionjs/core': resolve(__dirname, '../packages/core/.dist/esm'),
-            '@mionjs/run-types': resolve(__dirname, '../packages/run-types/.dist/esm'),
-            '@mionjs/type-formats': resolve(__dirname, '../packages/type-formats/.dist/esm'),
-            '@mionjs/router': resolve(__dirname, '../packages/router/.dist/esm'),
-            '@mionjs/platform-node': resolve(__dirname, '../packages/platform-node/.dist/esm'),
-            '@mionjs/client': resolve(__dirname, '../packages/client/.dist/esm'),
-            '@mionjs/test-server': resolve(__dirname, '../packages/test-server/.dist/esm'),
-            '@mionjs/platform-aws': resolve(__dirname, '../packages/platform-aws/.dist/esm'),
-            '@mionjs/platform-gcloud': resolve(__dirname, '../packages/platform-gcloud/.dist/esm'),
-            '@mionjs/devtools': resolve(__dirname, '../packages/devtools/.dist/esm'),
-            '@mionjs/platform-bun': resolve(__dirname, '../packages/platform-bun/.dist/esm'),
+            'virtual:mion-server-pure-fns': resolve(__dirname, './packages/pure-functions-test/virtual-mion-server-pure-fns.ts'),
         },
     },
 });
