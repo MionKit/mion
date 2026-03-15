@@ -15,7 +15,7 @@ import {
     resetRoutesCache,
     getJitUtils,
 } from '@mionjs/core';
-import {getPersistedMethods, resetPersistedMethods} from './methodsCache.ts';
+import {getPersistedMethods, resetPersistedMethods} from '../lib/methodsCache.ts';
 import type {MethodsCache, PersistedJitFunctionsCache} from '@mionjs/core';
 import {
     cpf_asJSONString,
@@ -79,7 +79,7 @@ function reRegisterRunTypesPureFns(): void {
 }
 
 // Mock virtual:mion-aot/caches to return test data instead of empty noop caches
-vi.mock('virtual:mion-aot/caches', () => ({
+vi.mock('@mionjs/core/aot-caches', () => ({
     jitFnsCache: mockJitFnsCache,
     pureFnsCache: {},
     routerCache: mockRouterCache,

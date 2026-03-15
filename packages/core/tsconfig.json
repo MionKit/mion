@@ -6,6 +6,6 @@
     "rootDir": "."
   },
   "reflection": true,
-  "include": ["."],
+  "include": [".", "src/aot/emptyCaches.ts", "../router/src/aot/aotCacheLoader.ts"],
   "exclude": ["node_modules", ".dist", "vite.config.ts"]
 }

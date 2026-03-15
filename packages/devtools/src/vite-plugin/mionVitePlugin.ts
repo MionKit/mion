@@ -6,13 +6,22 @@
  * ######## */
 
 import {resolve} from 'path';
+import {existsSync} from 'fs';
 import * as ts from 'typescript';
 import {ChildProcess} from 'child_process';
 import {createDeepkitConfig, DeepkitConfig, createPureFnTransformerFactory} from './transformers.ts';
 import {ServerPureFunctionsOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions, MionServerConfig} from './types.ts';
 import {scanClientSource} from './extractPureFn.ts';
 import {generateServerPureFnsVirtualModule} from './virtualModule.ts';
-import {VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX, resolveVirtualId} from './constants.ts';
+import {
+    VIRTUAL_SERVER_PURE_FNS,
+    REFLECTION_MODULES,
+    VIRTUAL_STUB_PREFIX,
+    VIRTUAL_AOT_CACHES,
+    AOT_CACHES_SHIM,
+    AOT_CACHES_SHIM_SOURCE,
+    resolveVirtualId,
+} from './constants.ts';
 import {
     generateAOTCaches,
     loadSSRRouterAndGenerateAOTCaches,
@@ -272,6 +281,16 @@ export function mionVitePlugin(options: MionPluginOptions) {
             if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
             // AOT virtual modules (default + custom prefix both resolve)
             if (aotVirtualModules.has(id)) return resolveVirtualId(id);
+            // Swap the AOT caches shim for the virtual module when AOT is enabled.
+            // Handles both bare specifier (@mionjs/core/aot-caches) and alias-resolved absolute paths.
+            if (aotOptions) {
+                if (id === AOT_CACHES_SHIM) return resolveVirtualId(VIRTUAL_AOT_CACHES);
+                // When Vite aliases resolve @mionjs/core to a directory, the id becomes an absolute path.
+                // Verify the shim source file exists at the expected location to avoid false positives.
+                if (id.endsWith('/aot-caches') && existsSync(resolve(id, '..', AOT_CACHES_SHIM_SOURCE))) {
+                    return resolveVirtualId(VIRTUAL_AOT_CACHES);
+                }
+            }
             // Stub out reflection modules in the bundle build (not needed at runtime in AOT mode)
             if (aotOptions?.excludeReflection && !isRunningAsChild() && REFLECTION_MODULES.includes(id)) {
                 return resolveVirtualId(VIRTUAL_STUB_PREFIX + id);
