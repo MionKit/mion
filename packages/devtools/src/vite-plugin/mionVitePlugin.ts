@@ -163,6 +163,21 @@ export function mionVitePlugin(options: MionPluginOptions) {
                     }
                 }
             }
+
+            // When AOT caches are enabled, ensure Vite handles @mionjs/core/aot-caches
+            // instead of letting Node.js resolve it from node_modules
+            if (aotOptions && !isRunningAsChild()) {
+                const noExternal = config.ssr?.noExternal;
+                const moduleId = AOT_CACHES_SHIM;
+                if (!config.ssr) config.ssr = {};
+                if (Array.isArray(noExternal)) {
+                    if (!noExternal.includes(moduleId)) noExternal.push(moduleId);
+                } else if (typeof noExternal === 'string') {
+                    config.ssr.noExternal = [noExternal, moduleId];
+                } else if (noExternal !== true) {
+                    config.ssr.noExternal = noExternal ? [noExternal, moduleId] : [moduleId];
+                }
+            }
         },
 
         configResolved(config) {
