@@ -15,7 +15,7 @@
     {"path": "../router"},
     {"path": "../test-server"}
   ],
-  "reflection": true,
+  "reflection": false,
   "include": ["."],
   "exclude": ["node_modules", ".dist", "vite.config.ts"]
 }
