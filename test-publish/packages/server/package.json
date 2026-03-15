@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@mionjs/core": "^0.8.0-alpha.0"
+    "@mionjs/core": "file:../../../packages/core"
   }
 }

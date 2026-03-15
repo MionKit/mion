@@ -8,8 +8,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mionjs/core": "^0.8.0-alpha.0",
-    "@mionjs/devtools": "^0.8.0-alpha.0"
+    "@mionjs/core": "file:../../../packages/core",
+    "@mionjs/devtools": "file:../../../packages/devtools"
   },
   "devDependencies": {
     "vitest": "^2.0.0"
