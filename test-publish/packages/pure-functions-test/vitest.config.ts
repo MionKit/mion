@@ -23,7 +23,6 @@ export default defineConfig({
         sequence: {
             hooks: 'list',
         },
-        minWorkers: 1,
         maxWorkers: 1,
     },
 });
