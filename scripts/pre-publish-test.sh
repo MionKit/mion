@@ -54,3 +54,5 @@ echo -e "${GREEN}═════════════════════
 echo ""
 echo "Ready to publish. Run:"
 echo "  npm run npm-publish"
+echo ""
+echo "This will check npm auth, bump versions, and publish."
