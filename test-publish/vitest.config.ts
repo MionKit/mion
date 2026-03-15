@@ -1,28 +1,35 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
+import {mionPlugin} from '@mionjs/devtools/vite-plugin';
 
-/**
- * Vitest configuration for test-publish package.
- * This is a special configuration that runs tests against BUILT packages only.
- * Tests are written in TypeScript but vitest handles them natively without
- * needing to transform the imported packages (which are already built).
- */
 export default defineConfig({
+    plugins: [
+        mionPlugin({
+            runTypes: {
+                tsConfig: resolve(__dirname, 'tsconfig.json'),
+                compilerOptions: {
+                    sourceMap: true,
+                },
+            },
+            serverPureFunctions: {
+                clientSrcPath: resolve(__dirname, 'src/client'),
+            },
+            server: {
+                startServerScript: resolve(__dirname, 'src/server/server.ts'),
+                serverViteConfig: resolve(__dirname, 'vite.server.config.ts'),
+                mode: 'IPC',
+                port: 8086,
+            },
+        }) as any,
+    ],
     test: {
         environment: 'node',
-        // Run tests from the packages/modules/src folder (TypeScript files)
-        // But imports resolve to built .dist folders (no ts transformation)
-        include: ['packages/modules/src/**/*.spec.ts'],
-        // Longer timeouts for build tests since they test actual server/client interactions
+        include: ['src/tests/json.spec.ts', 'src/tests/binary.spec.ts'],
         testTimeout: 30000,
-        // Run tests sequentially to avoid port conflicts
         maxWorkers: 1,
-        // Global setup/teardown for test servers
         globalSetup: ['./globalSetup.ts'],
-    },
-    resolve: {
-        alias: {
-            'virtual:mion-server-pure-fns': resolve(__dirname, './packages/pure-functions-test/virtual-mion-server-pure-fns.ts'),
+        env: {
+            MION_TEST_SERVER_AUTO_START: 'false',
         },
     },
 });

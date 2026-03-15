@@ -36,12 +36,54 @@ npm run check-format
 print_step "Build all packages"
 npm run build
 
-# ── Step 5: test-publish verification ──
-print_step "Run test-publish build verification"
+# ── Step 5: Pack + test-publish E2E verification ──
+print_step "Pack packages and run E2E verification"
+
+# Ensure test-publish package.json is restored on exit (even on failure)
+cleanup_test_publish() {
+  cd "$OLDPWD" 2>/dev/null || true
+  git checkout test-publish/package.json 2>/dev/null || true
+}
+trap cleanup_test_publish EXIT
+
+# 5a. Create tarballs directory
+mkdir -p test-publish/tarballs
+rm -f test-publish/tarballs/*.tgz
+
+# 5b. Pack all publishable mion packages into tarballs
+PACKAGES=(
+  "@mionjs/core"
+  "@mionjs/run-types"
+  "@mionjs/type-formats"
+  "@mionjs/router"
+  "@mionjs/platform-node"
+  "@mionjs/client"
+  "@mionjs/devtools"
+)
+for pkg in "${PACKAGES[@]}"; do
+  echo "  Packing $pkg..."
+  npm pack -w "$pkg" --pack-destination test-publish/tarballs
+done
+
+# 5c. Rewrite package.json dependencies to use tarball paths
 cd test-publish
-npm install --ignore-scripts
-npm run verify
+node scripts/rewrite-deps.js
+
+# 5d. Install from tarballs
+npm install
+
+# 5e. Run E2E tests (JSON + binary serialization + pure functions)
+npm run test
+
+# 5f. Build with AOT caches
+npm run build
+
+# 5g. Verify AOT cache files exist
+npm run test:aot
+
+# 5h. Restore package.json (remove tarball paths)
 cd ..
+git checkout test-publish/package.json
 
 # ── Step 6: List packages to publish ──
 print_step "Packages that will be published"

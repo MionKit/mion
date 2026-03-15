@@ -1,45 +1,34 @@
 {
   "name": "@mionjs/test-publish",
-  "version": "0.8.0-alpha.0",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Build verification tests - validates that all mion packages work correctly after being built",
-  "keywords": [
-    "mion",
-    "build",
-    "tests",
-    "verification",
-    "e2e"
-  ],
-  "author": "ma jerez",
-  "homepage": "https://mion.io/",
+  "description": "E2E verification - simulates a real project consuming mion packages from npm tarballs",
   "license": "MIT",
   "scripts": {
-    "test": "echo 'Run verify to test built artifacts'",
-    "verify": "npm run test:build-verification && npm run test:pure-functions",
-    "test:build-verification": "vitest run",
-    "test:pure-functions": "cd packages/pure-functions-test && vitest run",
-    "dev:test": "vitest watch",
-    "lint": "npx eslint packages/modules/src",
-    "format": "prettier --write packages/modules/src/**/*.ts",
-    "build": "tsc --project tsconfig.json",
-    "clean": "rimraf .dist",
-    "fresh-start": "npm run clean && rimraf node_modules"
+    "test": "vitest run",
+    "build": "vite build --config vite.build.config.ts",
+    "test:aot": "vitest run --config vitest.aot.config.ts",
+    "verify": "npm run test && npm run build && npm run test:aot",
+    "clean": "rimraf dist node_modules"
   },
   "dependencies": {
-    "@mionjs/platform-aws": "file:../packages/platform-aws",
-    "@mionjs/platform-bun": "file:../packages/platform-bun",
-    "@mionjs/client": "file:../packages/client",
-    "@mionjs/core": "file:../packages/core",
-    "@mionjs/platform-gcloud": "file:../packages/platform-gcloud",
-    "@mionjs/platform-node": "file:../packages/platform-node",
-    "@mionjs/router": "file:../packages/router",
-    "@mionjs/run-types": "file:../packages/run-types",
-    "@mionjs/test-server": "file:../packages/test-server",
-    "@mionjs/type-formats": "file:../packages/type-formats"
+    "@mionjs/core": "file:./tarballs/mionjs-core-0.8.3-alpha.0.tgz",
+    "@mionjs/run-types": "file:./tarballs/mionjs-run-types-0.8.3-alpha.0.tgz",
+    "@mionjs/router": "file:./tarballs/mionjs-router-0.8.3-alpha.0.tgz",
+    "@mionjs/platform-node": "file:./tarballs/mionjs-platform-node-0.8.3-alpha.0.tgz",
+    "@mionjs/client": "file:./tarballs/mionjs-client-0.8.3-alpha.0.tgz",
+    "@mionjs/type-formats": "file:./tarballs/mionjs-type-formats-0.8.3-alpha.0.tgz"
   },
   "devDependencies": {
+    "@mionjs/devtools": "file:./tarballs/mionjs-devtools-0.8.3-alpha.0.tgz",
     "dom-storage": "^2.1.0",
-    "@mionjs/devtools": "file:../packages/devtools"
+    "vitest": "^4.0.18",
+    "vite": "^7.3.1",
+    "typescript": "5.9.3",
+    "rimraf": "^6.1.3",
+    "eslint": "^9.20.1",
+    "@eslint/js": "^9.20.1",
+    "typescript-eslint": "^8.30.1"
   }
 }
