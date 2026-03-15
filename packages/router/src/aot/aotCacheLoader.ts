@@ -5,13 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {jitFnsCache, pureFnsCache, routerCache} from '@mionjs/core/aot-caches';
-import {addAOTCaches, addRoutesToCache} from '@mionjs/core';
+import {getRawAOTCaches, loadAOTCaches} from '@mionjs/core/aot-caches';
 import {loadCompiledMethods} from '../lib/methodsCache.ts';
 
 /** Loads pre-compiled AOT caches from virtual modules and registers them in the global caches. */
-export function loadAOTCaches(): void {
-    addAOTCaches(jitFnsCache, pureFnsCache);
-    addRoutesToCache(routerCache);
-    loadCompiledMethods(routerCache);
+export function loadRouterAOTCaches(): void {
+    loadAOTCaches();
+    loadCompiledMethods(getRawAOTCaches().routerCache);
 }
