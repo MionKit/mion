@@ -19,6 +19,7 @@
     "deepkit-install": "deepkit-type-install",
     "pre-publish-test": "bash scripts/pre-publish-test.sh",
     "npm-publish": "bash scripts/publish.sh",
+    "npm-unpublish": "bash scripts/unpublish.sh",
     "prepare": "husky install",
     "copy-benchmarks": "cp -r ../mion-benchmarks/assets/public/* ./website/app/components/content/charts/ && node scripts/copy-benchmarks.js",
     "pages-build": "npm run build && cd website && npm ci && npm run generate"
