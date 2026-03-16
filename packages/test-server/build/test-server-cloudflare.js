@@ -1093,7 +1093,7 @@
   const __ΩOmit = ["T", "K", () => __ΩPick, () => __ΩExclude, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
   const __ΩPick = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩExclude = ["T", "U", "Exclude", 'l6!Re$!RPe#!e$"qk#%QRb!b"Pde"!p)w#y'];
-  function __assignType$5(fn, args) {
+  function __assignType$6(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1116,7 +1116,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return runTypesModule;
     if (runTypesLoadPromise)
       return runTypesLoadPromise;
-    runTypesLoadPromise = Promise.resolve().then(() => runTypes$1).then(__assignType$5((module) => {
+    runTypesLoadPromise = Promise.resolve().then(() => runTypes$1).then(__assignType$6((module) => {
       runTypesModule = {
         JitFunctions: module.JitFunctions,
         reflectFunction: module.reflectFunction,
@@ -1286,7 +1286,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   function getReturnHeadersRunType(handlerRunType, rt) {
     const returnRunType = handlerRunType.getReturnType();
     if (rt.isUnionRunType(returnRunType)) {
-      const headersSubset = returnRunType.getChildRunTypes().find(__assignType$5((child) => isHeaderSubSetRunType(child, rt), ["child", "", 'P"2!"/"']));
+      const headersSubset = returnRunType.getChildRunTypes().find(__assignType$6((child) => isHeaderSubSetRunType(child, rt), ["child", "", 'P"2!"/"']));
       if (!headersSubset)
         return void 0;
       return headersSubset;
@@ -1709,7 +1709,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       ...comp.paramNames ? { paramNames: [...comp.paramNames] } : {}
     };
   }
-  function __assignType$4(fn, args) {
+  function __assignType$5(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1727,8 +1727,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const errorData = {};
     const maxMethods = (getRouterOptions.Ω = [[() => __ΩClientRouteOptions, "n!"]], getRouterOptions()).getAllRemoteMethodsMaxNumber || defaultClientRouteOptions.getAllRemoteMethodsMaxNumber;
     const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
-    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$4((id) => !mionInternalRoutes$1.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
-    idsToReturn.forEach(__assignType$4((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData), ["id", "", 'P"2!"/"']));
+    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$5((id) => !mionInternalRoutes$1.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
+    idsToReturn.forEach(__assignType$5((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData), ["id", "", 'P"2!"/"']));
     if (Object.keys(errorData).length)
       return new RpcError({
         type: "rpc-metadata-not-found",
@@ -1745,8 +1745,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         type: "rpc-metadata-not-found",
         publicMessage: `Route ${path} not found`
       });
-    const privateExecutables = executables.methods.filter(__assignType$4((e) => !isPrivateExecutable(e), ["e", "", 'P"2!"/"']));
-    return mionGetRemoteMethodsDataById(ctx, privateExecutables.map(__assignType$4((e) => e.id, ["e", "", 'P"2!"/"'])), getAllRemoteMethods);
+    const privateExecutables = executables.methods.filter(__assignType$5((e) => !isPrivateExecutable(e), ["e", "", 'P"2!"/"']));
+    return mionGetRemoteMethodsDataById(ctx, privateExecutables.map(__assignType$5((e) => e.id, ["e", "", 'P"2!"/"'])), getAllRemoteMethods);
   }
   mionGetRemoteMethodsDataByPath.__type = ["ctx", "path", "getAllRemoteMethods", () => __ΩSerializableMethodsData, "rpc-metadata-not-found", () => RpcError, "mionGetRemoteMethodsDataByPath", `P"2!&2")2#8Pn$P.%7&J/'`];
   function addRequiredRemoteMethodsToResponse(id, resp, errorData) {
@@ -1764,7 +1764,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return;
     const method = getSerializableMethod(executable);
     methods[id] = method;
-    method.middleFnIds?.forEach(__assignType$4((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData), ["middleFnId", "", 'P"2!"/"']));
+    method.middleFnIds?.forEach(__assignType$5((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData), ["middleFnId", "", 'P"2!"/"']));
     serializeMethodDeps(method, deps, purFnDeps);
   }
   addRequiredRemoteMethodsToResponse.__type = ["id", () => __ΩSerializableMethodsData, "resp", () => __ΩAnyObject, "errorData", "addRequiredRemoteMethodsToResponse", 'P&2!n"2#n$2%$/&'];
@@ -1775,7 +1775,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     [MION_ROUTES.methodsMetadataByPath]: route(mionGetRemoteMethodsDataByPath, { serializer: "stringifyJson" })
   };
   const __ΩRecord$1 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
-  function __assignType$3(fn, args) {
+  function __assignType$4(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1787,7 +1787,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * thrown Errors are not strongly typed and are all serialized/deserialized as RpcError<string>.
      * this also prevents users to register a route with the same name.
      */
-    [MION_ROUTES.thrownErrors]: route(__assignType$3((ctx) => {
+    [MION_ROUTES.thrownErrors]: route(__assignType$4((ctx) => {
       return ctx.request.thrownErrors || {};
     }, ["CallContext", "ctx", () => __ΩRecord$1, () => RpcError, "", 'P"w!2"&P&7$o##/%'])),
     /**
@@ -1796,7 +1796,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * The route is called by dispatch logic when no matching route is found.
      * Throws an RpcError that will be caught and stored in thrownErrors by the router.
      */
-    [MION_ROUTES.notFound]: route(__assignType$3((ctx) => {
+    [MION_ROUTES.notFound]: route(__assignType$4((ctx) => {
       throw new RpcError({
         statusCode: StatusCodes.NOT_FOUND,
         publicMessage: `Route not found`,
@@ -1810,14 +1810,81 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * This route is used for serialization/deserialization of platform errors.
      * This also prevents users to register a route with the same name.
      */
-    [MION_ROUTES.platformError]: route(__assignType$3((_ctx) => {
+    [MION_ROUTES.platformError]: route(__assignType$4((_ctx) => {
       return new RpcError({
         publicMessage: "Platform error",
         type: "platform-error"
       });
     }, ["CallContext", "_ctx", () => RpcError, "", 'P"w!2"P&7#/$']))
   };
-  const serverPureFnsCache = {};
+  function __assignType$3(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
+  const serverPureFnsCache = {
+    "pureServerFn": {
+      "greeting": {
+        namespace: "pureServerFn",
+        fnName: "greeting",
+        paramNames: [],
+        code: 'return "hello from pure function";',
+        bodyHash: "CNfqtoZm87Tmow",
+        pureFnDependencies: [],
+        isFactory: false,
+        fn: __assignType$3(function greeting() {
+          return "hello from pure function";
+        }, ["greeting", 'P"/!'])
+      },
+      "double": {
+        namespace: "pureServerFn",
+        fnName: "double",
+        paramNames: ["x"],
+        code: "return x * 2;",
+        bodyHash: "5yzmi6DmZhBd-7",
+        pureFnDependencies: [],
+        isFactory: false,
+        fn: __assignType$3(function double(x) {
+          return x * 2;
+        }, ["x", "double", 'P"2!"/"'])
+      },
+      "7c1PTtX_Bqnfb1": {
+        namespace: "pureServerFn",
+        fnName: "7c1PTtX_Bqnfb1",
+        paramNames: ["x"],
+        code: "return x + 1;",
+        bodyHash: "7c1PTtX_Bqnfb1",
+        pureFnDependencies: [],
+        isFactory: false,
+        fn: __assignType$3(function _7c1PTtX_Bqnfb1(x) {
+          return x + 1;
+        }, ["x", "_7c1PTtX_Bqnfb1", 'P"2!"/"'])
+      },
+      "ZnrWgJNgv61Lnf": {
+        namespace: "pureServerFn",
+        fnName: "ZnrWgJNgv61Lnf",
+        paramNames: ["x"],
+        code: "return x * 3",
+        bodyHash: "ZnrWgJNgv61Lnf",
+        pureFnDependencies: [],
+        isFactory: false,
+        fn: __assignType$3(function ZnrWgJNgv61Lnf(x) {
+          return x * 3;
+        }, ["x", "ZnrWgJNgv61Lnf", 'P"2!"/"'])
+      },
+      "U0iYTkE-RN3NIs": {
+        namespace: "pureServerFn",
+        fnName: "U0iYTkE-RN3NIs",
+        paramNames: ["c"],
+        code: "return c.preferenceId",
+        bodyHash: "U0iYTkE-RN3NIs",
+        pureFnDependencies: [],
+        isFactory: false,
+        fn: __assignType$3(function U0iYTkE_RN3NIs(c) {
+          return c.preferenceId;
+        }, ["c", "U0iYTkE_RN3NIs", 'P"2!"/"'])
+      }
+    }
+  };
   function __assignType$2(fn, args) {
     fn.__type = args;
     return fn;

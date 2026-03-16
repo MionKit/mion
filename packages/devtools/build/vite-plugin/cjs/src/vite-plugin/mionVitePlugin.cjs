@@ -84,7 +84,8 @@ function mionVitePlugin(options) {
         }
       }
       if (!isRunningAsChild()) {
-        const shimModules = [src_vitePlugin_constants.SERVER_PURE_FNS_SHIM];
+        const shimModules = [];
+        if (pureFnOptions) shimModules.push(src_vitePlugin_constants.SERVER_PURE_FNS_SHIM);
         if (aotOptions) shimModules.push(src_vitePlugin_constants.AOT_CACHES_SHIM);
         addSsrNoExternal(config, shimModules);
       }
@@ -191,7 +192,7 @@ function mionVitePlugin(options) {
         );
         if (resolved) return resolved;
       }
-      {
+      if (pureFnOptions) {
         const resolved = resolveShimModule(
           id,
           importer,

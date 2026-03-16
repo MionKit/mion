@@ -64,7 +64,8 @@ function mionVitePlugin(options) {
         }
       }
       if (!isRunningAsChild()) {
-        const shimModules = [SERVER_PURE_FNS_SHIM];
+        const shimModules = [];
+        if (pureFnOptions) shimModules.push(SERVER_PURE_FNS_SHIM);
         if (aotOptions) shimModules.push(AOT_CACHES_SHIM);
         addSsrNoExternal(config, shimModules);
       }
@@ -171,7 +172,7 @@ function mionVitePlugin(options) {
         );
         if (resolved) return resolved;
       }
-      {
+      if (pureFnOptions) {
         const resolved = resolveShimModule(
           id,
           importer,
