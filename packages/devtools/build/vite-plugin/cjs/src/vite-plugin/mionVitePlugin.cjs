@@ -74,7 +74,7 @@ function mionVitePlugin(options) {
     name: "mion",
     enforce: "pre",
     // literal type required: inferred 'string' is not assignable to Vite's 'pre' | 'post'
-    config(config) {
+    config(config, env) {
       if (aotOptions?.excludeReflection && !isRunningAsChild()) {
         const aliases = config.resolve?.alias;
         if (aliases && !Array.isArray(aliases)) {
@@ -83,11 +83,12 @@ function mionVitePlugin(options) {
           }
         }
       }
-      if (!isRunningAsChild()) {
-        const shimModules = [];
-        if (pureFnOptions) shimModules.push(src_vitePlugin_constants.SERVER_PURE_FNS_SHIM);
-        if (aotOptions) shimModules.push(src_vitePlugin_constants.AOT_CACHES_SHIM);
-        addSsrNoExternal(config, shimModules);
+      const shimModules = [];
+      if (pureFnOptions) shimModules.push(src_vitePlugin_constants.SERVER_PURE_FNS_SHIM);
+      if (aotOptions) shimModules.push(src_vitePlugin_constants.AOT_CACHES_SHIM);
+      addSsrNoExternal(config, shimModules);
+      if (env.command === "build" && shimModules.length > 0) {
+        wrapBuildExternal(config, shimModules);
       }
     },
     configResolved(config) {
@@ -421,7 +422,7 @@ function resolveShimModule(id, importer, shimSpecifier, virtualModuleId, entryNa
       const resolved = module$1.createRequire(typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("src/vite-plugin/mionVitePlugin.cjs", document.baseURI).href).resolve(shimSpecifier);
       const sourceFile = path.resolve(resolved.replace(/[/\\].dist[/\\].*$/, ""), "src/aot/" + sourceFileName);
       if (fs.existsSync(sourceFile)) return sourceFile;
-      return resolved;
+      return src_vitePlugin_constants.resolveVirtualId(virtualModuleId);
     } catch {
       return src_vitePlugin_constants.resolveVirtualId(virtualModuleId);
     }
@@ -450,6 +451,19 @@ function addSsrNoExternal(config, moduleIds) {
   } else if (noExternal !== true) {
     config.ssr.noExternal = noExternal ? [noExternal, ...moduleIds] : [...moduleIds];
   }
+}
+function wrapBuildExternal(config, shimModules) {
+  if (!config.build) config.build = {};
+  if (!config.build.rollupOptions) config.build.rollupOptions = {};
+  const original = config.build.rollupOptions.external;
+  if (!original) return;
+  config.build.rollupOptions.external = (id, ...rest) => {
+    if (shimModules.includes(id) || id.startsWith("virtual:mion")) return false;
+    if (typeof original === "function") return original(id, ...rest);
+    if (Array.isArray(original)) return original.some((ext) => ext instanceof RegExp ? ext.test(id) : ext === id);
+    if (original instanceof RegExp) return original.test(id);
+    return original === id;
+  };
 }
 const READY_KEY = /* @__PURE__ */ Symbol.for("mion.serverReady");
 function getOrCreateServerReady() {

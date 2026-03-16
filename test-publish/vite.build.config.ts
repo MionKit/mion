@@ -11,6 +11,9 @@ export default defineConfig({
             aotCaches: {
                 cache: true,
             },
+            serverPureFunctions: {
+                clientSrcPath: resolve(__dirname, 'src/client'),
+            },
             server: {
                 startServerScript: resolve(__dirname, 'src/server/server.ts'),
                 serverViteConfig: resolve(__dirname, 'vite.server.config.ts'),

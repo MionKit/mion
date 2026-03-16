@@ -189,8 +189,21 @@ function generateCombinedCachesModule() {
 import { pureFnsCache } from 'virtual:mion-aot/pure-fns';
 import { jitFnsCache } from 'virtual:mion-aot/jit-fns';
 import { routerCache } from 'virtual:mion-aot/router-cache';
+import { addAOTCaches, addRoutesToCache } from '@mionjs/core';
+
+// Auto-register AOT caches as a side effect so they survive tree-shaking
+addAOTCaches(jitFnsCache, pureFnsCache);
+addRoutesToCache(routerCache);
 
 export { jitFnsCache, pureFnsCache, routerCache };
+
+/** Loads pre-compiled AOT caches (no-op: caches are auto-registered on import). */
+export function loadAOTCaches() {}
+
+/** Returns the raw AOT caches. */
+export function getRawAOTCaches() {
+    return { jitFnsCache, pureFnsCache, routerCache };
+}
 `;
 }
 function generateNoopModule(comment) {
@@ -215,6 +228,8 @@ function generateNoopCombinedModule() {
 export const jitFnsCache = {};
 export const pureFnsCache = {};
 export const routerCache = {};
+export function loadAOTCaches() {}
+export function getRawAOTCaches() { return { jitFnsCache, pureFnsCache, routerCache }; }
 `;
 }
 exports.generateAOTCaches = generateAOTCaches;
