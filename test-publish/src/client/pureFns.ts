@@ -7,10 +7,16 @@
 
 import {pureServerFn} from '@mionjs/core';
 
-export const greeting = pureServerFn(function greeting() {
-    return 'Hello from pure fn!';
+export const greeting = pureServerFn({
+    pureFn: function greeting() {
+        return 'Hello from pure fn!';
+    },
+    fnName: 'greeting',
 });
 
-export const addOne = pureServerFn(function addOne(x: number) {
-    return x + 1;
+export const addOne = pureServerFn({
+    pureFn: function addOne(x: number) {
+        return x + 1;
+    },
+    fnName: 'addOne',
 });

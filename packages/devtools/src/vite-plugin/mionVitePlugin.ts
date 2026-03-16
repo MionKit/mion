@@ -147,7 +147,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
         name: 'mion',
         enforce: 'pre' as const, // literal type required: inferred 'string' is not assignable to Vite's 'pre' | 'post'
 
-        config(config) {
+        config(config, env) {
             // Strip reflection module aliases in bundle build mode so our resolveId can stub them.
             // Vite's alias plugin runs before our resolveId, so we remove aliases here to prevent
             // them from transforming bare package names into file paths before we can intercept.
@@ -161,11 +161,14 @@ export function mionVitePlugin(options: MionPluginOptions) {
             }
 
             // Ensure Vite bundles shim modules instead of externalizing them
-            if (!isRunningAsChild()) {
-                const shimModules: string[] = [];
-                if (pureFnOptions) shimModules.push(SERVER_PURE_FNS_SHIM);
-                if (aotOptions) shimModules.push(AOT_CACHES_SHIM);
-                addSsrNoExternal(config, shimModules);
+            const shimModules: string[] = [];
+            if (pureFnOptions) shimModules.push(SERVER_PURE_FNS_SHIM);
+            if (aotOptions) shimModules.push(AOT_CACHES_SHIM);
+            addSsrNoExternal(config, shimModules);
+
+            // Wrap build.rollupOptions.external so shim and virtual modules are never externalized
+            if (env.command === 'build' && shimModules.length > 0) {
+                wrapBuildExternal(config, shimModules);
             }
         },
 
@@ -625,7 +628,9 @@ function resolveShimModule(
             const resolved = createRequire(import.meta.url).resolve(shimSpecifier);
             const sourceFile = resolve(resolved.replace(/[/\\].dist[/\\].*$/, ''), 'src/aot/' + sourceFileName);
             if (existsSync(sourceFile)) return sourceFile;
-            return resolved;
+            // No source file (tarball/npm install) — resolve to virtual module directly.
+            // Returning the .dist path would bypass resolveId (CJS require() calls skip Vite pipeline).
+            return resolveVirtualId(virtualModuleId);
         } catch {
             return resolveVirtualId(virtualModuleId);
         }
@@ -662,6 +667,23 @@ function addSsrNoExternal(config: Record<string, any>, moduleIds: string[]): voi
     } else if (noExternal !== true) {
         config.ssr.noExternal = noExternal ? [noExternal, ...moduleIds] : [...moduleIds];
     }
+}
+
+/** Wraps build.rollupOptions.external so shim and virtual modules are always bundled. */
+function wrapBuildExternal(config: Record<string, any>, shimModules: string[]): void {
+    if (!config.build) config.build = {};
+    if (!config.build.rollupOptions) config.build.rollupOptions = {};
+    const original = config.build.rollupOptions.external;
+    if (!original) return; // no external config — nothing to wrap
+    config.build.rollupOptions.external = (id: string, ...rest: any[]) => {
+        // Never externalize shim modules or virtual modules (plugin replaces them with generated code)
+        if (shimModules.includes(id) || id.startsWith('virtual:mion')) return false;
+        // Delegate to original external config
+        if (typeof original === 'function') return original(id, ...rest);
+        if (Array.isArray(original)) return original.some((ext) => (ext instanceof RegExp ? ext.test(id) : ext === id));
+        if (original instanceof RegExp) return original.test(id);
+        return original === id;
+    };
 }
 
 // #################### SERVER READY ####################

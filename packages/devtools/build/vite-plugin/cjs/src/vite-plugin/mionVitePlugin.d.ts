@@ -8,7 +8,7 @@ export interface MionPluginOptions {
 export declare function mionVitePlugin(options: MionPluginOptions): {
     name: string;
     enforce: "pre";
-    config(config: any): void;
+    config(config: any, env: any): void;
     configResolved(config: any): void;
     buildStart(): Promise<void>;
     configureServer(server: any): void;
