@@ -7,6 +7,7 @@ const VIRTUAL_AOT_PURE_FNS = "virtual:mion-aot/pure-fns";
 const VIRTUAL_AOT_ROUTER_CACHE = "virtual:mion-aot/router-cache";
 const VIRTUAL_AOT_CACHES = "virtual:mion-aot/caches";
 const AOT_CACHES_SHIM = "@mionjs/core/aot-caches";
+const SERVER_PURE_FNS_SHIM = "@mionjs/core/server-pure-fns";
 const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
 function resolveVirtualId(id) {
   return "\0" + id + ".ts";
@@ -17,6 +18,7 @@ exports.AOT_CACHES_SHIM = AOT_CACHES_SHIM;
 exports.BODY_HASH_LENGTH = BODY_HASH_LENGTH;
 exports.PURE_SERVER_FN_NAMESPACE = PURE_SERVER_FN_NAMESPACE;
 exports.REFLECTION_MODULES = REFLECTION_MODULES;
+exports.SERVER_PURE_FNS_SHIM = SERVER_PURE_FNS_SHIM;
 exports.VIRTUAL_AOT_CACHES = VIRTUAL_AOT_CACHES;
 exports.VIRTUAL_AOT_JIT_FNS = VIRTUAL_AOT_JIT_FNS;
 exports.VIRTUAL_AOT_PURE_FNS = VIRTUAL_AOT_PURE_FNS;

@@ -15,7 +15,7 @@ import {
     PURE_SERVER_FN_NAMESPACE,
     fromBase64Url,
 } from '@mionjs/core';
-import {serverPureFnsCache} from 'virtual:mion-server-pure-fns';
+import {serverPureFnsCache} from '@mionjs/core/server-pure-fns';
 import {getRouteExecutionChain, getRouterOptions, startMiddleFns, endMiddleFns} from './router.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';

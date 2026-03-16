@@ -83,17 +83,10 @@ function mionVitePlugin(options) {
           }
         }
       }
-      if (aotOptions && !isRunningAsChild()) {
-        const noExternal = config.ssr?.noExternal;
-        const moduleId = src_vitePlugin_constants.AOT_CACHES_SHIM;
-        if (!config.ssr) config.ssr = {};
-        if (Array.isArray(noExternal)) {
-          if (!noExternal.includes(moduleId)) noExternal.push(moduleId);
-        } else if (typeof noExternal === "string") {
-          config.ssr.noExternal = [noExternal, moduleId];
-        } else if (noExternal !== true) {
-          config.ssr.noExternal = noExternal ? [noExternal, moduleId] : [moduleId];
-        }
+      if (!isRunningAsChild()) {
+        const shimModules = [src_vitePlugin_constants.SERVER_PURE_FNS_SHIM];
+        if (aotOptions) shimModules.push(src_vitePlugin_constants.AOT_CACHES_SHIM);
+        addSsrNoExternal(config, shimModules);
       }
     },
     configResolved(config) {
@@ -187,20 +180,28 @@ function mionVitePlugin(options) {
       if (id === src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS) return src_vitePlugin_constants.resolveVirtualId(id);
       if (aotVirtualModules.has(id)) return src_vitePlugin_constants.resolveVirtualId(id);
       if (aotOptions) {
-        if (id === src_vitePlugin_constants.AOT_CACHES_SHIM) {
-          try {
-            return module$1.createRequire(typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("src/vite-plugin/mionVitePlugin.cjs", document.baseURI).href).resolve(src_vitePlugin_constants.AOT_CACHES_SHIM);
-          } catch {
-            return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES);
-          }
-        }
-        if (id.endsWith("/aot-caches")) {
-          const sourceFile = path.resolve(id, "..", "src/aot/aotCaches.ts");
-          if (fs.existsSync(sourceFile)) return sourceFile;
-        }
-        if (/emptyCaches\.(ts|js|mjs|cjs)$/.test(id) && importer && /aotCaches\.(ts|js|mjs|cjs)$/.test(importer)) {
-          return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_AOT_CACHES);
-        }
+        const resolved = resolveShimModule(
+          id,
+          importer,
+          src_vitePlugin_constants.AOT_CACHES_SHIM,
+          src_vitePlugin_constants.VIRTUAL_AOT_CACHES,
+          "aot-caches",
+          "aotCaches.ts",
+          "emptyCaches.ts"
+        );
+        if (resolved) return resolved;
+      }
+      {
+        const resolved = resolveShimModule(
+          id,
+          importer,
+          src_vitePlugin_constants.SERVER_PURE_FNS_SHIM,
+          src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS,
+          "server-pure-fns",
+          "serverPureFnsCaches.ts",
+          "emptyServerPureFns.ts"
+        );
+        if (resolved) return resolved;
       }
       if (aotOptions?.excludeReflection && !isRunningAsChild() && src_vitePlugin_constants.REFLECTION_MODULES.includes(id)) {
         return src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_STUB_PREFIX + id);
@@ -412,6 +413,42 @@ function buildAOTVirtualModuleMaps(customVirtualModuleId) {
     }
   }
   return { aotVirtualModules, aotResolvedIds };
+}
+function resolveShimModule(id, importer, shimSpecifier, virtualModuleId, entryName, sourceFileName, emptyFileName) {
+  if (id === shimSpecifier) {
+    try {
+      const resolved = module$1.createRequire(typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("src/vite-plugin/mionVitePlugin.cjs", document.baseURI).href).resolve(shimSpecifier);
+      const sourceFile = path.resolve(resolved.replace(/[/\\].dist[/\\].*$/, ""), "src/aot/" + sourceFileName);
+      if (fs.existsSync(sourceFile)) return sourceFile;
+      return resolved;
+    } catch {
+      return src_vitePlugin_constants.resolveVirtualId(virtualModuleId);
+    }
+  }
+  if (id.endsWith("/" + entryName)) {
+    const sourceFile = path.resolve(id, "..", "src/aot/" + sourceFileName);
+    if (fs.existsSync(sourceFile)) return sourceFile;
+  }
+  const emptyBase = emptyFileName.replace(".ts", "");
+  const sourceBase = sourceFileName.replace(".ts", "");
+  if (new RegExp(`${emptyBase}\\.(ts|js|mjs|cjs)$`).test(id) && importer && new RegExp(`${sourceBase}\\.(ts|js|mjs|cjs)$`).test(importer)) {
+    return src_vitePlugin_constants.resolveVirtualId(virtualModuleId);
+  }
+  return null;
+}
+function addSsrNoExternal(config, moduleIds) {
+  if (moduleIds.length === 0) return;
+  const noExternal = config.ssr?.noExternal;
+  if (!config.ssr) config.ssr = {};
+  if (Array.isArray(noExternal)) {
+    for (const moduleId of moduleIds) {
+      if (!noExternal.includes(moduleId)) noExternal.push(moduleId);
+    }
+  } else if (typeof noExternal === "string") {
+    config.ssr.noExternal = [noExternal, ...moduleIds];
+  } else if (noExternal !== true) {
+    config.ssr.noExternal = noExternal ? [noExternal, ...moduleIds] : [...moduleIds];
+  }
 }
 const READY_KEY = /* @__PURE__ */ Symbol.for("mion.serverReady");
 function getOrCreateServerReady() {

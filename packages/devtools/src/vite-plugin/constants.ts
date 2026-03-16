@@ -27,6 +27,9 @@ export const VIRTUAL_AOT_CACHES = 'virtual:mion-aot/caches';
 /** The real module that acts as a shim for AOT caches (empty caches). Swapped by the plugin when AOT is enabled. */
 export const AOT_CACHES_SHIM = '@mionjs/core/aot-caches';
 
+/** The real module that acts as a shim for server pure functions (empty cache). Swapped by the plugin when serverPureFunctions is enabled. */
+export const SERVER_PURE_FNS_SHIM = '@mionjs/core/server-pure-fns';
+
 /** The namespace used for all pureServerFn functions */
 export const PURE_SERVER_FN_NAMESPACE = 'pureServerFn';
 
