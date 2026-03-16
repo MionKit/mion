@@ -14,7 +14,7 @@ import {FormatString, FormatEmail, FormatUUIDv4} from '@mionjs/type-formats/Stri
 import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
 // Import server pure functions extracted from client source at build time.
 // for this specific scenario server function are defined in packages/client/src/vitePlugin.e2e.spec.ts
-import {serverPureFnsCache} from 'virtual:mion-server-pure-fns';
+import {serverPureFnsCache} from '@mionjs/core/server-pure-fns';
 
 // ============ JSON test types ============
 type User = {name: string; surname: string};

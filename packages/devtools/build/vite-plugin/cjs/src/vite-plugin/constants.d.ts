@@ -5,6 +5,7 @@ export declare const VIRTUAL_AOT_PURE_FNS = "virtual:mion-aot/pure-fns";
 export declare const VIRTUAL_AOT_ROUTER_CACHE = "virtual:mion-aot/router-cache";
 export declare const VIRTUAL_AOT_CACHES = "virtual:mion-aot/caches";
 export declare const AOT_CACHES_SHIM = "@mionjs/core/aot-caches";
+export declare const SERVER_PURE_FNS_SHIM = "@mionjs/core/server-pure-fns";
 export declare const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
 export declare function resolveVirtualId(id: string): string;
 export declare const REFLECTION_MODULES: string[];

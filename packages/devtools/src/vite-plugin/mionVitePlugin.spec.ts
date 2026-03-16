@@ -1,7 +1,7 @@
 import {resolve} from 'path';
 import {describe, it, expect, vi, afterEach} from 'vitest';
 import {mionVitePlugin} from './mionVitePlugin.ts';
-import {AOT_CACHES_SHIM, VIRTUAL_AOT_CACHES, resolveVirtualId} from './constants.ts';
+import {AOT_CACHES_SHIM, SERVER_PURE_FNS_SHIM, VIRTUAL_AOT_CACHES, resolveVirtualId} from './constants.ts';
 
 // Mock heavy dependencies to avoid spawning processes
 vi.mock('./aotCacheGenerator.ts', () => ({
@@ -38,35 +38,35 @@ describe('config hook - ssr.noExternal', () => {
         const plugin = getPlugin();
         const config: any = {};
         plugin.config(config);
-        expect(config.ssr.noExternal).toEqual([AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal).toEqual([SERVER_PURE_FNS_SHIM, AOT_CACHES_SHIM]);
     });
 
     it('should add aot-caches to noExternal when ssr.noExternal is undefined', () => {
         const plugin = getPlugin();
         const config: any = {ssr: {}};
         plugin.config(config);
-        expect(config.ssr.noExternal).toEqual([AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal).toEqual([SERVER_PURE_FNS_SHIM, AOT_CACHES_SHIM]);
     });
 
     it('should append to existing noExternal array', () => {
         const plugin = getPlugin();
         const config: any = {ssr: {noExternal: ['some-other-module']}};
         plugin.config(config);
-        expect(config.ssr.noExternal).toEqual(['some-other-module', AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal).toEqual(['some-other-module', SERVER_PURE_FNS_SHIM, AOT_CACHES_SHIM]);
     });
 
     it('should not duplicate if already in noExternal array', () => {
         const plugin = getPlugin();
         const config: any = {ssr: {noExternal: [AOT_CACHES_SHIM]}};
         plugin.config(config);
-        expect(config.ssr.noExternal).toEqual([AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal).toEqual([AOT_CACHES_SHIM, SERVER_PURE_FNS_SHIM]);
     });
 
     it('should wrap string noExternal into array with aot-caches', () => {
         const plugin = getPlugin();
         const config: any = {ssr: {noExternal: 'some-module'}};
         plugin.config(config);
-        expect(config.ssr.noExternal).toEqual(['some-module', AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal).toEqual(['some-module', SERVER_PURE_FNS_SHIM, AOT_CACHES_SHIM]);
     });
 
     it('should wrap RegExp noExternal into array with aot-caches', () => {
@@ -74,7 +74,7 @@ describe('config hook - ssr.noExternal', () => {
         const regex = /some-pattern/;
         const config: any = {ssr: {noExternal: regex}};
         plugin.config(config);
-        expect(config.ssr.noExternal).toEqual([regex, AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal).toEqual([regex, SERVER_PURE_FNS_SHIM, AOT_CACHES_SHIM]);
     });
 
     it('should not modify noExternal when set to true', () => {
@@ -84,11 +84,11 @@ describe('config hook - ssr.noExternal', () => {
         expect(config.ssr.noExternal).toBe(true);
     });
 
-    it('should not add noExternal when aotCaches is not configured', () => {
+    it('should only add server-pure-fns when aotCaches is not configured', () => {
         const plugin = mionVitePlugin({});
         const config: any = {};
         plugin.config(config);
-        expect(config.ssr).toBeUndefined();
+        expect(config.ssr.noExternal).toEqual([SERVER_PURE_FNS_SHIM]);
     });
 });
 

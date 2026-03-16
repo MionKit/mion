@@ -20,6 +20,7 @@ import {
     VIRTUAL_STUB_PREFIX,
     VIRTUAL_AOT_CACHES,
     AOT_CACHES_SHIM,
+    SERVER_PURE_FNS_SHIM,
     resolveVirtualId,
 } from './constants.ts';
 import {
@@ -159,19 +160,11 @@ export function mionVitePlugin(options: MionPluginOptions) {
                 }
             }
 
-            // When AOT caches are enabled, ensure Vite handles @mionjs/core/aot-caches
-            // instead of letting Node.js resolve it from node_modules
-            if (aotOptions && !isRunningAsChild()) {
-                const noExternal = config.ssr?.noExternal;
-                const moduleId = AOT_CACHES_SHIM;
-                if (!config.ssr) config.ssr = {};
-                if (Array.isArray(noExternal)) {
-                    if (!noExternal.includes(moduleId)) noExternal.push(moduleId);
-                } else if (typeof noExternal === 'string') {
-                    config.ssr.noExternal = [noExternal, moduleId];
-                } else if (noExternal !== true) {
-                    config.ssr.noExternal = noExternal ? [noExternal, moduleId] : [moduleId];
-                }
+            // Ensure Vite bundles shim modules instead of externalizing them
+            if (!isRunningAsChild()) {
+                const shimModules: string[] = [SERVER_PURE_FNS_SHIM];
+                if (aotOptions) shimModules.push(AOT_CACHES_SHIM);
+                addSsrNoExternal(config, shimModules);
             }
         },
 
@@ -291,28 +284,31 @@ export function mionVitePlugin(options: MionPluginOptions) {
             if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
             // AOT virtual modules (default + custom prefix both resolve)
             if (aotVirtualModules.has(id)) return resolveVirtualId(id);
-            // AOT caches: resolve @mionjs/core/aot-caches to the actual aotCaches file,
-            // then intercept its emptyCaches import and replace with the virtual AOT module.
+            // Resolve shim modules: intercept empty cache imports and replace with virtual modules
             if (aotOptions) {
-                // Bare specifier: use Node's module resolution (respects package.json exports)
-                if (id === AOT_CACHES_SHIM) {
-                    try {
-                        return createRequire(import.meta.url).resolve(AOT_CACHES_SHIM);
-                    } catch {
-                        return resolveVirtualId(VIRTUAL_AOT_CACHES);
-                    }
-                }
-                // Alias-resolved absolute path (e.g. Vite alias @mionjs/core → ../core
-                // transforms the import to /path/to/packages/core/aot-caches).
-                // This only happens in monorepo dev where source files always exist.
-                if (id.endsWith('/aot-caches')) {
-                    const sourceFile = resolve(id, '..', 'src/aot/aotCaches.ts');
-                    if (existsSync(sourceFile)) return sourceFile;
-                }
-                // Intercept emptyCaches imports from aotCaches files (any extension)
-                if (/emptyCaches\.(ts|js|mjs|cjs)$/.test(id) && importer && /aotCaches\.(ts|js|mjs|cjs)$/.test(importer)) {
-                    return resolveVirtualId(VIRTUAL_AOT_CACHES);
-                }
+                const resolved = resolveShimModule(
+                    id,
+                    importer,
+                    AOT_CACHES_SHIM,
+                    VIRTUAL_AOT_CACHES,
+                    'aot-caches',
+                    'aotCaches.ts',
+                    'emptyCaches.ts'
+                );
+                if (resolved) return resolved;
+            }
+            // Server pure fns shim: always resolve (load hook returns empty cache when not configured)
+            {
+                const resolved = resolveShimModule(
+                    id,
+                    importer,
+                    SERVER_PURE_FNS_SHIM,
+                    VIRTUAL_SERVER_PURE_FNS,
+                    'server-pure-fns',
+                    'serverPureFnsCaches.ts',
+                    'emptyServerPureFns.ts'
+                );
+                if (resolved) return resolved;
             }
             // Stub out reflection modules in the bundle build (not needed at runtime in AOT mode)
             if (aotOptions?.excludeReflection && !isRunningAsChild() && REFLECTION_MODULES.includes(id)) {
@@ -605,6 +601,67 @@ function buildAOTVirtualModuleMaps(customVirtualModuleId?: string) {
         }
     }
     return {aotVirtualModules, aotResolvedIds};
+}
+
+/**
+ * Resolves a shim module (e.g. @mionjs/core/aot-caches) to its source file,
+ * and intercepts the empty cache import to replace it with the virtual module.
+ * Returns the resolved id or null if no match.
+ */
+function resolveShimModule(
+    id: string,
+    importer: string | undefined,
+    shimSpecifier: string,
+    virtualModuleId: string,
+    entryName: string,
+    sourceFileName: string,
+    emptyFileName: string
+): string | null {
+    // Bare specifier: resolve to the TS source file so Vite can process it through the plugin pipeline.
+    // Using createRequire would return CJS built output whose require() calls bypass resolveId.
+    if (id === shimSpecifier) {
+        try {
+            // Resolve the package directory via Node resolution, then find the source file
+            const resolved = createRequire(import.meta.url).resolve(shimSpecifier);
+            const sourceFile = resolve(resolved.replace(/[/\\].dist[/\\].*$/, ''), 'src/aot/' + sourceFileName);
+            if (existsSync(sourceFile)) return sourceFile;
+            return resolved;
+        } catch {
+            return resolveVirtualId(virtualModuleId);
+        }
+    }
+    // Alias-resolved absolute path (monorepo dev where source files always exist)
+    if (id.endsWith('/' + entryName)) {
+        const sourceFile = resolve(id, '..', 'src/aot/' + sourceFileName);
+        if (existsSync(sourceFile)) return sourceFile;
+    }
+    // Intercept empty cache imports from the shim loader file (any extension)
+    const emptyBase = emptyFileName.replace('.ts', '');
+    const sourceBase = sourceFileName.replace('.ts', '');
+    if (
+        new RegExp(`${emptyBase}\\.(ts|js|mjs|cjs)$`).test(id) &&
+        importer &&
+        new RegExp(`${sourceBase}\\.(ts|js|mjs|cjs)$`).test(importer)
+    ) {
+        return resolveVirtualId(virtualModuleId);
+    }
+    return null;
+}
+
+/** Adds module specifiers to Vite's ssr.noExternal so they are bundled instead of externalized. */
+function addSsrNoExternal(config: Record<string, any>, moduleIds: string[]): void {
+    if (moduleIds.length === 0) return;
+    const noExternal = config.ssr?.noExternal;
+    if (!config.ssr) config.ssr = {};
+    if (Array.isArray(noExternal)) {
+        for (const moduleId of moduleIds) {
+            if (!noExternal.includes(moduleId)) noExternal.push(moduleId);
+        }
+    } else if (typeof noExternal === 'string') {
+        config.ssr.noExternal = [noExternal, ...moduleIds];
+    } else if (noExternal !== true) {
+        config.ssr.noExternal = noExternal ? [noExternal, ...moduleIds] : [...moduleIds];
+    }
 }
 
 // #################### SERVER READY ####################

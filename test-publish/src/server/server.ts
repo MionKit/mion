@@ -8,7 +8,7 @@
 import {RpcError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
-import {serverPureFnsCache} from 'virtual:mion-server-pure-fns';
+import {serverPureFnsCache} from '@mionjs/core/server-pure-fns';
 
 // ============ Types ============
 // NOTE: Regular imports only! Never use `import type` for types that need reflection.
