@@ -39,13 +39,6 @@ npm run build
 # ── Step 5: Pack + test-publish E2E verification ──
 print_step "Pack packages and run E2E verification"
 
-# Ensure test-publish package.json is restored on exit (even on failure)
-cleanup_test_publish() {
-  cd "$OLDPWD" 2>/dev/null || true
-  git checkout test-publish/package.json 2>/dev/null || true
-}
-trap cleanup_test_publish EXIT
-
 # 5a. Create tarballs directory
 mkdir -p test-publish/tarballs
 rm -f test-publish/tarballs/*.tgz
@@ -65,11 +58,12 @@ for pkg in "${PACKAGES[@]}"; do
   npm pack -w "$pkg" --pack-destination test-publish/tarballs
 done
 
-# 5c. Rewrite package.json dependencies to use tarball paths
+# 5c. Rename tarballs to unversioned names (package.json uses stable paths)
 cd test-publish
 node scripts/rewrite-deps.js
 
-# 5d. Install from tarballs
+# 5d. Clean install from tarballs
+rm -rf node_modules package-lock.json
 npm install
 
 # 5e. Run E2E tests (JSON + binary serialization + pure functions)
@@ -78,12 +72,10 @@ npm run test
 # 5f. Build with AOT caches
 npm run build
 
-# 5g. Verify AOT cache files exist
+# 5g. Verify AOT caches are inlined in build output
 npm run test:aot
 
-# 5h. Restore package.json (remove tarball paths)
 cd ..
-git checkout test-publish/package.json
 
 # ── Step 6: List packages to publish ──
 print_step "Packages that will be published"

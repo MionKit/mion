@@ -33,16 +33,14 @@ for pkg in "${PACKAGES[@]}"; do
   npm pack -w "$pkg" --pack-destination "$TEST_PUBLISH_DIR/tarballs" --silent
 done
 
-echo -e "\n${GREEN}[3/4] Rewriting dependencies to tarball paths...${NC}"
+echo -e "\n${GREEN}[3/4] Renaming tarballs to unversioned names...${NC}"
 cd "$TEST_PUBLISH_DIR"
 node scripts/rewrite-deps.js
 
-echo -e "\n${GREEN}[4/4] Installing from tarballs...${NC}"
+echo -e "\n${GREEN}[4/4] Installing from tarballs (clean)...${NC}"
+rm -rf node_modules package-lock.json
 npm install
 
 echo -e "\n${GREEN}Done! You can now run:${NC}"
 echo "  cd test-publish && npm run test"
 echo "  cd test-publish && npm run verify"
-echo ""
-echo "When finished, restore package.json:"
-echo "  git checkout test-publish/package.json"
