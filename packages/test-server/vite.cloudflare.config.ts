@@ -12,6 +12,9 @@ export default defineConfig({
                     sourceMap: true,
                 },
             },
+            serverPureFunctions: {
+                clientSrcPath: resolve(__dirname, '../client/src'),
+            },
             aotCaches: {
                 cache: false, // Disable disk caching for test builds
                 excludeReflection: true,

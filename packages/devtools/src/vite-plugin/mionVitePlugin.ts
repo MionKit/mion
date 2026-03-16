@@ -162,7 +162,8 @@ export function mionVitePlugin(options: MionPluginOptions) {
 
             // Ensure Vite bundles shim modules instead of externalizing them
             if (!isRunningAsChild()) {
-                const shimModules: string[] = [SERVER_PURE_FNS_SHIM];
+                const shimModules: string[] = [];
+                if (pureFnOptions) shimModules.push(SERVER_PURE_FNS_SHIM);
                 if (aotOptions) shimModules.push(AOT_CACHES_SHIM);
                 addSsrNoExternal(config, shimModules);
             }
@@ -297,8 +298,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                 );
                 if (resolved) return resolved;
             }
-            // Server pure fns shim: always resolve (load hook returns empty cache when not configured)
-            {
+            if (pureFnOptions) {
                 const resolved = resolveShimModule(
                     id,
                     importer,
