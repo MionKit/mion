@@ -18,7 +18,13 @@
     "@mionjs/router": "file:./tarballs/mionjs-router.tgz",
     "@mionjs/platform-node": "file:./tarballs/mionjs-platform-node.tgz",
     "@mionjs/client": "file:./tarballs/mionjs-client.tgz",
-    "@mionjs/type-formats": "file:./tarballs/mionjs-type-formats.tgz"
+    "@mionjs/type-formats": "file:./tarballs/mionjs-type-formats.tgz",
+    "@mionjs/drizzle": "file:./tarballs/mionjs-drizzle.tgz",
+    "@mionjs/platform-aws": "file:./tarballs/mionjs-platform-aws.tgz",
+    "@mionjs/platform-bun": "file:./tarballs/mionjs-platform-bun.tgz",
+    "@mionjs/platform-cloudflare": "file:./tarballs/mionjs-platform-cloudflare.tgz",
+    "@mionjs/platform-gcloud": "file:./tarballs/mionjs-platform-gcloud.tgz",
+    "@mionjs/platform-vercel": "file:./tarballs/mionjs-platform-vercel.tgz"
   },
   "devDependencies": {
     "@mionjs/devtools": "file:./tarballs/mionjs-devtools.tgz",
