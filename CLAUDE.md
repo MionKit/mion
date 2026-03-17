@@ -34,6 +34,9 @@
 - Output directories: `./dist/cjs/` and `./dist/esm/`
 - Entry files in formats package are generated during build, not part of source
 - Package exports configured for both formats in package.json
+- **Before publishing, always run the pre-publish verification script:** `bash scripts/pre-publish-test.sh`
+  This script performs a full end-to-end check: imitating full build process and then run also test nd build in consumer project..
+- This scripts must be run before any publish to npm
 
 ## Code Style
 - No 'I' prefix for interfaces or 'T' prefix for type parameters
@@ -53,25 +56,13 @@
 
 ## ⚠️ Devtools Rebuild Requirement
 - The `@mionjs/devtools` package exports point to built output (`./build/`), not source. Other packages (client, test-server, router, etc.) import the **built** vite plugin and eslint rules via `@mionjs/devtools/vite-plugin` and `@mionjs/devtools/eslint`.
-- After modifying any devtools source files, you MUST rebuild before running tests in other packages:
-
-```bash
-npm run build -w @mionjs/devtools
-```
-
+- After modifying any devtools source files, you MUST rebuild before running tests in other packages: `npm run build -w @mionjs/devtools`
 - Devtools' own tests (`npx vitest run --project devtools`) import source directly and do NOT need a rebuild
 - Client, test-server, and any package using `mionVitePlugin` require the rebuilt output
 - Use `npm run dev -w @mionjs/devtools` for watch mode during active development
 
 ## Code examples
 - There is a special package called `examples` that contains code examples that should compile
-
-## Documentation Website
-- Located in `./website` directory
-- Framework: Nuxt 4 with Docus v5 theme
-- Syntax: MDC (Markdown Components) - use Vue components directly in markdown
-- Styling: Tailwind CSS classesy
-- code examples can be imported using code-import component
 
 ## ⚠️⚠️⚠️ TYPE IMPORTS !!CRITICAL!!  ⚠️⚠️⚠️
 NEVER USE `import type` FOR TYPES THAT NEED RUNTIME REFLECTION!
@@ -87,3 +78,10 @@ import type {TypeFormatParams, Brand} from '@mionjs/core';
 // ✅ CORRECT - Use regular import for types that need reflection
 import {TypeFormatParams, Brand} from '@mionjs/core';
 ```
+
+## Documentation Website
+- Located in `./website` directory
+- Framework: Nuxt 4 with Docus v5 theme
+- Syntax: MDC (Markdown Components) - use Vue components directly in markdown
+- Styling: Tailwind CSS classesy
+- code examples can be imported using code-import component
