@@ -346,7 +346,9 @@ function mionVitePlugin(options) {
               console.log("[mion] Waiting for restarted server to call setPlatformConfig()...");
               const timeoutId = setTimeout(() => {
                 if (persistentChild?.connected) persistentChild.disconnect();
-                console.error(`[mion] Restarted server did not call setPlatformConfig() within ${timeout / 1e3}s.`);
+                console.error(
+                  `[mion] Restarted server did not call setPlatformConfig() within ${timeout / 1e3}s.`
+                );
               }, timeout);
               platformReady.then(() => {
                 clearTimeout(timeoutId);
