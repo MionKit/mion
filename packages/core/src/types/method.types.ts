@@ -50,6 +50,8 @@ export interface RemoteMethodOpts {
     serializer?: SerializerMode;
     /** Whether this route mutates data. Only set for route handlers, undefined for middleFns. */
     isMutation?: boolean | undefined;
+    /** Per-route strictTypes override. When true, isType and typeErrors reject objects with unknown/extra properties. */
+    strictTypes?: boolean;
 }
 
 export interface RouteOnlyOptions extends RemoteMethodOpts {

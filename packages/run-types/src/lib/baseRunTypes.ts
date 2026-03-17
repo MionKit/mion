@@ -287,22 +287,6 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .filter((code) => !!code);
         return {code: codes.join(';'), type: S};
     }
-    private getChildrenTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
-        if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
-        const circularJitConf = this.checkIsCircularAndGetRefId(stack);
-        if (circularJitConf) return circularJitConf;
-        stack.push(this);
-        const childrenIds: (string | number)[] = [];
-        const children = this.getChildRunTypes();
-        for (const child of children) {
-            childrenIds.push(child.getTypeID());
-        }
-        const isArray = this.src.kind === ReflectionKind.tuple || this.src.kind === ReflectionKind.array;
-        const groupID = isArray ? `[${childrenIds.join(',')}]` : `{${childrenIds.join(',')}}`;
-        const kind = this.src.subKind || this.src.kind;
-        stack.pop();
-        return `${kind}${groupID}`;
-    });
 }
 
 /**
@@ -378,26 +362,6 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (!code?.code) return {code: undefined, type: S};
         return code;
     }
-    private getMemberTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
-        if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
-        const optional = this.isOptional() ? '?' : '';
-        const kind =
-            (this.src as TypeProperty).name?.toString() ||
-            (this.src as TypeIndexSignature).index?.kind ||
-            this.src.subKind ||
-            this.src.kind;
-        const kindID = `${kind}${optional}`;
-        const circularJitConf = this.checkIsCircularAndGetRefId(stack);
-        if (circularJitConf) return `${kindID}:${circularJitConf}`;
-        // TODO: some properties could be skipped from the JIT ID. so we could implement a mechanism to mark them to be skipped
-        // ie: sample and sampleChars from StringFormat are too large but they do not affect jit code generation as those properties are only used during mocking
-        stack.push(this);
-        const member = this.getMemberType();
-        const memberTypeID = member.getTypeID();
-        const typeID = `${kindID}:${memberTypeID}`;
-        stack.pop();
-        return typeID;
-    });
 }
 
 // ########## Load Composable Functions ##########

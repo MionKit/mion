@@ -439,7 +439,13 @@ export async function getExecutableFromMiddleFn(
     if (compiledMethod) {
         executable = compiledMethod as MixedMiddleFn;
     } else {
-        const reflectionData = await getHandlerReflection(middleFn.handler, middleFnId, routerOptions, isHeader);
+        const reflectionData = await getHandlerReflection(
+            middleFn.handler,
+            middleFnId,
+            routerOptions,
+            isHeader,
+            middleFn.options?.strictTypes
+        );
         executable = {
             id: middleFnId,
             type: isHeader ? HandlerType.headersMiddleFn : HandlerType.middleFn,
@@ -452,6 +458,7 @@ export async function getExecutableFromMiddleFn(
                 validateParams: middleFn.options?.validateParams ?? true,
                 validateReturn: middleFn.options?.validateReturn ?? false,
                 description: middleFn.options?.description,
+                strictTypes: middleFn.options?.strictTypes ?? routerOptions.strictTypes,
             },
         };
         addToPersistedMethods(middleFnId, executable);
@@ -500,7 +507,13 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
     if (compiledMethod) {
         executable = compiledMethod as RouteMethod;
     } else {
-        const reflectionData = await getHandlerReflection(route.handler, routeId, routerOptions);
+        const reflectionData = await getHandlerReflection(
+            route.handler,
+            routeId,
+            routerOptions,
+            false,
+            route.options?.strictTypes
+        );
         executable = {
             id: routeId,
             type: HandlerType.route,
@@ -515,6 +528,7 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
                 description: route.options?.description,
                 serializer: route.options?.serializer ?? routerOptions.serializer,
                 isMutation: route.options?.isMutation,
+                strictTypes: route.options?.strictTypes ?? routerOptions.strictTypes,
             },
         };
         addToPersistedMethods(routeId, executable);

@@ -80,8 +80,13 @@ export class InterfaceRunType<
                 code: [this.getCallSignature()!.emitIsType(comp).code, childrenCode].filter(Boolean).join(' && '),
                 type: 'E',
             };
+        let propsCode = '';
+        if (comp.opts.strictTypes && !this.hasIndexSignature(comp)) {
+            const unknownCheck = callCheckUnknownProperties(this, comp, children, false, false);
+            if (unknownCheck) propsCode = `!${unknownCheck}`;
+        }
         const objectCheck = this.isPartOfUnion() ? '' : `typeof ${varName} === 'object' && ${varName} !== null`;
-        const itemsCode = [objectCheck, this.allOptionalCode(comp), childrenCode].filter(Boolean).join(' && ');
+        const itemsCode = [objectCheck, this.allOptionalCode(comp), childrenCode, propsCode].filter(Boolean).join(' && ');
         return {code: `(${itemsCode})`, type: 'E'};
     }
 
@@ -95,6 +100,18 @@ export class InterfaceRunType<
         if (this.isCallable()) {
             return {code: `${this.getCallSignature()!.emitTypeErrors(comp).code} else {${childrenCode}}`, type: 'S'};
         }
+        let propsCode = '';
+        if (comp.opts.strictTypes && !this.hasIndexSignature(comp)) {
+            const unknownVar = comp.getLocalVarName('unk', this);
+            const keyVar = comp.getLocalVarName('ky', this);
+            const unknownValue = callCheckUnknownProperties(this, comp, children, true, false);
+            if (unknownValue) {
+                propsCode = `
+                    const ${unknownVar} = ${unknownValue};
+                    if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}) {${comp.callJitErrWithPath('never', keyVar)}}}
+                `;
+            }
+        }
         const objectCheck = this.isPartOfUnion() ? '' : `typeof ${varName} === 'object' && ${varName} !== null`;
         const isObjectCode = [objectCheck, this.allOptionalCode(comp)].filter(Boolean).join(' && ');
         return {
@@ -103,6 +120,7 @@ export class InterfaceRunType<
                 ${comp.callJitErr(this)};
             } else {
                 ${childrenCode}
+                ${propsCode}
             }
         `,
             type: 'S',
