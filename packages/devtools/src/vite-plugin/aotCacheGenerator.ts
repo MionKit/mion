@@ -76,7 +76,7 @@ export async function generateAOTCaches(serverConfig: MionServerConfig, startScr
             // Spawn vite-node as a child process with IPC channel
             // 'serve' mode tells platform adapters to proceed with server.listen()
             child = fork(viteNodePath, [...viteConfigArgs, startScript], {
-                env: {...process.env, MION_COMPILE: persist ? 'serve' : 'onlyAOT'},
+                env: {...process.env, MION_COMPILE: persist ? 'childProcess' : 'buildOnly'},
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
                 cwd: scriptDir,
             });
@@ -173,12 +173,12 @@ export async function generateAOTCaches(serverConfig: MionServerConfig, startScr
 export type ModuleLoader = (url: string) => Promise<Record<string, any>>;
 
 /**
- *  Loads the startScript with MION_COMPILE=SSR so platform adapters skip server.listen().
+ *  Loads the startScript with MION_COMPILE=middleware so platform adapters skip server.listen().
  *  Generates AOT caches via SSR using a module loader (for same-Vite-process scenarios like Nuxt).
  *  After loading, retrieves the caches directly from the router's global state via getSerializedCaches(). */
 export async function loadSSRRouterAndGenerateAOTCaches(loadModule: ModuleLoader, startScript: string): Promise<AOTCacheData> {
     const prevCompile = process.env.MION_COMPILE;
-    process.env.MION_COMPILE = 'viteSSR';
+    process.env.MION_COMPILE = 'middleware';
 
     try {
         // Load the start server script — triggers initMionRouter(), populates caches,

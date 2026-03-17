@@ -62,14 +62,14 @@ describe('emitAOTCaches', () => {
         }
     });
 
-    it('should not call process.send when MION_COMPILE is SSR', async () => {
+    it('should not call process.send when MION_COMPILE is middleware', async () => {
         const {emitAOTCaches} = await import('./aotEmitter.ts');
 
         const originalEnv = process.env.MION_COMPILE;
         const originalSend = process.send;
         const mockSend = (() => {}) as any;
         (process as any).send = mockSend;
-        process.env.MION_COMPILE = 'viteSSR';
+        process.env.MION_COMPILE = 'middleware';
 
         await expect(emitAOTCaches()).resolves.toBeUndefined();
         // process.send should not have been replaced or called
@@ -91,7 +91,7 @@ describe('emitAOTCaches', () => {
         const originalEnv = process.env.MION_COMPILE;
         const originalSend = process.send;
 
-        process.env.MION_COMPILE = 'onlyAOT';
+        process.env.MION_COMPILE = 'buildOnly';
         (process as any).send = undefined;
 
         // Should not throw and should return early

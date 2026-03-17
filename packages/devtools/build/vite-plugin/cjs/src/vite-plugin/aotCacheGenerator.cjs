@@ -25,7 +25,7 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
     let stderr = "";
     try {
       child = child_process.fork(viteNodePath, [...viteConfigArgs, startScript], {
-        env: { ...process.env, MION_COMPILE: persist ? "serve" : "onlyAOT" },
+        env: { ...process.env, MION_COMPILE: persist ? "childProcess" : "buildOnly" },
         stdio: ["pipe", "pipe", "pipe", "ipc"],
         cwd: scriptDir
       });
@@ -105,7 +105,7 @@ Make sure the startScript calls initMionRouter() and the router is fully initial
 }
 async function loadSSRRouterAndGenerateAOTCaches(loadModule, startScript) {
   const prevCompile = process.env.MION_COMPILE;
-  process.env.MION_COMPILE = "viteSSR";
+  process.env.MION_COMPILE = "middleware";
   try {
     const mod = await loadModule(startScript);
     const promises = Object.values(mod).filter((v) => v instanceof Promise);

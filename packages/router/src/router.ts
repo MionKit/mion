@@ -238,7 +238,7 @@ async function loadAOTCaches() {
 async function emitAOTCaches() {
     if (!isMionAOTEmitMode()) return;
     // Dynamic import resolves relative to this source file.
-    // This only runs via vite-node (MION_COMPILE=true), which always resolves from source.
+    // This only runs via vite-node (MION_COMPILE=buildOnly|childProcess), which always resolves from source.
     const aotEmitter = await import('./lib/aotEmitter.ts');
     return aotEmitter.emitAOTCaches();
 }

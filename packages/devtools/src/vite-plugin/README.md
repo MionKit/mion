@@ -158,7 +158,7 @@ Spawns a child process to generate AOT caches, then kills it. Use this when you 
 │   (Vite build)      │                                    │   (vite-node)       │
 │                     │                                    │                     │
 │ 1. buildStart()     │    fork(vite-node, startScript,    │                     │
-│ 2. spawn child ─────┼──► {env: MION_COMPILE=onlyAOT})──►│ 3. run startScript  │
+│ 2. spawn child ─────┼──► {env: MION_COMPILE=buildOnly})─►│ 3. run startScript  │
 │                     │                                    │ 4. initMionRouter() │
 │                     │                                    │ 5. emitAOTCaches()  │
 │ 7. store aotData    │ ◄── {type: 'mion-aot-caches', ◄── │ 6. process.send()   │
@@ -170,9 +170,9 @@ Spawns a child process to generate AOT caches, then kills it. Use this when you 
 **Flow:**
 
 1. `buildStart()` calls `getOrGenerateAOTCaches()`
-2. Spawns a child process via `fork(vite-node, [startScript], { env: { MION_COMPILE: 'onlyAOT' } })`
+2. Spawns a child process via `fork(vite-node, [startScript], { env: { MION_COMPILE: 'buildOnly' } })`
 3. Child runs the start script through `vite-node` (with full Vite transform pipeline)
-4. The router detects `MION_COMPILE=onlyAOT` and initializes routes without starting the HTTP server
+4. The router detects `MION_COMPILE=buildOnly` and initializes routes without starting the HTTP server
 5. `emitAOTCaches()` serializes all caches and sends them via `process.send()`
 6. Parent receives the IPC message, stores the cache data, child process is killed
 7. Disk cache is written (keyed by SHA-256 of source files + options + devtools version)
@@ -187,7 +187,7 @@ Spawns a child process to generate AOT caches via IPC, then **keeps the server r
 │   (Vite build)      │                                    │   (vite-node)       │
 │                     │                                    │                     │
 │ 1. buildStart()     │    fork(vite-node, startScript,    │                     │
-│ 2. spawn child ─────┼──► {env: MION_COMPILE=serve}) ───►│ 3. run startScript  │
+│ 2. spawn child ─────┼──► {env: MION_COMPILE=childProcess})│ 3. run startScript  │
 │                     │                                    │ 4. initMionRouter() │
 │                     │                                    │ 5. emitAOTCaches()  │
 │ 7. store aotData    │ ◄── {type: 'mion-aot-caches', ◄── │ 6. process.send()   │
@@ -203,9 +203,9 @@ Spawns a child process to generate AOT caches via IPC, then **keeps the server r
 **Flow:**
 
 1. `buildStart()` calls `getOrGenerateAOTCaches()`
-2. Spawns a child process via `fork(vite-node, [startScript], { env: { MION_COMPILE: 'serve' } })`
+2. Spawns a child process via `fork(vite-node, [startScript], { env: { MION_COMPILE: 'childProcess' } })`
 3. Child runs the start script — the router initializes and emits AOT caches
-4. Platform adapters detect `MION_COMPILE=serve` and proceed with `server.listen()`
+4. Platform adapters detect `MION_COMPILE=childProcess` and proceed with `server.listen()`
 5. Parent receives caches via IPC, stores data, writes disk cache
 6. Parent polls `server.port` until the server responds (2xx or 404)
 7. `serverReady` promise resolves — can be awaited in vitest `globalSetup`
@@ -220,7 +220,7 @@ Loads the server in the same Vite process using `ssrLoadModule`. Used with frame
 │              SAME PROCESS (Vite dev server)       │
 │                                                   │
 │ 1. configureServer() detects middleware mode       │
-│ 2. Set MION_COMPILE=viteSSR                       │
+│ 2. Set MION_COMPILE=middleware                     │
 │ 3. ssrLoadModule(startScript)               │
 │ 4. Router initializes, getSerializedCaches()      │
 │ 5. Store aotData (no disk cache in SSR mode)      │
@@ -233,7 +233,7 @@ Loads the server in the same Vite process using `ssrLoadModule`. Used with frame
 **Flow:**
 
 1. `configureServer()` detects `middleware` mode
-2. Temporarily sets `MION_COMPILE=viteSSR`
+2. Temporarily sets `MION_COMPILE=middleware`
 3. Calls `ssrLoadModule(startScript)` to load the init script in the same process
 4. Retrieves caches directly from the router via `getSerializedCaches()`
 5. Loads `@mionjs/router` and `@mionjs/platform-node` modules
@@ -252,12 +252,12 @@ Loads the server in the same Vite process using `ssrLoadModule`. Used with frame
 
 This is the coordination mechanism between the plugin and the server init script:
 
-| Value     | Set by            | Meaning                                        |
-| --------- | ----------------- | ---------------------------------------------- |
-| `onlyAOT` | buildOnly mode    | Generate caches then exit (skip server.listen) |
-| `serve`   | childProcess mode | Generate caches and keep server running        |
-| `viteSSR` | middleware mode   | In-process SSR, skip server.listen             |
-| _(unset)_ | Normal run        | Standard server startup, no AOT generation     |
+| Value          | Set by            | Meaning                                        |
+| -------------- | ----------------- | ---------------------------------------------- |
+| `buildOnly`    | buildOnly mode    | Generate caches then exit (skip server.listen) |
+| `childProcess` | childProcess mode | Generate caches and keep server running        |
+| `middleware`   | middleware mode   | In-process SSR, skip server.listen             |
+| _(unset)_      | Normal run        | Standard server startup, no AOT generation     |
 
 ```ts
 // Server init script (user code)
@@ -265,12 +265,12 @@ const router = initMionRouter({
   /* routes */
 });
 
-if (process.env.MION_COMPILE !== 'onlyAOT') {
+if (process.env.MION_COMPILE !== 'buildOnly') {
   await startNodeServer(router); // Skip server.listen() during onlyAOT
 }
 ```
 
-Platform adapters detect `MION_COMPILE` automatically — in `serve` mode they proceed with `server.listen()`, in `onlyAOT` and `viteSSR` modes they skip it.
+Platform adapters detect `MION_COMPILE` automatically — in `childProcess` mode they proceed with `server.listen()`, in `buildOnly` and `middleware` modes they skip it.
 
 ### Server Ready Promise
 
