@@ -153,7 +153,7 @@ describe('bun router should', () => {
     });
 
     test('compile routes metadata and skip server initialization', async () => {
-        process.env.MION_COMPILE = 'onlyAOT';
+        process.env.MION_COMPILE = 'buildOnly';
         const routerOpts = {
             contextDataFactory: getSharedData,
             prefix: 'api/',

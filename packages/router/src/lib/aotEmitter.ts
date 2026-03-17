@@ -55,8 +55,8 @@ export async function getSerializedCaches(): Promise<SerializedCaches> {
 export async function emitAOTCaches(): Promise<void> {
     // Only emit in AOT generation mode (compile, SSR, or serve)
     if (!isMionAOTEmitMode()) return;
-    // viteSSR mode: caches remain in global state, read directly via getSerializedCaches()
-    if (getENV('MION_COMPILE') === 'viteSSR') return;
+    // middleware mode: caches remain in global state, read directly via getSerializedCaches()
+    if (getENV('MION_COMPILE') === 'middleware') return;
 
     // IPC mode: send to parent process
     if (typeof process.send !== 'function') return;

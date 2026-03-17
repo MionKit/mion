@@ -535,7 +535,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
 
 /** Whether the current process is a child spawned by the mion plugin */
 function isRunningAsChild(): boolean {
-    return process.env.MION_COMPILE === 'onlyAOT' || process.env.MION_COMPILE === 'serve';
+    return process.env.MION_COMPILE === 'buildOnly' || process.env.MION_COMPILE === 'childProcess';
 }
 
 /** Extracts the base file path and lang from a Vue SFC virtual module ID (e.g. Component.vue?vue&type=script&lang=ts) */

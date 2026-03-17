@@ -171,7 +171,7 @@ describe('node http router', () => {
         });
 
         it('skip server initialization', async () => {
-            process.env.MION_COMPILE = 'onlyAOT';
+            process.env.MION_COMPILE = 'buildOnly';
             const routerOpts = {
                 contextDataFactory: getSharedData,
                 prefix: 'api/',

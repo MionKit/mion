@@ -7,10 +7,10 @@
 
 /**
  * Test router script for AOT emitter tests.
- * This script is spawned as a child process with MION_COMPILE=true
+ * This script is spawned as a child process with MION_COMPILE=buildOnly
  * to test that emitAOTCaches() correctly sends IPC messages.
  *
- * Uses initMionRouter which automatically calls emitAOTCaches() when MION_COMPILE=true.
+ * Uses initMionRouter which automatically calls emitAOTCaches() when MION_COMPILE=buildOnly.
  */
 
 import {initMionRouter, route, middleFn, Routes, PublicApi} from '@mionjs/router';
@@ -34,7 +34,7 @@ const routes = {
     }),
 } satisfies Routes;
 
-// Initialize the router - this will call emitAOTCaches() automatically when MION_COMPILE=true
+// Initialize the router - this will call emitAOTCaches() automatically when MION_COMPILE=buildOnly
 export const testApiPromise: Promise<PublicApi<typeof routes>> = initMionRouter(routes, {basePath: 'api/v1'});
 
 export {routes};

@@ -44,7 +44,7 @@ describe('generateSSRAOTCaches', () => {
         expect(loadModule).toHaveBeenNthCalledWith(2, '@mionjs/router/aot');
     });
 
-    it('should set MION_COMPILE=SSR before loading and restore after', async () => {
+    it('should set MION_COMPILE=middleware before loading and restore after', async () => {
         let envDuringLoad: string | undefined;
         const loadModule = vi.fn((url: string) => {
             if (url === '/app/src/server.ts') {
@@ -63,7 +63,7 @@ describe('generateSSRAOTCaches', () => {
 
         try {
             await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
-            expect(envDuringLoad).toBe('viteSSR');
+            expect(envDuringLoad).toBe('middleware');
             expect(process.env.MION_COMPILE).toBeUndefined();
         } finally {
             if (prevCompile !== undefined) process.env.MION_COMPILE = prevCompile;

@@ -12,7 +12,7 @@
  * (error routes, metadata routes, etc.). It is used by the Vite plugin as a fallback
  * when no user-provided startScript is configured.
  *
- * When run with MION_COMPILE=true, the router's emitAOTCaches() will automatically
+ * When run with MION_COMPILE=buildOnly, the router's emitAOTCaches() will automatically
  * collect and send the serialized caches for these internal routes via IPC.
  *
  * Internal routes included:

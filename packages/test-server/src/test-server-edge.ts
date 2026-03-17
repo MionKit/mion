@@ -41,12 +41,12 @@ const updateHeaders: Route = route((context: Context): void => {
 const edgeRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 
 // ############# AOT Compilation #############
-// When running under vite-node for AOT cache generation (MION_COMPILE=true|SSR),
+// When running under vite-node for AOT cache generation (MION_COMPILE=buildOnly|middleware),
 // auto-initialize the router so emitAOTCaches() can serialize all JIT functions.
 // This code is a no-op in the bundled IIFE (process is undefined in EdgeVM).
 (async () => {
     const mionCompile = typeof process !== 'undefined' ? process.env?.MION_COMPILE : undefined;
-    if (mionCompile === 'onlyAOT' || mionCompile === 'viteSSR') {
+    if (mionCompile === 'buildOnly' || mionCompile === 'middleware') {
         await initMionRouter(edgeRoutes, {
             contextDataFactory: getSharedData,
             basePath: 'api/',

@@ -26,7 +26,7 @@ export interface AOTCacheOptions {
      * and can be replaced with empty stubs to reduce bundle size.
      * Useful for edge runtime builds where bundle size matters.
      *
-     * Only applies to the parent build process — the AOT child process (MION_COMPILE=true)
+     * Only applies to the parent build process — the AOT child process (MION_COMPILE=buildOnly)
      * always uses the real modules to generate caches.
      */
     excludeReflection?: boolean;

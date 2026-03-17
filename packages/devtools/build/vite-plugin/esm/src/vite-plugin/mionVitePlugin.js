@@ -346,7 +346,7 @@ function mionVitePlugin(options) {
   };
 }
 function isRunningAsChild() {
-  return process.env.MION_COMPILE === "onlyAOT" || process.env.MION_COMPILE === "serve";
+  return process.env.MION_COMPILE === "buildOnly" || process.env.MION_COMPILE === "childProcess";
 }
 function parseVueModuleId(id) {
   const qIdx = id.indexOf("?");
