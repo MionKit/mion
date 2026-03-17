@@ -38,8 +38,8 @@ afterEach(() => {
 
 function makeServerConfig(overrides?: Partial<MionServerConfig>): MionServerConfig {
     return {
-        startServerScript: join(serverDir, 'init.ts'),
-        mode: 'onlyAOT',
+        startScript: join(serverDir, 'init.ts'),
+        runMode: 'buildOnly',
         ...overrides,
     };
 }

@@ -14,8 +14,8 @@ export default defineConfig({
             // mion runs as a middleware function
             // api calls are directly proxied to the mion request handler function
             server: {
-                startServerScript: resolve(__dirname, '../server/src/init.ts'),
-                mode: 'viteSSR',
+                startScript: resolve(__dirname, '../server/src/init.ts'),
+                runMode: 'middleware',
             },
         }),
     ],

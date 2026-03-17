@@ -12,9 +12,9 @@ export default defineConfig({
                 },
             },
             server: {
-                startServerScript: resolve(__dirname, 'src/server/server.ts'),
-                serverViteConfig: resolve(__dirname, 'vite.server.config.ts'),
-                mode: 'IPC',
+                startScript: resolve(__dirname, 'src/server/server.ts'),
+                viteConfig: resolve(__dirname, 'vite.server.config.ts'),
+                runMode: 'childProcess',
                 port: 8086,
             },
         }) as any,

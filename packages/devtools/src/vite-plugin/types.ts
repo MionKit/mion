@@ -57,25 +57,25 @@ export interface MionServerConfig {
      * from @mionjs/router to generate caches for internal mion routes only.
      * Your custom routes will be fetched at runtime via fetchRemoteMethodsMetadata().
      */
-    startServerScript: string;
+    startScript: string;
 
     /**
      * Path to the server's vite.config.ts file.
      * Used by vite-node to run the start script with proper transformations.
      * If not provided, vite-node will auto-discover the config from the
-     * startServerScript's directory.
+     * startScript's directory.
      */
-    serverViteConfig?: string;
+    viteConfig?: string;
 
     /**
-     * Server mode:
-     * - 'onlyAOT': spawn child process, get AOT caches, kill process (default)
-     * - 'IPC': spawn child process, get AOT caches via IPC, keep server running
-     * - 'viteSSR': load in same Vite process as middleware (for Nuxt-like frameworks)
+     * Server run mode:
+     * - 'buildOnly': spawn child process, get AOT caches, kill process (default)
+     * - 'childProcess': spawn child process, get AOT caches via IPC, keep server running
+     * - 'middleware': load in same Vite process as middleware (for Nuxt-like frameworks)
      */
-    mode: 'onlyAOT' | 'IPC' | 'viteSSR';
+    runMode: 'buildOnly' | 'childProcess' | 'middleware';
 
-    /** Port the server listens on. When set in IPC mode, the plugin polls
+    /** Port the server listens on. When set in childProcess mode, the plugin polls
      *  this port after AOT caches are received until the server responds. */
     port?: number;
 

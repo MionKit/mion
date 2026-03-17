@@ -79,7 +79,7 @@ function collectFileStats(dir: string, baseDir: string): string[] {
 
 /** Compute a SHA-256 hash of the server source directory + options */
 export function computeSourceHash(serverConfig: MionServerConfig, aotOptions?: AOTCacheOptions): string {
-    const serverDir = dirname(resolve(serverConfig.startServerScript));
+    const serverDir = dirname(resolve(serverConfig.startScript));
     const fileStats = collectFileStats(serverDir, serverDir);
     fileStats.sort();
 
@@ -148,7 +148,7 @@ export async function getOrGenerateAOTCaches(
 ): Promise<AOTCacheResult> {
     const forceRegenerate = process.env.MION_AOT_FORCE === 'true';
     // IPC mode always needs a live child process (the server), so skip disk caching entirely
-    const isIPCMode = serverConfig.mode === 'IPC';
+    const isIPCMode = serverConfig.runMode === 'childProcess';
     const cachingEnabled = cacheDir !== '' && !forceRegenerate && !isIPCMode;
 
     let hash = '';

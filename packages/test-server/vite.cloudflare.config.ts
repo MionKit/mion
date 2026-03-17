@@ -20,9 +20,9 @@ export default defineConfig({
                 excludeReflection: true,
             },
             server: {
-                startServerScript: resolve(__dirname, 'src/test-server-cloudflare.ts'),
-                serverViteConfig: resolve(__dirname, 'vite.cloudflare.config.ts'),
-                mode: 'onlyAOT',
+                startScript: resolve(__dirname, 'src/test-server-cloudflare.ts'),
+                viteConfig: resolve(__dirname, 'vite.cloudflare.config.ts'),
+                runMode: 'buildOnly',
             },
         }) as any,
     ],

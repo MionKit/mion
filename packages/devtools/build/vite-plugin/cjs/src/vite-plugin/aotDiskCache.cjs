@@ -49,7 +49,7 @@ function collectFileStats(dir, baseDir) {
   return entries;
 }
 function computeSourceHash(serverConfig, aotOptions) {
-  const serverDir = path.dirname(path.resolve(serverConfig.startServerScript));
+  const serverDir = path.dirname(path.resolve(serverConfig.startScript));
   const fileStats = collectFileStats(serverDir, serverDir);
   fileStats.sort();
   const hashInput = [
@@ -97,7 +97,7 @@ function resolveCacheDir(options, viteCacheDir) {
 }
 async function getOrGenerateAOTCaches(serverConfig, aotOptions, cacheDir) {
   const forceRegenerate = process.env.MION_AOT_FORCE === "true";
-  const isIPCMode = serverConfig.mode === "IPC";
+  const isIPCMode = serverConfig.runMode === "childProcess";
   const cachingEnabled = cacheDir !== "" && !forceRegenerate && !isIPCMode;
   let hash = "";
   if (cachingEnabled) {
