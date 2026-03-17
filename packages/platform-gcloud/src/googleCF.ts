@@ -34,6 +34,12 @@ export function setGoogleCFOpts(routerOptions?: Partial<GoogleCFOptions>) {
     return googleCFOptions;
 }
 
+/** Creates a Google Cloud Functions handler with optional platform config */
+export function createGoogleCFHandler(options?: Partial<GoogleCFOptions>) {
+    setGoogleCFOpts(options);
+    return googleCFHandler;
+}
+
 export async function googleCFHandler(rawRequest: Request, rawResponse: Response): Promise<void> {
     // Express in Google Cloud Functions might parse the body automatically when Content-Type is application/json
     // We handle both cases: string body and already-parsed object body

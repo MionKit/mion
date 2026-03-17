@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npx vitest:*)",
       "Bash(lsof -ti:8086)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(find /Users/majerez/Projects/mion/packages/platform-* -name \"*.spec.ts\" -type f)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|md\\)$\")"
     ]
   }
 }

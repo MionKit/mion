@@ -87,7 +87,8 @@ async function handleRequest(req: Request): Promise<Response> {
 }
 
 /** Creates Next.js App Router / Vercel serverless route handlers */
-export function createVercelHandler() {
+export function createVercelHandler(options?: Partial<VercelHandlerOptions>) {
+    setVercelHandlerOpts(options);
     return {
         GET: handleRequest,
         POST: handleRequest,
