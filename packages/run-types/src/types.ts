@@ -110,6 +110,8 @@ export interface RunTypeOptions {
      * this speeds up isType and typeErrors functions but will not validate array length.
      */
     noIsArrayCheck?: boolean;
+    /** When true, isType and typeErrors will also reject objects with unknown/extra properties */
+    strictTypes?: boolean;
 }
 
 export type PartialRunTypeOptions = DeepPartial<RunTypeOptions>;

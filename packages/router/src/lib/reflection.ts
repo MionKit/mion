@@ -178,7 +178,8 @@ export async function getHandlerReflection(
     handler: Handler,
     routeId: string,
     routerOptions: RouterOptions,
-    isHeadersMiddleFn: boolean = false
+    isHeadersMiddleFn: boolean = false,
+    methodStrictTypes?: boolean
 ): Promise<MethodReflect> {
     // Check AOT cache first
     const cached = getPersistedMethodMetadata(routeId);
@@ -186,7 +187,7 @@ export async function getHandlerReflection(
     if (routerOptions.aot) throw new AOTCacheError(routeId, isHeadersMiddleFn ? 'middleFn' : 'route');
     // Non-AOT mode: dynamically load run-types and generate reflection
     const rt = await loadRunTypesModule();
-    return generateHandlerReflection(handler, routeId, routerOptions, isHeadersMiddleFn, rt);
+    return generateHandlerReflection(handler, routeId, routerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
 }
 
 /**
@@ -222,11 +223,16 @@ function generateHandlerReflection(
     routeId: string,
     routerOptions: RouterOptions,
     isHeadersMiddleFn: boolean,
-    rt: RunTypesFunctions
+    rt: RunTypesFunctions,
+    methodStrictTypes?: boolean
 ): MethodReflect {
     const reflectionItems: Partial<MethodReflect> = {};
     let handlerRunType: FunctionRunType;
-    const runTypeOptions = routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions;
+    const effectiveStrictTypes = methodStrictTypes ?? routerOptions.strictTypes;
+    const runTypeOptions: RunTypeOptions = {
+        ...(routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions),
+        ...(effectiveStrictTypes !== undefined ? {strictTypes: effectiveStrictTypes} : {}),
+    };
     try {
         handlerRunType = rt.reflectFunction(handler);
     } catch (error: any) {

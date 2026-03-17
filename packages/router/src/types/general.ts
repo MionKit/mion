@@ -47,6 +47,8 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
     serializer: SerializerMode;
     /** run type compiler options for middleFns and routes */
     runTypeOptions: RunTypeOptions;
+    /** When true, isType and typeErrors reject objects with unknown/extra properties. Can be overridden per-route. */
+    strictTypes?: boolean;
     /** Used to return public data structure when adding routes */
     getPublicRoutesData: boolean;
     /** automatically generate and uuid */

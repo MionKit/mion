@@ -32,13 +32,16 @@ export interface RawMethod<H extends RawMiddleFnHandler = any> extends RemoteMet
 }
 
 export type RouteOptions = Partial<
-    Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'serializer' | 'isMutation'>
+    Pick<
+        RouteMethod['options'],
+        'description' | 'validateParams' | 'validateReturn' | 'serializer' | 'isMutation' | 'strictTypes'
+    >
 >;
 export type MiddleFnOptions = Partial<
-    Pick<MiddleFnMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
+    Pick<MiddleFnMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'strictTypes'>
 >;
 export type HeadersMiddleFnOptions = Partial<
-    Pick<HeadersMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError'>
+    Pick<HeadersMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'strictTypes'>
 >;
 // RawMiddleFnOptions doesn't need encoding - raw middleFns handle their own serialization
 export type RawMiddleFnOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>;

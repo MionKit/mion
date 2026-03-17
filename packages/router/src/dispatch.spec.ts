@@ -682,6 +682,96 @@ describe('Query body decoding (data in URL query)', () => {
     });
 });
 
+describe('StrictTypes validation', () => {
+    type SimpleUser = {
+        name: string;
+        surname: string;
+    };
+    const shared = {auth: {me: null as any}};
+    const getSharedData = (): typeof shared => shared;
+
+    const changeUserName = route((ctx, user: SimpleUser): SimpleUser => {
+        return {name: 'LOREM', surname: user.surname};
+    });
+
+    const getDefaultRequest = (path: string, params?): {headers: MionHeaders; body: string} => ({
+        headers: headersFromRecord({}),
+        body: JSON.stringify({[path]: params}),
+    });
+
+    beforeEach(() => resetRouter());
+
+    it('should reject extra properties with strictTypes enabled globally', async () => {
+        await initRouter({contextDataFactory: getSharedData, strictTypes: true});
+        await registerRoutes({changeUserName});
+
+        const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+        const response = await dispatchRoute(
+            '/changeUserName',
+            request.body,
+            request.headers,
+            headersFromRecord({}),
+            request,
+            {}
+        );
+        const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
+        expect(error).toMatchObject({
+            type: 'validation-error',
+            publicMessage: `Invalid params in 'changeUserName', validation failed.`,
+        });
+    });
+
+    it('should accept extra properties without strictTypes', async () => {
+        await initRouter({contextDataFactory: getSharedData});
+        await registerRoutes({changeUserName});
+
+        const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+        const response = await dispatchRoute(
+            '/changeUserName',
+            request.body,
+            request.headers,
+            headersFromRecord({}),
+            request,
+            {}
+        );
+        expect(response.hasErrors).toBeFalsy();
+        expect(response.body.changeUserName).toEqual({name: 'LOREM', surname: 'Tungsten'});
+    });
+
+    it('should support per-route strictTypes override', async () => {
+        await initRouter({contextDataFactory: getSharedData});
+        const strictRoute = route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
+            strictTypes: true,
+        });
+        const normalRoute = route((ctx, user: SimpleUser): SimpleUser => ({name: 'NORMAL', surname: user.surname}));
+        await registerRoutes({strictRoute, normalRoute});
+
+        // strictRoute rejects extra props
+        const req1 = getDefaultRequest('strictRoute', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+        const res1 = await dispatchRoute('/strictRoute', req1.body, req1.headers, headersFromRecord({}), req1, {});
+        expect(res1.body[MION_ROUTES.thrownErrors]?.strictRoute).toMatchObject({type: 'validation-error'});
+
+        // normalRoute accepts extra props
+        const req2 = getDefaultRequest('normalRoute', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+        const res2 = await dispatchRoute('/normalRoute', req2.body, req2.headers, headersFromRecord({}), req2, {});
+        expect(res2.hasErrors).toBeFalsy();
+        expect(res2.body.normalRoute).toEqual({name: 'NORMAL', surname: 'Tungsten'});
+    });
+
+    it('per-route strictTypes=false should override global strictTypes=true', async () => {
+        await initRouter({contextDataFactory: getSharedData, strictTypes: true});
+        const relaxedRoute = route((ctx, user: SimpleUser): SimpleUser => ({name: 'RELAXED', surname: user.surname}), {
+            strictTypes: false,
+        });
+        await registerRoutes({relaxedRoute});
+
+        const request = getDefaultRequest('relaxedRoute', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+        const response = await dispatchRoute('/relaxedRoute', request.body, request.headers, headersFromRecord({}), request, {});
+        expect(response.hasErrors).toBeFalsy();
+        expect(response.body.relaxedRoute).toEqual({name: 'RELAXED', surname: 'Tungsten'});
+    });
+});
+
 describe('Route errors should', () => {
     it('automatically generate error ids when RouteOptions autoGenerateErrorId is set to true', async () => {
         resetRouter();

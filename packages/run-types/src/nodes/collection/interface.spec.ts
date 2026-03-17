@@ -925,3 +925,141 @@ describe('Interface with circular ref tuple', () => {
         expect(validate(mocked)).toBe(true);
     });
 });
+
+describe('Interface with strictTypes option', () => {
+    type ObjectType = {
+        startDate: Date;
+        quantity: number;
+        name: string;
+        deep?: {
+            a: string;
+            b: number;
+        };
+    };
+
+    const rt = runType<ObjectType>();
+    const strictOpts = {strictTypes: true};
+
+    const validObj = {
+        startDate: new Date(),
+        quantity: 123,
+        name: 'hello',
+    };
+
+    const validObjWithDeep = {
+        startDate: new Date(),
+        quantity: 123,
+        name: 'hello',
+        deep: {a: 'hello', b: 123},
+    };
+
+    const objWithExtra = {
+        startDate: new Date(),
+        quantity: 123,
+        name: 'hello',
+        extra: 'value',
+        extra2: 456,
+    };
+
+    const objWithExtraDeep = {
+        startDate: new Date(),
+        quantity: 123,
+        name: 'hello',
+        deep: {a: 'hello', b: 123, cExtra: true},
+    };
+
+    const objWithExtraBoth = {
+        startDate: new Date(),
+        quantity: 123,
+        name: 'hello',
+        extra: 'value',
+        deep: {a: 'hello', b: 123, cExtra: true},
+    };
+
+    it('isType with strictTypes rejects extra props', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType, strictOpts);
+        expect(validate(validObj)).toBe(true);
+        expect(validate(validObjWithDeep)).toBe(true);
+        expect(validate(objWithExtra)).toBe(false);
+        expect(validate(objWithExtraDeep)).toBe(false);
+        expect(validate(objWithExtraBoth)).toBe(false);
+    });
+
+    it('isType without strictTypes still accepts extra props', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate(validObj)).toBe(true);
+        expect(validate(objWithExtra)).toBe(true);
+        expect(validate(objWithExtraDeep)).toBe(true);
+    });
+
+    it('isType with strictTypes rejects missing props', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType, strictOpts);
+        expect(validate({startDate: new Date(), quantity: 123})).toBe(false);
+        expect(validate({})).toBe(false);
+    });
+
+    it('typeErrors with strictTypes reports extra props', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors, strictOpts);
+        expect(valWithErrors(validObj)).toEqual([]);
+        expect(valWithErrors(validObjWithDeep)).toEqual([]);
+
+        expect(valWithErrors(objWithExtra)).toEqual([
+            {path: ['extra'], expected: 'never'},
+            {path: ['extra2'], expected: 'never'},
+        ]);
+    });
+
+    it('typeErrors with strictTypes reports extra nested props', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors, strictOpts);
+        expect(valWithErrors(objWithExtraDeep)).toEqual([{path: ['deep', 'cExtra'], expected: 'never'}]);
+
+        expect(valWithErrors(objWithExtraBoth)).toEqual([
+            {path: ['deep', 'cExtra'], expected: 'never'},
+            {path: ['extra'], expected: 'never'},
+        ]);
+    });
+
+    it('typeErrors without strictTypes still accepts extra props', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors(objWithExtra)).toEqual([]);
+        expect(valWithErrors(objWithExtraDeep)).toEqual([]);
+    });
+
+    it('typeErrors with strictTypes still reports missing/wrong type props', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors, strictOpts);
+        expect(valWithErrors({startDate: new Date(), quantity: 123})).toEqual([{path: ['name'], expected: 'string'}]);
+    });
+});
+
+describe('Interface with strictTypes and index signature', () => {
+    type ObjectWithIndex = {
+        name: string;
+        quantity: number;
+        [key: string]: string | number;
+    };
+
+    const rt = runType<ObjectWithIndex>();
+    const strictOpts = {strictTypes: true};
+
+    it('isType with strictTypes accepts extra props when index signature is present', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType, strictOpts);
+        expect(validate({name: 'hello', quantity: 123})).toBe(true);
+        expect(validate({name: 'hello', quantity: 123, extra: 'value', extra2: 456})).toBe(true);
+    });
+
+    it('isType with strictTypes still validates index signature value types', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType, strictOpts);
+        expect(validate({name: 'hello', quantity: 123, extra: true})).toBe(false);
+    });
+
+    it('typeErrors with strictTypes accepts extra props when index signature is present', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors, strictOpts);
+        expect(valWithErrors({name: 'hello', quantity: 123})).toEqual([]);
+        expect(valWithErrors({name: 'hello', quantity: 123, extra: 'value', extra2: 456})).toEqual([]);
+    });
+
+    it('typeErrors with strictTypes still validates index signature value types', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors, strictOpts);
+        expect(valWithErrors({name: 'hello', quantity: 123, extra: true})).toEqual([{path: ['extra'], expected: 'union'}]);
+    });
+});
