@@ -60,8 +60,8 @@ async function run() {
                     tsConfig: resolve(routerDir, 'tsconfig.json'),
                 },
                 server: {
-                    startServerScript: defaultRoutesPath,
-                    mode: 'viteSSR',
+                    startScript: defaultRoutesPath,
+                    runMode: 'middleware',
                 },
             }) as any,
         ],
@@ -113,7 +113,7 @@ async function run() {
             plugins: [
                 mionVitePlugin({
                     runTypes: {tsConfig: resolve(routerDir, 'tsconfig.json')},
-                    server: {startServerScript: defaultRoutesPath, mode: 'viteSSR'},
+                    server: {startScript: defaultRoutesPath, runMode: 'middleware'},
                 }) as any,
             ],
         });

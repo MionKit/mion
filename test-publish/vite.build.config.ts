@@ -15,9 +15,9 @@ export default defineConfig({
                 clientSrcPath: resolve(__dirname, 'src/client'),
             },
             server: {
-                startServerScript: resolve(__dirname, 'src/server/server.ts'),
-                serverViteConfig: resolve(__dirname, 'vite.server.config.ts'),
-                mode: 'onlyAOT',
+                startScript: resolve(__dirname, 'src/server/server.ts'),
+                viteConfig: resolve(__dirname, 'vite.server.config.ts'),
+                runMode: 'buildOnly',
             },
         }) as any,
     ],

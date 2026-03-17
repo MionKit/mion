@@ -20,9 +20,9 @@ export default defineConfig({
                 excludeReflection: true,
             },
             server: {
-                startServerScript: resolve(__dirname, 'src/test-server-edge.ts'),
-                serverViteConfig: resolve(__dirname, 'vite.edge.config.ts'),
-                mode: 'onlyAOT',
+                startScript: resolve(__dirname, 'src/test-server-edge.ts'),
+                viteConfig: resolve(__dirname, 'vite.edge.config.ts'),
+                runMode: 'buildOnly',
             },
         }) as any,
     ],

@@ -7,9 +7,9 @@ export interface AOTCacheOptions {
     customVirtualModuleId?: string;
 }
 export interface MionServerConfig {
-    startServerScript: string;
-    serverViteConfig?: string;
-    mode: 'onlyAOT' | 'IPC' | 'viteSSR';
+    startScript: string;
+    viteConfig?: string;
+    runMode: 'buildOnly' | 'childProcess' | 'middleware';
     port?: number;
     waitTimeout?: number;
 }

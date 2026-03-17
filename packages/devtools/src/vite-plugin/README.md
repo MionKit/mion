@@ -10,8 +10,8 @@ The mion Vite plugin (`mionVitePlugin`) is a unified plugin that handles three c
 mionVitePlugin({
   runTypes: {include: ['**/*.ts']},
   server: {
-    startServerScript: './src/init.ts',
-    mode: 'onlyAOT',
+    startScript: './src/init.ts',
+    runMode: 'buildOnly',
   },
 });
 ```
@@ -23,13 +23,13 @@ mionVitePlugin({
 ```
 1. config()           → Strip reflection module aliases if excludeReflection enabled
 2. configResolved()   → Resolve cache directory, detect SSR mode
-3. buildStart()       → Generate AOT caches (onlyAOT/IPC mode)
-   configureServer()  → Generate AOT caches (viteSSR mode), set up dev proxy middleware
+3. buildStart()       → Generate AOT caches (buildOnly/childProcess mode)
+   configureServer()  → Generate AOT caches (middleware mode), set up dev proxy middleware
 4. resolveId()        → Resolve virtual module IDs (add \0 prefix)
 5. load()             → Return cache data or generated virtual module code
 6. transform()        → Extract pure functions + run deepkit transformers
 7. buildEnd()         → Log injected pure function count
-8. closeBundle()      → Kill persistent child process (IPC mode cleanup)
+8. closeBundle()      → Kill persistent child process (childProcess mode cleanup)
 9. handleHotUpdate()  → Re-scan pure functions and regenerate AOT on file changes
 ```
 
@@ -146,9 +146,9 @@ The plugin needs to run the server's init script to extract type information and
 
 ## Server Modes
 
-The `server.mode` option controls how the plugin spawns and manages the server process:
+The `server.runMode` option controls how the plugin spawns and manages the server process:
 
-### `onlyAOT` Mode
+### `buildOnly` Mode
 
 Spawns a child process to generate AOT caches, then kills it. Use this when you only need AOT caches and don't need a running server during development (e.g., production builds).
 
@@ -158,7 +158,7 @@ Spawns a child process to generate AOT caches, then kills it. Use this when you 
 │   (Vite build)      │                                    │   (vite-node)       │
 │                     │                                    │                     │
 │ 1. buildStart()     │    fork(vite-node, startScript,    │                     │
-│ 2. spawn child ─────┼──► {env: MION_COMPILE=onlyAOT}) ─►│ 3. run startScript  │
+│ 2. spawn child ─────┼──► {env: MION_COMPILE=onlyAOT})──►│ 3. run startScript  │
 │                     │                                    │ 4. initMionRouter() │
 │                     │                                    │ 5. emitAOTCaches()  │
 │ 7. store aotData    │ ◄── {type: 'mion-aot-caches', ◄── │ 6. process.send()   │
@@ -177,7 +177,7 @@ Spawns a child process to generate AOT caches, then kills it. Use this when you 
 6. Parent receives the IPC message, stores the cache data, child process is killed
 7. Disk cache is written (keyed by SHA-256 of source files + options + devtools version)
 
-### `IPC` Mode
+### `childProcess` Mode
 
 Spawns a child process to generate AOT caches via IPC, then **keeps the server running**. The plugin polls the configured `port` until the server is ready.
 
@@ -187,7 +187,7 @@ Spawns a child process to generate AOT caches via IPC, then **keeps the server r
 │   (Vite build)      │                                    │   (vite-node)       │
 │                     │                                    │                     │
 │ 1. buildStart()     │    fork(vite-node, startScript,    │                     │
-│ 2. spawn child ─────┼──► {env: MION_COMPILE=serve})  ──►│ 3. run startScript  │
+│ 2. spawn child ─────┼──► {env: MION_COMPILE=serve}) ───►│ 3. run startScript  │
 │                     │                                    │ 4. initMionRouter() │
 │                     │                                    │ 5. emitAOTCaches()  │
 │ 7. store aotData    │ ◄── {type: 'mion-aot-caches', ◄── │ 6. process.send()   │
@@ -211,7 +211,7 @@ Spawns a child process to generate AOT caches via IPC, then **keeps the server r
 7. `serverReady` promise resolves — can be awaited in vitest `globalSetup`
 8. On `closeBundle()`, the persistent child is killed (SIGTERM → SIGKILL after 5s)
 
-### `viteSSR` Mode
+### `middleware` Mode
 
 Loads the server in the same Vite process using `ssrLoadModule`. Used with frameworks like Nuxt that run Vite in `middlewareMode`.
 
@@ -219,9 +219,9 @@ Loads the server in the same Vite process using `ssrLoadModule`. Used with frame
 ┌──────────────────────────────────────────────────┐
 │              SAME PROCESS (Vite dev server)       │
 │                                                   │
-│ 1. configureServer() detects viteSSR mode         │
+│ 1. configureServer() detects middleware mode       │
 │ 2. Set MION_COMPILE=viteSSR                       │
-│ 3. ssrLoadModule(startServerScript)               │
+│ 3. ssrLoadModule(startScript)               │
 │ 4. Router initializes, getSerializedCaches()      │
 │ 5. Store aotData (no disk cache in SSR mode)      │
 │ 6. Load @mionjs/router + @mionjs/platform-node    │
@@ -232,15 +232,15 @@ Loads the server in the same Vite process using `ssrLoadModule`. Used with frame
 
 **Flow:**
 
-1. `configureServer()` detects `viteSSR` mode
+1. `configureServer()` detects `middleware` mode
 2. Temporarily sets `MION_COMPILE=viteSSR`
-3. Calls `ssrLoadModule(startServerScript)` to load the init script in the same process
+3. Calls `ssrLoadModule(startScript)` to load the init script in the same process
 4. Retrieves caches directly from the router via `getSerializedCaches()`
 5. Loads `@mionjs/router` and `@mionjs/platform-node` modules
 6. Sets up a middleware proxy that routes matching requests to mion's `httpRequestHandler`
 7. `serverReady` promise resolves
 
-**Key differences from IPC/onlyAOT:**
+**Key differences from childProcess/buildOnly:**
 
 - No child process overhead
 - No disk cache (HMR regenerates on each change)
@@ -252,12 +252,12 @@ Loads the server in the same Vite process using `ssrLoadModule`. Used with frame
 
 This is the coordination mechanism between the plugin and the server init script:
 
-| Value     | Set by       | Meaning                                        |
-| --------- | ------------ | ---------------------------------------------- |
-| `onlyAOT` | onlyAOT mode | Generate caches then exit (skip server.listen) |
-| `serve`   | IPC mode     | Generate caches and keep server running        |
-| `viteSSR` | viteSSR mode | In-process SSR, skip server.listen             |
-| _(unset)_ | Normal run   | Standard server startup, no AOT generation     |
+| Value     | Set by            | Meaning                                        |
+| --------- | ----------------- | ---------------------------------------------- |
+| `onlyAOT` | buildOnly mode    | Generate caches then exit (skip server.listen) |
+| `serve`   | childProcess mode | Generate caches and keep server running        |
+| `viteSSR` | middleware mode   | In-process SSR, skip server.listen             |
+| _(unset)_ | Normal run        | Standard server startup, no AOT generation     |
 
 ```ts
 // Server init script (user code)
@@ -276,9 +276,9 @@ Platform adapters detect `MION_COMPILE` automatically — in `serve` mode they p
 
 The plugin exports a `serverReady` promise that resolves when the server is fully initialized:
 
-- **onlyAOT mode**: resolves immediately after AOT caches are generated (no server to wait for)
-- **IPC mode**: resolves after the server responds on the configured `port`
-- **viteSSR mode**: resolves after SSR initialization completes
+- **buildOnly mode**: resolves immediately after AOT caches are generated (no server to wait for)
+- **childProcess mode**: resolves after the server responds on the configured `port`
+- **middleware mode**: resolves after SSR initialization completes
 
 ```ts
 // vitest globalSetup — wait for the mion server before running tests
@@ -290,7 +290,7 @@ export async function setup() {
 
 The promise uses `globalThis` with `Symbol.for('mion.serverReady')` so it works across vitest's separate module contexts (vitest.config.ts and globalSetup.ts).
 
-**Disk caching (onlyAOT/IPC only):** Subsequent builds skip the child process if sources haven't changed. Cache stored at `node_modules/.vite/mion-aot-cache.json` (configurable). Force regeneration with `MION_AOT_FORCE=true`.
+**Disk caching (buildOnly/childProcess only):** Subsequent builds skip the child process if sources haven't changed. Cache stored at `node_modules/.vite/mion-aot-cache.json` (configurable). Force regeneration with `MION_AOT_FORCE=true`.
 
 ---
 
@@ -351,13 +351,13 @@ interface MionPluginOptions {
 
 ### MionServerConfig
 
-| Option              | Type                              | Default  | Description                                                  |
-| ------------------- | --------------------------------- | -------- | ------------------------------------------------------------ |
-| `startServerScript` | `string`                          | required | Path to server init script that calls `initMionRouter()`     |
-| `serverViteConfig`  | `string`                          | —        | Path to server's vite.config.ts (auto-discovered if omitted) |
-| `mode`              | `'onlyAOT' \| 'IPC' \| 'viteSSR'` | required | Server process management strategy                           |
-| `port`              | `number`                          | —        | Port to poll for server readiness (IPC mode)                 |
-| `waitTimeout`       | `number`                          | `30000`  | Max wait time in ms for server readiness polling             |
+| Option        | Type                                            | Default  | Description                                                  |
+| ------------- | ----------------------------------------------- | -------- | ------------------------------------------------------------ |
+| `startScript` | `string`                                        | required | Path to server init script that calls `initMionRouter()`     |
+| `viteConfig`  | `string`                                        | —        | Path to server's vite.config.ts (auto-discovered if omitted) |
+| `runMode`     | `'buildOnly' \| 'childProcess' \| 'middleware'` | required | Server run mode strategy                                     |
+| `port`        | `number`                                        | —        | Port to poll for server readiness (childProcess mode)        |
+| `waitTimeout` | `number`                                        | `30000`  | Max wait time in ms for server readiness polling             |
 
 ### ServerPureFunctionsOptions
 
@@ -393,6 +393,6 @@ interface MionPluginOptions {
 ## HMR Behavior
 
 - **Client source changes**: Re-scans pure functions, invalidates `virtual:mion-server-pure-fns`
-- **Server source changes**: Kills existing persistent child (if IPC mode), regenerates AOT caches (IPC/SSR), invalidates all `virtual:mion-aot/*` modules
-- In IPC mode, HMR re-spawns the child process and re-polls the server port
+- **Server source changes**: Kills existing persistent child (if childProcess mode), regenerates AOT caches (childProcess/middleware), invalidates all `virtual:mion-aot/*` modules
+- In childProcess mode, HMR re-spawns the child process and re-polls the server port
 - Pure function injection is idempotent — already-injected calls are skipped during HMR re-transforms

@@ -11,9 +11,9 @@ export default defineConfig({
             aotCaches: true,
             // runs the server in a child process separate from vite dev server
             server: {
-                startServerScript: resolve(__dirname, '../server/src/init.ts'),
-                serverViteConfig: resolve(__dirname, '../server/vite.config.ts'),
-                mode: 'IPC',
+                startScript: resolve(__dirname, '../server/src/init.ts'),
+                viteConfig: resolve(__dirname, '../server/vite.config.ts'),
+                runMode: 'childProcess',
                 port: 3000,
             },
         }),

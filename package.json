@@ -25,7 +25,7 @@
     "pages-build": "npm run build && cd website && npm ci && npm run generate"
   },
   "lint-staged": {
-    "packages/!(examples)/**/!(*.spec|*.test).ts": [
+    "packages/!(examples)/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
       "npm run lint-pre-committ --",
       "npm run check-format-pre-commit --"
     ],

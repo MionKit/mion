@@ -24,7 +24,7 @@ function createMockLoader(startScript: string) {
 }
 
 describe('generateSSRAOTCaches', () => {
-    it('should load startServerScript and retrieve caches from @mionjs/router/aot', async () => {
+    it('should load startScript and retrieve caches from @mionjs/router/aot', async () => {
         const loadModule = createMockLoader('/app/src/server.ts');
 
         const result = await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');

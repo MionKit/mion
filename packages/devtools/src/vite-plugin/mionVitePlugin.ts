@@ -73,8 +73,8 @@ export interface MionPluginOptions {
  *         tsConfig: './tsconfig.json',
  *       },
  *       server: {
- *         startServerScript: '../server/src/init.ts',
- *         mode: 'onlyAOT',
+ *         startScript: '../server/src/init.ts',
+ *         runMode: 'buildOnly',
  *       },
  *     }),
  *   ],
@@ -110,7 +110,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
     // SSR AOT: module loader (set in configureServer when SSR mode is active)
     let ssrLoadModule: ((url: string) => Promise<Record<string, any>>) | null = null;
     /** Whether SSR mode is active — resolved from server config */
-    const ssrEnabled = serverConfig?.mode === 'viteSSR';
+    const ssrEnabled = serverConfig?.runMode === 'middleware';
     /** SSR init promise: AOT generation + router/platform module loading */
     let ssrInitPromise: Promise<void> | null = null;
 
@@ -202,7 +202,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                     }
 
                     // Non-blocking: poll server port and resolve serverReady promise (IPC mode)
-                    if (serverConfig.port && serverConfig.mode === 'IPC') {
+                    if (serverConfig.port && serverConfig.runMode === 'childProcess') {
                         const timeout = serverConfig.waitTimeout ?? 30000;
                         console.log(`[mion] Waiting for server on port ${serverConfig.port}...`);
                         waitForServer(serverConfig.port, timeout)
@@ -214,7 +214,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                                 console.error(`[mion] ${err instanceof Error ? err.message : String(err)}`);
                             });
                     } else {
-                        // onlyAOT mode: no persistent server, resolve immediately
+                        // buildOnly mode: no persistent server, resolve immediately
                         onServerReady();
                     }
                 } catch (err) {
@@ -229,14 +229,14 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // SSR mode: use ssrLoadModule to load the server in the same Vite process.
             // ssrLoadModule uses Vite's internal transform pipeline (not HTTP),
             ssrLoadModule = (url: string) => server.ssrLoadModule(url);
-            const startServerScript = resolve(serverConfig.startServerScript);
+            const startScript = resolve(serverConfig.startScript);
             // Single init chain: generate AOT caches → load router + platform modules
             let nodeRequestHandler: ((req: any, res: any) => void) | null = null;
             let basePath: string | null = null;
             let initFailed = false;
 
             console.log('[mion] Generating SSR AOT caches...');
-            ssrInitPromise = loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startServerScript)
+            ssrInitPromise = loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startScript)
                 .then(async (data) => {
                     aotData = data;
                     aotGenerationPromise = Promise.resolve(data);
@@ -464,7 +464,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // In dev mode, regenerate AOT caches when server source changes
             // Skip when running as a child process
             if (serverConfig && !isRunningAsChild()) {
-                const serverDir = resolve(serverConfig.startServerScript, '..');
+                const serverDir = resolve(serverConfig.startScript, '..');
 
                 if (file.startsWith(serverDir)) {
                     // Kill existing persistent child before regenerating
@@ -476,10 +476,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                               (async () => {
                                   const routerModule = await ssrLoadModule!('@mionjs/router');
                                   routerModule.resetRouter();
-                                  return loadSSRRouterAndGenerateAOTCaches(
-                                      ssrLoadModule!,
-                                      resolve(serverConfig.startServerScript)
-                                  );
+                                  return loadSSRRouterAndGenerateAOTCaches(ssrLoadModule!, resolve(serverConfig.startScript));
                               })()
                             : // IPC mode: wait for old child to die, then spawn new
                               killPromise.then(() => generateAOTCaches(serverConfig));
@@ -498,7 +495,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                             }
 
                             // Non-blocking: poll restarted server and resolve serverReady promise
-                            if (serverConfig.port && serverConfig.mode === 'IPC') {
+                            if (serverConfig.port && serverConfig.runMode === 'childProcess') {
                                 const timeout = serverConfig.waitTimeout ?? 30000;
                                 console.log(`[mion] Waiting for restarted server on port ${serverConfig.port}...`);
                                 waitForServer(serverConfig.port, timeout)

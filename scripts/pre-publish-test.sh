@@ -63,7 +63,7 @@ cd test-publish
 node scripts/rewrite-deps.js
 
 # 5d. Clean install from tarballs
-rm -rf node_modules package-lock.json
+rm -rf node_modules package-lock.json dist
 npm install
 
 # 5e. Run E2E tests (JSON + binary serialization + pure functions)

@@ -15,9 +15,9 @@ export default defineConfig({
                 },
             },
             server: {
-                startServerScript: resolve(__dirname, '../test-server/src/test-server.ts'),
-                serverViteConfig: resolve(__dirname, '../test-server/vite.config.ts'),
-                mode: 'IPC',
+                startScript: resolve(__dirname, '../test-server/src/test-server.ts'),
+                viteConfig: resolve(__dirname, '../test-server/vite.config.ts'),
+                runMode: 'childProcess',
                 port: 8086,
             },
             aotCaches: {

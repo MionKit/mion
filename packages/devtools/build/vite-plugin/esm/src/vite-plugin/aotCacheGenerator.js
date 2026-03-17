@@ -3,10 +3,10 @@ import { resolve, dirname } from "path";
 import { resolveModule } from "./resolveModule.js";
 const DEFAULT_TIMEOUT = 3e4;
 async function generateAOTCaches(serverConfig, startScriptOverride) {
-  const persist = serverConfig.mode === "IPC";
-  const startScript = resolve(startScriptOverride ?? serverConfig.startServerScript);
+  const persist = serverConfig.runMode === "childProcess";
+  const startScript = resolve(startScriptOverride ?? serverConfig.startScript);
   const scriptDir = dirname(startScript);
-  const viteConfigArgs = serverConfig.serverViteConfig ? ["--config", resolve(serverConfig.serverViteConfig)] : [];
+  const viteConfigArgs = serverConfig.viteConfig ? ["--config", resolve(serverConfig.viteConfig)] : [];
   let viteNodePath;
   try {
     viteNodePath = await resolveModule("vite-node/cli", scriptDir);
@@ -82,7 +82,7 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
         reject(
           new Error(
             `vite-node exited with code ${code} before emitting AOT caches.
-Make sure the startServerScript calls initMionRouter() and the router is fully initialized.
+Make sure the startScript calls initMionRouter() and the router is fully initialized.
 ` + (stderr ? `stderr: ${stderr}` : "")
           )
         );
@@ -101,11 +101,11 @@ Make sure the startServerScript calls initMionRouter() and the router is fully i
     }, DEFAULT_TIMEOUT);
   });
 }
-async function loadSSRRouterAndGenerateAOTCaches(loadModule, startServerScript) {
+async function loadSSRRouterAndGenerateAOTCaches(loadModule, startScript) {
   const prevCompile = process.env.MION_COMPILE;
   process.env.MION_COMPILE = "viteSSR";
   try {
-    const mod = await loadModule(startServerScript);
+    const mod = await loadModule(startScript);
     const promises = Object.values(mod).filter((v) => v instanceof Promise);
     if (promises.length > 0) await Promise.all(promises);
     const aotModule = await loadModule("@mionjs/router/aot");

@@ -10,7 +10,7 @@
  *
  * This script initializes the mion router with only the built-in internal routes
  * (error routes, metadata routes, etc.). It is used by the Vite plugin as a fallback
- * when no user-provided startServerScript is configured.
+ * when no user-provided startScript is configured.
  *
  * When run with MION_COMPILE=true, the router's emitAOTCaches() will automatically
  * collect and send the serialized caches for these internal routes via IPC.

@@ -10,9 +10,9 @@ export default defineConfig({
             // Starts a router to emit AOT caches and then process dies
             // server never actually start listening
             server: {
-                startServerScript: resolve(__dirname, '../server/src/init.ts'),
-                serverViteConfig: resolve(__dirname, '../server/vite.config.ts'),
-                mode: 'onlyAOT',
+                startScript: resolve(__dirname, '../server/src/init.ts'),
+                viteConfig: resolve(__dirname, '../server/vite.config.ts'),
+                runMode: 'buildOnly',
             },
         }),
     ],
