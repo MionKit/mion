@@ -179,7 +179,7 @@ Spawns a child process to generate AOT caches, then kills it. Use this when you 
 
 ### `childProcess` Mode
 
-Spawns a child process to generate AOT caches via IPC, then **keeps the server running**. The plugin polls the configured `port` until the server is ready.
+Spawns a child process to generate AOT caches via IPC, then **keeps the server running**. The server signals readiness by calling `setPlatformConfig()` (called automatically by platform adapters), which sends a second IPC message.
 
 ```
 ┌─────────────────────┐         IPC (process.send)        ┌─────────────────────┐
@@ -192,10 +192,10 @@ Spawns a child process to generate AOT caches via IPC, then **keeps the server r
 │                     │                                    │ 5. emitAOTCaches()  │
 │ 7. store aotData    │ ◄── {type: 'mion-aot-caches', ◄── │ 6. process.send()   │
 │ 8. write disk cache │        jitFnsCode, pureFnsCode,    │ 7. server.listen()  │
-│ 9. poll port ───────┼──► wait for HTTP response     ◄───│ 8. serving requests │
-│ 10. serverReady ✓   │                                    │    ...              │
-│                     │                                    │                     │
-│ closeBundle()       │                                    │                     │
+│                     │        routerCacheCode}             │ 8. setPlatformConfig│
+│ 9. serverReady ✓    │ ◄── {type:'mion-platform-ready',◄──│    (called by       │
+│                     │      routerConfig, platformConfig}  │     platform adapter│
+│ closeBundle()       │                                    │ 9. serving requests │
 │  └─ kill child ─────┼──► SIGTERM ──────────────────────►│ exits               │
 └─────────────────────┘                                    └─────────────────────┘
 ```
@@ -207,8 +207,8 @@ Spawns a child process to generate AOT caches via IPC, then **keeps the server r
 3. Child runs the start script — the router initializes and emits AOT caches
 4. Platform adapters detect `MION_COMPILE=childProcess` and proceed with `server.listen()`
 5. Parent receives caches via IPC, stores data, writes disk cache
-6. Parent polls `server.port` until the server responds (2xx or 404)
-7. `serverReady` promise resolves — can be awaited in vitest `globalSetup`
+6. Platform adapter calls `setPlatformConfig()` after the server starts listening, sending a second IPC message with router config and platform config
+7. Parent receives `mion-platform-ready` IPC — `serverReady` promise resolves
 8. On `closeBundle()`, the persistent child is killed (SIGTERM → SIGKILL after 5s)
 
 ### `middleware` Mode
@@ -277,7 +277,7 @@ Platform adapters detect `MION_COMPILE` automatically — in `childProcess` mode
 The plugin exports a `serverReady` promise that resolves when the server is fully initialized:
 
 - **buildOnly mode**: resolves immediately after AOT caches are generated (no server to wait for)
-- **childProcess mode**: resolves after the server responds on the configured `port`
+- **childProcess mode**: resolves after the server's platform adapter calls `setPlatformConfig()` (requires `waitTimeout` to be set)
 - **middleware mode**: resolves after SSR initialization completes
 
 ```ts
@@ -351,13 +351,14 @@ interface MionPluginOptions {
 
 ### MionServerConfig
 
-| Option        | Type                                            | Default  | Description                                                  |
-| ------------- | ----------------------------------------------- | -------- | ------------------------------------------------------------ |
-| `startScript` | `string`                                        | required | Path to server init script that calls `initMionRouter()`     |
-| `viteConfig`  | `string`                                        | —        | Path to server's vite.config.ts (auto-discovered if omitted) |
-| `runMode`     | `'buildOnly' \| 'childProcess' \| 'middleware'` | required | Server run mode strategy                                     |
-| `port`        | `number`                                        | —        | Port to poll for server readiness (childProcess mode)        |
-| `waitTimeout` | `number`                                        | `30000`  | Max wait time in ms for server readiness polling             |
+| Option        | Type                                            | Default  | Description                                                           |
+| ------------- | ----------------------------------------------- | -------- | --------------------------------------------------------------------- |
+| `startScript` | `string`                                        | required | Path to server init script that calls `initMionRouter()`              |
+| `viteConfig`  | `string`                                        | —        | Path to server's vite.config.ts (auto-discovered if omitted)          |
+| `runMode`     | `'buildOnly' \| 'childProcess' \| 'middleware'` | required | Server run mode strategy                                              |
+| `waitTimeout` | `number`                                        | `30000`  | Max wait time in ms for `setPlatformConfig()` IPC (childProcess mode) |
+| `env`         | `Record<string, string>`                        | —        | Extra environment variables for the child process                     |
+| `args`        | `string[]`                                      | —        | Extra arguments appended after the start script                       |
 
 ### ServerPureFunctionsOptions
 
@@ -394,5 +395,5 @@ interface MionPluginOptions {
 
 - **Client source changes**: Re-scans pure functions, invalidates `virtual:mion-server-pure-fns`
 - **Server source changes**: Kills existing persistent child (if childProcess mode), regenerates AOT caches (childProcess/middleware), invalidates all `virtual:mion-aot/*` modules
-- In childProcess mode, HMR re-spawns the child process and re-polls the server port
+- In childProcess mode, HMR re-spawns the child process and waits for `setPlatformConfig()` IPC
 - Pure function injection is idempotent — already-injected calls are skipped during HMR re-transforms

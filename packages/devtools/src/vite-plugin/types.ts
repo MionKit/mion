@@ -75,12 +75,16 @@ export interface MionServerConfig {
      */
     runMode: 'buildOnly' | 'childProcess' | 'middleware';
 
-    /** Port the server listens on. When set in childProcess mode, the plugin polls
-     *  this port after AOT caches are received until the server responds. */
-    port?: number;
-
-    /** Max wait time in ms for server readiness polling (default 30000). */
+    /** Max wait time in ms for the server's platform adapter to call setPlatformConfig() (default 30000).
+     *  Only applies in childProcess mode. When set, the plugin waits for a
+     *  mion-platform-ready IPC message before resolving serverReady. */
     waitTimeout?: number;
+
+    /** Extra environment variables passed to the child process (buildOnly/childProcess modes). */
+    env?: Record<string, string>;
+
+    /** Extra arguments appended after the start script in the child process (buildOnly/childProcess modes). */
+    args?: string[];
 }
 
 /** Serializable registry entry for a single pure function */

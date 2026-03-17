@@ -8,6 +8,11 @@ export interface AOTCacheData {
 export interface AOTCacheResult {
     data: AOTCacheData;
     childProcess?: ChildProcess;
+    platformReady?: Promise<PlatformReadyData>;
+}
+export interface PlatformReadyData {
+    routerConfig: Record<string, unknown>;
+    platformConfig: Record<string, unknown>;
 }
 export declare function generateAOTCaches(serverConfig: MionServerConfig, startScriptOverride?: string): Promise<AOTCacheResult>;
 export type ModuleLoader = (url: string) => Promise<Record<string, any>>;
@@ -19,5 +24,8 @@ export declare function generatePureFnsModule(pureFnsCode: string): string;
 export declare function generateRouterCacheModule(routerCacheCode: string): string;
 export declare function generateCombinedCachesModule(): string;
 export declare function generateNoopModule(comment: string): string;
-export declare function waitForServer(port: number, timeoutMs?: number): Promise<void>;
+export declare function waitForPlatformReady(child: ChildProcess, timeoutMs?: number): Promise<{
+    routerConfig: Record<string, unknown>;
+    platformConfig: Record<string, unknown>;
+}>;
 export declare function generateNoopCombinedModule(): string;

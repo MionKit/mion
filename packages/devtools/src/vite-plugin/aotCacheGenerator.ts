@@ -22,6 +22,8 @@ export interface AOTCacheResult {
     data: AOTCacheData;
     /** The child process, only present when runMode is 'childProcess' (persist) */
     childProcess?: ChildProcess;
+    /** Promise that resolves when the server calls setPlatformConfig() (childProcess mode only) */
+    platformReady?: Promise<PlatformReadyData>;
 }
 
 /** IPC message type from the router's aotEmitter */
@@ -30,6 +32,16 @@ interface AOTCacheMessage {
     jitFnsCode: string;
     pureFnsCode: string;
     routerCacheCode: string;
+}
+
+/** Platform config received from the server via IPC */
+export interface PlatformReadyData {
+    routerConfig: Record<string, unknown>;
+    platformConfig: Record<string, unknown>;
+}
+
+interface PlatformReadyMessage extends PlatformReadyData {
+    type: 'mion-platform-ready';
 }
 
 /** Default timeout for AOT cache generation (30 seconds) */
@@ -75,8 +87,8 @@ export async function generateAOTCaches(serverConfig: MionServerConfig, startScr
         try {
             // Spawn vite-node as a child process with IPC channel
             // 'serve' mode tells platform adapters to proceed with server.listen()
-            child = fork(viteNodePath, [...viteConfigArgs, startScript], {
-                env: {...process.env, MION_COMPILE: persist ? 'childProcess' : 'buildOnly'},
+            child = fork(viteNodePath, [...viteConfigArgs, startScript, ...(serverConfig.args || [])], {
+                env: {...process.env, ...serverConfig.env, MION_COMPILE: serverConfig.runMode},
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
                 cwd: scriptDir,
             });
@@ -92,15 +104,25 @@ export async function generateAOTCaches(serverConfig: MionServerConfig, startScr
             return;
         }
 
-        /** Cleanup child process: disconnect IPC, clear timeout, and optionally kill */
+        /** Cleanup child process: clear timeout, disconnect IPC (only in non-persist mode), and optionally kill.
+         *  In persist mode, IPC stays open for the mion-platform-ready message. */
         const cleanup = () => {
             clearTimeout(timeoutId);
-            if (child.connected) child.disconnect();
+            if (!persist && child.connected) child.disconnect();
             if (!persist) child.kill();
         };
 
+        // Set up platform-ready listener BEFORE any messages arrive to avoid race conditions.
+        // The child may send mion-platform-ready very quickly after mion-aot-caches.
+        let platformReadyResolve: ((value: PlatformReadyData) => void) | undefined;
+        const platformReady = persist
+            ? new Promise<PlatformReadyData>((res) => {
+                  platformReadyResolve = res;
+              })
+            : undefined;
+
         child.on('message', (msg: unknown) => {
-            const message = msg as AOTCacheMessage;
+            const message = msg as AOTCacheMessage | PlatformReadyMessage;
             if (message?.type === 'mion-aot-caches') {
                 resolved = true;
                 cleanup();
@@ -111,7 +133,11 @@ export async function generateAOTCaches(serverConfig: MionServerConfig, startScr
                         routerCacheCode: message.routerCacheCode,
                     },
                     childProcess: persist ? child : undefined,
+                    platformReady,
                 });
+            } else if (message?.type === 'mion-platform-ready' && platformReadyResolve) {
+                platformReadyResolve({routerConfig: message.routerConfig, platformConfig: message.platformConfig});
+                platformReadyResolve = undefined;
             }
         });
 
@@ -315,20 +341,31 @@ export function generateNoopModule(comment: string): string {
     return `/* ${comment} */\n`;
 }
 
-/** Poll an HTTP port until the server responds (2xx or 404). */
-export async function waitForServer(port: number, timeoutMs = 30000): Promise<void> {
-    const startTime = Date.now();
-    const checkInterval = 100;
-    while (Date.now() - startTime < timeoutMs) {
-        try {
-            const response = await fetch(`http://localhost:${port}/`);
-            if (response.ok || response.status === 404) return;
-        } catch {
-            // Server not ready yet
-        }
-        await new Promise((r) => setTimeout(r, checkInterval));
-    }
-    throw new Error(`[mion] Server failed to become ready on port ${port} within ${timeoutMs}ms`);
+/** Waits for the server child process to send a mion-platform-ready IPC message. */
+export function waitForPlatformReady(
+    child: ChildProcess,
+    timeoutMs = 30000
+): Promise<{routerConfig: Record<string, unknown>; platformConfig: Record<string, unknown>}> {
+    return new Promise((resolve, reject) => {
+        const onMessage = (msg: unknown) => {
+            const message = msg as PlatformReadyMessage;
+            if (message?.type === 'mion-platform-ready') {
+                clearTimeout(timeoutId);
+                child.removeListener('message', onMessage);
+                resolve({routerConfig: message.routerConfig, platformConfig: message.platformConfig});
+            }
+        };
+        child.on('message', onMessage);
+        const timeoutId = setTimeout(() => {
+            child.removeListener('message', onMessage);
+            reject(
+                new Error(
+                    `Server did not call setPlatformConfig() within ${timeoutMs / 1000}s. ` +
+                        `Ensure your platform adapter (startNodeServer, startBunServer, etc.) is called after initMionRouter().`
+                )
+            );
+        }, timeoutMs);
+    });
 }
 
 /** Generates a no-op combined module that exports empty caches. */

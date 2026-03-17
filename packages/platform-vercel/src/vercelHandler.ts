@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, MionResponse} from '@mionjs/router';
+import {
+    dispatchRoute,
+    getRouterFatalErrorResponse,
+    resetRouter,
+    decodeQueryBody,
+    setPlatformConfig,
+    MionResponse,
+} from '@mionjs/router';
 import {DEFAULT_VERCEL_OPTIONS} from './constants.ts';
 import type {VercelHandlerOptions} from './types.ts';
 import {SerializerModes} from '@mionjs/core';
@@ -29,6 +36,7 @@ export function setVercelHandlerOpts(options?: Partial<VercelHandlerOptions>) {
         ...options,
     };
     defaultHeaders = [['server', '@mionjs'], ...Object.entries(vercelOptions.defaultResponseHeaders)];
+    setPlatformConfig({...vercelOptions});
     return vercelOptions;
 }
 

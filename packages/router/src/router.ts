@@ -68,6 +68,7 @@ let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
 let allExecutablesIds: string[] | undefined;
+let platformConfig: Record<string, unknown> | undefined;
 
 /** Global middleFns to be run before and after any other middleFns or routes set using `registerRoutes` */
 const defaultStartMiddleFns = {
@@ -93,6 +94,24 @@ export const getComplexity = () => complexity;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
 
+/** Sets platform adapter config and notifies the parent process (Vite plugin) that the server is ready.
+ *  Called automatically by platform adapters. Sends an IPC message containing both the
+ *  serializable router config and the platform adapter config. */
+export function setPlatformConfig(config: Record<string, unknown>): void {
+    platformConfig = config;
+    if (isMionAOTEmitMode() && typeof process.send === 'function') {
+        const routerConfig = Object.fromEntries(Object.entries(routerOptions).filter(([, v]) => typeof v !== 'function'));
+        try {
+            process.send({type: 'mion-platform-ready', routerConfig, platformConfig: config});
+        } catch (err) {
+            console.error('[mion] Failed to send platform-ready IPC:', err);
+        }
+    }
+}
+
+/** Returns the platform adapter config set by setPlatformConfig(). */
+export const getPlatformConfig = (): Readonly<Record<string, unknown>> | undefined => platformConfig;
+
 export const resetRouter = () => {
     flatRouter.clear();
     middleFnsById.clear();
@@ -108,6 +127,7 @@ export const resetRouter = () => {
     endMiddleFns = [];
     isRouterInitialized = false;
     allExecutablesIds = undefined;
+    platformConfig = undefined;
     resetRemoteMethodsMetadata();
     resetPersistedMethods();
     resetRoutesCache();

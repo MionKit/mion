@@ -7,6 +7,7 @@
 
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
+import {setPlatformConfig} from '@mionjs/router';
 import {createVercelHandler} from './vercelHandler.ts';
 import type {DevServerOptions} from './types.ts';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
@@ -61,6 +62,7 @@ function startBunDevServer(handler: ReturnType<typeof createVercelHandler>, opti
         fetch: handler.POST,
     });
     console.log(`mion vercel dev server (bun) running on ${url}`);
+    setPlatformConfig({...options});
 
     const shutdownHandler = () => {
         console.log(`Shutting down mion vercel dev server on ${url}`);
@@ -100,6 +102,7 @@ function startNodeDevServer(
 
         server.listen(options.port, () => {
             console.log(`mion vercel dev server (node) running on ${options.protocol}://localhost:${options.port}`);
+            setPlatformConfig({...options});
             resolve(server);
         });
 
