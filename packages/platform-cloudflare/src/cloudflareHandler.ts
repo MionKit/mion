@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, MionResponse} from '@mionjs/router';
+import {
+    dispatchRoute,
+    getRouterFatalErrorResponse,
+    resetRouter,
+    decodeQueryBody,
+    setPlatformConfig,
+    MionResponse,
+} from '@mionjs/router';
 import {DEFAULT_CLOUDFLARE_OPTIONS} from './constants.ts';
 import type {CloudflareHandlerOptions, CloudflareExecutionContext, CloudflarePlatformContext} from './types.ts';
 import {SerializerModes} from '@mionjs/core';
@@ -29,6 +36,7 @@ export function setCloudflareHandlerOpts(options?: Partial<CloudflareHandlerOpti
         ...options,
     };
     defaultHeaders = [['server', '@mionjs'], ...Object.entries(cloudflareOptions.defaultResponseHeaders)];
+    setPlatformConfig({...cloudflareOptions});
     return cloudflareOptions;
 }
 

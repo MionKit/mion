@@ -24,8 +24,8 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
     let resolved = false;
     let stderr = "";
     try {
-      child = child_process.fork(viteNodePath, [...viteConfigArgs, startScript], {
-        env: { ...process.env, MION_COMPILE: persist ? "childProcess" : "buildOnly" },
+      child = child_process.fork(viteNodePath, [...viteConfigArgs, startScript, ...serverConfig.args || []], {
+        env: { ...process.env, ...serverConfig.env, MION_COMPILE: serverConfig.runMode },
         stdio: ["pipe", "pipe", "pipe", "ipc"],
         cwd: scriptDir
       });
@@ -41,9 +41,13 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
     }
     const cleanup = () => {
       clearTimeout(timeoutId);
-      if (child.connected) child.disconnect();
+      if (!persist && child.connected) child.disconnect();
       if (!persist) child.kill();
     };
+    let platformReadyResolve;
+    const platformReady = persist ? new Promise((res) => {
+      platformReadyResolve = res;
+    }) : void 0;
     child.on("message", (msg) => {
       const message = msg;
       if (message?.type === "mion-aot-caches") {
@@ -55,8 +59,12 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
             pureFnsCode: message.pureFnsCode,
             routerCacheCode: message.routerCacheCode
           },
-          childProcess: persist ? child : void 0
+          childProcess: persist ? child : void 0,
+          platformReady
         });
+      } else if (message?.type === "mion-platform-ready" && platformReadyResolve) {
+        platformReadyResolve({ routerConfig: message.routerConfig, platformConfig: message.platformConfig });
+        platformReadyResolve = void 0;
       }
     });
     child.stderr?.on("data", (data) => {
@@ -210,18 +218,26 @@ function generateNoopModule(comment) {
   return `/* ${comment} */
 `;
 }
-async function waitForServer(port, timeoutMs = 3e4) {
-  const startTime = Date.now();
-  const checkInterval = 100;
-  while (Date.now() - startTime < timeoutMs) {
-    try {
-      const response = await fetch(`http://localhost:${port}/`);
-      if (response.ok || response.status === 404) return;
-    } catch {
-    }
-    await new Promise((r) => setTimeout(r, checkInterval));
-  }
-  throw new Error(`[mion] Server failed to become ready on port ${port} within ${timeoutMs}ms`);
+function waitForPlatformReady(child, timeoutMs = 3e4) {
+  return new Promise((resolve2, reject) => {
+    const onMessage = (msg) => {
+      const message = msg;
+      if (message?.type === "mion-platform-ready") {
+        clearTimeout(timeoutId);
+        child.removeListener("message", onMessage);
+        resolve2({ routerConfig: message.routerConfig, platformConfig: message.platformConfig });
+      }
+    };
+    child.on("message", onMessage);
+    const timeoutId = setTimeout(() => {
+      child.removeListener("message", onMessage);
+      reject(
+        new Error(
+          `Server did not call setPlatformConfig() within ${timeoutMs / 1e3}s. Ensure your platform adapter (startNodeServer, startBunServer, etc.) is called after initMionRouter().`
+        )
+      );
+    }, timeoutMs);
+  });
 }
 function generateNoopCombinedModule() {
   return `/* No-op: AOT caches not generated */
@@ -242,5 +258,5 @@ exports.generateRouterCacheModule = generateRouterCacheModule;
 exports.killPersistentChild = killPersistentChild;
 exports.loadSSRRouterAndGenerateAOTCaches = loadSSRRouterAndGenerateAOTCaches;
 exports.logAOTCaches = logAOTCaches;
-exports.waitForServer = waitForServer;
+exports.waitForPlatformReady = waitForPlatformReady;
 //# sourceMappingURL=aotCacheGenerator.cjs.map

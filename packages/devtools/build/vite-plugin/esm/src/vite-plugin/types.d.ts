@@ -10,8 +10,9 @@ export interface MionServerConfig {
     startScript: string;
     viteConfig?: string;
     runMode: 'buildOnly' | 'childProcess' | 'middleware';
-    port?: number;
     waitTimeout?: number;
+    env?: Record<string, string>;
+    args?: string[];
 }
 export interface PureServerFnRegistryEntry {
     readonly namespace: string;

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vitest:*)",
+      "Bash(lsof -ti:8086)",
+      "Bash(xargs kill:*)"
+    ]
+  }
+}

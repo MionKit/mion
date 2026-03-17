@@ -6,7 +6,7 @@ import { createDeepkitConfig, createPureFnTransformerFactory } from "./transform
 import { scanClientSource } from "./extractPureFn.js";
 import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX, VIRTUAL_AOT_CACHES, AOT_CACHES_SHIM, SERVER_PURE_FNS_SHIM } from "./constants.js";
-import { generateAOTCaches, logAOTCaches, waitForServer, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, loadSSRRouterAndGenerateAOTCaches, killPersistentChild } from "./aotCacheGenerator.js";
+import { generateAOTCaches, logAOTCaches, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, loadSSRRouterAndGenerateAOTCaches, killPersistentChild } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
 function mionVitePlugin(options) {
   let extractedFns = null;
@@ -78,7 +78,6 @@ function mionVitePlugin(options) {
     },
     async buildStart() {
       if (serverConfig && !isRunningAsChild() && !ssrEnabled) {
-        if (serverConfig.port) process.env.MION_TEST_PORT = String(serverConfig.port);
         try {
           console.log("[mion] Generating AOT caches...");
           const resultPromise = getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
@@ -92,16 +91,23 @@ function mionVitePlugin(options) {
             registerCleanupHandlers();
             console.log(`[mion] Server process persisted (pid: ${persistentChild.pid})`);
           }
-          if (serverConfig.port && serverConfig.runMode === "childProcess") {
-            const timeout = serverConfig.waitTimeout ?? 3e4;
-            console.log(`[mion] Waiting for server on port ${serverConfig.port}...`);
-            waitForServer(serverConfig.port, timeout).then(() => {
-              console.log(`[mion] Server ready on port ${serverConfig.port}`);
+          if (result.platformReady && serverConfig.waitTimeout && serverConfig.runMode === "childProcess") {
+            console.log("[mion] Waiting for server to call setPlatformConfig()...");
+            const timeout = serverConfig.waitTimeout;
+            const timeoutId = setTimeout(() => {
+              if (result.childProcess?.connected) result.childProcess.disconnect();
+              console.error(
+                `[mion] Server did not call setPlatformConfig() within ${timeout / 1e3}s. Ensure your platform adapter (startNodeServer, etc.) is called after initMionRouter().`
+              );
+            }, timeout);
+            result.platformReady.then(() => {
+              clearTimeout(timeoutId);
+              if (result.childProcess?.connected) result.childProcess.disconnect();
+              console.log("[mion] Server ready");
               onServerReady();
-            }).catch((err) => {
-              console.error(`[mion] ${err instanceof Error ? err.message : String(err)}`);
             });
           } else {
+            if (result.childProcess?.connected) result.childProcess.disconnect();
             onServerReady();
           }
         } catch (err) {
@@ -314,15 +320,22 @@ function mionVitePlugin(options) {
               persistentChild = result.childProcess;
               console.log(`[mion] Server process re-persisted (pid: ${persistentChild.pid})`);
             }
-            if (serverConfig.port && serverConfig.runMode === "childProcess") {
-              const timeout = serverConfig.waitTimeout ?? 3e4;
-              console.log(`[mion] Waiting for restarted server on port ${serverConfig.port}...`);
-              waitForServer(serverConfig.port, timeout).then(() => {
-                console.log(`[mion] Restarted server ready on port ${serverConfig.port}`);
+            const platformReady = "platformReady" in result ? result.platformReady : void 0;
+            if (platformReady && serverConfig.waitTimeout && serverConfig.runMode === "childProcess") {
+              const timeout = serverConfig.waitTimeout;
+              console.log("[mion] Waiting for restarted server to call setPlatformConfig()...");
+              const timeoutId = setTimeout(() => {
+                if (persistentChild?.connected) persistentChild.disconnect();
+                console.error(`[mion] Restarted server did not call setPlatformConfig() within ${timeout / 1e3}s.`);
+              }, timeout);
+              platformReady.then(() => {
+                clearTimeout(timeoutId);
+                if (persistentChild?.connected) persistentChild.disconnect();
+                console.log("[mion] Restarted server ready");
                 onServerReady();
-              }).catch((err) => {
-                console.error(`[mion] ${err instanceof Error ? err.message : String(err)}`);
               });
+            } else if ("childProcess" in result && result.childProcess?.connected) {
+              result.childProcess.disconnect();
             }
             if (!ssrEnabled) updateDiskCache(serverConfig, aotOptions, data, aotCacheDir);
             let invalidatedCount = 0;

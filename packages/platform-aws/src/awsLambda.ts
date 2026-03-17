@@ -7,7 +7,14 @@
 
 import {RpcError, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {dispatchRoute, getRouterFatalErrorResponse, headersFromRecord, resetRouter, decodeQueryBody} from '@mionjs/router';
+import {
+    dispatchRoute,
+    getRouterFatalErrorResponse,
+    headersFromRecord,
+    resetRouter,
+    decodeQueryBody,
+    setPlatformConfig,
+} from '@mionjs/router';
 import type {MionResponse, MionHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
@@ -29,6 +36,7 @@ export function setAwsLambdaOpts(routerOptions?: Partial<AwsLambdaOptions>) {
         ...lambdaOptions,
         ...routerOptions,
     };
+    setPlatformConfig({...lambdaOptions});
     return lambdaOptions;
 }
 

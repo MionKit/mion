@@ -18,7 +18,8 @@ export default defineConfig({
                 startScript: resolve(__dirname, '../test-server/src/test-server.ts'),
                 viteConfig: resolve(__dirname, '../test-server/vite.config.ts'),
                 runMode: 'childProcess',
-                port: 8086,
+                waitTimeout: 30000,
+                env: {MION_TEST_PORT: '8086'},
             },
             aotCaches: {
                 customVirtualModuleId: 'client-mion-aot',

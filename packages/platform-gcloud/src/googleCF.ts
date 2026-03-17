@@ -7,7 +7,7 @@
 
 import {RpcError, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody} from '@mionjs/router';
+import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, setPlatformConfig} from '@mionjs/router';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants.ts';
@@ -30,6 +30,7 @@ export function setGoogleCFOpts(routerOptions?: Partial<GoogleCFOptions>) {
         ...googleCFOptions,
         ...routerOptions,
     };
+    setPlatformConfig({...googleCFOptions});
     return googleCFOptions;
 }
 

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody} from '@mionjs/router';
+import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, setPlatformConfig} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
@@ -67,6 +67,9 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
         });
 
         server.listen(httpOptions.port, () => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const {options: _nativeOpts, ...serializableConfig} = httpOptions;
+            setPlatformConfig(serializableConfig);
             resolve(server);
         });
 

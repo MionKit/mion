@@ -10,6 +10,7 @@ import {
     getRouterFatalErrorResponse,
     resetRouter,
     decodeQueryBody,
+    setPlatformConfig,
     MionResponse as MionResponse,
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
@@ -132,6 +133,10 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 
     process.on('SIGINT', shutdownHandler);
     process.on('SIGTERM', shutdownHandler);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {options: _nativeOpts, ...serializableConfig} = httpOptions;
+    setPlatformConfig(serializableConfig);
 
     // Hint to Bun's GC after initialization to clean up any temporary allocations
     if (typeof Bun !== 'undefined' && Bun.gc) {

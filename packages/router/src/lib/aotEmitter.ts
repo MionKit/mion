@@ -27,6 +27,13 @@ export interface AOTCacheMessage {
     routerCacheCode: string;
 }
 
+/** IPC message sent by setPlatformConfig() to signal server readiness */
+export interface PlatformReadyMessage {
+    type: 'mion-platform-ready';
+    routerConfig: Record<string, unknown>;
+    platformConfig: Record<string, unknown>;
+}
+
 /** Serialized cache data before converting to JS code */
 export interface SerializedCaches {
     jitFnsCode: string;
