@@ -7,7 +7,7 @@
 
 import {Routes, initMionRouter, route, resetRouter} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
-import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandlerOpts} from '@mionjs/platform-cloudflare';
+import {createCloudflareHandler, resetCloudflareHandlerOpts} from '@mionjs/platform-cloudflare';
 
 // ############# Types #############
 
@@ -66,17 +66,16 @@ export interface CloudflareSetupOptions {
 export async function setup(options?: CloudflareSetupOptions) {
     resetCloudflareHandlerOpts();
     resetRouter();
-    setCloudflareHandlerOpts({
-        basePath: options?.basePath ?? '',
-        defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
-    });
     await initMionRouter(cloudflareRoutes, {
         contextDataFactory: getSharedData,
         basePath: 'api/',
         serializer: options?.serializer,
         aot: true, // Use pre-compiled AOT caches (bundled via virtual modules)
     });
-    const handler = createCloudflareHandler();
+    const handler = createCloudflareHandler({
+        basePath: options?.basePath ?? '',
+        defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
+    });
     // Expose handler globally so the service worker fetch listener can access it
     (globalThis as any).handler = handler;
     return handler;

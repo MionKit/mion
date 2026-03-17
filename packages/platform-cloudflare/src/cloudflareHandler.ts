@@ -95,7 +95,8 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
 }
 
 /** Creates a Cloudflare Workers fetch handler */
-export function createCloudflareHandler<Env = unknown>() {
+export function createCloudflareHandler<Env = unknown>(options?: Partial<CloudflareHandlerOptions>) {
+    setCloudflareHandlerOpts(options);
     return {
         fetch: (req: Request, env?: Env, ctx?: CloudflareExecutionContext) => handleRequest<Env>(req, env, ctx),
     };

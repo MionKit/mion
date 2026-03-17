@@ -7,7 +7,7 @@
 
 import {Routes, initMionRouter, route, resetRouter} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
-import {createVercelHandler, resetVercelHandlerOpts, setVercelHandlerOpts} from '@mionjs/platform-vercel';
+import {createVercelHandler, resetVercelHandlerOpts} from '@mionjs/platform-vercel';
 
 // ############# Types #############
 
@@ -66,16 +66,15 @@ export interface EdgeSetupOptions {
 export async function setup(options?: EdgeSetupOptions) {
     resetVercelHandlerOpts();
     resetRouter();
-    setVercelHandlerOpts({
-        defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
-    });
     await initMionRouter(edgeRoutes, {
         contextDataFactory: getSharedData,
         basePath: 'api/',
         serializer: options?.serializer,
         aot: true, // Use pre-compiled AOT caches (bundled via virtual modules)
     });
-    const handler = createVercelHandler();
+    const handler = createVercelHandler({
+        defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
+    });
     // Expose handler globally so EdgeVM evaluate() calls can access it
     (globalThis as any).handler = handler;
     return handler;

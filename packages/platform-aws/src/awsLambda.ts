@@ -40,6 +40,12 @@ export function setAwsLambdaOpts(routerOptions?: Partial<AwsLambdaOptions>) {
     return lambdaOptions;
 }
 
+/** Creates an AWS Lambda handler with optional platform config */
+export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
+    setAwsLambdaOpts(options);
+    return awsLambdaHandler;
+}
+
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
     let rawBody: any = rawRequest.body || '';
     const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
