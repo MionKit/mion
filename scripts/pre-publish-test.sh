@@ -39,30 +39,11 @@ npm run build
 # ── Step 5: Pack + test-publish E2E verification ──
 print_step "Pack packages and run E2E verification"
 
-# 5a. Create tarballs directory
-mkdir -p test-publish/tarballs
-rm -f test-publish/tarballs/*.tgz
+# 5a. Pack all publishable mion packages into unversioned tarballs
+bash scripts/pack-packages.sh
 
-# 5b. Pack all publishable mion packages into tarballs
-PACKAGES=(
-  "@mionjs/core"
-  "@mionjs/run-types"
-  "@mionjs/type-formats"
-  "@mionjs/router"
-  "@mionjs/platform-node"
-  "@mionjs/client"
-  "@mionjs/devtools"
-)
-for pkg in "${PACKAGES[@]}"; do
-  echo "  Packing $pkg..."
-  npm pack -w "$pkg" --pack-destination test-publish/tarballs
-done
-
-# 5c. Rename tarballs to unversioned names (package.json uses stable paths)
+# 5b. Clean install from tarballs
 cd test-publish
-node scripts/rewrite-deps.js
-
-# 5d. Clean install from tarballs
 rm -rf node_modules package-lock.json dist
 npm install
 
