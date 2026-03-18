@@ -288,9 +288,11 @@ function callCheckUnknownProperties(
         allChildrenRuntypes?.length && result.hasNonJitChildren
             ? `${optsVarName}.${checkPropName} ? ${result.allKeysName} : ${result.keysName}`
             : result.keysName;
-    const getUnknownKeysFn = comp.addPureFunction(cpf_getUnknownKeysFromArray);
+    if (returnKeys) {
+        const getUnknownKeysFn = comp.addPureFunction(cpf_getUnknownKeysFromArray);
+        return `${getUnknownKeysFn}(${comp.vλl}, ${conditional})`;
+    }
     const hasUnknownKeysFn = comp.addPureFunction(cpf_hasUnknownKeysFromArray);
-    if (returnKeys) return `${getUnknownKeysFn}(${comp.vλl}, ${conditional})`;
     objectCheckCode.push(`${hasUnknownKeysFn}(${comp.vλl}, ${conditional})`);
     const filtered = objectCheckCode.filter(Boolean);
     if (filtered.length > 1) return `(${filtered.join(' && ')})`;
