@@ -17,7 +17,8 @@ function mionVitePlugin(options) {
   const deepkitConfig = runTypesOptions ? createDeepkitConfig(runTypesOptions) : null;
   const defaultCompilerOptions = {
     target: ts.ScriptTarget.ESNext,
-    module: ts.ModuleKind.ESNext
+    module: ts.ModuleKind.ESNext,
+    sourceMap: true
   };
   let pureServerFnCount = 0;
   let registerPureFnFactoryCount = 0;
@@ -265,7 +266,8 @@ function mionVitePlugin(options) {
           else pureServerFnCount++;
         }
       }
-      return { code: result.outputText, map: result.sourceMapText };
+      const outputCode = result.outputText.replace(/\n\/\/# sourceMappingURL=.*$/, "");
+      return { code: outputCode, map: result.sourceMapText };
     },
     buildEnd() {
       if (pureServerFnCount > 0 || registerPureFnFactoryCount > 0) {
