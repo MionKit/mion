@@ -58,6 +58,7 @@ function createDeepkitConfig(options = {}) {
     compilerOptions: {
       target: ts.ScriptTarget.ESNext,
       module: ts.ModuleKind.ESNext,
+      sourceMap: true,
       configFilePath: options.tsConfig || process.cwd() + "/tsconfig.json",
       ...options.compilerOptions || {}
     },

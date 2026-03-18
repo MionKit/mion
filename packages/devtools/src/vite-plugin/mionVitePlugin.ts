@@ -92,6 +92,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
     const defaultCompilerOptions: ts.CompilerOptions = {
         target: ts.ScriptTarget.ESNext,
         module: ts.ModuleKind.ESNext,
+        sourceMap: true,
     };
 
     // Pure function injection counters — accumulated during transform, logged in buildEnd
@@ -427,7 +428,10 @@ export function mionVitePlugin(options: MionPluginOptions) {
                 }
             }
 
-            return {code: result.outputText, map: result.sourceMapText};
+            // Strip the //# sourceMappingURL comment that ts.transpileModule appends —
+            // Vite consumes the source map via the `map` property, not inline comments.
+            const outputCode = result.outputText.replace(/\n\/\/# sourceMappingURL=.*$/, '');
+            return {code: outputCode, map: result.sourceMapText};
         },
 
         buildEnd() {
