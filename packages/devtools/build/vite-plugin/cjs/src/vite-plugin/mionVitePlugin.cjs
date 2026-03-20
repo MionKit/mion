@@ -256,6 +256,8 @@ function mionVitePlugin(options) {
     transform(code, fileName) {
       const vueInfo = parseVueModuleId(fileName);
       const basePath = fileName.includes("?") ? fileName.slice(0, fileName.indexOf("?")) : fileName;
+      if (basePath.includes("@mionjs/") && (basePath.includes("/.dist/") || basePath.includes("/build/"))) return null;
+      if (basePath.includes("/.cache/vite/") || basePath.includes("/.vite/deps/")) return null;
       const filterPath = vueInfo ? vueInfo.basePath : basePath;
       if (basePath.endsWith(".vue") && !vueInfo) return null;
       const lang = vueInfo?.lang || "ts";
@@ -270,8 +272,10 @@ function mionVitePlugin(options) {
       if (hasPureFns) {
         before.push(src_vitePlugin_transformers.createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient));
       }
-      if (deepkitConfig) after.push(...deepkitConfig.afterTransformers);
-      if (needsDeepkit) before.push(...deepkitConfig.beforeTransformers);
+      if (needsDeepkit) {
+        before.push(...deepkitConfig.beforeTransformers);
+        after.push(...deepkitConfig.afterTransformers);
+      }
       const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
       const compilerOptions = isTsx ? { ...baseCompilerOptions, jsx: ts__namespace.JsxEmit.ReactJSX } : baseCompilerOptions;
       const result = ts__namespace.transpileModule(code, {
