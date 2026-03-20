@@ -53,7 +53,7 @@ describe('mion vite plugin: AOT cache content', () => {
 
     it('should include internal mion routes in router cache', () => {
         expect(routerCache).toHaveProperty(MION_ROUTES.methodsMetadataById);
-        expect(routerCache).toHaveProperty(MION_ROUTES.methodsMetadataByPath);
+        expect(routerCache).toHaveProperty(MION_ROUTES.methodsMetadata);
         expect(routerCache).toHaveProperty(MION_ROUTES.notFound);
         expect(routerCache).toHaveProperty(MION_ROUTES.platformError);
     });
@@ -86,7 +86,7 @@ describe('mion vite plugin: AOT cache registration', () => {
     loadAOTCaches();
     it('should auto-register internal routes in routesCache via addRoutesToCache', () => {
         expect(routesCache.hasMetadata(MION_ROUTES.methodsMetadataById)).toBe(true);
-        expect(routesCache.hasMetadata(MION_ROUTES.methodsMetadataByPath)).toBe(true);
+        expect(routesCache.hasMetadata(MION_ROUTES.methodsMetadata)).toBe(true);
         expect(routesCache.hasMetadata(MION_ROUTES.notFound)).toBe(true);
     });
 
