@@ -189,7 +189,7 @@ describe('node http router', () => {
             const smallServer = await startNodeServer();
             const persistedMethods = getPersistedMethods();
             expect(smallServer.listening).toBe(false);
-            const mionRoutes = ['@thrownErrors', 'mion@notFound', 'mion@platformError'];
+            const mionRoutes = ['mion@methodsMetadata', '@thrownErrors', 'mion@notFound', 'mion@platformError'];
             expect(Object.keys(persistedMethods)).toEqual([...mionRoutes, 'changeUserName', 'getDate', 'updateHeaders']);
         });
     });

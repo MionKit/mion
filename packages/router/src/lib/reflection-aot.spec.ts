@@ -95,17 +95,17 @@ const defaultRoutesCache: MethodsCache = {
         nestLevel: 0,
         options: {runOnError: false, validateParams: true, validateReturn: false},
     },
-    'mion@methodsMetadataByPath': {
-        paramNames: ['path', 'getAllRemoteMethods'],
-        type: HandlerType.route,
-        id: 'mion@methodsMetadataByPath',
+    'mion@methodsMetadata': {
+        paramNames: ['methodsIds', 'getAllRemoteMethods'],
+        type: HandlerType.middleFn,
+        id: 'mion@methodsMetadata',
         isAsync: false,
         hasReturnData: true,
         paramsJitHash: EMPTY_HASH,
         returnJitHash: EMPTY_HASH,
-        pointer: ['mion@methodsMetadataByPath'],
+        pointer: ['mion@methodsMetadata'],
         nestLevel: 0,
-        options: {runOnError: false, validateParams: true, validateReturn: false},
+        options: {runOnError: true, validateParams: true, validateReturn: false},
     },
     'mion@mionEmptyMiddleFn': {
         paramNames: [],

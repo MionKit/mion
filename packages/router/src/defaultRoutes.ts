@@ -20,7 +20,7 @@
  * - mion@notFound: Not-found handler
  * - mion@platformError: Platform error handler
  * - mion@methodsMetadataById: Remote methods metadata by ID
- * - mion@methodsMetadataByPath: Remote methods metadata by path
+ * - mion@methodsMetadata: Methods metadata middleware (returns metadata alongside any route response)
  */
 
 import {middleFn, initMionRouter} from '@mionjs/router';

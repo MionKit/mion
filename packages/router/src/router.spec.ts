@@ -91,6 +91,10 @@ describe('Create routes should', () => {
             id: 'mionDeserializeRequest',
             type: HandlerType.rawMiddleFn,
         },
+        mionMethodsMetadata: {
+            id: 'mion@methodsMetadata',
+            type: HandlerType.middleFn,
+        },
         mionSerializeResponse: {
             id: 'mionSerializeResponse',
             type: HandlerType.rawMiddleFn,
@@ -101,6 +105,7 @@ describe('Create routes should', () => {
         return [
             expect.objectContaining({...defaultExecutables.mionDeserializeRequest}),
             ...exec,
+            expect.objectContaining({...defaultExecutables.mionMethodsMetadata}),
             expect.objectContaining({...defaultExecutables.mionSerializeResponse}),
         ];
     }
@@ -112,7 +117,7 @@ describe('Create routes should', () => {
         await registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
-        expect(geMiddleFnsSize()).toEqual(5);
+        expect(geMiddleFnsSize()).toEqual(6);
 
         expect(getRouteExecutionChain('/users/getUser')?.methods).toEqual(
             addDefaultExecutables([
@@ -225,7 +230,7 @@ describe('Create routes should', () => {
         await registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
-        expect(geMiddleFnsSize()).toEqual(5);
+        expect(geMiddleFnsSize()).toEqual(6);
 
         expect(getRouteExecutionChain('/api/v1/users/getUser.json')).toBeTruthy();
         expect(getRouteExecutionChain('/api/v1/users/setUser.json')).toBeTruthy();

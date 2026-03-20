@@ -20,6 +20,8 @@ export const SerializerModes = {
     binary: 2,
     /** Use stringifyJson JIT function that do not mutates objects. */
     stringifyJson: 3,
+    /** Client-only: sends plain JSON without JIT, fetches metadata in the same response */
+    optimistic: 4,
 } as const;
 
 /**

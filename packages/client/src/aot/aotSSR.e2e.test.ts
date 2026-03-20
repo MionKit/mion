@@ -145,7 +145,7 @@ async function run() {
     await test('should include internal mion routes in router cache', async () => {
         const mod = await loadModule('virtual:mion-aot/router-cache');
         assert.ok(mod.routerCache['mion@methodsMetadataById'], 'should have methodsMetadataById');
-        assert.ok(mod.routerCache['mion@methodsMetadataByPath'], 'should have methodsMetadataByPath');
+        assert.ok(mod.routerCache['mion@methodsMetadata'], 'should have methodsMetadata');
         assert.ok(mod.routerCache['mion@notFound'], 'should have notFound');
         assert.ok(mod.routerCache['mion@platformError'], 'should have platformError');
     });
