@@ -266,10 +266,8 @@ describe('Client Routes should', () => {
     } satisfies MethodsCache;
 
     const methodsId = MION_ROUTES.methodsMetadataById;
-    const routeMethodsId = MION_ROUTES.methodsMetadataByPath;
     const emptyRouterOpts: CoreRouterOptions = {basePath: '', suffix: '', autoGenerateErrorId: false};
     const methodsPath = getRoutePath([methodsId], emptyRouterOpts);
-    const routeMethodsPath = getRoutePath([routeMethodsId], emptyRouterOpts);
     const jitFnRt = runType<JitCompiledFnData>();
     const isJitCompiledFn = jitFnRt.createJitFunction(JitFunctions.isType);
     const restoreJitCompiledFn = jitFnRt.createJitFunction(JitFunctions.restoreFromJson);
@@ -355,33 +353,6 @@ describe('Client Routes should', () => {
         });
     });
 
-    it('get Remote Methods info from route path', async () => {
-        await initRouter({contextDataFactory: getSharedData});
-        await registerRoutes(routes);
-        await registerRoutes(mionClientRoutes);
-
-        const request: RawRequest = {
-            headers: headersFromRecord({}),
-            body: JSON.stringify({
-                auth: ['token'], // middleFn is required
-                [routeMethodsId]: ['/users/getUser'],
-            }),
-        };
-        const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedMethods = {
-            auth: methodsMetadata.auth,
-            'users/getUser': methodsMetadata['users/getUser'],
-            last: methodsMetadata.last,
-        };
-        const methodsData = response.body[routeMethodsId] as SerializableMethodsData; // serializable data for remote methods
-        const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
-        expect(methodsData.methods).toEqual(expectedMethods);
-        Object.values(dependencies).forEach((dep) => {
-            const restored = restoreJitCompiledFn(dep); // we need to restore before checking correct type
-            expect(isJitCompiledFn(restored)).toBe(true);
-        });
-    });
-
     it('fail when remote method is private or not defined', async () => {
         await initRouter({contextDataFactory: getSharedData});
         await registerRoutes(routes);
@@ -406,26 +377,6 @@ describe('Client Routes should', () => {
         });
         expect(response.body[methodsId]).toEqual(expectedResponse);
     });
-
-    it('fail when route path is not defined', async () => {
-        await initRouter({contextDataFactory: getSharedData});
-        await registerRoutes(routes);
-        await registerRoutes(mionClientRoutes);
-
-        const request: RawRequest = {
-            headers: headersFromRecord({}),
-            body: JSON.stringify({
-                auth: ['token'], // middleFn is required
-                [routeMethodsId]: ['/abcd'],
-            }),
-        };
-        const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse = new RpcError({
-            type: 'rpc-metadata-not-found',
-            publicMessage: 'Route /abcd not found',
-        });
-        expect(response.body[routeMethodsId]).toEqual(expectedResponse);
-    });
 });
 
 describe('Restore Client Routes jit functions', () => {
@@ -442,9 +393,9 @@ describe('Restore Client Routes jit functions', () => {
         },
     } satisfies Routes;
 
-    const routeMethodsId = MION_ROUTES.methodsMetadataByPath;
+    const methodsId = MION_ROUTES.methodsMetadataById;
     const emptyRouterOpts: CoreRouterOptions = {basePath: '', suffix: '', autoGenerateErrorId: false};
-    const routeMethodsPath = getRoutePath([routeMethodsId], emptyRouterOpts);
+    const methodsPath = getRoutePath([methodsId], emptyRouterOpts);
 
     afterEach(() => resetRouter());
 
@@ -456,10 +407,10 @@ describe('Restore Client Routes jit functions', () => {
         const request: RawRequest = {
             headers: headersFromRecord({}),
             body: JSON.stringify({
-                [routeMethodsId]: ['/users/getUser'],
+                [methodsId]: [['users/getUser'], true],
             }),
         };
-        const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const methodsData = response.body[routeMethodsId] as SerializableMethodsData; // serializable data for remote methods
+        const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+        const methodsData = response.body[methodsId] as SerializableMethodsData;
     });
 });

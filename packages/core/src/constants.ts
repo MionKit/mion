@@ -24,8 +24,8 @@ export const MAX_STACK_DEPTH = 50;
 export const MION_ROUTES = {
     /** get remote methods metadata by method id */
     methodsMetadataById: 'mion@methodsMetadataById',
-    /** get remote methods metadata by route path, this include all middleFns in the ExecutionChain of the route. */
-    methodsMetadataByPath: 'mion@methodsMetadataByPath',
+    /** Middleware that returns methods metadata alongside any route response */
+    methodsMetadata: 'mion@methodsMetadata',
     /** Platform or adapters errors that occur before reaching the router or outside the router and are platform/adapter related */
     platformError: 'mion@platformError',
     /** not-found route. This route is called when a requested route doesn't exist */

@@ -12,7 +12,12 @@ import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubs
 import {getRoutePath} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
-import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
+import {
+    serializeRequestBody,
+    deserializeResponseBody,
+    serializeRequestBodyOptimistic,
+    deserializeOptimisticResponseBody,
+} from './lib/serializer.ts';
 import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH} from './constants.ts';
 
 export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList extends HSubRequest<any>[]> {
@@ -46,6 +51,14 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
 
     /** Calls a remote route */
     async call(): Promise<ResponseBody> {
+        if (this.options.serializer === 'optimistic') {
+            return this.callOptimistic();
+        }
+        return this.callStandard();
+    }
+
+    /** Standard call flow - requires metadata to be fetched first */
+    private async callStandard(): Promise<ResponseBody> {
         const errors: RequestErrors = new Map();
 
         try {
@@ -144,6 +157,121 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
             this.onError(error, 'Error parsing response', errors);
             return Promise.reject(errors);
         }
+    }
+
+    /** Optimistic call flow - sends plain JSON and fetches metadata in the same response */
+    private async callOptimistic(): Promise<ResponseBody> {
+        const errors: RequestErrors = new Map();
+
+        // Check if metadata is already cached → use standard flow
+        const subRequestIds = Object.keys(this.subRequestList);
+        const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+        if (allCached) return this.callStandard();
+
+        // Add metadata middleware params to request
+        const metadataSubRequest: SubRequest<any> = {
+            pointer: [MION_ROUTES.methodsMetadata],
+            id: MION_ROUTES.methodsMetadata,
+            isResolved: false,
+            params: [subRequestIds, true],
+        };
+        this.addSubRequest(metadataSubRequest);
+
+        // Try to serialize as plain JSON — if it fails, fall back to standard flow
+        let serialized: string;
+        try {
+            serialized = serializeRequestBodyOptimistic(this);
+        } catch {
+            // JSON.stringify failed — fall back: fetch metadata via standalone route, then standard request
+            delete this.subRequestList[MION_ROUTES.methodsMetadata];
+            await fetchRemoteMethodsMetadata(Object.keys(this.subRequestList), this.options);
+            return this.callStandard();
+        }
+
+        try {
+            const url = new URL(this.path, this.options.baseURL);
+            const fetchOptions: RequestInit = {
+                ...this.options.fetchOptions,
+                method: 'POST',
+                headers: {
+                    ...this.options.fetchOptions.headers,
+                    'Content-Type': 'application/json; charset=utf-8',
+                },
+                body: serialized,
+            };
+            this.response = await fetch(url, fetchOptions);
+        } catch (error: any) {
+            this.onError(error, 'Error executing optimistic request', errors);
+            return Promise.reject(errors);
+        }
+
+        try {
+            const deserialized = await deserializeOptimisticResponseBody(this.response, this.options);
+
+            // Handle platform errors
+            if (MION_ROUTES.platformError in deserialized) {
+                const platformError = deserialized[MION_ROUTES.platformError];
+                Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
+                    methodMeta.isResolved = true;
+                    methodMeta.error = platformError as RpcError<string>;
+                    errors.set(id, platformError as RpcError<string>);
+                });
+                return Promise.reject(errors);
+            }
+
+            // Check for serialization/validation errors → retry with proper serialization
+            if (this.shouldRetryWithProperSerialization(deserialized)) {
+                return this.retryWithProperSerialization();
+            }
+
+            // Process response values (same as standard flow)
+            Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
+                if (id === MION_ROUTES.methodsMetadata) return;
+                const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
+                methodMeta.isResolved = true;
+                if (isRpcError(resp)) {
+                    methodMeta.error = resp;
+                    errors.set(id, resp);
+                } else {
+                    methodMeta.resolvedValue = resp;
+                }
+            });
+
+            // Collect errors from non-subrequest methods
+            Object.entries(deserialized).forEach(([id, value]) => {
+                if (!(id in this.subRequestList) && isRpcError(value)) {
+                    errors.set(id, value);
+                }
+            });
+
+            if (errors.size) return Promise.reject(errors);
+            return deserialized;
+        } catch (error) {
+            this.onError(error, 'Error parsing optimistic response', errors);
+            return Promise.reject(errors);
+        }
+    }
+
+    /** Checks if the response contains errors that require retry with proper JIT serialization */
+    private shouldRetryWithProperSerialization(deserialized: ResponseBody): boolean {
+        return Object.values(deserialized).some(
+            (value) =>
+                isRpcError(value) &&
+                (value.type === 'serialization-error' ||
+                    value.type === 'validation-error' ||
+                    value.type === 'parsing-json-request-error')
+        );
+    }
+
+    /** Retries the request with proper JIT serialization after metadata has been cached */
+    private async retryWithProperSerialization(): Promise<ResponseBody> {
+        delete this.subRequestList[MION_ROUTES.methodsMetadata];
+        Object.values(this.subRequestList).forEach((sr) => {
+            sr.isResolved = false;
+            sr.resolvedValue = undefined;
+            sr.error = undefined;
+        });
+        return this.callStandard();
     }
 
     /** Validate params */

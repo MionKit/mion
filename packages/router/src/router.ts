@@ -44,7 +44,7 @@ import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@
 import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache.ts';
-import {mionClientRoutes} from './routes/client.routes.ts';
+import {mionClientRoutes, mionClientMiddleFns} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
 import {clearRoutesFlowCache} from './routesFlow.ts';
 import {clearContextPool} from './callContext.ts';
@@ -75,6 +75,7 @@ const defaultStartMiddleFns = {
     mionDeserializeRequest: serializerMiddleFns.mionDeserializeRequest,
 };
 const defaultEndMiddleFns = {
+    ...mionClientMiddleFns,
     mionSerializeResponse: serializerMiddleFns.mionSerializeResponse,
 };
 let startMiddleFnsDef: MiddleFnsCollection = {...defaultStartMiddleFns};
@@ -615,6 +616,8 @@ function getSerializerCodeFromMode(mode: SerializerMode | undefined): Serializer
         case 'binary':
             return SerializerModes.binary;
         case 'stringifyJson':
+            return SerializerModes.stringifyJson;
+        case 'optimistic':
             return SerializerModes.stringifyJson;
         case 'json':
         default:

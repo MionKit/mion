@@ -5,21 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyObject, RpcError, MION_ROUTES, SerializableMethodsData} from '@mionjs/core';
+import {AnyObject, Mutable, RpcError, MION_ROUTES, SerializableMethodsData, SerializerModes} from '@mionjs/core';
 import {
     getMiddleFnExecutable,
     getRouteExecutable,
     isPrivateExecutable,
-    getRouteExecutionChain,
     getRouterOptions,
     getTotalExecutables,
     getAllExecutablesIds,
     getAnyExecutable,
 } from '../router.ts';
-import {route} from '../lib/handlers.ts';
+import {middleFn, route} from '../lib/handlers.ts';
 import {RouterOptions, Routes} from '../types/general.ts';
+import {MiddleFnsCollection} from '../types/publicMethods.ts';
 import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods.ts';
 import {RemoteMethod} from '../types/remoteMethods.ts';
+import {CallContext, MionResponse} from '../types/context.ts';
 
 export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;
@@ -68,29 +69,18 @@ function mionGetRemoteMethodsDataById(
     return resp;
 }
 
-/**
- * Returns the metadata for the given route path.
- * This include all middleFns in the ExecutionChain of the route.
- * If getAllRemoteMethods is true, all public methods and middleFns are returned.
- * @mion:route
- */
-function mionGetRemoteMethodsDataByPath(
-    ctx,
-    path: string,
+/** Middleware wrapper: delegates to mionGetRemoteMethodsDataById when params are provided */
+function mionMethodsMetadata(
+    ctx: CallContext,
+    methodsIds?: string[],
     getAllRemoteMethods?: boolean
-): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> {
-    const executables = getRouteExecutionChain(path);
-    if (!executables)
-        return new RpcError({
-            type: 'rpc-metadata-not-found',
-            publicMessage: `Route ${path} not found`,
-        });
-    const privateExecutables = executables.methods.filter((e) => !isPrivateExecutable(e));
-    return mionGetRemoteMethodsDataById(
-        ctx,
-        privateExecutables.map((e) => e.id),
-        getAllRemoteMethods
-    );
+): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | void {
+    if (!methodsIds || methodsIds.length === 0) return;
+
+    // Force JSON serialization so optimistic client can parse the response
+    (ctx.response as Mutable<MionResponse>).serializer = SerializerModes.stringifyJson;
+
+    return mionGetRemoteMethodsDataById(ctx, methodsIds, getAllRemoteMethods);
 }
 
 function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
@@ -109,9 +99,12 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
     serializeMethodDeps(method, deps, purFnDeps);
 }
 
+export const mionClientMiddleFns = {
+    [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {runOnError: true}),
+} as const satisfies MiddleFnsCollection;
+
 export const mionClientRoutes = {
     // Client routes always use stringifyJson serialization to avoid mutating data as is cached
     // These routes are used by the client to fetch metadata and must work regardless of router's default serialization
     [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, {serializer: 'stringifyJson'}),
-    [MION_ROUTES.methodsMetadataByPath]: route(mionGetRemoteMethodsDataByPath, {serializer: 'stringifyJson'}),
 } as const satisfies Routes;

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, isRpcError, addRoutesToCache, isTestEnv} from '@mionjs/core';
+import {RpcError, isRpcError, addRoutesToCache} from '@mionjs/core';
 import {MION_ROUTES, getRoutePath} from '@mionjs/core';
 import {loadAOTCaches} from '../aot/aotCaches.ts';
 import {ClientOptions, RequestBody} from '../types.ts';
@@ -29,10 +29,16 @@ type MethodsMetadataResponse = Awaited<ReturnType<GetRemoteMethodsMetadataById>>
 type GlobalErrorRoute = MionRoutes[typeof MION_ROUTES.platformError]['handler'];
 type GlobalErrorResponse = Awaited<ReturnType<GlobalErrorRoute>>;
 
+/** Processes metadata from an optimistic response and caches it */
+export function processOptimisticMetadata(serializableMethodsData: SerializableMethodsData, options: ClientOptions): void {
+    storeDependencies(serializableMethodsData.deps, serializableMethodsData.purFnDeps, options);
+    storeMethodsMetadata(serializableMethodsData.methods, options);
+    addToCaches(serializableMethodsData);
+}
+
 /** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(methodIds: string[], options: ClientOptions) {
     loadAOTCaches();
-    validateClientCaches();
     restoreFromLocalStorage(methodIds, options);
     const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
     if (!missingAfterLocal.length) return;
@@ -199,20 +205,4 @@ function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
 function addToCaches(serializableMethodsData: SerializableMethodsData) {
     addSerializedJitCaches(serializableMethodsData.deps, serializableMethodsData.purFnDeps);
     addRoutesToCache(serializableMethodsData.methods);
-}
-
-/** Validates that required MION_ROUTES are loaded in the cache. Skipped in test environments. */
-let clientCachesValidated = false;
-function validateClientCaches() {
-    if (clientCachesValidated || isTestEnv()) return;
-    clientCachesValidated = true;
-
-    const requiredRoutes = Object.values(MION_ROUTES);
-    const missingRoutes = requiredRoutes.filter((routeId) => !routesCache.hasMetadata(routeId));
-    if (missingRoutes.length > 0) {
-        throw new Error(
-            `AOT cache not loaded: Required MION_ROUTES not found in router cache: ${missingRoutes.join(', ')}. ` +
-                `Make sure the AOT caches are generated and bundled correctly.`
-        );
-    }
 }
