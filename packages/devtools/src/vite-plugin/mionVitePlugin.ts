@@ -377,6 +377,13 @@ export function mionVitePlugin(options: MionPluginOptions) {
             const vueInfo = parseVueModuleId(fileName);
             // Strip any query params (e.g. ?macro=true from Nuxt) to get the real file path
             const basePath = fileName.includes('?') ? fileName.slice(0, fileName.indexOf('?')) : fileName;
+
+            // Skip @mionjs build artifacts and Vite pre-bundled cache files — they already have
+            // deepkit types and pure function metadata injected. Re-transpiling them through
+            // ts.transpileModule would inject duplicate __assignType declarations.
+            if (basePath.includes('@mionjs/') && (basePath.includes('/.dist/') || basePath.includes('/build/'))) return null;
+            if (basePath.includes('/.cache/vite/') || basePath.includes('/.vite/deps/')) return null;
+
             const filterPath = vueInfo ? vueInfo.basePath : basePath;
 
             // Skip .vue files unless they are Vue script virtual modules (?vue&type=script).
@@ -403,12 +410,14 @@ export function mionVitePlugin(options: MionPluginOptions) {
                 before.push(createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient));
             }
 
-            // Deepkit has two functions: type metadata emission (follows include/exclude filters)
-            // and import restoration (always runs globally for all ts.transpileModule calls).
-            // afterTransformers (including requireToImport) must always be included to convert
-            // deepkit's CJS require() back to ESM imports in the restored import statements.
-            if (deepkitConfig) after.push(...deepkitConfig.afterTransformers);
-            if (needsDeepkit) before.push(...deepkitConfig!.beforeTransformers);
+            // Deepkit before-transformers emit type metadata and inject __assignType + CJS require().
+            // After-transformers (declarationTransformer, requireToImport) clean up that output.
+            // Both must only run when needsDeepkit is true — otherwise afterTransformers would
+            // inject duplicate __assignType into files that already have it (e.g. pre-bundled deps).
+            if (needsDeepkit) {
+                before.push(...deepkitConfig!.beforeTransformers);
+                after.push(...deepkitConfig!.afterTransformers);
+            }
 
             const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
             const compilerOptions = isTsx ? {...baseCompilerOptions, jsx: ts.JsxEmit.ReactJSX} : baseCompilerOptions;

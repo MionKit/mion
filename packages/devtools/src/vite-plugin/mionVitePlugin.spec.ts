@@ -94,6 +94,51 @@ describe('config hook - ssr.noExternal', () => {
     });
 });
 
+describe('transform hook - @mionjs build artifact skipping', () => {
+    it('should skip @mionjs/.dist/ files', () => {
+        const plugin = mionVitePlugin({});
+        const code = `function registerPureFnFactory() {}`;
+        const result = plugin.transform(code, '/project/node_modules/@mionjs/core/.dist/esm/src/pureFns/pureFn.js');
+        expect(result).toBeNull();
+    });
+
+    it('should skip @mionjs/build/ files', () => {
+        const plugin = mionVitePlugin({});
+        const code = `function registerPureFnFactory() {}`;
+        const result = plugin.transform(code, '/project/node_modules/@mionjs/devtools/build/vite-plugin/foo.js');
+        expect(result).toBeNull();
+    });
+
+    it('should skip @mionjs/.dist/ files with query params', () => {
+        const plugin = mionVitePlugin({});
+        const code = `function registerPureFnFactory() {}`;
+        const result = plugin.transform(code, '/project/node_modules/@mionjs/core/.dist/esm/src/pureFns/pureFn.js?v=123');
+        expect(result).toBeNull();
+    });
+
+    it('should skip Vite pre-bundled cache files (.cache/vite/)', () => {
+        const plugin = mionVitePlugin({});
+        const code = `function mapFrom() {}`;
+        const result = plugin.transform(code, '/project/node_modules/.cache/vite/client/deps/@mionjs_client.js');
+        expect(result).toBeNull();
+    });
+
+    it('should skip Vite dep cache files (.vite/deps/)', () => {
+        const plugin = mionVitePlugin({});
+        const code = `function mapFrom() {}`;
+        const result = plugin.transform(code, '/project/node_modules/.vite/deps/@mionjs_client.js');
+        expect(result).toBeNull();
+    });
+
+    it('should not skip non-@mionjs node_modules files', () => {
+        const plugin = mionVitePlugin({});
+        const code = `export const x = 1;`;
+        // Non-@mionjs file without pureFns or deepkit — returns null because no transforms needed, not because of the guard
+        const result = plugin.transform(code, '/project/node_modules/some-lib/dist/index.js');
+        expect(result).toBeNull();
+    });
+});
+
 describe('resolveId hook - AOT caches', () => {
     function getPlugin() {
         return mionVitePlugin({aotCaches: true});
