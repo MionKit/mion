@@ -43,6 +43,13 @@ export interface AOTCacheOptions {
      * Example: `'client-mion-aot'` → `virtual:client-mion-aot/jit-fns`
      */
     customVirtualModuleId?: string;
+
+    /**
+     * When true, strips unused metadata properties (code, args, defaultParamValues, fnID, paramNames)
+     * from AOT caches to reduce client bundle size. The closure functions (createJitFn/createPureFn)
+     * are still serialized and sufficient for runtime restoration.
+     */
+    isClient?: boolean;
 }
 
 /** Server configuration for the mion Vite plugin */

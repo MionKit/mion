@@ -5,6 +5,7 @@ export interface AOTCacheOptions {
     cache?: boolean | string;
     excludeReflection?: boolean;
     customVirtualModuleId?: string;
+    isClient?: boolean;
 }
 export interface MionServerConfig {
     startScript: string;

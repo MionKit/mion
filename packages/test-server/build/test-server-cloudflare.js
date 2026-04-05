@@ -139,6 +139,10 @@
   const __ΩSrcCodeCompiledPureFunction = [() => __ΩPureFunctionData, "JITUtils", "utl", () => __ΩAnyFn, "", "createPureFn", "fn", "SrcCodeCompiledPureFunction", `Pn!P"w"2#n$/%4&9-4'9Mw(y`];
   const __ΩSrcCodeJITCompiledFnsCache = [() => __ΩRecord$4, () => __ΩSrcCodeJitCompiledFn, "SrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
   const __ΩSrcCodePureFunctionsCache = [() => __ΩRecord$4, () => __ΩRecord$4, () => __ΩSrcCodeCompiledPureFunction, "SrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩClientSrcCodeJitCompiledFn = ["typeName", "jitFnHash", "isNoop", "jitDependencies", "pureFnDependencies", "JITUtils", "utl", () => __ΩAnyFn, "", "createJitFn", "fn", "ClientSrcCodeJitCompiledFn", `P&4!9&4"9)4#89&F4$9&F4%9P"w&2'n(/)4*9-4+9Mw,y`];
+  const __ΩClientSrcCodeCompiledPureFunction = ["namespace", "fnName", "bodyHash", "pureFnDependencies", "JITUtils", "utl", () => __ΩAnyFn, "", "createPureFn", "fn", "ClientSrcCodeCompiledPureFunction", `P&4!9&4"9&4#9&F4$9P"w%2&n'/(4)9-4*9Mw+y`];
+  const __ΩClientSrcCodeJITCompiledFnsCache = [() => __ΩRecord$4, () => __ΩClientSrcCodeJitCompiledFn, "ClientSrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
+  const __ΩClientSrcCodePureFunctionsCache = [() => __ΩRecord$4, () => __ΩRecord$4, () => __ΩClientSrcCodeCompiledPureFunction, "ClientSrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
   const __ΩAnyFn = ["args", "", "AnyFn", 'P"@2!"/"w#y'];
   const __ΩAnyObject = [() => __ΩRecord$4, "AnyObject", '&#o!#w"y'];
   const __ΩRecord$3 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
@@ -5415,8 +5419,9 @@ if (Des.view.getUint8(tbimI0, 1) & (1 << (0))) {ret[0] = fBi_btp3Jb.fn(undefined
   }
   emitAOTCaches.__type = ["emitAOTCaches", "P$`/!"];
   async function serializeCachesToCode(jitFnsCache2, pureFnsCache2, routerCache2) {
-    const jitToJSCode = (runTypes.createToJavascriptFn.Ω = [[() => __ΩSrcCodeJITCompiledFnsCache, "n!"]], runTypes.createToJavascriptFn());
-    const pureToJSCode = (runTypes.createToJavascriptFn.Ω = [[() => __ΩSrcCodePureFunctionsCache, "n!"]], runTypes.createToJavascriptFn());
+    const isClient = getENV("MION_AOT_IS_CLIENT") === "true";
+    const jitToJSCode = isClient ? (runTypes.createToJavascriptFn.Ω = [[() => __ΩClientSrcCodeJITCompiledFnsCache, "n!"]], runTypes.createToJavascriptFn()) : (runTypes.createToJavascriptFn.Ω = [[() => __ΩSrcCodeJITCompiledFnsCache, "n!"]], runTypes.createToJavascriptFn());
+    const pureToJSCode = isClient ? (runTypes.createToJavascriptFn.Ω = [[() => __ΩClientSrcCodePureFunctionsCache, "n!"]], runTypes.createToJavascriptFn()) : (runTypes.createToJavascriptFn.Ω = [[() => __ΩSrcCodePureFunctionsCache, "n!"]], runTypes.createToJavascriptFn());
     const routerToJSCode = (runTypes.createToJavascriptFn.Ω = [[() => __ΩMethodsCache, "n!"]], runTypes.createToJavascriptFn());
     const finalJitFns = filterExcludedJitFns(jitFnsCache2, EXCLUDED_JIT_FN_IDS);
     const finalPureFns = filterExcludedPureFns(pureFnsCache2, EXCLUDED_PURE_FN_NAMES);

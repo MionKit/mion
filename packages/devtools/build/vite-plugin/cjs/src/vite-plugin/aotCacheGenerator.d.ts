@@ -14,9 +14,9 @@ export interface PlatformReadyData {
     routerConfig: Record<string, unknown>;
     platformConfig: Record<string, unknown>;
 }
-export declare function generateAOTCaches(serverConfig: MionServerConfig, startScriptOverride?: string): Promise<AOTCacheResult>;
+export declare function generateAOTCaches(serverConfig: MionServerConfig, startScriptOverride?: string, isClient?: boolean): Promise<AOTCacheResult>;
 export type ModuleLoader = (url: string) => Promise<Record<string, any>>;
-export declare function loadSSRRouterAndGenerateAOTCaches(loadModule: ModuleLoader, startScript: string): Promise<AOTCacheData>;
+export declare function loadSSRRouterAndGenerateAOTCaches(loadModule: ModuleLoader, startScript: string, isClient?: boolean): Promise<AOTCacheData>;
 export declare function killPersistentChild(child: ChildProcess | null): Promise<void>;
 export declare function logAOTCaches(data: AOTCacheData): void;
 export declare function generateJitFnsModule(jitFnsCode: string): string;

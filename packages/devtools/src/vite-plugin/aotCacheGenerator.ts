@@ -58,7 +58,11 @@ const DEFAULT_TIMEOUT = 30000;
  * The router's emitAOTCaches() (called automatically from initMionRouter)
  * detects MION_COMPILE and sends the serialized caches via IPC.
  */
-export async function generateAOTCaches(serverConfig: MionServerConfig, startScriptOverride?: string): Promise<AOTCacheResult> {
+export async function generateAOTCaches(
+    serverConfig: MionServerConfig,
+    startScriptOverride?: string,
+    isClient?: boolean
+): Promise<AOTCacheResult> {
     const persist = serverConfig.runMode === 'childProcess';
     const startScript = resolve(startScriptOverride ?? serverConfig.startScript);
     const scriptDir = dirname(startScript);
@@ -88,7 +92,12 @@ export async function generateAOTCaches(serverConfig: MionServerConfig, startScr
             // Spawn vite-node as a child process with IPC channel
             // 'serve' mode tells platform adapters to proceed with server.listen()
             child = fork(viteNodePath, [...viteConfigArgs, startScript, ...(serverConfig.args || [])], {
-                env: {...process.env, ...serverConfig.env, MION_COMPILE: serverConfig.runMode},
+                env: {
+                    ...process.env,
+                    ...serverConfig.env,
+                    MION_COMPILE: serverConfig.runMode,
+                    ...(isClient ? {MION_AOT_IS_CLIENT: 'true'} : {}),
+                },
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
                 cwd: scriptDir,
             });
@@ -202,9 +211,15 @@ export type ModuleLoader = (url: string) => Promise<Record<string, any>>;
  *  Loads the startScript with MION_COMPILE=middleware so platform adapters skip server.listen().
  *  Generates AOT caches via SSR using a module loader (for same-Vite-process scenarios like Nuxt).
  *  After loading, retrieves the caches directly from the router's global state via getSerializedCaches(). */
-export async function loadSSRRouterAndGenerateAOTCaches(loadModule: ModuleLoader, startScript: string): Promise<AOTCacheData> {
+export async function loadSSRRouterAndGenerateAOTCaches(
+    loadModule: ModuleLoader,
+    startScript: string,
+    isClient?: boolean
+): Promise<AOTCacheData> {
     const prevCompile = process.env.MION_COMPILE;
+    const prevIsClient = process.env.MION_AOT_IS_CLIENT;
     process.env.MION_COMPILE = 'middleware';
+    if (isClient) process.env.MION_AOT_IS_CLIENT = 'true';
 
     try {
         // Load the start server script — triggers initMionRouter(), populates caches,
@@ -221,6 +236,8 @@ export async function loadSSRRouterAndGenerateAOTCaches(loadModule: ModuleLoader
     } finally {
         if (prevCompile === undefined) delete process.env.MION_COMPILE;
         else process.env.MION_COMPILE = prevCompile;
+        if (prevIsClient === undefined) delete process.env.MION_AOT_IS_CLIENT;
+        else process.env.MION_AOT_IS_CLIENT = prevIsClient;
     }
 }
 

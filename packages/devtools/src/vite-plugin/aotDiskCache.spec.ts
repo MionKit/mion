@@ -67,6 +67,13 @@ describe('computeSourceHash', () => {
         expect(hash1).not.toBe(hash2);
     });
 
+    it('should produce a different hash when isClient differs', () => {
+        const serverConfig = makeServerConfig();
+        const hash1 = computeSourceHash(serverConfig);
+        const hash2 = computeSourceHash(serverConfig, {isClient: true});
+        expect(hash1).not.toBe(hash2);
+    });
+
     it('should produce a different hash when a file is added', () => {
         const serverConfig = makeServerConfig();
         const hash1 = computeSourceHash(serverConfig);

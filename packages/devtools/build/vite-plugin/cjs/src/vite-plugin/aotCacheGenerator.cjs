@@ -4,7 +4,7 @@ const child_process = require("child_process");
 const path = require("path");
 const src_vitePlugin_resolveModule = require("./resolveModule.cjs");
 const DEFAULT_TIMEOUT = 3e4;
-async function generateAOTCaches(serverConfig, startScriptOverride) {
+async function generateAOTCaches(serverConfig, startScriptOverride, isClient) {
   const persist = serverConfig.runMode === "childProcess";
   const startScript = path.resolve(startScriptOverride ?? serverConfig.startScript);
   const scriptDir = path.dirname(startScript);
@@ -25,7 +25,7 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
     let stderr = "";
     try {
       child = child_process.fork(viteNodePath, [...viteConfigArgs, startScript, ...serverConfig.args || []], {
-        env: { ...process.env, ...serverConfig.env, MION_COMPILE: serverConfig.runMode },
+        env: { ...process.env, ...serverConfig.env, MION_COMPILE: serverConfig.runMode, ...isClient ? { MION_AOT_IS_CLIENT: "true" } : {} },
         stdio: ["pipe", "pipe", "pipe", "ipc"],
         cwd: scriptDir
       });
@@ -111,9 +111,11 @@ Make sure the startScript calls initMionRouter() and the router is fully initial
     }, DEFAULT_TIMEOUT);
   });
 }
-async function loadSSRRouterAndGenerateAOTCaches(loadModule, startScript) {
+async function loadSSRRouterAndGenerateAOTCaches(loadModule, startScript, isClient) {
   const prevCompile = process.env.MION_COMPILE;
+  const prevIsClient = process.env.MION_AOT_IS_CLIENT;
   process.env.MION_COMPILE = "middleware";
+  if (isClient) process.env.MION_AOT_IS_CLIENT = "true";
   try {
     const mod = await loadModule(startScript);
     const promises = Object.values(mod).filter((v) => v instanceof Promise);
@@ -124,6 +126,8 @@ async function loadSSRRouterAndGenerateAOTCaches(loadModule, startScript) {
   } finally {
     if (prevCompile === void 0) delete process.env.MION_COMPILE;
     else process.env.MION_COMPILE = prevCompile;
+    if (prevIsClient === void 0) delete process.env.MION_AOT_IS_CLIENT;
+    else process.env.MION_AOT_IS_CLIENT = prevIsClient;
   }
 }
 async function killPersistentChild(child) {

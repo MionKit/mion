@@ -42,6 +42,69 @@ describe('mion vite plugin: virtual module resolution', () => {
 });
 
 // ============================================================
+// A2. isClient mode: stripped properties
+// Proves that with isClient: true, unused metadata (code, args,
+// defaultParamValues, fnID, paramNames) is stripped from caches
+// ============================================================
+describe('mion vite plugin: isClient stripped properties', () => {
+    it('should strip code, args, defaultParamValues, fnID from JIT cache entries', () => {
+        const firstKey = Object.keys(jitFnsCache)[0];
+        expect(firstKey).toBeDefined();
+        const entry = jitFnsCache[firstKey] as Record<string, any>;
+        // These properties should be stripped by isClient mode
+        expect(entry.code).toBeUndefined();
+        expect(entry.args).toBeUndefined();
+        expect(entry.defaultParamValues).toBeUndefined();
+        expect(entry.fnID).toBeUndefined();
+    });
+
+    it('should keep required properties in JIT cache entries', () => {
+        const firstKey = Object.keys(jitFnsCache)[0];
+        const entry = jitFnsCache[firstKey] as Record<string, any>;
+        expect(entry.typeName).toBeDefined();
+        expect(entry.jitFnHash).toBeDefined();
+        expect(typeof entry.createJitFn).toBe('function');
+        expect(entry.jitDependencies).toBeDefined();
+        expect(entry.pureFnDependencies).toBeDefined();
+    });
+
+    it('should strip code and paramNames from pure function cache entries', () => {
+        const firstNs = Object.keys(pureFnsCache)[0];
+        if (!firstNs) return; // skip if no pure functions
+        const nsCache = pureFnsCache[firstNs] as Record<string, Record<string, any>>;
+        const firstFnKey = Object.keys(nsCache)[0];
+        if (!firstFnKey) return;
+        const entry = nsCache[firstFnKey];
+        expect(entry.code).toBeUndefined();
+        expect(entry.paramNames).toBeUndefined();
+    });
+
+    it('should keep required properties in pure function cache entries', () => {
+        const firstNs = Object.keys(pureFnsCache)[0];
+        if (!firstNs) return;
+        const nsCache = pureFnsCache[firstNs] as Record<string, Record<string, any>>;
+        const firstFnKey = Object.keys(nsCache)[0];
+        if (!firstFnKey) return;
+        const entry = nsCache[firstFnKey];
+        expect(entry.namespace).toBeDefined();
+        expect(entry.fnName).toBeDefined();
+        expect(entry.bodyHash).toBeDefined();
+        expect(typeof entry.createPureFn).toBe('function');
+        expect(entry.pureFnDependencies).toBeDefined();
+    });
+
+    it('all JIT cache entries should be stripped (not just the first one)', () => {
+        for (const key of Object.keys(jitFnsCache)) {
+            const entry = jitFnsCache[key] as Record<string, any>;
+            expect(entry.code).toBeUndefined();
+            expect(entry.args).toBeUndefined();
+            expect(entry.defaultParamValues).toBeUndefined();
+            expect(entry.fnID).toBeUndefined();
+        }
+    });
+});
+
+// ============================================================
 // B. AOT Cache Content
 // Proves that the AOT subprocess (vite-node) communicated via IPC
 // and generated valid cache data from defaultRoutes.ts
