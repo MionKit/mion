@@ -22,7 +22,7 @@ function patchClientJitFns(cache: Record<string, any>): PersistedJitFunctionsCac
 }
 
 /** Loads AOT caches into the global cache. Safe to call multiple times. */
-export function loadAOTCaches() {
+export function loadClientAOTCaches() {
     if (aotCachesLoaded) return;
     aotCachesLoaded = true;
     addAOTCaches(patchClientJitFns(jitFnsCache), pureFnsCache);

@@ -7,7 +7,7 @@
 
 import {RpcError, isRpcError, addRoutesToCache} from '@mionjs/core';
 import {MION_ROUTES, getRoutePath} from '@mionjs/core';
-import {loadAOTCaches} from '../aot/aotCaches.ts';
+import {loadClientAOTCaches} from '../aot/aotCaches.ts';
 import {ClientOptions, RequestBody, SubRequest} from '../types.ts';
 import type {
     JitCompiledFnData,
@@ -31,7 +31,7 @@ type GlobalErrorResponse = Awaited<ReturnType<GlobalErrorRoute>>;
 
 /** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(methodIds: string[], options: ClientOptions) {
-    loadAOTCaches();
+    loadClientAOTCaches();
     restoreFromLocalStorage(methodIds, options);
     const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
     if (!missingAfterLocal.length) return;
