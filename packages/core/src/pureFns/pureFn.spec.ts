@@ -118,9 +118,9 @@ it('auto-detect dependencies via proxy when factory calls getPureFn', async () =
     expect(compiledIsA?.fn).toBeDefined();
     expect(compiledIsB?.fn).toBeDefined();
     // B depends on A (auto-detected via proxy)
-    expect(compiledIsB?.pureFnDependencies.includes('pureFunctionA')).toBeTruthy();
+    expect(compiledIsB?.pureFnDependencies?.includes('pureFunctionA')).toBeTruthy();
     // A has no dependencies (it doesn't call getPureFn)
-    expect(compiledIsA?.pureFnDependencies.length).toBe(0);
+    expect(compiledIsA?.pureFnDependencies).toBeUndefined();
     // Verify namespace is set correctly
     expect(compiledIsA?.namespace).toBe(TEST_NAMESPACE);
     expect(compiledIsB?.namespace).toBe(TEST_NAMESPACE);
@@ -255,8 +255,8 @@ describe('arrow function factory functions', () => {
         expect(compiledA).toBeDefined();
         expect(compiledB).toBeDefined();
         // B depends on A (auto-detected via proxy)
-        expect(compiledB?.pureFnDependencies.includes('arrowFnA')).toBeTruthy();
+        expect(compiledB?.pureFnDependencies?.includes('arrowFnA')).toBeTruthy();
         // A has no dependencies
-        expect(compiledA?.pureFnDependencies.length).toBe(0);
+        expect(compiledA?.pureFnDependencies).toBeUndefined();
     });
 });

@@ -777,4 +777,82 @@ describe('restoreJitFns', () => {
             expect(fn(5)).toBe(4); // Original version
         });
     });
+
+    describe('optional jitDependencies and pureFnDependencies', () => {
+        it('should restore persisted JIT function with undefined dependencies', () => {
+            const jitCache: PersistedJitFunctionsCache = {
+                no_deps_hash: {
+                    isNoop: false,
+                    typeName: 'string',
+                    fnID: 'is',
+                    jitFnHash: 'no_deps_hash',
+                    args: {vλl: 'v'},
+                    defaultParamValues: {vλl: ''},
+                    code: 'return function no_deps_hash(v){return typeof v === "string"}',
+                    jitDependencies: undefined,
+                    pureFnDependencies: undefined,
+                    createJitFn: function (utl) {
+                        return function no_deps_hash(v: any) {
+                            return typeof v === 'string';
+                        };
+                    },
+                    fn: undefined,
+                },
+            };
+            const pureCache: PersistedPureFunctionsCache = {};
+
+            addAOTCaches(jitCache, pureCache);
+
+            const restored = getJitUtils().getJIT('no_deps_hash')!;
+            expect(restored.fn).toBeDefined();
+            expect(restored.fn('hello')).toBe(true);
+            expect(restored.fn(123)).toBe(false);
+        });
+
+        it('should restore serialized JIT function with undefined dependencies', () => {
+            const jitCache: FnsDataCache = {
+                no_deps_serialized: {
+                    isNoop: false,
+                    typeName: 'number',
+                    fnID: 'is',
+                    jitFnHash: 'no_deps_serialized',
+                    args: {vλl: 'v'},
+                    defaultParamValues: {vλl: ''},
+                    code: 'return function no_deps_serialized(v){return typeof v === "number"}',
+                    jitDependencies: undefined,
+                    pureFnDependencies: undefined,
+                },
+            };
+            const pureCache: PureFnsDataCache = {};
+
+            addSerializedJitCaches(jitCache, pureCache);
+
+            const restored = getJitUtils().getJIT('no_deps_serialized')!;
+            expect(restored.fn).toBeDefined();
+            expect(restored.fn(42)).toBe(true);
+            expect(restored.fn('str')).toBe(false);
+        });
+
+        it('should restore pure function with undefined pureFnDependencies', () => {
+            const jitCache: FnsDataCache = {};
+            const pureCache: PureFnsDataCache = {
+                [TEST_NS]: {
+                    noDepsFunc: {
+                        namespace: TEST_NS,
+                        paramNames: ['x'],
+                        code: 'return function noDepsFunc(x){return x * 3}',
+                        fnName: 'noDepsFunc',
+                        bodyHash: 'noDeps_hash',
+                        pureFnDependencies: undefined,
+                    },
+                },
+            };
+
+            addSerializedJitCaches(jitCache, pureCache);
+
+            const restored = getJitUtils().getPureFn(TEST_NS, 'noDepsFunc')!;
+            expect(restored).toBeDefined();
+            expect(restored(5)).toBe(15);
+        });
+    });
 });

@@ -44,7 +44,6 @@ export function registerPureFnFactory(
         bodyHash: parsedFn.bodyHash,
         paramNames: parsedFn.paramNames,
         code: parsedFn.code,
-        pureFnDependencies: [],
     };
 
     // Run the factory once with a tracking proxy to auto-detect dependencies
@@ -58,7 +57,9 @@ export function registerPureFnFactory(
     const detectedDeps = getDependencies();
     for (const dep of detectedDeps) {
         if (dep === functionID) continue;
-        if (!compiled.pureFnDependencies.includes(dep)) compiled.pureFnDependencies.push(dep);
+        if (compiled.pureFnDependencies?.includes(dep)) continue;
+        if (!compiled.pureFnDependencies) (compiled as any).pureFnDependencies = [];
+        compiled.pureFnDependencies!.push(dep);
     }
 
     getJitUtils().addPureFn(namespace, compiled);

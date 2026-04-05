@@ -268,8 +268,6 @@ function fakeJitFn(fnID: string): JitCompiledFn<any> {
         defaultParamValues: {vλl: 'v'},
         isNoop: true,
         code: '',
-        jitDependencies: [],
-        pureFnDependencies: [],
         createJitFn: () => {
             throw new Error('isNoop JIT functions should not be called, this is a function when jit is never used');
         },

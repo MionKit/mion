@@ -46,13 +46,14 @@ function generateEntryCode(fn: ExtractedPureFn): string {
     // Generate the function code
     const fnCode = fn.isFactory ? generateFactoryFn(fn) : generateDirectFn(fn);
 
+    const depsLine = depsArray.length > 0 ? `\n            pureFnDependencies: [${depsArray.join(', ')}],` : '';
+
     return `        ${JSON.stringify(fn.fnName)}: {
             namespace: ${JSON.stringify(fn.namespace)},
             fnName: ${JSON.stringify(fn.fnName)},
             paramNames: [${paramsArray}],
             code: ${JSON.stringify(fn.fnBody)},
-            bodyHash: ${JSON.stringify(fn.bodyHash)},
-            pureFnDependencies: [${depsArray.join(', ')}],
+            bodyHash: ${JSON.stringify(fn.bodyHash)},${depsLine}
             isFactory: ${fn.isFactory},
 ${fnCode}
         }`;
