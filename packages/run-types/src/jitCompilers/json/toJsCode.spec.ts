@@ -646,3 +646,64 @@ it('toJSCode with client types should handle multiple entries with dependencies'
     expect(parsed['hash_dep'].fnID).toBeUndefined();
     expect(parsed['hash_main'].args).toBeUndefined();
 });
+
+it('toJSCode with Omit should work the same as Pick for stripping properties', () => {
+    // Omit-based type: remove what we don't want (alternative to Pick)
+    // Note: import SrcCodeJitCompiledFn is not available here, so we define a local full type
+    interface FullSrcJitFn {
+        readonly typeName: string;
+        readonly fnID: string;
+        readonly jitFnHash: string;
+        readonly args: {vλl: string; [key: string]: string};
+        readonly defaultParamValues: {vλl: string; [key: string]: string};
+        readonly isNoop?: boolean;
+        readonly code: string;
+        readonly jitDependencies: Array<string>;
+        readonly pureFnDependencies: Array<string>;
+        readonly paramNames?: string[];
+        readonly createJitFn: (utl: any) => any;
+        readonly fn: undefined;
+    }
+    type OmitJitFn = Omit<FullSrcJitFn, 'code' | 'args' | 'defaultParamValues' | 'fnID' | 'paramNames'>;
+    type OmitCache = Record<string, OmitJitFn>;
+
+    const toJSCode = createToJavascriptFn<OmitCache>();
+
+    const runtimeCache: JitFunctionsCache = {
+        hash_omit: {
+            typeName: 'OmitType',
+            fnID: 'is',
+            jitFnHash: 'hash_omit',
+            args: {vλl: 'v'},
+            defaultParamValues: {vλl: ''},
+            code: 'return function(v){return v > 0}',
+            jitDependencies: [],
+            pureFnDependencies: [],
+            createJitFn: () => (v: any) => v > 0,
+            fn: (v: any) => v > 0,
+        },
+    };
+
+    const code = toJSCode(runtimeCache as unknown as OmitCache);
+
+    // Stripped properties should NOT be in output
+    expect(code).not.toContain('"is"'); // fnID
+    expect(code).not.toContain('args:');
+    expect(code).not.toMatch(/code:\s*[`'"]/);
+
+    // Closure should be generated correctly
+    expect(code).toContain('function get_hash_omit(utl)');
+    expect(code).toContain('return function(v){return v > 0}');
+    expect(code).toContain('fn:undefined');
+
+    const parsed = eval(`(${code})`);
+    const entry = parsed['hash_omit'];
+    expect(entry.typeName).toBe('OmitType');
+    expect(entry.jitFnHash).toBe('hash_omit');
+    expect(typeof entry.createJitFn).toBe('function');
+    expect(entry.code).toBeUndefined();
+    expect(entry.fnID).toBeUndefined();
+    const createdFn = entry.createJitFn({});
+    expect(createdFn(5)).toBe(true);
+    expect(createdFn(-1)).toBe(false);
+});

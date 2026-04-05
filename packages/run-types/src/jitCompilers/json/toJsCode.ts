@@ -18,17 +18,6 @@ import {isSafePropName} from '../../lib/utils.ts';
 import {createStringifyCompiler, createStringifyIterable} from './stringifyJson.ts';
 import {cpf_sanitizeCompiledFn} from '../../run-types-pure-fns.ts';
 
-/** Gets sibling property/method names from a MethodSignature's parent ObjectLiteral */
-function getParentSiblingNames(srcMS: TypeMethodSignature): Set<string | number | symbol> | undefined {
-    let parent = srcMS.parent as any;
-    // Handle deepkit bug where parent can be TypePropertySignature instead of TypeObjectLiteral
-    if (parent?.kind === ReflectionKind.propertySignature) parent = parent.parent;
-    if (parent?.kind !== ReflectionKind.objectLiteral) return undefined;
-    const types = (parent as TypeObjectLiteral).types;
-    if (!types) return undefined;
-    return new Set(types.map((t: any) => t.name).filter((n: any) => n !== undefined));
-}
-
 export function createToCodeCompiler() {
     const fnID = JitFunctions.toJSCode.id;
     const visitJsonStringify = createStringifyCompiler(fnID);
@@ -68,11 +57,17 @@ export function createToCodeCompiler() {
                     return {code: `'undefined'`, type: 'E'};
                 } else if (isCompilingClosureFn(rt, comp)) {
                     // special case for JitFunctions/PureFunctions where we generate the fn from the data instead of fn.toString()
+                    // When using Pick/Omit, deepkit wraps methodSignature in a propertySignature,
+                    // so comp.vλl points to the fn value instead of the parent object. Use getParentObjRef to get the right ref.
+                    const parentRef = getParentObjRef(srcMS, comp);
                     const isPureFn = rt.getChildVarName(comp) === 'createPureFn';
-                    const fnName = isPureFn ? `${comp.vλl}.fnName` : `${comp.vλl}.jitFnHash`;
-                    const fnCode = `${comp.vλl}.code`;
-                    const paramList = isPureFn ? `${comp.vλl}.paramNames.join(',')` : `'utl'`;
+                    const fnName = isPureFn ? `${parentRef}.fnName` : `${parentRef}.jitFnHash`;
+                    const fnCode = `${parentRef}.code`;
+                    const paramList = isPureFn ? `${parentRef}.paramNames.join(',')` : `'utl'`;
                     const closureCode = `'function get_'+${fnName}+'('+${paramList}+'){'+${fnCode}+'}'`;
+                    // When wrapped in a propertySignature (Pick/Omit types), the outer handler already emits the property name
+                    const isWrapped = parentRef !== comp.vλl;
+                    if (isWrapped) return {code: closureCode, type: 'E'};
                     return {code: `'${safeName}:'+${closureCode}${sep}`, type: 'E'};
                 } else if (rt.src.subKind === ReflectionSubKind.params) {
                     const paramsCode = visitJsonStringify(rt, comp);
@@ -130,27 +125,6 @@ export function createToCodeCompiler() {
         }
     }
 
-    /** Detects if we're compiling a createJitFn or createPureFn closure by checking sibling properties */
-    function isCompilingClosureFn(runType: MethodSignatureRunType, comp: JitFnCompiler): boolean {
-        const childName = runType.getChildVarName(comp);
-        if (childName !== 'createJitFn' && childName !== 'createPureFn') return false;
-        const siblings = getParentSiblingNames(runType.src as TypeMethodSignature);
-        if (!siblings) return false;
-        if (childName === 'createJitFn') return siblings.has('jitFnHash');
-        return siblings.has('bodyHash'); // createPureFn
-    }
-
-    /** Detects if we're compiling the fn property of a JitCompiledFn or CompiledPureFunction */
-    function isCompilingFnProp(runType: MethodSignatureRunType, comp: JitFnCompiler): boolean {
-        if (runType.getChildVarName(comp) !== 'fn') return false;
-        const siblings = getParentSiblingNames(runType.src as TypeMethodSignature);
-        if (!siblings) return false;
-        return (
-            (siblings.has('createJitFn') && siblings.has('jitFnHash')) ||
-            (siblings.has('createPureFn') && siblings.has('bodyHash'))
-        );
-    }
-
     return compileToCode;
 }
 
@@ -160,4 +134,49 @@ let lazyFn: undefined | ((runType: BaseRunType, comp: JitFnCompiler) => JitCode)
 export function emitToCode(runType: BaseRunType, comp: JitFnCompiler): JitCode {
     if (!lazyFn) lazyFn = createToCodeCompiler();
     return lazyFn(runType, comp);
+}
+
+/** Gets sibling property/method names from a MethodSignature's parent ObjectLiteral */
+function getParentSiblingNames(srcMS: TypeMethodSignature): Set<string | number | symbol> | undefined {
+    let parent = srcMS.parent as any;
+    // Handle deepkit bug where parent can be TypePropertySignature instead of TypeObjectLiteral
+    if (parent?.kind === ReflectionKind.propertySignature) parent = parent.parent;
+    if (parent?.kind !== ReflectionKind.objectLiteral) return undefined;
+    const types = (parent as TypeObjectLiteral).types;
+    if (!types) return undefined;
+    return new Set(types.map((t: any) => t.name).filter((n: any) => n !== undefined));
+}
+
+/** Detects if we're compiling a createJitFn or createPureFn closure by checking sibling properties */
+function isCompilingClosureFn(runType: MethodSignatureRunType, comp: JitFnCompiler): boolean {
+    const childName = runType.getChildVarName(comp);
+    if (childName !== 'createJitFn' && childName !== 'createPureFn') return false;
+    const siblings = getParentSiblingNames(runType.src as TypeMethodSignature);
+    if (!siblings) return false;
+    if (childName === 'createJitFn') return siblings.has('jitFnHash');
+    return siblings.has('bodyHash'); // createPureFn
+}
+
+/** Detects if we're compiling the fn property of a JitCompiledFn or CompiledPureFunction */
+function isCompilingFnProp(runType: MethodSignatureRunType, comp: JitFnCompiler): boolean {
+    if (runType.getChildVarName(comp) !== 'fn') return false;
+    const siblings = getParentSiblingNames(runType.src as TypeMethodSignature);
+    if (!siblings) return false;
+    return (
+        (siblings.has('createJitFn') && siblings.has('jitFnHash')) || (siblings.has('createPureFn') && siblings.has('bodyHash'))
+    );
+}
+
+/**
+ * Gets the runtime reference to the parent object that contains the methodSignature.
+ * When using Pick/Omit, deepkit wraps methodSignature in a propertySignature,
+ * causing comp.vλl to point to the fn value (e.g. `obj.createJitFn`) instead of the parent object (`obj`).
+ * Detects this by comparing the current vλl with the previous stack item's vλl.
+ * If they differ, we are inside a propertySignature wrapper and use the parent stack item's vλl.
+ */
+function getParentObjRef(_srcMS: TypeMethodSignature, comp: JitFnCompiler): string {
+    const stack = comp.stack;
+    const parentItem = stack[stack.length - 2];
+    if (parentItem && parentItem.vλl !== comp.vλl) return parentItem.vλl;
+    return comp.vλl;
 }

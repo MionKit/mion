@@ -256,35 +256,13 @@ export interface SrcCodeCompiledPureFunction extends PureFunctionData {
 export type SrcCodeJITCompiledFnsCache = Record<string, SrcCodeJitCompiledFn>;
 export type SrcCodePureFunctionsCache = Record<string, Record<string, SrcCodeCompiledPureFunction>>;
 
-/**
- * Client version of SrcCodeJitCompiledFn - strips unused properties to reduce bundle size.
- * Strips: code, args, defaultParamValues, fnID, paramNames.
- * Note: Pick<> can't be used here because deepkit reflection doesn't resolve mapped types
- * into objectLiterals, which breaks sibling detection in the toJsCode compiler.
- * Keep in sync with SrcCodeJitCompiledFn / JitCompiledFnData.
- */
-export interface ClientSrcCodeJitCompiledFn {
-    readonly typeName: string;
-    readonly jitFnHash: string;
-    readonly isNoop?: boolean;
-    readonly jitDependencies: Array<string>;
-    readonly pureFnDependencies: Array<string>;
-    readonly createJitFn: (utl: JITUtils) => AnyFn;
-    readonly fn: undefined;
-}
-/**
- * Client version of SrcCodeCompiledPureFunction - strips unused properties to reduce bundle size.
- * Strips: code, paramNames.
- * Keep in sync with SrcCodeCompiledPureFunction / PureFunctionData.
- */
-export interface ClientSrcCodeCompiledPureFunction {
-    readonly namespace: string;
-    readonly fnName: string;
-    readonly bodyHash: string;
-    readonly pureFnDependencies: Array<string>;
-    readonly createPureFn: (utl: JITUtils) => AnyFn;
-    readonly fn: undefined;
-}
+/** Client version of SrcCodeJitCompiledFn - strips unused properties to reduce bundle size */
+export type ClientSrcCodeJitCompiledFn = Omit<
+    SrcCodeJitCompiledFn,
+    'code' | 'args' | 'defaultParamValues' | 'fnID' | 'paramNames'
+>;
+/** Client version of SrcCodeCompiledPureFunction - strips unused properties to reduce bundle size */
+export type ClientSrcCodeCompiledPureFunction = Omit<SrcCodeCompiledPureFunction, 'code' | 'paramNames'>;
 export type ClientSrcCodeJITCompiledFnsCache = Record<string, ClientSrcCodeJitCompiledFn>;
 export type ClientSrcCodePureFunctionsCache = Record<string, Record<string, ClientSrcCodeCompiledPureFunction>>;
 

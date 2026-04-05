@@ -311,7 +311,11 @@ function mionVitePlugin(options) {
             (async () => {
               const routerModule = await ssrLoadModule("@mionjs/router");
               routerModule.resetRouter();
-              return loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, resolve(serverConfig.startScript), aotOptions?.isClient);
+              return loadSSRRouterAndGenerateAOTCaches(
+                ssrLoadModule,
+                resolve(serverConfig.startScript),
+                aotOptions?.isClient
+              );
             })()
           ) : (
             // IPC mode: wait for old child to die, then spawn new
