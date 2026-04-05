@@ -68,12 +68,7 @@ function serializeMethod(
     isResponse: boolean
 ): boolean {
     const toBinary = isResponse ? method.returnJitFns.toBinary : method.paramsJitFns.toBinary;
-    if (!toBinary?.fn)
-        throw new RpcError({
-            type: 'missing-toBinary-jit-fn',
-            publicMessage: `Missing toBinary JIT function for method ${method.id}`,
-        });
-    if (toBinary.isNoop) return false;
+    if (!toBinary?.fn || toBinary.isNoop) return false;
     // skip @thrownErrors - should be handled separately by the caller if needed
     if (key === MION_ROUTES.thrownErrors) return false;
     // skip methods without return data or undefined values (for responses)

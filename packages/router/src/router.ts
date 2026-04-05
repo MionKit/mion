@@ -38,7 +38,7 @@ import {
     isMionAOTEmitMode,
     resetRoutesCache,
 } from '@mionjs/core';
-import {getRawMethodReflection, getHandlerReflection} from './lib/reflection.ts';
+import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns} from './lib/reflection.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionjs/core';
 import {setErrorOptions} from '@mionjs/core';
@@ -176,7 +176,9 @@ export async function registerRoutes<R extends Routes>(routes: R): Promise<Publi
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
     startMiddleFns = await getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
     endMiddleFns = await getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
-    await recursiveFlatRoutes(routes);
+    const binaryMiddlewares = new Set<string>();
+    await recursiveFlatRoutes(routes, [], [], [], binaryMiddlewares, 0);
+    if (binaryMiddlewares.size > 0) await compileBinaryForMiddleware(binaryMiddlewares);
     if (shouldFullGenerateSpec()) {
         return getPublicApi(routes);
     }
@@ -277,6 +279,7 @@ async function recursiveFlatRoutes(
     currentPointer: string[] = [],
     preMiddleFns: RemoteMethod[] = [],
     postMiddleFns: RemoteMethod[] = [],
+    binaryMiddlewares: Set<string> = new Set(),
     nestLevel = 0
 ) {
     if (nestLevel > MAX_ROUTE_NESTING)
@@ -333,11 +336,12 @@ async function recursiveFlatRoutes(
         }
 
         // recurse into sublevels
-        minus1Props = await recursiveCreateExecutionChainAsync(
+        minus1Props = await recursiveCreateExecutionChain(
             routeEntry,
             newPointer,
             preMiddleFns,
             postMiddleFns,
+            binaryMiddlewares,
             nestLevel,
             index,
             entries,
@@ -348,11 +352,12 @@ async function recursiveFlatRoutes(
     }
 }
 
-async function recursiveCreateExecutionChainAsync(
+async function recursiveCreateExecutionChain(
     routeEntry: RemoteMethod | RoutesWithId,
     currentPointer: string[],
     preMiddleFns: RemoteMethod[],
     postMiddleFns: RemoteMethod[],
+    binaryMiddlewares: Set<string>,
     nestLevel: number,
     index: number,
     routeKeyedEntries: RouterKeyEntryList,
@@ -398,12 +403,21 @@ async function recursiveCreateExecutionChainAsync(
         // add middleware functions deps, so can be serialized with the router
         if (middleFnIds.length) routeMethod.middleFnIds = middleFnIds;
         flatRouter.set(path, executionChain);
+        // Collect middleware that needs binary JIT functions for retroactive compilation
+        if (routeMethod.options.serializer === 'binary') {
+            for (const method of methods) {
+                if (method.type === HandlerType.middleFn || method.type === HandlerType.headersMiddleFn) {
+                    binaryMiddlewares.add(method.id);
+                }
+            }
+        }
     } else if (!isExec) {
         await recursiveFlatRoutes(
             routeEntry.routes,
             routeEntry.pathPointer,
             [...preMiddleFns, ...props.preLevelMiddleFns],
             [...props.postLevelMiddleFns, ...postMiddleFns],
+            binaryMiddlewares,
             nestLevel + 1
         );
     }
@@ -444,6 +458,7 @@ export async function getExecutableFromMiddleFn(
             middleFn.handler,
             middleFnId,
             routerOptions,
+            middleFn.options ?? {},
             isHeader,
             middleFn.options?.strictTypes
         );
@@ -498,6 +513,14 @@ export async function getExecutableFromRawMiddleFn(
     return executable;
 }
 
+/** Retroactively compiles binary JIT functions for middleware in the path of binary routes */
+async function compileBinaryForMiddleware(binaryMiddlewareIds: Set<string>): Promise<void> {
+    for (const id of binaryMiddlewareIds) {
+        const method = middleFnsById.get(id);
+        if (method) await ensureBinaryJitFns(method as MiddleFnMethod);
+    }
+}
+
 export async function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): Promise<RouteMethod> {
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
@@ -508,10 +531,12 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
     if (compiledMethod) {
         executable = compiledMethod as RouteMethod;
     } else {
+        const resolvedRouteOptions = {...route.options, serializer: route.options?.serializer ?? routerOptions.serializer};
         const reflectionData = await getHandlerReflection(
             route.handler,
             routeId,
             routerOptions,
+            resolvedRouteOptions,
             false,
             route.options?.strictTypes
         );

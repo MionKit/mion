@@ -142,15 +142,19 @@ export function addRoutesToCache(newCache: MethodsCache) {
     }
 }
 
-export function getJitFnHashes(jitHash: string): JitFunctionsHashes {
+export function getJitFnHashes(jitHash: string, needsBinary: boolean = false): JitFunctionsHashes {
     return {
         isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
         typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
         prepareForJson: `${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`,
         restoreFromJson: `${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`,
         stringifyJson: `${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`,
-        toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
-        fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`,
+        ...(needsBinary
+            ? {
+                  toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
+                  fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`,
+              }
+            : {}),
     };
 }
 
@@ -167,18 +171,21 @@ export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
     const cached = jitFunctionsCache.get(jitHash);
     if (cached) return cached;
 
-    const hashes = getJitFnHashes(jitHash);
     const jUtils = getJitUtils();
     const jitFns = {
-        isType: jUtils.getJIT(hashes.isType),
-        typeErrors: jUtils.getJIT(hashes.typeErrors),
-        prepareForJson: jUtils.getJIT(hashes.prepareForJson),
-        restoreFromJson: jUtils.getJIT(hashes.restoreFromJson),
-        stringifyJson: jUtils.getJIT(hashes.stringifyJson),
-        toBinary: jUtils.getJIT(hashes.toBinary),
-        fromBinary: jUtils.getJIT(hashes.fromBinary),
+        isType: jUtils.getJIT(`${JIT_FUNCTION_IDS.isType}_${jitHash}`),
+        typeErrors: jUtils.getJIT(`${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`),
+        prepareForJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`),
+        restoreFromJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
+        stringifyJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`),
     } as JitCompiledFunctions;
-    for (const key in jitFns) {
+    // Only include binary functions if they exist in the store
+    const toBinaryJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
+    const fromBinaryJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
+    if (toBinaryJit) jitFns.toBinary = toBinaryJit;
+    if (fromBinaryJit) jitFns.fromBinary = fromBinaryJit;
+
+    for (const key of ['isType', 'typeErrors', 'prepareForJson', 'restoreFromJson', 'stringifyJson'] as const) {
         if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
     }
 
@@ -254,8 +261,6 @@ const noopJitFns: JitCompiledFunctions = {
     prepareForJson: fakeJitFn(JIT_FUNCTION_IDS.prepareForJson),
     restoreFromJson: fakeJitFn(JIT_FUNCTION_IDS.restoreFromJson),
     stringifyJson: fakeJitFn(JIT_FUNCTION_IDS.stringifyJson),
-    toBinary: fakeJitFn(JIT_FUNCTION_IDS.toBinary),
-    fromBinary: fakeJitFn(JIT_FUNCTION_IDS.fromBinary),
 } as any;
 
 /** Creates a fake JIT function with isNoop=true for handlers with no params or void return */

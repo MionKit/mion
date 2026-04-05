@@ -44,8 +44,20 @@ bash scripts/pack-packages.sh
 
 # 5b. Clean install from tarballs
 cd test-publish
-rm -rf node_modules package-lock.json dist
-npm install
+rm -rf node_modules dist
+# Strip stale integrity hashes for file: tarball deps so npm ci doesn't reject them.
+# These are local trusted tarballs we just packed; external deps keep their locked integrity.
+node -e "
+const fs = require('fs');
+const lf = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+for (const [, v] of Object.entries(lf.packages || {})) {
+  if (v.resolved && v.resolved.startsWith('file:') && v.resolved.endsWith('.tgz')) {
+    delete v.integrity;
+  }
+}
+fs.writeFileSync('package-lock.json', JSON.stringify(lf, null, 2) + '\n');
+"
+npm ci
 
 # 5e. Run E2E tests (JSON + binary serialization + pure functions)
 npm run test
