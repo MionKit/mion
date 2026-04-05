@@ -24,6 +24,12 @@
       "types": "./.dist/esm/index.d.ts",
       "require": "./.dist/cjs/index.cjs",
       "default": "./.dist/esm/index.js"
+    },
+    "./aot": {
+      "source": "./src/aot/aotCaches.ts",
+      "types": "./.dist/esm/src/aot/aotCaches.d.ts",
+      "require": "./.dist/cjs/src/aot/aotCaches.cjs",
+      "default": "./.dist/esm/src/aot/aotCaches.js"
     }
   },
   "directories": {

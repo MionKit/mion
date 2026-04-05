@@ -145,12 +145,10 @@ describe('fetchRemoteMethodsMetadata', () => {
         expect(parsed.paramNames).toBeDefined();
     });
 
-    it('should handle non-existent routes gracefully', async () => {
-        // Try to fetch metadata for a route that doesn't exist
-        // The function should complete without throwing but not store any metadata
-        await fetchRemoteMethodsMetadata(['nonExistentRoute'], options);
-
-        // Verify no metadata was stored for the non-existent route
+    it('should throw for non-existent routes', async () => {
+        await expect(fetchRemoteMethodsMetadata(['nonExistentRoute'], options)).rejects.toThrow(
+            'Error fetching validation and serialization metadata'
+        );
         expect(routesCache.hasMetadata('nonExistentRoute')).toBe(false);
     });
 

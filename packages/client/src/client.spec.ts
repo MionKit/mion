@@ -7,7 +7,7 @@
 
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {initClient} from './client.ts';
-import {HSubRequest, RSubRequest} from './types.ts';
+import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
@@ -30,7 +30,7 @@ describe('client', () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const expectedAuthSubRequest: RSubRequest<any> & HSubRequest<any> = {
+        const expectedAuthSubRequest: RouteSubRequest<any> & MiddlewareSubRequest<any> = {
             pointer: ['auth'],
             id: 'auth',
             isResolved: false,
@@ -43,7 +43,7 @@ describe('client', () => {
             typeErrors: expect.any(Function),
         };
 
-        const expectedSayHelloSubRequest: RSubRequest<any> & HSubRequest<any> = {
+        const expectedSayHelloSubRequest: RouteSubRequest<any> & MiddlewareSubRequest<any> = {
             pointer: ['sayHello'],
             id: 'sayHello',
             isResolved: false,
@@ -56,7 +56,7 @@ describe('client', () => {
             typeErrors: expect.any(Function),
         };
 
-        const expectedSumTwoSubRequest: RSubRequest<any> & HSubRequest<any> = {
+        const expectedSumTwoSubRequest: RouteSubRequest<any> & MiddlewareSubRequest<any> = {
             pointer: ['utils', 'sumTwo'],
             id: 'utils/sumTwo',
             isResolved: false,
@@ -75,7 +75,7 @@ describe('client', () => {
 
         // is a proxy so actually could trap any call even if does not exists in methods and is not strongly typed
         // note bellow code should not be used when using the client
-        const expectedUnknownSubRequest: RSubRequest<any> & HSubRequest<any> = {
+        const expectedUnknownSubRequest: RouteSubRequest<any> & MiddlewareSubRequest<any> = {
             pointer: ['abcd'],
             id: 'abcd',
             isResolved: false,

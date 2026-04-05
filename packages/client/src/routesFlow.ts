@@ -6,14 +6,14 @@
  * ######## */
 
 import {PURE_SERVER_FN_NAMESPACE, RpcError} from '@mionjs/core';
-import type {HSubRequest, RSubRequest, SubRequest, WorkflowResult} from './types.ts';
+import type {MiddlewareSubRequest, RouteSubRequest, SubRequest, WorkflowResult} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
 import {MapFromServerFnRef} from '@mionjs/core';
 
 /** Creates and executes a routesFlow request with multiple routes */
 export async function routesFlow<
-    Routes extends RSubRequest<any>[],
-    MiddleFns extends Record<string, HSubRequest<any>> = Record<string, never>,
+    Routes extends RouteSubRequest<any>[],
+    MiddleFns extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
 >(routeSubRequests: [...Routes], middleFns?: MiddleFns): Promise<WorkflowResult<Routes, MiddleFns>> {
     if (!routeSubRequests || routeSubRequests.length === 0) {
         throw new RpcError({

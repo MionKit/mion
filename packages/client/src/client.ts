@@ -9,9 +9,9 @@ import {DEFAULT_PREFILL_OPTIONS} from './constants.ts';
 import {
     CallWithMiddleFnsResult,
     ClientOptions,
-    HSubRequest,
+    MiddlewareSubRequest,
     InitClientOptions,
-    RSubRequest,
+    RouteSubRequest,
     SubRequest,
     RequestErrors,
     ClientRoutes,
@@ -26,12 +26,10 @@ import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest, findSubRequestError} from './subRequest.ts';
-import {loadClientAOTCaches} from './aot/aotCaches.ts';
 
 export function initClient<RM extends RemoteApi>(
     options: InitClientOptions
 ): {client: MionClient; routes: ClientRoutes<RM>; middleFns: ClientMiddleFns<RM>} {
-    loadClientAOTCaches();
     registerErrorDeserializers();
     const clientOptions = {
         ...DEFAULT_PREFILL_OPTIONS,
@@ -59,28 +57,28 @@ export class MionClient {
     constructor(private clientOptions: ClientOptions) {}
 
     /** Executes a route call and returns a Result 4-tuple */
-    executeCall<RR extends RSubRequest<any>>(routeSubRequest: RR): Promise<Result<any, any>> {
+    executeCall<RR extends RouteSubRequest<any>>(routeSubRequest: RR): Promise<Result<any, any>> {
         return this.executeRequest(routeSubRequest, undefined, undefined);
     }
 
     /** Executes a route call with middleFns and returns a typed result object */
-    executeCallWithMiddleFns<H extends Record<string, HSubRequest<any>>>(
-        routeSubRequest: RSubRequest<any>,
+    executeCallWithMiddleFns<H extends Record<string, MiddlewareSubRequest<any>>>(
+        routeSubRequest: RouteSubRequest<any>,
         middleFnsRecord: H
     ): Promise<CallWithMiddleFnsResult<any, any, H>> {
         return this.executeRequest(routeSubRequest, undefined, middleFnsRecord);
     }
 
     /** Executes a routesFlow call with multiple routes and optional middleFns */
-    executeCallWithWorkflow<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+    executeCallWithWorkflow<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
         workflowSubRequests: Routes,
         middleFnsRecord: H
     ): Promise<WorkflowResult<Routes, H>> {
         return this.executeRequest(undefined, workflowSubRequests, middleFnsRecord);
     }
 
-    private async executeRequest<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
-        routeSubRequest: RSubRequest<any> | undefined,
+    private async executeRequest<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
+        routeSubRequest: RouteSubRequest<any> | undefined,
         workflowSubRequests: Routes | undefined,
         middleFnsRecord: H | undefined
     ): Promise<any> {
@@ -112,8 +110,8 @@ export class MionClient {
 
     /** Get route IDs from single route or routesFlow routes */
     private getRouteIds(
-        routeSubRequest: RSubRequest<any> | undefined,
-        workflowSubRequests: RSubRequest<any>[] | undefined
+        routeSubRequest: RouteSubRequest<any> | undefined,
+        workflowSubRequests: RouteSubRequest<any>[] | undefined
     ): Set<string> {
         const routeIds = new Set<string>();
         if (routeSubRequest) routeIds.add(routeSubRequest.id);
@@ -122,14 +120,17 @@ export class MionClient {
     }
 
     /** Get all middleFns from the request's subRequestList, excluding the route(s) */
-    private getAllMiddleFnsFromRequest(request: MionClientRequest<any, any>, excludedIds: Set<string>): HSubRequest<any>[] {
+    private getAllMiddleFnsFromRequest(
+        request: MionClientRequest<any, any>,
+        excludedIds: Set<string>
+    ): MiddlewareSubRequest<any>[] {
         return Object.entries(request.subRequestList)
             .filter(([id]) => !excludedIds.has(id))
-            .map(([, subRequest]) => subRequest as HSubRequest<any>);
+            .map(([, subRequest]) => subRequest as MiddlewareSubRequest<any>);
     }
 
     /** Process all middleFn responses - call success or error handlers for each middleFn individually */
-    private processMiddleFnsResponses(middleFnSubRequests: HSubRequest<any>[], errors: RequestErrors | undefined): void {
+    private processMiddleFnsResponses(middleFnSubRequests: MiddlewareSubRequest<any>[], errors: RequestErrors | undefined): void {
         for (const middleFn of middleFnSubRequests) {
             const middleFnError = errors?.get(middleFn.id);
             if (middleFnError) {
@@ -141,10 +142,10 @@ export class MionClient {
     }
 
     /** Build the result 4-tuple from the request results. middleFns can be a named record or an array of subrequests */
-    private buildResult<Routes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
-        routeSubRequest: RSubRequest<any> | undefined,
+    private buildResult<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
+        routeSubRequest: RouteSubRequest<any> | undefined,
         workflowSubRequests: Routes | undefined,
-        middleFns: H | HSubRequest<any>[],
+        middleFns: H | MiddlewareSubRequest<any>[],
         errors: RequestErrors | undefined
     ): CallWithMiddleFnsResult<any, any, H> | WorkflowResult<Routes, H> | Result<any, any> {
         const middleFnsResults = {} as Record<string, any>;
@@ -221,7 +222,7 @@ export class MionClient {
         return request.validateParams(subRequest);
     }
 
-    prefill<List extends HSubRequest<any>[]>(...subRequest: List): Promise<void> {
+    prefill<List extends MiddlewareSubRequest<any>[]>(...subRequest: List): Promise<void> {
         const request = new MionClientRequest(this.clientOptions, this.prefilledMiddleFnsCache);
         const promise = request.prefill(subRequest);
         this.pendingPrefills.push(promise);
@@ -232,7 +233,7 @@ export class MionClient {
         return promise;
     }
 
-    removePrefill<List extends HSubRequest<any>[]>(...subRequest: List): Promise<void> {
+    removePrefill<List extends MiddlewareSubRequest<any>[]>(...subRequest: List): Promise<void> {
         const request = new MionClientRequest(this.clientOptions, this.prefilledMiddleFnsCache);
         return request.removePrefill(subRequest);
     }
@@ -248,7 +249,7 @@ class MethodProxy {
     handler = {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        apply: (_target: any, _thisArg: any, argArray?: any): RSubRequest<any> & HSubRequest<any> => {
+        apply: (_target: any, _thisArg: any, argArray?: any): RouteSubRequest<any> & MiddlewareSubRequest<any> => {
             const handlerId = getRouterItemId(this.parentProps);
             return new MionSubRequest(this.parentProps, handlerId, argArray, this.client);
         },

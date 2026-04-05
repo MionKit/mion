@@ -6,7 +6,14 @@
  * ######## */
 
 import type {ResponseBody} from '@mionjs/router';
-import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, PrefilledMiddleFnsCache} from './types.ts';
+import {
+    ClientOptions,
+    MiddlewareSubRequest,
+    SubRequest,
+    RouteSubRequest,
+    RequestErrors,
+    PrefilledMiddleFnsCache,
+} from './types.ts';
 import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset, toBase64Url} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
@@ -15,7 +22,7 @@ import {validateSubRequests} from './lib/validation.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH} from './constants.ts';
 
-export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList extends HSubRequest<any>[]> {
+export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequestsList extends MiddlewareSubRequest<any>[]> {
     readonly path: string;
     readonly requestId: string;
     readonly subRequestList: {[key: string]: SubRequest<any>} = {};
@@ -27,7 +34,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
         public readonly route?: RR,
         public readonly middleFns?: MiddleFnRequestsList,
         /** Array of routesFlow subrequests when executing a routesFlow */
-        public readonly workflowSubRequests?: RSubRequest<any>[]
+        public readonly workflowSubRequests?: RouteSubRequest<any>[]
     ) {
         if (workflowSubRequests && workflowSubRequests.length > 0) {
             const routePaths = workflowSubRequests.map((sr) => getRoutePath(sr.pointer, this.options));
@@ -44,13 +51,16 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
         if (middleFns) middleFns.forEach((middleFn) => this.addSubRequest(middleFn));
     }
 
-    /** Calls a remote route */
+    /** Calls a remote route. Auto-detects missing metadata for routes or middleware and uses optimistic mode. */
     async call(): Promise<ResponseBody> {
-        return this.callStandard(this.options.serializer === 'optimistic');
+        const subRequestIds = Object.keys(this.subRequestList);
+        const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+        const isOptimistic = this.options.serializer === 'optimistic' || !allCached;
+        return this.makeCall(isOptimistic);
     }
 
     /** Standard call flow, with optional optimistic mode that sends plain JSON and fetches metadata in the same response */
-    private async callStandard(optimistic: boolean = false): Promise<ResponseBody> {
+    private async makeCall(optimistic: boolean = false): Promise<ResponseBody> {
         const errors: RequestErrors = new Map();
 
         try {
@@ -59,7 +69,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
             if (optimistic) {
                 // Check if all metadata cached → fall back to standard
                 const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
-                if (allCached) return this.callStandard(false);
+                if (allCached) return this.makeCall(false);
                 // Silent restore (no errors for missing metadata)
                 this.restorePrefilledMiddleFns();
                 // Add metadata subrequest (after prefilled restore so we include all IDs)
@@ -85,7 +95,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
                 if (optimistic) {
                     // JSON.stringify failed → fall back to standard, will fetch metadata
                     delete this.subRequestList[MION_ROUTES.methodsMetadata];
-                    return this.callStandard(false);
+                    return this.makeCall(false);
                 }
                 throw serializeError;
             }
@@ -169,7 +179,7 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
             sr.resolvedValue = undefined;
             sr.error = undefined;
         });
-        return this.callStandard();
+        return this.makeCall();
     }
 
     /** Validate params */
@@ -468,7 +478,7 @@ function reconstructHeadersSubsetFromResponse(
 }
 
 /** Builds a RoutesFlowQuery from route paths and subrequests, collecting any mapFrom mappings */
-function buildRoutesFlowQuery(routePaths: string[], workflowSubRequests: RSubRequest<any>[]): RoutesFlowQuery {
+function buildRoutesFlowQuery(routePaths: string[], workflowSubRequests: RouteSubRequest<any>[]): RoutesFlowQuery {
     const allMappings: RoutesFlowMapping[] = [];
     for (const sr of workflowSubRequests) {
         // Duck-type check for mappings array (avoids circular import of MionSubRequest)

@@ -19,13 +19,13 @@ export type Result<
 > = [RouteSuccess | undefined, RouteError | undefined, MiddleFnsResults | undefined, MiddleFnsErrors | undefined];
 
 /** Extract success type from a MiddleFnSubRequest */
-export type MiddleFnSuccess<H> = H extends HSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
+export type MiddleFnSuccess<H> = H extends MiddlewareSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
 
 /** Extract error type from a MiddleFnSubRequest */
-export type MiddleFnError<H> = H extends HSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
+export type MiddleFnError<H> = H extends MiddlewareSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
 
 /** Result type for callWithMiddleFns method - 4-tuple pattern */
-export type CallWithMiddleFnsResult<RouteSuccess, RouteError, MiddleFns extends Record<string, HSubRequest<any>>> = [
+export type CallWithMiddleFnsResult<RouteSuccess, RouteError, MiddleFns extends Record<string, MiddlewareSubRequest<any>>> = [
     RouteSuccess | undefined,
     RouteError | ValidationError | undefined,
     {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
@@ -35,8 +35,8 @@ export type CallWithMiddleFnsResult<RouteSuccess, RouteError, MiddleFns extends 
 // type-routesFlow-result-start
 /** Result type for routesFlow() function - 4-tuple pattern matching array input */
 export type WorkflowResult<
-    Routes extends RSubRequest<any>[],
-    MiddleFns extends Record<string, HSubRequest<any>> = Record<string, HSubRequest<any>>,
+    Routes extends RouteSubRequest<any>[],
+    MiddleFns extends Record<string, MiddlewareSubRequest<any>> = Record<string, MiddlewareSubRequest<any>>,
 > = [
     WorkflowRouteResults<Routes>,
     WorkflowRouteErrors<Routes>,
@@ -47,15 +47,15 @@ export type WorkflowResult<
 
 // type-routesFlow-route-results-start
 /** Extract success types from route subrequests as tuple */
-export type WorkflowRouteResults<Routes extends RSubRequest<any>[]> = {
-    [K in keyof Routes]: Routes[K] extends RSubRequest<infer PH> ? HandlerSuccessResponse<PH> | undefined : never;
+export type WorkflowRouteResults<Routes extends RouteSubRequest<any>[]> = {
+    [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? HandlerSuccessResponse<PH> | undefined : never;
 };
 // type-routesFlow-route-results-end
 
 // type-routesFlow-route-errors-start
 /** Extract error types from route subrequests as tuple */
-export type WorkflowRouteErrors<Routes extends RSubRequest<any>[]> = {
-    [K in keyof Routes]: Routes[K] extends RSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> | undefined : never;
+export type WorkflowRouteErrors<Routes extends RouteSubRequest<any>[]> = {
+    [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> | undefined : never;
 };
 // type-routesFlow-route-errors-end
 
@@ -132,7 +132,7 @@ export interface SubRequest<PH extends PublicHandler> {
 }
 
 /** structure returned from the proxy, containing info of the remote route to execute */
-export interface RSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
+export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /** Validates Route's parameters and returns type errors */
     typeErrors: () => Promise<RunTypeError[]>;
 
@@ -147,19 +147,19 @@ export interface RSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     >;
 
     /** Calls a remote route with middleFns and returns a fully-typed 4-tuple result */
-    callWithMiddleFns: <H extends Record<string, HSubRequest<any>>>(
+    callWithMiddleFns: <H extends Record<string, MiddlewareSubRequest<any>>>(
         middleFns: H
     ) => Promise<CallWithMiddleFnsResult<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, H>>;
 
     /** Calls this route as part of a routesFlow with other routes in a single HTTP request */
-    callWithWorkflow: <OtherRoutes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+    callWithWorkflow: <OtherRoutes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
         otherRoutes: [...OtherRoutes],
         middleFns?: H
     ) => Promise<WorkflowResult<any, H>>;
 }
 
 /** structure returned from the proxy, containing info of the remote middleFn to execute */
-export interface HSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
+export interface MiddlewareSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /** Validates MiddleFn's parameters and returns type errors */
     typeErrors: () => Promise<RunTypeError[]>;
     /** Prefills MiddleFn's parameters for any future request and returns TypedEvent */
@@ -172,7 +172,7 @@ export type NonClientRoute = never | PublicMiddleFn | PublicHeadersFn;
 
 export type ClientRoutes<RA extends RemoteApi> = Prettify<{
     [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
-        ? (...params: Parameters<RA[Property]['handler']>) => RSubRequest<RA[Property]['handler']>
+        ? (...params: Parameters<RA[Property]['handler']>) => RouteSubRequest<RA[Property]['handler']>
         : RA[Property] extends RemoteApi
           ? ClientRoutes<RA[Property]>
           : never;
@@ -184,7 +184,7 @@ export type ClientMiddleFns<RA extends RemoteApi> = Prettify<{
     [Property in keyof RA as RA[Property] extends NonClientMiddleFn ? never : Property]: RA[Property] extends
         | PublicMiddleFn
         | PublicHeadersFn
-        ? (...params: Parameters<RA[Property]['handler']>) => HSubRequest<RA[Property]['handler']>
+        ? (...params: Parameters<RA[Property]['handler']>) => MiddlewareSubRequest<RA[Property]['handler']>
         : RA[Property] extends RemoteApi
           ? ClientMiddleFns<RA[Property]>
           : never;
@@ -194,7 +194,7 @@ export type Cleaned<RMS extends RemoteApi> = {
     [Property in keyof RMS as RMS[Property] extends never ? never : Property]: RMS[Property];
 };
 
-export type SuccessClientResponse<RS extends RSubRequest<any>, RHList extends HSubRequest<any>[]> = [
+export type SuccessClientResponse<RS extends RouteSubRequest<any>, RHList extends MiddlewareSubRequest<any>[]> = [
     SuccessResponse<RS>,
     ...SuccessResponses<RHList>,
 ];
