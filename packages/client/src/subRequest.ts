@@ -9,10 +9,10 @@ import {RpcError} from '@mionjs/core';
 import type {RunTypeError} from '@mionjs/core';
 import type {
     CallWithMiddleFnsResult,
-    HSubRequest,
+    MiddlewareSubRequest,
     RequestErrors,
     Result,
-    RSubRequest,
+    RouteSubRequest,
     SubRequest,
     WorkflowResult,
 } from './types.ts';
@@ -22,7 +22,9 @@ import {TypedEvent} from './lib/typedEvent.ts';
 import {isMapFromRef} from './routesFlow.ts';
 
 /** Implementation of both RouteSubRequest and MiddleFnSubRequest interfaces */
-export class MionSubRequest<S = any, E extends RpcError<string, any> = any> implements RSubRequest<any>, HSubRequest<any> {
+export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
+    implements RouteSubRequest<any>, MiddlewareSubRequest<any>
+{
     pointer: string[];
     id: string;
     isResolved: boolean = false;
@@ -55,7 +57,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     prefill(): TypedEvent<S, E> {
         const typedEvent = new TypedEvent<S, E>(this.id, this.client.handlersRegistry);
 
-        this.client.prefill(this as HSubRequest<any>).catch((errors: RequestErrors) => {
+        this.client.prefill(this as MiddlewareSubRequest<any>).catch((errors: RequestErrors) => {
             console.error('Prefill error:', findSubRequestError(this, errors));
         });
 
@@ -65,32 +67,34 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     /** Removes prefilled value and clears any registered error handlers for this middleFn */
     removePrefill(): Promise<void> {
         this.client.handlersRegistry.clearHandlers(this.id);
-        return this.client.removePrefill(this as HSubRequest<any>);
+        return this.client.removePrefill(this as MiddlewareSubRequest<any>);
     }
 
     /** Calls a remote route and returns a Result 4-tuple with full typing preserved */
     call(): Promise<Result<S, E>> {
-        return this.client.executeCall(this as unknown as RSubRequest<any>);
+        return this.client.executeCall(this as unknown as RouteSubRequest<any>);
     }
 
     /** Calls a remote route with middleFns and returns a fully-typed 4-tuple result */
-    callWithMiddleFns<H extends Record<string, HSubRequest<any>>>(middleFns: H): Promise<CallWithMiddleFnsResult<S, E, H>> {
+    callWithMiddleFns<H extends Record<string, MiddlewareSubRequest<any>>>(
+        middleFns: H
+    ): Promise<CallWithMiddleFnsResult<S, E, H>> {
         if (Object.keys(middleFns).length === 0) {
             throw new Error(
                 'callWithMiddleFns requires at least one middleFn. Use call() instead for requests without middleFns.'
             );
         }
-        return this.client.executeCallWithMiddleFns(this as RSubRequest<any>, middleFns) as Promise<
+        return this.client.executeCallWithMiddleFns(this as RouteSubRequest<any>, middleFns) as Promise<
             CallWithMiddleFnsResult<S, E, H>
         >;
     }
 
     /** Calls this route as part of a routesFlow with other routes in a single HTTP request */
-    async callWithWorkflow<OtherRoutes extends RSubRequest<any>[], H extends Record<string, HSubRequest<any>>>(
+    async callWithWorkflow<OtherRoutes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
         otherRoutes: [...OtherRoutes],
         middleFns?: H
-    ): Promise<WorkflowResult<[RSubRequest<any>, ...OtherRoutes], H>> {
-        const allRoutes = [this as unknown as RSubRequest<any>, ...otherRoutes];
+    ): Promise<WorkflowResult<[RouteSubRequest<any>, ...OtherRoutes], H>> {
+        const allRoutes = [this as unknown as RouteSubRequest<any>, ...otherRoutes];
         const [results, errors, middleFnResults, middleFnErrors] = await this.client.executeCallWithWorkflow(
             allRoutes,
             middleFns ?? ({} as H)
@@ -98,7 +102,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
         const emptyResults = allRoutes.map(() => undefined);
         const emptyErrors = allRoutes.map(() => undefined);
         return [results ?? emptyResults, errors ?? emptyErrors, middleFnResults, middleFnErrors] as WorkflowResult<
-            [RSubRequest<any>, ...OtherRoutes],
+            [RouteSubRequest<any>, ...OtherRoutes],
             H
         >;
     }

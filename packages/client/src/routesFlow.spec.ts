@@ -8,7 +8,7 @@
 import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
 import {routesFlow} from './routesFlow.ts';
-import {HSubRequest, RSubRequest} from './types.ts';
+import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
 import {HeadersSubset, PURE_SERVER_FN_NAMESPACE} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
@@ -269,7 +269,7 @@ describe('routesFlow', () => {
     describe('proxy returns callWithWorkflow method', () => {
         it('proxy should include callWithWorkflow method on subrequests', () => {
             const {routes} = initClient<MyApi>({baseURL});
-            const subRequest = routes.sayHello(someUser) as RSubRequest<any> & HSubRequest<any>;
+            const subRequest = routes.sayHello(someUser) as RouteSubRequest<any> & MiddlewareSubRequest<any>;
 
             expect(subRequest.callWithWorkflow).toBeDefined();
             expect(typeof subRequest.callWithWorkflow).toBe('function');

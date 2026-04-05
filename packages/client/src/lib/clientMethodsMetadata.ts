@@ -7,7 +7,6 @@
 
 import {RpcError, isRpcError, addRoutesToCache} from '@mionjs/core';
 import {MION_ROUTES, getRoutePath} from '@mionjs/core';
-import {loadClientAOTCaches} from '../aot/aotCaches.ts';
 import {ClientOptions, RequestBody, SubRequest} from '../types.ts';
 import type {
     JitCompiledFnData,
@@ -20,7 +19,6 @@ import type {
 import {routesCache, addSerializedJitCaches} from '@mionjs/core';
 import {STORAGE_KEY} from '../constants.ts';
 
-import {deserializeResponseBody} from './serializer.ts';
 import {getStorage} from './storage.ts';
 import type {MionRoutes} from '@mionjs/router';
 
@@ -31,13 +29,11 @@ type GlobalErrorResponse = Awaited<ReturnType<GlobalErrorRoute>>;
 
 /** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(methodIds: string[], options: ClientOptions) {
-    loadClientAOTCaches();
     restoreFromLocalStorage(methodIds, options);
     const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
     if (!missingAfterLocal.length) return;
-    const shouldReturnAllMethods = true;
     const body: RequestBody = {
-        [MION_ROUTES.methodsMetadataById]: [missingAfterLocal, shouldReturnAllMethods],
+        [MION_ROUTES.methodsMetadataById]: [missingAfterLocal],
     };
     try {
         const path = getRoutePath([MION_ROUTES.methodsMetadataById], options);
@@ -48,9 +44,25 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
             body: JSON.stringify(body),
         });
 
-        const deserialized = await deserializeResponseBody(response, options);
-        const platformError = deserialized[MION_ROUTES.platformError] as GlobalErrorResponse | undefined;
-        const serializableMethodsData = deserialized[MION_ROUTES.methodsMetadataById] as MethodsMetadataResponse;
+        const parsedBody = await response.json();
+
+        // Handle thrownErrors wrapper (same pattern as deserializeResponseBody)
+        if (MION_ROUTES.thrownErrors in parsedBody) {
+            const unexpectedErrors = parsedBody[MION_ROUTES.thrownErrors];
+            if (MION_ROUTES.platformError in unexpectedErrors) {
+                const globalErrorValue = unexpectedErrors[MION_ROUTES.platformError];
+                throw isRpcError(globalErrorValue) ? new RpcError(globalErrorValue) : globalErrorValue;
+            }
+            Object.assign(parsedBody, unexpectedErrors);
+            delete parsedBody[MION_ROUTES.thrownErrors];
+        }
+
+        const platformError = parsedBody[MION_ROUTES.platformError] as GlobalErrorResponse | undefined;
+        // Unwrap JIT union discriminator: [index, value]
+        const rawMethodsData = parsedBody[MION_ROUTES.methodsMetadataById];
+        const serializableMethodsData = (
+            Array.isArray(rawMethodsData) ? rawMethodsData[1] : rawMethodsData
+        ) as MethodsMetadataResponse;
 
         if (isRpcError(platformError)) throw platformError;
         if (isRpcError(serializableMethodsData)) throw serializableMethodsData;
@@ -173,7 +185,7 @@ export function createMetadataSubRequest(methodIds: string[]): SubRequest<any> {
         pointer: [MION_ROUTES.methodsMetadata],
         id: MION_ROUTES.methodsMetadata,
         isResolved: false,
-        params: [methodIds, true],
+        params: [methodIds],
     };
 }
 
