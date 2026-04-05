@@ -707,3 +707,74 @@ it('toJSCode with Omit should work the same as Pick for stripping properties', (
     expect(createdFn(5)).toBe(true);
     expect(createdFn(-1)).toBe(false);
 });
+
+it('toJSCode should omit jitDependencies and pureFnDependencies when undefined', () => {
+    const toJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>();
+
+    const runtimeCache: JitFunctionsCache = {
+        hash_nodeps: {
+            typeName: 'NoDepsType',
+            fnID: 'isType',
+            jitFnHash: 'hash_nodeps',
+            args: {vλl: 'val'},
+            defaultParamValues: {vλl: 'val'},
+            code: 'return function(val){return typeof val === "number"}',
+            jitDependencies: undefined,
+            pureFnDependencies: undefined,
+            createJitFn: () => (val: any) => typeof val === 'number',
+            fn: (val: any) => typeof val === 'number',
+        } as any,
+    };
+
+    const code = toJSCode(runtimeCache as unknown as SrcCodeJITCompiledFnsCache);
+
+    // Properties should be omitted entirely when undefined
+    expect(code).not.toContain('jitDependencies');
+    expect(code).not.toContain('pureFnDependencies');
+
+    // But other properties should still be present
+    expect(code).toContain('NoDepsType');
+    expect(code).toContain('hash_nodeps');
+    expect(code).toContain('function get_hash_nodeps(utl)');
+
+    // Generated code should be valid and produce working functions
+    const parsed = eval(`(${code})`);
+    const entry = parsed['hash_nodeps'];
+    expect(entry.typeName).toBe('NoDepsType');
+    expect(entry.jitDependencies).toBeUndefined();
+    expect(entry.pureFnDependencies).toBeUndefined();
+    expect(typeof entry.createJitFn).toBe('function');
+    const createdFn = entry.createJitFn({});
+    expect(createdFn(42)).toBe(true);
+    expect(createdFn('str')).toBe(false);
+});
+
+it('toJSCode should emit jitDependencies and pureFnDependencies when non-empty', () => {
+    const toJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>();
+
+    const runtimeCache: JitFunctionsCache = {
+        hash_withdeps: {
+            typeName: 'WithDepsType',
+            fnID: 'isType',
+            jitFnHash: 'hash_withdeps',
+            args: {vλl: 'val'},
+            defaultParamValues: {vλl: 'val'},
+            code: 'return function(val){return true}',
+            jitDependencies: ['dep1', 'dep2'],
+            pureFnDependencies: ['ns::pureFn1'],
+            createJitFn: () => () => true,
+            fn: () => true,
+        },
+    };
+
+    const code = toJSCode(runtimeCache as unknown as SrcCodeJITCompiledFnsCache);
+
+    // Properties should be present when non-empty
+    expect(code).toContain('jitDependencies');
+    expect(code).toContain('pureFnDependencies');
+
+    const parsed = eval(`(${code})`);
+    const entry = parsed['hash_withdeps'];
+    expect(entry.jitDependencies).toEqual(['dep1', 'dep2']);
+    expect(entry.pureFnDependencies).toEqual(['ns::pureFn1']);
+});

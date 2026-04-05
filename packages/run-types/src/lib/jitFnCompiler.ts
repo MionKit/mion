@@ -100,8 +100,8 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
      */
     readonly isNoop?: boolean = false;
     /** The list of all jit functions that are used by this function and it's children. */
-    readonly jitDependencies: Array<string> = [];
-    readonly pureFnDependencies: Array<string> = [];
+    readonly jitDependencies: Array<string> | undefined;
+    readonly pureFnDependencies: Array<string> | undefined;
     /** The list of types being compiled.*/
     readonly stack: StackItem[] = [];
     popItem: StackItem | undefined;
@@ -221,8 +221,9 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
     }
     updateDependencies(childComp: JitCompiledFnData): void {
         if (childComp.isNoop) return; // noop functions are not added to dependencies as shouldn't be used inside jit code neither
-        if (this.jitDependencies.includes(childComp.jitFnHash)) return;
-        this.jitDependencies.push(childComp.jitFnHash);
+        if (this.jitDependencies?.includes(childComp.jitFnHash)) return;
+        if (!this.jitDependencies) (this as Mutable<this>).jitDependencies = [];
+        this.jitDependencies!.push(childComp.jitFnHash);
     }
     removeFromJitCache(): void {
         getJitUtils().removeFromJitCache(this as JitCompiledFn);
@@ -572,8 +573,9 @@ export class BaseFnCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extend
             );
         // Store as "namespace::fnName" format (using :: to avoid conflicts with : in names)
         const key = `${namespace}::${fnName}`;
-        if (this.pureFnDependencies.includes(key)) return;
-        this.pureFnDependencies.push(key);
+        if (this.pureFnDependencies?.includes(key)) return;
+        if (!this.pureFnDependencies) (this as Mutable<this>).pureFnDependencies = [];
+        this.pureFnDependencies!.push(key);
     }
 }
 

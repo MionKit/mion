@@ -160,9 +160,9 @@ export interface JitCompiledFnData {
     /** Code for the jit function. after the operation has been compiled */
     readonly code: string;
     /** The list of all jit functions that are used by this function and it's children. */
-    readonly jitDependencies: Array<string>;
+    readonly jitDependencies?: Array<string>;
     /** Pure function dependencies in format "namespace::fnHash" */
-    readonly pureFnDependencies: Array<string>;
+    readonly pureFnDependencies?: Array<string>;
     /** function param names if the compiled type is function params */
     paramNames?: string[];
 }

@@ -70,7 +70,7 @@ function restoreCompiledPureFn(
     const pureCompiled = nsCache[fnName];
     if (!pureCompiled) throw new Error(`Pure function ${fnName} not found in namespace ${namespace}`);
     if ((pureCompiled as CompiledPureFunction).fn) return;
-    const dependencies = pureCompiled.pureFnDependencies;
+    const dependencies = pureCompiled.pureFnDependencies || [];
     // Dependencies are in the same namespace
     dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, namespace, depName, jUtil, visited));
     // persisted pure functions (AOT code caches) have the createJitFn but not the fn
@@ -97,7 +97,7 @@ function restoreCompiledJitFn(
     const jitCompiled = jitCache[fnHash];
     if (!jitCompiled) throw new Error(`Jit function ${fnHash} not found`);
     if ((jitCompiled as JitCompiledFn).fn) return;
-    const pureDependencies = jitCompiled.pureFnDependencies;
+    const pureDependencies = jitCompiled.pureFnDependencies || [];
     // Pure function dependencies are stored as "namespace::fnHash"
     pureDependencies.forEach((dep) => {
         const parts = dep.split('::');
@@ -105,7 +105,7 @@ function restoreCompiledJitFn(
         const [namespace, fnHash] = parts;
         restoreCompiledPureFn(pureCache, namespace, fnHash, jUtil, visitedPure);
     });
-    const dependencies = jitCompiled.jitDependencies;
+    const dependencies = jitCompiled.jitDependencies || [];
     dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep, jUtil, visitedPure, visitedJit));
     if ((jitCompiled as PersistedJitFn).createJitFn) {
         (jitCompiled as any as Mutable<JitCompiledFn>).fn = (jitCompiled as PersistedJitFn).createJitFn(jUtil);

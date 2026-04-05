@@ -64,8 +64,9 @@ describe('mion vite plugin: isClient stripped properties', () => {
         expect(entry.typeName).toBeDefined();
         expect(entry.jitFnHash).toBeDefined();
         expect(typeof entry.createJitFn).toBe('function');
-        expect(entry.jitDependencies).toBeDefined();
-        expect(entry.pureFnDependencies).toBeDefined();
+        // jitDependencies and pureFnDependencies are optional (omitted when empty to reduce bundle size)
+        expect(entry.jitDependencies === undefined || Array.isArray(entry.jitDependencies)).toBeTruthy();
+        expect(entry.pureFnDependencies === undefined || Array.isArray(entry.pureFnDependencies)).toBeTruthy();
     });
 
     it('should strip code and paramNames from pure function cache entries', () => {
@@ -90,7 +91,8 @@ describe('mion vite plugin: isClient stripped properties', () => {
         expect(entry.fnName).toBeDefined();
         expect(entry.bodyHash).toBeDefined();
         expect(typeof entry.createPureFn).toBe('function');
-        expect(entry.pureFnDependencies).toBeDefined();
+        // pureFnDependencies is optional (omitted when empty to reduce bundle size)
+        expect(entry.pureFnDependencies === undefined || Array.isArray(entry.pureFnDependencies)).toBeTruthy();
     });
 
     it('all JIT cache entries should be stripped (not just the first one)', () => {

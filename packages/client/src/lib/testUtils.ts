@@ -75,6 +75,6 @@ function collectJitDeps(hash: string, jitHashes: Set<string>, pureFnKeys: Set<st
     jitHashes.add(hash);
     const entry = jitFnsCache[hash];
     if (!entry) return;
-    for (const dep of entry.jitDependencies) collectJitDeps(dep, jitHashes, pureFnKeys, jitFnsCache);
-    for (const pureDep of entry.pureFnDependencies) pureFnKeys.add(pureDep);
+    for (const dep of entry.jitDependencies || []) collectJitDeps(dep, jitHashes, pureFnKeys, jitFnsCache);
+    for (const pureDep of entry.pureFnDependencies || []) pureFnKeys.add(pureDep);
 }

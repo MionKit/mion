@@ -29,13 +29,14 @@ function generateEntryCode(fn) {
     return JSON.stringify(parts.length === 2 ? parts[1] : d);
   });
   const fnCode = fn.isFactory ? generateFactoryFn(fn) : generateDirectFn(fn);
+  const depsLine = depsArray.length > 0 ? `
+            pureFnDependencies: [${depsArray.join(", ")}],` : "";
   return `        ${JSON.stringify(fn.fnName)}: {
             namespace: ${JSON.stringify(fn.namespace)},
             fnName: ${JSON.stringify(fn.fnName)},
             paramNames: [${paramsArray}],
             code: ${JSON.stringify(fn.fnBody)},
-            bodyHash: ${JSON.stringify(fn.bodyHash)},
-            pureFnDependencies: [${depsArray.join(", ")}],
+            bodyHash: ${JSON.stringify(fn.bodyHash)},${depsLine}
             isFactory: ${fn.isFactory},
 ${fnCode}
         }`;

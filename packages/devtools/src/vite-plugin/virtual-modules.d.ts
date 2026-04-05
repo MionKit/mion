@@ -39,7 +39,7 @@ declare module 'virtual:mion-server-pure-fns' {
         paramNames: string[];
         code: string;
         bodyHash: string;
-        pureFnDependencies: string[];
+        pureFnDependencies?: string[];
         isFactory: boolean;
         fn: ((...args: any[]) => any) | undefined;
         createFn?: (jitUtils: any) => (...args: any[]) => any;

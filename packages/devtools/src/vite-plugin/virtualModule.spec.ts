@@ -26,7 +26,8 @@ describe('generateVirtualModule', () => {
         expect(result).toContain('"mapUsers"');
         expect(result).toContain('"abc12345"');
         expect(result).toContain('return users.map');
-        expect(result).toContain('pureFnDependencies: []');
+        // No dependencies means pureFnDependencies is omitted to reduce bundle size
+        expect(result).not.toContain('pureFnDependencies');
         expect(result).toContain('isFactory: false');
         // Regular functions have direct fn, not createFn
         expect(result).toContain('fn: function mapUsers(users)');
@@ -195,5 +196,39 @@ return function inner(x) {
         expect(cache.testNs.double.fn(5)).toBe(10);
         expect(cache.testNs.double.bodyHash).toBe('testhash');
         expect(cache.testNs.double.namespace).toBe('testNs');
+    });
+
+    it('should omit pureFnDependencies when empty and include when non-empty', () => {
+        const fns: ExtractedPureFn[] = [
+            {
+                namespace: 'testNs',
+                fnName: 'noDeps',
+                paramNames: ['x'],
+                fnBody: 'return x;',
+                bodyHash: 'hash1',
+                dependencies: new Set(),
+                sourceFile: 'test.ts',
+                isFactory: false,
+            },
+            {
+                namespace: 'testNs',
+                fnName: 'hasDeps',
+                paramNames: ['x'],
+                fnBody: 'return x + 1;',
+                bodyHash: 'hash2',
+                dependencies: new Set(['testNs::noDeps']),
+                sourceFile: 'test.ts',
+                isFactory: false,
+            },
+        ];
+
+        const result = generateServerPureFnsVirtualModule(fns);
+        // Evaluate to verify runtime structure
+        const evalCode = result.replace(/^export /gm, '') + '\nreturn serverPureFnsCache;';
+        const cache = new Function(evalCode)();
+        // noDeps should not have pureFnDependencies property at all
+        expect(cache.testNs.noDeps.pureFnDependencies).toBeUndefined();
+        // hasDeps should have the dependency listed
+        expect(cache.testNs.hasDeps.pureFnDependencies).toEqual(['noDeps']);
     });
 });

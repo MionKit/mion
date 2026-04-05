@@ -47,7 +47,7 @@ export interface PureFunctionData {
     /** Hash of the function body for version validation */
     readonly bodyHash: string;
     /** The list of all pure functions that are used by this function and it's children. */
-    readonly pureFnDependencies: Array<string>;
+    readonly pureFnDependencies?: Array<string>;
 }
 export interface CompiledPureFunction extends PureFunctionData {
     createPureFn: PureFunctionFactory;
