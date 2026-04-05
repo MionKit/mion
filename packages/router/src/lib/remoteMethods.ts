@@ -138,13 +138,19 @@ export function serializeMethodDeps(
 ) {
     const {paramsJitHash, returnJitHash} = method;
     // Skip serialization for empty hashes (no params or void return)
+    // Always request binary hashes so they are included when available (e.g. middleware in binary routes).
+    // serializeJitFn is only called when the JIT function exists in the store, so non-binary methods are unaffected.
     if (paramsJitHash !== EMPTY_HASH) {
-        const paramsJitHashes = getJitFnHashes(paramsJitHash);
-        for (const k in paramsJitHashes) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+        const paramsJitHashes = getJitFnHashes(paramsJitHash, true);
+        for (const k in paramsJitHashes) {
+            if (getJitUtils().getJIT(paramsJitHashes[k])) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+        }
     }
     if (returnJitHash !== EMPTY_HASH) {
-        const returnJitHashes = getJitFnHashes(returnJitHash);
-        for (const k in returnJitHashes) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+        const returnJitHashes = getJitFnHashes(returnJitHash, true);
+        for (const k in returnJitHashes) {
+            if (getJitUtils().getJIT(returnJitHashes[k])) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+        }
     }
 }
 
