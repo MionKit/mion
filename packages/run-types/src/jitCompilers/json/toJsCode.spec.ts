@@ -9,7 +9,14 @@ import {it, expect} from 'vitest';
 import {runType} from '../../createRunType.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import {createToJavascriptFn} from '../../createRunTypeFunctions.ts';
-import {SrcCodeJITCompiledFnsCache, SrcCodePureFunctionsCache, JitFunctionsCache, PureFunctionsCache} from '@mionjs/core';
+import {
+    SrcCodeJITCompiledFnsCache,
+    SrcCodePureFunctionsCache,
+    ClientSrcCodeJITCompiledFnsCache,
+    ClientSrcCodePureFunctionsCache,
+    JitFunctionsCache,
+    PureFunctionsCache,
+} from '@mionjs/core';
 
 it('toJSCode should transform functions to code using toString()', () => {
     // Create a type with a function
@@ -477,4 +484,165 @@ it('toJSCode should use paramNames for pure function closure parameter (not hard
     const entry = parsed['testNs']['myFn'];
     expect(typeof entry.createPureFn).toBe('function');
     expect(entry.fn).toBeUndefined();
+});
+
+// ################### Client AOT (isClient mode) tests ###################
+// These tests verify that client types (Pick-based) correctly strip unused properties
+// while still generating working closures from the runtime code property.
+
+it('toJSCode with ClientSrcCodeJITCompiledFnsCache should strip code, args, defaultParamValues, fnID', () => {
+    const toJSCode = createToJavascriptFn<ClientSrcCodeJITCompiledFnsCache>();
+
+    const runtimeCache: JitFunctionsCache = {
+        hash_client1: {
+            typeName: 'ClientType',
+            fnID: 'isType',
+            jitFnHash: 'hash_client1',
+            args: {vλl: 'v'},
+            defaultParamValues: {vλl: ''},
+            code: 'return function(v){return typeof v === "string"}',
+            jitDependencies: [],
+            pureFnDependencies: [],
+            createJitFn: () => (v: any) => typeof v === 'string',
+            fn: (v: any) => typeof v === 'string',
+        },
+    };
+
+    const code = toJSCode(runtimeCache as unknown as ClientSrcCodeJITCompiledFnsCache);
+
+    // Stripped properties should NOT be in output
+    expect(code).not.toContain('isType'); // fnID
+    expect(code).not.toContain('args:');
+    expect(code).not.toContain('defaultParamValues:');
+    // code property should not be emitted as a property (but IS used to build the closure)
+    expect(code).not.toMatch(/code:\s*[`'"]/);
+
+    // Kept properties should be present
+    expect(code).toContain('ClientType'); // typeName
+    expect(code).toContain('hash_client1'); // jitFnHash
+    expect(code).toContain('fn:undefined');
+
+    // createJitFn closure should still be generated from the runtime code property
+    expect(code).toContain('function get_hash_client1(utl)');
+    expect(code).toContain('return function(v){return typeof v === "string"}');
+
+    // Generated code should be valid JS and produce working functions
+    const parsed = eval(`(${code})`);
+    const entry = parsed['hash_client1'];
+    expect(entry.typeName).toBe('ClientType');
+    expect(entry.jitFnHash).toBe('hash_client1');
+    expect(entry.jitDependencies).toEqual([]);
+    expect(entry.pureFnDependencies).toEqual([]);
+    expect(entry.fn).toBeUndefined();
+    expect(typeof entry.createJitFn).toBe('function');
+    // Should NOT have stripped properties
+    expect(entry.code).toBeUndefined();
+    expect(entry.args).toBeUndefined();
+    expect(entry.defaultParamValues).toBeUndefined();
+    expect(entry.fnID).toBeUndefined();
+    // Closure should produce a working function
+    const createdFn = entry.createJitFn({});
+    expect(createdFn('hello')).toBe(true);
+    expect(createdFn(42)).toBe(false);
+});
+
+it('toJSCode with ClientSrcCodePureFunctionsCache should strip code and paramNames', () => {
+    const toJSCode = createToJavascriptFn<ClientSrcCodePureFunctionsCache>();
+
+    const runtimeCache: PureFunctionsCache = {
+        myNs: {
+            double: {
+                namespace: 'myNs',
+                paramNames: ['utl'],
+                code: 'return function(v){return v*2}',
+                fnName: 'double',
+                bodyHash: 'clientHash789',
+                pureFnDependencies: [],
+                createPureFn: () => (v: any) => v * 2,
+                fn: (v: any) => v * 2,
+            },
+        },
+    };
+
+    const code = toJSCode(runtimeCache as unknown as ClientSrcCodePureFunctionsCache);
+
+    // Stripped properties should NOT be in output
+    expect(code).not.toMatch(/code:\s*[`'"]/);
+    expect(code).not.toContain('paramNames:');
+
+    // Kept properties should be present
+    expect(code).toContain('myNs');
+    expect(code).toContain('double');
+    expect(code).toContain('clientHash789');
+    expect(code).toContain('fn:undefined');
+
+    // createPureFn closure should still be generated
+    expect(code).toContain('function get_double(');
+    expect(code).toContain('return function(v){return v*2}');
+
+    // Generated code should be valid and produce working functions
+    const parsed = eval(`(${code})`);
+    const entry = parsed['myNs']['double'];
+    expect(entry.namespace).toBe('myNs');
+    expect(entry.fnName).toBe('double');
+    expect(entry.bodyHash).toBe('clientHash789');
+    expect(entry.fn).toBeUndefined();
+    expect(typeof entry.createPureFn).toBe('function');
+    // Should NOT have stripped properties
+    expect(entry.code).toBeUndefined();
+    expect(entry.paramNames).toBeUndefined();
+    // Closure should produce a working function
+    const createdFn = entry.createPureFn({});
+    expect(createdFn(5)).toBe(10);
+});
+
+it('toJSCode with client types should handle multiple entries with dependencies', () => {
+    const toJSCode = createToJavascriptFn<ClientSrcCodeJITCompiledFnsCache>();
+
+    const runtimeCache: JitFunctionsCache = {
+        hash_dep: {
+            typeName: 'DepType',
+            fnID: 'is',
+            jitFnHash: 'hash_dep',
+            args: {vλl: 'v'},
+            defaultParamValues: {vλl: ''},
+            code: 'return function(v){return v > 0}',
+            isNoop: false,
+            jitDependencies: [],
+            pureFnDependencies: [],
+            createJitFn: () => (v: any) => v > 0,
+            fn: (v: any) => v > 0,
+        },
+        hash_main: {
+            typeName: 'MainType',
+            fnID: 'is',
+            jitFnHash: 'hash_main',
+            args: {vλl: 'v'},
+            defaultParamValues: {vλl: ''},
+            code: 'const dep = utl.getJIT("hash_dep"); return function(v){return dep.fn(v)}',
+            isNoop: false,
+            jitDependencies: ['hash_dep'],
+            pureFnDependencies: ['ns::myPure'],
+            createJitFn: () => (v: any) => v > 0,
+            fn: (v: any) => v > 0,
+        },
+    };
+
+    const code = toJSCode(runtimeCache as unknown as ClientSrcCodeJITCompiledFnsCache);
+    const parsed = eval(`(${code})`);
+
+    // Both entries should exist with correct dependency metadata
+    expect(parsed['hash_dep'].jitDependencies).toEqual([]);
+    expect(parsed['hash_main'].jitDependencies).toEqual(['hash_dep']);
+    expect(parsed['hash_main'].pureFnDependencies).toEqual(['ns::myPure']);
+
+    // isNoop should be preserved
+    expect(parsed['hash_dep'].isNoop).toBe(false);
+    expect(parsed['hash_main'].isNoop).toBe(false);
+
+    // No stripped properties
+    expect(parsed['hash_dep'].code).toBeUndefined();
+    expect(parsed['hash_main'].code).toBeUndefined();
+    expect(parsed['hash_dep'].fnID).toBeUndefined();
+    expect(parsed['hash_main'].args).toBeUndefined();
 });

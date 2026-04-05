@@ -54,7 +54,8 @@ function computeSourceHash(serverConfig, aotOptions) {
     `cacheVersion:${AOT_DISK_CACHE_VERSION}`,
     `devtoolsVersion:${getDevtoolsVersion()}`,
     `excludedFns:${JSON.stringify((aotOptions?.excludedFns || []).slice().sort())}`,
-    `excludedPureFns:${JSON.stringify((aotOptions?.excludedPureFns || []).slice().sort())}`
+    `excludedPureFns:${JSON.stringify((aotOptions?.excludedPureFns || []).slice().sort())}`,
+    `isClient:${!!aotOptions?.isClient}`
   ].join("\n");
   return createHash("sha256").update(hashInput).digest("hex");
 }
@@ -111,7 +112,7 @@ async function getOrGenerateAOTCaches(serverConfig, aotOptions, cacheDir) {
       };
     }
   }
-  const result = await generateAOTCaches(serverConfig);
+  const result = await generateAOTCaches(serverConfig, void 0, aotOptions?.isClient);
   if (cachingEnabled) {
     if (!hash) hash = computeSourceHash(serverConfig, aotOptions);
     writeDiskCache(cacheDir, hash, result.data);

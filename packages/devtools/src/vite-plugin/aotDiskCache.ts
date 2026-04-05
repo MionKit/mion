@@ -89,6 +89,7 @@ export function computeSourceHash(serverConfig: MionServerConfig, aotOptions?: A
         `devtoolsVersion:${getDevtoolsVersion()}`,
         `excludedFns:${JSON.stringify((aotOptions?.excludedFns || []).slice().sort())}`,
         `excludedPureFns:${JSON.stringify((aotOptions?.excludedPureFns || []).slice().sort())}`,
+        `isClient:${!!aotOptions?.isClient}`,
     ].join('\n');
 
     return createHash('sha256').update(hashInput).digest('hex');
@@ -168,7 +169,7 @@ export async function getOrGenerateAOTCaches(
     }
 
     // Cache miss or caching disabled — generate fresh
-    const result = await generateAOTCaches(serverConfig);
+    const result = await generateAOTCaches(serverConfig, undefined, aotOptions?.isClient);
 
     if (cachingEnabled) {
         if (!hash) hash = computeSourceHash(serverConfig, aotOptions);

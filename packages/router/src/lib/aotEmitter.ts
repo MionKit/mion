@@ -14,6 +14,8 @@ import {
     MethodsCache,
     SrcCodeJITCompiledFnsCache,
     SrcCodePureFunctionsCache,
+    ClientSrcCodeJITCompiledFnsCache,
+    ClientSrcCodePureFunctionsCache,
     JIT_FUNCTION_IDS,
 } from '@mionjs/core';
 import {getPersistedMethods} from './methodsCache.ts';
@@ -94,8 +96,13 @@ export async function serializeCachesToCode(
     pureFnsCache: PureFunctionsCache,
     routerCache: MethodsCache
 ): Promise<SerializedCaches> {
-    const jitToJSCode = createToJavascriptFn<SrcCodeJITCompiledFnsCache>();
-    const pureToJSCode = createToJavascriptFn<SrcCodePureFunctionsCache>();
+    const isClient = getENV('MION_AOT_IS_CLIENT') === 'true';
+    const jitToJSCode = isClient
+        ? createToJavascriptFn<ClientSrcCodeJITCompiledFnsCache>()
+        : createToJavascriptFn<SrcCodeJITCompiledFnsCache>();
+    const pureToJSCode = isClient
+        ? createToJavascriptFn<ClientSrcCodePureFunctionsCache>()
+        : createToJavascriptFn<SrcCodePureFunctionsCache>();
     const routerToJSCode = createToJavascriptFn<MethodsCache>();
     // Filter AFTER createToJavascriptFn to exclude compile-time-only items (including those just added)
     const finalJitFns = filterExcludedJitFns(jitFnsCache, EXCLUDED_JIT_FN_IDS);

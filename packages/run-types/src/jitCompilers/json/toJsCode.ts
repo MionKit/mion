@@ -136,7 +136,6 @@ export function createToCodeCompiler() {
         if (childName !== 'createJitFn' && childName !== 'createPureFn') return false;
         const siblings = getParentSiblingNames(runType.src as TypeMethodSignature);
         if (!siblings) return false;
-        if (!siblings.has('code')) return false;
         if (childName === 'createJitFn') return siblings.has('jitFnHash');
         return siblings.has('bodyHash'); // createPureFn
     }
@@ -146,7 +145,10 @@ export function createToCodeCompiler() {
         if (runType.getChildVarName(comp) !== 'fn') return false;
         const siblings = getParentSiblingNames(runType.src as TypeMethodSignature);
         if (!siblings) return false;
-        return siblings.has('code') && (siblings.has('createJitFn') || siblings.has('createPureFn'));
+        return (
+            (siblings.has('createJitFn') && siblings.has('jitFnHash')) ||
+            (siblings.has('createPureFn') && siblings.has('bodyHash'))
+        );
     }
 
     return compileToCode;

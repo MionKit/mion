@@ -125,7 +125,7 @@ function mionVitePlugin(options) {
       let basePath = null;
       let initFailed = false;
       console.log("[mion] Generating SSR AOT caches...");
-      ssrInitPromise = loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startScript).then(async (data) => {
+      ssrInitPromise = loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startScript, aotOptions?.isClient).then(async (data) => {
         aotData = data;
         aotGenerationPromise = Promise.resolve(data);
         console.log("[mion] SSR AOT caches generated successfully");
@@ -311,11 +311,11 @@ function mionVitePlugin(options) {
             (async () => {
               const routerModule = await ssrLoadModule("@mionjs/router");
               routerModule.resetRouter();
-              return loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, resolve(serverConfig.startScript));
+              return loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, resolve(serverConfig.startScript), aotOptions?.isClient);
             })()
           ) : (
             // IPC mode: wait for old child to die, then spawn new
-            killPromise.then(() => generateAOTCaches(serverConfig))
+            killPromise.then(() => generateAOTCaches(serverConfig, void 0, aotOptions?.isClient))
           );
           aotGenerationPromise = regeneratePromise.then((r) => "data" in r ? r.data : r);
           regeneratePromise.then((result) => {

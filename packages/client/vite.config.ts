@@ -51,6 +51,7 @@ export default defineConfig({
             },
             aotCaches: {
                 customVirtualModuleId: 'client-mion-aot',
+                isClient: true,
             },
         }),
         dts({
