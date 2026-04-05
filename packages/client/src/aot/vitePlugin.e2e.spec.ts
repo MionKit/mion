@@ -10,7 +10,7 @@ import {jitFnsCache} from 'virtual:client-mion-aot/jit-fns';
 import {pureFnsCache} from 'virtual:client-mion-aot/pure-fns';
 import {routerCache} from 'virtual:client-mion-aot/router-cache';
 import {routesCache, MION_ROUTES, PureFnDef, HeadersSubset} from '@mionjs/core';
-import {loadAOTCaches} from './aotCaches.ts';
+import {loadClientAOTCaches} from './aotCaches.ts';
 import {fetchRemoteMethodsMetadata} from '../lib/clientMethodsMetadata.ts';
 import {initClient} from '../client.ts';
 import {ClientOptions} from '../types.ts';
@@ -148,7 +148,7 @@ describe('mion vite plugin: AOT cache content', () => {
 // Proves that loadAOTCaches registers caches correctly
 // ============================================================
 describe('mion vite plugin: AOT cache registration', () => {
-    loadAOTCaches();
+    loadClientAOTCaches();
     it('should auto-register internal routes in routesCache via addRoutesToCache', () => {
         expect(routesCache.hasMetadata(MION_ROUTES.methodsMetadataById)).toBe(true);
         expect(routesCache.hasMetadata(MION_ROUTES.methodsMetadata)).toBe(true);
