@@ -23,7 +23,12 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
     let stderr = "";
     try {
       child = fork(viteNodePath, [...viteConfigArgs, startScript, ...serverConfig.args || []], {
-        env: { ...process.env, ...serverConfig.env, MION_COMPILE: serverConfig.runMode, ...isClient ? { MION_AOT_IS_CLIENT: "true" } : {} },
+        env: {
+          ...process.env,
+          ...serverConfig.env,
+          MION_COMPILE: serverConfig.runMode,
+          ...isClient ? { MION_AOT_IS_CLIENT: "true" } : {}
+        },
         stdio: ["pipe", "pipe", "pipe", "ipc"],
         cwd: scriptDir
       });
