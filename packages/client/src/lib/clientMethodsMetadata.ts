@@ -8,7 +8,7 @@
 import {RpcError, isRpcError, addRoutesToCache} from '@mionjs/core';
 import {MION_ROUTES, getRoutePath} from '@mionjs/core';
 import {loadAOTCaches} from '../aot/aotCaches.ts';
-import {ClientOptions, RequestBody} from '../types.ts';
+import {ClientOptions, RequestBody, SubRequest} from '../types.ts';
 import type {
     JitCompiledFnData,
     MethodsCache,
@@ -29,13 +29,6 @@ type MethodsMetadataResponse = Awaited<ReturnType<GetRemoteMethodsMetadataById>>
 type GlobalErrorRoute = MionRoutes[typeof MION_ROUTES.platformError]['handler'];
 type GlobalErrorResponse = Awaited<ReturnType<GlobalErrorRoute>>;
 
-/** Processes metadata from an optimistic response and caches it */
-export function processOptimisticMetadata(serializableMethodsData: SerializableMethodsData, options: ClientOptions): void {
-    storeDependencies(serializableMethodsData.deps, serializableMethodsData.purFnDeps, options);
-    storeMethodsMetadata(serializableMethodsData.methods, options);
-    addToCaches(serializableMethodsData);
-}
-
 /** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(methodIds: string[], options: ClientOptions) {
     loadAOTCaches();
@@ -55,7 +48,7 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
             body: JSON.stringify(body),
         });
 
-        const deserialized = await deserializeResponseBody(response);
+        const deserialized = await deserializeResponseBody(response, options);
         const platformError = deserialized[MION_ROUTES.platformError] as GlobalErrorResponse | undefined;
         const serializableMethodsData = deserialized[MION_ROUTES.methodsMetadataById] as MethodsMetadataResponse;
 
@@ -68,12 +61,17 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
                 errorData: {response},
             });
 
-        storeDependencies(serializableMethodsData.deps, serializableMethodsData.purFnDeps, options);
-        storeMethodsMetadata(serializableMethodsData.methods, options);
-        addToCaches(serializableMethodsData);
+        processMethodsMetadata(serializableMethodsData, options);
     } catch (error: any) {
         throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
     }
+}
+
+/** Processes metadata from an optimistic response and caches it */
+export function processMethodsMetadata(serializableMethodsData: SerializableMethodsData, options: ClientOptions): void {
+    storeDependencies(serializableMethodsData.deps, serializableMethodsData.purFnDeps, options);
+    storeMethodsMetadata(serializableMethodsData.methods, options);
+    addToCaches(serializableMethodsData);
 }
 
 function getSerializedMethodDataKey(methodId: string, options: ClientOptions) {
@@ -167,6 +165,16 @@ export function restoreAllDependencies(options: ClientOptions) {
     if (Object.keys(deps).length > 0 || Object.keys(pureFnDeps).length > 0) {
         addSerializedJitCaches(deps, pureFnDeps);
     }
+}
+
+/** Creates a SubRequest for the metadata middleware to piggyback on an optimistic request */
+export function createMetadataSubRequest(methodIds: string[]): SubRequest<any> {
+    return {
+        pointer: [MION_ROUTES.methodsMetadata],
+        id: MION_ROUTES.methodsMetadata,
+        isResolved: false,
+        params: [methodIds, true],
+    };
 }
 
 /** Restores method metadata from localStorage using the new storage format */

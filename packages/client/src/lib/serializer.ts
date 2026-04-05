@@ -20,7 +20,7 @@ import {
 } from '@mionjs/core';
 import type {MionClientRequest} from '../request.ts';
 import {DEFAULT_PREFILL_OPTIONS} from '../constants.ts';
-import {processOptimisticMetadata} from './clientMethodsMetadata.ts';
+import {processMethodsMetadata} from './clientMethodsMetadata.ts';
 import {ClientOptions} from '../types.ts';
 
 /** Result of serializing a request body - can be string (JSON) or Uint8Array (binary) */
@@ -35,9 +35,17 @@ export interface SerializedRequest {
     contentType: ContentType;
 }
 
+// ################################## SERIALIZE ##################################
+
 /** Determines the serializer mode to use for a request */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
-    if (req.options.serializer === 'optimistic') return 'optimistic';
+    if (req.options.serializer === 'optimistic') {
+        // When metadata is cached (e.g. after retry), use JIT serialization
+        const subRequestIds = Object.keys(req.subRequestList);
+        const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+        if (allCached) return 'stringifyJson';
+        return 'optimistic';
+    }
     const methodId = req.route?.id ?? req.workflowSubRequests?.[0]?.id;
     const method = routesCache.getMethodJitFns(methodId);
     const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serializer;
@@ -53,12 +61,12 @@ export function serializeRequestBody(req: MionClientRequest<any, any>): Serializ
         case 'json':
         case 'stringifyJson':
             return {
-                body: stringifyBody(req),
+                body: serializeJsonBody(req),
                 contentType: 'application/json; charset=utf-8',
             };
         case 'optimistic':
             return {
-                body: serializeRequestBodyOptimistic(req),
+                body: serializeJSonBodyOptimistic(req),
                 contentType: 'application/json; charset=utf-8',
             };
         case 'binary':
@@ -71,8 +79,40 @@ export function serializeRequestBody(req: MionClientRequest<any, any>): Serializ
     }
 }
 
+function serializeJsonBody(req: MionClientRequest<any, any>): string {
+    const props: string[] = [];
+    const subRequestIds = Object.keys(req.subRequestList);
+
+    for (let i = 0; i < subRequestIds.length; i++) {
+        const id = subRequestIds[i];
+        const subRequest = req.subRequestList[id];
+        if (!subRequest) continue;
+        let params = subRequest.params;
+        const method = routesCache.useMethodJitFns(id);
+
+        if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
+            params = getParamsWithoutHeadersSubset(params);
+        }
+
+        try {
+            const jsonValue = stringifyHandlerParams(method, params);
+            if (!jsonValue) continue;
+            props.push(`${JSON.stringify(id)}:${jsonValue}`);
+        } catch (e: any) {
+            const err = new RpcError({
+                type: 'json-stringify-request-error',
+                publicMessage: `Failed to stringify params for handler ${id}`,
+                originalError: e,
+            });
+            throw err;
+        }
+    }
+
+    return `{${props.join(',')}}`;
+}
+
 /** Serializes request body as plain JSON without JIT functions */
-export function serializeRequestBodyOptimistic(req: MionClientRequest<any, any>): string {
+function serializeJSonBodyOptimistic(req: MionClientRequest<any, any>): string {
     const body: Record<string, any> = {};
     const subRequestIds = Object.keys(req.subRequestList);
     for (const id of subRequestIds) {
@@ -107,8 +147,17 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
     return new Uint8Array(buffer);
 }
 
+function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string {
+    if (!method.paramNames || method.paramNames.length === 0) return '';
+    const paramsJit = method.paramsJitFns;
+    if (paramsJit.prepareForJson.isNoop) return JSON.stringify(params);
+    return paramsJit.stringifyJson.fn(params);
+}
+
+// ################################## DE-SERIALIZE ##################################
+
 /** Deserializes the response body from a fetch Response object */
-export async function deserializeResponseBody(response: Response): Promise<ResponseBody> {
+export async function deserializeResponseBody(response: Response, options: ClientOptions): Promise<ResponseBody> {
     const contentType = response.headers.get('content-type');
     const isJson = contentType?.includes('application/json');
     const isBinary = contentType?.includes('application/octet-stream');
@@ -120,7 +169,24 @@ export async function deserializeResponseBody(response: Response): Promise<Respo
     } else if (isBinary) {
         parsedBody = await deserializeBinaryResponseBody(response);
     } else {
-        parsedBody = await deserializeJsonResponseBody(response);
+        throw new RpcError({
+            type: 'unsupported-content-type',
+            publicMessage: `Unsupported response content-type: '${contentType || 'none'}'`,
+        });
+    }
+
+    // Extract & process metadata if present (optimistic response)
+    if (isJson && MION_ROUTES.methodsMetadata in parsedBody) {
+        const rawMetadata = parsedBody[MION_ROUTES.methodsMetadata];
+        delete parsedBody[MION_ROUTES.methodsMetadata];
+
+        if (rawMetadata) {
+            // Unwrap JIT union discriminator: [index, value]
+            const metadataValue = Array.isArray(rawMetadata) ? rawMetadata[1] : rawMetadata;
+            if (metadataValue && !isRpcError(metadataValue) && metadataValue.methods) {
+                processMethodsMetadata(metadataValue as SerializableMethodsData, options);
+            }
+        }
     }
 
     if (MION_ROUTES.thrownErrors in parsedBody) {
@@ -136,17 +202,14 @@ export async function deserializeResponseBody(response: Response): Promise<Respo
         delete parsedBody[MION_ROUTES.thrownErrors];
     }
 
-    if (isJson || (!isJson && !isBinary)) {
-        const deserializedBody: ResponseBody = {};
-        Object.entries(parsedBody).forEach(([methodId, returnValue]) => {
-            const method = routesCache.useMethodJitFns(methodId);
-            const deserialized = parseHandlerReturnValue(method, returnValue);
-            deserializedBody[methodId] = deserialized;
-        });
-        return deserializedBody;
-    }
+    if (isBinary) return parsedBody;
 
-    return parsedBody;
+    const deserializedBody: ResponseBody = {};
+    Object.entries(parsedBody).forEach(([methodId, returnValue]) => {
+        const method = routesCache.useMethodJitFns(methodId);
+        deserializedBody[methodId] = parseHandlerReturnValue(method, returnValue);
+    });
+    return deserializedBody;
 }
 
 /** Deserializes JSON response body */
@@ -168,92 +231,10 @@ async function deserializeBinaryResponseBody(response: Response): Promise<Respon
     return body;
 }
 
-function stringifyBody(req: MionClientRequest<any, any>): string {
-    const props: string[] = [];
-    const subRequestIds = Object.keys(req.subRequestList);
-
-    for (let i = 0; i < subRequestIds.length; i++) {
-        const id = subRequestIds[i];
-        const subRequest = req.subRequestList[id];
-        if (!subRequest) continue;
-        let params = subRequest.params;
-        const method = routesCache.useMethodJitFns(id);
-
-        if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
-            params = getParamsWithoutHeadersSubset(params);
-        }
-
-        try {
-            const jsonValue = stringifyHandlerParams(method, params);
-            if (!jsonValue) continue;
-            props.push(`${JSON.stringify(id)}:${jsonValue}`);
-        } catch (e: any) {
-            const err = new RpcError({
-                type: 'json-stringify-request-error',
-                publicMessage: `Failed to stringify params for handler ${id}`,
-                originalError: e,
-            });
-            throw err;
-        }
-    }
-
-    return `{${props.join(',')}}`;
-}
-
 /** Returns params array without the HeadersSubset (first param) */
 function getParamsWithoutHeadersSubset(params: any[]): any[] {
     if (!params || params.length === 0) return [];
     return params.slice(1);
-}
-
-function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string {
-    if (!method.paramNames || method.paramNames.length === 0) return '';
-    const paramsJit = method.paramsJitFns;
-    if (paramsJit.prepareForJson.isNoop) return JSON.stringify(params);
-    return paramsJit.stringifyJson.fn(params);
-}
-
-/** Deserializes an optimistic response: extracts metadata first, then standard JIT deserialization */
-export async function deserializeOptimisticResponseBody(response: Response, options: ClientOptions): Promise<ResponseBody> {
-    const rawBody = await deserializeJsonResponseBody(response);
-
-    // Phase 1: Extract & process metadata FIRST
-    // The metadata middleware return type is a union (SerializableMethodsData | RpcError | void),
-    // so the JIT serializer wraps it as [discriminatorIndex, value].
-    // We manually unwrap it since we don't have JIT functions for the middleware yet.
-    const rawMetadata = rawBody[MION_ROUTES.methodsMetadata];
-    delete rawBody[MION_ROUTES.methodsMetadata];
-
-    if (rawMetadata) {
-        // Unwrap JIT union discriminator: [0, data] = SerializableMethodsData, [1, data] = RpcError
-        const metadataValue = Array.isArray(rawMetadata) ? rawMetadata[1] : rawMetadata;
-        if (metadataValue && !isRpcError(metadataValue) && metadataValue.methods) {
-            processOptimisticMetadata(metadataValue as SerializableMethodsData, options);
-        }
-    }
-
-    // Phase 2: Handle thrownErrors (same as standard deserializeResponseBody)
-    if (MION_ROUTES.thrownErrors in rawBody) {
-        const unexpectedErrors = rawBody[MION_ROUTES.thrownErrors];
-        if (unexpectedErrors && typeof unexpectedErrors === 'object') {
-            if (MION_ROUTES.platformError in unexpectedErrors) {
-                const globalErrorValue = unexpectedErrors[MION_ROUTES.platformError];
-                const platformError = isRpcError(globalErrorValue) ? new RpcError(globalErrorValue) : globalErrorValue;
-                return {[MION_ROUTES.platformError]: platformError};
-            }
-            Object.assign(rawBody, unexpectedErrors);
-        }
-        delete rawBody[MION_ROUTES.thrownErrors];
-    }
-
-    // Phase 3: Deserialize each method's return value using JIT (standard path)
-    // At this point JIT functions are loaded (from phase 1 metadata processing)
-    const deserializedBody: ResponseBody = {};
-    Object.entries(rawBody).forEach(([methodId, returnValue]) => {
-        const method = routesCache.useMethodJitFns(methodId);
-        deserializedBody[methodId] = parseHandlerReturnValue(method, returnValue);
-    });
-    return deserializedBody;
 }
 
 function parseHandlerReturnValue(method: MethodWithJitFns, returnValue: any): any {

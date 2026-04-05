@@ -10,14 +10,9 @@ import {ClientOptions, HSubRequest, SubRequest, RSubRequest, RequestErrors, Pref
 import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset, toBase64Url} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
-import {fetchRemoteMethodsMetadata} from './lib/clientMethodsMetadata.ts';
+import {fetchRemoteMethodsMetadata, createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
-import {
-    serializeRequestBody,
-    deserializeResponseBody,
-    serializeRequestBodyOptimistic,
-    deserializeOptimisticResponseBody,
-} from './lib/serializer.ts';
+import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH} from './constants.ts';
 
 export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList extends HSubRequest<any>[]> {
@@ -51,38 +46,55 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
 
     /** Calls a remote route */
     async call(): Promise<ResponseBody> {
-        if (this.options.serializer === 'optimistic') {
-            return this.callOptimistic();
-        }
-        return this.callStandard();
+        return this.callStandard(this.options.serializer === 'optimistic');
     }
 
-    /** Standard call flow - requires metadata to be fetched first */
-    private async callStandard(): Promise<ResponseBody> {
+    /** Standard call flow, with optional optimistic mode that sends plain JSON and fetches metadata in the same response */
+    private async callStandard(optimistic: boolean = false): Promise<ResponseBody> {
         const errors: RequestErrors = new Map();
 
         try {
             const subRequestIds = Object.keys(this.subRequestList);
-            await fetchRemoteMethodsMetadata(subRequestIds, this.options);
 
-            this.restorePrefilledMiddleFns(errors);
-            if (errors.size) return Promise.reject(errors);
-
-            validateSubRequests(subRequestIds, this, errors);
-            if (errors.size) return Promise.reject(errors);
+            if (optimistic) {
+                // Check if all metadata cached → fall back to standard
+                const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+                if (allCached) return this.callStandard(false);
+                // Silent restore (no errors for missing metadata)
+                this.restorePrefilledMiddleFns();
+                // Add metadata subrequest (after prefilled restore so we include all IDs)
+                const allSubRequestIds = Object.keys(this.subRequestList);
+                this.addSubRequest(createMetadataSubRequest(allSubRequestIds));
+            } else {
+                await fetchRemoteMethodsMetadata(subRequestIds, this.options);
+                this.restorePrefilledMiddleFns(errors);
+                if (errors.size) return Promise.reject(errors);
+                validateSubRequests(subRequestIds, this, errors);
+                if (errors.size) return Promise.reject(errors);
+            }
         } catch (error: any) {
             this.onError(error, 'Error preparing request', errors);
             return Promise.reject(errors);
         }
 
         try {
-            const serialized = serializeRequestBody(this);
-            const headersFromParams = extractRequestHeaders(this);
+            let serialized: ReturnType<typeof serializeRequestBody>;
+            try {
+                serialized = serializeRequestBody(this);
+            } catch (serializeError) {
+                if (optimistic) {
+                    // JSON.stringify failed → fall back to standard, will fetch metadata
+                    delete this.subRequestList[MION_ROUTES.methodsMetadata];
+                    return this.callStandard(false);
+                }
+                throw serializeError;
+            }
 
+            const headersFromParams = extractRequestHeaders(this);
             const url = new URL(this.path, this.options.baseURL);
             let fetchOptions: RequestInit;
 
-            if (this.isQueryRoute() && serialized.contentType.includes('json')) {
+            if (!optimistic && this.isQueryRoute() && serialized.contentType.includes('json')) {
                 const encoded = toBase64Url(serialized.body as string);
                 const testUrl = new URL(this.path, this.options.baseURL);
                 testUrl.searchParams.set('data', encoded);
@@ -122,132 +134,18 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
         }
 
         try {
-            const deserialized = await deserializeResponseBody(this.response);
+            const deserialized = await deserializeResponseBody(this.response, this.options);
+            if (this.handlePlatformError(deserialized, errors)) return Promise.reject(errors);
 
-            if (MION_ROUTES.platformError in deserialized) {
-                const platformError = deserialized[MION_ROUTES.platformError];
-                Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
-                    methodMeta.isResolved = true;
-                    methodMeta.error = platformError as RpcError<string>;
-                    errors.set(id, platformError as RpcError<string>);
-                });
-                return Promise.reject(errors);
+            if (optimistic && this.shouldRetryWithProperSerialization(deserialized)) {
+                return this.retryWithProperSerialization();
             }
 
-            Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
-                const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
-                methodMeta.isResolved = true;
-                if (isRpcError(resp)) {
-                    methodMeta.error = resp;
-                    errors.set(id, resp);
-                } else {
-                    methodMeta.resolvedValue = resp;
-                }
-            });
-
-            Object.entries(deserialized).forEach(([id, value]) => {
-                if (!(id in this.subRequestList) && isRpcError(value)) {
-                    errors.set(id, value);
-                }
-            });
-
+            this.resolveSubRequests(deserialized, errors, optimistic ? MION_ROUTES.methodsMetadata : undefined);
             if (errors.size) return Promise.reject(errors);
             return deserialized;
         } catch (error) {
             this.onError(error, 'Error parsing response', errors);
-            return Promise.reject(errors);
-        }
-    }
-
-    /** Optimistic call flow - sends plain JSON and fetches metadata in the same response */
-    private async callOptimistic(): Promise<ResponseBody> {
-        const errors: RequestErrors = new Map();
-
-        // Check if metadata is already cached → use standard flow
-        const subRequestIds = Object.keys(this.subRequestList);
-        const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
-        if (allCached) return this.callStandard();
-
-        // Add metadata middleware params to request
-        const metadataSubRequest: SubRequest<any> = {
-            pointer: [MION_ROUTES.methodsMetadata],
-            id: MION_ROUTES.methodsMetadata,
-            isResolved: false,
-            params: [subRequestIds, true],
-        };
-        this.addSubRequest(metadataSubRequest);
-
-        // Try to serialize as plain JSON — if it fails, fall back to standard flow
-        let serialized: string;
-        try {
-            serialized = serializeRequestBodyOptimistic(this);
-        } catch {
-            // JSON.stringify failed — fall back: fetch metadata via standalone route, then standard request
-            delete this.subRequestList[MION_ROUTES.methodsMetadata];
-            await fetchRemoteMethodsMetadata(Object.keys(this.subRequestList), this.options);
-            return this.callStandard();
-        }
-
-        try {
-            const url = new URL(this.path, this.options.baseURL);
-            const fetchOptions: RequestInit = {
-                ...this.options.fetchOptions,
-                method: 'POST',
-                headers: {
-                    ...this.options.fetchOptions.headers,
-                    'Content-Type': 'application/json; charset=utf-8',
-                },
-                body: serialized,
-            };
-            this.response = await fetch(url, fetchOptions);
-        } catch (error: any) {
-            this.onError(error, 'Error executing optimistic request', errors);
-            return Promise.reject(errors);
-        }
-
-        try {
-            const deserialized = await deserializeOptimisticResponseBody(this.response, this.options);
-
-            // Handle platform errors
-            if (MION_ROUTES.platformError in deserialized) {
-                const platformError = deserialized[MION_ROUTES.platformError];
-                Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
-                    methodMeta.isResolved = true;
-                    methodMeta.error = platformError as RpcError<string>;
-                    errors.set(id, platformError as RpcError<string>);
-                });
-                return Promise.reject(errors);
-            }
-
-            // Check for serialization/validation errors → retry with proper serialization
-            if (this.shouldRetryWithProperSerialization(deserialized)) {
-                return this.retryWithProperSerialization();
-            }
-
-            // Process response values (same as standard flow)
-            Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
-                if (id === MION_ROUTES.methodsMetadata) return;
-                const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
-                methodMeta.isResolved = true;
-                if (isRpcError(resp)) {
-                    methodMeta.error = resp;
-                    errors.set(id, resp);
-                } else {
-                    methodMeta.resolvedValue = resp;
-                }
-            });
-
-            // Collect errors from non-subrequest methods
-            Object.entries(deserialized).forEach(([id, value]) => {
-                if (!(id in this.subRequestList) && isRpcError(value)) {
-                    errors.set(id, value);
-                }
-            });
-
-            if (errors.size) return Promise.reject(errors);
-            return deserialized;
-        } catch (error) {
-            this.onError(error, 'Error parsing optimistic response', errors);
             return Promise.reject(errors);
         }
     }
@@ -325,6 +223,39 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
         this.subRequestList[subRequest.id] = subRequest;
     }
 
+    /** Checks for platform-level errors and propagates them to all subrequests. Returns true if a platform error was found */
+    private handlePlatformError(deserialized: ResponseBody, errors: RequestErrors): boolean {
+        if (!(MION_ROUTES.platformError in deserialized)) return false;
+        const platformError = deserialized[MION_ROUTES.platformError];
+        Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
+            methodMeta.isResolved = true;
+            methodMeta.error = platformError as RpcError<string>;
+            errors.set(id, platformError as RpcError<string>);
+        });
+        return true;
+    }
+
+    /** Resolves sub request values from the deserialized response body and collects errors */
+    private resolveSubRequests(deserialized: ResponseBody, errors: RequestErrors, skipId?: string): void {
+        Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
+            if (id === skipId) return;
+            const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
+            methodMeta.isResolved = true;
+            if (isRpcError(resp)) {
+                methodMeta.error = resp;
+                errors.set(id, resp);
+            } else {
+                methodMeta.resolvedValue = resp;
+            }
+        });
+
+        Object.entries(deserialized).forEach(([id, value]) => {
+            if (!(id in this.subRequestList) && isRpcError(value)) {
+                errors.set(id, value);
+            }
+        });
+    }
+
     private onError(error: any, stageMessage: string, errors: RequestErrors): void {
         if (isRpcError(error)) {
             errors.set(this.requestId, error);
@@ -347,7 +278,8 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
         return respBody[id];
     }
 
-    private restorePrefilledMiddleFns(errors: RequestErrors): void {
+    /** When errors is omitted, silently skips routes without cached metadata (used by optimistic flow) */
+    private restorePrefilledMiddleFns(errors?: RequestErrors): void {
         if (this.workflowSubRequests && this.workflowSubRequests.length > 0) {
             this.restorePrefilledMiddleFnsForWorkflow(errors);
             return;
@@ -355,13 +287,15 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
 
         const methodMeta = routesCache.getMetadata(this.requestId);
         if (!methodMeta) {
-            errors.set(
-                this.requestId,
-                new RpcError({
-                    type: 'route-metadata-not-found',
-                    publicMessage: `Metadata for Route '${this.requestId} not found.'.`,
-                })
-            );
+            if (errors) {
+                errors.set(
+                    this.requestId,
+                    new RpcError({
+                        type: 'route-metadata-not-found',
+                        publicMessage: `Metadata for Route '${this.requestId} not found.'.`,
+                    })
+                );
+            }
             return;
         }
         const missingIds = methodMeta.middleFnIds?.filter((id) => !!id && this.requestId !== id) || [];
@@ -383,19 +317,21 @@ export class MionClientRequest<RR extends RSubRequest<any>, MiddleFnRequestsList
     }
 
     /** Restore prefilled middleFns for all routes in a routesFlow, deduplicating by ID */
-    private restorePrefilledMiddleFnsForWorkflow(errors: RequestErrors): void {
+    private restorePrefilledMiddleFnsForWorkflow(errors?: RequestErrors): void {
         const workflowRouteIds = new Set(this.workflowSubRequests!.map((sr) => sr.id));
 
         for (const routeSubRequest of this.workflowSubRequests!) {
             const methodMeta = routesCache.getMetadata(routeSubRequest.id);
             if (!methodMeta) {
-                errors.set(
-                    routeSubRequest.id,
-                    new RpcError({
-                        type: 'route-metadata-not-found',
-                        publicMessage: `Metadata for Route '${routeSubRequest.id}' not found.`,
-                    })
-                );
+                if (errors) {
+                    errors.set(
+                        routeSubRequest.id,
+                        new RpcError({
+                            type: 'route-metadata-not-found',
+                            publicMessage: `Metadata for Route '${routeSubRequest.id}' not found.`,
+                        })
+                    );
+                }
                 continue;
             }
             const missingIds = methodMeta.middleFnIds?.filter((id) => !!id && !workflowRouteIds.has(id)) || [];

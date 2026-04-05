@@ -956,4 +956,104 @@ describe('client', () => {
             expect(result?.httpMethod).toBe('POST');
         });
     });
+
+    // ========== Optimistic Mode with Prefilled Middleware & Headers Tests ==========
+
+    describe('optimistic mode with prefilled middleware and headers', () => {
+        it('call() with prefilled auth headersFn should succeed in optimistic mode', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const [greeting, error] = await routes.sayHello(someUser).call();
+
+            expect(error).toBeUndefined();
+            expect(greeting).toBe('Hello John Doe');
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('callWithMiddleFns with explicit auth headersFn should succeed in optimistic mode', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            const [greeting, error] = await routes.sayHello(someUser).callWithMiddleFns({
+                auth: middleFns.auth(authHeaders),
+            });
+
+            expect(error).toBeUndefined();
+            expect(greeting).toBe('Hello John Doe');
+        });
+
+        it('subsequent optimistic calls should use standard flow (metadata cached)', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            // First call — triggers optimistic flow
+            const [greeting1, error1] = await routes.sayHello(someUser).call();
+            expect(error1).toBeUndefined();
+            expect(greeting1).toBe('Hello John Doe');
+
+            // Second call — metadata cached, should use standard flow
+            const [greeting2, error2] = await routes.sayHello(someUser).call();
+            expect(error2).toBeUndefined();
+            expect(greeting2).toBe('Hello John Doe');
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('call() without auth should fail in optimistic mode (auth required by server)', async () => {
+            const {routes} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+
+            const [, error] = await routes.sayHello(someUser).call();
+            expect(error).toBeDefined();
+            expect(isRpcError(error)).toBe(true);
+        });
+
+        it('removing prefill should cause subsequent optimistic calls to fail', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            // First call should succeed
+            const [greeting, error] = await routes.sayHello(someUser).call();
+            expect(error).toBeUndefined();
+            expect(greeting).toBe('Hello John Doe');
+
+            // Remove prefill
+            middleFns.auth(authHeaders).removePrefill();
+
+            // Call should now fail (no auth)
+            const [, error2] = await routes.sayHello(someUser).call();
+            expect(error2).toBeDefined();
+            expect(isRpcError(error2)).toBe(true);
+        });
+
+        it('optimistic mode with simple types should work without retry (no auth required route)', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const [result, error] = await routes.calculateAge(1990).call();
+
+            expect(error).toBeUndefined();
+            expect(result).toBe(new Date().getFullYear() - 1990);
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('optimistic mode with nested routes and prefilled auth', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const [result, error] = await routes.utils.sumTwo(5).call();
+
+            expect(error).toBeUndefined();
+            expect(result).toBe(7);
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+    });
 });
