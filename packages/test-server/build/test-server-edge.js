@@ -1735,12 +1735,16 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   function serializeMethodDeps(method, deps, purFnDeps) {
     const { paramsJitHash, returnJitHash } = method;
     if (paramsJitHash !== EMPTY_HASH) {
-      const paramsJitHashes = getJitFnHashes(paramsJitHash);
-      for (const k in paramsJitHashes) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+      const paramsJitHashes = getJitFnHashes(paramsJitHash, true);
+      for (const k in paramsJitHashes) {
+        if (getJitUtils().getJIT(paramsJitHashes[k])) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+      }
     }
     if (returnJitHash !== EMPTY_HASH) {
-      const returnJitHashes = getJitFnHashes(returnJitHash);
-      for (const k in returnJitHashes) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+      const returnJitHashes = getJitFnHashes(returnJitHash, true);
+      for (const k in returnJitHashes) {
+        if (getJitUtils().getJIT(returnJitHashes[k])) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+      }
     }
   }
   function getSerializableJitCompiler(comp) {
