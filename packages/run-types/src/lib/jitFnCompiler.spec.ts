@@ -66,7 +66,7 @@ describe('SerializableMethodsData JitCompiler', () => {
         expect(typeErrors(methodsData)).toEqual([]);
     });
 
-    it.only('prepareForJson / restoreFromJson', () => {
+    it('prepareForJson / restoreFromJson', () => {
         const rt = runType<SerializableMethodsData>();
         const prepareForJson = rt.createJitFunction(JitFunctions.prepareForJson);
         const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
