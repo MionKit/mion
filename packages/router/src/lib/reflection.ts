@@ -11,8 +11,9 @@ import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnC
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants.ts';
-import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns} from '@mionjs/core';
+import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns, HandlerType} from '@mionjs/core';
 import {getPersistedMethodMetadata} from './methodsCache.ts';
+import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';
 
 // ############ This file is the only one importing '@mionjs/run-types' within the router ########
 // In AOT mode, run-types is NOT loaded - all reflection data comes from the AOT cache
@@ -178,6 +179,7 @@ export async function getHandlerReflection(
     handler: Handler,
     routeId: string,
     routerOptions: RouterOptions,
+    handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions = {},
     isHeadersMiddleFn: boolean = false,
     methodStrictTypes?: boolean
 ): Promise<MethodReflect> {
@@ -187,7 +189,7 @@ export async function getHandlerReflection(
     if (routerOptions.aot) throw new AOTCacheError(routeId, isHeadersMiddleFn ? 'middleFn' : 'route');
     // Non-AOT mode: dynamically load run-types and generate reflection
     const rt = await loadRunTypesModule();
-    return generateHandlerReflection(handler, routeId, routerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
+    return generateHandlerReflection(handler, routeId, routerOptions, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
 }
 
 /**
@@ -222,12 +224,14 @@ function generateHandlerReflection(
     handler: Handler,
     routeId: string,
     routerOptions: RouterOptions,
+    handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions,
     isHeadersMiddleFn: boolean,
     rt: RunTypesFunctions,
     methodStrictTypes?: boolean
 ): MethodReflect {
     const reflectionItems: Partial<MethodReflect> = {};
     let handlerRunType: FunctionRunType;
+    const needsBinary = ((handlerOptions as RouteOptions)?.serializer ?? routerOptions.serializer) === 'binary';
     const effectiveStrictTypes = methodStrictTypes ?? routerOptions.strictTypes;
     const runTypeOptions: RunTypeOptions = {
         ...(routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions),
@@ -248,7 +252,7 @@ function generateHandlerReflection(
             reflectionItems.paramsJitHash = EMPTY_HASH;
             reflectionItems.paramsJitFns = getNoopJitFns();
         } else {
-            reflectionItems.paramsJitFns = getFunctionJitFns(handler, paramsOpts, rt, false);
+            reflectionItems.paramsJitFns = getFunctionJitFns(handler, paramsOpts, rt, false, needsBinary);
             reflectionItems.paramsJitHash = handlerRunType.getParameters().getJitHash(paramsOpts);
         }
     } catch (error: any) {
@@ -265,7 +269,7 @@ function generateHandlerReflection(
                 paramsSlice: undefined,
             };
 
-            const jitFns: JitCompiledFunctions = getTypeJitFunctions(headersRunType, opts, rt);
+            const jitFns: JitCompiledFunctions = getTypeJitFunctions(headersRunType, opts, rt, false);
             const jitHash = headersRunType.getJitHash(opts);
             reflectionItems.headersParam = {headerNames, jitFns, jitHash};
         } catch (error: any) {
@@ -279,7 +283,7 @@ function generateHandlerReflection(
     if (returnHeadersRunType) {
         const opts: RunTypeOptions = {};
         const headerNames: string[] = getHeaderNames(returnHeadersRunType, routeId, rt);
-        const jitFns: JitCompiledFunctions = getFunctionJitFns(handler, opts, rt, true);
+        const jitFns: JitCompiledFunctions = getFunctionJitFns(handler, opts, rt, true, false);
         const jitHash: string = returnHeadersRunType.getJitHash(opts);
         reflectionItems.headersReturn = {headerNames, jitFns, jitHash};
     }
@@ -295,7 +299,7 @@ function generateHandlerReflection(
             reflectionItems.returnJitHash = EMPTY_HASH;
         } else {
             // returnJitFns contains all run type functionality for the return value, it compiles when the property is first accessed
-            reflectionItems.returnJitFns = getFunctionJitFns(handler, returnOpts, rt, true);
+            reflectionItems.returnJitFns = getFunctionJitFns(handler, returnOpts, rt, true, needsBinary);
             reflectionItems.returnJitHash = handlerRunType.getReturnType().getJitHash(returnOpts);
         }
     } catch (error: any) {
@@ -431,7 +435,8 @@ function getFakeCompiler(routerOptions: RouterOptions): JitFnCompiler {
 function getTypeJitFunctions(
     runType: BaseRunType,
     opts: RunTypeOptions | undefined,
-    rtModule: RunTypesFunctions
+    rtModule: RunTypesFunctions,
+    needsBinary: boolean = false
 ): JitCompiledFunctions {
     const jitFns: JitCompiledFunctions = {
         isType: runType.createJitCompiledFunction(rtModule.JitFunctions.isType.id, undefined, opts),
@@ -439,8 +444,12 @@ function getTypeJitFunctions(
         prepareForJson: runType.createJitCompiledFunction(rtModule.JitFunctions.prepareForJson.id, undefined, opts),
         restoreFromJson: runType.createJitCompiledFunction(rtModule.JitFunctions.restoreFromJson.id, undefined, opts),
         stringifyJson: runType.createJitCompiledFunction(rtModule.JitFunctions.stringifyJson.id, undefined, opts),
-        toBinary: runType.createJitCompiledFunction(rtModule.JitFunctions.toBinary.id, undefined, opts),
-        fromBinary: runType.createJitCompiledFunction(rtModule.JitFunctions.fromBinary.id, undefined, opts),
+        ...(needsBinary
+            ? {
+                  toBinary: runType.createJitCompiledFunction(rtModule.JitFunctions.toBinary.id, undefined, opts),
+                  fromBinary: runType.createJitCompiledFunction(rtModule.JitFunctions.fromBinary.id, undefined, opts),
+              }
+            : {}),
     };
     return jitFns;
 }
@@ -452,7 +461,8 @@ function getFunctionJitFns<Fn extends AnyFn>(
     fn: Fn,
     opts: RunTypeOptions | undefined,
     rtModule: RunTypesFunctions,
-    isReturn: boolean
+    isReturn: boolean,
+    needsBinary: boolean = false
 ): JitCompiledFunctions {
     // Check cache first
     let runType = functionRunTypeCache.get(fn);
@@ -470,10 +480,38 @@ function getFunctionJitFns<Fn extends AnyFn>(
         prepareForJson: createFn(rtModule.JitFunctions.prepareForJson, opts),
         restoreFromJson: createFn(rtModule.JitFunctions.restoreFromJson, opts),
         stringifyJson: createFn(rtModule.JitFunctions.stringifyJson, opts),
-        toBinary: createFn(rtModule.JitFunctions.toBinary, opts),
-        fromBinary: createFn(rtModule.JitFunctions.fromBinary, opts),
+        ...(needsBinary
+            ? {
+                  toBinary: createFn(rtModule.JitFunctions.toBinary, opts),
+                  fromBinary: createFn(rtModule.JitFunctions.fromBinary, opts),
+              }
+            : {}),
     };
     return jitFunctions;
+}
+
+// ############ Retroactive Binary JIT Compilation ############
+
+/** Compiles toBinary/fromBinary JIT functions for middleware that was initially compiled without binary support */
+export async function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): Promise<void> {
+    if (method.paramsJitFns.toBinary && method.returnJitFns.toBinary) return;
+    const rt = await loadRunTypesModule();
+    const isHeader = method.type === HandlerType.headersMiddleFn;
+    const paramsSlice = isHeader ? {start: HEADER_HOOK_DEFAULT_PARAMS.length} : {start: ROUTE_DEFAULT_PARAMS.length};
+    const opts: RunTypeOptions = {paramsSlice};
+
+    if (!method.paramsJitFns.toBinary && method.paramsJitHash !== EMPTY_HASH) {
+        const runType = rt.reflectFunction(method.handler);
+        const createFn = runType.createJitCompiledParamsFunction.bind(runType);
+        method.paramsJitFns.toBinary = createFn(rt.JitFunctions.toBinary, opts);
+        method.paramsJitFns.fromBinary = createFn(rt.JitFunctions.fromBinary, opts);
+    }
+    if (!method.returnJitFns.toBinary && method.returnJitHash !== EMPTY_HASH && method.hasReturnData) {
+        const runType = rt.reflectFunction(method.handler);
+        const createFn = runType.createJitCompiledReturnFunction.bind(runType);
+        method.returnJitFns.toBinary = createFn(rt.JitFunctions.toBinary);
+        method.returnJitFns.fromBinary = createFn(rt.JitFunctions.fromBinary);
+    }
 }
 
 // ############ Null JIT Functions ############

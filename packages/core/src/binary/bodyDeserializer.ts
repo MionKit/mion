@@ -67,6 +67,11 @@ export function deserializeBinaryBody(
 /** Deserializes a single method's value from binary format */
 function deserializeMethod(key: string, method: MethodWithJitFns, deserializer: DataViewDeserializer, isResponse: boolean): any {
     const jitFns = isResponse ? method.returnJitFns : method.paramsJitFns;
+    if (!jitFns.fromBinary?.fn)
+        throw new RpcError({
+            type: 'missing-fromBinary-jit-fn',
+            publicMessage: `Missing fromBinary JIT function for method ${key}`,
+        });
     try {
         return jitFns.fromBinary.fn(undefined, deserializer);
     } catch (e: any) {

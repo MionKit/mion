@@ -188,8 +188,8 @@ export interface JitCompiledFunctions {
     prepareForJson: JitCompiledFn<PrepareForJsonFn>;
     restoreFromJson: JitCompiledFn<RestoreFromJsonFn>;
     stringifyJson: JitCompiledFn<JsonStringifyFn>;
-    toBinary: JitCompiledFn<ToBinaryFn>;
-    fromBinary: JitCompiledFn<FromBinaryFn>;
+    toBinary?: JitCompiledFn<ToBinaryFn>;
+    fromBinary?: JitCompiledFn<FromBinaryFn>;
 }
 export interface SerializableJITFunctions {
     isType: JitCompiledFnData;
@@ -197,8 +197,8 @@ export interface SerializableJITFunctions {
     prepareForJson: JitCompiledFnData;
     restoreFromJson: JitCompiledFnData;
     stringifyJson: JitCompiledFnData;
-    toBinary: JitCompiledFnData;
-    fromBinary: JitCompiledFnData;
+    toBinary?: JitCompiledFnData;
+    fromBinary?: JitCompiledFnData;
 }
 export interface JitFunctionsHashes {
     isType: string;
@@ -206,8 +206,8 @@ export interface JitFunctionsHashes {
     prepareForJson: string;
     restoreFromJson: string;
     stringifyJson: string;
-    toBinary: string;
-    fromBinary: string;
+    toBinary?: string;
+    fromBinary?: string;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type RestoreFromJsonFn = (value: JSONValue) => any;
