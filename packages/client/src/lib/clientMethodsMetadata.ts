@@ -20,6 +20,10 @@ import {routesCache, addSerializedJitCaches} from '@mionjs/core';
 import {STORAGE_KEY} from '../constants.ts';
 import {getStorage} from './storage.ts';
 
+const METHOD_DATA_PREFIX = `${STORAGE_KEY}:method-data:`;
+const JIT_FN_PREFIX = `${STORAGE_KEY}:jit-fn:`;
+const PURE_FN_PREFIX = `${STORAGE_KEY}:pure-fn:`;
+
 /** Extracts raw metadata from a parsed response body, unwraps the JIT union discriminator, and processes it. */
 export function extractAndProcessMetadata(routeKey: string, parsedBody: any, options: ClientOptions): void {
     if (!(routeKey in parsedBody)) return;
@@ -40,15 +44,15 @@ function processMethodsMetadata(serializableMethodsData: SerializableMethodsData
 }
 
 function getSerializedMethodDataKey(methodId: string, options: ClientOptions) {
-    return `${STORAGE_KEY}:method-data:${methodId}:${options.baseURL}`;
+    return `${METHOD_DATA_PREFIX}${methodId}:${options.baseURL}`;
 }
 
 function getJitCompiledFnKey(jitFnHash: string, options: ClientOptions) {
-    return `${STORAGE_KEY}:jit-fn:${jitFnHash}:${options.baseURL}`;
+    return `${JIT_FN_PREFIX}${jitFnHash}:${options.baseURL}`;
 }
 
 function getJitPureFnKey(namespace: string, pureFnHash: string, options: ClientOptions) {
-    return `${STORAGE_KEY}:pure-fn:${namespace}:${pureFnHash}:${options.baseURL}`;
+    return `${PURE_FN_PREFIX}${namespace}:${pureFnHash}:${options.baseURL}`;
 }
 
 /** Stores JIT compiled functions and pure functions globally in localStorage */
@@ -91,11 +95,11 @@ export function storeMethodsMetadata(methods: MethodsCache, options: ClientOptio
 export function restoreAllDependencies(options: ClientOptions) {
     const deps: Record<string, JitCompiledFnData> = {};
     const pureFnDeps: PureFnsDataCache = {};
-    const pureFnKeyPrefix = `${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:`;
+    const baseURLSuffix = `:${options.baseURL}`;
 
     for (let i = 0; i < getStorage().length; i++) {
         const key = getStorage().key(i);
-        if (key?.startsWith(`${STORAGE_KEY}:jit-compiled-fn:${options.baseURL}:`)) {
+        if (key?.startsWith(JIT_FN_PREFIX) && key.endsWith(baseURLSuffix)) {
             try {
                 const data = getStorage().getItem(key);
                 if (data) {
@@ -110,14 +114,14 @@ export function restoreAllDependencies(options: ClientOptions) {
 
     for (let i = 0; i < getStorage().length; i++) {
         const key = getStorage().key(i);
-        if (key?.startsWith(pureFnKeyPrefix)) {
+        if (key?.startsWith(PURE_FN_PREFIX) && key.endsWith(baseURLSuffix)) {
             try {
                 const data = getStorage().getItem(key);
                 if (data) {
                     const parsedData = JSON.parse(data);
-                    // Extract namespace from key: "mion:jit-pure-fn:baseURL:namespace:fnHash"
-                    const keyParts = key.slice(pureFnKeyPrefix.length).split(':');
-                    const namespace = keyParts[0] || parsedData.namespace;
+                    // Extract namespace from key: "mion:pure-fn:namespace:fnHash:baseURL"
+                    const inner = key.slice(PURE_FN_PREFIX.length, key.length - baseURLSuffix.length);
+                    const namespace = inner.split(':')[0] || parsedData.namespace;
                     if (!pureFnDeps[namespace]) pureFnDeps[namespace] = {};
                     pureFnDeps[namespace][parsedData.fnName] = parsedData;
                 }
