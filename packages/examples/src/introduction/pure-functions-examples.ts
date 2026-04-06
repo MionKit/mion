@@ -66,7 +66,7 @@ const mapping = mapFrom(order, (o) => o!.userId);
 // fake() returns a typed placeholder that satisfies the TypeScript compiler
 const user = routes.users.getById(mapping.type());
 
-const [[orderData, userData]] = await routesFlow([order, user]);
+const [[orderData, userData]] = await routesFlow([order, user]).call();
 console.log(`Order by ${userData?.name}`);
 // end:map-from-basic
 

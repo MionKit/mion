@@ -28,7 +28,7 @@ if (error) {
 const [[user2, order], [userError, orderError]] = await routesFlow([
     routes.users.getById('USER-123'),
     routes.orders.getById('ORDER-1'),
-]);
+]).call();
 
 // `user2` is User | undefined (first route result)
 // `order` is Order | undefined (second route result)

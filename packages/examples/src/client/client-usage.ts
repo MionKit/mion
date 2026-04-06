@@ -6,10 +6,12 @@ import type {MyApi} from './server.routes.ts';
 
 const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-// calls sumTwo route in the server using callWithMiddleFns API
+// calls sumTwo route in the server using call with middleFns API
 // Returns 4-tuple: [routeResult, routeError, middleFnsResults, middleFnsErrors]
-const [sumResult, sumError, middleFnResults, middleFnErrors] = await routes.utils.sum(5, 2).callWithMiddleFns({
-    auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+const [sumResult, sumError, middleFnResults, middleFnErrors] = await routes.utils.sum(5, 2).call({
+    middleFns: {
+        auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+    },
 });
 console.log(sumResult); // 7
 console.log(sumError); // undefined

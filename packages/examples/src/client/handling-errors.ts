@@ -7,7 +7,7 @@ import {isRpcError} from '@mionjs/core';
 const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // ========== Result pattern (never throws) ==========
-// call() and callWithMiddleFns() always return a 4-tuple, never throw
+// call() always returns a 4-tuple, never throws
 // [routeResult, routeError, middleFnsResults, middleFnsErrors]
 
 // calls sayHello route in the server
@@ -25,11 +25,13 @@ if (error) {
 }
 
 // ========== Full 4-tuple with middleFns ==========
-// callWithMiddleFns() returns [routeResult, routeError, middleFnsResults, middleFnsErrors]
+// call({middleFns: {...}}) returns [routeResult, routeError, middleFnsResults, middleFnsErrors]
 const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.users
     .sayHello({id: '123', name: 'John', surname: 'Doe'})
-    .callWithMiddleFns({
-        auth: middleFns.auth({headers: {Authorization: 'Bearer token'}}),
+    .call({
+        middleFns: {
+            auth: middleFns.auth({headers: {Authorization: 'Bearer token'}}),
+        },
     });
 
 if (routeError) {

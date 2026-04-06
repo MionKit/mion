@@ -10,12 +10,12 @@ import type {CoreRouterOptions, Prettify, RunTypeError, SerializerMode, Validati
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {TypedEvent} from './lib/typedEvent.ts';
 
-/** Result type for call() and callWithMiddleFns() methods - 4-tuple pattern */
+/** Result type for call() - 4-tuple pattern */
 export type Result<
     RouteSuccess,
     RouteError,
     MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>,
-    MiddleFnsErrors extends Record<string, RpcError<string, unknown>> = Record<string, RpcError<string, unknown>>,
+    MiddleFnsErrors extends Record<string, unknown> = Record<string, RpcError<string, unknown>>,
 > = [RouteSuccess | undefined, RouteError | undefined, MiddleFnsResults | undefined, MiddleFnsErrors | undefined];
 
 /** Extract success type from a MiddleFnSubRequest */
@@ -23,14 +23,6 @@ export type MiddleFnSuccess<H> = H extends MiddlewareSubRequest<infer PH> ? Hand
 
 /** Extract error type from a MiddleFnSubRequest */
 export type MiddleFnError<H> = H extends MiddlewareSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
-
-/** Result type for callWithMiddleFns method - 4-tuple pattern */
-export type CallWithMiddleFnsResult<RouteSuccess, RouteError, MiddleFns extends Record<string, MiddlewareSubRequest<any>>> = [
-    RouteSuccess | undefined,
-    RouteError | ValidationError | undefined,
-    {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
-    {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined,
-];
 
 // type-routesFlow-result-start
 /** Result type for routesFlow() function - 4-tuple pattern matching array input */
@@ -131,31 +123,55 @@ export interface SubRequest<PH extends PublicHandler> {
     serializedParams?: any[];
 }
 
+/** Unified config object for call() */
+export interface CallSetup<
+    H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
+    OtherRoutes extends RouteSubRequest<any>[] = [],
+> {
+    middleFns?: H;
+    otherRoutes?: [...OtherRoutes];
+}
+
+/** Builder returned by routesFlow() - call .call() to execute */
+export interface RoutesFlowBuilder<Routes extends RouteSubRequest<any>[]> {
+    /** Execute the routes flow */
+    call(setup?: {middleFns?: never}): Promise<WorkflowResult<Routes>>;
+    /** Execute the routes flow with middleware */
+    call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {middleFns: H}): Promise<WorkflowResult<Routes, H>>;
+}
+
 /** structure returned from the proxy, containing info of the remote route to execute */
 export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /** Validates Route's parameters and returns type errors */
     typeErrors: () => Promise<RunTypeError[]>;
 
-    /** Calls a remote route and returns a Result 4-tuple with full typing preserved */
-    call: () => Promise<
+    /** Calls a remote route and returns a Result 4-tuple */
+    call(setup?: {
+        middleFns?: never;
+        otherRoutes?: never;
+    }): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
+
+    /** Calls a remote route with middleFns */
+    call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
+        middleFns: H;
+        otherRoutes?: never;
+    }): Promise<
         Result<
             HandlerSuccessResponse<PH>,
             Simplify<HandlerErrors<PH>>,
-            Record<string, unknown>,
-            Record<string, RpcError<string, unknown> | ValidationError>
+            {[K in keyof H]?: MiddleFnSuccess<H[K]>},
+            {[K in keyof H]?: MiddleFnError<H[K]>}
         >
     >;
 
-    /** Calls a remote route with middleFns and returns a fully-typed 4-tuple result */
-    callWithMiddleFns: <H extends Record<string, MiddlewareSubRequest<any>>>(
-        middleFns: H
-    ) => Promise<CallWithMiddleFnsResult<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, H>>;
-
-    /** Calls this route as part of a routesFlow with other routes in a single HTTP request */
-    callWithWorkflow: <OtherRoutes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
-        otherRoutes: [...OtherRoutes],
-        middleFns?: H
-    ) => Promise<WorkflowResult<any, H>>;
+    /** Calls this route with other routes in a single HTTP request */
+    call<
+        OtherRoutes extends RouteSubRequest<any>[],
+        H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
+    >(setup: {
+        otherRoutes: [...OtherRoutes];
+        middleFns?: H;
+    }): Promise<WorkflowResult<any, H>>;
 }
 
 /** structure returned from the proxy, containing info of the remote middleFn to execute */

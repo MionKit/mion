@@ -7,7 +7,6 @@
 
 import {DEFAULT_PREFILL_OPTIONS} from './constants.ts';
 import {
-    CallWithMiddleFnsResult,
     ClientOptions,
     MiddlewareSubRequest,
     InitClientOptions,
@@ -56,25 +55,13 @@ export class MionClient {
 
     constructor(private clientOptions: ClientOptions) {}
 
-    /** Executes a route call and returns a Result 4-tuple */
-    executeCall<RR extends RouteSubRequest<any>>(routeSubRequest: RR): Promise<Result<any, any>> {
-        return this.executeRequest(routeSubRequest, undefined, undefined);
-    }
-
-    /** Executes a route call with middleFns and returns a typed result object */
-    executeCallWithMiddleFns<H extends Record<string, MiddlewareSubRequest<any>>>(
-        routeSubRequest: RouteSubRequest<any>,
-        middleFnsRecord: H
-    ): Promise<CallWithMiddleFnsResult<any, any, H>> {
-        return this.executeRequest(routeSubRequest, undefined, middleFnsRecord);
-    }
-
-    /** Executes a routesFlow call with multiple routes and optional middleFns */
-    executeCallWithWorkflow<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
-        workflowSubRequests: Routes,
-        middleFnsRecord: H
-    ): Promise<WorkflowResult<Routes, H>> {
-        return this.executeRequest(undefined, workflowSubRequests, middleFnsRecord);
+    /** Executes a route call with optional workflow routes and middleFns */
+    execute(
+        routeSubRequest?: RouteSubRequest<any>,
+        workflowSubRequests?: RouteSubRequest<any>[],
+        middleFnsRecord?: Record<string, MiddlewareSubRequest<any>>
+    ): Promise<any> {
+        return this.executeRequest(routeSubRequest, workflowSubRequests, middleFnsRecord);
     }
 
     private async executeRequest<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
@@ -147,7 +134,7 @@ export class MionClient {
         workflowSubRequests: Routes | undefined,
         middleFns: H | MiddlewareSubRequest<any>[],
         errors: RequestErrors | undefined
-    ): CallWithMiddleFnsResult<any, any, H> | WorkflowResult<Routes, H> | Result<any, any> {
+    ): WorkflowResult<Routes, H> | Result<any, any> {
         const middleFnsResults = {} as Record<string, any>;
         const middleFnsErrors = {} as Record<string, any>;
         const processedIds = new Set<string>();
@@ -247,8 +234,6 @@ export class MionClient {
 class MethodProxy {
     propsProxies: Record<string, MethodProxy> = {};
     handler = {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         apply: (_target: any, _thisArg: any, argArray?: any): RouteSubRequest<any> & MiddlewareSubRequest<any> => {
             const handlerId = getRouterItemId(this.parentProps);
             return new MionSubRequest(this.parentProps, handlerId, argArray, this.client);

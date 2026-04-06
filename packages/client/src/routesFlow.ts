@@ -6,15 +6,12 @@
  * ######## */
 
 import {PURE_SERVER_FN_NAMESPACE, RpcError} from '@mionjs/core';
-import type {MiddlewareSubRequest, RouteSubRequest, SubRequest, WorkflowResult} from './types.ts';
+import type {MiddlewareSubRequest, RouteSubRequest, RoutesFlowBuilder, SubRequest} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
 import {MapFromServerFnRef} from '@mionjs/core';
 
-/** Creates and executes a routesFlow request with multiple routes */
-export async function routesFlow<
-    Routes extends RouteSubRequest<any>[],
-    MiddleFns extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
->(routeSubRequests: [...Routes], middleFns?: MiddleFns): Promise<WorkflowResult<Routes, MiddleFns>> {
+/** Creates a RoutesFlowBuilder for deferred execution of multiple routes in a single HTTP request */
+export function routesFlow<Routes extends RouteSubRequest<any>[]>(routeSubRequests: [...Routes]): RoutesFlowBuilder<Routes> {
     if (!routeSubRequests || routeSubRequests.length === 0) {
         throw new RpcError({
             type: 'routesFlow-empty-routes',
@@ -43,13 +40,19 @@ export async function routesFlow<
         }
     }
 
-    const [results, errors, middleFnResults, middleFnErrors] = await client.executeCallWithWorkflow(
-        routeSubRequests as any,
-        (middleFns ?? {}) as any
-    );
-    const emptyResults = routeSubRequests.map(() => undefined);
-    const emptyErrors = routeSubRequests.map(() => undefined);
-    return [results ?? emptyResults, errors ?? emptyErrors, middleFnResults, middleFnErrors] as WorkflowResult<Routes, MiddleFns>;
+    return {
+        async call(setup?: {middleFns?: Record<string, MiddlewareSubRequest<any>>}) {
+            const middleFns = setup?.middleFns ?? {};
+            const [results, errors, middleFnResults, middleFnErrors] = await client.execute(
+                undefined,
+                routeSubRequests as any,
+                middleFns as any
+            );
+            const emptyResults = routeSubRequests.map(() => undefined);
+            const emptyErrors = routeSubRequests.map(() => undefined);
+            return [results ?? emptyResults, errors ?? emptyErrors, middleFnResults, middleFnErrors] as any;
+        },
+    };
 }
 
 export const mapFromSymbol = Symbol('MapFromServerFnRef');
