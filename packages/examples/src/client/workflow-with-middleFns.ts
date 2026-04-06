@@ -7,10 +7,10 @@ const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'}
 const authHeaders = new HeadersSubset({Authorization: 'my-token'});
 
 // Execute routesFlow with explicit middleFns
-const [[sum, user], [sumError, userError], middleFnResults, middleFnErrors] = await routesFlow(
-    [routes.utils.sum(5, 2), routes.users.getById('USER-123')],
-    {auth: middleFns.auth(authHeaders)}
-);
+const [[sum, user], [sumError, userError], middleFnResults, middleFnErrors] = await routesFlow([
+    routes.utils.sum(5, 2),
+    routes.users.getById('USER-123'),
+]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
 
 // Check middleFn errors
 if (middleFnErrors?.auth) {

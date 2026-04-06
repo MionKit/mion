@@ -7,15 +7,7 @@
 
 import {RpcError} from '@mionjs/core';
 import type {RunTypeError} from '@mionjs/core';
-import type {
-    CallWithMiddleFnsResult,
-    MiddlewareSubRequest,
-    RequestErrors,
-    Result,
-    RouteSubRequest,
-    SubRequest,
-    WorkflowResult,
-} from './types.ts';
+import type {CallSetup, MiddlewareSubRequest, RequestErrors, RouteSubRequest, SubRequest} from './types.ts';
 import type {MapFromServerFnRef} from '@mionjs/core';
 import type {MionClient} from './client.ts';
 import {TypedEvent} from './lib/typedEvent.ts';
@@ -70,41 +62,26 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
         return this.client.removePrefill(this as MiddlewareSubRequest<any>);
     }
 
-    /** Calls a remote route and returns a Result 4-tuple with full typing preserved */
-    call(): Promise<Result<S, E>> {
-        return this.client.executeCall(this as unknown as RouteSubRequest<any>);
-    }
-
-    /** Calls a remote route with middleFns and returns a fully-typed 4-tuple result */
-    callWithMiddleFns<H extends Record<string, MiddlewareSubRequest<any>>>(
-        middleFns: H
-    ): Promise<CallWithMiddleFnsResult<S, E, H>> {
-        if (Object.keys(middleFns).length === 0) {
-            throw new Error(
-                'callWithMiddleFns requires at least one middleFn. Use call() instead for requests without middleFns.'
-            );
+    /** Calls a remote route with optional setup (middleFns, otherRoutes) */
+    call(setup?: CallSetup<any, any>): Promise<any> {
+        if (!setup || (!setup.otherRoutes && !setup.middleFns)) {
+            return this.client.execute(this as unknown as RouteSubRequest<any>);
         }
-        return this.client.executeCallWithMiddleFns(this as RouteSubRequest<any>, middleFns) as Promise<
-            CallWithMiddleFnsResult<S, E, H>
-        >;
+        if (setup.otherRoutes && setup.otherRoutes.length > 0) {
+            return this.executeWithOtherRoutes(setup.otherRoutes, setup.middleFns);
+        }
+        return this.client.execute(this as unknown as RouteSubRequest<any>, undefined, setup.middleFns);
     }
 
-    /** Calls this route as part of a routesFlow with other routes in a single HTTP request */
-    async callWithWorkflow<OtherRoutes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
-        otherRoutes: [...OtherRoutes],
-        middleFns?: H
-    ): Promise<WorkflowResult<[RouteSubRequest<any>, ...OtherRoutes], H>> {
+    private async executeWithOtherRoutes(
+        otherRoutes: RouteSubRequest<any>[],
+        middleFns?: Record<string, MiddlewareSubRequest<any>>
+    ): Promise<any> {
         const allRoutes = [this as unknown as RouteSubRequest<any>, ...otherRoutes];
-        const [results, errors, middleFnResults, middleFnErrors] = await this.client.executeCallWithWorkflow(
-            allRoutes,
-            middleFns ?? ({} as H)
-        );
+        const [results, errors, mfR, mfE] = await this.client.execute(undefined, allRoutes, middleFns ?? {});
         const emptyResults = allRoutes.map(() => undefined);
         const emptyErrors = allRoutes.map(() => undefined);
-        return [results ?? emptyResults, errors ?? emptyErrors, middleFnResults, middleFnErrors] as WorkflowResult<
-            [RouteSubRequest<any>, ...OtherRoutes],
-            H
-        >;
+        return [results ?? emptyResults, errors ?? emptyErrors, mfR, mfE];
     }
 
     /** Validates parameters and returns type errors */

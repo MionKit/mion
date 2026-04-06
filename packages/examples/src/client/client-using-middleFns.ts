@@ -6,8 +6,10 @@ const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'}
 
 // calls route with auth middleFn
 // Returns 4-tuple: [routeResult, routeError, middleFnsResults, middleFnsErrors]
-const [user, routeError, middleFnResults, middleFnErrors] = await routes.users.getById('123').callWithMiddleFns({
-    auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+const [user, routeError, middleFnResults, middleFnErrors] = await routes.users.getById('123').call({
+    middleFns: {
+        auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+    },
 });
 
 if (routeError || middleFnErrors?.auth) {

@@ -252,9 +252,11 @@ describe('Binary Serialization E2E', () => {
 
     describe('MiddleFns with Binary Serialization', () => {
         it('should handle middleFn with optional parameter (with value)', async () => {
-            const [result, error, middleFnsResults] = await routes.binary.echo('test').callWithMiddleFns({
-                auth: middleFns.auth(authHeaders),
-                binarySession: middleFns.binary.session('valid-token'),
+            const [result, error, middleFnsResults] = await routes.binary.echo('test').call({
+                middleFns: {
+                    auth: middleFns.auth(authHeaders),
+                    binarySession: middleFns.binary.session('valid-token'),
+                },
             });
 
             expect(error).toBeUndefined();
@@ -263,9 +265,11 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should handle middleFn with optional parameter (without value)', async () => {
-            const [result, error, middleFnsResults] = await routes.binary.echo('test').callWithMiddleFns({
-                auth: middleFns.auth(authHeaders),
-                binarySession: middleFns.binary.session(),
+            const [result, error, middleFnsResults] = await routes.binary.echo('test').call({
+                middleFns: {
+                    auth: middleFns.auth(authHeaders),
+                    binarySession: middleFns.binary.session(),
+                },
             });
 
             expect(error).toBeUndefined();
@@ -274,9 +278,11 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should handle middleFn returning error-like object', async () => {
-            const [result, error, middleFnsResults] = await routes.binary.echo('test').callWithMiddleFns({
-                auth: middleFns.auth(authHeaders),
-                binarySession: middleFns.binary.session('invalid'),
+            const [result, error, middleFnsResults] = await routes.binary.echo('test').call({
+                middleFns: {
+                    auth: middleFns.auth(authHeaders),
+                    binarySession: middleFns.binary.session('invalid'),
+                },
             });
 
             expect(error).toBeUndefined();
@@ -314,7 +320,7 @@ describe('Binary Serialization E2E', () => {
             const [[result1, result2], [error1, error2]] = await routesFlow([
                 routes.binary.echo('Hello Workflow!'),
                 routes.binary.addNumbers(10, 20),
-            ]);
+            ]).call();
 
             expect(error1).toBeUndefined();
             expect(error2).toBeUndefined();
@@ -326,7 +332,7 @@ describe('Binary Serialization E2E', () => {
             const [[result1, result2], [error1, error2]] = await routesFlow([
                 routes.binary.getSimpleUser('Alice', 28),
                 routes.binary.processSimpleUser({name: 'Bob', age: 35}),
-            ]);
+            ]).call();
 
             expect(error1).toBeUndefined();
             expect(error2).toBeUndefined();
@@ -339,7 +345,7 @@ describe('Binary Serialization E2E', () => {
                 routes.binary.sumArray([1, 2, 3, 4, 5]),
                 routes.binary.doubleArray([10, 20, 30]),
                 routes.binary.reverseStrings(['a', 'b', 'c']),
-            ]);
+            ]).call();
 
             expect(error1).toBeUndefined();
             expect(error2).toBeUndefined();
@@ -355,7 +361,7 @@ describe('Binary Serialization E2E', () => {
             const [[result1, result2], [error1, error2]] = await routesFlow([
                 routes.binary.getCurrentDate(),
                 routes.binary.addDays(inputDate, 5),
-            ]);
+            ]).call();
 
             expect(error1).toBeUndefined();
             expect(error2).toBeUndefined();
@@ -368,7 +374,7 @@ describe('Binary Serialization E2E', () => {
             const [[result1, result2], [error1, error2]] = await routesFlow([
                 routes.binary.createComplexUser('user-1', 'John Doe', 'john@example.com'),
                 routes.binary.createNestedData('deep value', [1, 2, 3]),
-            ]);
+            ]).call();
 
             expect(error1).toBeUndefined();
             expect(error2).toBeUndefined();
@@ -400,7 +406,7 @@ describe('Binary Serialization E2E', () => {
                 routes.binary.getSimpleUser('Test', 25),
                 routes.binary.addDays(inputDate, 3),
                 routes.binary.negate(true),
-            ]);
+            ]).call();
 
             expect(error1).toBeUndefined();
             expect(error2).toBeUndefined();
@@ -416,13 +422,15 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should handle routesFlow with middleFns in binary mode', async () => {
-            const [[result1, result2], [error1, error2], middleFnResults] = await routesFlow(
-                [routes.binary.echo('workflow test'), routes.binary.addNumbers(1, 2)],
-                {
+            const [[result1, result2], [error1, error2], middleFnResults] = await routesFlow([
+                routes.binary.echo('workflow test'),
+                routes.binary.addNumbers(1, 2),
+            ]).call({
+                middleFns: {
                     auth: middleFns.auth(authHeaders),
                     binarySession: middleFns.binary.session('valid-token'),
-                }
-            );
+                },
+            });
 
             expect(error1).toBeUndefined();
             expect(error2).toBeUndefined();
@@ -432,7 +440,10 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should handle errors in binary routesFlow', async () => {
-            const [results, errors] = await routesFlow([routes.binary.mayFail(true), routes.binary.echo('should not reach')]);
+            const [results, errors] = await routesFlow([
+                routes.binary.mayFail(true),
+                routes.binary.echo('should not reach'),
+            ]).call();
 
             expect(errors).toBeDefined();
             expect(errors?.[0]).toBeDefined();

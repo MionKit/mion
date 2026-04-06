@@ -79,16 +79,18 @@ const [result, error3] = await routes.users.sayHello(john).call();
 // sayHello never has an error type, so we can use the result directly
 console.log(result); // Hello John Doe
 
-// ========== Example 5: Using callWithMiddleFns() for per-request middleFns ==========
-// Use callWithMiddleFns() when you need to pass middleFns for a SINGLE request
+// ========== Example 5: Using call() with middleFns for per-request middleFns ==========
+// Use call({middleFns: {...}}) when you need to pass middleFns for a SINGLE request
 // Returns 4-tuple: [routeResult, routeError, middleFnsResults, middleFnsErrors]
 
 // Create a middleFn with temporary credentials for this specific request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
 
-// callWithMiddleFns() takes a record of middleFns and returns a typed 4-tuple
-const [user4, routeError4, middleFnResults4, middleFnErrors4] = await routes.users.getById('USER-123').callWithMiddleFns({
-    auth: middleFns.auth(tempAuthHeaders, true),
+// call({middleFns: {...}}) takes a record of middleFns and returns a typed 4-tuple
+const [user4, routeError4, middleFnResults4, middleFnErrors4] = await routes.users.getById('USER-123').call({
+    middleFns: {
+        auth: middleFns.auth(tempAuthHeaders, true),
+    },
 });
 // Check for route errors
 if (routeError4?.type === 'user-not-found') {
@@ -106,11 +108,13 @@ if (middleFnErrors4?.auth?.type === 'not-authorized') {
 if (user4) console.log('Found user:', user4.name);
 if (middleFnResults4?.auth) console.log('Authenticated as:', middleFnResults4.auth.userId);
 
-// ========== Example 6: Multiple MiddleFns with callWithMiddleFns() ==========
+// ========== Example 6: Multiple MiddleFns with call({middleFns: {...}}) ==========
 // Pass multiple middleFns in the record - each gets its own typed result
-const [user5, routeError5, middleFnResults5, middleFnErrors5] = await routes.users.getById('USER-123').callWithMiddleFns({
-    auth: middleFns.auth(tempAuthHeaders),
-    // session: middleFns.session('session-token'), // If you have a session middleFn
+const [user5, routeError5, middleFnResults5, middleFnErrors5] = await routes.users.getById('USER-123').call({
+    middleFns: {
+        auth: middleFns.auth(tempAuthHeaders),
+        // session: middleFns.session('session-token'), // If you have a session middleFn
+    },
 });
 // Handle each middleFn's errors independently
 if (middleFnErrors5?.auth) {
