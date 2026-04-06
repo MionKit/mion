@@ -8,7 +8,6 @@ export default defineConfig({
     plugins: [
         mionPlugin({
             runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-            aotCaches: true,
             // runs the server in a child process separate from vite dev server
             server: {
                 startScript: resolve(__dirname, '../server/src/init.ts'),
