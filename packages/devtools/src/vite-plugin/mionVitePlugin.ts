@@ -411,12 +411,17 @@ export function mionVitePlugin(options: MionPluginOptions) {
             }
 
             // Deepkit before-transformers emit type metadata and inject __assignType + CJS require().
-            // After-transformers (declarationTransformer, requireToImport) clean up that output.
-            // Both must only run when needsDeepkit is true — otherwise afterTransformers would
-            // inject duplicate __assignType into files that already have it (e.g. pre-bundled deps).
             if (needsDeepkit) {
                 before.push(...deepkitConfig!.beforeTransformers);
-                after.push(...deepkitConfig!.afterTransformers);
+            }
+
+            // After-transformers (declarationTransformer, requireToImport) must ALWAYS run when
+            // deepkitConfig exists. Deepkit's install script patches typescript.js getTransformers()
+            // to inject its transformer into every ts.transpileModule call — even for files outside
+            // our include filter. Without requireToImport, those files end up with CJS require()
+            // calls (with .ts extensions) that Rollup can't resolve, producing broken build output.
+            if (deepkitConfig) {
+                after.push(...deepkitConfig.afterTransformers);
             }
 
             const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;

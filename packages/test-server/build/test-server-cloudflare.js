@@ -1873,50 +1873,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   }
   const serverPureFnsCache = {
     "pureServerFn": {
-      "greeting": {
-        namespace: "pureServerFn",
-        fnName: "greeting",
-        paramNames: [],
-        code: 'return "hello from pure function";',
-        bodyHash: "CNfqtoZm87Tmow",
-        isFactory: false,
-        fn: __assignType$3(function greeting() {
-          return "hello from pure function";
-        }, ["greeting", 'P"/!'])
-      },
-      "double": {
-        namespace: "pureServerFn",
-        fnName: "double",
-        paramNames: ["x"],
-        code: "return x * 2;",
-        bodyHash: "5yzmi6DmZhBd-7",
-        isFactory: false,
-        fn: __assignType$3(function double(x) {
-          return x * 2;
-        }, ["x", "double", 'P"2!"/"'])
-      },
-      "7c1PTtX_Bqnfb1": {
-        namespace: "pureServerFn",
-        fnName: "7c1PTtX_Bqnfb1",
-        paramNames: ["x"],
-        code: "return x + 1;",
-        bodyHash: "7c1PTtX_Bqnfb1",
-        isFactory: false,
-        fn: __assignType$3(function _7c1PTtX_Bqnfb1(x) {
-          return x + 1;
-        }, ["x", "_7c1PTtX_Bqnfb1", 'P"2!"/"'])
-      },
-      "ZnrWgJNgv61Lnf": {
-        namespace: "pureServerFn",
-        fnName: "ZnrWgJNgv61Lnf",
-        paramNames: ["x"],
-        code: "return x * 3",
-        bodyHash: "ZnrWgJNgv61Lnf",
-        isFactory: false,
-        fn: __assignType$3(function ZnrWgJNgv61Lnf(x) {
-          return x * 3;
-        }, ["x", "ZnrWgJNgv61Lnf", 'P"2!"/"'])
-      },
       "U0iYTkE-RN3NIs": {
         namespace: "pureServerFn",
         fnName: "U0iYTkE-RN3NIs",
