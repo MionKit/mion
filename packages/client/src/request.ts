@@ -18,7 +18,8 @@ import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/cor
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset, toBase64Url} from '@mionjs/core';
 import type {SerializerMode} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
-import {fetchRemoteMethodsMetadata, createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
+import {fetchRemoteMethodsMetadata} from './lib/fetchRemoteMethodsMetadata.ts';
+import {createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH} from './constants.ts';
@@ -64,31 +65,24 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
         const isOptimistic = !allCached && !skipOptimistic;
 
-        if (isOptimistic) {
-            try {
+        try {
+            if (isOptimistic) {
                 (this.options as any).serializer = 'optimistic';
-                // Silent restore (no errors for missing metadata)
                 this.restorePrefilledMiddleFns();
                 // Add metadata subrequest (after prefilled restore so we include all IDs)
                 const allSubRequestIds = Object.keys(this.subRequestList);
                 this.addSubRequest(createMetadataSubRequest(allSubRequestIds));
-            } catch {
-                // JSON.stringify failed → fall back to standard, will fetch metadata
-                delete this.subRequestList[MION_ROUTES.methodsMetadata];
-                return this.makeCall(originalSerializer, true);
-            }
-        } else {
-            try {
+            } else {
                 (this.options as any).serializer = originalSerializer;
                 await fetchRemoteMethodsMetadata(subRequestIds, this.options);
                 this.restorePrefilledMiddleFns(errors);
                 if (errors.size) return Promise.reject(errors);
                 validateSubRequests(subRequestIds, this, errors);
                 if (errors.size) return Promise.reject(errors);
-            } catch (error: any) {
-                this.onError(error, 'Error preparing request', errors);
-                return Promise.reject(errors);
             }
+        } catch (error: any) {
+            this.onError(error, 'Error preparing request', errors);
+            return Promise.reject(errors);
         }
 
         try {

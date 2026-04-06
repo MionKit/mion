@@ -6,12 +6,13 @@
  * ######## */
 
 import {vi, describe, beforeEach, afterEach, it, expect} from 'vitest';
-import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata.ts';
+import {fetchRemoteMethodsMetadata} from './fetchRemoteMethodsMetadata.ts';
 import {ClientOptions} from '../types.ts';
 import {routesCache} from '@mionjs/core';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import {resetClientCaches} from './testUtils.ts';
 import {getStorage} from './storage.ts';
+import {STORAGE_KEY} from '../constants.ts';
 
 describe('fetchRemoteMethodsMetadata', () => {
     const baseURL = TEST_SERVER_BASE_URL;
@@ -89,7 +90,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
     // The restoreAllDependencies function needs to be called to restore JIT functions before methods can be properly restored.
     // Currently the test clears caches but doesn't call restoreAllDependencies.
-    it('should store and restore from localStorage', async () => {
+    it.only('should store and restore from localStorage', async () => {
         // First call - fetch from server
         await fetchRemoteMethodsMetadata(['sayHello'], options);
 
@@ -97,8 +98,9 @@ describe('fetchRemoteMethodsMetadata', () => {
         expect(routesCache.hasMetadata('sayHello')).toBe(true);
 
         // Verify data was stored in localStorage
-        const storageKey = `mionkit:client:serialized-method-data:${baseURL}:sayHello`;
+        const storageKey = `${STORAGE_KEY}:method-data:sayHello:${baseURL}`;
         const storedData = getStorage().getItem(storageKey);
+        console.log({storedData});
         expect(storedData).toBeTruthy();
 
         // Clear the caches to simulate app restart (but keep localStorage)
@@ -135,7 +137,7 @@ describe('fetchRemoteMethodsMetadata', () => {
         expect(methodMeta).toBeDefined();
 
         // Verify data was stored
-        const storageKey = `mionkit:client:serialized-method-data:${baseURL}:sayHello`;
+        const storageKey = `${STORAGE_KEY}:method-data:sayHello:${baseURL}`;
         const stored = getStorage().getItem(storageKey);
         expect(stored).toBeTruthy();
 

@@ -28,7 +28,7 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
 /** Maximum safe URL length for GET requests with ?data= query param */
 export const MAX_GET_URL_LENGTH = 4096;
 
-export const STORAGE_KEY = 'mionkit:client';
+export const STORAGE_KEY = 'mion:client';
 
 /** RoutesFlow route key - matches router constant */
 export const ROUTES_FLOW_KEY = 'mion-routes-flow';
