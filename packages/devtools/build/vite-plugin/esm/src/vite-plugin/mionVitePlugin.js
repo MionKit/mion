@@ -254,6 +254,8 @@ function mionVitePlugin(options) {
       }
       if (needsDeepkit) {
         before.push(...deepkitConfig.beforeTransformers);
+      }
+      if (deepkitConfig) {
         after.push(...deepkitConfig.afterTransformers);
       }
       const baseCompilerOptions = deepkitConfig?.compilerOptions ?? defaultCompilerOptions;
