@@ -24,9 +24,11 @@ const METHOD_DATA_PREFIX = `${STORAGE_KEY}:method-data:`;
 const JIT_FN_PREFIX = `${STORAGE_KEY}:jit-fn:`;
 const PURE_FN_PREFIX = `${STORAGE_KEY}:pure-fn:`;
 
+type MetadataRouteKey = typeof MION_ROUTES.methodsMetadata | typeof MION_ROUTES.methodsMetadataById;
+
 /** Extracts raw metadata from a parsed response body, unwraps the JIT union discriminator, and processes it. */
-export function extractAndProcessMetadata(routeKey: string, parsedBody: any, options: ClientOptions): void {
-    if (!(routeKey in parsedBody)) return;
+export function extractAndProcessMetadata(routeKey: MetadataRouteKey, parsedBody: any, options: ClientOptions): void {
+    if (typeof parsedBody !== 'object' || !(routeKey in parsedBody)) return;
     const rawMetadata = parsedBody[routeKey];
     delete parsedBody[routeKey];
     if (!rawMetadata) return;

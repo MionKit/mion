@@ -26,8 +26,7 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body),
         });
-        const parsedBody = await response.json(); // we need to use regular json parse as we have not jit functions to deserialize methods metadata
-        const deserialized = await deserializeResponseBody(response, options, parsedBody);
+        const deserialized = await deserializeResponseBody(response, options);
         const platformError = deserialized[MION_ROUTES.platformError];
         if (isRpcError(platformError)) throw platformError;
         const stillMissing = missingAfterLocal.filter((id) => !routesCache.hasMetadata(id));

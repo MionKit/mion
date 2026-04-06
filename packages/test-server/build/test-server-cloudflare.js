@@ -57,7 +57,9 @@
   const __ΩRawMiddleFnDef = ["H", () => __ΩPick$2, () => __ΩRawMethod, "type", "handler", () => __ΩRawMiddleFnOptions, "options", "RawMiddleFnDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
   const DEFAULT_CORE_OPTIONS = {
     /** automatically generate and uuid */
-    autoGenerateErrorId: false
+    autoGenerateErrorId: false,
+    basePath: "",
+    suffix: ""
   };
   const PATH_SEPARATOR = "/";
   const ROUTE_PATH_ROOT = PATH_SEPARATOR;

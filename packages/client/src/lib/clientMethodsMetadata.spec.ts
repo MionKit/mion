@@ -100,7 +100,6 @@ describe('fetchRemoteMethodsMetadata', () => {
         // Verify data was stored in localStorage
         const storageKey = `${STORAGE_KEY}:method-data:sayHello:${baseURL}`;
         const storedData = getStorage().getItem(storageKey);
-        console.log({storedData});
         expect(storedData).toBeTruthy();
 
         // Clear the caches to simulate app restart (but keep localStorage)

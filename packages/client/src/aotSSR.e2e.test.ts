@@ -21,7 +21,7 @@ import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 import assert from 'node:assert/strict';
 
-const routerDir = resolve(import.meta.dirname, '../../../router');
+const routerDir = resolve(import.meta.dirname, '../../router');
 const defaultRoutesPath = resolve(routerDir, 'src/defaultRoutes.ts');
 
 let server: ViteDevServer;

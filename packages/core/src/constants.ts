@@ -10,6 +10,8 @@ import type {CoreRouterOptions} from './types/general.types.ts';
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
     /** automatically generate and uuid */
     autoGenerateErrorId: false,
+    basePath: '',
+    suffix: '',
 };
 
 export const PATH_SEPARATOR = '/';

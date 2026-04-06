@@ -36,26 +36,9 @@ export interface SerializedRequest {
 
 // ################################## SERIALIZE ##################################
 
-/** Determines the serializer mode to use for a request */
-function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
-    if (req.options.serializer === 'optimistic') {
-        // When metadata is cached (e.g. after retry), use JIT serialization
-        const subRequestIds = Object.keys(req.subRequestList);
-        const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
-        if (allCached) return 'stringifyJson';
-        return 'optimistic';
-    }
-    const methodId = req.route?.id ?? req.workflowSubRequests?.[0]?.id;
-    const method = routesCache.getMethodJitFns(methodId);
-    const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serializer;
-    if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serializer;
-    return serializerMode;
-}
-
 /** Serializes the request body and returns it with the appropriate content type */
 export function serializeRequestBody(req: MionClientRequest<any, any>): SerializedRequest {
     const serializerMode = getSerializerMode(req);
-
     switch (serializerMode) {
         case 'json':
         case 'stringifyJson':
@@ -88,11 +71,9 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
         if (!subRequest) continue;
         let params = subRequest.params;
         const method = routesCache.useMethodJitFns(id);
-
         if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
             params = getParamsWithoutHeadersSubset(params);
         }
-
         try {
             const jsonValue = stringifyHandlerParams(method, params);
             if (!jsonValue) continue;
@@ -155,73 +136,43 @@ function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string
 
 // ################################## DE-SERIALIZE ##################################
 
-/** Deserializes the response body from a fetch Response object. Pass pre-parsed JSON as `parsedJson` to skip content-type detection. */
-export async function deserializeResponseBody(
-    response: Response,
-    options: ClientOptions,
-    parsedJson?: any
-): Promise<ResponseBody> {
+/** Deserializes the response body from a fetch Response object. Handles routes metadata if present in json responses. */
+export async function deserializeResponseBody(response: Response, options: ClientOptions): Promise<ResponseBody> {
     let parsedBody: any;
-    let isJson: boolean;
-    let isBinary: boolean;
-
-    if (parsedJson !== undefined) {
-        parsedBody = parsedJson;
-        isJson = true;
-        isBinary = false;
-    } else {
-        const contentType = response.headers.get('content-type');
-        isJson = !!contentType?.includes('application/json');
-        isBinary = !!contentType?.includes('application/octet-stream');
-
-        if (isJson) {
-            parsedBody = await deserializeJsonResponseBody(response);
-        } else if (isBinary) {
+    const contentType = response.headers.get('content-type')?.toLowerCase();
+    switch (true) {
+        case !!contentType?.includes('application/json'):
+            parsedBody = await deserializeJsonResponseBody(response, options);
+            break;
+        case !!contentType?.includes('application/octet-stream'):
             parsedBody = await deserializeBinaryResponseBody(response);
-        } else {
+            break;
+        default:
             throw new RpcError({
                 type: 'unsupported-content-type',
                 publicMessage: `Unsupported response content-type: '${contentType || 'none'}'`,
             });
-        }
     }
+    return parsedBody;
+}
 
-    // Extract & process metadata if present (optimistic or explicit fetch)
-    if (isJson) {
+/** Deserializes JSON response body, Also handles routes metadata if present */
+async function deserializeJsonResponseBody(response: Response, options: ClientOptions) {
+    try {
+        const parsedBody = await response.json();
+        // Extract & process metadata if present and delete entries after processing (does not use jit functions)
         extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
         extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
-    }
-
-    const platformError = unwrapUnexpectedErrors(parsedBody);
-    if (platformError) return {[MION_ROUTES.platformError]: platformError};
-
-    if (isBinary) return parsedBody;
-
-    const deserializedBody: ResponseBody = {};
-    Object.entries(parsedBody).forEach(([methodId, returnValue]) => {
-        const method = routesCache.useMethodJitFns(methodId);
-        deserializedBody[methodId] = parseHandlerReturnValue(method, returnValue);
-    });
-    return deserializedBody;
-}
-
-/** Unwraps unexpected errors from the response body into parsedBody. Returns a platformError if present as a special case. */
-export function unwrapUnexpectedErrors(parsedBody: any): RpcError<string> | undefined {
-    if (!(MION_ROUTES.thrownErrors in parsedBody)) return;
-    const unexpectedErrors = parsedBody[MION_ROUTES.thrownErrors];
-    // if platform error is present that means the router never executed (just the platform wrapper)
-    if (MION_ROUTES.platformError in unexpectedErrors) {
-        const globalErrorValue = unexpectedErrors[MION_ROUTES.platformError];
-        return isRpcError(globalErrorValue) ? new RpcError<string>(globalErrorValue) : globalErrorValue;
-    }
-    Object.assign(parsedBody, unexpectedErrors);
-    delete parsedBody[MION_ROUTES.thrownErrors];
-}
-
-/** Deserializes JSON response body */
-async function deserializeJsonResponseBody(response: Response): Promise<any> {
-    try {
-        return await response.json();
+        // Unwrap unexpected errors (move them from [MION_ROUTES.thrownErrors] to root)
+        const platformError = unwrapUnexpectedErrors(parsedBody);
+        if (platformError) return {[MION_ROUTES.platformError]: platformError};
+        // Deserialize the body using jit functions
+        const deserializedBody: ResponseBody = {};
+        Object.entries(parsedBody).forEach(([methodId, returnValue]) => {
+            const method = routesCache.useMethodJitFns(methodId);
+            deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
+        });
+        return deserializedBody;
     } catch (err: any) {
         throw new RpcError({
             type: 'parsing-json-response-error',
@@ -234,7 +185,39 @@ async function deserializeJsonResponseBody(response: Response): Promise<any> {
 async function deserializeBinaryResponseBody(response: Response): Promise<ResponseBody> {
     const arrayBuffer = await response.arrayBuffer();
     const {body} = coreDeserializeBinaryBody('client-response', arrayBuffer, true);
+    // Unwrap unexpected errors (move them from [MION_ROUTES.thrownErrors] to root)
+    const platformError = unwrapUnexpectedErrors(body);
+    if (platformError) return {[MION_ROUTES.platformError]: platformError};
     return body;
+}
+
+/** Unwraps unexpected errors from the response body into parsedBody. Returns a platformError if present as a special case. */
+function unwrapUnexpectedErrors(parsedBody: any): RpcError<string> | undefined {
+    if (!(MION_ROUTES.thrownErrors in parsedBody)) return;
+    const unexpectedErrors = parsedBody[MION_ROUTES.thrownErrors];
+    // if platform error is present that means the router never executed (just the platform wrapper)
+    if (MION_ROUTES.platformError in unexpectedErrors) {
+        const globalErrorValue = unexpectedErrors[MION_ROUTES.platformError];
+        return isRpcError(globalErrorValue) ? new RpcError<string>(globalErrorValue) : globalErrorValue;
+    }
+    Object.assign(parsedBody, unexpectedErrors);
+    delete parsedBody[MION_ROUTES.thrownErrors];
+}
+
+/** Determines the serializer mode to use for a request */
+function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
+    if (req.options.serializer === 'optimistic') {
+        // When metadata is cached (e.g. after retry), use JIT serialization
+        const subRequestIds = Object.keys(req.subRequestList);
+        const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+        if (allCached) return 'stringifyJson';
+        return 'optimistic';
+    }
+    const methodId = req.route?.id ?? req.workflowSubRequests?.[0]?.id;
+    const method = routesCache.getMethodJitFns(methodId);
+    const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serializer;
+    if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serializer;
+    return serializerMode;
 }
 
 /** Returns params array without the HeadersSubset (first param) */
@@ -243,7 +226,7 @@ function getParamsWithoutHeadersSubset(params: any[]): any[] {
     return params.slice(1);
 }
 
-function parseHandlerReturnValue(method: MethodWithJitFns, returnValue: any): any {
+function parseHandlerJsonReturnValue(method: MethodWithJitFns, returnValue: any): any {
     if (!method.hasReturnData) return returnValue;
     const returnJit = method.returnJitFns;
     if (returnJit.restoreFromJson.isNoop || !returnValue) return returnValue;
