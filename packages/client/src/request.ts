@@ -16,6 +16,7 @@ import {
 } from './types.ts';
 import type {RunTypeError, RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/core';
 import {RpcError, isRpcError, routesCache, MION_ROUTES, HandlerType, HeadersSubset, toBase64Url} from '@mionjs/core';
+import type {SerializerMode} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata, createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
@@ -51,40 +52,43 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         if (middleFns) middleFns.forEach((middleFn) => this.addSubRequest(middleFn));
     }
 
-    /** Calls a remote route. Auto-detects missing metadata for routes or middleware and uses optimistic mode. */
+    /** Calls a remote route */
     async call(): Promise<ResponseBody> {
-        const subRequestIds = Object.keys(this.subRequestList);
-        const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
-        const isOptimistic = this.options.serializer === 'optimistic' || !allCached;
-        return this.makeCall(isOptimistic);
+        return this.makeCall(this.options.serializer);
     }
 
-    /** Standard call flow, with optional optimistic mode that sends plain JSON and fetches metadata in the same response */
-    private async makeCall(optimistic: boolean = false): Promise<ResponseBody> {
+    /** Call flow that auto-detects missing metadata and uses optimistic serialization when needed */
+    private async makeCall(originalSerializer: SerializerMode, skipOptimistic?: boolean): Promise<ResponseBody> {
         const errors: RequestErrors = new Map();
+        const subRequestIds = Object.keys(this.subRequestList);
+        const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+        const isOptimistic = !allCached && !skipOptimistic;
 
-        try {
-            const subRequestIds = Object.keys(this.subRequestList);
-
-            if (optimistic) {
-                // Check if all metadata cached → fall back to standard
-                const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
-                if (allCached) return this.makeCall(false);
+        if (isOptimistic) {
+            try {
+                (this.options as any).serializer = 'optimistic';
                 // Silent restore (no errors for missing metadata)
                 this.restorePrefilledMiddleFns();
                 // Add metadata subrequest (after prefilled restore so we include all IDs)
                 const allSubRequestIds = Object.keys(this.subRequestList);
                 this.addSubRequest(createMetadataSubRequest(allSubRequestIds));
-            } else {
+            } catch {
+                // JSON.stringify failed → fall back to standard, will fetch metadata
+                delete this.subRequestList[MION_ROUTES.methodsMetadata];
+                return this.makeCall(originalSerializer, true);
+            }
+        } else {
+            try {
+                (this.options as any).serializer = originalSerializer;
                 await fetchRemoteMethodsMetadata(subRequestIds, this.options);
                 this.restorePrefilledMiddleFns(errors);
                 if (errors.size) return Promise.reject(errors);
                 validateSubRequests(subRequestIds, this, errors);
                 if (errors.size) return Promise.reject(errors);
+            } catch (error: any) {
+                this.onError(error, 'Error preparing request', errors);
+                return Promise.reject(errors);
             }
-        } catch (error: any) {
-            this.onError(error, 'Error preparing request', errors);
-            return Promise.reject(errors);
         }
 
         try {
@@ -92,51 +96,24 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
             try {
                 serialized = serializeRequestBody(this);
             } catch (serializeError) {
-                if (optimistic) {
+                if (isOptimistic) {
                     // JSON.stringify failed → fall back to standard, will fetch metadata
                     delete this.subRequestList[MION_ROUTES.methodsMetadata];
-                    return this.makeCall(false);
+                    return this.makeCall(originalSerializer, true);
                 }
                 throw serializeError;
             }
 
             const headersFromParams = extractRequestHeaders(this);
             const url = new URL(this.path, this.options.baseURL);
-            let fetchOptions: RequestInit;
-
-            if (!optimistic && this.isQueryRoute() && serialized.contentType.includes('json')) {
-                const encoded = toBase64Url(serialized.body as string);
-                const testUrl = new URL(this.path, this.options.baseURL);
-                testUrl.searchParams.set('data', encoded);
-
-                if (testUrl.toString().length <= MAX_GET_URL_LENGTH) {
-                    url.searchParams.set('data', encoded);
-                    fetchOptions = {
-                        ...this.options.fetchOptions,
-                        method: 'GET',
-                        headers: {...this.options.fetchOptions.headers, ...headersFromParams},
-                        body: undefined,
-                    };
-                } else {
-                    fetchOptions = {
-                        ...this.options.fetchOptions,
-                        method: 'POST',
-                        headers: {
-                            ...this.options.fetchOptions.headers,
-                            ...headersFromParams,
-                            'Content-Type': serialized.contentType,
-                        },
-                        body: serialized.body as BodyInit,
-                    };
-                }
-            } else {
-                fetchOptions = {
-                    ...this.options.fetchOptions,
-                    method: 'POST',
-                    headers: {...this.options.fetchOptions.headers, ...headersFromParams, 'Content-Type': serialized.contentType},
-                    body: serialized.body as BodyInit,
-                };
-            }
+            const fetchOptions = buildFetchOptions(
+                url,
+                serialized,
+                headersFromParams,
+                this.options,
+                isOptimistic,
+                this.isQueryRoute()
+            );
             this.response = await fetch(url, fetchOptions);
         } catch (error: any) {
             this.onError(error, 'Error executing request', errors);
@@ -147,11 +124,11 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
             const deserialized = await deserializeResponseBody(this.response, this.options);
             if (this.handlePlatformError(deserialized, errors)) return Promise.reject(errors);
 
-            if (optimistic && this.shouldRetryWithProperSerialization(deserialized)) {
-                return this.retryWithProperSerialization();
+            if (isOptimistic && this.shouldRetryWithProperSerialization(deserialized)) {
+                return this.retryWithProperSerialization(originalSerializer);
             }
 
-            this.resolveSubRequests(deserialized, errors, optimistic ? MION_ROUTES.methodsMetadata : undefined);
+            this.resolveSubRequests(deserialized, errors, isOptimistic ? MION_ROUTES.methodsMetadata : undefined);
             if (errors.size) return Promise.reject(errors);
             return deserialized;
         } catch (error) {
@@ -172,14 +149,14 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
 
     /** Retries the request with proper JIT serialization after metadata has been cached */
-    private async retryWithProperSerialization(): Promise<ResponseBody> {
+    private async retryWithProperSerialization(originalSerializer: SerializerMode): Promise<ResponseBody> {
         delete this.subRequestList[MION_ROUTES.methodsMetadata];
         Object.values(this.subRequestList).forEach((sr) => {
             sr.isResolved = false;
             sr.resolvedValue = undefined;
             sr.error = undefined;
         });
-        return this.makeCall();
+        return this.makeCall(originalSerializer);
     }
 
     /** Validate params */
@@ -401,6 +378,47 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     private getPrefilledMiddleFnCacheKey(id: string): string {
         return `${this.options.baseURL}:${id}`;
     }
+}
+
+/**
+ * Builds the RequestInit options for the fetch call, choosing between GET and POST:
+ * - GET (query): Used for non-mutation routes (isMutation === false) with JSON serialization,
+ *   where the base64url-encoded body fits within the URL length limit. The serialized data is
+ *   sent as a `?data=` query parameter, with no request body.
+ * - POST (mutation/route call): Used for all other cases: mutations, optimistic requests,
+ *   routesFlow calls, non-JSON serializers, or when the GET URL would exceed MAX_GET_URL_LENGTH.
+ *   The serialized data is sent in the request body with the appropriate Content-Type header.
+ */
+function buildFetchOptions(
+    url: URL,
+    serialized: ReturnType<typeof serializeRequestBody>,
+    headersFromParams: Record<string, string>,
+    options: ClientOptions,
+    isOptimistic: boolean,
+    isQuery: boolean
+): RequestInit {
+    if (!isOptimistic && isQuery && serialized.contentType.includes('json')) {
+        const encoded = toBase64Url(serialized.body as string);
+        const testUrl = new URL(url.pathname + url.search, url.origin);
+        testUrl.searchParams.set('data', encoded);
+
+        if (testUrl.toString().length <= MAX_GET_URL_LENGTH) {
+            url.searchParams.set('data', encoded);
+            return {
+                ...options.fetchOptions,
+                method: 'GET',
+                headers: {...options.fetchOptions.headers, ...headersFromParams},
+                body: undefined,
+            };
+        }
+    }
+
+    return {
+        ...options.fetchOptions,
+        method: 'POST',
+        headers: {...options.fetchOptions.headers, ...headersFromParams, 'Content-Type': serialized.contentType},
+        body: serialized.body as BodyInit,
+    };
 }
 
 /** Extracts headers from HeadersSubset params in headersFn methods */
