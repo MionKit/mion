@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, isRpcError, addRoutesToCache} from '@mionjs/core';
-import {MION_ROUTES, getRoutePath} from '@mionjs/core';
-import {ClientOptions, RequestBody, SubRequest} from '../types.ts';
+import {isRpcError, addRoutesToCache} from '@mionjs/core';
+import {MION_ROUTES} from '@mionjs/core';
+import {ClientOptions, SubRequest} from '../types.ts';
 import type {
     JitCompiledFnData,
     MethodsCache,
@@ -18,84 +18,37 @@ import type {
 } from '@mionjs/core';
 import {routesCache, addSerializedJitCaches} from '@mionjs/core';
 import {STORAGE_KEY} from '../constants.ts';
-
 import {getStorage} from './storage.ts';
-import type {MionRoutes} from '@mionjs/router';
 
-type GetRemoteMethodsMetadataById = MionRoutes[typeof MION_ROUTES.methodsMetadataById]['handler'];
-type MethodsMetadataResponse = Awaited<ReturnType<GetRemoteMethodsMetadataById>>;
-type GlobalErrorRoute = MionRoutes[typeof MION_ROUTES.platformError]['handler'];
-type GlobalErrorResponse = Awaited<ReturnType<GlobalErrorRoute>>;
-
-/** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
-export async function fetchRemoteMethodsMetadata(methodIds: string[], options: ClientOptions) {
-    restoreFromLocalStorage(methodIds, options);
-    const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
-    if (!missingAfterLocal.length) return;
-    const body: RequestBody = {
-        [MION_ROUTES.methodsMetadataById]: [missingAfterLocal],
-    };
-    try {
-        const path = getRoutePath([MION_ROUTES.methodsMetadataById], options);
-        const url = new URL(path, options.baseURL);
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body),
-        });
-
-        const parsedBody = await response.json();
-
-        // Handle thrownErrors wrapper (same pattern as deserializeResponseBody)
-        if (MION_ROUTES.thrownErrors in parsedBody) {
-            const unexpectedErrors = parsedBody[MION_ROUTES.thrownErrors];
-            if (MION_ROUTES.platformError in unexpectedErrors) {
-                const globalErrorValue = unexpectedErrors[MION_ROUTES.platformError];
-                throw isRpcError(globalErrorValue) ? new RpcError(globalErrorValue) : globalErrorValue;
-            }
-            Object.assign(parsedBody, unexpectedErrors);
-            delete parsedBody[MION_ROUTES.thrownErrors];
-        }
-
-        const platformError = parsedBody[MION_ROUTES.platformError] as GlobalErrorResponse | undefined;
-        // Unwrap JIT union discriminator: [index, value]
-        const rawMethodsData = parsedBody[MION_ROUTES.methodsMetadataById];
-        const serializableMethodsData = (
-            Array.isArray(rawMethodsData) ? rawMethodsData[1] : rawMethodsData
-        ) as MethodsMetadataResponse;
-
-        if (isRpcError(platformError)) throw platformError;
-        if (isRpcError(serializableMethodsData)) throw serializableMethodsData;
-        if (!serializableMethodsData)
-            throw new RpcError({
-                type: 'cant-fetch-remote-methods-metadata',
-                publicMessage: 'Failed to fetch remote methods metadata',
-                errorData: {response},
-            });
-
-        processMethodsMetadata(serializableMethodsData, options);
-    } catch (error: any) {
-        throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
+/** Extracts raw metadata from a parsed response body, unwraps the JIT union discriminator, and processes it. */
+export function extractAndProcessMetadata(routeKey: string, parsedBody: any, options: ClientOptions): void {
+    if (!(routeKey in parsedBody)) return;
+    const rawMetadata = parsedBody[routeKey];
+    delete parsedBody[routeKey];
+    if (!rawMetadata) return;
+    const metadataValue = Array.isArray(rawMetadata) ? rawMetadata[1] : rawMetadata;
+    if (metadataValue && !isRpcError(metadataValue) && metadataValue.methods) {
+        processMethodsMetadata(metadataValue as SerializableMethodsData, options);
     }
 }
 
 /** Processes metadata from an optimistic response and caches it */
-export function processMethodsMetadata(serializableMethodsData: SerializableMethodsData, options: ClientOptions): void {
+function processMethodsMetadata(serializableMethodsData: SerializableMethodsData, options: ClientOptions): void {
     storeDependencies(serializableMethodsData.deps, serializableMethodsData.purFnDeps, options);
     storeMethodsMetadata(serializableMethodsData.methods, options);
     addToCaches(serializableMethodsData);
 }
 
 function getSerializedMethodDataKey(methodId: string, options: ClientOptions) {
-    return `${STORAGE_KEY}:serialized-method-data:${options.baseURL}:${methodId}`;
+    return `${STORAGE_KEY}:method-data:${methodId}:${options.baseURL}`;
 }
 
 function getJitCompiledFnKey(jitFnHash: string, options: ClientOptions) {
-    return `${STORAGE_KEY}:jit-compiled-fn:${options.baseURL}:${jitFnHash}`;
+    return `${STORAGE_KEY}:jit-fn:${jitFnHash}:${options.baseURL}`;
 }
 
 function getJitPureFnKey(namespace: string, pureFnHash: string, options: ClientOptions) {
-    return `${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:${namespace}:${pureFnHash}`;
+    return `${STORAGE_KEY}:pure-fn:${namespace}:${pureFnHash}:${options.baseURL}`;
 }
 
 /** Stores JIT compiled functions and pure functions globally in localStorage */
@@ -190,7 +143,7 @@ export function createMetadataSubRequest(methodIds: string[]): SubRequest<any> {
 }
 
 /** Restores method metadata from localStorage using the new storage format */
-function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
+export function restoreFromLocalStorage(methodIds: string[], options: ClientOptions) {
     restoreAllDependencies(options);
 
     const methods: MethodsCache = {};

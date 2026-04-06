@@ -49,10 +49,6 @@ export default defineConfig({
                 viteConfig: resolve(__dirname, '../router/vite.config.ts'),
                 runMode: 'buildOnly',
             },
-            aotCaches: {
-                customVirtualModuleId: 'client-mion-aot',
-                isClient: true,
-            },
         }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],
@@ -87,7 +83,7 @@ export default defineConfig({
                     preserveModulesRoot: '.',
                 },
             ],
-            external: (id: string) => /^[^./]/.test(id) && !id.startsWith('virtual:client-mion-aot'),
+            external: (id: string) => /^[^./]/.test(id),
         },
     },
 });

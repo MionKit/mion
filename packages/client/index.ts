@@ -11,6 +11,7 @@ export * from './src/lib/storage.ts';
 export * from './src/lib/validation.ts';
 export * from './src/lib/serializer.ts';
 export * from './src/lib/clientMethodsMetadata.ts';
+export * from './src/lib/fetchRemoteMethodsMetadata.ts';
 export * from './src/request.ts';
 export * from './src/client.ts';
 export * from './src/lib/typedEvent.ts';

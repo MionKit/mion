@@ -14,13 +14,12 @@ import {
     MION_ROUTES,
     HandlerType,
     type SerializerMode,
-    type SerializableMethodsData,
     serializeBinaryBody as coreSerializeBinaryBody,
     deserializeBinaryBody as coreDeserializeBinaryBody,
 } from '@mionjs/core';
 import type {MionClientRequest} from '../request.ts';
 import {DEFAULT_PREFILL_OPTIONS} from '../constants.ts';
-import {processMethodsMetadata} from './clientMethodsMetadata.ts';
+import {extractAndProcessMetadata} from './clientMethodsMetadata.ts';
 import {ClientOptions} from '../types.ts';
 
 /** Result of serializing a request body - can be string (JSON) or Uint8Array (binary) */
@@ -156,51 +155,45 @@ function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string
 
 // ################################## DE-SERIALIZE ##################################
 
-/** Deserializes the response body from a fetch Response object */
-export async function deserializeResponseBody(response: Response, options: ClientOptions): Promise<ResponseBody> {
-    const contentType = response.headers.get('content-type');
-    const isJson = contentType?.includes('application/json');
-    const isBinary = contentType?.includes('application/octet-stream');
-
+/** Deserializes the response body from a fetch Response object. Pass pre-parsed JSON as `parsedJson` to skip content-type detection. */
+export async function deserializeResponseBody(
+    response: Response,
+    options: ClientOptions,
+    parsedJson?: any
+): Promise<ResponseBody> {
     let parsedBody: any;
+    let isJson: boolean;
+    let isBinary: boolean;
 
-    if (isJson) {
-        parsedBody = await deserializeJsonResponseBody(response);
-    } else if (isBinary) {
-        parsedBody = await deserializeBinaryResponseBody(response);
+    if (parsedJson !== undefined) {
+        parsedBody = parsedJson;
+        isJson = true;
+        isBinary = false;
     } else {
-        throw new RpcError({
-            type: 'unsupported-content-type',
-            publicMessage: `Unsupported response content-type: '${contentType || 'none'}'`,
-        });
-    }
+        const contentType = response.headers.get('content-type');
+        isJson = !!contentType?.includes('application/json');
+        isBinary = !!contentType?.includes('application/octet-stream');
 
-    // Extract & process metadata if present (optimistic response)
-    if (isJson && MION_ROUTES.methodsMetadata in parsedBody) {
-        const rawMetadata = parsedBody[MION_ROUTES.methodsMetadata];
-        delete parsedBody[MION_ROUTES.methodsMetadata];
-
-        if (rawMetadata) {
-            // Unwrap JIT union discriminator: [index, value]
-            const metadataValue = Array.isArray(rawMetadata) ? rawMetadata[1] : rawMetadata;
-            if (metadataValue && !isRpcError(metadataValue) && metadataValue.methods) {
-                processMethodsMetadata(metadataValue as SerializableMethodsData, options);
-            }
+        if (isJson) {
+            parsedBody = await deserializeJsonResponseBody(response);
+        } else if (isBinary) {
+            parsedBody = await deserializeBinaryResponseBody(response);
+        } else {
+            throw new RpcError({
+                type: 'unsupported-content-type',
+                publicMessage: `Unsupported response content-type: '${contentType || 'none'}'`,
+            });
         }
     }
 
-    if (MION_ROUTES.thrownErrors in parsedBody) {
-        const unexpectedErrors = parsedBody[MION_ROUTES.thrownErrors];
-
-        if (MION_ROUTES.platformError in unexpectedErrors) {
-            const globalErrorValue = unexpectedErrors[MION_ROUTES.platformError];
-            const platformError = isRpcError(globalErrorValue) ? new RpcError(globalErrorValue) : globalErrorValue;
-            return {[MION_ROUTES.platformError]: platformError};
-        }
-
-        Object.assign(parsedBody, unexpectedErrors);
-        delete parsedBody[MION_ROUTES.thrownErrors];
+    // Extract & process metadata if present (optimistic or explicit fetch)
+    if (isJson) {
+        extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
+        extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
     }
+
+    const platformError = unwrapUnexpectedErrors(parsedBody);
+    if (platformError) return {[MION_ROUTES.platformError]: platformError};
 
     if (isBinary) return parsedBody;
 
@@ -210,6 +203,19 @@ export async function deserializeResponseBody(response: Response, options: Clien
         deserializedBody[methodId] = parseHandlerReturnValue(method, returnValue);
     });
     return deserializedBody;
+}
+
+/** Unwraps unexpected errors from the response body into parsedBody. Returns a platformError if present as a special case. */
+export function unwrapUnexpectedErrors(parsedBody: any): RpcError<string> | undefined {
+    if (!(MION_ROUTES.thrownErrors in parsedBody)) return;
+    const unexpectedErrors = parsedBody[MION_ROUTES.thrownErrors];
+    // if platform error is present that means the router never executed (just the platform wrapper)
+    if (MION_ROUTES.platformError in unexpectedErrors) {
+        const globalErrorValue = unexpectedErrors[MION_ROUTES.platformError];
+        return isRpcError(globalErrorValue) ? new RpcError<string>(globalErrorValue) : globalErrorValue;
+    }
+    Object.assign(parsedBody, unexpectedErrors);
+    delete parsedBody[MION_ROUTES.thrownErrors];
 }
 
 /** Deserializes JSON response body */
