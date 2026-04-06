@@ -76,10 +76,8 @@ function mionMethodsMetadata(
     getAllRemoteMethods?: boolean
 ): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | void {
     if (!methodsIds || methodsIds.length === 0) return;
-
     // Force JSON serialization so optimistic client can parse the response
     (ctx.response as Mutable<MionResponse>).serializer = SerializerModes.stringifyJson;
-
     return mionGetRemoteMethodsDataById(ctx, methodsIds, getAllRemoteMethods);
 }
 

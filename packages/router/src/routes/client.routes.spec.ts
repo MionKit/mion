@@ -7,7 +7,7 @@
 
 import {describe, it, expect, afterEach} from 'vitest';
 import {MionHeaders} from '../types/context.ts';
-import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from '../router.ts';
+import {registerRoutes, initRouter, resetRouter, getRouteExecutable, initMionRouter} from '../router.ts';
 import {
     getRoutePath,
     SerializableMethodsData,
@@ -19,6 +19,7 @@ import {
     RouteOnlyOptions,
     RemoteMethodOpts,
     CoreRouterOptions,
+    SerializerModes,
 } from '@mionjs/core';
 import {middleFn, rawMiddleFn, route} from '../lib/handlers.ts';
 import {Routes} from '../types/general.ts';
@@ -412,5 +413,106 @@ describe('Restore Client Routes jit functions', () => {
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const methodsData = response.body[methodsId] as SerializableMethodsData;
+    });
+});
+
+describe('methodsMetadata middleware should force JSON serialization', () => {
+    const metadataKey = MION_ROUTES.methodsMetadata;
+
+    afterEach(() => resetRouter());
+
+    it('should force stringifyJson when route uses default json serializer', async () => {
+        const routes = {
+            sayHello: route((ctx, name: string): string => `Hello, ${name}!`),
+        } satisfies Routes;
+        await initMionRouter(routes);
+
+        const request: RawRequest = {
+            headers: headersFromRecord({}),
+            body: JSON.stringify({
+                sayHello: ['World'],
+                [metadataKey]: [['sayHello']],
+            }),
+        };
+        const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
+
+        expect(response.serializer).toBe(SerializerModes.stringifyJson);
+        expect(typeof response.rawBody).toBe('string');
+        const parsed = JSON.parse(response.rawBody as string);
+        expect(parsed.sayHello).toBe('Hello, World!');
+        // stringifyJson serializes union return type as [discriminatorIndex, value]
+        const metadataRaw = parsed[metadataKey];
+        expect(metadataRaw).toBeDefined();
+        const metadata = (Array.isArray(metadataRaw) ? metadataRaw[1] : metadataRaw) as SerializableMethodsData;
+        expect(metadata.methods).toHaveProperty('sayHello');
+    });
+
+    it('should keep stringifyJson when route already uses stringifyJson serializer', async () => {
+        const routes = {
+            sayHello: route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'stringifyJson'}),
+        } satisfies Routes;
+        await initMionRouter(routes);
+
+        const request: RawRequest = {
+            headers: headersFromRecord({}),
+            body: JSON.stringify({
+                sayHello: ['World'],
+                [metadataKey]: [['sayHello']],
+            }),
+        };
+        const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
+
+        expect(response.serializer).toBe(SerializerModes.stringifyJson);
+        expect(typeof response.rawBody).toBe('string');
+        const parsed = JSON.parse(response.rawBody as string);
+        expect(parsed.sayHello).toBe('Hello, World!');
+        const metadataRaw = parsed[metadataKey];
+        expect(metadataRaw).toBeDefined();
+        const metadata = (Array.isArray(metadataRaw) ? metadataRaw[1] : metadataRaw) as SerializableMethodsData;
+        expect(metadata.methods).toHaveProperty('sayHello');
+    });
+
+    it('should force stringifyJson when route uses binary serializer', async () => {
+        const routes = {
+            sayHello: route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'binary'}),
+        } satisfies Routes;
+        await initMionRouter(routes);
+
+        const request: RawRequest = {
+            headers: headersFromRecord({}),
+            body: JSON.stringify({
+                sayHello: ['World'],
+                [metadataKey]: [['sayHello']],
+            }),
+        };
+        const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
+
+        expect(response.serializer).toBe(SerializerModes.stringifyJson);
+        expect(typeof response.rawBody).toBe('string');
+        const parsed = JSON.parse(response.rawBody as string);
+        expect(parsed.sayHello).toBe('Hello, World!');
+        const metadataRaw = parsed[metadataKey];
+        expect(metadataRaw).toBeDefined();
+        const metadata = (Array.isArray(metadataRaw) ? metadataRaw[1] : metadataRaw) as SerializableMethodsData;
+        expect(metadata.methods).toHaveProperty('sayHello');
+    });
+
+    it('should keep original serializer when methodsMetadata is not requested', async () => {
+        const routes = {
+            sayHello: route((ctx, name: string): string => `Hello, ${name}!`),
+        } satisfies Routes;
+        await initMionRouter(routes);
+
+        const request: RawRequest = {
+            headers: headersFromRecord({}),
+            body: JSON.stringify({
+                sayHello: ['World'],
+            }),
+        };
+        const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
+
+        // Default serializer is 'json' (SerializerModes.json)
+        expect(response.serializer).toBe(SerializerModes.json);
+        expect(response.body.sayHello).toBe('Hello, World!');
     });
 });
