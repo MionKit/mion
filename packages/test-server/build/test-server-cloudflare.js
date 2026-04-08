@@ -1269,7 +1269,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         reflectionItems.returnJitHash = EMPTY_HASH;
       } else {
         reflectionItems.returnJitFns = getFunctionJitFns(handler, returnOpts, rt, true, needsBinary);
-        reflectionItems.returnJitHash = handlerRunType.getReturnType().getJitHash(returnOpts);
+        reflectionItems.returnJitHash = handlerRunType.getResolvedReturnType().getJitHash(returnOpts);
       }
     } catch (error) {
       throw new Error(`Can not get Jit Functions for Return of route/middleFn "${routeId}." Error: ${error?.message}`);
@@ -1744,8 +1744,17 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     if (returnJitHash !== EMPTY_HASH) {
       const returnJitHashes = getJitFnHashes(returnJitHash, true);
+      let foundAny = false;
       for (const k in returnJitHashes) {
-        if (getJitUtils().getJIT(returnJitHashes[k])) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+        if (getJitUtils().getJIT(returnJitHashes[k])) {
+          serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+          foundAny = true;
+        }
+      }
+      if (!foundAny) {
+        throw new Error(
+          `Method "${method.id}" declares returnJitHash="${returnJitHash}" but no JIT functions are registered under that hash. This usually means a Promise/Function return type was not unwrapped before computing the hash.`
+        );
       }
     }
   }
