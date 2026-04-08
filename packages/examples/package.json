@@ -48,6 +48,8 @@
     "@mionjs/platform-node": "^0.8.0-alpha.0",
     "@mionjs/router": "^0.8.0-alpha.0",
     "@mionjs/platform-gcloud": "^0.8.0-alpha.0",
+    "@mionjs/platform-cloudflare": "^0.8.0-alpha.0",
+    "@mionjs/platform-vercel": "^0.8.0-alpha.0",
     "@mionjs/client": "^0.8.0-alpha.0",
     "@mionjs/run-types": "^0.8.0-alpha.0",
     "@mionjs/type-formats": "^0.8.0-alpha.0",
