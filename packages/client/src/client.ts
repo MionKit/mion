@@ -53,22 +53,49 @@ export class MionClient {
     /** Tracks in-flight prefill operations to avoid race conditions */
     private pendingPrefills: Promise<void>[] = [];
 
+    private globalAbortController = new AbortController();
+    private get globalSignal(): AbortSignal {
+        return this.globalAbortController.signal;
+    }
+
     constructor(private clientOptions: ClientOptions) {}
+
+    /** Aborts all in-flight requests. New requests after this call work normally. */
+    abort(): void {
+        this.globalAbortController.abort();
+        this.globalAbortController = new AbortController();
+    }
+
+    /** Composes a single AbortSignal from global, per-request, and timeout signals */
+    private composeSignal(signal?: AbortSignal, timeout?: number): AbortSignal {
+        const signals: AbortSignal[] = [this.globalSignal];
+        if (signal) signals.push(signal);
+        const effectiveTimeout = timeout ?? this.clientOptions.timeout;
+        if (effectiveTimeout !== undefined) signals.push(AbortSignal.timeout(effectiveTimeout));
+        return AbortSignal.any(signals);
+    }
 
     /** Executes a route call with optional workflow routes and middleFns */
     execute(
         routeSubRequest?: RouteSubRequest<any>,
         workflowSubRequests?: RouteSubRequest<any>[],
-        middleFnsRecord?: Record<string, MiddlewareSubRequest<any>>
+        middleFnsRecord?: Record<string, MiddlewareSubRequest<any>>,
+        signal?: AbortSignal,
+        timeout?: number
     ): Promise<any> {
-        return this.executeRequest(routeSubRequest, workflowSubRequests, middleFnsRecord);
+        return this.executeRequest(routeSubRequest, workflowSubRequests, middleFnsRecord, signal, timeout);
     }
 
     private async executeRequest<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
         routeSubRequest: RouteSubRequest<any> | undefined,
         workflowSubRequests: Routes | undefined,
-        middleFnsRecord: H | undefined
+        middleFnsRecord: H | undefined,
+        signal?: AbortSignal,
+        timeout?: number
     ): Promise<any> {
+        // Capture the signal before any async work so abort() during prefill await is respected
+        const composedSignal = this.composeSignal(signal, timeout);
+
         // Wait for any in-flight prefill operations to complete before executing the request
         if (this.pendingPrefills.length > 0) await Promise.allSettled([...this.pendingPrefills]);
 
@@ -78,7 +105,8 @@ export class MionClient {
             this.prefilledMiddleFnsCache,
             routeSubRequest,
             middleFnSubRequests,
-            workflowSubRequests
+            workflowSubRequests,
+            composedSignal
         );
 
         try {
@@ -225,8 +253,9 @@ export class MionClient {
         return request.removePrefill(subRequest);
     }
 
-    /** Clear all error handlers from the registry */
+    /** Clear all error handlers from the registry and abort in-flight requests */
     destroy(): void {
+        this.abort();
         this.handlersRegistry.clearAll();
     }
 }

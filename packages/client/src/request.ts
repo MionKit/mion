@@ -36,7 +36,9 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         public readonly route?: RR,
         public readonly middleFns?: MiddleFnRequestsList,
         /** Array of routesFlow subrequests when executing a routesFlow */
-        public readonly workflowSubRequests?: RouteSubRequest<any>[]
+        public readonly workflowSubRequests?: RouteSubRequest<any>[],
+        /** Composed abort signal for this request */
+        public readonly signal?: AbortSignal
     ) {
         if (workflowSubRequests && workflowSubRequests.length > 0) {
             const routePaths = workflowSubRequests.map((sr) => getRoutePath(sr.pointer, this.options));
@@ -55,6 +57,15 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
 
     /** Calls a remote route */
     async call(): Promise<ResponseBody> {
+        if (this.signal?.aborted) {
+            const errors: RequestErrors = new Map();
+            this.onError(
+                this.signal.reason ?? new DOMException('This operation was aborted', 'AbortError'),
+                'Request aborted',
+                errors
+            );
+            return Promise.reject(errors);
+        }
         return this.makeCall(this.options.serializer);
     }
 
@@ -74,7 +85,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
                 this.addSubRequest(createMetadataSubRequest(allSubRequestIds));
             } else {
                 (this.options as any).serializer = originalSerializer;
-                await fetchRemoteMethodsMetadata(subRequestIds, this.options);
+                await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.signal);
                 this.restorePrefilledMiddleFns(errors);
                 if (errors.size) return Promise.reject(errors);
                 validateSubRequests(subRequestIds, this, errors);
@@ -106,7 +117,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
                 headersFromParams,
                 this.options,
                 isOptimistic,
-                this.isQueryRoute()
+                this.isQueryRoute(),
+                this.signal
             );
             this.response = await fetch(url, fetchOptions);
         } catch (error: any) {
@@ -115,10 +127,17 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         }
 
         try {
+            // If the signal already aborted while fetch was in flight, don't try to read a possibly
+            // truncated response body — surface the abort directly.
+            if (this.signal?.aborted) {
+                this.onError(this.signal.reason, 'Request aborted', errors);
+                return Promise.reject(errors);
+            }
             const deserialized = await deserializeResponseBody(this.response, this.options);
             if (this.handlePlatformError(deserialized, errors)) return Promise.reject(errors);
 
-            if (isOptimistic && this.shouldRetryWithProperSerialization(deserialized)) {
+            // Never retry an aborted request — the user explicitly canceled it.
+            if (isOptimistic && !this.signal?.aborted && this.shouldRetryWithProperSerialization(deserialized)) {
                 return this.retryWithProperSerialization(originalSerializer);
             }
 
@@ -238,6 +257,34 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
 
     private onError(error: any, stageMessage: string, errors: RequestErrors): void {
+        // Detect abort/timeout via signal.reason FIRST. We must do this before the isRpcError early return
+        // because errors that surface from later stages (deserialization, retry, etc.) may already be
+        // wrapped as RpcError but the user-facing reason is still abort/timeout.
+        const reason = this.signal?.aborted ? this.signal.reason : undefined;
+        if (reason instanceof DOMException) {
+            if (reason.name === 'TimeoutError') {
+                errors.set(
+                    this.requestId,
+                    new RpcError({
+                        type: 'request-timeout',
+                        publicMessage: 'Request timed out',
+                        originalError: error instanceof Error ? error : undefined,
+                    })
+                );
+                return;
+            }
+            if (reason.name === 'AbortError') {
+                errors.set(
+                    this.requestId,
+                    new RpcError({
+                        type: 'request-aborted',
+                        publicMessage: 'Request was aborted',
+                        originalError: error instanceof Error ? error : undefined,
+                    })
+                );
+                return;
+            }
+        }
         if (isRpcError(error)) {
             errors.set(this.requestId, error);
             return;
@@ -389,7 +436,8 @@ function buildFetchOptions(
     headersFromParams: Record<string, string>,
     options: ClientOptions,
     isOptimistic: boolean,
-    isQuery: boolean
+    isQuery: boolean,
+    signal?: AbortSignal
 ): RequestInit {
     if (!isOptimistic && isQuery && serialized.contentType.includes('json')) {
         const encoded = toBase64Url(serialized.body as string);
@@ -403,6 +451,7 @@ function buildFetchOptions(
                 method: 'GET',
                 headers: {...options.fetchOptions.headers, ...headersFromParams},
                 body: undefined,
+                signal,
             };
         }
     }
@@ -412,6 +461,7 @@ function buildFetchOptions(
         method: 'POST',
         headers: {...options.fetchOptions.headers, ...headersFromParams, 'Content-Type': serialized.contentType},
         body: serialized.body as BodyInit,
+        signal,
     };
 }
 

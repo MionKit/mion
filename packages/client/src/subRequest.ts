@@ -62,23 +62,27 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
         return this.client.removePrefill(this as MiddlewareSubRequest<any>);
     }
 
-    /** Calls a remote route with optional setup (middleFns, otherRoutes) */
+    /** Calls a remote route with optional setup (middleFns, otherRoutes, signal, timeout) */
     call(setup?: CallSetup<any, any>): Promise<any> {
+        const signal = setup?.signal;
+        const timeout = setup?.timeout;
         if (!setup || (!setup.otherRoutes && !setup.middleFns)) {
-            return this.client.execute(this as unknown as RouteSubRequest<any>);
+            return this.client.execute(this as unknown as RouteSubRequest<any>, undefined, undefined, signal, timeout);
         }
         if (setup.otherRoutes && setup.otherRoutes.length > 0) {
-            return this.executeWithOtherRoutes(setup.otherRoutes, setup.middleFns);
+            return this.executeWithOtherRoutes(setup.otherRoutes, setup.middleFns, signal, timeout);
         }
-        return this.client.execute(this as unknown as RouteSubRequest<any>, undefined, setup.middleFns);
+        return this.client.execute(this as unknown as RouteSubRequest<any>, undefined, setup.middleFns, signal, timeout);
     }
 
     private async executeWithOtherRoutes(
         otherRoutes: RouteSubRequest<any>[],
-        middleFns?: Record<string, MiddlewareSubRequest<any>>
+        middleFns?: Record<string, MiddlewareSubRequest<any>>,
+        signal?: AbortSignal,
+        timeout?: number
     ): Promise<any> {
         const allRoutes = [this as unknown as RouteSubRequest<any>, ...otherRoutes];
-        const [results, errors, mfR, mfE] = await this.client.execute(undefined, allRoutes, middleFns ?? {});
+        const [results, errors, mfR, mfE] = await this.client.execute(undefined, allRoutes, middleFns ?? {}, signal, timeout);
         const emptyResults = allRoutes.map(() => undefined);
         const emptyErrors = allRoutes.map(() => undefined);
         return [results ?? emptyResults, errors ?? emptyErrors, mfR, mfE];

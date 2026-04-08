@@ -11,7 +11,11 @@ import {restoreFromLocalStorage} from './clientMethodsMetadata.ts';
 import {deserializeResponseBody} from './serializer.ts';
 
 /** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
-export async function fetchRemoteMethodsMetadata(methodIds: string[], options: ClientOptions) {
+export async function fetchRemoteMethodsMetadata(
+    methodIds: string[],
+    options: ClientOptions,
+    signal?: AbortSignal
+): Promise<void> {
     restoreFromLocalStorage(methodIds, options);
     const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
     if (!missingAfterLocal.length) return;
@@ -25,6 +29,7 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body),
+            signal,
         });
         const deserialized = await deserializeResponseBody(response, options);
         const platformError = deserialized[MION_ROUTES.platformError];
@@ -32,6 +37,8 @@ export async function fetchRemoteMethodsMetadata(methodIds: string[], options: C
         const stillMissing = missingAfterLocal.filter((id) => !routesCache.hasMetadata(id));
         if (stillMissing.length) throw new Error(`Failed to fetch metadata for: ${stillMissing.join(', ')}`);
     } catch (error: any) {
+        // Preserve abort/timeout DOMException so the caller's onError can classify it correctly
+        if (signal?.aborted) throw error;
         throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
     }
 }
