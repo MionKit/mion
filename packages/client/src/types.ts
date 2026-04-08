@@ -66,6 +66,8 @@ export interface ClientOptions extends CoreRouterOptions {
     validateParams: boolean;
     /** Default serializer mode */
     serializer: SerializerMode;
+    /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */
+    timeout?: number;
 }
 
 type PublicHandler = (...args: any[]) => Promise<any>;
@@ -130,14 +132,22 @@ export interface CallSetup<
 > {
     middleFns?: H;
     otherRoutes?: [...OtherRoutes];
+    /** AbortSignal to cancel this specific request */
+    signal?: AbortSignal;
+    /** Timeout in ms (overrides ClientOptions.timeout) */
+    timeout?: number;
 }
 
 /** Builder returned by routesFlow() - call .call() to execute */
 export interface RoutesFlowBuilder<Routes extends RouteSubRequest<any>[]> {
     /** Execute the routes flow */
-    call(setup?: {middleFns?: never}): Promise<WorkflowResult<Routes>>;
+    call(setup?: {middleFns?: never; signal?: AbortSignal; timeout?: number}): Promise<WorkflowResult<Routes>>;
     /** Execute the routes flow with middleware */
-    call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {middleFns: H}): Promise<WorkflowResult<Routes, H>>;
+    call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
+        middleFns: H;
+        signal?: AbortSignal;
+        timeout?: number;
+    }): Promise<WorkflowResult<Routes, H>>;
 }
 
 /** structure returned from the proxy, containing info of the remote route to execute */
@@ -149,12 +159,16 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
     call(setup?: {
         middleFns?: never;
         otherRoutes?: never;
+        signal?: AbortSignal;
+        timeout?: number;
     }): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
 
     /** Calls a remote route with middleFns */
     call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
         middleFns: H;
         otherRoutes?: never;
+        signal?: AbortSignal;
+        timeout?: number;
     }): Promise<
         Result<
             HandlerSuccessResponse<PH>,
@@ -171,6 +185,8 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
     >(setup: {
         otherRoutes: [...OtherRoutes];
         middleFns?: H;
+        signal?: AbortSignal;
+        timeout?: number;
     }): Promise<WorkflowResult<any, H>>;
 }
 

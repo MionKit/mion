@@ -304,6 +304,12 @@ const routes = {
         urlQuery: ctx.urlQuery,
     })),
 
+    // Route that sleeps for the given ms before returning - used for testing timeouts and cancellation
+    sleep: route(async (_ctx, ms: number): Promise<number> => {
+        await new Promise((resolve) => setTimeout(resolve, ms));
+        return ms;
+    }),
+
     // ============ Binary routes (per-route binary serializer) ============
     binary: binaryTestRoutes,
 } satisfies Routes;

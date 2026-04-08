@@ -1047,4 +1047,239 @@ describe('client', () => {
             middleFns.auth(authHeaders).removePrefill();
         });
     });
+
+    // For routes declared as `route(async (...): Promise<T> => ...)`, the client must
+    // resolve the returnJitHash against the unwrapped T (not the wrapped Promise<T>),
+    // since the JIT functions are registered under the unwrapped type's hash.
+    describe('async routes', () => {
+        it('async route returning Promise<T> resolves through the client metadata-fetch path', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const [result, error] = await routes.sleep(50).call();
+
+            expect(error).toBeUndefined();
+            expect(result).toBe(50);
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+    });
+
+    describe('cancellation and timeouts', () => {
+        it('already-aborted signal returns immediate error without network call', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const signal = AbortSignal.abort();
+            const [result, error] = await routes.sleep(5000).call({signal});
+            expect(result).toBeUndefined();
+            expect(error).toBeDefined();
+            expect(error!.type).toBe('request-aborted');
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('per-request abort signal cancels in-flight request', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const controller = new AbortController();
+            // sleep(5000) ensures the request is still in-flight when we abort
+            const promise = routes.sleep(5000).call({signal: controller.signal});
+            setTimeout(() => controller.abort(), 50);
+
+            const [result, error] = await promise;
+            expect(result).toBeUndefined();
+            expect(error).toBeDefined();
+            expect(isRpcError(error)).toBe(true);
+            expect(error!.type).toBe('request-aborted');
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('per-request timeout produces request-timeout error', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            // sleep(5000) ensures the request outlasts the 100ms timeout
+            const [result, error] = await routes.sleep(5000).call({timeout: 100});
+            expect(result).toBeUndefined();
+            expect(error).toBeDefined();
+            expect(isRpcError(error)).toBe(true);
+            expect(error!.type).toBe('request-timeout');
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('client-level default timeout applies to all requests', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL, timeout: 100});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const [result, error] = await routes.sleep(5000).call();
+            expect(result).toBeUndefined();
+            expect(error).toBeDefined();
+            expect(error!.type).toBe('request-timeout');
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('per-request timeout overrides client-level default', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL, timeout: 30_000});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            // Client has 30s default, but per-request 100ms should take effect
+            const [result, error] = await routes.sleep(5000).call({timeout: 100});
+            expect(result).toBeUndefined();
+            expect(error).toBeDefined();
+            expect(error!.type).toBe('request-timeout');
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('global client.abort() cancels all in-flight requests', async () => {
+            const {client, routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const p1 = routes.sleep(5000).call();
+            const p2 = routes.sleep(5000).call();
+            setTimeout(() => client.abort(), 50);
+
+            const [, err1] = await p1;
+            const [, err2] = await p2;
+            expect(err1).toBeDefined();
+            expect(err1!.type).toBe('request-aborted');
+            expect(err2).toBeDefined();
+            expect(err2!.type).toBe('request-aborted');
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('new requests work normally after client.abort()', async () => {
+            const {client, routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            client.abort();
+
+            const [result, error] = await routes.sleep(50).call();
+            expect(error).toBeUndefined();
+            expect(result).toBe(50);
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('client.destroy() aborts in-flight requests', async () => {
+            const {client, routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const p1 = routes.sleep(5000).call();
+            setTimeout(() => client.destroy(), 50);
+
+            const [, error] = await p1;
+            expect(error).toBeDefined();
+            expect(error!.type).toBe('request-aborted');
+        });
+
+        it('cancellation works with middleFns in call setup', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            const signal = AbortSignal.abort();
+            const [result, error] = await routes.sleep(5000).call({
+                middleFns: {auth: middleFns.auth(authHeaders)},
+                signal,
+            });
+            expect(result).toBeUndefined();
+            expect(error).toBeDefined();
+            expect(error!.type).toBe('request-aborted');
+        });
+
+        it('cancellation works with routesFlow', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const {routesFlow} = await import('./routesFlow.ts');
+            const signal = AbortSignal.abort();
+
+            const [, errors] = await routesFlow([routes.sleep(5000), routes.utils.sumTwo(5)]).call({signal});
+
+            // With an already-aborted signal, all routes get abort errors
+            expect(errors).toBeDefined();
+
+            middleFns.auth(authHeaders).removePrefill();
+        });
+    });
+
+    // ========== Platform Error Propagation Tests ==========
+    // A "platform error" is set by the platform adapter (e.g. payload too large) BEFORE the router
+    // ever runs. The client's contract is to surface this error in EVERY positional slot of the
+    // returned tuple — single-route, routesFlow routes, and middleFns alike — so callers always
+    // see the failure regardless of which slot they read. This describe block locks in that contract.
+    describe('platform error propagation', () => {
+        // Test server uses platform-node's default maxBodySize (256KB).
+        // A 300_000-char string in a JSON body comfortably exceeds it and reliably triggers
+        // a 'request-payload-too-large' platform error returned by the platform adapter.
+        const HUGE_PAYLOAD = 'x'.repeat(300_000);
+
+        it('platform error appears as routeError on a single route call', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const [result, error] = await routes.getRequestInfo(HUGE_PAYLOAD).call();
+
+            expect(result).toBeUndefined();
+            expect(error).toBeDefined();
+            expect(isRpcError(error)).toBe(true);
+            expect(error?.type).toBe('request-payload-too-large');
+
+            await middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('platform error propagates to every route position in a routesFlow', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+            middleFns.auth(authHeaders).prefill();
+
+            const {routesFlow} = await import('./routesFlow.ts');
+            // Mix the oversized-payload route with a normal one — both should receive the same
+            // platform error in their positional slots
+            const [results, errors] = await routesFlow([routes.getRequestInfo(HUGE_PAYLOAD), routes.utils.sumTwo(5)]).call();
+
+            expect(results).toEqual([undefined, undefined]);
+            expect(errors).toBeDefined();
+            expect(Array.isArray(errors)).toBe(true);
+            expect(errors?.length).toBe(2);
+            expect(isRpcError(errors?.[0])).toBe(true);
+            expect(isRpcError(errors?.[1])).toBe(true);
+            expect(errors?.[0]?.type).toBe('request-payload-too-large');
+            expect(errors?.[1]?.type).toBe('request-payload-too-large');
+
+            await middleFns.auth(authHeaders).removePrefill();
+        });
+
+        it('platform error also appears in middleFnErrors when calling with explicit middleFns', async () => {
+            const {routes, middleFns} = initClient<MyApi>({baseURL});
+            const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+            const [result, routeError, , middleFnErrors] = await routes.getRequestInfo(HUGE_PAYLOAD).call({
+                middleFns: {auth: middleFns.auth(authHeaders)},
+            });
+
+            expect(result).toBeUndefined();
+            expect(routeError).toBeDefined();
+            expect(routeError?.type).toBe('request-payload-too-large');
+            expect(middleFnErrors?.auth).toBeDefined();
+            expect(middleFnErrors?.auth?.type).toBe('request-payload-too-large');
+        });
+    });
 });
