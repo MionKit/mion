@@ -300,7 +300,7 @@ function generateHandlerReflection(
         } else {
             // returnJitFns contains all run type functionality for the return value, it compiles when the property is first accessed
             reflectionItems.returnJitFns = getFunctionJitFns(handler, returnOpts, rt, true, needsBinary);
-            reflectionItems.returnJitHash = handlerRunType.getReturnType().getJitHash(returnOpts);
+            reflectionItems.returnJitHash = handlerRunType.getResolvedReturnType().getJitHash(returnOpts);
         }
     } catch (error: any) {
         throw new Error(`Can not get Jit Functions for Return of route/middleFn "${routeId}." Error: ${error?.message}`);

@@ -8,6 +8,7 @@ import {describe, it, expect} from 'vitest';
 import {reflectFunction, runType} from '../../createRunType.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import {FunctionRunType} from './function.ts';
+import {isDateRunType, isInterfaceRunType, isNumberRunType, isPromiseRunType} from '../../lib/guards.ts';
 
 type FunctionType = (a: number, b: boolean, c?: string) => Date;
 type FunctionType2 = (a: Date, b?: boolean) => bigint; // requires encode/decode
@@ -277,6 +278,43 @@ describe('function run type general', () => {
         expect(typeErrorsCompiled.fn([])).toEqual([]);
         expect(prepareForJsonCompiled.fn([])).toEqual([]);
         expect(restoreFromJsonCompiled.fn([])).toEqual([]);
+    });
+
+    it('getResolvedReturnType should return the inner type for Promise<T> returns and the plain type for sync returns', () => {
+        // sync return: Date
+        type SyncDate = (a: number) => Date;
+        const rtSyncDate = runType<SyncDate>() as FunctionRunType;
+        expect(isDateRunType(rtSyncDate.getResolvedReturnType())).toBe(true);
+        // for sync returns, getReturnType and getResolvedReturnType produce the same type/hash
+        expect(rtSyncDate.getResolvedReturnType().getJitHash({})).toBe(rtSyncDate.getReturnType().getJitHash({}));
+
+        // sync return: number
+        type SyncNumber = () => number;
+        const rtSyncNumber = runType<SyncNumber>() as FunctionRunType;
+        expect(isNumberRunType(rtSyncNumber.getResolvedReturnType())).toBe(true);
+        expect(rtSyncNumber.getResolvedReturnType().getJitHash({})).toBe(rtSyncNumber.getReturnType().getJitHash({}));
+
+        // async return: Promise<number> — should unwrap to number
+        type AsyncNumber = (ms: number) => Promise<number>;
+        const rtAsyncNumber = runType<AsyncNumber>() as FunctionRunType;
+        expect(isPromiseRunType(rtAsyncNumber.getReturnType())).toBe(true);
+        expect(isNumberRunType(rtAsyncNumber.getResolvedReturnType())).toBe(true);
+        // for async returns, the resolved type's hash MUST differ from the wrapped Promise's hash —
+        // this is the invariant that fixes the async-routes bug
+        expect(rtAsyncNumber.getResolvedReturnType().getJitHash({})).not.toBe(rtAsyncNumber.getReturnType().getJitHash({}));
+
+        // async return: Promise<{name: string}> — should unwrap to the interface
+        type AsyncUser = () => Promise<{name: string}>;
+        const rtAsyncUser = runType<AsyncUser>() as FunctionRunType;
+        expect(isPromiseRunType(rtAsyncUser.getReturnType())).toBe(true);
+        expect(isInterfaceRunType(rtAsyncUser.getResolvedReturnType())).toBe(true);
+
+        // bug-fix invariant: the hash of getResolvedReturnType() matches the hash of the JIT functions
+        // that createJitCompiledReturnFunction actually registers in the global cache.
+        const compiledReturn = rtAsyncNumber.createJitCompiledReturnFunction(JitFunctions.isType);
+        expect(compiledReturn.jitFnHash).toBe(
+            `${JitFunctions.isType.id}_${rtAsyncNumber.getResolvedReturnType().getJitHash({})}`
+        );
     });
 
     it('isNoop should be false for functions with params that require validation/serialization', () => {

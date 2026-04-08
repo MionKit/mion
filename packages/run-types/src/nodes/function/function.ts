@@ -60,25 +60,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     }
 
     createJitCompiledReturnFunction(jitFn: JitFn, opts?: RunTypeOptions): JitCompiledFn {
-        let currentType: PromiseRunType | FunctionRunType<any> = this; // eslint-disable-line @typescript-eslint/no-this-alias
-        // iterate over the return type chain until we reach a non-function non-promise type
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-            if (isAnyFunctionRunType(currentType)) {
-                const returnType = currentType.getReturnType();
-                if (isPromiseRunType(returnType) || isFunctionRunType(returnType)) {
-                    currentType = returnType;
-                    continue;
-                }
-                return returnType.createJitCompiledFunction(jitFn.id, undefined, opts);
-            }
-            const memberType = currentType.getMemberType();
-            if (isPromiseRunType(memberType) || isFunctionRunType(memberType)) {
-                currentType = memberType;
-                continue;
-            }
-            return memberType.createJitCompiledFunction(jitFn.id, undefined, opts);
-        }
+        return this.getResolvedReturnType().createJitCompiledFunction(jitFn.id, undefined, opts);
     }
 
     // ######## JIT functions (all throw error) ########
@@ -125,6 +107,27 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     // }
     getReturnType(): BaseRunType {
         return (this.src.return as SrcType)._rt as BaseRunType;
+    }
+    /** returns the inner run-type when the handler returns Promise<T> (or nested Promise/function-return chains), or the plain return type otherwise */
+    getResolvedReturnType(): BaseRunType {
+        let currentType: PromiseRunType | FunctionRunType<any> = this; // eslint-disable-line @typescript-eslint/no-this-alias
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            if (isAnyFunctionRunType(currentType)) {
+                const returnType = currentType.getReturnType();
+                if (isPromiseRunType(returnType) || isFunctionRunType(returnType)) {
+                    currentType = returnType;
+                    continue;
+                }
+                return returnType;
+            }
+            const memberType = currentType.getMemberType();
+            if (isPromiseRunType(memberType) || isFunctionRunType(memberType)) {
+                currentType = memberType;
+                continue;
+            }
+            return memberType;
+        }
     }
     getParameters(): FunctionParamsRunType {
         return this.parameterRunTypes;
