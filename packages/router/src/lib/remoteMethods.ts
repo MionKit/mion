@@ -148,8 +148,18 @@ export function serializeMethodDeps(
     }
     if (returnJitHash !== EMPTY_HASH) {
         const returnJitHashes = getJitFnHashes(returnJitHash, true);
+        let foundAny = false;
         for (const k in returnJitHashes) {
-            if (getJitUtils().getJIT(returnJitHashes[k])) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+            if (getJitUtils().getJIT(returnJitHashes[k])) {
+                serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+                foundAny = true;
+            }
+        }
+        if (!foundAny) {
+            throw new Error(
+                `Method "${method.id}" declares returnJitHash="${returnJitHash}" but no JIT functions are registered under that hash. ` +
+                    `This usually means a Promise/Function return type was not unwrapped before computing the hash.`
+            );
         }
     }
 }
