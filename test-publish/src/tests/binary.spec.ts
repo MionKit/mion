@@ -98,9 +98,11 @@ describe('Binary Serialization E2E', () => {
     });
 
     it('should handle binary session middleFn', async () => {
-        const [result, error, middleFnsResults] = await routes.binary.echo('test').callWithMiddleFns({
-            auth: middleFns.auth(authHeaders),
-            binarySession: middleFns.binary.session('valid-token'),
+        const [result, error, middleFnsResults] = await routes.binary.echo('test').call({
+            middleFns: {
+                auth: middleFns.auth(authHeaders),
+                binarySession: middleFns.binary.session('valid-token'),
+            },
         });
 
         expect(error).toBeUndefined();

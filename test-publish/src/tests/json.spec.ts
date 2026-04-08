@@ -46,12 +46,12 @@ describe('JSON Serialization E2E', () => {
         expect(sumReq.id).toBe('utils/sumTwo');
     });
 
-    it('callWithMiddleFns should return route data on success', async () => {
+    it('call() with middleFns should return route data on success', async () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
-            auth: middleFns.auth(authHeaders),
+        const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
+            middleFns: {auth: middleFns.auth(authHeaders)},
         });
 
         expect(greeting).toBe('Hello John Doe');
@@ -60,12 +60,12 @@ describe('JSON Serialization E2E', () => {
         expect(middleFnErrors).toBeDefined();
     });
 
-    it('callWithMiddleFns should return error on route failure', async () => {
+    it('call() with middleFns should return error on route failure', async () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [result, routeError] = await routes.alwaysFails(someUser).callWithMiddleFns({
-            auth: middleFns.auth(authHeaders),
+        const [result, routeError] = await routes.alwaysFails(someUser).call({
+            middleFns: {auth: middleFns.auth(authHeaders)},
         });
 
         expect(result).toBeUndefined();
@@ -107,13 +107,15 @@ describe('JSON Serialization E2E', () => {
         expect(isRpcError(error)).toBe(true);
     });
 
-    it('callWithMiddleFns should return session middleFn data', async () => {
+    it('call() with middleFns should return session middleFn data', async () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).callWithMiddleFns({
-            auth: middleFns.auth(authHeaders),
-            session: middleFns.session('valid-token'),
+        const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
+            middleFns: {
+                auth: middleFns.auth(authHeaders),
+                session: middleFns.session('valid-token'),
+            },
         });
 
         expect(greeting).toBe('Hello John Doe');
@@ -134,7 +136,7 @@ describe('JSON Serialization E2E', () => {
             routes.sayHello(someUser),
             routes.calculateAge(1990),
             routes.utils.sumTwo(5),
-        ]);
+        ]).call();
 
         expect(greeting).toBe('Hello John Doe');
         expect(age).toBe(new Date().getFullYear() - 1990);
