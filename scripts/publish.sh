@@ -37,7 +37,7 @@ echo ""
 echo -e "${GREEN}[3/4] Version bump${NC}"
 echo "──────────────────────────────────────────"
 echo -e "${YELLOW}Select version bump (lerna version):${NC}"
-npx lerna version --no-private
+npx lerna version
 
 # ── Publish to npm ──
 echo ""
