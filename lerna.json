@@ -1,5 +1,10 @@
 {
   "version": "0.8.4",
   "loglevel": "error",
-  "$schema": "node_modules/lerna/schemas/lerna-schema.json"
+  "$schema": "node_modules/lerna/schemas/lerna-schema.json",
+  "command": {
+    "version": {
+      "exact": true
+    }
+  }
 }

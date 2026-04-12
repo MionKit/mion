@@ -53,8 +53,8 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionjs/core": "^0.8.4",
-    "@mionjs/router": "^0.8.4"
+    "@mionjs/core": "0.8.4",
+    "@mionjs/router": "0.8.4"
   },
   "devDependencies": {
     "@serverless/event-mocks": "^1.1.1"

@@ -56,8 +56,8 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionjs/core": "^0.8.4",
-    "@mionjs/router": "^0.8.4"
+    "@mionjs/core": "0.8.4",
+    "@mionjs/router": "0.8.4"
   },
   "devDependencies": {
     "@deepkit/core": "1.0.19",
