@@ -73,8 +73,8 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionjs/core": "^0.8.4",
-    "@mionjs/run-types": "^0.8.4"
+    "@mionjs/core": "0.8.4",
+    "@mionjs/run-types": "0.8.4"
   },
   "gitHead": "afd6e1d61525b4bf11bb84b3f85089038d70062d"
 }
