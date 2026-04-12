@@ -92,6 +92,10 @@ pre.px-4 {
   color: var(--color-green-500);
 }
 
+.home-features h2 a{
+  color: var(--color-green-500);
+}
+
 .home-features h3 {
   color: var(--color-green-400);
 }
