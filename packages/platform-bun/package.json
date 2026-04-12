@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/platform-bun",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "mion server for bun runtime",
   "keywords": [
     "typescript",
@@ -56,8 +56,8 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionjs/core": "0.8.4",
-    "@mionjs/router": "0.8.5"
+    "@mionjs/core": "0.8.6",
+    "@mionjs/router": "0.8.6"
   },
   "devDependencies": {
     "@deepkit/core": "1.0.19",
