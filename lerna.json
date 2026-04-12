@@ -4,7 +4,8 @@
   "$schema": "node_modules/lerna/schemas/lerna-schema.json",
   "command": {
     "version": {
-      "exact": true
+      "exact": true,
+      "forcePublish": true
     }
   }
 }
