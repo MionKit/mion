@@ -199,14 +199,24 @@ blur: 140px
 
     ::::card
     ---
-    to: /platforms/node-js
     class: sm:col-span-2 lg:col-span-2 text-center
     ---
     ### Write Once Run Everywhere
-    :platform-tiles
-    Run mion APIs in [Node.js](/platforms/node-js), [Bun](/platforms/bun) or Serverless platforms like [Aws Lambda](/platforms/aws-lambda) and [Google cloud functions](/platforms/google-cloud-functions).
+    ![Platforms](/platforms.png){.mx-auto}
+    Run mion APIs in [Node.js](/platforms/node-js), [Bun](/platforms/bun) or Serverless platforms like [Aws Lambda](/platforms/aws-lambda), [Google Cloud Functions](/platforms/google-cloud-functions), [Cloudflare Workers](/platforms/cloudflare) and [Vercel](/platforms/vercel).
     ::::
   :::
+
+  ## Seamless Integration
+
+  ::::card
+  ---
+  class: sm:col-span-2 lg:col-span-3 text-center
+  ---
+  Most modern stacks are tools glued together — validation, routing, serialization, client generation — all wired manually. mion replaces that with a single integrated system, reducing boilerplate, inconsistencies, and maintenance overhead.
+  <br>
+  ![Seamless Integration](/tools.png){.mx-auto}
+  ::::
 
   ## Solid Performance
 
