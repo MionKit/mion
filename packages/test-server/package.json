@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/test-server",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "description": "Test server utilities for mion packages",
   "keywords": [
     "mion",
@@ -51,11 +51,11 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionjs/core": "0.8.6",
-    "@mionjs/platform-cloudflare": "0.8.6",
-    "@mionjs/platform-node": "0.8.6",
-    "@mionjs/platform-vercel": "0.8.6",
-    "@mionjs/router": "0.8.6",
-    "@mionjs/type-formats": "0.8.6"
+    "@mionjs/core": "0.8.7",
+    "@mionjs/platform-cloudflare": "0.8.7",
+    "@mionjs/platform-node": "0.8.7",
+    "@mionjs/platform-vercel": "0.8.7",
+    "@mionjs/router": "0.8.7",
+    "@mionjs/type-formats": "0.8.7"
   }
 }
