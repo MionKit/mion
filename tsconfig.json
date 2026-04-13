@@ -13,6 +13,7 @@
     "experimentalDecorators": true,
     "target": "ES2023",
     "lib": ["ES2023"],
+    "types": ["node"],
     "outDir": ".dist/cjs",
     "composite": true,
     "declaration": true,
