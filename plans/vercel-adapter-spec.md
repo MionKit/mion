@@ -47,9 +47,9 @@ No Vercel/Next.js dependency — pure Web standard APIs.
 
 ```typescript
 export interface VercelHandlerOptions {
-    defaultResponseHeaders: Record<string, string>;
-    /** Path prefix to strip from incoming URL (e.g., '/api/mion') */
-    basePath: string;
+  defaultResponseHeaders: Record<string, string>;
+  /** Path prefix to strip from incoming URL (e.g., '/api/mion') */
+  basePath: string;
 }
 ```
 
@@ -57,8 +57,8 @@ export interface VercelHandlerOptions {
 
 ```typescript
 export const DEFAULT_VERCEL_OPTIONS: VercelHandlerOptions = {
-    defaultResponseHeaders: {},
-    basePath: '/api/mion',
+  defaultResponseHeaders: {},
+  basePath: '/api/mion',
 };
 ```
 
@@ -67,11 +67,13 @@ export const DEFAULT_VERCEL_OPTIONS: VercelHandlerOptions = {
 Directly adapted from `packages/platform-bun/src/bunHttp.ts` — both use Web `Request`/`Response`.
 
 **Exported functions:**
+
 - `setVercelHandlerOpts(options?)` — configure adapter options
 - `resetVercelHandlerOpts()` — reset to defaults (for tests)
 - `createVercelHandler()` — returns `{GET, POST, PUT, DELETE, PATCH}` handlers
 
 **Handler logic** (mirrors bunHttp.ts:58-96):
+
 1. Parse URL from `req.url`, strip `basePath` prefix → mion route path
 2. Extract `urlQuery` from search params
 3. Detect content type: `application/octet-stream` → binary, else → JSON
@@ -81,6 +83,7 @@ Directly adapted from `packages/platform-bun/src/bunHttp.ts` — both use Web `R
 7. `fatalFail()` uses `getRouterFatalErrorResponse()` for unhandled errors
 
 **`reply()` function** (mirrors bunHttp.ts:137-182):
+
 - `SerializerModes.stringifyJson` → `new Response(mionResp.rawBody as string, ...)`
 - `SerializerModes.json` → `Response.json(mionResp.body, ...)`
 - `SerializerModes.binary` → `new Response(serializer.getBufferView(), ...)` + `serializer.markAsEnded()`
@@ -96,14 +99,15 @@ import {initRouter, registerRoutes, resetRouter, route} from '@mionjs/router';
 import {createVercelHandler, resetVercelHandlerOpts, setVercelHandlerOpts} from './vercelHandler.ts';
 
 const createRequest = (body: string, path: string, method = 'POST') =>
-    new Request(`http://localhost${path}`, {
-        method,
-        body,
-        headers: {'content-type': 'application/json'},
-    });
+  new Request(`http://localhost${path}`, {
+    method,
+    body,
+    headers: {'content-type': 'application/json'},
+  });
 ```
 
 Test cases:
+
 - Successful route call (JSON response)
 - Validation error (invalid params)
 - Custom response headers from route handler
@@ -114,24 +118,27 @@ Test cases:
 ## Build & Config
 
 **`vite.config.ts`** — same pattern as `packages/platform-bun/vite.config.ts`:
+
 - Dual CJS/ESM output to `.dist/esm/` and `.dist/cjs/`
 - External: `@mionjs/core`, `@mionjs/router`, all non-relative imports
 - `cjsPackageJsonPlugin`, `vite-plugin-dts`
 
 **`vitest.config.ts`** — same pattern as `packages/platform-aws/vitest.config.ts`:
-- `mionPlugin` with deepkit type compilation
+
+- `mionVitePlugin` with deepkit type compilation
 - Resolve aliases for `@mionjs/*` packages
 
 **Root changes:**
+
 - Add `"packages/platform-vercel"` to root `package.json` workspaces
 - Add `'packages/platform-vercel/vitest.config.ts'` to root `vitest.config.ts` projects
 
 ## Key Reference Files
 
-| File | Role |
-|------|------|
-| `packages/platform-bun/src/bunHttp.ts` | Primary pattern for adapter implementation |
-| `packages/platform-bun/vite.config.ts` | Build config pattern (dual CJS/ESM) |
-| `packages/platform-bun/src/types.ts` | Options interface pattern |
-| `packages/platform-aws/src/awsLambda.spec.ts` | Test pattern |
-| `packages/platform-aws/vitest.config.ts` | Vitest config pattern |
+| File                                          | Role                                       |
+| --------------------------------------------- | ------------------------------------------ |
+| `packages/platform-bun/src/bunHttp.ts`        | Primary pattern for adapter implementation |
+| `packages/platform-bun/vite.config.ts`        | Build config pattern (dual CJS/ESM)        |
+| `packages/platform-bun/src/types.ts`          | Options interface pattern                  |
+| `packages/platform-aws/src/awsLambda.spec.ts` | Test pattern                               |
+| `packages/platform-aws/vitest.config.ts`      | Vitest config pattern                      |

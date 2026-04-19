@@ -17,7 +17,7 @@
 
 ## Running Tests & Build
 
-- `npm run test`: runs JSON and binary serialization E2E tests (uses mionPlugin + IPC server)
+- `npm run test`: runs JSON and binary serialization E2E tests (uses mionVitePlugin + IPC server)
 - `npm run build`: builds with AOT caches via `vite.build.config.ts`
 - `npm run test:aot`: verifies AOT caches are inlined in build output
 - `npm run verify`: runs test + build + test:aot in sequence
@@ -33,5 +33,5 @@
 ## Dependencies
 
 - All `@mionjs/*` dependencies come from local tarballs (`file:./tarballs/*.tgz`), not npm
-- Uses `@mionjs/devtools/vite-plugin` (mionPlugin) for type reflection, AOT caches, and pure function injection
+- Uses `@mionjs/devtools/vite-plugin` (mionVitePlugin) for type reflection, AOT caches, and pure function injection
 - Must re-run `../scripts/pack-and-install.sh` after any mion package changes to pick up updates

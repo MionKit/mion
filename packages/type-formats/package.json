@@ -50,7 +50,14 @@
     "lib": ".dist"
   },
   "files": [
-    ".dist"
+    ".dist",
+    "NumberFormats.ts",
+    "StringFormats.ts",
+    "BigintFormats.ts",
+    "constants.ts",
+    "src",
+    "!src/**/*.spec.ts",
+    "!src/**/*.test.ts"
   ],
   "repository": {
     "type": "git",

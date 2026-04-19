@@ -2,7 +2,7 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
-import {mionPlugin, cjsPackageJsonPlugin} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin, cjsPackageJsonPlugin} from '@mionjs/devtools/vite-plugin';
 
 // Get all TypeScript files from a directory (excluding spec/test files and excluded patterns)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
@@ -49,7 +49,7 @@ export default defineConfig({
     plugins: [
         cjsPackageJsonPlugin('.dist/cjs'),
         // Deepkit type transformer - enables runtime type information
-        mionPlugin({
+        mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
                 exclude: ['**/jitCompilers/**', '**/lib/**', '**/mocking/**', '../nodes/**'],

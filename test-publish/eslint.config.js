@@ -1,6 +1,6 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import mionPlugin from '@mionjs/devtools/eslint';
+import mionVitePlugin from '@mionjs/devtools/eslint';
 
 const mionRules = {
   '@mionjs/no-typeof-runtype': 'error',
@@ -11,20 +11,13 @@ const mionRules = {
 
 export default tseslint.config(
   {
-    ignores: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/tarballs/**',
-      '**/coverage/**',
-      '**/*.js',
-      'eslint.config.js',
-    ],
+    ignores: ['**/node_modules/**', '**/dist/**', '**/tarballs/**', '**/coverage/**', '**/*.js', 'eslint.config.js'],
   },
   eslint.configs.recommended,
   tseslint.configs.recommended,
   {
     plugins: {
-      '@mionjs': mionPlugin,
+      '@mionjs': mionVitePlugin,
     },
     languageOptions: {
       parserOptions: {

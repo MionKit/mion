@@ -1,0 +1,1 @@
+{"version":3,"file":"no-unreachable-union-types.d.ts","sourceRoot":"","sources":["../../../../../../src/eslint/rules/no-unreachable-union-types.ts"],"names":[],"mappings":"AAOA,OAAO,EAAW,QAAQ,EAAiB,MAAM,0BAA0B,CAAC;AA8R5E,QAAA,MAAM,IAAI,EAAE,QAAQ,CAAC,UAAU,CAAC,sBAAsB,EAAE,EAAE,CA6DzD,CAAC;AAEF,eAAe,IAAI,CAAC"}

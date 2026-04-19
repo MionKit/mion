@@ -4,3 +4,4 @@ export declare function computeSourceHash(serverConfig: MionServerConfig, aotOpt
 export declare function resolveCacheDir(options: AOTCacheOptions, viteCacheDir?: string): string;
 export declare function getOrGenerateAOTCaches(serverConfig: MionServerConfig, aotOptions: AOTCacheOptions | undefined, cacheDir: string): Promise<AOTCacheResult>;
 export declare function updateDiskCache(serverConfig: MionServerConfig, aotOptions: AOTCacheOptions | undefined, data: AOTCacheData, cacheDir: string): void;
+//# sourceMappingURL=aotDiskCache.d.ts.map

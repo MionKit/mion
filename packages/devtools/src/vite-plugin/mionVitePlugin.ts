@@ -63,11 +63,11 @@ export interface MionPluginOptions {
  * @example
  * ```ts
  * // vite.config.ts
- * import {mionPlugin} from '@mionjs/devtools/vite-plugin';
+ * import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
  *
  * export default defineConfig({
  *   plugins: [
- *     mionPlugin({
+ *     mionVitePlugin({
  *       runTypes: {
  *         tsConfig: './tsconfig.json',
  *       },

@@ -5,3 +5,4 @@ export interface Options {
 type MessageIds = 'enforceTypeImport' | 'enforceTypeExport' | 'sideEffectImport';
 declare const rule: TSESLint.RuleModule<MessageIds, [Options]>;
 export default rule;
+//# sourceMappingURL=enforce-type-imports.d.ts.map

@@ -17,7 +17,7 @@
     "outDir": ".dist/cjs",
     "composite": true,
     "declaration": true,
-    "declarationMap": false,
+    "declarationMap": true,
     "incremental": true,
     "sourceMap": true,
     "isolatedModules": true,

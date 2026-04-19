@@ -43,7 +43,9 @@
   },
   "files": [
     "build",
-    "src/vite-plugin/virtual-modules.d.ts"
+    "src",
+    "!src/**/*.spec.ts",
+    "!src/**/*.test.ts"
   ],
   "repository": {
     "type": "git",

@@ -1,12 +1,12 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
-import {mionPlugin} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 
 export default defineConfig({
     resolve: {conditions: ['source']},
     ssr: {resolve: {conditions: ['source']}},
     plugins: [
-        mionPlugin({
+        mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, '../../tsconfig.json'),
                 compilerOptions: {

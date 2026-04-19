@@ -29,3 +29,4 @@ export declare function waitForPlatformReady(child: ChildProcess, timeoutMs?: nu
     platformConfig: Record<string, unknown>;
 }>;
 export declare function generateNoopCombinedModule(): string;
+//# sourceMappingURL=aotCacheGenerator.d.ts.map
