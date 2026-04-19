@@ -11,3 +11,4 @@ export declare class PurityError extends Error {
     readonly position: number;
     constructor(message: string, filePath: string, position: number);
 }
+//# sourceMappingURL=extractPureFn.d.ts.map

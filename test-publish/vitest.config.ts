@@ -1,10 +1,10 @@
 import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
-import {mionPlugin} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 
 export default defineConfig({
     plugins: [
-        mionPlugin({
+        mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
                 compilerOptions: {
@@ -22,7 +22,7 @@ export default defineConfig({
     ],
     test: {
         environment: 'node',
-        include: ['src/tests/json.spec.ts', 'src/tests/binary.spec.ts'],
+        include: ['src/tests/json.spec.ts', 'src/tests/binary.spec.ts', 'src/tests/packaged-sources.spec.ts'],
         testTimeout: 30000,
         maxWorkers: 1,
         globalSetup: ['./globalSetup.ts'],

@@ -1,11 +1,11 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
 // Import from source to ensure we use the latest code during development (not stale build artifacts)
-import {mionPlugin} from '../devtools/src/vite-plugin/index.ts';
+import {mionVitePlugin} from '../devtools/src/vite-plugin/index.ts';
 
 export default defineConfig({
     plugins: [
-        mionPlugin({
+        mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
                 compilerOptions: {

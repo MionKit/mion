@@ -34,3 +34,4 @@ export declare function parseVueModuleId(id: string): {
 } | null;
 export declare function isIncluded(filePath: string, include: string[], exclude: string[]): boolean;
 export declare const serverReady: Promise<void>;
+//# sourceMappingURL=mionVitePlugin.d.ts.map

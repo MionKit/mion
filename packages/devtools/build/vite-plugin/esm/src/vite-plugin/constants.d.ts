@@ -10,3 +10,4 @@ export declare const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
 export declare function resolveVirtualId(id: string): string;
 export declare const REFLECTION_MODULES: string[];
 export declare const VIRTUAL_STUB_PREFIX = "virtual:mion-stub/";
+//# sourceMappingURL=constants.d.ts.map

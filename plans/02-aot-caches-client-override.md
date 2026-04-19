@@ -94,7 +94,7 @@ plugin.config(config, {command: 'build', mode: 'production'});
 Update to demonstrate the unified SSR config:
 
 ```typescript
-mionPlugin({
+mionVitePlugin({
     runTypes: {tsConfig: ...},
     aotCaches: {excludeReflection: true},
     aotCachesClient: true,

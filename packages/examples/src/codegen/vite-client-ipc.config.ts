@@ -1,12 +1,12 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
-import {mionPlugin} from '@mionjs/devtools/vite-plugin';
+import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 
 // IPC mode: spawns the server, generates AOT caches, and keeps the server running.
 // Useful during development when the client needs a live server for API calls.
 export default defineConfig({
     plugins: [
-        mionPlugin({
+        mionVitePlugin({
             runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
             // runs the server in a child process separate from vite dev server
             server: {

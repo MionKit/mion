@@ -57,3 +57,4 @@ export interface DeepkitTypeOptions {
     reflection?: ReflectionMode;
     compilerOptions?: CompilerOptions;
 }
+//# sourceMappingURL=types.d.ts.map

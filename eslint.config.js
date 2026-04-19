@@ -1,6 +1,6 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import mionPlugin from '@mionjs/devtools/eslint';
+import mionVitePlugin from '@mionjs/devtools/eslint';
 
 export default tseslint.config(
   {
@@ -34,7 +34,7 @@ export default tseslint.config(
   },
   eslint.configs.recommended,
   tseslint.configs.recommended,
-  mionPlugin.configs.recommended,
+  mionVitePlugin.configs.recommended,
   {
     languageOptions: {
       parserOptions: {
