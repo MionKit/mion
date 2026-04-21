@@ -1,6 +1,6 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import mionVitePlugin from '@mionjs/devtools/eslint';
+import mionESLintPlugin from '@mionjs/devtools/eslint';
 
 const mionRules = {
   '@mionjs/no-typeof-runtype': 'error',
@@ -17,7 +17,7 @@ export default tseslint.config(
   tseslint.configs.recommended,
   {
     plugins: {
-      '@mionjs': mionVitePlugin,
+      '@mionjs': mionESLintPlugin,
     },
     languageOptions: {
       parserOptions: {

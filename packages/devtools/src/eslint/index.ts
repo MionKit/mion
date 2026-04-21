@@ -33,7 +33,7 @@ const plugin: ESLint.Plugin = {
 };
 
 // Flat config preset: self-contained with plugin registration and recommended rules.
-// Usage: import mionVitePlugin from '@mionjs/devtools/eslint'; ... mionVitePlugin.configs.recommended
+// Usage: import mionESLintPlugin from '@mionjs/devtools/eslint'; ... mionESLintPlugin.configs.recommended
 plugin.configs!.recommended = {
     plugins: {
         '@mionjs': plugin,
