@@ -108,7 +108,8 @@ export function createStringifyCompiler(fnID: Operation) {
             case ReflectionKind.symbol:
                 return {code: `JSON.stringify('Symbol:' + (${comp.vλl}.description || ''))`, type: 'E'};
             case ReflectionKind.templateLiteral:
-                throw new Error('Template Literals are not supported.');
+                // runtime value is a plain string
+                return {code: `JSON.stringify(${comp.vλl})`, type: 'E'};
             case ReflectionKind.undefined: {
                 const isRoot = comp.getNestLevel(runType) === 0;
                 if (isRoot) return {code: `undefined`, type: 'E'};

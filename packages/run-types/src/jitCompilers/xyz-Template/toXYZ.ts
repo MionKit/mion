@@ -74,7 +74,8 @@ export function _compileToXYZ(runType: BaseRunType, comp: JitXYZCompiler): JitCo
             throw new Error('Never type cannot be serialized to XYZ');
 
         case ReflectionKind.templateLiteral:
-            throw new Error('Template literals are not supported in XYZ serialization');
+            // TODO: serialize as string
+            break;
 
         case ReflectionKind.literal:
             return compileLiteral(runType as LiteralRunType, comp);

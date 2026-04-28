@@ -69,7 +69,8 @@ function _compileFromXYZ(runType: BaseRunType, comp: JitXYZCompiler): JitCode {
             throw new Error('Never type cannot be deserialized from XYZ');
 
         case ReflectionKind.templateLiteral:
-            throw new Error('Template literals are not supported in XYZ deserialization');
+            // TODO: deserialize as string
+            break;
 
         case ReflectionKind.literal:
             return compileLiteral(runType as LiteralRunType, comp);

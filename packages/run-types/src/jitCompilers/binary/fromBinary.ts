@@ -84,7 +84,8 @@ export function emitFromBinary(runType: BaseRunType, comp: BinaryCompiler): JitC
         case ReflectionKind.never:
             throw new Error('Never type cannot be deserialized from Binary');
         case ReflectionKind.templateLiteral:
-            throw new Error('Template literals are not supported in Binary deserialization');
+            // runtime value is a plain string
+            return {code: `${dεs}.desString()`, type: 'E'};
         case ReflectionKind.literal: {
             if (comp.opts.noLiterals) {
                 const lit = (runType as LiteralRunType).src.literal;
