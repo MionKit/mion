@@ -23,8 +23,7 @@ export class TemplateLiteralRunType extends CollectionRunType<TypeTemplateLitera
     /** Builds the anchored regex source from src.types. Memoized. */
     getRegexSource(): string {
         if (this._regexSource !== undefined) return this._regexSource;
-        const parts = (this.src.types || []).map((t) => spanToRegex(t));
-        this._regexSource = `^${parts.join('')}$`;
+        this._regexSource = buildAnchoredTemplateRegexSource(this.src.types || []);
         return this._regexSource;
     }
 
@@ -58,8 +57,13 @@ export class TemplateLiteralRunType extends CollectionRunType<TypeTemplateLitera
     }
 }
 
+/** Build the full ^...$ regex source for a template literal type's spans */
+export function buildAnchoredTemplateRegexSource(types: TypeTemplateLiteral['types']): string {
+    return `^${types.map((t) => spanToRegex(t)).join('')}$`;
+}
+
 /** Translate a single template-literal span (TypeString | TypeAny | TypeNumber | TypeLiteral | TypeInfer) into regex source */
-function spanToRegex(t: TypeTemplateLiteral['types'][number]): string {
+export function spanToRegex(t: TypeTemplateLiteral['types'][number]): string {
     switch (t.kind) {
         case ReflectionKind.literal:
             return escapeForRegex(String((t as TypeLiteral).literal));

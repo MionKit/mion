@@ -1,10 +1,11 @@
-import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
+import {ReflectionKind, type TypeIndexSignature, type TypeTemplateLiteral} from '@deepkit/type';
 import {MemberRunType} from '../../lib/baseRunTypes.ts';
 import {type JitCode} from '../../types.ts';
 import {JitFunctions} from '../../constants.functions.ts';
 import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
 import {InterfaceRunType} from '../collection/interface.ts';
 import {childIsExpression} from '../../lib/utils.ts';
+import {buildAnchoredTemplateRegexSource} from '../collection/templateLiteral.ts';
 
 /* ########
  * 2024 mion
@@ -34,21 +35,42 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         return false;
     }
 
+    /** if the index key is a template literal type, return the JIT context var holding the compiled key-pattern regex */
+    private getKeyPatternVar(comp: JitFnCompiler): string | undefined {
+        const idx = this.src.index;
+        if (idx?.kind !== ReflectionKind.templateLiteral) return undefined;
+        const varName = comp.getLocalVarName('reIdx', this);
+        if (!comp.hasContextItem(varName)) {
+            const src = buildAnchoredTemplateRegexSource((idx as TypeTemplateLiteral).types || []);
+            comp.setContextItem(varName, `const ${varName} = new RegExp(${JSON.stringify(src)})`);
+        }
+        return varName;
+    }
+
     // #### jit code ####
     emitIsType(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileIsType(child, 'E');
-        if (!childJit?.code) return {code: undefined, type: 'E'};
+        const prop = this.getChildVarName(comp);
+        const reVar = this.getKeyPatternVar(comp);
+        const keyCheck = reVar ? `if (!${reVar}.test(${prop})) return false;` : '';
+        if (!childJit?.code && !keyCheck) return {code: undefined, type: 'E'};
+        const valueCheck = childJit?.code ? `if (!(${childJit.code})) return false;` : '';
         return {
-            code: `for (const ${this.getChildVarName(comp)} in ${comp.vλl}){if (!(${childJit.code})) return false;} return true;`,
+            code: `for (const ${prop} in ${comp.vλl}){${keyCheck} ${valueCheck}} return true;`,
             type: 'RB',
         };
     }
     emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
         const child = this.getJitChild(comp);
         const childJit = comp.compileTypeErrors(child, 'S');
-        if (!childJit?.code) return {code: undefined, type: 'S'};
-        return {code: `for (const ${this.getChildVarName(comp)} in ${comp.vλl}) {${childJit.code}}`, type: 'S'};
+        const prop = this.getChildVarName(comp);
+        const reVar = this.getKeyPatternVar(comp);
+        // when the key fails the template literal pattern, report it (with the offending key in the path)
+        // and skip the value check to avoid compounding errors on values whose key was already invalid
+        const keyErr = reVar ? `if (!${reVar}.test(${prop})) {${comp.callJitErrWithPath(this, prop)}; continue;}` : '';
+        if (!childJit?.code && !keyErr) return {code: undefined, type: 'S'};
+        return {code: `for (const ${prop} in ${comp.vλl}) {${keyErr} ${childJit?.code || ''}}`, type: 'S'};
     }
     emitPrepareForJson(comp: JitFnCompiler): JitCode {
         const child = this.getJitChild(comp);

@@ -269,6 +269,28 @@ function _mockType(runType: BaseRunType, comp: JitFnCompiler, stack: BaseRunType
                     case !!(rt.src.index.kind === ReflectionKind.symbol):
                         propName = Symbol.for(`key${i}`);
                         break;
+                    case !!(rt.src.index.kind === ReflectionKind.templateLiteral):
+                        // walk the template literal spans to produce a key that matches the pattern
+                        propName = ((rt.src.index as any).types as any[])
+                            .map((part: any) => {
+                                switch (part.kind) {
+                                    case ReflectionKind.literal:
+                                        return String(part.literal);
+                                    case ReflectionKind.number:
+                                        return String(mockNumber(mOps.minNumber, mOps.maxNumber));
+                                    case ReflectionKind.string:
+                                    case ReflectionKind.any:
+                                    case ReflectionKind.infer:
+                                        return mockString(
+                                            mOps.stringLength || random(1, mOps.maxRandomStringLength),
+                                            mOps.stringCharSet || stringCharSet
+                                        );
+                                    default:
+                                        throw new Error(`Unsupported template literal span kind: ${part.kind}`);
+                                }
+                            })
+                            .join('');
+                        break;
                     default:
                         throw new Error('Invalid index signature type.');
                 }
