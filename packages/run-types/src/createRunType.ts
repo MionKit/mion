@@ -52,6 +52,7 @@ import {FunctionRunType} from './nodes/function/function.ts';
 import {PromiseRunType} from './nodes/native/promise.ts';
 import {ObjectRunType} from './nodes/atomic/object.ts';
 import {IntersectionRunType} from './nodes/collection/intersection.ts';
+import {TemplateLiteralRunType} from './nodes/collection/templateLiteral.ts';
 import {ParameterRunType} from './nodes/member/param.ts';
 import {MethodRunType} from './nodes/member/method.ts';
 import {RestParamsRunType} from './nodes/member/restParams.ts';
@@ -197,12 +198,10 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
             rt = new SymbolRunType();
             break;
         case ReflectionKind.templateLiteral:
-            // deepkit automatically resolves template literals unions to literals
-            // this is only called when you define the type of a template literal i.e: type T = `foo${string}`;
-            // this is not supported at the moment but would be useful for type safe urls etc
-            throw new Error(
-                'Template Literals are resolved by the compiler to Literals ie: const tl = `${string}World`. Template literal types are not supported. ie type TL = `${string}World`'
-            );
+            // deepkit resolves finite template literal unions to literal-string unions before reaching here.
+            // this branch handles the open form ie: type T = `api/user/${number}` (children: literal/string/number/any/infer)
+            rt = new TemplateLiteralRunType();
+            break;
         case ReflectionKind.undefined:
             rt = new UndefinedRunType();
             break;
