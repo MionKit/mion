@@ -135,6 +135,57 @@ describe('TemplateLiteralRunType - regex special chars in literal', () => {
     });
 });
 
+describe('TemplateLiteralRunType - as index signature key', () => {
+    type Routes = {[key: `api/${string}`]: number};
+    const rt = runType<Routes>();
+    const validate = rt.createJitFunction(JitFunctions.isType);
+
+    it('accepts objects whose keys all match the template literal pattern', () => {
+        expect(validate({})).toBe(true);
+        expect(validate({'api/users': 1})).toBe(true);
+        expect(validate({'api/users': 1, 'api/posts': 2})).toBe(true);
+    });
+
+    it('rejects objects with a key that does not match the pattern', () => {
+        expect(validate({foo: 1})).toBe(false);
+        expect(validate({'api/users': 1, foo: 2})).toBe(false);
+    });
+
+    it('rejects objects with a value that does not match the value type', () => {
+        expect(validate({'api/users': 'x' as any})).toBe(false);
+    });
+
+    it('reports both bad keys and bad values via typeErrors', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors({'api/users': 1})).toEqual([]);
+        expect(valWithErrors({foo: 1})).toEqual([{path: ['foo'], expected: 'indexSignature'}]);
+        expect(valWithErrors({'api/users': 'x' as any})).toEqual([{path: ['api/users'], expected: 'number'}]);
+    });
+
+    it('mock generates keys that match the pattern and values that validate', async () => {
+        for (let i = 0; i < 10; i++) {
+            const mocked = await rt.mock();
+            for (const key of Object.keys(mocked)) {
+                expect(key.startsWith('api/')).toBe(true);
+                expect(typeof (mocked as any)[key]).toBe('number');
+            }
+            expect(validate(mocked)).toBe(true);
+        }
+    });
+});
+
+describe('TemplateLiteralRunType - index signature with ${number} key', () => {
+    type Numbered = {[key: `id-${number}`]: string};
+    const rt = runType<Numbered>();
+    const validate = rt.createJitFunction(JitFunctions.isType);
+
+    it('only accepts keys matching id-<number>', () => {
+        expect(validate({'id-1': 'a', 'id-42': 'b'})).toBe(true);
+        expect(validate({'id-abc': 'a'})).toBe(false);
+        expect(validate({1: 'a'})).toBe(false);
+    });
+});
+
 describe('TemplateLiteralRunType - nested in object', () => {
     type Route = {url: `api/user/${number}`; method: string};
     const rt = runType<Route>();
