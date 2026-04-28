@@ -81,7 +81,8 @@ export function emitToBinary(runType: BaseRunType, comp: BinaryCompiler): JitCod
         case ReflectionKind.never:
             throw new Error('Never type cannot be serialized to Binary');
         case ReflectionKind.templateLiteral:
-            throw new Error('Template literals are not supported in Binary serialization');
+            // runtime value is a plain string
+            return {code: `${sεr}.serString(${comp.vλl})`, type: 'S'};
         case ReflectionKind.literal: {
             if (comp.opts.noLiterals) {
                 const lit = (runType as LiteralRunType).src.literal;

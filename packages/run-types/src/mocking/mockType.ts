@@ -277,8 +277,34 @@ function _mockType(runType: BaseRunType, comp: JitFnCompiler, stack: BaseRunType
             return parentObj;
         }
 
+        case ReflectionKind.templateLiteral: {
+            // walk the spans and emit a string for each: literal verbatim, string/any/infer => mockString,
+            // number => stringified mockNumber. The concatenated value is, by construction,
+            // accepted by the validation regex emitted by TemplateLiteralRunType.
+            const types = (src as any).types as any[];
+            return types
+                .map((part: any) => {
+                    switch (part.kind) {
+                        case ReflectionKind.literal:
+                            return String(part.literal);
+                        case ReflectionKind.number:
+                            return String(mockNumber(mOps.minNumber, mOps.maxNumber));
+                        case ReflectionKind.string:
+                        case ReflectionKind.any:
+                        case ReflectionKind.infer:
+                            return mockString(
+                                mOps.stringLength || random(1, mOps.maxRandomStringLength),
+                                mOps.stringCharSet || stringCharSet
+                            );
+                        default:
+                            throw new Error(
+                                `Unsupported template literal span kind: ${part.kind}` + printStackTrace(comp, stack)
+                            );
+                    }
+                })
+                .join('');
+        }
         case ReflectionKind.infer:
-        case ReflectionKind.templateLiteral:
         case ReflectionKind.typeParameter:
         default:
             throw new Error(`Cant mock Unsupported RunType: ${runType.getTypeName()}` + printStackTrace(comp, stack));
