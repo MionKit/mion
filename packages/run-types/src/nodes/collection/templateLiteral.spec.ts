@@ -74,6 +74,22 @@ describe('TemplateLiteralRunType - multi-segment URL', () => {
         expect(validate('/api/v1/user/jane/posts')).toBe(false); // missing trailing id
         expect(validate('api/v1/user/jane/posts/7')).toBe(false); // missing leading slash
     });
+
+    it('reports a templateLiteral error on failure', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors('/api/v1/user/jane/posts/7')).toEqual([]);
+        expect(valWithErrors('/api/v1/user/jane/posts/abc')).toEqual([{path: [], expected: 'templateLiteral'}]);
+        expect(valWithErrors(123)).toEqual([{path: [], expected: 'templateLiteral'}]);
+    });
+
+    it('mock generates a value that re-validates as the same type', async () => {
+        for (let i = 0; i < 10; i++) {
+            const mocked = await rt.mock();
+            expect(typeof mocked).toBe('string');
+            expect(mocked.startsWith('/api/v')).toBe(true);
+            expect(validate(mocked)).toBe(true);
+        }
+    });
 });
 
 describe('TemplateLiteralRunType - leading ${string} placeholder', () => {
@@ -93,6 +109,20 @@ describe('TemplateLiteralRunType - leading ${string} placeholder', () => {
         expect(validate('users')).toBe(false);
         expect(validate('users/12.3.4')).toBe(false);
     });
+
+    it('reports a templateLiteral error on failure', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors('users/42')).toEqual([]);
+        expect(valWithErrors('users')).toEqual([{path: [], expected: 'templateLiteral'}]);
+    });
+
+    it('mock generates a value that re-validates as the same type', async () => {
+        for (let i = 0; i < 10; i++) {
+            const mocked = await rt.mock();
+            expect(typeof mocked).toBe('string');
+            expect(validate(mocked)).toBe(true);
+        }
+    });
 });
 
 describe('TemplateLiteralRunType - regex special chars in literal', () => {
@@ -105,6 +135,22 @@ describe('TemplateLiteralRunType - regex special chars in literal', () => {
         expect(validate('(-1.5)')).toBe(true);
         expect(validate('42')).toBe(false);
         expect(validate('(42')).toBe(false);
+    });
+
+    it('reports a templateLiteral error on failure', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors('(42)')).toEqual([]);
+        expect(valWithErrors('(42')).toEqual([{path: [], expected: 'templateLiteral'}]);
+    });
+
+    it('mock produces a value matching the bracketed pattern', async () => {
+        for (let i = 0; i < 10; i++) {
+            const mocked = await rt.mock();
+            expect(typeof mocked).toBe('string');
+            expect(mocked.startsWith('(')).toBe(true);
+            expect(mocked.endsWith(')')).toBe(true);
+            expect(validate(mocked)).toBe(true);
+        }
     });
 });
 
@@ -182,6 +228,23 @@ describe('TemplateLiteralRunType - index signature unknown-keys handling', () =>
         toUndef(value);
         expect(value).toEqual({'api/users': 1, foo: undefined});
     });
+
+    it('typeErrors reports non-matching keys as indexSignature path errors', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors({'api/users': 1})).toEqual([]);
+        expect(valWithErrors({foo: 1})).toEqual([{path: ['foo'], expected: 'indexSignature'}]);
+    });
+
+    it('mock generates only pattern-matching keys', async () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        for (let i = 0; i < 10; i++) {
+            const mocked: any = await rt.mock();
+            for (const key of Object.keys(mocked)) {
+                expect(key.startsWith('api/')).toBe(true);
+            }
+            expect(validate(mocked)).toBe(true);
+        }
+    });
 });
 
 describe('TemplateLiteralRunType - index signature combined with named property', () => {
@@ -232,6 +295,23 @@ describe('TemplateLiteralRunType - index signature with ${number} key', () => {
         expect(validate({'id-abc': 'a'})).toBe(false);
         expect(validate({1: 'a'})).toBe(false);
     });
+
+    it('typeErrors reports keys that do not match id-<number>', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors({'id-1': 'a'})).toEqual([]);
+        expect(valWithErrors({'id-abc': 'a'})).toEqual([{path: ['id-abc'], expected: 'indexSignature'}]);
+    });
+
+    it('mock generates keys matching id-<number> and string values', async () => {
+        for (let i = 0; i < 10; i++) {
+            const mocked: any = await rt.mock();
+            for (const key of Object.keys(mocked)) {
+                expect(/^id-(-?(?:\d+\.?\d*|\.\d+))$/.test(key)).toBe(true);
+                expect(typeof mocked[key]).toBe('string');
+            }
+            expect(validate(mocked)).toBe(true);
+        }
+    });
 });
 
 describe('TemplateLiteralRunType - nested in object', () => {
@@ -248,5 +328,16 @@ describe('TemplateLiteralRunType - nested in object', () => {
     it('reports the property path on validation error', () => {
         const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
         expect(valWithErrors({url: 'api/admin/42', method: 'GET'})).toEqual([{path: ['url'], expected: 'templateLiteral'}]);
+    });
+
+    it('mock produces an object whose template literal property validates', async () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        for (let i = 0; i < 10; i++) {
+            const mocked: any = await rt.mock();
+            expect(typeof mocked.url).toBe('string');
+            expect(mocked.url.startsWith('api/user/')).toBe(true);
+            expect(typeof mocked.method).toBe('string');
+            expect(validate(mocked)).toBe(true);
+        }
     });
 });
