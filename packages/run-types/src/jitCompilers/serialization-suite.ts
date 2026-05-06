@@ -1612,10 +1612,10 @@ export const SERIALIZATION_SPEC = {
         url_in_object: {
             title: 'template literal as object property type',
             getTestData: (dataOnly = false) => {
-                interface ObjectWithTemplate {
+                type ObjectWithTemplate = {
                     url: `api/user/${number}`;
                     method: string;
-                }
+                };
                 const rt = dataOnly ? (null as any) : runType<ObjectWithTemplate>();
                 const values: ObjectWithTemplate[] = [
                     {url: 'api/user/1', method: 'GET'},
