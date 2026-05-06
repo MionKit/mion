@@ -147,6 +147,81 @@ describe('TemplateLiteralRunType - as index signature key', () => {
     });
 });
 
+describe('TemplateLiteralRunType - index signature unknown-keys handling', () => {
+    type Routes = {[key: `api/${string}`]: number};
+    const rt = runType<Routes>();
+
+    it('hasUnknownKeys returns true when any key does not match the pattern', () => {
+        const hasUnknown = rt.createJitFunction(JitFunctions.hasUnknownKeys);
+        expect(hasUnknown({})).toBe(false);
+        expect(hasUnknown({'api/users': 1})).toBe(false);
+        expect(hasUnknown({foo: 1})).toBe(true);
+        expect(hasUnknown({'api/users': 1, foo: 2})).toBe(true);
+    });
+
+    it('unknownKeyErrors reports each non-matching key with the offending path', () => {
+        const unknownKeyErrors = rt.createJitFunction(JitFunctions.unknownKeyErrors);
+        expect(unknownKeyErrors({'api/users': 1})).toEqual([]);
+        expect(unknownKeyErrors({foo: 1})).toEqual([{path: ['foo'], expected: 'never'}]);
+        expect(unknownKeyErrors({foo: 1, bar: 2})).toEqual([
+            {path: ['foo'], expected: 'never'},
+            {path: ['bar'], expected: 'never'},
+        ]);
+    });
+
+    it('stripUnknownKeys removes keys that do not match the pattern', () => {
+        const stripUnknown = rt.createJitFunction(JitFunctions.stripUnknownKeys);
+        const value: any = {'api/users': 1, foo: 'leak', 'api/posts': 2, bar: 'gone'};
+        stripUnknown(value);
+        expect(value).toEqual({'api/users': 1, 'api/posts': 2});
+    });
+
+    it('unknownKeysToUndefined sets non-matching keys to undefined', () => {
+        const toUndef = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
+        const value: any = {'api/users': 1, foo: 'leak'};
+        toUndef(value);
+        expect(value).toEqual({'api/users': 1, foo: undefined});
+    });
+});
+
+describe('TemplateLiteralRunType - index signature combined with named property', () => {
+    type Routes = {meta: string; [key: `api/${string}`]: string | number};
+    const rt = runType<Routes>();
+
+    it('isType validates named property and pattern keys together', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate({meta: 'a'})).toBe(true);
+        expect(validate({meta: 'a', 'api/users': 1})).toBe(true);
+        expect(validate({meta: 'a', 'api/users': 1, foo: 'extra'})).toBe(false);
+        expect(validate({})).toBe(false); // missing required `meta`
+    });
+
+    it('typeErrors reports the offending key from the index signature, not the named property', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors({meta: 'a', foo: 1})).toEqual([{path: ['foo'], expected: 'indexSignature'}]);
+    });
+
+    it('stripUnknownKeys keeps the named property and pattern-matching keys', () => {
+        const stripUnknown = rt.createJitFunction(JitFunctions.stripUnknownKeys);
+        const value: any = {meta: 'a', 'api/users': 1, foo: 'leak'};
+        stripUnknown(value);
+        expect(value).toEqual({meta: 'a', 'api/users': 1});
+    });
+
+    it('mock includes the named property and only pattern-matching keys', async () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        for (let i = 0; i < 10; i++) {
+            const mocked: any = await rt.mock();
+            expect(typeof mocked.meta).toBe('string');
+            for (const key of Object.keys(mocked)) {
+                if (key === 'meta') continue;
+                expect(key.startsWith('api/')).toBe(true);
+            }
+            expect(validate(mocked)).toBe(true);
+        }
+    });
+});
+
 describe('TemplateLiteralRunType - index signature with ${number} key', () => {
     type Numbered = {[key: `id-${number}`]: string};
     const rt = runType<Numbered>();
