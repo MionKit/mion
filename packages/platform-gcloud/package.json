@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/platform-gcloud",
-  "version": "0.8.8",
+  "version": "0.8.9",
   "type": "module",
   "description": "Google Cloud functions wrapper for mion router.",
   "keywords": [
@@ -58,8 +58,8 @@
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.3.0",
-    "@mionjs/core": "0.8.8",
-    "@mionjs/router": "0.8.8"
+    "@mionjs/core": "0.8.9",
+    "@mionjs/router": "0.8.9"
   },
   "devDependencies": {
     "@types/express": "^4.17.20"
