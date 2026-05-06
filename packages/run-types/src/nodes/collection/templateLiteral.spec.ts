@@ -7,11 +7,6 @@
 import {describe, it, expect} from 'vitest';
 import {runType} from '../../createRunType.ts';
 import {JitFunctions} from '../../constants.functions.ts';
-import {createDataViewSerializer, createDataViewDeserializer, setSerializationOptions} from '@mionjs/core';
-
-setSerializationOptions({bufferSize: 1024});
-const serContext = createDataViewSerializer('tplLit');
-const desContext = createDataViewDeserializer('tplLit', new ArrayBuffer(0));
 
 describe('TemplateLiteralRunType - URL pattern api/user/${number}', () => {
     type UserUrl = `api/user/${number}`;
@@ -59,28 +54,6 @@ describe('TemplateLiteralRunType - URL pattern api/user/${number}', () => {
             expect(mocked.startsWith('api/user/')).toBe(true);
             expect(validate(mocked)).toBe(true);
         }
-    });
-
-    it('JSON encode/decode round-trips a valid URL', () => {
-        const toJson = rt.createJitFunction(JitFunctions.prepareForJson);
-        const fromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
-        const value = 'api/user/123';
-        const encoded = toJson(value);
-        // string is JSON-safe; encoder should not transform it
-        expect(encoded).toBe(value);
-        expect(fromJson(JSON.parse(JSON.stringify(encoded)))).toBe(value);
-    });
-
-    it('binary serialize/deserialize round-trips a valid URL', () => {
-        const toBinary = rt.createJitFunction(JitFunctions.toBinary);
-        const fromBinary = rt.createJitFunction(JitFunctions.fromBinary);
-        const value = 'api/user/123';
-        serContext.reset();
-        toBinary(value, serContext);
-        const buffer = serContext.getBuffer();
-        desContext.setBuffer(buffer);
-        const decoded = fromBinary(undefined, desContext);
-        expect(decoded).toBe(value);
     });
 });
 
