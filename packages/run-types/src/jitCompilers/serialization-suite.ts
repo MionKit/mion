@@ -1592,6 +1592,40 @@ export const SERIALIZATION_SPEC = {
             },
         },
     },
+    TEMPLATE_LITERALS: {
+        url_string: {
+            title: 'template literal as string type, ie: `api/users/${number}`',
+            getTestData: (dataOnly = false) => {
+                type GetUserUrl = `api/users/${number}`;
+                const rt = dataOnly ? (null as any) : runType<GetUserUrl>();
+                const values: GetUserUrl[] = [
+                    'api/users/0',
+                    'api/users/1',
+                    'api/users/42',
+                    'api/users/-7',
+                    'api/users/3.14',
+                    `api/users/${Number.MAX_SAFE_INTEGER}`,
+                ];
+                return {rt, values};
+            },
+        },
+        url_in_object: {
+            title: 'template literal as object property type',
+            getTestData: (dataOnly = false) => {
+                interface ObjectWithTemplate {
+                    url: `api/user/${number}`;
+                    method: string;
+                }
+                const rt = dataOnly ? (null as any) : runType<ObjectWithTemplate>();
+                const values: ObjectWithTemplate[] = [
+                    {url: 'api/user/1', method: 'GET'},
+                    {url: 'api/user/42', method: 'POST'},
+                    {url: 'api/user/-7', method: 'DELETE'},
+                ];
+                return {rt, values};
+            },
+        },
+    },
     OTHERS: {
         promise_jsonStringify_error: {
             title: 'throw error for Promise types',
