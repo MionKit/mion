@@ -1625,6 +1625,24 @@ export const SERIALIZATION_SPEC = {
                 return {rt, values};
             },
         },
+        url_index_key: {
+            title: 'template literal as index signature key',
+            getTestData: (dataOnly = false) => {
+                type Routes = {[key: `api/${string}`]: number};
+                const rt = dataOnly ? (null as any) : runType<Routes>();
+                const values: Routes[] = [{}, {'api/users': 1, 'api/posts': 2}, {'api/v1/users': 7, 'api/admin': 0}];
+                return {rt, values};
+            },
+        },
+        url_index_key_with_named: {
+            title: 'template literal index key + sibling named property',
+            getTestData: (dataOnly = false) => {
+                type Routes = {meta: string; [key: `api/${string}`]: string | number};
+                const rt = dataOnly ? (null as any) : runType<Routes>();
+                const values: Routes[] = [{meta: 'a'}, {meta: 'b', 'api/users': 1}, {meta: 'c', 'api/users': 1, 'api/posts': 2}];
+                return {rt, values};
+            },
+        },
     },
     OTHERS: {
         promise_jsonStringify_error: {
