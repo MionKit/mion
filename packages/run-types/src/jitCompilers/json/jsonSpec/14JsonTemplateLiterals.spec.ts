@@ -34,6 +34,28 @@ it('template literal as object property', () => {
     });
 });
 
+it('template literal as index signature key', () => {
+    const {rt, values} = SERIALIZATION_SPEC.TEMPLATE_LITERALS.url_index_key.getTestData();
+    const {serialize, deserialize} = createSerializationFns(rt);
+
+    values.forEach((value) => {
+        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
+        expect(typeof serialized).toBe('string');
+        expect(deserialized).toEqual(value);
+    });
+});
+
+it('template literal index key + sibling named property', () => {
+    const {rt, values} = SERIALIZATION_SPEC.TEMPLATE_LITERALS.url_index_key_with_named.getTestData();
+    const {serialize, deserialize} = createSerializationFns(rt);
+
+    values.forEach((value) => {
+        const {serialized, deserialized} = roundTrip(serialize, deserialize, value);
+        expect(typeof serialized).toBe('string');
+        expect(deserialized).toEqual(value);
+    });
+});
+
 it('all test ran', () => {
     const totalTest = Object.keys(SERIALIZATION_SPEC.TEMPLATE_LITERALS).length;
     expect(ranTests).toBe(totalTest);
