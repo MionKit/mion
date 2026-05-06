@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/run-types",
-  "version": "0.8.8",
+  "version": "0.8.9",
   "type": "module",
   "description": "Run time functionality directly from typescript types",
   "keywords": [
@@ -64,7 +64,7 @@
   "dependencies": {
     "@deepkit/core": "1.0.19",
     "@deepkit/type": "1.0.19",
-    "@mionjs/core": "0.8.8"
+    "@mionjs/core": "0.8.9"
   },
   "peerDependencies": {
     "typescript": ">=6.0.0"
