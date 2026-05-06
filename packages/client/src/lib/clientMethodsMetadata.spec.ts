@@ -90,7 +90,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
     // The restoreAllDependencies function needs to be called to restore JIT functions before methods can be properly restored.
     // Currently the test clears caches but doesn't call restoreAllDependencies.
-    it.only('should store and restore from localStorage', async () => {
+    it('should store and restore from localStorage', async () => {
         // First call - fetch from server
         await fetchRemoteMethodsMetadata(['sayHello'], options);
 
