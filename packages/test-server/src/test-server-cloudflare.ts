@@ -8,6 +8,7 @@
 import {Routes, initMionRouter, route, resetRouter} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createCloudflareHandler, resetCloudflareHandlerOpts} from '@mionjs/platform-cloudflare';
+import {aotCaches} from 'virtual:mion-aot/caches';
 
 // ############# Types #############
 
@@ -44,12 +45,15 @@ const cloudflareRoutes = {changeUserName, getDate, updateHeaders} satisfies Rout
 // When running under vite-node for AOT cache generation (MION_COMPILE=buildOnly|middleware),
 // auto-initialize the router so emitAOTCaches() can serialize all JIT functions.
 // This code is a no-op in the bundled IIFE (process is undefined in workerd).
+// The router auto-detects MION_COMPILE and falls back to JIT (skipping aotCaches),
+// so passing aotCaches here is safe in both phases.
 (async () => {
     const mionCompile = typeof process !== 'undefined' ? process.env?.MION_COMPILE : undefined;
     if (mionCompile === 'buildOnly' || mionCompile === 'middleware') {
         await initMionRouter(cloudflareRoutes, {
             contextDataFactory: getSharedData,
             basePath: 'api/',
+            aotCaches,
         });
     }
 })();
@@ -70,7 +74,7 @@ export async function setup(options?: CloudflareSetupOptions) {
         contextDataFactory: getSharedData,
         basePath: 'api/',
         serializer: options?.serializer,
-        aot: true, // Use pre-compiled AOT caches (bundled via virtual modules)
+        aotCaches, // Use pre-compiled AOT caches imported from the virtual module
     });
     const handler = createCloudflareHandler({
         basePath: options?.basePath ?? '',

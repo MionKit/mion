@@ -329,27 +329,19 @@ export const routerCache = ${routerCacheCode};
 `;
 }
 
-/** Generates the combined virtual module that imports all 3 caches and re-exports them. */
+/** Generates the combined virtual module — pure data, no side effects.
+ *  Safe to share between client and server builds. Consumers import the bundled
+ *  `aotCaches` named export and pass it to `initMionRouter({ aotCaches })` /
+ *  `initClient({ aotCaches })`. The individual cache exports are also available
+ *  for advanced use cases. */
 export function generateCombinedCachesModule(): string {
     return `/* Auto-generated combined AOT caches - do not edit */
 import { pureFnsCache } from 'virtual:mion-aot/pure-fns';
 import { jitFnsCache } from 'virtual:mion-aot/jit-fns';
 import { routerCache } from 'virtual:mion-aot/router-cache';
-import { addAOTCaches, addRoutesToCache } from '@mionjs/core';
 
-// Auto-register AOT caches as a side effect so they survive tree-shaking
-addAOTCaches(jitFnsCache, pureFnsCache);
-addRoutesToCache(routerCache);
-
+export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
 export { jitFnsCache, pureFnsCache, routerCache };
-
-/** Loads pre-compiled AOT caches (no-op: caches are auto-registered on import). */
-export function loadAOTCaches() {}
-
-/** Returns the raw AOT caches. */
-export function getRawAOTCaches() {
-    return { jitFnsCache, pureFnsCache, routerCache };
-}
 `;
 }
 
@@ -387,11 +379,10 @@ export function waitForPlatformReady(
 
 /** Generates a no-op combined module that exports empty caches. */
 export function generateNoopCombinedModule(): string {
-    return `/* No-op: AOT caches not generated */
+    return `/* No-op AOT caches - AOT not yet generated */
 export const jitFnsCache = {};
 export const pureFnsCache = {};
 export const routerCache = {};
-export function loadAOTCaches() {}
-export function getRawAOTCaches() { return { jitFnsCache, pureFnsCache, routerCache }; }
+export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
 `;
 }

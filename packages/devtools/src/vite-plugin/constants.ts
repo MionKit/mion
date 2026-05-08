@@ -21,11 +21,9 @@ export const VIRTUAL_AOT_PURE_FNS = 'virtual:mion-aot/pure-fns';
 /** Virtual module ID for router methods cache */
 export const VIRTUAL_AOT_ROUTER_CACHE = 'virtual:mion-aot/router-cache';
 
-/** Virtual module ID for combined AOT caches (re-exports all 3 cache modules) */
+/** Virtual module ID for combined AOT caches (re-exports all 3 cache modules).
+ *  Consumers import this and pass to `initMionRouter({ aotCaches })`. */
 export const VIRTUAL_AOT_CACHES = 'virtual:mion-aot/caches';
-
-/** The real module that acts as a shim for AOT caches (empty caches). Swapped by the plugin when AOT is enabled. */
-export const AOT_CACHES_SHIM = '@mionjs/core/aot-caches';
 
 /** The real module that acts as a shim for server pure functions (empty cache). Swapped by the plugin when serverPureFunctions is enabled. */
 export const SERVER_PURE_FNS_SHIM = '@mionjs/core/server-pure-fns';

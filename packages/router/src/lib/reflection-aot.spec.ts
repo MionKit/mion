@@ -20,7 +20,12 @@ import {
     getJitUtils,
 } from '@mionjs/core';
 import type {Routes} from '../types/general.ts';
-import type {MethodsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache} from '@mionjs/core';
+import type {AOTCaches, MethodsCache, PersistedJitFunctionsCache, PersistedPureFunctionsCache} from '@mionjs/core';
+
+/** Empty aotCaches — enables strict AOT mode without contributing any cache entries.
+ *  Tests that pre-populate persistedMethods via setPersistedMethods() pass this to
+ *  initRouter so that strict-AOT mode is enabled (loadCompiledMethods({}) is a no-op). */
+const EMPTY_AOT_CACHES: AOTCaches = {jitFnsCache: {}, pureFnsCache: {}, routerCache: {}};
 import {
     cpf_asJSONString,
     cpf_getUnknownKeysFromArray,
@@ -152,7 +157,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods(customRouteCache);
 
             // Initialize router in AOT mode
-            await initRouter({aot: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES});
 
             // Register routes - should use cached data
             const routes = {
@@ -173,7 +178,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods({...defaultRoutesCache});
 
             // Initialize router in AOT mode
-            await initRouter({aot: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES});
 
             // Register routes - should throw because route is not in cache
             const routes = {
@@ -205,7 +210,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods(mockCache);
 
             // Initialize router in AOT mode
-            await initRouter({aot: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES});
 
             // Register routes with a middleFn that's not in cache
             const routes = {
@@ -223,7 +228,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods({...defaultRoutesCache});
 
             // Initialize router in AOT mode
-            await initRouter({aot: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES});
 
             // Register routes with a raw middleFn that's not in cache - should NOT throw
             const routes = {
@@ -266,7 +271,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods(mockCache);
 
             // Initialize router in AOT mode
-            await initRouter({aot: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES});
 
             // Register routes - should succeed with complete cache
             const routes = {
@@ -291,7 +296,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods(defaultRoutesCache);
 
             // Initialize router in AOT mode
-            await initRouter({aot: true, skipClientRoutes: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES, skipClientRoutes: true});
 
             // The default error routes should be available from the pre-loaded cache
             expect(getRouteExecutable('@thrownErrors')).toBeDefined();
@@ -306,7 +311,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods({});
 
             // Initialize router in non-AOT mode (default)
-            await initRouter({aot: false});
+            await initRouter();
 
             // Register routes - should dynamically load run-types
             const routes = {
@@ -342,7 +347,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods(mockCache);
 
             // Initialize router in non-AOT mode
-            await initRouter({aot: false});
+            await initRouter();
 
             // Register routes
             const routes = {
@@ -363,7 +368,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods({...defaultRoutesCache});
 
             // Initialize router in non-AOT mode
-            await initRouter({aot: false});
+            await initRouter();
 
             // Register routes with middleFns
             const routes = {
@@ -411,7 +416,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods({...defaultRoutesCache});
 
             // Initialize router in non-AOT mode
-            await initRouter({aot: false});
+            await initRouter();
 
             // Register multiple routes
             const routes = {
@@ -491,7 +496,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods(mockCache);
 
             // Initialize router in AOT mode
-            await initRouter({aot: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES});
 
             // Register routes
             const routes = {
@@ -534,7 +539,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods(mockCache);
 
             // Initialize router in AOT mode
-            await initRouter({aot: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES});
 
             // Register routes - should throw because JIT function is not in cache
             const routes = {
@@ -580,7 +585,7 @@ describe('AOT Lazy Loading', () => {
             setPersistedMethods(mockCache);
 
             // Initialize router in AOT mode
-            await initRouter({aot: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES});
 
             // Register routes with middleFn
             const routes = {
@@ -619,7 +624,7 @@ describe('AOT Lazy Loading', () => {
             });
 
             // Initialize router in AOT mode
-            await initRouter({aot: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES});
 
             // Register routes
             const routes = {
@@ -668,7 +673,7 @@ describe('AOT Lazy Loading', () => {
             });
 
             // Initialize router in AOT mode
-            await initRouter({aot: true});
+            await initRouter({aotCaches: EMPTY_AOT_CACHES});
 
             // Register routes
             const routes = {

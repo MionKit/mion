@@ -8,6 +8,7 @@
 import {Routes, initMionRouter, route, resetRouter} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createVercelHandler, resetVercelHandlerOpts} from '@mionjs/platform-vercel';
+import {aotCaches} from 'virtual:mion-aot/caches';
 
 // ############# Types #############
 
@@ -44,12 +45,15 @@ const edgeRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 // When running under vite-node for AOT cache generation (MION_COMPILE=buildOnly|middleware),
 // auto-initialize the router so emitAOTCaches() can serialize all JIT functions.
 // This code is a no-op in the bundled IIFE (process is undefined in EdgeVM).
+// The router auto-detects MION_COMPILE and falls back to JIT (skipping aotCaches),
+// so passing aotCaches here is safe in both phases.
 (async () => {
     const mionCompile = typeof process !== 'undefined' ? process.env?.MION_COMPILE : undefined;
     if (mionCompile === 'buildOnly' || mionCompile === 'middleware') {
         await initMionRouter(edgeRoutes, {
             contextDataFactory: getSharedData,
             basePath: 'api/',
+            aotCaches,
         });
     }
 })();
@@ -70,7 +74,7 @@ export async function setup(options?: EdgeSetupOptions) {
         contextDataFactory: getSharedData,
         basePath: 'api/',
         serializer: options?.serializer,
-        aot: true, // Use pre-compiled AOT caches (bundled via virtual modules)
+        aotCaches, // Use pre-compiled AOT caches imported from the virtual module
     });
     const handler = createVercelHandler({
         defaultResponseHeaders: options?.defaultResponseHeaders ?? {},

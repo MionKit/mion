@@ -18,8 +18,6 @@ import {
     VIRTUAL_SERVER_PURE_FNS,
     REFLECTION_MODULES,
     VIRTUAL_STUB_PREFIX,
-    VIRTUAL_AOT_CACHES,
-    AOT_CACHES_SHIM,
     SERVER_PURE_FNS_SHIM,
     resolveVirtualId,
 } from './constants.ts';
@@ -163,11 +161,12 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // Ensure Vite bundles shim modules instead of externalizing them
             const shimModules: string[] = [];
             if (pureFnOptions) shimModules.push(SERVER_PURE_FNS_SHIM);
-            if (aotOptions) shimModules.push(AOT_CACHES_SHIM);
             addSsrNoExternal(config, shimModules);
 
-            // Wrap build.rollupOptions.external so shim and virtual modules are never externalized
-            if (env.command === 'build' && shimModules.length > 0) {
+            // Wrap build.rollupOptions.external so shim and virtual modules are never externalized.
+            // Always install the wrapper when AOT is enabled — it also externalizes bare specifiers
+            // (Vite lib-mode default), so consumers can drop their own external config entirely.
+            if (env.command === 'build' && (shimModules.length > 0 || aotOptions)) {
                 wrapBuildExternal(config, shimModules);
             }
         },
@@ -292,19 +291,6 @@ export function mionVitePlugin(options: MionPluginOptions) {
             if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
             // AOT virtual modules (default + custom prefix both resolve)
             if (aotVirtualModules.has(id)) return resolveVirtualId(id);
-            // Resolve shim modules: intercept empty cache imports and replace with virtual modules
-            if (aotOptions) {
-                const resolved = resolveShimModule(
-                    id,
-                    importer,
-                    AOT_CACHES_SHIM,
-                    VIRTUAL_AOT_CACHES,
-                    'aot-caches',
-                    'aotCaches.ts',
-                    'emptyCaches.ts'
-                );
-                if (resolved) return resolved;
-            }
             if (pureFnOptions) {
                 const resolved = resolveShimModule(
                     id,
@@ -636,7 +622,7 @@ function buildAOTVirtualModuleMaps(customVirtualModuleId?: string) {
 }
 
 /**
- * Resolves a shim module (e.g. @mionjs/core/aot-caches) to its source file,
+ * Resolves a shim module (e.g. @mionjs/core/server-pure-fns) to its source file,
  * and intercepts the empty cache import to replace it with the virtual module.
  * Returns the resolved id or null if no match.
  */
@@ -682,36 +668,47 @@ function resolveShimModule(
     return null;
 }
 
-/** Adds module specifiers to Vite's ssr.noExternal so they are bundled instead of externalized. */
-function addSsrNoExternal(config: Record<string, any>, moduleIds: string[]): void {
-    if (moduleIds.length === 0) return;
+/** Adds specifiers (string or RegExp) to Vite's ssr.noExternal so they are bundled instead of externalized. */
+function addSsrNoExternal(config: Record<string, any>, specifiers: (string | RegExp)[]): void {
+    if (specifiers.length === 0) return;
     const noExternal = config.ssr?.noExternal;
     if (!config.ssr) config.ssr = {};
     if (Array.isArray(noExternal)) {
-        for (const moduleId of moduleIds) {
-            if (!noExternal.includes(moduleId)) noExternal.push(moduleId);
+        for (const spec of specifiers) {
+            if (!noExternal.includes(spec)) noExternal.push(spec);
         }
-    } else if (typeof noExternal === 'string') {
-        config.ssr.noExternal = [noExternal, ...moduleIds];
+    } else if (typeof noExternal === 'string' || noExternal instanceof RegExp) {
+        config.ssr.noExternal = [noExternal, ...specifiers];
     } else if (noExternal !== true) {
-        config.ssr.noExternal = noExternal ? [noExternal, ...moduleIds] : [...moduleIds];
+        config.ssr.noExternal = noExternal ? [noExternal, ...specifiers] : [...specifiers];
     }
 }
 
-/** Wraps build.rollupOptions.external so shim and virtual modules are always bundled. */
+/** Wraps build.rollupOptions.external so shim and virtual modules are always bundled.
+ *  When no original external is configured, installs a default that externalizes bare specifiers
+ *  (matches Vite lib-mode default) — letting consumers omit rollupOptions.external entirely. */
 function wrapBuildExternal(config: Record<string, any>, shimModules: string[]): void {
     if (!config.build) config.build = {};
     if (!config.build.rollupOptions) config.build.rollupOptions = {};
     const original = config.build.rollupOptions.external;
-    if (!original) return; // no external config — nothing to wrap
     config.build.rollupOptions.external = (id: string, ...rest: any[]) => {
         // Never externalize shim modules or virtual modules (plugin replaces them with generated code)
         if (shimModules.includes(id) || id.startsWith('virtual:mion')) return false;
-        // Delegate to original external config
-        if (typeof original === 'function') return original(id, ...rest);
-        if (Array.isArray(original)) return original.some((ext) => (ext instanceof RegExp ? ext.test(id) : ext === id));
-        if (original instanceof RegExp) return original.test(id);
-        return original === id;
+        // Delegate to original external config when present
+        if (typeof original === 'function') {
+            const r = original(id, ...rest);
+            if (r !== undefined) return r;
+        } else if (Array.isArray(original)) {
+            return original.some((ext) => (ext instanceof RegExp ? ext.test(id) : ext === id));
+        } else if (original instanceof RegExp) {
+            return original.test(id);
+        } else if (typeof original === 'string') {
+            return original === id;
+        }
+        // No original (or function returned undefined): externalize bare specifiers,
+        // matching Vite's lib-mode default. This implicitly externalizes @mionjs/*,
+        // node:* builtins, and third-party deps — relative paths stay bundled.
+        return /^[^./]/.test(id);
     };
 }
 

@@ -7,28 +7,38 @@
 
 /** Exports JIT functions cache data. */
 declare module 'virtual:mion-aot/jit-fns' {
-    export const jitFnsCache: Record<string, any>;
+    import type {AOTCaches} from '@mionjs/core';
+    export const jitFnsCache: AOTCaches['jitFnsCache'];
 }
 
 /** Exports pure functions cache data. */
 declare module 'virtual:mion-aot/pure-fns' {
-    export const pureFnsCache: Record<string, Record<string, any>>;
+    import type {AOTCaches} from '@mionjs/core';
+    export const pureFnsCache: AOTCaches['pureFnsCache'];
 }
 
 /** Exports router methods cache data. */
 declare module 'virtual:mion-aot/router-cache' {
-    export const routerCache: Record<string, any>;
+    import type {AOTCaches} from '@mionjs/core';
+    export const routerCache: AOTCaches['routerCache'];
 }
 
 /**
- * Combined AOT caches module.
- * Imports all 3 cache modules, registers them via addAOTCaches() and addRoutesToCache(),
- * and re-exports the cache data for manual re-registration (e.g. after resetClientCaches in tests).
+ * Combined AOT caches module — pure data, no side effects.
+ * Import the named `aotCaches` export and pass it to `initMionRouter({ aotCaches })` /
+ * `initClient({ aotCaches })` / `loadAOTCaches(aotCaches)`.
+ * The individual caches are also exported for advanced use cases.
+ *
+ * @example
+ * import { aotCaches } from 'virtual:mion-aot/caches';
+ * await initMionRouter(routes, { aotCaches });
  */
 declare module 'virtual:mion-aot/caches' {
-    export const jitFnsCache: Record<string, any>;
-    export const pureFnsCache: Record<string, Record<string, any>>;
-    export const routerCache: Record<string, any>;
+    import type {AOTCaches} from '@mionjs/core';
+    export const aotCaches: AOTCaches;
+    export const jitFnsCache: AOTCaches['jitFnsCache'];
+    export const pureFnsCache: AOTCaches['pureFnsCache'];
+    export const routerCache: AOTCaches['routerCache'];
 }
 
 /** Virtual module for server pure functions extracted from client source at build time. */

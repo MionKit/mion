@@ -10,6 +10,7 @@ import {MIME_TYPES} from '../constants.ts';
 import {TypeFormatError} from './formats/formats.types.ts';
 import type {JITUtils} from '../jit/jitUtils.ts';
 import {CompiledPureFunction, PersistedPureFunction, PureFunctionData} from './pureFunctions.types.ts';
+import {MethodsCache} from './method.types.ts';
 
 // ########################################## Serialization Modes ##########################################
 
@@ -232,6 +233,13 @@ export type PureFunctionsCache = Record<string, Record<string, CompiledPureFunct
 export type PersistedJitFunctionsCache = Record<string, PersistedJitFn>;
 /** Namespaced cache structure for persisted pure functions */
 export type PersistedPureFunctionsCache = Record<string, Record<string, PersistedPureFunction>>;
+
+/** Pre-compiled AOT caches (the data shape that `virtual:mion-aot/caches` exports). */
+export interface AOTCaches {
+    jitFnsCache: PersistedJitFunctionsCache;
+    pureFnsCache: PersistedPureFunctionsCache;
+    routerCache: MethodsCache;
+}
 
 // jit and pure functions data, does not contain createJitFn or fn
 // this is used to serialize over the network, but requires using new Function() to restore functionality

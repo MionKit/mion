@@ -86,9 +86,8 @@ function mionVitePlugin(options) {
       }
       const shimModules = [];
       if (pureFnOptions) shimModules.push(src_vitePlugin_constants.SERVER_PURE_FNS_SHIM);
-      if (aotOptions) shimModules.push(src_vitePlugin_constants.AOT_CACHES_SHIM);
       addSsrNoExternal(config, shimModules);
-      if (env.command === "build" && shimModules.length > 0) {
+      if (env.command === "build" && (shimModules.length > 0 || aotOptions)) {
         wrapBuildExternal(config, shimModules);
       }
     },
@@ -188,18 +187,6 @@ function mionVitePlugin(options) {
     resolveId(id, importer) {
       if (id === src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS) return src_vitePlugin_constants.resolveVirtualId(id);
       if (aotVirtualModules.has(id)) return src_vitePlugin_constants.resolveVirtualId(id);
-      if (aotOptions) {
-        const resolved = resolveShimModule(
-          id,
-          importer,
-          src_vitePlugin_constants.AOT_CACHES_SHIM,
-          src_vitePlugin_constants.VIRTUAL_AOT_CACHES,
-          "aot-caches",
-          "aotCaches.ts",
-          "emptyCaches.ts"
-        );
-        if (resolved) return resolved;
-      }
       if (pureFnOptions) {
         const resolved = resolveShimModule(
           id,
@@ -462,31 +449,37 @@ function resolveShimModule(id, importer, shimSpecifier, virtualModuleId, entryNa
   }
   return null;
 }
-function addSsrNoExternal(config, moduleIds) {
-  if (moduleIds.length === 0) return;
+function addSsrNoExternal(config, specifiers) {
+  if (specifiers.length === 0) return;
   const noExternal = config.ssr?.noExternal;
   if (!config.ssr) config.ssr = {};
   if (Array.isArray(noExternal)) {
-    for (const moduleId of moduleIds) {
-      if (!noExternal.includes(moduleId)) noExternal.push(moduleId);
+    for (const spec of specifiers) {
+      if (!noExternal.includes(spec)) noExternal.push(spec);
     }
-  } else if (typeof noExternal === "string") {
-    config.ssr.noExternal = [noExternal, ...moduleIds];
+  } else if (typeof noExternal === "string" || noExternal instanceof RegExp) {
+    config.ssr.noExternal = [noExternal, ...specifiers];
   } else if (noExternal !== true) {
-    config.ssr.noExternal = noExternal ? [noExternal, ...moduleIds] : [...moduleIds];
+    config.ssr.noExternal = noExternal ? [noExternal, ...specifiers] : [...specifiers];
   }
 }
 function wrapBuildExternal(config, shimModules) {
   if (!config.build) config.build = {};
   if (!config.build.rollupOptions) config.build.rollupOptions = {};
   const original = config.build.rollupOptions.external;
-  if (!original) return;
   config.build.rollupOptions.external = (id, ...rest) => {
     if (shimModules.includes(id) || id.startsWith("virtual:mion")) return false;
-    if (typeof original === "function") return original(id, ...rest);
-    if (Array.isArray(original)) return original.some((ext) => ext instanceof RegExp ? ext.test(id) : ext === id);
-    if (original instanceof RegExp) return original.test(id);
-    return original === id;
+    if (typeof original === "function") {
+      const r = original(id, ...rest);
+      if (r !== void 0) return r;
+    } else if (Array.isArray(original)) {
+      return original.some((ext) => ext instanceof RegExp ? ext.test(id) : ext === id);
+    } else if (original instanceof RegExp) {
+      return original.test(id);
+    } else if (typeof original === "string") {
+      return original === id;
+    }
+    return /^[^./]/.test(id);
   };
 }
 const READY_KEY = /* @__PURE__ */ Symbol.for("mion.serverReady");

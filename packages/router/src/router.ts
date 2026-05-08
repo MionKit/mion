@@ -36,6 +36,7 @@ import {
     isTestEnv,
     isMionCompileMode,
     isMionAOTEmitMode,
+    loadAOTCaches,
     resetRoutesCache,
 } from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns} from './lib/reflection.ts';
@@ -43,7 +44,7 @@ import {serializerMiddleFns} from './routes/serializer.routes.ts';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionjs/core';
 import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
-import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache.ts';
+import {addToPersistedMethods, getPersistedMethod, loadCompiledMethods, resetPersistedMethods} from './lib/methodsCache.ts';
 import {mionClientRoutes, mionClientMiddleFns} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
 import {clearRoutesFlowCache} from './routesFlow.ts';
@@ -164,7 +165,10 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
     validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
-    if (routerOptions.aot) await loadAOTCaches();
+    if (routerOptions.aotCaches && !isMionAOTEmitMode()) {
+        loadAOTCaches(routerOptions.aotCaches);
+        loadCompiledMethods(routerOptions.aotCaches.routerCache);
+    }
     isRouterInitialized = true;
     await registerRoutes({...mionErrorsRoutes});
     if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});
@@ -252,11 +256,6 @@ export function getRouteExecutableFromPath(path: string): RouteMethod {
 }
 
 // ############# PRIVATE METHODS #############
-
-async function loadAOTCaches() {
-    const loader = await import('./aot/aotCacheLoader.ts');
-    return loader.loadRouterAOTCaches();
-}
 
 async function emitAOTCaches() {
     if (!isMionAOTEmitMode()) return;

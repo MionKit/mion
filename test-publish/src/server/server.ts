@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError, HeadersSubset} from '@mionjs/core';
-import '@mionjs/core/aot-caches';
+import {aotCaches} from 'virtual:mion-aot/caches';
 import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 import {serverPureFnsCache} from '@mionjs/core/server-pure-fns';
@@ -93,7 +93,7 @@ const port = process.env.MION_TEST_PORT
 
 async function startServer() {
     try {
-        await initMionRouter(routes, {contextDataFactory: () => ({user: null}), skipClientRoutes: false});
+        await initMionRouter(routes, {contextDataFactory: () => ({user: null}), skipClientRoutes: false, aotCaches});
         setNodeHttpOpts({port});
         await startNodeServer();
         console.log(`Test server started on port ${port}`);

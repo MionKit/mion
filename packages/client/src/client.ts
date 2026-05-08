@@ -19,7 +19,7 @@ import {
     WorkflowResult,
 } from './types.ts';
 import type {RemoteApi} from '@mionjs/router';
-import {registerErrorDeserializers} from '@mionjs/core';
+import {loadAOTCaches, registerErrorDeserializers} from '@mionjs/core';
 import {getRouterItemId} from '@mionjs/core';
 import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionjs/core';
@@ -34,6 +34,7 @@ export function initClient<RM extends RemoteApi>(
         ...DEFAULT_PREFILL_OPTIONS,
         ...options,
     };
+    if (clientOptions.aotCaches) loadAOTCaches(clientOptions.aotCaches);
     const client = new MionClient(clientOptions);
     const rootProxy = new MethodProxy([], client, clientOptions);
     return {

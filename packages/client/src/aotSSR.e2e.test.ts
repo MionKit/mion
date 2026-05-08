@@ -95,11 +95,15 @@ async function run() {
         assert.equal(typeof mod.routerCache, 'object');
     });
 
-    await test('should resolve virtual:mion-aot/caches and export all three caches', async () => {
+    await test('should resolve virtual:mion-aot/caches and export aotCaches + three individual caches', async () => {
         const mod = await loadModule('virtual:mion-aot/caches');
         assert.ok(mod.jitFnsCache !== undefined, 'jitFnsCache should be defined');
         assert.ok(mod.pureFnsCache !== undefined, 'pureFnsCache should be defined');
         assert.ok(mod.routerCache !== undefined, 'routerCache should be defined');
+        assert.ok(mod.aotCaches !== undefined, 'aotCaches bundled export should be defined');
+        assert.equal(mod.aotCaches.jitFnsCache, mod.jitFnsCache, 'aotCaches.jitFnsCache should be the same reference');
+        assert.equal(mod.aotCaches.pureFnsCache, mod.pureFnsCache, 'aotCaches.pureFnsCache should be the same reference');
+        assert.equal(mod.aotCaches.routerCache, mod.routerCache, 'aotCaches.routerCache should be the same reference');
     });
 
     console.log('\n--- SSR init timing (race condition regression) ---');

@@ -19,15 +19,23 @@ describe('AOT Build Verification', () => {
 
     it('should have AOT caches inlined in build output', () => {
         const content = readFileSync(distFile, 'utf-8');
-        // AOT registration side effects
-        expect(content).toMatch(/addAOTCaches/);
-        expect(content).toMatch(/addRoutesToCache/);
-        // Caches must be non-empty objects (not `= {}`)
-        expect(content).toMatch(/const pureFnsCache = \{[\s\S]*?"mion"/);
-        expect(content).toMatch(/const jitFnsCache = \{[\s\S]*?namespace:/);
-        expect(content).toMatch(/const routerCache = \{[\s\S]*?"sayHello"/);
+        // The combined virtual module is pure data; rollup inlines the named exports
+        // and the consumer passes them via initMionRouter({ aotCaches }).
+        expect(content).toMatch(/jitFnsCache/);
+        expect(content).toMatch(/pureFnsCache/);
+        expect(content).toMatch(/routerCache/);
+        // Cache data should contain real entries (route ids and namespace strings)
+        expect(content).toMatch(/"sayHello"/);
+        expect(content).toMatch(/"mion"/);
         // Server pure functions should be inlined with actual function data
         expect(content).toMatch(/serverPureFnsCache/);
         expect(content).toMatch(/Hello from pure fn!/);
+        // The user-facing API: caches are passed as an option, not auto-registered
+        expect(content).toMatch(/aotCaches/);
+    });
+
+    it('should not contain the removed @mionjs/core/aot-caches shim path', () => {
+        const content = readFileSync(distFile, 'utf-8');
+        expect(content).not.toMatch(/@mionjs\/core\/aot-caches/);
     });
 });

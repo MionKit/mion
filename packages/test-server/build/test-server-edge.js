@@ -117,8 +117,16 @@
   const __ΩPureFunctionFactory = ["JITUtils", "jitUtils", () => __ΩPureFunction, "", "PureFunctionFactory", 'P"w!2"n#/$w%y'];
   const __ΩPureFunctionData = ["namespace", "paramNames", "code", "fnName", "bodyHash", "pureFnDependencies", "PureFunctionData", `P&4!9&F4"9&4#9&4$9&4%9&F4&89Mw'y`];
   const __ΩCompiledPureFunction = [() => __ΩPureFunctionData, () => __ΩPureFunctionFactory, "createPureFn", () => __ΩPureFunction, "fn", "CompiledPureFunction", 'Pn!n"4#n$4%8Mw&y'];
-  const __ΩOmit$1 = ["T", "K", () => __ΩPick$1, () => __ΩExclude$1, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
+  const __ΩPersistedPureFunction = [() => __ΩCompiledPureFunction, "fn", "PersistedPureFunction", 'Pn!-4"Mw#y'];
   const __ΩRecord$4 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩMethodMetadata = ["type", "id", "isAsync", "hasReturnData", "paramNames", "paramsJitHash", "returnJitHash", () => __ΩHeadersMetaData, "headersParam", () => __ΩHeadersMetaData, "headersReturn", "middleFnIds", "pointer", "nestLevel", "MethodMetadata", `P'4!&4")4#)4$&F4%8&4&&4'n(4)8n*4+8&F4,8&F4-'4.Mw/y`];
+  const __ΩRemoteMethodOpts = ["runOnError", "validateParams", "validateReturn", "description", () => __ΩSerializerMode, "serializer", "isMutation", "strictTypes", "RemoteMethodOpts", `P)4!8)4"8)4#8&4$8n%4&8P)-J4'8)4(8Mw)y`];
+  const __ΩMethodWithOptions = [() => __ΩMethodMetadata, () => __ΩRemoteMethodOpts, "options", "MethodWithOptions", 'Pn!n"4#Mw$y'];
+  const __ΩMethodsCache = [() => __ΩRecord$4, () => __ΩMethodWithOptions, "MethodsCache", '&n"o!#w#y'];
+  const __ΩHeadersMetaData = ["headerNames", "jitHash", "HeadersMetaData", 'P&F4!&4"Mw#y'];
+  const __ΩSerializableMethodsData = [() => __ΩMethodsCache, "methods", () => __ΩFnsDataCache, "deps", () => __ΩPureFnsDataCache, "purFnDeps", "SerializableMethodsData", `Pn!4"n#4$n%4&Mw'y`];
+  const __ΩOmit$1 = ["T", "K", () => __ΩPick$1, () => __ΩExclude$1, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
+  const __ΩRecord$3 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   const __ΩPick$1 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩExclude$1 = ["T", "U", "Exclude", 'l6!Re$!RPe#!e$"qk#%QRb!b"Pde"!p)w#y'];
   const SerializerModes = {
@@ -136,27 +144,24 @@
   const __ΩJitFnArgs = ["vλl", "JitFnArgs", 'P&4!&&LMw"y'];
   const __ΩJitCompiledFnData = ["typeName", "fnID", "jitFnHash", () => __ΩJitFnArgs, "args", () => __ΩJitFnArgs, "defaultParamValues", "isNoop", "code", "jitDependencies", "pureFnDependencies", "paramNames", "JitCompiledFnData", `P&4!9&4"9&4#9n$4%9n&4'9)4(89&4)9&F4*89&F4+89&F4,8Mw-y`];
   const __ΩJitCompiledFn = [() => __ΩAnyFn, "Fn", () => __ΩJitCompiledFnData, "JITUtils", "utl", "", "createJitFn", "fn", "JitCompiledFn", `n!c"Pn#P"w$2%e#!/&4'9e"!4(9Mw)y`];
-  const __ΩJitFunctionsCache = [() => __ΩRecord$4, () => __ΩJitCompiledFn, "JitFunctionsCache", '&n"o!#w#y'];
-  const __ΩPureFunctionsCache = [() => __ΩRecord$4, () => __ΩRecord$4, () => __ΩCompiledPureFunction, "PureFunctionsCache", '&&n#o"#o!#w$y'];
-  const __ΩFnsDataCache = [() => __ΩRecord$4, () => __ΩJitCompiledFnData, "FnsDataCache", '&n"o!#w#y'];
-  const __ΩPureFnsDataCache = [() => __ΩRecord$4, () => __ΩRecord$4, () => __ΩPureFunctionData, "PureFnsDataCache", '&&n#o"#o!#w$y'];
+  const __ΩPersistedJitFn = [() => __ΩOmit$1, () => __ΩJitCompiledFn, "fn", "fn", "PersistedJitFn", 'Pn".#o!#-4$9Mw%y'];
+  const __ΩJitFunctionsCache = [() => __ΩRecord$3, () => __ΩJitCompiledFn, "JitFunctionsCache", '&n"o!#w#y'];
+  const __ΩPureFunctionsCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩCompiledPureFunction, "PureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩPersistedJitFunctionsCache = [() => __ΩRecord$3, () => __ΩPersistedJitFn, "PersistedJitFunctionsCache", '&n"o!#w#y'];
+  const __ΩPersistedPureFunctionsCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩPersistedPureFunction, "PersistedPureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩAOTCaches = [() => __ΩPersistedJitFunctionsCache, "jitFnsCache", () => __ΩPersistedPureFunctionsCache, "pureFnsCache", () => __ΩMethodsCache, "routerCache", "AOTCaches", `Pn!4"n#4$n%4&Mw'y`];
+  const __ΩFnsDataCache = [() => __ΩRecord$3, () => __ΩJitCompiledFnData, "FnsDataCache", '&n"o!#w#y'];
+  const __ΩPureFnsDataCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩPureFunctionData, "PureFnsDataCache", '&&n#o"#o!#w$y'];
   const __ΩSrcCodeJitCompiledFn = [() => __ΩJitCompiledFnData, "JITUtils", "utl", () => __ΩAnyFn, "", "createJitFn", "fn", "SrcCodeJitCompiledFn", `Pn!P"w"2#n$/%4&9-4'9Mw(y`];
   const __ΩSrcCodeCompiledPureFunction = [() => __ΩPureFunctionData, "JITUtils", "utl", () => __ΩAnyFn, "", "createPureFn", "fn", "SrcCodeCompiledPureFunction", `Pn!P"w"2#n$/%4&9-4'9Mw(y`];
-  const __ΩSrcCodeJITCompiledFnsCache = [() => __ΩRecord$4, () => __ΩSrcCodeJitCompiledFn, "SrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
-  const __ΩSrcCodePureFunctionsCache = [() => __ΩRecord$4, () => __ΩRecord$4, () => __ΩSrcCodeCompiledPureFunction, "SrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩSrcCodeJITCompiledFnsCache = [() => __ΩRecord$3, () => __ΩSrcCodeJitCompiledFn, "SrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
+  const __ΩSrcCodePureFunctionsCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩSrcCodeCompiledPureFunction, "SrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
   const __ΩClientSrcCodeJitCompiledFn = [() => __ΩOmit$1, () => __ΩSrcCodeJitCompiledFn, "code", "args", "defaultParamValues", "fnID", "paramNames", "ClientSrcCodeJitCompiledFn", `n"P.#.$.%.&.'Jo!#w(y`];
   const __ΩClientSrcCodeCompiledPureFunction = [() => __ΩOmit$1, () => __ΩSrcCodeCompiledPureFunction, "code", "paramNames", "ClientSrcCodeCompiledPureFunction", 'n"P.#.$Jo!#w%y'];
-  const __ΩClientSrcCodeJITCompiledFnsCache = [() => __ΩRecord$4, () => __ΩClientSrcCodeJitCompiledFn, "ClientSrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
-  const __ΩClientSrcCodePureFunctionsCache = [() => __ΩRecord$4, () => __ΩRecord$4, () => __ΩClientSrcCodeCompiledPureFunction, "ClientSrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩClientSrcCodeJITCompiledFnsCache = [() => __ΩRecord$3, () => __ΩClientSrcCodeJitCompiledFn, "ClientSrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
+  const __ΩClientSrcCodePureFunctionsCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩClientSrcCodeCompiledPureFunction, "ClientSrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
   const __ΩAnyFn = ["args", "", "AnyFn", 'P"@2!"/"w#y'];
-  const __ΩAnyObject = [() => __ΩRecord$4, "AnyObject", '&#o!#w"y'];
-  const __ΩRecord$3 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
-  const __ΩMethodMetadata = ["type", "id", "isAsync", "hasReturnData", "paramNames", "paramsJitHash", "returnJitHash", () => __ΩHeadersMetaData, "headersParam", () => __ΩHeadersMetaData, "headersReturn", "middleFnIds", "pointer", "nestLevel", "MethodMetadata", `P'4!&4")4#)4$&F4%8&4&&4'n(4)8n*4+8&F4,8&F4-'4.Mw/y`];
-  const __ΩRemoteMethodOpts = ["runOnError", "validateParams", "validateReturn", "description", () => __ΩSerializerMode, "serializer", "isMutation", "strictTypes", "RemoteMethodOpts", `P)4!8)4"8)4#8&4$8n%4&8P)-J4'8)4(8Mw)y`];
-  const __ΩMethodWithOptions = [() => __ΩMethodMetadata, () => __ΩRemoteMethodOpts, "options", "MethodWithOptions", 'Pn!n"4#Mw$y'];
-  const __ΩMethodsCache = [() => __ΩRecord$3, () => __ΩMethodWithOptions, "MethodsCache", '&n"o!#w#y'];
-  const __ΩHeadersMetaData = ["headerNames", "jitHash", "HeadersMetaData", 'P&F4!&4"Mw#y'];
-  const __ΩSerializableMethodsData = [() => __ΩMethodsCache, "methods", () => __ΩFnsDataCache, "deps", () => __ΩPureFnsDataCache, "purFnDeps", "SerializableMethodsData", `Pn!4"n#4$n%4&Mw'y`];
+  const __ΩAnyObject = [() => __ΩRecord$3, "AnyObject", '&#o!#w"y'];
   const STR = 1;
   const NUM = 2;
   const POW_2_32 = 2 ** 32;
@@ -993,9 +998,13 @@
     static __type = ["Required", "Optional", "headers", "constructor", "HeadersSubset", `l+&R&R&R&Rb!!c"PPde#!N#!Pde#"N%"K3#9PPPde$!N'!Pde$"N)"K2#"0$5w%`];
   }
   const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
+  function loadAOTCaches(caches) {
+    addAOTCaches(caches.jitFnsCache, caches.pureFnsCache);
+    addRoutesToCache(caches.routerCache);
+  }
   const __ΩRouterEntry = [() => __ΩRoutes, () => __ΩMiddleFnDef, () => __ΩRouteDef, () => __ΩRawMiddleFnDef, () => __ΩHeadersMiddleFnDef, "RouterEntry", 'Pn!n"n#n$n%Jw&y'];
   const __ΩRoutes = [() => __ΩRouterEntry, "Routes", 'P&n!LMw"y'];
-  const __ΩRouterOptions = ["Req", "ContextData", () => __ΩCoreRouterOptions, "basePath", "suffix", "request", "path", "", "pathTransform", () => __ΩContextDataFactory, "contextDataFactory", () => __ΩSerializerMode, "serializer", "RunTypeOptions", "runTypeOptions", "strictTypes", "getPublicRoutesData", "autoGenerateErrorId", "skipClientRoutes", "aot", "maxContextPoolSize", "maxRoutesFlowsCacheSize", "RouterOptions", `"c!"c"Pn#&4$&4%Pe#!2&&2'&/(4)8e""o*"4+8n,4-"w.4/)408)41)42)43)44'45'46Mw7y`];
+  const __ΩRouterOptions = ["Req", "ContextData", () => __ΩCoreRouterOptions, "basePath", "suffix", "request", "path", "", "pathTransform", () => __ΩContextDataFactory, "contextDataFactory", () => __ΩSerializerMode, "serializer", "RunTypeOptions", "runTypeOptions", "strictTypes", "getPublicRoutesData", "autoGenerateErrorId", "skipClientRoutes", () => __ΩAOTCaches, "aotCaches", "maxContextPoolSize", "maxRoutesFlowsCacheSize", "RouterOptions", `"c!"c"Pn#&4$&4%Pe#!2&&2'&/(4)8e""o*"4+8n,4-"w.4/)408)41)42)43n4458'46'47Mw8y`];
   function isMiddleFnDef(entry) {
     return entry.type === HandlerType$1.middleFn;
   }
@@ -1050,8 +1059,6 @@
     autoGenerateErrorId: false,
     /** client routes are initialized by default */
     skipClientRoutes: IS_TEST_ENV,
-    /** AOT mode is disabled by default */
-    aot: false,
     /** Context pooling size == 100 by default */
     maxContextPoolSize: 100,
     /** RoutesFlow cache size == 100 by default */
@@ -1108,6 +1115,10 @@
     return fn;
   }
   const __ΩMethodReflect = [() => __ΩOmit, "MethodWithJitFns", "id", "type", "nestLevel", "pointer", "options", "MethodReflect", `"w"P.#.$.%.&.'Jo!#w(y`];
+  function isAOTStrictMode(routerOptions2) {
+    return !!routerOptions2.aotCaches && !isMionAOTEmitMode();
+  }
+  isAOTStrictMode.__type = [() => __ΩRouterOptions, "routerOptions", "isAOTStrictMode", 'Pn!2")/#'];
   class AOTCacheError extends Error {
     constructor(routeId, type = "route") {
       const typeLabel = type === "rawMiddleFn" ? "Raw middleFn" : type === "middleFn" ? "MiddleFn" : "Route/middleFn";
@@ -1194,7 +1205,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const cached = getPersistedMethodMetadata(routeId);
     if (cached)
       return extractReflectionFromCached(cached);
-    if (routerOptions2.aot)
+    if (isAOTStrictMode(routerOptions2))
       throw new AOTCacheError(routeId, isHeadersMiddleFn ? "middleFn" : "route");
     const rt = await loadRunTypesModule();
     return generateHandlerReflection(handler, routeId, routerOptions2, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
@@ -1204,7 +1215,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const cached = getPersistedMethodMetadata(routeId);
     if (cached)
       return createRawMiddleFnReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
-    if (routerOptions2.aot)
+    if (isAOTStrictMode(routerOptions2))
       return createRawMiddleFnReflection(true);
     const rt = await loadRunTypesModule();
     return generateRawMethodReflection(handler, routeId, rt);
@@ -2279,7 +2290,10 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
-    if (routerOptions.aot) await loadAOTCaches$1();
+    if (routerOptions.aotCaches && !isMionAOTEmitMode()) {
+      loadAOTCaches(routerOptions.aotCaches);
+      loadCompiledMethods(routerOptions.aotCaches.routerCache);
+    }
     isRouterInitialized = true;
     await registerRoutes({ ...mionErrorsRoutes });
     if (!routerOptions.skipClientRoutes) await registerRoutes({ ...mionClientRoutes });
@@ -2334,10 +2348,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return getAnyExecutable(MION_ROUTES.notFound);
     }
     return executionChain.methods[executionChain.routeIndex];
-  }
-  async function loadAOTCaches$1() {
-    const loader = await Promise.resolve().then(() => aotCacheLoader);
-    return loader.loadRouterAOTCaches();
   }
   async function emitAOTCaches$1() {
     if (!isMionAOTEmitMode()) return;
@@ -2890,66 +2900,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       }
     }
   }
-  const __ΩReturnType = ["T", "args", "", "ReturnType", `l>e"!R"RPde#!P"@2"h"!/#qk#'QRb!Pde"!p)w$y`];
-  const __ΩRecord$1 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
-  function __assignType$1(fn, args) {
-    fn.__type = args;
-    return fn;
-  }
-  const __ΩSimpleUser = ["name", "surname", "SimpleUser", 'P&4!&4"Mw#y'];
-  const __ΩDataPoint = ["date", "DataPoint", 'PT4!Mw"y'];
-  const __ΩMySharedData = [() => __ΩReturnType, () => getSharedData, "MySharedData", 'i"o!"w#y'];
-  const __ΩContext = [() => __ΩCallContext, () => __ΩMySharedData, "Context", 'n"o!"w#y'];
-  const getSharedData = () => ({ auth: { me: null } });
-  const changeUserName = route(__assignType$1((ctx, user) => {
-    return { name: "NewName", surname: user.surname };
-  }, [() => __ΩContext, "ctx", () => __ΩSimpleUser, "user", () => __ΩSimpleUser, "", 'Pn!2"n#2$n%/&']));
-  const getDate = route(__assignType$1((ctx, dataPoint) => {
-    return dataPoint || { date: /* @__PURE__ */ new Date("2022-04-10T02:13:00.000Z") };
-  }, [() => __ΩContext, "ctx", () => __ΩDataPoint, "dataPoint", () => __ΩDataPoint, "", 'Pn!2"n#2$8n%/&']));
-  const updateHeaders = route(__assignType$1((context) => {
-    context.response.headers.set("x-something", "true");
-    context.response.headers.set("server", "my-server");
-  }, [() => __ΩContext, "context", "", 'Pn!2"$/#']));
-  const edgeRoutes = { changeUserName, getDate, updateHeaders };
-  (async () => {
-    const mionCompile = typeof process !== "undefined" ? process.env?.MION_COMPILE : void 0;
-    if (mionCompile === "buildOnly" || mionCompile === "middleware") {
-      await initMionRouter(edgeRoutes, {
-        contextDataFactory: getSharedData,
-        basePath: "api/"
-      });
-    }
-  })();
-  const __ΩEdgeSetupOptions = ["basePath", "stringifyJson", "json", "serializer", () => __ΩRecord$1, "defaultResponseHeaders", "EdgeSetupOptions", `P&4!8P.".#J4$8&&o%#4&8Mw'y`];
-  async function setup(options2) {
-    resetVercelHandlerOpts();
-    resetRouter();
-    await initMionRouter(edgeRoutes, {
-      contextDataFactory: getSharedData,
-      basePath: "api/",
-      serializer: options2?.serializer,
-      aot: true
-      // Use pre-compiled AOT caches (bundled via virtual modules)
-    });
-    const handler = createVercelHandler({
-      defaultResponseHeaders: options2?.defaultResponseHeaders ?? {}
-    });
-    globalThis.handler = handler;
-    return handler;
-  }
-  setup.__type = [() => __ΩEdgeSetupOptions, "options", "setup", 'Pn!2"8"/#'];
-  function resetServer() {
-    resetVercelHandlerOpts();
-    resetRouter();
-    globalThis.handler = void 0;
-  }
-  resetServer.__type = ["resetServer", 'P"/!'];
-  const runTypes = {};
-  const runTypes$1 = /* @__PURE__ */ _mergeNamespaces({
-    __proto__: null,
-    default: runTypes
-  }, [runTypes]);
   const pureFnsCache = { "mion": { "asJSONString": { namespace: "mion", paramNames: [], code: `if (typeof Bun !== "undefined") return JSON.stringify;
   const STR_ESCAPE = /[\\u0000-\\u001f\\u0022\\u005c\\ud800-\\udfff]/;
   const MAX_SCAPE_TEST_LENGTH = 1e3;
@@ -4419,30 +4369,68 @@ const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_gqqo
     };
   }, fn: void 0 } };
   const routerCache = { "mion@methodsMetadata": { paramNames: ["methodsIds", "getAllRemoteMethods"], type: 2, id: "mion@methodsMetadata", isAsync: false, hasReturnData: true, paramsJitHash: "RXdbj3", returnJitHash: "A8gCSq", pointer: ["mion@methodsMetadata"], nestLevel: 0, options: { runOnError: true, validateParams: true, validateReturn: false } }, "@thrownErrors": { paramNames: [], type: 1, id: "@thrownErrors", isAsync: false, hasReturnData: true, paramsJitHash: "", returnJitHash: "cm6MsK", pointer: ["@thrownErrors"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } }, "mion@notFound": { paramNames: [], type: 1, id: "mion@notFound", isAsync: false, hasReturnData: true, paramsJitHash: "", returnJitHash: "a8UQwC", pointer: ["mion@notFound"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } }, "mion@platformError": { paramNames: [], type: 1, id: "mion@platformError", isAsync: false, hasReturnData: true, paramsJitHash: "", returnJitHash: "zxRrbt", pointer: ["mion@platformError"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } }, "mion@methodsMetadataById": { paramNames: ["methodsIds", "getAllRemoteMethods"], type: 1, id: "mion@methodsMetadataById", isAsync: false, hasReturnData: true, paramsJitHash: "JtnVhp", returnJitHash: "txBnRj", pointer: ["mion@methodsMetadataById"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "stringifyJson" } }, "changeUserName": { paramNames: ["user"], type: 1, id: "changeUserName", isAsync: false, hasReturnData: true, paramsJitHash: "rjFxDZ", returnJitHash: "jRXlR9", pointer: ["changeUserName"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } }, "getDate": { paramNames: ["dataPoint"], type: 1, id: "getDate", isAsync: false, hasReturnData: true, paramsJitHash: "gqqoWu", returnJitHash: "MKk6Uk", pointer: ["getDate"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } }, "updateHeaders": { paramNames: [], type: 1, id: "updateHeaders", isAsync: false, hasReturnData: false, paramsJitHash: "", returnJitHash: "", pointer: ["updateHeaders"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } } };
-  addAOTCaches(jitFnsCache, pureFnsCache);
-  addRoutesToCache(routerCache);
-  function loadAOTCaches() {
-    addAOTCaches(jitFnsCache, pureFnsCache);
-    addRoutesToCache(routerCache);
+  const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
+  const __ΩReturnType = ["T", "args", "", "ReturnType", `l>e"!R"RPde#!P"@2"h"!/#qk#'QRb!Pde"!p)w$y`];
+  const __ΩRecord$1 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  function __assignType$1(fn, args) {
+    fn.__type = args;
+    return fn;
   }
-  loadAOTCaches.__type = ["loadAOTCaches", "P$/!"];
-  function getRawAOTCaches() {
-    return {
-      jitFnsCache,
-      pureFnsCache,
-      routerCache
-    };
+  const __ΩSimpleUser = ["name", "surname", "SimpleUser", 'P&4!&4"Mw#y'];
+  const __ΩDataPoint = ["date", "DataPoint", 'PT4!Mw"y'];
+  const __ΩMySharedData = [() => __ΩReturnType, () => getSharedData, "MySharedData", 'i"o!"w#y'];
+  const __ΩContext = [() => __ΩCallContext, () => __ΩMySharedData, "Context", 'n"o!"w#y'];
+  const getSharedData = () => ({ auth: { me: null } });
+  const changeUserName = route(__assignType$1((ctx, user) => {
+    return { name: "NewName", surname: user.surname };
+  }, [() => __ΩContext, "ctx", () => __ΩSimpleUser, "user", () => __ΩSimpleUser, "", 'Pn!2"n#2$n%/&']));
+  const getDate = route(__assignType$1((ctx, dataPoint) => {
+    return dataPoint || { date: /* @__PURE__ */ new Date("2022-04-10T02:13:00.000Z") };
+  }, [() => __ΩContext, "ctx", () => __ΩDataPoint, "dataPoint", () => __ΩDataPoint, "", 'Pn!2"n#2$8n%/&']));
+  const updateHeaders = route(__assignType$1((context) => {
+    context.response.headers.set("x-something", "true");
+    context.response.headers.set("server", "my-server");
+  }, [() => __ΩContext, "context", "", 'Pn!2"$/#']));
+  const edgeRoutes = { changeUserName, getDate, updateHeaders };
+  (async () => {
+    const mionCompile = typeof process !== "undefined" ? process.env?.MION_COMPILE : void 0;
+    if (mionCompile === "buildOnly" || mionCompile === "middleware") {
+      await initMionRouter(edgeRoutes, {
+        contextDataFactory: getSharedData,
+        basePath: "api/",
+        aotCaches
+      });
+    }
+  })();
+  const __ΩEdgeSetupOptions = ["basePath", "stringifyJson", "json", "serializer", () => __ΩRecord$1, "defaultResponseHeaders", "EdgeSetupOptions", `P&4!8P.".#J4$8&&o%#4&8Mw'y`];
+  async function setup(options2) {
+    resetVercelHandlerOpts();
+    resetRouter();
+    await initMionRouter(edgeRoutes, {
+      contextDataFactory: getSharedData,
+      basePath: "api/",
+      serializer: options2?.serializer,
+      aotCaches
+      // Use pre-compiled AOT caches imported from the virtual module
+    });
+    const handler = createVercelHandler({
+      defaultResponseHeaders: options2?.defaultResponseHeaders ?? {}
+    });
+    globalThis.handler = handler;
+    return handler;
   }
-  getRawAOTCaches.__type = ["getRawAOTCaches", 'P"/!'];
-  function loadRouterAOTCaches() {
-    loadAOTCaches();
-    loadCompiledMethods(getRawAOTCaches().routerCache);
+  setup.__type = [() => __ΩEdgeSetupOptions, "options", "setup", 'Pn!2"8"/#'];
+  function resetServer() {
+    resetVercelHandlerOpts();
+    resetRouter();
+    globalThis.handler = void 0;
   }
-  loadRouterAOTCaches.__type = ["loadRouterAOTCaches", "P$/!"];
-  const aotCacheLoader = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  resetServer.__type = ["resetServer", 'P"/!'];
+  const runTypes = {};
+  const runTypes$1 = /* @__PURE__ */ _mergeNamespaces({
     __proto__: null,
-    loadRouterAOTCaches
-  }, Symbol.toStringTag, { value: "Module" }));
+    default: runTypes
+  }, [runTypes]);
   const __ΩRecord = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   function __assignType(fn, args) {
     fn.__type = args;

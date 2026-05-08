@@ -26,3 +26,4 @@ export * from './src/headers.ts';
 export * from './src/pureFns/pureFn.ts';
 export * from './src/pureFns/pureServerFn.ts';
 export * from './src/pureFns/quickHash.ts';
+export * from './src/aot/aotCaches.ts';

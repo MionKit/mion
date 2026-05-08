@@ -1,29 +1,7 @@
-import {resolve} from 'path';
 import {describe, it, expect, vi, afterEach} from 'vitest';
 import {mionVitePlugin} from './mionVitePlugin.ts';
-import {AOT_CACHES_SHIM, VIRTUAL_AOT_CACHES, resolveVirtualId} from './constants.ts';
-
-// Mock heavy dependencies to avoid spawning processes
-vi.mock('./aotCacheGenerator.ts', () => ({
-    generateAOTCaches: vi.fn(),
-    loadSSRRouterAndGenerateAOTCaches: vi.fn(),
-    killPersistentChild: vi.fn(),
-    logAOTCaches: vi.fn(),
-    waitForServer: vi.fn(),
-    generateJitFnsModule: vi.fn(),
-    generatePureFnsModule: vi.fn(),
-    generateRouterCacheModule: vi.fn(),
-    generateCombinedCachesModule: vi.fn(),
-    generateNoopModule: vi.fn(),
-    generateNoopCombinedModule: vi.fn(),
-    buildAOTVirtualModuleMaps: vi.fn(() => ({aotVirtualModules: new Set(), aotResolvedIds: new Map()})),
-}));
-
-vi.mock('./aotDiskCache.ts', () => ({
-    getOrGenerateAOTCaches: vi.fn(),
-    updateDiskCache: vi.fn(),
-    resolveCacheDir: vi.fn(() => ''),
-}));
+import {SERVER_PURE_FNS_SHIM} from './constants.ts';
+import {generateCombinedCachesModule, generateNoopCombinedModule} from './aotCacheGenerator.ts';
 
 afterEach(() => {
     vi.restoreAllMocks();
@@ -32,65 +10,122 @@ afterEach(() => {
 describe('config hook - ssr.noExternal', () => {
     const serveEnv: any = {command: 'serve', mode: 'development'};
 
-    function getPlugin(aotCaches: true | object = true) {
-        return mionVitePlugin({aotCaches});
-    }
-
-    it('should add aot-caches to noExternal when ssr config is undefined', () => {
-        const plugin = getPlugin();
+    it('does not add anything to noExternal when only aotCaches is enabled (no shim modules)', () => {
+        const plugin = mionVitePlugin({aotCaches: true});
         const config: any = {};
         plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual([AOT_CACHES_SHIM]);
+        expect(config.ssr).toBeUndefined();
     });
 
-    it('should add aot-caches to noExternal when ssr.noExternal is undefined', () => {
-        const plugin = getPlugin();
-        const config: any = {ssr: {}};
+    it('adds SERVER_PURE_FNS_SHIM to noExternal when serverPureFunctions is configured', () => {
+        const plugin = mionVitePlugin({
+            aotCaches: true,
+            serverPureFunctions: {clientSrcPath: '/tmp/client'},
+        });
+        const config: any = {};
         plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual([AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal).toEqual([SERVER_PURE_FNS_SHIM]);
     });
 
-    it('should append to existing noExternal array', () => {
-        const plugin = getPlugin();
+    it('appends SERVER_PURE_FNS_SHIM to existing noExternal array', () => {
+        const plugin = mionVitePlugin({serverPureFunctions: {clientSrcPath: '/tmp/client'}});
         const config: any = {ssr: {noExternal: ['some-other-module']}};
         plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual(['some-other-module', AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal).toEqual(['some-other-module', SERVER_PURE_FNS_SHIM]);
     });
 
-    it('should not duplicate if already in noExternal array', () => {
-        const plugin = getPlugin();
-        const config: any = {ssr: {noExternal: [AOT_CACHES_SHIM]}};
+    it('does not duplicate if already in noExternal array', () => {
+        const plugin = mionVitePlugin({serverPureFunctions: {clientSrcPath: '/tmp/client'}});
+        const config: any = {ssr: {noExternal: [SERVER_PURE_FNS_SHIM]}};
         plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual([AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal).toEqual([SERVER_PURE_FNS_SHIM]);
     });
 
-    it('should wrap string noExternal into array with aot-caches', () => {
-        const plugin = getPlugin();
-        const config: any = {ssr: {noExternal: 'some-module'}};
-        plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual(['some-module', AOT_CACHES_SHIM]);
-    });
-
-    it('should wrap RegExp noExternal into array with aot-caches', () => {
-        const plugin = getPlugin();
-        const regex = /some-pattern/;
-        const config: any = {ssr: {noExternal: regex}};
-        plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual([regex, AOT_CACHES_SHIM]);
-    });
-
-    it('should not modify noExternal when set to true', () => {
-        const plugin = getPlugin();
+    it('preserves noExternal === true', () => {
+        const plugin = mionVitePlugin({serverPureFunctions: {clientSrcPath: '/tmp/client'}});
         const config: any = {ssr: {noExternal: true}};
         plugin.config(config, serveEnv);
         expect(config.ssr.noExternal).toBe(true);
     });
 
-    it('should not add noExternal when no shim features are configured', () => {
-        const plugin = mionVitePlugin({});
+    it('does not force @mionjs/* into noExternal even with serverConfig set', () => {
+        // After 0.9, the plugin no longer needs to bundle @mionjs source — caches are
+        // explicit data, not side effects, so externalization is safe.
+        const plugin = mionVitePlugin({
+            aotCaches: true,
+            server: {startScript: '/tmp/start.ts', runMode: 'buildOnly'},
+        });
         const config: any = {};
         plugin.config(config, serveEnv);
         expect(config.ssr).toBeUndefined();
+    });
+});
+
+describe('config hook - build.rollupOptions.external default', () => {
+    const buildEnv: any = {command: 'build', mode: 'production'};
+
+    it('installs a default external function when aotCaches is enabled', () => {
+        const plugin = mionVitePlugin({aotCaches: true});
+        const config: any = {};
+        plugin.config(config, buildEnv);
+        const ext = config.build.rollupOptions.external;
+        expect(typeof ext).toBe('function');
+    });
+
+    it('default external bundles virtual:mion* modules', () => {
+        const plugin = mionVitePlugin({aotCaches: true});
+        const config: any = {};
+        plugin.config(config, buildEnv);
+        const ext = config.build.rollupOptions.external;
+        expect(ext('virtual:mion-aot/caches')).toBe(false);
+        expect(ext('virtual:mion-aot/jit-fns')).toBe(false);
+    });
+
+    it('default external bundles SERVER_PURE_FNS_SHIM when configured', () => {
+        const plugin = mionVitePlugin({
+            aotCaches: true,
+            serverPureFunctions: {clientSrcPath: '/tmp/client'},
+        });
+        const config: any = {};
+        plugin.config(config, buildEnv);
+        const ext = config.build.rollupOptions.external;
+        expect(ext(SERVER_PURE_FNS_SHIM)).toBe(false);
+    });
+
+    it('default external externalizes @mionjs/* and other bare specifiers', () => {
+        const plugin = mionVitePlugin({aotCaches: true});
+        const config: any = {};
+        plugin.config(config, buildEnv);
+        const ext = config.build.rollupOptions.external;
+        expect(ext('@mionjs/platform-node')).toBe(true);
+        expect(ext('@mionjs/router')).toBe(true);
+        expect(ext('@mionjs/core')).toBe(true);
+        expect(ext('node:fs')).toBe(true);
+        expect(ext('pino')).toBe(true);
+    });
+
+    it('default external bundles relative paths', () => {
+        const plugin = mionVitePlugin({aotCaches: true});
+        const config: any = {};
+        plugin.config(config, buildEnv);
+        const ext = config.build.rollupOptions.external;
+        expect(ext('./local-module')).toBe(false);
+        expect(ext('../sibling')).toBe(false);
+    });
+
+    it('original function external still wins for ids it returns true/false on', () => {
+        const plugin = mionVitePlugin({aotCaches: true});
+        const original = vi.fn((id: string) => (id === 'force-bundled' ? false : id === 'force-external' ? true : undefined));
+        const config: any = {build: {rollupOptions: {external: original}}};
+        plugin.config(config, buildEnv);
+        const ext = config.build.rollupOptions.external;
+        // Plugin carve-outs always win
+        expect(ext('virtual:mion-aot/caches')).toBe(false);
+        // Original function decisions are honored
+        expect(ext('force-bundled')).toBe(false);
+        expect(ext('force-external')).toBe(true);
+        // Fallback to bare-specifier rule when original returns undefined
+        expect(ext('@mionjs/platform-node')).toBe(true);
     });
 });
 
@@ -139,57 +174,32 @@ describe('transform hook - @mionjs build artifact skipping', () => {
     });
 });
 
-describe('resolveId hook - AOT caches', () => {
-    function getPlugin() {
-        return mionVitePlugin({aotCaches: true});
-    }
-
-    it('should resolve bare specifier @mionjs/core/aot-caches to aotCaches source or virtual module', () => {
-        const plugin = getPlugin();
-        const result = plugin.resolveId(AOT_CACHES_SHIM, undefined);
-        // In dev (no .dist build), createRequire falls back to virtual module; in CI/publish it resolves to source
-        expect(result).toMatch(/aotCaches\.(js|cjs|mjs|ts)$|virtual:mion-aot\/caches/);
+describe('combined virtual module — pure data shape', () => {
+    it('generated module has no addAOTCaches / addRoutesToCache / loadCompiledMethods side effects', () => {
+        const code = generateCombinedCachesModule();
+        expect(code).not.toContain('addAOTCaches');
+        expect(code).not.toContain('addRoutesToCache');
+        expect(code).not.toContain('loadCompiledMethods');
+        expect(code).not.toContain("from '@mionjs/core'");
+        expect(code).not.toContain("from '@mionjs/router'");
     });
 
-    it('should resolve alias-resolved absolute /aot-caches path to source aotCaches.ts', () => {
-        const coreDir = resolve(__dirname, '../../../core');
-        const aliasResolved = resolve(coreDir, 'aot-caches');
-        const plugin = getPlugin();
-        const result = plugin.resolveId(aliasResolved, undefined);
-        expect(result).toBe(resolve(coreDir, 'src/aot/aotCaches.ts'));
+    it('generated module exports the bundled aotCaches and the three individual caches', () => {
+        const code = generateCombinedCachesModule();
+        expect(code).toMatch(/export const aotCaches = \{ jitFnsCache, pureFnsCache, routerCache \}/);
+        expect(code).toContain('jitFnsCache');
+        expect(code).toContain('pureFnsCache');
+        expect(code).toContain('routerCache');
     });
 
-    it('should resolve emptyCaches.ts imported by aotCaches.ts to VIRTUAL_AOT_CACHES', () => {
-        const plugin = getPlugin();
-        const result = plugin.resolveId('./emptyCaches.ts', '/some/path/aotCaches.ts');
-        expect(result).toBe(resolveVirtualId(VIRTUAL_AOT_CACHES));
-    });
-
-    it('should resolve emptyCaches.js imported by aotCaches.js to VIRTUAL_AOT_CACHES', () => {
-        const plugin = getPlugin();
-        const result = plugin.resolveId('./emptyCaches.js', '/some/path/.dist/esm/src/aot/aotCaches.js');
-        expect(result).toBe(resolveVirtualId(VIRTUAL_AOT_CACHES));
-    });
-
-    it('should resolve emptyCaches.cjs imported by aotCaches.cjs to VIRTUAL_AOT_CACHES', () => {
-        const plugin = getPlugin();
-        const result = plugin.resolveId('./emptyCaches.cjs', '/some/path/.dist/cjs/src/aot/aotCaches.cjs');
-        expect(result).toBe(resolveVirtualId(VIRTUAL_AOT_CACHES));
-    });
-
-    it('should not resolve emptyCaches when importer is not aotCaches', () => {
-        const plugin = getPlugin();
-        expect(plugin.resolveId('./emptyCaches.ts', '/some/path/other.ts')).toBeNull();
-        expect(plugin.resolveId('./emptyCaches.js', '/some/path/other.js')).toBeNull();
-    });
-
-    it('should not resolve emptyCaches when there is no importer', () => {
-        const plugin = getPlugin();
-        expect(plugin.resolveId('./emptyCaches.ts', undefined)).toBeNull();
-    });
-
-    it('should not resolve emptyCaches when aotCaches is not configured', () => {
-        const plugin = mionVitePlugin({});
-        expect(plugin.resolveId('./emptyCaches.ts', '/some/path/aotCaches.ts')).toBeNull();
+    it('noop combined module exports empty caches and nothing else', () => {
+        const code = generateNoopCombinedModule();
+        expect(code).toContain('export const jitFnsCache = {}');
+        expect(code).toContain('export const pureFnsCache = {}');
+        expect(code).toContain('export const routerCache = {}');
+        expect(code).toMatch(/export const aotCaches = \{ jitFnsCache, pureFnsCache, routerCache \}/);
+        expect(code).not.toContain('loadAOTCaches');
+        expect(code).not.toContain('getRawAOTCaches');
+        expect(code).not.toContain('addAOTCaches');
     });
 });
