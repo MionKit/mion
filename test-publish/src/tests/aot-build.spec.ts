@@ -27,8 +27,9 @@ describe('AOT Build Verification', () => {
         // Cache data should contain real entries (route ids and namespace strings)
         expect(content).toMatch(/"sayHello"/);
         expect(content).toMatch(/"mion"/);
-        // Server pure functions should be inlined with actual function data
-        expect(content).toMatch(/serverPureFnsCache/);
+        // Server pure functions should be inlined with actual function data,
+        // accessed via the helper API (serverPureFnsCache itself is private).
+        expect(content).toMatch(/getServerPureFn/);
         expect(content).toMatch(/Hello from pure fn!/);
         // The user-facing API: caches are passed as an option, not auto-registered
         expect(content).toMatch(/aotCaches/);

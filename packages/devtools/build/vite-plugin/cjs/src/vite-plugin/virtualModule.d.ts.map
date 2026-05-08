@@ -1,1 +1,1 @@
-{"version":3,"file":"virtualModule.d.ts","sourceRoot":"","sources":["../../../../../src/vite-plugin/virtualModule.ts"],"names":[],"mappings":"AAOA,OAAO,EAAC,eAAe,EAAC,MAAM,YAAY,CAAC;AAiB3C,wBAAgB,kCAAkC,CAAC,YAAY,EAAE,eAAe,EAAE,GAAG,MAAM,CA0C1F"}
+{"version":3,"file":"virtualModule.d.ts","sourceRoot":"","sources":["../../../../../src/vite-plugin/virtualModule.ts"],"names":[],"mappings":"AAOA,OAAO,EAAC,eAAe,EAAC,MAAM,YAAY,CAAC;AAiB3C,wBAAgB,kCAAkC,CAAC,YAAY,EAAE,eAAe,EAAE,GAAG,MAAM,CAyC1F"}

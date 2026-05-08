@@ -1002,6 +1002,7 @@
   const __ΩRouterEntry = [() => __ΩRoutes, () => __ΩMiddleFnDef, () => __ΩRouteDef, () => __ΩRawMiddleFnDef, () => __ΩHeadersMiddleFnDef, "RouterEntry", 'Pn!n"n#n$n%Jw&y'];
   const __ΩRoutes = [() => __ΩRouterEntry, "Routes", 'P&n!LMw"y'];
   const __ΩRouterOptions = ["Req", "ContextData", () => __ΩCoreRouterOptions, "basePath", "suffix", "request", "path", "", "pathTransform", () => __ΩContextDataFactory, "contextDataFactory", () => __ΩSerializerMode, "serializer", "RunTypeOptions", "runTypeOptions", "strictTypes", "getPublicRoutesData", "autoGenerateErrorId", "skipClientRoutes", "maxContextPoolSize", "maxRoutesFlowsCacheSize", "RouterOptions", `"c!"c"Pn#&4$&4%Pe#!2&&2'&/(4)8e""o*"4+8n,4-"w.4/)408)41)42)43'44'45Mw6y`];
+  const __ΩRouterState = [() => __ΩRouterOptions, "options", "isInitialized", "aotMode", "RouterState", 'Pn!4")4#)4$Mw%y'];
   function isMiddleFnDef(entry) {
     return entry.type === HandlerType$1.middleFn;
   }
@@ -1195,26 +1196,26 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return reflectionItems;
   }
   extractReflectionFromCached.__type = [() => __ΩCachedMethodMetadata, "cached", () => __ΩMethodReflect, "extractReflectionFromCached", 'Pn!2"n#/$'];
-  async function getHandlerReflection(handler, routeId, routerOptions, handlerOptions = {}, isHeadersMiddleFn = false, methodStrictTypes) {
+  async function getHandlerReflection(handler, routeId, routerState2, handlerOptions = {}, isHeadersMiddleFn = false, methodStrictTypes) {
     const cached = getPersistedMethodMetadata(routeId);
     if (cached)
       return extractReflectionFromCached(cached);
-    if (isAOTStrictMode())
+    if (routerState2.aotMode)
       throw new AOTCacheError(routeId, isHeadersMiddleFn ? "middleFn" : "route");
     const rt = await loadRunTypesModule();
-    return generateHandlerReflection(handler, routeId, routerOptions, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
+    return generateHandlerReflection(handler, routeId, routerState2.options, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
   }
-  getHandlerReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRouterOptions, "routerOptions", () => __ΩRouteOptions, () => __ΩMiddleFnOptions, () => __ΩHeadersMiddleFnOptions, "handlerOptions", () => ({}), "isHeadersMiddleFn", () => false, "methodStrictTypes", () => __ΩMethodReflect, "getHandlerReflection", "Pn!2\"&2#n$2%Pn&n'n(J2)>*)2+>,)2-8n.`//"];
-  async function getRawMethodReflection(handler, routeId, routerOptions) {
+  getHandlerReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRouterState, "routerState", () => __ΩRouteOptions, () => __ΩMiddleFnOptions, () => __ΩHeadersMiddleFnOptions, "handlerOptions", () => ({}), "isHeadersMiddleFn", () => false, "methodStrictTypes", () => __ΩMethodReflect, "getHandlerReflection", "Pn!2\"&2#n$2%Pn&n'n(J2)>*)2+>,)2-8n.`//"];
+  async function getRawMethodReflection(handler, routeId, routerState2) {
     const cached = getPersistedMethodMetadata(routeId);
     if (cached)
       return createRawMiddleFnReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
-    if (isAOTStrictMode())
+    if (routerState2.aotMode)
       return createRawMiddleFnReflection(true);
     const rt = await loadRunTypesModule();
     return generateRawMethodReflection(handler, routeId, rt);
   }
-  getRawMethodReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRouterOptions, "routerOptions", () => __ΩMethodReflect, "getRawMethodReflection", "Pn!2\"&2#n$2%n&`/'"];
+  getRawMethodReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRouterState, "routerState", () => __ΩMethodReflect, "getRawMethodReflection", "Pn!2\"&2#n$2%n&`/'"];
   function generateHandlerReflection(handler, routeId, routerOptions, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes) {
     const reflectionItems = {};
     let handlerRunType;
@@ -2254,7 +2255,6 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   const getRouteExecutable = (id) => routesById.get(id);
   const getMiddleFnExecutable = (id) => middleFnsById.get(id);
   const getRouterOptions = () => routerState.options;
-  const isAOTStrictMode = () => routerState.aotMode;
   const getAnyExecutable = (id) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
   function setPlatformConfig(config) {
     if (isMionAOTEmitMode() && typeof process.send === "function") {
@@ -2490,7 +2490,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       const reflectionData = await getHandlerReflection(
         middleFn2.handler,
         middleFnId,
-        routerState.options,
+        routerState,
         middleFn2.options ?? {},
         isHeader,
         middleFn2.options?.strictTypes
@@ -2520,7 +2520,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const middleFnId = getRouterItemId(middleFnPointer);
     const existing = rawMiddleFnsById.get(middleFnId);
     if (existing) return existing;
-    const reflectionData = await getRawMethodReflection(middleFn2.handler, middleFnId, routerState.options);
+    const reflectionData = await getRawMethodReflection(middleFn2.handler, middleFnId, routerState);
     const executable = {
       id: middleFnId,
       type: HandlerType$1.rawMiddleFn,
@@ -2561,7 +2561,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       const reflectionData = await getHandlerReflection(
         route2.handler,
         routeId,
-        routerState.options,
+        routerState,
         resolvedRouteOptions,
         false,
         route2.options?.strictTypes

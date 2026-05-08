@@ -14,7 +14,7 @@ import {FormatString, FormatEmail, FormatUUIDv4} from '@mionjs/type-formats/Stri
 import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
 // Import server pure functions extracted from client source at build time.
 // for this specific scenario server function are defined in packages/client/src/vitePlugin.e2e.spec.ts
-import {serverPureFnsCache} from '@mionjs/core/server-pure-fns';
+import {getServerPureFn} from '@mionjs/core/server-pure-fns';
 
 // ============ JSON test types ============
 type User = {name: string; surname: string};
@@ -273,14 +273,14 @@ const routes = {
 
     // Route that invokes a server pure function extracted from client source at build time
     getGreetingsPureFnResult: route((): string => {
-        const pureFn = serverPureFnsCache.pureServerFn?.greeting;
+        const pureFn = getServerPureFn('pureServerFn', 'greeting');
         if (!pureFn?.fn) throw new RpcError({publicMessage: 'Pure function greeting not found', type: 'pure-fn-not-found'});
         return pureFn.fn();
     }),
 
     // Route that looks up and invokes any server pure function by name, with an optional argument
     callPureFnByName: route((_ctx, fnName: string, arg?: number): any => {
-        const pureFn = serverPureFnsCache.pureServerFn?.[fnName];
+        const pureFn = getServerPureFn('pureServerFn', fnName);
         if (!pureFn?.fn) throw new RpcError({publicMessage: `Pure function "${fnName}" not found`, type: 'pure-fn-not-found'});
         return arg !== undefined ? pureFn.fn(arg) : pureFn.fn();
     }),

@@ -14,7 +14,7 @@ import {IS_TEST_ENV} from '../constants.ts';
 // (Vite externalises @mionjs/router; the plugin's ssrLoadModule and Node's external
 // resolver may otherwise produce two distinct module instances each with its own state).
 const PERSISTED_METHODS_KEY = Symbol.for('mion.persisted-methods/v1');
-export const persistedMethods: MethodsCache = ((globalThis as any)[PERSISTED_METHODS_KEY] ??= {});
+const persistedMethods: MethodsCache = ((globalThis as any)[PERSISTED_METHODS_KEY] ??= {});
 
 // ############# PUBLIC METHODS #############
 

@@ -294,8 +294,8 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // AOT virtual modules (default + custom prefix both resolve)
             if (aotVirtualModules.has(id)) return resolveVirtualId(id);
             // @mionjs/core/server-pure-fns — redirect to the virtual module so the populated
-            // entries get bundled. The virtual module exports the same surface (serverPureFnsCache,
-            // getServerPureFn, loadServerPureFns) backed by the shared globalThis slot.
+            // entries get bundled. The virtual module exports the same helper surface
+            // (getServerPureFn, loadServerPureFns) backed by the shared globalThis slot.
             //
             // We match both the bare specifier and the alias-resolved absolute path. Some Vite
             // configs (notably the monorepo test-server's edge/cloudflare configs) alias

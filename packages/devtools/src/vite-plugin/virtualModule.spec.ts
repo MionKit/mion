@@ -19,7 +19,8 @@ describe('generateVirtualModule', () => {
         ];
 
         const result = generateServerPureFnsVirtualModule(fns);
-        expect(result).toContain('serverPureFnsCache');
+        expect(result).toContain('getServerPureFn');
+        expect(result).toContain('loadServerPureFns');
         // Namespace level key
         expect(result).toContain(`"${PURE_SERVER_FN_NAMESPACE}"`);
         // Function name as nested key
@@ -68,9 +69,10 @@ describe('generateVirtualModule', () => {
 
     it('should generate an empty module when no functions', () => {
         const result = generateServerPureFnsVirtualModule([]);
-        expect(result).toContain('serverPureFnsCache');
-        // Module exports the globalThis-backed slot rather than a literal object literal
-        expect(result).toContain('export const serverPureFnsCache');
+        // Module exposes only the helper API; the globalThis slot stays internal
+        expect(result).toContain('export function getServerPureFn');
+        expect(result).toContain('export function loadServerPureFns');
+        expect(result).not.toContain('export const serverPureFnsCache');
     });
 
     it('should generate direct fn for regular pure functions', () => {
@@ -191,12 +193,12 @@ return function inner(x) {
 
         const result = generateServerPureFnsVirtualModule(fns);
         // Evaluate the generated module code (strip 'export' for new Function)
-        const evalCode = result.replace(/^export /gm, '') + '\nreturn serverPureFnsCache;';
+        const evalCode = result.replace(/^export /gm, '') + '\nreturn {getServerPureFn};';
         const fn = new Function(evalCode);
-        const cache = fn();
-        expect(cache.testNs.double.fn(5)).toBe(10);
-        expect(cache.testNs.double.bodyHash).toBe('testhash');
-        expect(cache.testNs.double.namespace).toBe('testNs');
+        const {getServerPureFn} = fn();
+        expect(getServerPureFn('testNs', 'double').fn(5)).toBe(10);
+        expect(getServerPureFn('testNs', 'double').bodyHash).toBe('testhash');
+        expect(getServerPureFn('testNs', 'double').namespace).toBe('testNs');
     });
 
     it('should omit pureFnDependencies when empty and include when non-empty', () => {
@@ -225,11 +227,11 @@ return function inner(x) {
 
         const result = generateServerPureFnsVirtualModule(fns);
         // Evaluate to verify runtime structure
-        const evalCode = result.replace(/^export /gm, '') + '\nreturn serverPureFnsCache;';
-        const cache = new Function(evalCode)();
+        const evalCode = result.replace(/^export /gm, '') + '\nreturn {getServerPureFn};';
+        const {getServerPureFn} = new Function(evalCode)();
         // noDeps should not have pureFnDependencies property at all
-        expect(cache.testNs.noDeps.pureFnDependencies).toBeUndefined();
+        expect(getServerPureFn('testNs', 'noDeps').pureFnDependencies).toBeUndefined();
         // hasDeps should have the dependency listed
-        expect(cache.testNs.hasDeps.pureFnDependencies).toEqual(['noDeps']);
+        expect(getServerPureFn('testNs', 'hasDeps').pureFnDependencies).toEqual(['noDeps']);
     });
 });

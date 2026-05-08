@@ -19,7 +19,7 @@
  * bundle init. Runtime reads from the slot and finds the populated cache.
  */
 const KEY = Symbol.for('mion.server-pure-fns/v1');
-export const serverPureFnsCache: Record<string, Record<string, any>> = ((globalThis as any)[KEY] ??= {});
+const serverPureFnsCache: Record<string, Record<string, any>> = ((globalThis as any)[KEY] ??= {});
 
 /** Look up a server pure function by namespace and hash. Always reads the current globalThis slot. */
 export function getServerPureFn(namespace: string, hash: string): any {

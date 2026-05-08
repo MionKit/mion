@@ -4,7 +4,6 @@
     "outDir": ".dist/esm",
     "composite": true,
     "rootDir": ".",
-    "baseUrl": "..",
     "module": "nodeNext",
     "moduleResolution": "nodeNext",
     "types": ["@mionjs/devtools/virtual-modules", "@types/node"],

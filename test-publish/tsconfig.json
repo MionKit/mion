@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
@@ -12,7 +11,8 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["@mionjs/devtools/virtual-modules"]
   },
   "reflection": true,
   "include": ["src/**/*.ts", "globalSetup.ts"],

@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "allowImportingTsExtensions": true,
-    "baseUrl": ".",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,

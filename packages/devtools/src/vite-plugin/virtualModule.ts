@@ -16,8 +16,8 @@ import {ExtractedPureFn} from './types.ts';
  *    @mionjs/core/server-pure-fns. This makes the data visible to
  *    routesFlow.ts even when @mionjs/router is externalised by Vite SSR
  *    (Node loads it via its own resolver, bypassing the plugin's resolveId).
- * 3. Re-exports `serverPureFnsCache` for back-compat with consumers that
- *    import it directly from this virtual module (e.g. test-server).
+ * 3. Re-exports the helper functions (`getServerPureFn`, `loadServerPureFns`)
+ *    so consumers can read/merge the cache without touching the raw object.
  *
  * The slot key (`mion.server-pure-fns/v1`) must match the one used in
  * packages/core/src/aot/serverPureFnsCaches.ts.
@@ -54,7 +54,6 @@ for (const __ns in __mionExtractedPureFns) {
     __mionPureFnsSlot[__ns] = Object.assign({}, __mionPureFnsSlot[__ns] || {}, __mionExtractedPureFns[__ns]);
 }
 
-export const serverPureFnsCache = __mionPureFnsSlot;
 export function getServerPureFn(namespace, hash) {
     return __mionPureFnsSlot[namespace] && __mionPureFnsSlot[namespace][hash];
 }

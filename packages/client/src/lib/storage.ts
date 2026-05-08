@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-const STORAGE_GLOBAL_KEY = '__mion_storage__';
+const STORAGE_GLOBAL_KEY = Symbol.for('mion.storage/v1');
 
 /** In-memory Storage implementation for SSR/Node environments where localStorage is not available */
 export class MemoryStorage {
@@ -38,8 +38,8 @@ export function getStorage(): Storage | MemoryStorage {
     let storage: Storage | MemoryStorage;
     try {
         if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('__mion_test__', '1');
-            localStorage.removeItem('__mion_test__');
+            localStorage.setItem('mion.test.key.Ω', '1');
+            localStorage.removeItem('mion.test.key.Ω');
             storage = localStorage;
         } else {
             storage = new MemoryStorage();

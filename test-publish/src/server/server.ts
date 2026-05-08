@@ -9,7 +9,7 @@ import {RpcError, HeadersSubset} from '@mionjs/core';
 import {aotCaches} from 'virtual:mion-aot/caches';
 import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
-import {serverPureFnsCache} from '@mionjs/core/server-pure-fns';
+import {getServerPureFn} from '@mionjs/core/server-pure-fns';
 
 // ============ Types ============
 // NOTE: Regular imports only! Never use `import type` for types that need reflection.
@@ -74,7 +74,7 @@ const routes = {
 
     // Pure function route
     getGreetingsPureFnResult: route((): string => {
-        const pureFn = serverPureFnsCache.pureServerFn?.greeting;
+        const pureFn = getServerPureFn('pureServerFn', 'greeting');
         if (!pureFn?.fn) throw new RpcError({publicMessage: 'Pure function greeting not found', type: 'pure-fn-not-found'});
         return pureFn.fn();
     }),

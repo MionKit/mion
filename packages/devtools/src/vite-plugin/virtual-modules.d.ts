@@ -54,5 +54,6 @@ declare module 'virtual:mion-server-pure-fns' {
         fn: ((...args: any[]) => any) | undefined;
         createFn?: (jitUtils: any) => (...args: any[]) => any;
     }
-    export const serverPureFnsCache: Record<string, Record<string, ServerPureFnEntry>>;
+    export function getServerPureFn(namespace: string, hash: string): ServerPureFnEntry | undefined;
+    export function loadServerPureFns(entries: Record<string, Record<string, ServerPureFnEntry>>): void;
 }

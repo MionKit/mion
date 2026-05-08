@@ -28,7 +28,6 @@ for (const __ns in __mionExtractedPureFns) {
     __mionPureFnsSlot[__ns] = Object.assign({}, __mionPureFnsSlot[__ns] || {}, __mionExtractedPureFns[__ns]);
 }
 
-export const serverPureFnsCache = __mionPureFnsSlot;
 export function getServerPureFn(namespace, hash) {
     return __mionPureFnsSlot[namespace] && __mionPureFnsSlot[namespace][hash];
 }
