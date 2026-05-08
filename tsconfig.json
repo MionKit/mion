@@ -22,7 +22,7 @@
     "isolatedModules": true,
     "rewriteRelativeImportExtensions": true,
     "paths": {
-      "@mionjs/*": ["packages/*"]
+      "@mionjs/*": ["./packages/*"]
     }
   },
   "references": [
