@@ -125,7 +125,7 @@ async function loadSSRRouterAndGenerateAOTCaches(loadModule, startScript, isClie
     const mod = await loadModule(startScript);
     const promises = Object.values(mod).filter((v) => v instanceof Promise);
     if (promises.length > 0) await Promise.all(promises);
-    const aotModule = await loadModule("@mionjs/router/aot");
+    const aotModule = await import("@mionjs/router/aot");
     const caches = await aotModule.getSerializedCaches();
     return caches;
   } finally {
@@ -235,6 +235,7 @@ export const routerCache = (globalThis[KEY] ??= {});
 }
 function generateDevCombinedCachesModule() {
   return `/* Dev shim: combined AOT caches backed by globalThis */
+import 'virtual:mion-server-pure-fns';
 const JIT_KEY = Symbol.for('mion.jit-fns/v1');
 const PURE_KEY = Symbol.for('mion.pure-fns/v1');
 const ROUTER_KEY = Symbol.for('mion.persisted-methods/v1');

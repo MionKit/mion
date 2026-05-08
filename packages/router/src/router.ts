@@ -44,7 +44,13 @@ import {serializerMiddleFns} from './routes/serializer.routes.ts';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionjs/core';
 import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
-import {addToPersistedMethods, getPersistedMethod, loadCompiledMethods, resetPersistedMethods} from './lib/methodsCache.ts';
+import {
+    addToPersistedMethods,
+    getPersistedMethod,
+    getPersistedMethods,
+    loadCompiledMethods,
+    resetPersistedMethods,
+} from './lib/methodsCache.ts';
 import {mionClientRoutes, mionClientMiddleFns} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
 import {clearRoutesFlowCache} from './routesFlow.ts';
@@ -179,7 +185,14 @@ export async function initRouter(opts?: InitRouterOptions): Promise<Readonly<Rou
     if (aotCaches && !isMionAOTEmitMode()) {
         loadAOTCaches(aotCaches);
         loadCompiledMethods(aotCaches.routerCache);
-        routerState.aotMode = true;
+        // Only flip to strict AOT mode if persistedMethods actually has entries after loading.
+        // The dev-mode virtual module shim returns empty objects so userland code can still pass
+        // aotCaches unconditionally; in that case (e.g. nextjs/16's vite-node API process, which
+        // has no SSR pre-pass to populate the slots) we want JIT fallback. Tests can also pre-fill
+        // persistedMethods via setPersistedMethods to opt into strict mode without a real cache.
+        if (Object.keys(getPersistedMethods()).length > 0) {
+            routerState.aotMode = true;
+        }
     }
     routerState.isInitialized = true;
     await registerRoutes({...mionErrorsRoutes});

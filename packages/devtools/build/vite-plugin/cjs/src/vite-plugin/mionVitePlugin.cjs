@@ -1,4 +1,26 @@
 "use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const path = require("path");
 const ts = require("typescript");
@@ -145,10 +167,10 @@ function mionVitePlugin(options) {
         log("[mion] SSR AOT caches generated successfully");
         src_vitePlugin_aotCacheGenerator.logAOTCaches(data);
         if (pureFnOptions) await server.ssrLoadModule(src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS);
-        const routerModule = await server.ssrLoadModule("@mionjs/router");
+        const routerModule = await import("@mionjs/router");
         const opts = routerModule.getRouterOptions();
         basePath = "/" + (opts.basePath || "").replace(/^\//, "");
-        const platformNode = await server.ssrLoadModule("@mionjs/platform-node");
+        const platformNode = await import("@mionjs/platform-node");
         nodeRequestHandler = platformNode.httpRequestHandler;
         log("[mion] Dev server proxy initialized");
         onServerReady();
@@ -297,12 +319,11 @@ function mionVitePlugin(options) {
         if (file.startsWith(serverDir)) {
           const killPromise = cleanupChild();
           const regeneratePromise = ssrEnabled && ssrLoadModule ? (
-            // SSR mode: reset router (clears persistedMethods + router state via
-            // their globalThis slots) and serverPureFnsCache, then re-init.
-            // Preserve jitFnsCache + pureFnsCache — they're expensive to rebuild
-            // and routes that haven't changed reuse them.
+            // SSR mode: reset router on the user's loaded instance, clear
+            // serverPureFnsCache, then re-init. Preserve jitFnsCache + pureFnsCache —
+            // they're expensive to rebuild and routes that haven't changed reuse them.
             (async () => {
-              const routerModule = await ssrLoadModule("@mionjs/router");
+              const routerModule = await import("@mionjs/router");
               routerModule.resetRouter();
               const pureFnsSlot = globalThis[/* @__PURE__ */ Symbol.for("mion.server-pure-fns/v1")];
               if (pureFnsSlot) {

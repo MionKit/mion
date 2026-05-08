@@ -126,10 +126,10 @@ function mionVitePlugin(options) {
         log("[mion] SSR AOT caches generated successfully");
         logAOTCaches(data);
         if (pureFnOptions) await server.ssrLoadModule(VIRTUAL_SERVER_PURE_FNS);
-        const routerModule = await server.ssrLoadModule("@mionjs/router");
+        const routerModule = await import("@mionjs/router");
         const opts = routerModule.getRouterOptions();
         basePath = "/" + (opts.basePath || "").replace(/^\//, "");
-        const platformNode = await server.ssrLoadModule("@mionjs/platform-node");
+        const platformNode = await import("@mionjs/platform-node");
         nodeRequestHandler = platformNode.httpRequestHandler;
         log("[mion] Dev server proxy initialized");
         onServerReady();
@@ -278,12 +278,11 @@ function mionVitePlugin(options) {
         if (file.startsWith(serverDir)) {
           const killPromise = cleanupChild();
           const regeneratePromise = ssrEnabled && ssrLoadModule ? (
-            // SSR mode: reset router (clears persistedMethods + router state via
-            // their globalThis slots) and serverPureFnsCache, then re-init.
-            // Preserve jitFnsCache + pureFnsCache — they're expensive to rebuild
-            // and routes that haven't changed reuse them.
+            // SSR mode: reset router on the user's loaded instance, clear
+            // serverPureFnsCache, then re-init. Preserve jitFnsCache + pureFnsCache —
+            // they're expensive to rebuild and routes that haven't changed reuse them.
             (async () => {
-              const routerModule = await ssrLoadModule("@mionjs/router");
+              const routerModule = await import("@mionjs/router");
               routerModule.resetRouter();
               const pureFnsSlot = globalThis[/* @__PURE__ */ Symbol.for("mion.server-pure-fns/v1")];
               if (pureFnsSlot) {

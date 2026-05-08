@@ -7,41 +7,38 @@ const mockCacheData = {
     routerCacheCode: '{test: "router"}',
 };
 
-/** Creates a mock loader that returns serialized caches from @mionjs/router/aot */
-function createMockLoader(startScript: string) {
-    return vi.fn((url: string) => {
-        if (url === startScript) {
-            // Simulate: module loads → initMionRouter() populates caches (no process.send in SSR mode)
-            return Promise.resolve({});
-        }
-        if (url === '@mionjs/router/aot') {
-            return Promise.resolve({
-                getSerializedCaches: () => Promise.resolve(mockCacheData),
-            });
-        }
+// `@mionjs/router/aot` is now consumed via native dynamic import inside
+// loadSSRRouterAndGenerateAOTCaches (to hit the same Node ESM cache the
+// user-loaded router populated). Mock that module directly.
+vi.mock('@mionjs/router/aot', () => ({
+    getSerializedCaches: () => Promise.resolve(mockCacheData),
+}));
+
+/** Creates a mock loader for the user's start script (the only thing still routed through loadModule). */
+function createMockLoader(_startScript: string) {
+    return vi.fn((_url: string) => {
+        // Simulate: module loads → initMionRouter() populates caches (no process.send in SSR mode)
         return Promise.resolve({});
     });
 }
 
 describe('generateSSRAOTCaches', () => {
-    it('should load startScript and retrieve caches from @mionjs/router/aot', async () => {
+    it('should load startScript via loadModule and retrieve caches via dynamic import of @mionjs/router/aot', async () => {
         const loadModule = createMockLoader('/app/src/server.ts');
 
         const result = await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
 
         expect(loadModule).toHaveBeenCalledWith('/app/src/server.ts');
-        expect(loadModule).toHaveBeenCalledWith('@mionjs/router/aot');
         expect(result).toEqual(mockCacheData);
     });
 
-    it('should call loadModule twice (start script + @mionjs/router/aot)', async () => {
+    it('should call loadModule once (start script only — @mionjs/router/aot is loaded via native import)', async () => {
         const loadModule = createMockLoader('/app/src/server.ts');
 
         await loadSSRRouterAndGenerateAOTCaches(loadModule, '/app/src/server.ts');
 
-        expect(loadModule).toHaveBeenCalledTimes(2);
+        expect(loadModule).toHaveBeenCalledTimes(1);
         expect(loadModule).toHaveBeenNthCalledWith(1, '/app/src/server.ts');
-        expect(loadModule).toHaveBeenNthCalledWith(2, '@mionjs/router/aot');
     });
 
     it('should set MION_COMPILE=middleware before loading and restore after', async () => {
@@ -49,11 +46,6 @@ describe('generateSSRAOTCaches', () => {
         const loadModule = vi.fn((url: string) => {
             if (url === '/app/src/server.ts') {
                 envDuringLoad = process.env.MION_COMPILE;
-            }
-            if (url === '@mionjs/router/aot') {
-                return Promise.resolve({
-                    getSerializedCaches: () => Promise.resolve(mockCacheData),
-                });
             }
             return Promise.resolve({});
         });
@@ -105,11 +97,6 @@ describe('generateSSRAOTCaches', () => {
             if (url === '/app/src/server.ts') {
                 envDuringLoad = process.env.MION_AOT_IS_CLIENT;
             }
-            if (url === '@mionjs/router/aot') {
-                return Promise.resolve({
-                    getSerializedCaches: () => Promise.resolve(mockCacheData),
-                });
-            }
             return Promise.resolve({});
         });
 
@@ -130,11 +117,6 @@ describe('generateSSRAOTCaches', () => {
         const loadModule = vi.fn((url: string) => {
             if (url === '/app/src/server.ts') {
                 envDuringLoad = process.env.MION_AOT_IS_CLIENT;
-            }
-            if (url === '@mionjs/router/aot') {
-                return Promise.resolve({
-                    getSerializedCaches: () => Promise.resolve(mockCacheData),
-                });
             }
             return Promise.resolve({});
         });

@@ -234,8 +234,10 @@ export async function loadSSRRouterAndGenerateAOTCaches(
         const promises = Object.values(mod).filter((v): v is Promise<any> => v instanceof Promise);
         if (promises.length > 0) await Promise.all(promises);
 
-        // Get caches directly from the router's global state
-        const aotModule = await loadModule('@mionjs/router/aot');
+        // Get caches directly from the router's global state.
+        // Use native import (not loadModule/ssrLoadModule) so we hit the same Node ESM
+        // cache bucket the user's externalised `@mionjs/router` import populated.
+        const aotModule = await import('@mionjs/router/aot');
         const caches: AOTCacheData = await aotModule.getSerializedCaches();
         return caches;
     } finally {
@@ -383,9 +385,13 @@ export const routerCache = (globalThis[KEY] ??= {});
 `;
 }
 
-/** Dev-mode shim for virtual:mion-aot/caches. All three caches read directly from globalThis. */
+/** Dev-mode shim for virtual:mion-aot/caches. All three caches read directly from globalThis.
+ * Side-effect imports the server-pure-fns virtual module so its extracted entries get merged
+ * into the shared globalThis slot. Without this, vite-node-only contexts (e.g. nextjs/16's
+ * API child process) would leave the slot empty because they have no SSR pre-pass. */
 export function generateDevCombinedCachesModule(): string {
     return `/* Dev shim: combined AOT caches backed by globalThis */
+import 'virtual:mion-server-pure-fns';
 const JIT_KEY = Symbol.for('mion.jit-fns/v1');
 const PURE_KEY = Symbol.for('mion.pure-fns/v1');
 const ROUTER_KEY = Symbol.for('mion.persisted-methods/v1');

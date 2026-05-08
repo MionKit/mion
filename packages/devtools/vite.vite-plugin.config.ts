@@ -71,7 +71,21 @@ export default defineConfig({
                     preserveModulesRoot: '.',
                 },
             ],
-            external: ['@deepkit/type-compiler', '@rollup/pluginutils', 'typescript', 'vite', 'fs', 'path', /^node:/],
+            external: [
+                '@deepkit/type-compiler',
+                '@rollup/pluginutils',
+                'typescript',
+                'vite',
+                'fs',
+                'path',
+                /^node:/,
+                // Keep all @mionjs/* packages external so the plugin's runtime `import('@mionjs/router')`
+                // stays a bare specifier. That way Node's ESM loader resolves it from the consumer's
+                // own node_modules at runtime, hitting the same module instance the user's externalised
+                // import populated. If we let rollup bundle them, the plugin would load its own private
+                // copy and the route registry would be empty in middleware mode.
+                /^@mionjs\//,
+            ],
         },
     },
 });

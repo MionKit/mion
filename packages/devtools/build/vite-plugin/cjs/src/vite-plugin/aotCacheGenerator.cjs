@@ -1,4 +1,26 @@
 "use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const child_process = require("child_process");
 const path = require("path");
@@ -127,7 +149,7 @@ async function loadSSRRouterAndGenerateAOTCaches(loadModule, startScript, isClie
     const mod = await loadModule(startScript);
     const promises = Object.values(mod).filter((v) => v instanceof Promise);
     if (promises.length > 0) await Promise.all(promises);
-    const aotModule = await loadModule("@mionjs/router/aot");
+    const aotModule = await import("@mionjs/router/aot");
     const caches = await aotModule.getSerializedCaches();
     return caches;
   } finally {
@@ -237,6 +259,7 @@ export const routerCache = (globalThis[KEY] ??= {});
 }
 function generateDevCombinedCachesModule() {
   return `/* Dev shim: combined AOT caches backed by globalThis */
+import 'virtual:mion-server-pure-fns';
 const JIT_KEY = Symbol.for('mion.jit-fns/v1');
 const PURE_KEY = Symbol.for('mion.pure-fns/v1');
 const ROUTER_KEY = Symbol.for('mion.persisted-methods/v1');
