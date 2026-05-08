@@ -30,11 +30,13 @@ export function initClient<RM extends RemoteApi>(
     options: InitClientOptions
 ): {client: MionClient; routes: ClientRoutes<RM>; middleFns: ClientMiddleFns<RM>} {
     registerErrorDeserializers();
+    // aotCaches is a one-time bootstrap argument — load into global caches, do not store on client.
+    const {aotCaches, ...rest} = options;
     const clientOptions = {
         ...DEFAULT_PREFILL_OPTIONS,
-        ...options,
+        ...rest,
     };
-    if (clientOptions.aotCaches) loadAOTCaches(clientOptions.aotCaches);
+    if (aotCaches) loadAOTCaches(aotCaches);
     const client = new MionClient(clientOptions);
     const rootProxy = new MethodProxy([], client, clientOptions);
     return {

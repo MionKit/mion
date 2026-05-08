@@ -69,7 +69,8 @@ describe('generateVirtualModule', () => {
     it('should generate an empty module when no functions', () => {
         const result = generateServerPureFnsVirtualModule([]);
         expect(result).toContain('serverPureFnsCache');
-        expect(result).toContain('serverPureFnsCache = {');
+        // Module exports the globalThis-backed slot rather than a literal object literal
+        expect(result).toContain('export const serverPureFnsCache');
     });
 
     it('should generate direct fn for regular pure functions', () => {

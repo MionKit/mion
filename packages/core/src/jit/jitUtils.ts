@@ -22,9 +22,12 @@ import {initPureFunction, isTestEnv} from '../utils.ts';
 import {restoreCompiledJitFns} from '../pureFns/restoreJitFns.ts';
 
 // Local caches - can be populated from AOT caches via addAOTCaches()
-const jitFnsCache: JitFunctionsCache = {};
+// Backed by globalThis so all module instances share the same cache
+const JIT_FNS_KEY = Symbol.for('mion.jit-fns/v1');
+const PURE_FNS_KEY = Symbol.for('mion.pure-fns/v1');
+const jitFnsCache: JitFunctionsCache = ((globalThis as any)[JIT_FNS_KEY] ??= {});
 /** Namespaced pure functions cache: { namespace: { fnHash: CompiledPureFunction } } */
-const pureFnsCache: PureFunctionsCache = {};
+const pureFnsCache: PureFunctionsCache = ((globalThis as any)[PURE_FNS_KEY] ??= {});
 
 // serializable classes registry, serializable classes can be automatically deserialized if they are registered here
 const deserializeFnsRegistry = new Map<string, DeserializeClassFn<any>>();

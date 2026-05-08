@@ -38,17 +38,17 @@
   const __ΩContextDataFactory = ["ContextData", "", "ContextDataFactory", 'b!Pe"!/"w#y'];
   const __ΩResponseBody = [() => __ΩRecord$5, () => __ΩRecord$5, "RpcError", "@thrownErrors", "ResponseBody", 'P&"o!#&"w#o"#4$8Mw%y'];
   const __ΩRoutesFlowExecutionResult = ["MethodsExecutionChain", "executionChain", "routesFlowRouteIds", "RoutesFlowMapping", "mappings", "RoutesFlowExecutionResult", 'P"w!4"&F4#8"w$F4%8Mw&y'];
-  const __ΩPartial = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
+  const __ΩPartial$1 = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
   const __ΩPick$3 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩRemoteMethod = ["AnyHandler", "H", "MethodWithJitFns", "RemoteMethodOpts", "options", "handler", "args", "", "methodCaller", "RemoteMethod", `"w!c"P"w#"w$4%e"!4&P"@2'"/(4)8Mw*y`];
   const __ΩRouteMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.route, "type", "RouteOnlyOptions", "options", "RouteMethod", `"c!Pe"!o""i#4$"w%4&Mw'y`];
   const __ΩMiddleFnMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.middleFn, "type", "MiddleFnMethod", '"c!Pe"!o""i#4$Mw%y'];
   const __ΩHeadersMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.headersMiddleFn, "type", "HeadersMethodWithJitFns", "headersParam", "HeadersMethod", `"c!Pe"!o""i#4$"w%4&Mw'y`];
   const __ΩRawMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.rawMiddleFn, "type", "RemoteMethodOpts", false, "validateParams", false, "validateReturn", "options", "RawMethod", `"c!Pe"!o""i#4$P"w%P.&4'.(4)8MK4*Mw+y`];
-  const __ΩRouteOptions = [() => __ΩPartial, () => __ΩPick$3, () => __ΩRouteMethod, "options", "description", "validateParams", "validateReturn", "serializer", "isMutation", "strictTypes", "RouteOptions", `n#.$fP.%.&.'.(.).*Jo"#o!"w+y`];
-  const __ΩMiddleFnOptions = [() => __ΩPartial, () => __ΩPick$3, () => __ΩMiddleFnMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "strictTypes", "MiddleFnOptions", `n#.$fP.%.&.'.(.)Jo"#o!"w*y`];
-  const __ΩHeadersMiddleFnOptions = [() => __ΩPartial, () => __ΩPick$3, () => __ΩHeadersMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "strictTypes", "HeadersMiddleFnOptions", `n#.$fP.%.&.'.(.)Jo"#o!"w*y`];
-  const __ΩRawMiddleFnOptions = [() => __ΩPartial, () => __ΩPick$3, () => __ΩRawMethod, "options", "description", "runOnError", "RawMiddleFnOptions", `n#.$fP.%.&Jo"#o!"w'y`];
+  const __ΩRouteOptions = [() => __ΩPartial$1, () => __ΩPick$3, () => __ΩRouteMethod, "options", "description", "validateParams", "validateReturn", "serializer", "isMutation", "strictTypes", "RouteOptions", `n#.$fP.%.&.'.(.).*Jo"#o!"w+y`];
+  const __ΩMiddleFnOptions = [() => __ΩPartial$1, () => __ΩPick$3, () => __ΩMiddleFnMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "strictTypes", "MiddleFnOptions", `n#.$fP.%.&.'.(.)Jo"#o!"w*y`];
+  const __ΩHeadersMiddleFnOptions = [() => __ΩPartial$1, () => __ΩPick$3, () => __ΩHeadersMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "strictTypes", "HeadersMiddleFnOptions", `n#.$fP.%.&.'.(.)Jo"#o!"w*y`];
+  const __ΩRawMiddleFnOptions = [() => __ΩPartial$1, () => __ΩPick$3, () => __ΩRawMethod, "options", "description", "runOnError", "RawMiddleFnOptions", `n#.$fP.%.&Jo"#o!"w'y`];
   const __ΩMethodsExecutionChain = ["routeIndex", () => __ΩRemoteMethod, "methods", "SerializerCode", "serializer", "MethodsExecutionChain", `P'4!n"F4#"w$4%Mw&y`];
   const __ΩPick$2 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩRouteDef = ["H", () => __ΩPick$2, () => __ΩRouteMethod, "type", "handler", () => __ΩRouteOptions, "options", "RouteDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
@@ -117,7 +117,6 @@
   const __ΩPureFunctionFactory = ["JITUtils", "jitUtils", () => __ΩPureFunction, "", "PureFunctionFactory", 'P"w!2"n#/$w%y'];
   const __ΩPureFunctionData = ["namespace", "paramNames", "code", "fnName", "bodyHash", "pureFnDependencies", "PureFunctionData", `P&4!9&F4"9&4#9&4$9&4%9&F4&89Mw'y`];
   const __ΩCompiledPureFunction = [() => __ΩPureFunctionData, () => __ΩPureFunctionFactory, "createPureFn", () => __ΩPureFunction, "fn", "CompiledPureFunction", 'Pn!n"4#n$4%8Mw&y'];
-  const __ΩPersistedPureFunction = [() => __ΩCompiledPureFunction, "fn", "PersistedPureFunction", 'Pn!-4"Mw#y'];
   const __ΩRecord$4 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
   const __ΩMethodMetadata = ["type", "id", "isAsync", "hasReturnData", "paramNames", "paramsJitHash", "returnJitHash", () => __ΩHeadersMetaData, "headersParam", () => __ΩHeadersMetaData, "headersReturn", "middleFnIds", "pointer", "nestLevel", "MethodMetadata", `P'4!&4")4#)4$&F4%8&4&&4'n(4)8n*4+8&F4,8&F4-'4.Mw/y`];
   const __ΩRemoteMethodOpts = ["runOnError", "validateParams", "validateReturn", "description", () => __ΩSerializerMode, "serializer", "isMutation", "strictTypes", "RemoteMethodOpts", `P)4!8)4"8)4#8&4$8n%4&8P)-J4'8)4(8Mw)y`];
@@ -144,12 +143,8 @@
   const __ΩJitFnArgs = ["vλl", "JitFnArgs", 'P&4!&&LMw"y'];
   const __ΩJitCompiledFnData = ["typeName", "fnID", "jitFnHash", () => __ΩJitFnArgs, "args", () => __ΩJitFnArgs, "defaultParamValues", "isNoop", "code", "jitDependencies", "pureFnDependencies", "paramNames", "JitCompiledFnData", `P&4!9&4"9&4#9n$4%9n&4'9)4(89&4)9&F4*89&F4+89&F4,8Mw-y`];
   const __ΩJitCompiledFn = [() => __ΩAnyFn, "Fn", () => __ΩJitCompiledFnData, "JITUtils", "utl", "", "createJitFn", "fn", "JitCompiledFn", `n!c"Pn#P"w$2%e#!/&4'9e"!4(9Mw)y`];
-  const __ΩPersistedJitFn = [() => __ΩOmit$1, () => __ΩJitCompiledFn, "fn", "fn", "PersistedJitFn", 'Pn".#o!#-4$9Mw%y'];
   const __ΩJitFunctionsCache = [() => __ΩRecord$3, () => __ΩJitCompiledFn, "JitFunctionsCache", '&n"o!#w#y'];
   const __ΩPureFunctionsCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩCompiledPureFunction, "PureFunctionsCache", '&&n#o"#o!#w$y'];
-  const __ΩPersistedJitFunctionsCache = [() => __ΩRecord$3, () => __ΩPersistedJitFn, "PersistedJitFunctionsCache", '&n"o!#w#y'];
-  const __ΩPersistedPureFunctionsCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩPersistedPureFunction, "PersistedPureFunctionsCache", '&&n#o"#o!#w$y'];
-  const __ΩAOTCaches = [() => __ΩPersistedJitFunctionsCache, "jitFnsCache", () => __ΩPersistedPureFunctionsCache, "pureFnsCache", () => __ΩMethodsCache, "routerCache", "AOTCaches", `Pn!4"n#4$n%4&Mw'y`];
   const __ΩFnsDataCache = [() => __ΩRecord$3, () => __ΩJitCompiledFnData, "FnsDataCache", '&n"o!#w#y'];
   const __ΩPureFnsDataCache = [() => __ΩRecord$3, () => __ΩRecord$3, () => __ΩPureFunctionData, "PureFnsDataCache", '&&n#o"#o!#w$y'];
   const __ΩSrcCodeJitCompiledFn = [() => __ΩJitCompiledFnData, "JITUtils", "utl", () => __ΩAnyFn, "", "createJitFn", "fn", "SrcCodeJitCompiledFn", `Pn!P"w"2#n$/%4&9-4'9Mw(y`];
@@ -448,8 +443,10 @@
       });
     }
   }
-  const jitFnsCache$1 = {};
-  const pureFnsCache$1 = {};
+  const JIT_FNS_KEY = /* @__PURE__ */ Symbol.for("mion.jit-fns/v1");
+  const PURE_FNS_KEY = /* @__PURE__ */ Symbol.for("mion.pure-fns/v1");
+  const jitFnsCache$1 = globalThis[JIT_FNS_KEY] ??= {};
+  const pureFnsCache$1 = globalThis[PURE_FNS_KEY] ??= {};
   const deserializeFnsRegistry = /* @__PURE__ */ new Map();
   const serializableClassRegistry = /* @__PURE__ */ new Map();
   const jitUtils = {
@@ -903,11 +900,11 @@
   function getRouterItemId(itemPointer) {
     return itemPointer.join(ROUTER_ITEM_SEPARATOR_CHAR);
   }
-  function getRoutePath(pathPointer, routerOptions2) {
+  function getRoutePath(pathPointer, routerOptions) {
     const pathId = getRouterItemId(pathPointer);
-    const basePath = routerOptions2.basePath.startsWith(ROUTE_PATH_ROOT) ? routerOptions2.basePath : `${ROUTE_PATH_ROOT}${routerOptions2.basePath}`;
+    const basePath = routerOptions.basePath.startsWith(ROUTE_PATH_ROOT) ? routerOptions.basePath : `${ROUTE_PATH_ROOT}${routerOptions.basePath}`;
     const routePath = basePath.endsWith(PATH_SEPARATOR) ? `${basePath}${pathId}` : `${basePath}${PATH_SEPARATOR}${pathId}`;
-    return routerOptions2.suffix ? routePath + routerOptions2.suffix : routePath;
+    return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
   }
   function resetRoutesCache() {
     for (const k in methodsCache) delete methodsCache[k];
@@ -1004,7 +1001,7 @@
   }
   const __ΩRouterEntry = [() => __ΩRoutes, () => __ΩMiddleFnDef, () => __ΩRouteDef, () => __ΩRawMiddleFnDef, () => __ΩHeadersMiddleFnDef, "RouterEntry", 'Pn!n"n#n$n%Jw&y'];
   const __ΩRoutes = [() => __ΩRouterEntry, "Routes", 'P&n!LMw"y'];
-  const __ΩRouterOptions = ["Req", "ContextData", () => __ΩCoreRouterOptions, "basePath", "suffix", "request", "path", "", "pathTransform", () => __ΩContextDataFactory, "contextDataFactory", () => __ΩSerializerMode, "serializer", "RunTypeOptions", "runTypeOptions", "strictTypes", "getPublicRoutesData", "autoGenerateErrorId", "skipClientRoutes", () => __ΩAOTCaches, "aotCaches", "maxContextPoolSize", "maxRoutesFlowsCacheSize", "RouterOptions", `"c!"c"Pn#&4$&4%Pe#!2&&2'&/(4)8e""o*"4+8n,4-"w.4/)408)41)42)43n4458'46'47Mw8y`];
+  const __ΩRouterOptions = ["Req", "ContextData", () => __ΩCoreRouterOptions, "basePath", "suffix", "request", "path", "", "pathTransform", () => __ΩContextDataFactory, "contextDataFactory", () => __ΩSerializerMode, "serializer", "RunTypeOptions", "runTypeOptions", "strictTypes", "getPublicRoutesData", "autoGenerateErrorId", "skipClientRoutes", "maxContextPoolSize", "maxRoutesFlowsCacheSize", "RouterOptions", `"c!"c"Pn#&4$&4%Pe#!2&&2'&/(4)8e""o*"4+8n,4-"w.4/)408)41)42)43'44'45Mw6y`];
   function isMiddleFnDef(entry) {
     return entry.type === HandlerType$1.middleFn;
   }
@@ -1067,7 +1064,8 @@
   const MAX_ROUTE_NESTING = 10;
   const WORKFLOW_KEY = `mion-routes-flow`;
   const WORKFLOW_PATH = `${PATH_SEPARATOR}${WORKFLOW_KEY}`;
-  let persistedMethods = {};
+  const PERSISTED_METHODS_KEY = /* @__PURE__ */ Symbol.for("mion.persisted-methods/v1");
+  const persistedMethods = globalThis[PERSISTED_METHODS_KEY] ??= {};
   function addToPersistedMethods(id, method) {
     if (!shouldCompile() || !!persistedMethods[id]) return;
     persistedMethods[id] = method;
@@ -1085,7 +1083,7 @@
     return persistedMethods;
   }
   function resetPersistedMethods() {
-    persistedMethods = {};
+    for (const k in persistedMethods) delete persistedMethods[k];
   }
   function restorePersistedMethod(method, handler) {
     const restored = method;
@@ -1110,15 +1108,11 @@
   const __ΩOmit = ["T", "K", () => __ΩPick, () => __ΩExclude, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
   const __ΩPick = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
   const __ΩExclude = ["T", "U", "Exclude", 'l6!Re$!RPe#!e$"qk#%QRb!b"Pde"!p)w#y'];
-  function __assignType$6(fn, args) {
+  function __assignType$7(fn, args) {
     fn.__type = args;
     return fn;
   }
   const __ΩMethodReflect = [() => __ΩOmit, "MethodWithJitFns", "id", "type", "nestLevel", "pointer", "options", "MethodReflect", `"w"P.#.$.%.&.'Jo!#w(y`];
-  function isAOTStrictMode(routerOptions2) {
-    return !!routerOptions2.aotCaches && !isMionAOTEmitMode();
-  }
-  isAOTStrictMode.__type = [() => __ΩRouterOptions, "routerOptions", "isAOTStrictMode", 'Pn!2")/#'];
   class AOTCacheError extends Error {
     constructor(routeId, type = "route") {
       const typeLabel = type === "rawMiddleFn" ? "Raw middleFn" : type === "middleFn" ? "MiddleFn" : "Route/middleFn";
@@ -1137,7 +1131,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return runTypesModule;
     if (runTypesLoadPromise)
       return runTypesLoadPromise;
-    runTypesLoadPromise = Promise.resolve().then(() => runTypes$1).then(__assignType$6((module) => {
+    runTypesLoadPromise = Promise.resolve().then(() => runTypes$1).then(__assignType$7((module) => {
       runTypesModule = {
         JitFunctions: module.JitFunctions,
         reflectFunction: module.reflectFunction,
@@ -1201,33 +1195,33 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return reflectionItems;
   }
   extractReflectionFromCached.__type = [() => __ΩCachedMethodMetadata, "cached", () => __ΩMethodReflect, "extractReflectionFromCached", 'Pn!2"n#/$'];
-  async function getHandlerReflection(handler, routeId, routerOptions2, handlerOptions = {}, isHeadersMiddleFn = false, methodStrictTypes) {
+  async function getHandlerReflection(handler, routeId, routerOptions, handlerOptions = {}, isHeadersMiddleFn = false, methodStrictTypes) {
     const cached = getPersistedMethodMetadata(routeId);
     if (cached)
       return extractReflectionFromCached(cached);
-    if (isAOTStrictMode(routerOptions2))
+    if (isAOTStrictMode())
       throw new AOTCacheError(routeId, isHeadersMiddleFn ? "middleFn" : "route");
     const rt = await loadRunTypesModule();
-    return generateHandlerReflection(handler, routeId, routerOptions2, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
+    return generateHandlerReflection(handler, routeId, routerOptions, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
   }
   getHandlerReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRouterOptions, "routerOptions", () => __ΩRouteOptions, () => __ΩMiddleFnOptions, () => __ΩHeadersMiddleFnOptions, "handlerOptions", () => ({}), "isHeadersMiddleFn", () => false, "methodStrictTypes", () => __ΩMethodReflect, "getHandlerReflection", "Pn!2\"&2#n$2%Pn&n'n(J2)>*)2+>,)2-8n.`//"];
-  async function getRawMethodReflection(handler, routeId, routerOptions2) {
+  async function getRawMethodReflection(handler, routeId, routerOptions) {
     const cached = getPersistedMethodMetadata(routeId);
     if (cached)
       return createRawMiddleFnReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
-    if (isAOTStrictMode(routerOptions2))
+    if (isAOTStrictMode())
       return createRawMiddleFnReflection(true);
     const rt = await loadRunTypesModule();
     return generateRawMethodReflection(handler, routeId, rt);
   }
   getRawMethodReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRouterOptions, "routerOptions", () => __ΩMethodReflect, "getRawMethodReflection", "Pn!2\"&2#n$2%n&`/'"];
-  function generateHandlerReflection(handler, routeId, routerOptions2, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes) {
+  function generateHandlerReflection(handler, routeId, routerOptions, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes) {
     const reflectionItems = {};
     let handlerRunType;
-    const needsBinary = (handlerOptions?.serializer ?? routerOptions2.serializer) === "binary";
-    const effectiveStrictTypes = methodStrictTypes ?? routerOptions2.strictTypes;
+    const needsBinary = (handlerOptions?.serializer ?? routerOptions.serializer) === "binary";
+    const effectiveStrictTypes = methodStrictTypes ?? routerOptions.strictTypes;
     const runTypeOptions = {
-      ...routerOptions2?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions,
+      ...routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions,
       ...effectiveStrictTypes !== void 0 ? { strictTypes: effectiveStrictTypes } : {}
     };
     try {
@@ -1250,7 +1244,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       throw new Error(`Can not compile Jit Functions for Parameters of route/middleFn "${routeId}." Error: ${error?.message}`);
     }
     if (isHeadersMiddleFn) {
-      const headersRunType = getParamsHeadersRunType(handlerRunType, routeId, routerOptions2, rt);
+      const headersRunType = getParamsHeadersRunType(handlerRunType, routeId, routerOptions, rt);
       const headerNames = getHeaderNames(headersRunType, routeId, rt);
       try {
         const opts2 = {
@@ -1300,8 +1294,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return createRawMiddleFnReflection(isAsync);
   }
   generateRawMethodReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRunTypesFunctions, "rt", () => __ΩMethodReflect, "generateRawMethodReflection", `Pn!2"&2#n$2%n&/'`];
-  function getParamsHeadersRunType(handlerRunType, routeId, routerOptions2, rt) {
-    const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getFakeCompiler(routerOptions2));
+  function getParamsHeadersRunType(handlerRunType, routeId, routerOptions, rt) {
+    const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getFakeCompiler(routerOptions));
     const headersSubset = paramRunTypes[1]?.getMemberType?.();
     if (!isHeaderSubSetRunType(headersSubset, rt)) {
       throw new Error(`Headers MiddleFn '${routeId}' second parameter must be a HeadersSubset.`);
@@ -1312,7 +1306,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   function getReturnHeadersRunType(handlerRunType, rt) {
     const returnRunType = handlerRunType.getReturnType();
     if (rt.isUnionRunType(returnRunType)) {
-      const headersSubset = returnRunType.getChildRunTypes().find(__assignType$6((child) => isHeaderSubSetRunType(child, rt), ["child", "", 'P"2!"/"']));
+      const headersSubset = returnRunType.getChildRunTypes().find(__assignType$7((child) => isHeaderSubSetRunType(child, rt), ["child", "", 'P"2!"/"']));
       if (!headersSubset)
         return void 0;
       return headersSubset;
@@ -1377,8 +1371,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return extractLiteralStringsFromTypeRecursive(runType, rt);
   }
   extractLiteralStringsFromType.__type = ["BaseRunType", "runType", () => __ΩRunTypesFunctions, "rt", "extractLiteralStringsFromType", 'P"w!2"n#2$&F/%'];
-  function getFakeCompiler(routerOptions2) {
-    return { opts: routerOptions2 };
+  function getFakeCompiler(routerOptions) {
+    return { opts: routerOptions };
   }
   getFakeCompiler.__type = [() => __ΩRouterOptions, "routerOptions", "JitFnCompiler", "getFakeCompiler", 'Pn!2""w#/$'];
   function getTypeJitFunctions(runType, opts2, rtModule, needsBinary = false) {
@@ -1783,7 +1777,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       ...comp.paramNames ? { paramNames: [...comp.paramNames] } : {}
     };
   }
-  function __assignType$5(fn, args) {
+  function __assignType$6(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1801,8 +1795,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const errorData = {};
     const maxMethods = (getRouterOptions.Ω = [[() => __ΩClientRouteOptions, "n!"]], getRouterOptions()).getAllRemoteMethodsMaxNumber || defaultClientRouteOptions.getAllRemoteMethodsMaxNumber;
     const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
-    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$5((id) => !mionInternalRoutes$1.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
-    idsToReturn.forEach(__assignType$5((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData), ["id", "", 'P"2!"/"']));
+    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$6((id) => !mionInternalRoutes$1.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
+    idsToReturn.forEach(__assignType$6((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData), ["id", "", 'P"2!"/"']));
     if (Object.keys(errorData).length)
       return new RpcError({
         type: "rpc-metadata-not-found",
@@ -1834,7 +1828,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return;
     const method = getSerializableMethod(executable);
     methods[id] = method;
-    method.middleFnIds?.forEach(__assignType$5((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData), ["middleFnId", "", 'P"2!"/"']));
+    method.middleFnIds?.forEach(__assignType$6((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData), ["middleFnId", "", 'P"2!"/"']));
     serializeMethodDeps(method, deps, purFnDeps);
   }
   addRequiredRemoteMethodsToResponse.__type = ["id", () => __ΩSerializableMethodsData, "resp", () => __ΩAnyObject, "errorData", "addRequiredRemoteMethodsToResponse", 'P&2!n"2#n$2%$/&'];
@@ -1847,7 +1841,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, { serializer: "stringifyJson" })
   };
   const __ΩRecord$2 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
-  function __assignType$4(fn, args) {
+  function __assignType$5(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1859,7 +1853,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * thrown Errors are not strongly typed and are all serialized/deserialized as RpcError<string>.
      * this also prevents users to register a route with the same name.
      */
-    [MION_ROUTES.thrownErrors]: route(__assignType$4((ctx) => {
+    [MION_ROUTES.thrownErrors]: route(__assignType$5((ctx) => {
       return ctx.request.thrownErrors || {};
     }, ["CallContext", "ctx", () => __ΩRecord$2, () => RpcError, "", 'P"w!2"&P&7$o##/%'])),
     /**
@@ -1868,7 +1862,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * The route is called by dispatch logic when no matching route is found.
      * Throws an RpcError that will be caught and stored in thrownErrors by the router.
      */
-    [MION_ROUTES.notFound]: route(__assignType$4((ctx) => {
+    [MION_ROUTES.notFound]: route(__assignType$5((ctx) => {
       throw new RpcError({
         statusCode: StatusCodes.NOT_FOUND,
         publicMessage: `Route not found`,
@@ -1882,18 +1876,20 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
      * This route is used for serialization/deserialization of platform errors.
      * This also prevents users to register a route with the same name.
      */
-    [MION_ROUTES.platformError]: route(__assignType$4((_ctx) => {
+    [MION_ROUTES.platformError]: route(__assignType$5((_ctx) => {
       return new RpcError({
         publicMessage: "Platform error",
         type: "platform-error"
       });
     }, ["CallContext", "_ctx", () => RpcError, "", 'P"w!2"P&7#/$']))
   };
-  function __assignType$3(fn, args) {
+  function __assignType$4(fn, args) {
     fn.__type = args;
     return fn;
   }
-  const serverPureFnsCache = {
+  const __MION_PURE_FNS_KEY = /* @__PURE__ */ Symbol.for("mion.server-pure-fns/v1");
+  const __mionPureFnsSlot = globalThis[__MION_PURE_FNS_KEY] ??= {};
+  const __mionExtractedPureFns = {
     "pureServerFn": {
       "U0iYTkE-RN3NIs": {
         namespace: "pureServerFn",
@@ -1902,13 +1898,20 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         code: "return c.preferenceId",
         bodyHash: "U0iYTkE-RN3NIs",
         isFactory: false,
-        fn: __assignType$3(function U0iYTkE_RN3NIs(c) {
+        fn: __assignType$4(function U0iYTkE_RN3NIs(c) {
           return c.preferenceId;
         }, ["c", "U0iYTkE_RN3NIs", 'P"2!"/"'])
       }
     }
   };
-  function __assignType$2(fn, args) {
+  for (const __ns in __mionExtractedPureFns) {
+    __mionPureFnsSlot[__ns] = Object.assign({}, __mionPureFnsSlot[__ns] || {}, __mionExtractedPureFns[__ns]);
+  }
+  function getServerPureFn(namespace, hash) {
+    return __mionPureFnsSlot[namespace] && __mionPureFnsSlot[namespace][hash];
+  }
+  getServerPureFn.__type = ["namespace", "hash", "getServerPureFn", 'P"2!"2""/#'];
+  function __assignType$3(fn, args) {
     fn.__type = args;
     return fn;
   }
@@ -1968,7 +1971,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         publicMessage: "RoutesFlow request requires at least one route path in query string."
       });
     }
-    const routeIds = routePaths.map(__assignType$2((path) => path.startsWith("/") ? path.slice(1) : path, ["path", "", 'P"2!"/"']));
+    const routeIds = routePaths.map(__assignType$3((path) => path.startsWith("/") ? path.slice(1) : path, ["path", "", 'P"2!"/"']));
     let executionChain = routesFlowCache.get(urlQuery);
     if (executionChain)
       return { executionChain, routesFlowRouteIds: routeIds, mappings };
@@ -1983,8 +1986,8 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     let resolvedSerializer;
     let firstRouteIndex = -1;
     const defaultSerializerCode = SerializerModes[opts2.serializer];
-    const startMiddleFnIds = new Set(startMiddleFns.map(__assignType$2((m) => m.id, ["m", "", 'P"2!"/"'])));
-    const endMiddleFnIds = new Set(endMiddleFns.map(__assignType$2((m) => m.id, ["m", "", 'P"2!"/"'])));
+    const startMiddleFnIds = new Set(startMiddleFns.map(__assignType$3((m) => m.id, ["m", "", 'P"2!"/"'])));
+    const endMiddleFnIds = new Set(endMiddleFns.map(__assignType$3((m) => m.id, ["m", "", 'P"2!"/"'])));
     for (const routePath of routePaths) {
       const transformedPath = opts2.pathTransform?.(rawRequest, routePath) || routePath;
       const chain = getRouteExecutionChain(transformedPath);
@@ -2050,7 +2053,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
           errorData: { mapping }
         });
       }
-      if (!serverPureFnsCache[PURE_SERVER_FN_NAMESPACE]?.[mapping.bodyHash]?.fn) {
+      if (!getServerPureFn(PURE_SERVER_FN_NAMESPACE, mapping.bodyHash)?.fn) {
         throw new RpcError({
           statusCode: StatusCodes.UNEXPECTED_ERROR,
           type: "routesFlow-mapping-missing-pure-fn",
@@ -2063,7 +2066,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
         method: createMappingMethod(mapping)
       });
     }
-    insertions.sort(__assignType$2((a, b) => b.index - a.index, ["a", "b", "", 'P"2!"2""/#']));
+    insertions.sort(__assignType$3((a, b) => b.index - a.index, ["a", "b", "", 'P"2!"2""/#']));
     for (const { index, method } of insertions) {
       middleMethods.splice(index, 0, method);
     }
@@ -2093,9 +2096,9 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   }
   createMappingMethod.__type = ["RoutesFlowMapping", "mapping", () => __ΩRemoteMethod, "createMappingMethod", 'P"w!2"n#/$'];
   function createMappingHandler(mapping) {
-    return __assignType$2((ctx) => {
+    return __assignType$3((ctx) => {
       const sourceOutput = ctx.response.body[mapping.fromId];
-      const entry = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE]?.[mapping.bodyHash];
+      const entry = getServerPureFn(PURE_SERVER_FN_NAMESPACE, mapping.bodyHash);
       if (!entry?.fn) {
         throw new RpcError({
           statusCode: StatusCodes.UNEXPECTED_ERROR,
@@ -2229,8 +2232,12 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   const rawMiddleFnsById = /* @__PURE__ */ new Map();
   const middleFnNames = /* @__PURE__ */ new Set();
   const routeNames = /* @__PURE__ */ new Set();
-  let routerOptions = { ...DEFAULT_ROUTE_OPTIONS };
-  let isRouterInitialized = false;
+  const ROUTER_STATE_KEY = /* @__PURE__ */ Symbol.for("mion.router-state/v1");
+  const routerState = globalThis[ROUTER_STATE_KEY] ??= {
+    options: { ...DEFAULT_ROUTE_OPTIONS },
+    isInitialized: false,
+    aotMode: false
+  };
   let allExecutablesIds;
   const defaultStartMiddleFns = {
     mionDeserializeRequest: serializerMiddleFns.mionDeserializeRequest
@@ -2246,11 +2253,12 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
   const getRouteExecutionChain = (path) => flatRouter.get(path);
   const getRouteExecutable = (id) => routesById.get(id);
   const getMiddleFnExecutable = (id) => middleFnsById.get(id);
-  const getRouterOptions = () => routerOptions;
+  const getRouterOptions = () => routerState.options;
+  const isAOTStrictMode = () => routerState.aotMode;
   const getAnyExecutable = (id) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
   function setPlatformConfig(config) {
     if (isMionAOTEmitMode() && typeof process.send === "function") {
-      const routerConfig = Object.fromEntries(Object.entries(routerOptions).filter(([, v]) => typeof v !== "function"));
+      const routerConfig = Object.fromEntries(Object.entries(routerState.options).filter(([, v]) => typeof v !== "function"));
       try {
         process.send({ type: "mion-platform-ready", routerConfig, platformConfig: config });
       } catch (err) {
@@ -2265,12 +2273,13 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     rawMiddleFnsById.clear();
     middleFnNames.clear();
     routeNames.clear();
-    routerOptions = { ...DEFAULT_ROUTE_OPTIONS };
+    routerState.options = { ...DEFAULT_ROUTE_OPTIONS };
+    routerState.isInitialized = false;
+    routerState.aotMode = false;
     startMiddleFnsDef = { ...defaultStartMiddleFns };
     endMiddleFnsDef = { ...defaultEndMiddleFns };
     startMiddleFns = [];
     endMiddleFns = [];
-    isRouterInitialized = false;
     allExecutablesIds = void 0;
     resetRemoteMethodsMetadata();
     resetPersistedMethods();
@@ -2285,23 +2294,25 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return publicApi;
   }
   async function initRouter(opts2) {
-    if (isRouterInitialized) throw new Error("Router has already been initialized");
-    routerOptions = { ...routerOptions, ...opts2 };
-    validateSharedDataFactory(routerOptions);
-    Object.freeze(routerOptions);
-    setErrorOptions(routerOptions);
-    if (routerOptions.aotCaches && !isMionAOTEmitMode()) {
-      loadAOTCaches(routerOptions.aotCaches);
-      loadCompiledMethods(routerOptions.aotCaches.routerCache);
+    if (routerState.isInitialized) throw new Error("Router has already been initialized");
+    const { aotCaches: aotCaches2, ...optsRest } = opts2 || {};
+    routerState.options = { ...routerState.options, ...optsRest };
+    validateSharedDataFactory(routerState.options);
+    Object.freeze(routerState.options);
+    setErrorOptions(routerState.options);
+    if (aotCaches2 && !isMionAOTEmitMode()) {
+      loadAOTCaches(aotCaches2);
+      loadCompiledMethods(aotCaches2.routerCache);
+      routerState.aotMode = true;
     }
-    isRouterInitialized = true;
+    routerState.isInitialized = true;
     await registerRoutes({ ...mionErrorsRoutes });
-    if (!routerOptions.skipClientRoutes) await registerRoutes({ ...mionClientRoutes });
-    if (!isTestEnv()) console.log("mion router initialized", { routerOptions });
-    return routerOptions;
+    if (!routerState.options.skipClientRoutes) await registerRoutes({ ...mionClientRoutes });
+    if (!isTestEnv()) console.log("mion router initialized", { routerOptions: routerState.options });
+    return routerState.options;
   }
   async function registerRoutes(routes) {
-    if (!isRouterInitialized) throw new Error("initRouter should be called first");
+    if (!routerState.isInitialized) throw new Error("initRouter should be called first");
     startMiddleFns = await getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
     endMiddleFns = await getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
     const binaryMiddlewares = /* @__PURE__ */ new Set();
@@ -2340,7 +2351,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return allExecutablesIds;
   }
   function shouldFullGenerateSpec() {
-    return routerOptions.getPublicRoutesData || getENV("GENERATE_ROUTER_SPEC") === "true" || isMionCompileMode();
+    return routerState.options.getPublicRoutesData || getENV("GENERATE_ROUTER_SPEC") === "true" || isMionCompileMode();
   }
   function getRouteExecutableFromPath(path) {
     const executionChain = flatRouter.get(path);
@@ -2425,7 +2436,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     }
     const isExec = isExecutable(routeEntry);
     if (isExec && props.isRoute) {
-      const path = getRoutePath(routeEntry.pointer, routerOptions);
+      const path = getRoutePath(routeEntry.pointer, routerState.options);
       const routeMethod = routeEntry;
       const levelMethods = [
         ...preMiddleFns,
@@ -2479,7 +2490,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       const reflectionData = await getHandlerReflection(
         middleFn2.handler,
         middleFnId,
-        routerOptions,
+        routerState.options,
         middleFn2.options ?? {},
         isHeader,
         middleFn2.options?.strictTypes
@@ -2496,7 +2507,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
           validateParams: middleFn2.options?.validateParams ?? true,
           validateReturn: middleFn2.options?.validateReturn ?? false,
           description: middleFn2.options?.description,
-          strictTypes: middleFn2.options?.strictTypes ?? routerOptions.strictTypes
+          strictTypes: middleFn2.options?.strictTypes ?? routerState.options.strictTypes
         }
       };
       addToPersistedMethods(middleFnId, executable);
@@ -2509,7 +2520,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const middleFnId = getRouterItemId(middleFnPointer);
     const existing = rawMiddleFnsById.get(middleFnId);
     if (existing) return existing;
-    const reflectionData = await getRawMethodReflection(middleFn2.handler, middleFnId, routerOptions);
+    const reflectionData = await getRawMethodReflection(middleFn2.handler, middleFnId, routerState.options);
     const executable = {
       id: middleFnId,
       type: HandlerType$1.rawMiddleFn,
@@ -2543,11 +2554,14 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     if (compiledMethod) {
       executable = compiledMethod;
     } else {
-      const resolvedRouteOptions = { ...route2.options, serializer: route2.options?.serializer ?? routerOptions.serializer };
+      const resolvedRouteOptions = {
+        ...route2.options,
+        serializer: route2.options?.serializer ?? routerState.options.serializer
+      };
       const reflectionData = await getHandlerReflection(
         route2.handler,
         routeId,
-        routerOptions,
+        routerState.options,
         resolvedRouteOptions,
         false,
         route2.options?.strictTypes
@@ -2564,9 +2578,9 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
           validateParams: route2.options?.validateParams ?? true,
           validateReturn: route2.options?.validateReturn ?? false,
           description: route2.options?.description,
-          serializer: route2.options?.serializer ?? routerOptions.serializer,
+          serializer: route2.options?.serializer ?? routerState.options.serializer,
           isMutation: route2.options?.isMutation,
-          strictTypes: route2.options?.strictTypes ?? routerOptions.strictTypes
+          strictTypes: route2.options?.strictTypes ?? routerState.options.strictTypes
         }
       };
       addToPersistedMethods(routeId, executable);
@@ -2800,6 +2814,11 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     defaultResponseHeaders: {},
     basePath: ""
   };
+  const __ΩPartial = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
+  function __assignType$2(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
   let cloudflareOptions = { ...DEFAULT_CLOUDFLARE_OPTIONS };
   let defaultHeaders = [["server", "@mionjs"]];
   function resetCloudflareHandlerOpts() {
@@ -2807,6 +2826,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     defaultHeaders = [["server", "@mionjs"]];
     resetRouter();
   }
+  resetCloudflareHandlerOpts.__type = ["resetCloudflareHandlerOpts", 'P"/!'];
   function setCloudflareHandlerOpts(options2) {
     cloudflareOptions = {
       ...cloudflareOptions,
@@ -2816,6 +2836,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     setPlatformConfig({ ...cloudflareOptions });
     return cloudflareOptions;
   }
+  setCloudflareHandlerOpts.__type = [() => __ΩPartial, "CloudflareHandlerOptions", "options", "setCloudflareHandlerOpts", 'P"w"o!"2#8"/$'];
   async function handleRequest(req, env, ctx) {
     const reqUrl = req.url;
     const urlObj = new URL(reqUrl);
@@ -2836,16 +2857,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     const responseHeaders = new Headers(defaultHeaders);
     const platformContext = env !== void 0 || ctx !== void 0 ? { env, ctx } : void 0;
     try {
-      const platformResp = await dispatchRoute(
-        path,
-        rawBody,
-        req.headers,
-        responseHeaders,
-        req,
-        platformContext,
-        reqBodyType,
-        urlQuery
-      );
+      const platformResp = await dispatchRoute(path, rawBody, req.headers, responseHeaders, req, platformContext, reqBodyType, urlQuery);
       return reply(platformResp, responseHeaders);
     } catch (e) {
       const error = e instanceof RpcError ? e : new RpcError({
@@ -2856,16 +2868,19 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       return fatalFail(error, responseHeaders);
     }
   }
+  handleRequest.__type = ["req", "env", "CloudflareExecutionContext", "ctx", "handleRequest", 'P!2!"2"8"w#2$8!`/%'];
   function createCloudflareHandler(options2) {
     setCloudflareHandlerOpts(options2);
     return {
-      fetch: (req, env, ctx) => handleRequest(req, env, ctx)
+      fetch: __assignType$2((req, env, ctx) => (handleRequest.Ω = [["!"]], handleRequest(req, env, ctx)), ["req", "env", "CloudflareExecutionContext", "ctx", "", 'P!2!!2"8"w#2$8"/%'])
     };
   }
+  createCloudflareHandler.__type = [() => __ΩPartial, "CloudflareHandlerOptions", "options", "createCloudflareHandler", 'P"w"o!"2#8"/$'];
   function fatalFail(err, responseHeaders) {
     const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
     return reply(routeResponse, responseHeaders);
   }
+  fatalFail.__type = [() => RpcError, "err", "responseHeaders", "fatalFail", 'PP&7!2""2#!/$'];
   function reply(mionResp, responseHeaders) {
     const bodyType = mionResp.serializer;
     switch (bodyType) {
@@ -2901,6 +2916,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
       }
     }
   }
+  reply.__type = [() => __ΩMionResponse, "mionResp", "responseHeaders", "reply", 'Pn!2""2#!/$'];
   const pureFnsCache = { "mion": { "asJSONString": { namespace: "mion", paramNames: [], code: `if (typeof Bun !== "undefined") return JSON.stringify;
   const STR_ESCAPE = /[\\u0000-\\u001f\\u0022\\u005c\\ud800-\\udfff]/;
   const MAX_SCAPE_TEST_LENGTH = 1e3;

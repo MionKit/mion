@@ -6,7 +6,7 @@
  * ######## */
 
 /** Lightweight path join for error messages (avoids Node's 'path' module for edge compatibility) */
-import type {Route, RouterOptions, Routes, RouterEntry} from './types/general.ts';
+import type {InitRouterOptions, Route, RouterOptions, RouterState, Routes, RouterEntry} from './types/general.ts';
 import type {
     RemoteMethod,
     MethodsExecutionChain,
@@ -66,8 +66,20 @@ const rawMiddleFnsById: Map<string, RawMethod> = new Map();
 const middleFnNames: Set<string> = new Set();
 const routeNames: Set<string> = new Set();
 let complexity = 0;
-let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
-let isRouterInitialized = false;
+// Router init state is backed by a globalThis slot so that all module instances share it.
+// When @mionjs/router is externalised by Vite SSR the plugin's ssrLoadModule and Node's
+// external resolver may produce two distinct module instances; routes registered on one
+// must be visible to the other (e.g. for getRouterOptions(), dispatchRoute()).
+// `aotMode` records whether initRouter received `aotCaches` (read by reflection to
+// fail-loud instead of falling back to JIT when an entry is missing). The aotCaches
+// reference itself is NOT stored — it's loaded into the global jit/pure/router caches
+// at init time, so it doesn't pollute getRouterOptions() output.
+const ROUTER_STATE_KEY = Symbol.for('mion.router-state/v1');
+const routerState: RouterState = ((globalThis as any)[ROUTER_STATE_KEY] ??= {
+    options: {...DEFAULT_ROUTE_OPTIONS},
+    isInitialized: false,
+    aotMode: false,
+});
 let allExecutablesIds: string[] | undefined;
 let platformConfig: Record<string, unknown> | undefined;
 
@@ -93,7 +105,7 @@ export const getRouteExecutable = (id: string) => routesById.get(id);
 export const getMiddleFnExecutable = (id: string) => middleFnsById.get(id);
 export const geMiddleFnsSize = () => middleFnsById.size;
 export const getComplexity = () => complexity;
-export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
+export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerState.options as Opts;
 export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
 
 /** Sets platform adapter config and notifies the parent process (Vite plugin) that the server is ready.
@@ -102,7 +114,7 @@ export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsB
 export function setPlatformConfig(config: Record<string, unknown>): void {
     platformConfig = config;
     if (isMionAOTEmitMode() && typeof process.send === 'function') {
-        const routerConfig = Object.fromEntries(Object.entries(routerOptions).filter(([, v]) => typeof v !== 'function'));
+        const routerConfig = Object.fromEntries(Object.entries(routerState.options).filter(([, v]) => typeof v !== 'function'));
         try {
             process.send({type: 'mion-platform-ready', routerConfig, platformConfig: config});
         } catch (err) {
@@ -122,12 +134,13 @@ export const resetRouter = () => {
     middleFnNames.clear();
     routeNames.clear();
     complexity = 0;
-    routerOptions = {...DEFAULT_ROUTE_OPTIONS};
+    routerState.options = {...DEFAULT_ROUTE_OPTIONS};
+    routerState.isInitialized = false;
+    routerState.aotMode = false;
     startMiddleFnsDef = {...defaultStartMiddleFns};
     endMiddleFnsDef = {...defaultEndMiddleFns};
     startMiddleFns = [];
     endMiddleFns = [];
-    isRouterInitialized = false;
     allExecutablesIds = undefined;
     platformConfig = undefined;
     resetRemoteMethodsMetadata();
@@ -144,7 +157,7 @@ export const resetRouter = () => {
 };
 
 // simpler router initialization
-export async function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): Promise<PublicApi<R>> {
+export async function initMionRouter<R extends Routes>(routes: R, opts?: InitRouterOptions): Promise<PublicApi<R>> {
     await initRouter(opts);
     const publicApi = await registerRoutes(routes);
     // Emit AOT caches once after ALL routes (error, client, user) are registered
@@ -153,31 +166,30 @@ export async function initMionRouter<R extends Routes>(routes: R, opts?: Partial
 }
 
 /**
- * Initializes the Router.
- * @param application
- * @param contextDataFactory a factory function that returns an object to be shared in the `callContext.shared`
- * @param routerOptions
- * @returns
+ * Initializes the Router. `aotCaches` is a one-time bootstrap argument: it is loaded into
+ * the global jit/pure/router caches and then discarded — it never lands in router state.
  */
-export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonly<RouterOptions>> {
-    if (isRouterInitialized) throw new Error('Router has already been initialized');
-    routerOptions = {...routerOptions, ...opts};
-    validateSharedDataFactory(routerOptions);
-    Object.freeze(routerOptions);
-    setErrorOptions(routerOptions);
-    if (routerOptions.aotCaches && !isMionAOTEmitMode()) {
-        loadAOTCaches(routerOptions.aotCaches);
-        loadCompiledMethods(routerOptions.aotCaches.routerCache);
+export async function initRouter(opts?: InitRouterOptions): Promise<Readonly<RouterOptions>> {
+    if (routerState.isInitialized) throw new Error('Router has already been initialized');
+    const {aotCaches, ...optsRest} = opts || {};
+    routerState.options = {...routerState.options, ...optsRest};
+    validateSharedDataFactory(routerState.options);
+    Object.freeze(routerState.options);
+    setErrorOptions(routerState.options);
+    if (aotCaches && !isMionAOTEmitMode()) {
+        loadAOTCaches(aotCaches);
+        loadCompiledMethods(aotCaches.routerCache);
+        routerState.aotMode = true;
     }
-    isRouterInitialized = true;
+    routerState.isInitialized = true;
     await registerRoutes({...mionErrorsRoutes});
-    if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});
-    if (!isTestEnv()) console.log('mion router initialized', {routerOptions});
-    return routerOptions;
+    if (!routerState.options.skipClientRoutes) await registerRoutes({...mionClientRoutes});
+    if (!isTestEnv()) console.log('mion router initialized', {routerOptions: routerState.options});
+    return routerState.options;
 }
 
 export async function registerRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
-    if (!isRouterInitialized) throw new Error('initRouter should be called first');
+    if (!routerState.isInitialized) throw new Error('initRouter should be called first');
     startMiddleFns = await getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
     endMiddleFns = await getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
     const binaryMiddlewares = new Set<string>();
@@ -191,7 +203,7 @@ export async function registerRoutes<R extends Routes>(routes: R): Promise<Publi
 
 /** Add middleFns at the start af the ExecutionChain, adds them before any other existing start middleFns by default */
 export function addStartMiddleFns(middleFnsDef: MiddleFnsCollection, appendBeforeExisting = true) {
-    if (isRouterInitialized) throw new Error('Can not add start middleFns after the router has been initialized');
+    if (routerState.isInitialized) throw new Error('Can not add start middleFns after the router has been initialized');
     if (appendBeforeExisting) {
         startMiddleFnsDef = {...middleFnsDef, ...startMiddleFnsDef};
         return;
@@ -201,7 +213,7 @@ export function addStartMiddleFns(middleFnsDef: MiddleFnsCollection, appendBefor
 
 /** Add middleFns at the end af the ExecutionChain, adds them after any other existing end middleFns by default */
 export function addEndMiddleFns(middleFnsDef: MiddleFnsCollection, prependAfterExisting = true) {
-    if (isRouterInitialized) throw new Error('Can not add end middleFns after the router has been initialized');
+    if (routerState.isInitialized) throw new Error('Can not add end middleFns after the router has been initialized');
     if (prependAfterExisting) {
         endMiddleFnsDef = {...endMiddleFnsDef, ...middleFnsDef};
         return;
@@ -243,7 +255,7 @@ export function getAllExecutablesIds(): string[] {
 
 // used by codegen
 export function shouldFullGenerateSpec(): boolean {
-    return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true' || isMionCompileMode();
+    return routerState.options.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true' || isMionCompileMode();
 }
 
 export function getRouteExecutableFromPath(path: string): RouteMethod {
@@ -383,7 +395,7 @@ async function recursiveCreateExecutionChain(
     const isExec = isExecutable(routeEntry);
 
     if (isExec && props.isRoute) {
-        const path = getRoutePath(routeEntry.pointer, routerOptions);
+        const path = getRoutePath(routeEntry.pointer, routerState.options);
         const routeMethod = routeEntry as RouteMethod;
         const levelMethods = [
             ...preMiddleFns,
@@ -456,7 +468,7 @@ export async function getExecutableFromMiddleFn(
         const reflectionData = await getHandlerReflection(
             middleFn.handler,
             middleFnId,
-            routerOptions,
+            routerState,
             middleFn.options ?? {},
             isHeader,
             middleFn.options?.strictTypes
@@ -473,7 +485,7 @@ export async function getExecutableFromMiddleFn(
                 validateParams: middleFn.options?.validateParams ?? true,
                 validateReturn: middleFn.options?.validateReturn ?? false,
                 description: middleFn.options?.description,
-                strictTypes: middleFn.options?.strictTypes ?? routerOptions.strictTypes,
+                strictTypes: middleFn.options?.strictTypes ?? routerState.options.strictTypes,
             },
         };
         addToPersistedMethods(middleFnId, executable);
@@ -492,7 +504,7 @@ export async function getExecutableFromRawMiddleFn(
     const middleFnId = getRouterItemId(middleFnPointer);
     const existing = rawMiddleFnsById.get(middleFnId);
     if (existing) return existing as RawMethod;
-    const reflectionData = await getRawMethodReflection(middleFn.handler, middleFnId, routerOptions);
+    const reflectionData = await getRawMethodReflection(middleFn.handler, middleFnId, routerState);
     const executable: RawMethod = {
         id: middleFnId,
         type: HandlerType.rawMiddleFn,
@@ -530,11 +542,14 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
     if (compiledMethod) {
         executable = compiledMethod as RouteMethod;
     } else {
-        const resolvedRouteOptions = {...route.options, serializer: route.options?.serializer ?? routerOptions.serializer};
+        const resolvedRouteOptions = {
+            ...route.options,
+            serializer: route.options?.serializer ?? routerState.options.serializer,
+        };
         const reflectionData = await getHandlerReflection(
             route.handler,
             routeId,
-            routerOptions,
+            routerState,
             resolvedRouteOptions,
             false,
             route.options?.strictTypes
@@ -551,9 +566,9 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
                 validateParams: route.options?.validateParams ?? true,
                 validateReturn: route.options?.validateReturn ?? false,
                 description: route.options?.description,
-                serializer: route.options?.serializer ?? routerOptions.serializer,
+                serializer: route.options?.serializer ?? routerState.options.serializer,
                 isMutation: route.options?.isMutation,
-                strictTypes: route.options?.strictTypes ?? routerOptions.strictTypes,
+                strictTypes: route.options?.strictTypes ?? routerState.options.strictTypes,
             },
         };
         addToPersistedMethods(routeId, executable);

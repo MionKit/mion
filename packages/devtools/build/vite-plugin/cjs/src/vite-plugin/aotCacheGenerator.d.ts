@@ -24,6 +24,10 @@ export declare function generatePureFnsModule(pureFnsCode: string): string;
 export declare function generateRouterCacheModule(routerCacheCode: string): string;
 export declare function generateCombinedCachesModule(): string;
 export declare function generateNoopModule(comment: string): string;
+export declare function generateDevJitFnsModule(): string;
+export declare function generateDevPureFnsModule(): string;
+export declare function generateDevRouterCacheModule(): string;
+export declare function generateDevCombinedCachesModule(): string;
 export declare function waitForPlatformReady(child: ChildProcess, timeoutMs?: number): Promise<{
     routerConfig: Record<string, unknown>;
     platformConfig: Record<string, unknown>;

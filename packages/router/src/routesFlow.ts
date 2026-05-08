@@ -15,7 +15,7 @@ import {
     PURE_SERVER_FN_NAMESPACE,
     fromBase64Url,
 } from '@mionjs/core';
-import {serverPureFnsCache} from '@mionjs/core/server-pure-fns';
+import {getServerPureFn} from '@mionjs/core/server-pure-fns';
 import {getRouteExecutionChain, getRouterOptions, startMiddleFns, endMiddleFns} from './router.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
@@ -241,7 +241,7 @@ function insertMappingMethods(middleMethods: RemoteMethod[], mappings: RoutesFlo
         }
 
         // Validate the pure function exists in the serverPureFnsCache (populated by mion vite plugin)
-        if (!serverPureFnsCache[PURE_SERVER_FN_NAMESPACE]?.[mapping.bodyHash]?.fn) {
+        if (!getServerPureFn(PURE_SERVER_FN_NAMESPACE, mapping.bodyHash)?.fn) {
             throw new RpcError({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'routesFlow-mapping-missing-pure-fn',
@@ -297,7 +297,7 @@ function createMappingHandler(mapping: RoutesFlowMapping) {
         const sourceOutput = ctx.response.body[mapping.fromId];
 
         // Resolve and execute the pure function from serverPureFnsCache (populated by mion vite plugin)
-        const entry = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE]?.[mapping.bodyHash];
+        const entry = getServerPureFn(PURE_SERVER_FN_NAMESPACE, mapping.bodyHash);
         if (!entry?.fn) {
             throw new RpcError({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,

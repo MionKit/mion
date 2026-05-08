@@ -1,13 +1,13 @@
 import { resolve } from "path";
-import { createRequire } from "module";
-import { existsSync } from "fs";
 import * as ts from "typescript";
 import { createDeepkitConfig, createPureFnTransformerFactory } from "./transformers.js";
 import { scanClientSource } from "./extractPureFn.js";
 import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX, SERVER_PURE_FNS_SHIM } from "./constants.js";
-import { generateAOTCaches, logAOTCaches, generateNoopCombinedModule, generateCombinedCachesModule, generateNoopModule, generateRouterCacheModule, generatePureFnsModule, generateJitFnsModule, loadSSRRouterAndGenerateAOTCaches, killPersistentChild } from "./aotCacheGenerator.js";
+import { generateAOTCaches, logAOTCaches, generateDevCombinedCachesModule, generateCombinedCachesModule, generateDevRouterCacheModule, generateRouterCacheModule, generateDevPureFnsModule, generatePureFnsModule, generateDevJitFnsModule, generateJitFnsModule, loadSSRRouterAndGenerateAOTCaches, killPersistentChild } from "./aotCacheGenerator.js";
 import { updateDiskCache, getOrGenerateAOTCaches, resolveCacheDir } from "./aotDiskCache.js";
+const IS_TEST_ENV = process.env.VITEST !== void 0 || process.env.NODE_ENV === "test";
+const log = IS_TEST_ENV ? () => void 0 : console.log.bind(console);
 function mionVitePlugin(options) {
   let extractedFns = null;
   const pureFnOptions = options.serverPureFunctions;
@@ -24,7 +24,6 @@ function mionVitePlugin(options) {
   let registerPureFnFactoryCount = 0;
   let pureFnFilesCount = 0;
   let aotData = null;
-  let aotGenerationPromise = null;
   let aotCacheDir = "";
   let ssrLoadModule = null;
   const ssrEnabled = serverConfig?.runMode === "middleware";
@@ -79,20 +78,18 @@ function mionVitePlugin(options) {
     async buildStart() {
       if (serverConfig && !isRunningAsChild() && !ssrEnabled) {
         try {
-          console.log("[mion] Generating AOT caches...");
-          const resultPromise = getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
-          aotGenerationPromise = resultPromise.then((r) => r.data);
-          const result = await resultPromise;
+          log("[mion] Generating AOT caches...");
+          const result = await getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
           aotData = result.data;
-          console.log("[mion] AOT caches generated successfully");
+          log("[mion] AOT caches generated successfully");
           logAOTCaches(aotData);
           if (result.childProcess) {
             persistentChild = result.childProcess;
             registerCleanupHandlers();
-            console.log(`[mion] Server process persisted (pid: ${persistentChild.pid})`);
+            log(`[mion] Server process persisted (pid: ${persistentChild.pid})`);
           }
           if (result.platformReady && serverConfig.waitTimeout && serverConfig.runMode === "childProcess") {
-            console.log("[mion] Waiting for server to call setPlatformConfig()...");
+            log("[mion] Waiting for server to call setPlatformConfig()...");
             const timeout = serverConfig.waitTimeout;
             const timeoutId = setTimeout(() => {
               if (result.childProcess?.connected) result.childProcess.disconnect();
@@ -103,7 +100,7 @@ function mionVitePlugin(options) {
             result.platformReady.then(() => {
               clearTimeout(timeoutId);
               if (result.childProcess?.connected) result.childProcess.disconnect();
-              console.log("[mion] Server ready");
+              log("[mion] Server ready");
               onServerReady();
             });
           } else {
@@ -123,22 +120,18 @@ function mionVitePlugin(options) {
       let nodeRequestHandler = null;
       let basePath = null;
       let initFailed = false;
-      console.log("[mion] Generating SSR AOT caches...");
+      log("[mion] Generating SSR AOT caches...");
       ssrInitPromise = loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startScript, aotOptions?.isClient).then(async (data) => {
         aotData = data;
-        aotGenerationPromise = Promise.resolve(data);
-        console.log("[mion] SSR AOT caches generated successfully");
+        log("[mion] SSR AOT caches generated successfully");
         logAOTCaches(data);
-        for (const resolvedId of aotResolvedIds.keys()) {
-          const mod = server.moduleGraph.getModuleById(resolvedId);
-          if (mod) server.moduleGraph.invalidateModule(mod);
-        }
+        if (pureFnOptions) await server.ssrLoadModule(VIRTUAL_SERVER_PURE_FNS);
         const routerModule = await server.ssrLoadModule("@mionjs/router");
         const opts = routerModule.getRouterOptions();
         basePath = "/" + (opts.basePath || "").replace(/^\//, "");
         const platformNode = await server.ssrLoadModule("@mionjs/platform-node");
         nodeRequestHandler = platformNode.httpRequestHandler;
-        console.log("[mion] Dev server proxy initialized");
+        log("[mion] Dev server proxy initialized");
         onServerReady();
       }).catch((err) => {
         initFailed = true;
@@ -164,20 +157,11 @@ function mionVitePlugin(options) {
         }
       });
     },
-    resolveId(id, importer) {
+    resolveId(id) {
       if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
       if (aotVirtualModules.has(id)) return resolveVirtualId(id);
-      if (pureFnOptions) {
-        const resolved = resolveShimModule(
-          id,
-          importer,
-          SERVER_PURE_FNS_SHIM,
-          VIRTUAL_SERVER_PURE_FNS,
-          "server-pure-fns",
-          "serverPureFnsCaches.ts",
-          "emptyServerPureFns.ts"
-        );
-        if (resolved) return resolved;
+      if (pureFnOptions && (id === SERVER_PURE_FNS_SHIM || id.endsWith("/server-pure-fns"))) {
+        return resolveVirtualId(VIRTUAL_SERVER_PURE_FNS);
       }
       if (aotOptions?.excludeReflection && !isRunningAsChild() && REFLECTION_MODULES.includes(id)) {
         return resolveVirtualId(VIRTUAL_STUB_PREFIX + id);
@@ -192,23 +176,21 @@ function mionVitePlugin(options) {
       }
       const aotType = aotResolvedIds.get(id);
       if (aotType) {
-        const initPromise = ssrInitPromise || aotGenerationPromise;
-        if (!aotData && initPromise) await initPromise;
         switch (aotType) {
           case "jit-fns": {
-            if (!aotData) return generateNoopModule("No-op: AOT JIT caches not generated");
+            if (!aotData) return generateDevJitFnsModule();
             return generateJitFnsModule(aotData.jitFnsCode);
           }
           case "pure-fns": {
-            if (!aotData) return generateNoopModule("No-op: AOT pure fns not generated");
+            if (!aotData) return generateDevPureFnsModule();
             return generatePureFnsModule(aotData.pureFnsCode);
           }
           case "router-cache": {
-            if (!aotData) return generateNoopModule("No-op: AOT router cache not generated");
+            if (!aotData) return generateDevRouterCacheModule();
             return generateRouterCacheModule(aotData.routerCacheCode);
           }
           case "caches": {
-            if (!aotData) return generateNoopCombinedModule();
+            if (!aotData) return generateDevCombinedCachesModule();
             return generateCombinedCachesModule();
           }
         }
@@ -269,7 +251,7 @@ function mionVitePlugin(options) {
           pureServerFnCount > 0 ? `${pureServerFnCount} pureServerFn` : "",
           registerPureFnFactoryCount > 0 ? `${registerPureFnFactoryCount} registerPureFnFactory` : ""
         ].filter(Boolean);
-        console.log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(", ")})`);
+        log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(", ")})`);
       }
     },
     async closeBundle() {
@@ -296,10 +278,17 @@ function mionVitePlugin(options) {
         if (file.startsWith(serverDir)) {
           const killPromise = cleanupChild();
           const regeneratePromise = ssrEnabled && ssrLoadModule ? (
-            // SSR mode: reset router and re-init via ssrLoadModule
+            // SSR mode: reset router (clears persistedMethods + router state via
+            // their globalThis slots) and serverPureFnsCache, then re-init.
+            // Preserve jitFnsCache + pureFnsCache — they're expensive to rebuild
+            // and routes that haven't changed reuse them.
             (async () => {
               const routerModule = await ssrLoadModule("@mionjs/router");
               routerModule.resetRouter();
+              const pureFnsSlot = globalThis[/* @__PURE__ */ Symbol.for("mion.server-pure-fns/v1")];
+              if (pureFnsSlot) {
+                for (const k in pureFnsSlot) delete pureFnsSlot[k];
+              }
               return loadSSRRouterAndGenerateAOTCaches(
                 ssrLoadModule,
                 resolve(serverConfig.startScript),
@@ -310,19 +299,23 @@ function mionVitePlugin(options) {
             // IPC mode: wait for old child to die, then spawn new
             killPromise.then(() => generateAOTCaches(serverConfig, void 0, aotOptions?.isClient))
           );
-          aotGenerationPromise = regeneratePromise.then((r) => "data" in r ? r.data : r);
-          regeneratePromise.then((result) => {
+          regeneratePromise.then(async (result) => {
             const data = "data" in result ? result.data : result;
             aotData = data;
             logAOTCaches(data);
+            if (ssrEnabled && ssrLoadModule && pureFnOptions) {
+              const mod = server.moduleGraph.getModuleById(resolveVirtualId(VIRTUAL_SERVER_PURE_FNS));
+              if (mod) server.moduleGraph.invalidateModule(mod);
+              await ssrLoadModule(VIRTUAL_SERVER_PURE_FNS);
+            }
             if ("childProcess" in result && result.childProcess) {
               persistentChild = result.childProcess;
-              console.log(`[mion] Server process re-persisted (pid: ${persistentChild.pid})`);
+              log(`[mion] Server process re-persisted (pid: ${persistentChild.pid})`);
             }
             const platformReady = "platformReady" in result ? result.platformReady : void 0;
             if (platformReady && serverConfig.waitTimeout && serverConfig.runMode === "childProcess") {
               const timeout = serverConfig.waitTimeout;
-              console.log("[mion] Waiting for restarted server to call setPlatformConfig()...");
+              log("[mion] Waiting for restarted server to call setPlatformConfig()...");
               const timeoutId = setTimeout(() => {
                 if (persistentChild?.connected) persistentChild.disconnect();
                 console.error(
@@ -332,7 +325,7 @@ function mionVitePlugin(options) {
               platformReady.then(() => {
                 clearTimeout(timeoutId);
                 if (persistentChild?.connected) persistentChild.disconnect();
-                console.log("[mion] Restarted server ready");
+                log("[mion] Restarted server ready");
                 onServerReady();
               });
             } else if ("childProcess" in result && result.childProcess?.connected) {
@@ -348,7 +341,7 @@ function mionVitePlugin(options) {
               }
             }
             if (invalidatedCount > 0) {
-              console.log("[mion] AOT caches regenerated, invalidating virtual modules");
+              log("[mion] AOT caches regenerated, invalidating virtual modules");
             }
           }).catch((err) => {
             console.error("[mion] Failed to regenerate AOT caches:", err.message);
@@ -406,28 +399,6 @@ function buildAOTVirtualModuleMaps(customVirtualModuleId) {
     }
   }
   return { aotVirtualModules, aotResolvedIds };
-}
-function resolveShimModule(id, importer, shimSpecifier, virtualModuleId, entryName, sourceFileName, emptyFileName) {
-  if (id === shimSpecifier) {
-    try {
-      const resolved = createRequire(import.meta.url).resolve(shimSpecifier);
-      const sourceFile = resolve(resolved.replace(/[/\\].dist[/\\].*$/, ""), "src/aot/" + sourceFileName);
-      if (existsSync(sourceFile)) return sourceFile;
-      return resolveVirtualId(virtualModuleId);
-    } catch {
-      return resolveVirtualId(virtualModuleId);
-    }
-  }
-  if (id.endsWith("/" + entryName)) {
-    const sourceFile = resolve(id, "..", "src/aot/" + sourceFileName);
-    if (existsSync(sourceFile)) return sourceFile;
-  }
-  const emptyBase = emptyFileName.replace(".ts", "");
-  const sourceBase = sourceFileName.replace(".ts", "");
-  if (new RegExp(`${emptyBase}\\.(ts|js|mjs|cjs)$`).test(id) && importer && new RegExp(`${sourceBase}\\.(ts|js|mjs|cjs)$`).test(importer)) {
-    return resolveVirtualId(virtualModuleId);
-  }
-  return null;
 }
 function addSsrNoExternal(config, specifiers) {
   if (specifiers.length === 0) return;

@@ -9,9 +9,9 @@ import type {MethodWithJitFns, AnyFn, JitCompiledFunctions, MethodMetadata} from
 // Type-only imports from run-types - these don't load the module at runtime
 import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnCompiler} from '@mionjs/run-types';
 import {Handler} from '../types/handlers.ts';
-import {RouterOptions} from '../types/general.ts';
+import {RouterOptions, RouterState} from '../types/general.ts';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants.ts';
-import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns, HandlerType, isMionAOTEmitMode} from '@mionjs/core';
+import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns, HandlerType} from '@mionjs/core';
 import {getPersistedMethodMetadata} from './methodsCache.ts';
 import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';
 
@@ -19,13 +19,6 @@ import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, H
 // In AOT mode, run-types is NOT loaded - all reflection data comes from the AOT cache
 
 type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
-
-/** Strict AOT mode is on when the user passed aotCaches AND we're not currently
- *  generating those caches via the vite-node child (MION_COMPILE=*). During the
- *  generation run the virtual module is empty, so we must fall back to JIT. */
-function isAOTStrictMode(routerOptions: RouterOptions): boolean {
-    return !!routerOptions.aotCaches && !isMionAOTEmitMode();
-}
 
 // ############ AOT Cache Error ############
 
@@ -185,7 +178,7 @@ function extractReflectionFromCached(cached: CachedMethodMetadata): MethodReflec
 export async function getHandlerReflection(
     handler: Handler,
     routeId: string,
-    routerOptions: RouterOptions,
+    routerState: RouterState,
     handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions = {},
     isHeadersMiddleFn: boolean = false,
     methodStrictTypes?: boolean
@@ -193,10 +186,18 @@ export async function getHandlerReflection(
     // Check AOT cache first
     const cached = getPersistedMethodMetadata(routeId);
     if (cached) return extractReflectionFromCached(cached);
-    if (isAOTStrictMode(routerOptions)) throw new AOTCacheError(routeId, isHeadersMiddleFn ? 'middleFn' : 'route');
+    if (routerState.aotMode) throw new AOTCacheError(routeId, isHeadersMiddleFn ? 'middleFn' : 'route');
     // Non-AOT mode: dynamically load run-types and generate reflection
     const rt = await loadRunTypesModule();
-    return generateHandlerReflection(handler, routeId, routerOptions, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
+    return generateHandlerReflection(
+        handler,
+        routeId,
+        routerState.options,
+        handlerOptions,
+        isHeadersMiddleFn,
+        rt,
+        methodStrictTypes
+    );
 }
 
 /**
@@ -209,13 +210,13 @@ export async function getHandlerReflection(
 export async function getRawMethodReflection(
     handler: Handler,
     routeId: string,
-    routerOptions: RouterOptions
+    routerState: RouterState
 ): Promise<MethodReflect> {
     // Check if raw middleFn is in cache - if so, use cached data (especially isAsync)
     const cached = getPersistedMethodMetadata(routeId);
     if (cached) return createRawMiddleFnReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
     // Raw middleFns don't need JIT functions, so we don't need to load run-types in AOT mode
-    if (isAOTStrictMode(routerOptions)) return createRawMiddleFnReflection(true);
+    if (routerState.aotMode) return createRawMiddleFnReflection(true);
     // Non-AOT mode: dynamically load run-types to properly detect if handler is async
     const rt = await loadRunTypesModule();
     return generateRawMethodReflection(handler, routeId, rt);

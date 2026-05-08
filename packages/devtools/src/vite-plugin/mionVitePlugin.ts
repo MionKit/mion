@@ -6,8 +6,6 @@
  * ######## */
 
 import {resolve} from 'path';
-import {createRequire} from 'module';
-import {existsSync} from 'fs';
 import * as ts from 'typescript';
 import {ChildProcess} from 'child_process';
 import {createDeepkitConfig, DeepkitConfig, createPureFnTransformerFactory} from './transformers.ts';
@@ -30,11 +28,18 @@ import {
     generatePureFnsModule,
     generateRouterCacheModule,
     generateCombinedCachesModule,
-    generateNoopModule,
-    generateNoopCombinedModule,
+    generateDevJitFnsModule,
+    generateDevPureFnsModule,
+    generateDevRouterCacheModule,
+    generateDevCombinedCachesModule,
     AOTCacheData,
 } from './aotCacheGenerator.ts';
 import {getOrGenerateAOTCaches, updateDiskCache, resolveCacheDir} from './aotDiskCache.ts';
+
+/** True when running under Vitest (or NODE_ENV=test). Used to suppress info logs during tests. */
+const IS_TEST_ENV = process.env.VITEST !== undefined || process.env.NODE_ENV === 'test';
+/** Info logger — silent in test env. Errors should keep using console.error directly. */
+const log: (...args: unknown[]) => void = IS_TEST_ENV ? () => undefined : console.log.bind(console);
 
 export interface MionPluginOptions {
     /** Options for pure function extraction - omit to disable */
@@ -100,7 +105,6 @@ export function mionVitePlugin(options: MionPluginOptions) {
 
     // AOT cache data - populated during buildStart (IPC) or configureServer (in-process)
     let aotData: AOTCacheData | null = null;
-    let aotGenerationPromise: Promise<AOTCacheData> | null = null;
 
     // Resolved cache directory from Vite's config — set in configResolved
     let aotCacheDir = '';
@@ -183,24 +187,22 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // Skip when SSR mode — configureServer will handle it
             if (serverConfig && !isRunningAsChild() && !ssrEnabled) {
                 try {
-                    console.log('[mion] Generating AOT caches...');
-                    const resultPromise = getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
-                    aotGenerationPromise = resultPromise.then((r) => r.data);
-                    const result = await resultPromise;
+                    log('[mion] Generating AOT caches...');
+                    const result = await getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
                     aotData = result.data;
-                    console.log('[mion] AOT caches generated successfully');
+                    log('[mion] AOT caches generated successfully');
                     logAOTCaches(aotData);
 
                     // Store persistent child for IPC mode
                     if (result.childProcess) {
                         persistentChild = result.childProcess;
                         registerCleanupHandlers();
-                        console.log(`[mion] Server process persisted (pid: ${persistentChild.pid})`);
+                        log(`[mion] Server process persisted (pid: ${persistentChild.pid})`);
                     }
 
                     // Non-blocking: wait for setPlatformConfig() IPC and resolve serverReady promise
                     if (result.platformReady && serverConfig.waitTimeout && serverConfig.runMode === 'childProcess') {
-                        console.log('[mion] Waiting for server to call setPlatformConfig()...');
+                        log('[mion] Waiting for server to call setPlatformConfig()...');
                         const timeout = serverConfig.waitTimeout;
                         const timeoutId = setTimeout(() => {
                             if (result.childProcess?.connected) result.childProcess.disconnect();
@@ -212,7 +214,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                         result.platformReady.then(() => {
                             clearTimeout(timeoutId);
                             if (result.childProcess?.connected) result.childProcess.disconnect();
-                            console.log('[mion] Server ready');
+                            log('[mion] Server ready');
                             onServerReady();
                         });
                     } else {
@@ -238,25 +240,25 @@ export function mionVitePlugin(options: MionPluginOptions) {
             let basePath: string | null = null;
             let initFailed = false;
 
-            console.log('[mion] Generating SSR AOT caches...');
+            log('[mion] Generating SSR AOT caches...');
             ssrInitPromise = loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startScript, aotOptions?.isClient)
                 .then(async (data) => {
                     aotData = data;
-                    aotGenerationPromise = Promise.resolve(data);
-                    console.log('[mion] SSR AOT caches generated successfully');
+                    log('[mion] SSR AOT caches generated successfully');
                     logAOTCaches(data);
-                    // Invalidate virtual modules so they reload with real data
-                    for (const resolvedId of aotResolvedIds.keys()) {
-                        const mod = server.moduleGraph.getModuleById(resolvedId);
-                        if (mod) server.moduleGraph.invalidateModule(mod);
-                    }
-                    // Load router and platform modules now that caches are ready
+                    // Populate the server pure fns cache directly via the virtual module.
+                    // routesFlow (loaded externally by Node from @mionjs/router) reads from the
+                    // same globalThis slot that this virtual module writes to as a side-effect.
+                    if (pureFnOptions) await server.ssrLoadModule(VIRTUAL_SERVER_PURE_FNS);
+                    // Load router and platform modules. State (router options, persisted methods,
+                    // pure fns) is shared across instances via globalThis slots, so it doesn't
+                    // matter which instance ssrLoadModule resolves to.
                     const routerModule = await server.ssrLoadModule('@mionjs/router');
                     const opts = routerModule.getRouterOptions();
                     basePath = '/' + (opts.basePath || '').replace(/^\//, '');
                     const platformNode = await server.ssrLoadModule('@mionjs/platform-node');
                     nodeRequestHandler = platformNode.httpRequestHandler;
-                    console.log('[mion] Dev server proxy initialized');
+                    log('[mion] Dev server proxy initialized');
                     onServerReady();
                 })
                 .catch((err) => {
@@ -286,22 +288,25 @@ export function mionVitePlugin(options: MionPluginOptions) {
             });
         },
 
-        resolveId(id, importer) {
+        resolveId(id) {
             // Pure functions virtual module — always resolve, returns empty cache if not configured
             if (id === VIRTUAL_SERVER_PURE_FNS) return resolveVirtualId(id);
             // AOT virtual modules (default + custom prefix both resolve)
             if (aotVirtualModules.has(id)) return resolveVirtualId(id);
-            if (pureFnOptions) {
-                const resolved = resolveShimModule(
-                    id,
-                    importer,
-                    SERVER_PURE_FNS_SHIM,
-                    VIRTUAL_SERVER_PURE_FNS,
-                    'server-pure-fns',
-                    'serverPureFnsCaches.ts',
-                    'emptyServerPureFns.ts'
-                );
-                if (resolved) return resolved;
+            // @mionjs/core/server-pure-fns — redirect to the virtual module so the populated
+            // entries get bundled. The virtual module exports the same surface (serverPureFnsCache,
+            // getServerPureFn, loadServerPureFns) backed by the shared globalThis slot.
+            //
+            // We match both the bare specifier and the alias-resolved absolute path. Some Vite
+            // configs (notably the monorepo test-server's edge/cloudflare configs) alias
+            // `@mionjs/core` to the package dir, rewriting the import to `<pkg>/server-pure-fns`
+            // before our plugin sees it.
+            //
+            // In dev SSR mode this redirect doesn't fire for externalised importers (e.g.
+            // @mionjs/router) — they read the real source/dist file, which uses the same
+            // globalThis slot.
+            if (pureFnOptions && (id === SERVER_PURE_FNS_SHIM || id.endsWith('/server-pure-fns'))) {
+                return resolveVirtualId(VIRTUAL_SERVER_PURE_FNS);
             }
             // Stub out reflection modules in the bundle build (not needed at runtime in AOT mode)
             if (aotOptions?.excludeReflection && !isRunningAsChild() && REFLECTION_MODULES.includes(id)) {
@@ -320,27 +325,27 @@ export function mionVitePlugin(options: MionPluginOptions) {
                 return generateServerPureFnsVirtualModule(extractedFns);
             }
 
-            // AOT virtual modules — check resolved ID against the map
+            // AOT virtual modules — check resolved ID against the map.
+            // In dev (no aotData yet), return a tiny module backed by globalThis slots.
+            // No `await initPromise` here — that would deadlock when the user's startScript
+            // imports virtual:mion-aot/caches while the plugin is inside loadSSRRouterAndGenerateAOTCaches.
             const aotType = aotResolvedIds.get(id);
             if (aotType) {
-                const initPromise = ssrInitPromise || aotGenerationPromise;
-                if (!aotData && initPromise) await initPromise;
-
                 switch (aotType) {
                     case 'jit-fns': {
-                        if (!aotData) return generateNoopModule('No-op: AOT JIT caches not generated');
+                        if (!aotData) return generateDevJitFnsModule();
                         return generateJitFnsModule(aotData.jitFnsCode);
                     }
                     case 'pure-fns': {
-                        if (!aotData) return generateNoopModule('No-op: AOT pure fns not generated');
+                        if (!aotData) return generateDevPureFnsModule();
                         return generatePureFnsModule(aotData.pureFnsCode);
                     }
                     case 'router-cache': {
-                        if (!aotData) return generateNoopModule('No-op: AOT router cache not generated');
+                        if (!aotData) return generateDevRouterCacheModule();
                         return generateRouterCacheModule(aotData.routerCacheCode);
                     }
                     case 'caches': {
-                        if (!aotData) return generateNoopCombinedModule();
+                        if (!aotData) return generateDevCombinedCachesModule();
                         return generateCombinedCachesModule();
                     }
                 }
@@ -441,7 +446,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                     pureServerFnCount > 0 ? `${pureServerFnCount} pureServerFn` : '',
                     registerPureFnFactoryCount > 0 ? `${registerPureFnFactoryCount} registerPureFnFactory` : '',
                 ].filter(Boolean);
-                console.log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(', ')})`);
+                log(`[mion] Injected ${total} pure functions across ${pureFnFilesCount} files (${parts.join(', ')})`);
             }
         },
 
@@ -479,10 +484,17 @@ export function mionVitePlugin(options: MionPluginOptions) {
 
                     const regeneratePromise =
                         ssrEnabled && ssrLoadModule
-                            ? // SSR mode: reset router and re-init via ssrLoadModule
+                            ? // SSR mode: reset router (clears persistedMethods + router state via
+                              // their globalThis slots) and serverPureFnsCache, then re-init.
+                              // Preserve jitFnsCache + pureFnsCache — they're expensive to rebuild
+                              // and routes that haven't changed reuse them.
                               (async () => {
                                   const routerModule = await ssrLoadModule!('@mionjs/router');
                                   routerModule.resetRouter();
+                                  const pureFnsSlot = (globalThis as any)[Symbol.for('mion.server-pure-fns/v1')];
+                                  if (pureFnsSlot) {
+                                      for (const k in pureFnsSlot) delete pureFnsSlot[k];
+                                  }
                                   return loadSSRRouterAndGenerateAOTCaches(
                                       ssrLoadModule!,
                                       resolve(serverConfig.startScript),
@@ -492,24 +504,32 @@ export function mionVitePlugin(options: MionPluginOptions) {
                             : // IPC mode: wait for old child to die, then spawn new
                               killPromise.then(() => generateAOTCaches(serverConfig, undefined, aotOptions?.isClient));
 
-                    aotGenerationPromise = regeneratePromise.then((r) => ('data' in r ? r.data : r));
                     regeneratePromise
-                        .then((result) => {
+                        .then(async (result) => {
                             const data = 'data' in result ? result.data : result;
                             aotData = data;
                             logAOTCaches(data);
 
+                            // SSR mode: re-populate serverPureFnsCache (was cleared above) by
+                            // re-loading the virtual module. The module's side-effect populates
+                            // the globalThis slot.
+                            if (ssrEnabled && ssrLoadModule && pureFnOptions) {
+                                const mod = server.moduleGraph.getModuleById(resolveVirtualId(VIRTUAL_SERVER_PURE_FNS));
+                                if (mod) server.moduleGraph.invalidateModule(mod);
+                                await ssrLoadModule(VIRTUAL_SERVER_PURE_FNS);
+                            }
+
                             // Store new persistent child if IPC mode
                             if ('childProcess' in result && result.childProcess) {
                                 persistentChild = result.childProcess;
-                                console.log(`[mion] Server process re-persisted (pid: ${persistentChild!.pid})`);
+                                log(`[mion] Server process re-persisted (pid: ${persistentChild!.pid})`);
                             }
 
                             // Non-blocking: wait for setPlatformConfig() IPC from restarted server
                             const platformReady = 'platformReady' in result ? result.platformReady : undefined;
                             if (platformReady && serverConfig.waitTimeout && serverConfig.runMode === 'childProcess') {
                                 const timeout = serverConfig.waitTimeout;
-                                console.log('[mion] Waiting for restarted server to call setPlatformConfig()...');
+                                log('[mion] Waiting for restarted server to call setPlatformConfig()...');
                                 const timeoutId = setTimeout(() => {
                                     if (persistentChild?.connected) persistentChild.disconnect();
                                     console.error(
@@ -519,7 +539,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                                 platformReady.then(() => {
                                     clearTimeout(timeoutId);
                                     if (persistentChild?.connected) persistentChild.disconnect();
-                                    console.log('[mion] Restarted server ready');
+                                    log('[mion] Restarted server ready');
                                     onServerReady();
                                 });
                             } else if ('childProcess' in result && result.childProcess?.connected) {
@@ -537,7 +557,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                                 }
                             }
                             if (invalidatedCount > 0) {
-                                console.log('[mion] AOT caches regenerated, invalidating virtual modules');
+                                log('[mion] AOT caches regenerated, invalidating virtual modules');
                             }
                         })
                         .catch((err) => {
@@ -619,53 +639,6 @@ function buildAOTVirtualModuleMaps(customVirtualModuleId?: string) {
         }
     }
     return {aotVirtualModules, aotResolvedIds};
-}
-
-/**
- * Resolves a shim module (e.g. @mionjs/core/server-pure-fns) to its source file,
- * and intercepts the empty cache import to replace it with the virtual module.
- * Returns the resolved id or null if no match.
- */
-function resolveShimModule(
-    id: string,
-    importer: string | undefined,
-    shimSpecifier: string,
-    virtualModuleId: string,
-    entryName: string,
-    sourceFileName: string,
-    emptyFileName: string
-): string | null {
-    // Bare specifier: resolve to the TS source file so Vite can process it through the plugin pipeline.
-    // Using createRequire would return CJS built output whose require() calls bypass resolveId.
-    if (id === shimSpecifier) {
-        try {
-            // Resolve the package directory via Node resolution, then find the source file
-            const resolved = createRequire(import.meta.url).resolve(shimSpecifier);
-            const sourceFile = resolve(resolved.replace(/[/\\].dist[/\\].*$/, ''), 'src/aot/' + sourceFileName);
-            if (existsSync(sourceFile)) return sourceFile;
-            // No source file (tarball/npm install) — resolve to virtual module directly.
-            // Returning the .dist path would bypass resolveId (CJS require() calls skip Vite pipeline).
-            return resolveVirtualId(virtualModuleId);
-        } catch {
-            return resolveVirtualId(virtualModuleId);
-        }
-    }
-    // Alias-resolved absolute path (monorepo dev where source files always exist)
-    if (id.endsWith('/' + entryName)) {
-        const sourceFile = resolve(id, '..', 'src/aot/' + sourceFileName);
-        if (existsSync(sourceFile)) return sourceFile;
-    }
-    // Intercept empty cache imports from the shim loader file (any extension)
-    const emptyBase = emptyFileName.replace('.ts', '');
-    const sourceBase = sourceFileName.replace('.ts', '');
-    if (
-        new RegExp(`${emptyBase}\\.(ts|js|mjs|cjs)$`).test(id) &&
-        importer &&
-        new RegExp(`${sourceBase}\\.(ts|js|mjs|cjs)$`).test(importer)
-    ) {
-        return resolveVirtualId(virtualModuleId);
-    }
-    return null;
 }
 
 /** Adds specifiers (string or RegExp) to Vite's ssr.noExternal so they are bundled instead of externalized. */

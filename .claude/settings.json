@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run test *)",
+      "Bash(npm run lint *)",
+      "Bash(npm view *)",
+      "Bash(npm run build *)",
+      "Bash(npm run format *)",
+      "Bash(npm run pre-publish-test *)",
+      "Bash(npm run clean *)",
+      "Bash(npm install *)",
+      "Bash(npm pack *)",
+      "Bash(bash scripts/*)",
+      "Bash(bash ./scripts/*)",
+      "Bash(bash /Users/majerez/Projects/mion/scripts/*)",
+      "Bash(./scripts/*)",
+      "Bash(scripts/*)",
+      "Bash(node scripts/*)",
+      "Bash(node ./scripts/*)",
+      "Bash(node /Users/majerez/Projects/mion/scripts/*)",
+      "Bash(sh scripts/*)",
+      "Bash(sh ./scripts/*)"
+    ]
+  }
+}

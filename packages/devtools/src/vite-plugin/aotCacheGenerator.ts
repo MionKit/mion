@@ -10,6 +10,11 @@ import {resolve, dirname} from 'path';
 import {MionServerConfig} from './types.ts';
 import {resolveModule} from './resolveModule.ts';
 
+/** True when running under Vitest (or NODE_ENV=test). Used to suppress info logs during tests. */
+const IS_TEST_ENV = process.env.VITEST !== undefined || process.env.NODE_ENV === 'test';
+/** Info logger — silent in test env. Errors should keep using console.error directly. */
+const log: (...args: unknown[]) => void = IS_TEST_ENV ? () => undefined : console.log.bind(console);
+
 /** AOT cache data returned from the generator */
 export interface AOTCacheData {
     jitFnsCode: string;
@@ -161,9 +166,9 @@ export async function generateAOTCaches(
         child.stdout?.on('data', (data: Buffer) => {
             const msg = data.toString().trim();
             if (persist && msg) {
-                console.log(`[mion-server] ${msg}`);
+                log(`[mion-server] ${msg}`);
             } else if (process.env.DEBUG_AOT && msg) {
-                console.log('[mion-aot] stdout:', msg);
+                log('[mion-aot] stdout:', msg);
             }
         });
 
@@ -297,12 +302,12 @@ export function logAOTCaches(data: AOTCacheData): void {
     const jitSize = formatBytes(Buffer.byteLength(data.jitFnsCode, 'utf-8'));
     const pureSize = formatBytes(Buffer.byteLength(data.pureFnsCode, 'utf-8'));
     const routerSize = formatBytes(Buffer.byteLength(data.routerCacheCode, 'utf-8'));
-    console.log(`[mion]   jitFns: ${jitSize}, pureFns: ${pureSize}, routerCache: ${routerSize}`);
+    log(`[mion]   jitFns: ${jitSize}, pureFns: ${pureSize}, routerCache: ${routerSize}`);
 
     if (process.env.DEBUG_AOT) {
-        console.log('[mion] AOT jitFns cache:\n', data.jitFnsCode);
-        console.log('[mion] AOT pureFns cache:\n', data.pureFnsCode);
-        console.log('[mion] AOT routerCache:\n', data.routerCacheCode);
+        log('[mion] AOT jitFns cache:\n', data.jitFnsCode);
+        log('[mion] AOT pureFns cache:\n', data.pureFnsCode);
+        log('[mion] AOT routerCache:\n', data.routerCacheCode);
     }
 }
 
@@ -348,6 +353,47 @@ export { jitFnsCache, pureFnsCache, routerCache };
 /** Generates a no-op module for when AOT caches are disabled. */
 export function generateNoopModule(comment: string): string {
     return `/* ${comment} */\n`;
+}
+
+/**
+ * Dev-mode shim for virtual:mion-aot/jit-fns. Reads from the same globalThis slot
+ * that @mionjs/core/jit/jitUtils.ts backs jitFnsCache with. Equivalent to the
+ * compile-time generated module, but populated at runtime as routes register.
+ */
+export function generateDevJitFnsModule(): string {
+    return `/* Dev shim: AOT JIT functions cache backed by globalThis */
+const KEY = Symbol.for('mion.jit-fns/v1');
+export const jitFnsCache = (globalThis[KEY] ??= {});
+`;
+}
+
+/** Dev-mode shim for virtual:mion-aot/pure-fns. Backed by globalThis slot 'mion.pure-fns/v1'. */
+export function generateDevPureFnsModule(): string {
+    return `/* Dev shim: AOT pure functions cache backed by globalThis */
+const KEY = Symbol.for('mion.pure-fns/v1');
+export const pureFnsCache = (globalThis[KEY] ??= {});
+`;
+}
+
+/** Dev-mode shim for virtual:mion-aot/router-cache. Backed by globalThis slot 'mion.persisted-methods/v1'. */
+export function generateDevRouterCacheModule(): string {
+    return `/* Dev shim: AOT router cache backed by globalThis */
+const KEY = Symbol.for('mion.persisted-methods/v1');
+export const routerCache = (globalThis[KEY] ??= {});
+`;
+}
+
+/** Dev-mode shim for virtual:mion-aot/caches. All three caches read directly from globalThis. */
+export function generateDevCombinedCachesModule(): string {
+    return `/* Dev shim: combined AOT caches backed by globalThis */
+const JIT_KEY = Symbol.for('mion.jit-fns/v1');
+const PURE_KEY = Symbol.for('mion.pure-fns/v1');
+const ROUTER_KEY = Symbol.for('mion.persisted-methods/v1');
+export const jitFnsCache = (globalThis[JIT_KEY] ??= {});
+export const pureFnsCache = (globalThis[PURE_KEY] ??= {});
+export const routerCache = (globalThis[ROUTER_KEY] ??= {});
+export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
+`;
 }
 
 /** Waits for the server child process to send a mion-platform-ready IPC message. */

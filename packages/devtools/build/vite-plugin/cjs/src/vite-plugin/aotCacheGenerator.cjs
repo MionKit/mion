@@ -3,6 +3,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const child_process = require("child_process");
 const path = require("path");
 const src_vitePlugin_resolveModule = require("./resolveModule.cjs");
+const IS_TEST_ENV = process.env.VITEST !== void 0 || process.env.NODE_ENV === "test";
+const log = IS_TEST_ENV ? () => void 0 : console.log.bind(console);
 const DEFAULT_TIMEOUT = 3e4;
 async function generateAOTCaches(serverConfig, startScriptOverride, isClient) {
   const persist = serverConfig.runMode === "childProcess";
@@ -80,9 +82,9 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
     child.stdout?.on("data", (data) => {
       const msg = data.toString().trim();
       if (persist && msg) {
-        console.log(`[mion-server] ${msg}`);
+        log(`[mion-server] ${msg}`);
       } else if (process.env.DEBUG_AOT && msg) {
-        console.log("[mion-aot] stdout:", msg);
+        log("[mion-aot] stdout:", msg);
       }
     });
     child.on("error", (err) => {
@@ -179,11 +181,11 @@ function logAOTCaches(data) {
   const jitSize = formatBytes(Buffer.byteLength(data.jitFnsCode, "utf-8"));
   const pureSize = formatBytes(Buffer.byteLength(data.pureFnsCode, "utf-8"));
   const routerSize = formatBytes(Buffer.byteLength(data.routerCacheCode, "utf-8"));
-  console.log(`[mion]   jitFns: ${jitSize}, pureFns: ${pureSize}, routerCache: ${routerSize}`);
+  log(`[mion]   jitFns: ${jitSize}, pureFns: ${pureSize}, routerCache: ${routerSize}`);
   if (process.env.DEBUG_AOT) {
-    console.log("[mion] AOT jitFns cache:\n", data.jitFnsCode);
-    console.log("[mion] AOT pureFns cache:\n", data.pureFnsCode);
-    console.log("[mion] AOT routerCache:\n", data.routerCacheCode);
+    log("[mion] AOT jitFns cache:\n", data.jitFnsCode);
+    log("[mion] AOT pureFns cache:\n", data.pureFnsCode);
+    log("[mion] AOT routerCache:\n", data.routerCacheCode);
   }
 }
 function generateJitFnsModule(jitFnsCode) {
@@ -213,6 +215,35 @@ export { jitFnsCache, pureFnsCache, routerCache };
 }
 function generateNoopModule(comment) {
   return `/* ${comment} */
+`;
+}
+function generateDevJitFnsModule() {
+  return `/* Dev shim: AOT JIT functions cache backed by globalThis */
+const KEY = Symbol.for('mion.jit-fns/v1');
+export const jitFnsCache = (globalThis[KEY] ??= {});
+`;
+}
+function generateDevPureFnsModule() {
+  return `/* Dev shim: AOT pure functions cache backed by globalThis */
+const KEY = Symbol.for('mion.pure-fns/v1');
+export const pureFnsCache = (globalThis[KEY] ??= {});
+`;
+}
+function generateDevRouterCacheModule() {
+  return `/* Dev shim: AOT router cache backed by globalThis */
+const KEY = Symbol.for('mion.persisted-methods/v1');
+export const routerCache = (globalThis[KEY] ??= {});
+`;
+}
+function generateDevCombinedCachesModule() {
+  return `/* Dev shim: combined AOT caches backed by globalThis */
+const JIT_KEY = Symbol.for('mion.jit-fns/v1');
+const PURE_KEY = Symbol.for('mion.pure-fns/v1');
+const ROUTER_KEY = Symbol.for('mion.persisted-methods/v1');
+export const jitFnsCache = (globalThis[JIT_KEY] ??= {});
+export const pureFnsCache = (globalThis[PURE_KEY] ??= {});
+export const routerCache = (globalThis[ROUTER_KEY] ??= {});
+export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
 `;
 }
 function waitForPlatformReady(child, timeoutMs = 3e4) {
@@ -246,6 +277,10 @@ export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
 }
 exports.generateAOTCaches = generateAOTCaches;
 exports.generateCombinedCachesModule = generateCombinedCachesModule;
+exports.generateDevCombinedCachesModule = generateDevCombinedCachesModule;
+exports.generateDevJitFnsModule = generateDevJitFnsModule;
+exports.generateDevPureFnsModule = generateDevPureFnsModule;
+exports.generateDevRouterCacheModule = generateDevRouterCacheModule;
 exports.generateJitFnsModule = generateJitFnsModule;
 exports.generateNoopCombinedModule = generateNoopCombinedModule;
 exports.generateNoopModule = generateNoopModule;

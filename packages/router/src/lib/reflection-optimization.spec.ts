@@ -10,9 +10,12 @@ import {initRouter, registerRoutes, resetRouter, getRouteExecutable, getMiddleFn
 import {route, middleFn} from './handlers.ts';
 import {getHandlerReflection} from './reflection.ts';
 import {DEFAULT_ROUTE_OPTIONS} from '../constants.ts';
+import type {RouterState} from '../types/general.ts';
 import {EMPTY_HASH, getNoopJitFns} from '@mionjs/core';
 import {getSerializableMethod} from './remoteMethods.ts';
 import {getPersistedMethod, setPersistedMethods} from './methodsCache.ts';
+
+const testRouterState: RouterState = {options: {...DEFAULT_ROUTE_OPTIONS}, isInitialized: true, aotMode: false};
 
 describe('JIT Function Generation Optimization', () => {
     beforeEach(async () => {
@@ -28,7 +31,7 @@ describe('JIT Function Generation Optimization', () => {
         it('should skip JIT generation for handler with no params', async () => {
             const handler = (ctx: any): void => undefined;
 
-            const reflection = await getHandlerReflection(handler, 'testMiddleFn', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testMiddleFn', testRouterState);
 
             expect(reflection.paramNames).toEqual([]);
             expect(reflection.paramsJitFns).toBe(getNoopJitFns());
@@ -40,7 +43,7 @@ describe('JIT Function Generation Optimization', () => {
                 // MiddleFn with params
             };
 
-            const reflection = await getHandlerReflection(handler, 'testMiddleFn', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testMiddleFn', testRouterState);
 
             expect(reflection.paramNames).toEqual(['name']);
             expect(reflection.paramsJitFns).not.toBe(getNoopJitFns());
@@ -71,7 +74,7 @@ describe('JIT Function Generation Optimization', () => {
                 // Void return
             };
 
-            const reflection = await getHandlerReflection(handler, 'testMiddleFn', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testMiddleFn', testRouterState);
 
             expect(reflection.hasReturnData).toBe(false);
             expect(reflection.returnJitFns).toBe(getNoopJitFns());
@@ -83,7 +86,7 @@ describe('JIT Function Generation Optimization', () => {
                 return `Hello ${name}`;
             };
 
-            const reflection = await getHandlerReflection(handler, 'testRoute', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testRoute', testRouterState);
 
             expect(reflection.hasReturnData).toBe(true);
             expect(reflection.returnJitFns).not.toBe(getNoopJitFns());
@@ -114,7 +117,7 @@ describe('JIT Function Generation Optimization', () => {
                 // No params, void return
             };
 
-            const reflection = await getHandlerReflection(handler, 'testMiddleFn', DEFAULT_ROUTE_OPTIONS);
+            const reflection = await getHandlerReflection(handler, 'testMiddleFn', testRouterState);
 
             // No params
             expect(reflection.paramNames).toEqual([]);
