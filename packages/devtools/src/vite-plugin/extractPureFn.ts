@@ -11,9 +11,7 @@ import {transformSync} from 'esbuild';
 import {ExtractedPureFn, ServerPureFunctionsOptions} from './types.ts';
 import {BODY_HASH_LENGTH, PURE_SERVER_FN_NAMESPACE} from './constants.ts';
 import {ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS} from '../pureFns/purityRules.ts';
-import {readdirSync, statSync, readFileSync} from 'fs';
-import {resolve, join} from 'path/posix';
-import {isIncluded} from './mionVitePlugin.ts';
+import {FileVisitor} from './sourceWalker.ts';
 
 /**
  * Extracts all <script> block contents and lang attributes from a Vue SFC source.
@@ -88,63 +86,22 @@ function skipStringLiteral(source: string, start: number, quote: string): number
     return i;
 }
 
-/** Scans the client source directory and extracts all pure functions */
-export function scanClientSource(options: ServerPureFunctionsOptions): ExtractedPureFn[] {
-    const include = options.include || ['**/*.ts', '**/*.tsx', '**/*.vue'];
-    const exclude = options.exclude || ['../node_modules/**', '**/.dist/**', '**/dist/**'];
-    const clientSrcPath = resolve(options.clientSrcPath);
-    const fns: ExtractedPureFn[] = [];
-
-    function scanDir(dir: string) {
-        const entries = readdirSync(dir);
-        for (const entry of entries) {
-            const fullPath = join(dir, entry);
-            const stat = statSync(fullPath);
-
-            if (stat.isDirectory()) {
-                // Skip excluded directories
-                if (!isIncluded(fullPath + '/', include, exclude)) continue;
-                scanDir(fullPath);
-            } else if (stat.isFile()) {
-                // Only process included files
-                if (!isIncluded(fullPath, include, exclude)) continue;
-
-                try {
-                    let code = readFileSync(fullPath, 'utf-8');
-                    let effectivePath = fullPath;
-
-                    // For .vue files, extract script content
-                    if (fullPath.endsWith('.vue')) {
-                        const scriptBlock = extractVueScriptContent(code);
-                        if (!scriptBlock) continue;
-                        code = scriptBlock.content;
-                        effectivePath = `${fullPath}.${scriptBlock.lang}`;
-                    }
-
-                    // Quick check: does this file contain pureServerFn or mapFrom?
-                    const hasPureFn = code.includes('pureServerFn');
-                    const hasMapFrom = code.includes('mapFrom');
-                    if (!hasPureFn && !hasMapFrom) continue;
-
-                    if (hasPureFn) {
-                        const extracted = extractPureFnsFromSource(code, effectivePath, 'pureServerFn', options.noViteClient);
-                        fns.push(...extracted);
-                    }
-                    if (hasMapFrom) {
-                        const extracted = extractPureFnsFromSource(code, effectivePath, 'mapFrom', options.noViteClient);
-                        fns.push(...extracted);
-                    }
-                } catch (err: any) {
-                    // Log but don't fail - some files might not be parseable
-                    console.warn(`[mion-pure-functions] Warning: Could not parse ${fullPath}: ${err.message}`);
-                }
-            }
+/** FileVisitor that extracts `pureServerFn` and `mapFrom` calls from each source file
+ *  it sees. Pushes the extracted entries onto `out`. The substring pre-check matches the
+ *  old hand-rolled walker exactly — no parser cost for files without the keywords. */
+export const pureFnVisitor =
+    (options: ServerPureFunctionsOptions, out: ExtractedPureFn[]): FileVisitor =>
+    ({code, effectivePath}) => {
+        const hasPureFn = code.includes('pureServerFn');
+        const hasMapFrom = code.includes('mapFrom');
+        if (!hasPureFn && !hasMapFrom) return;
+        if (hasPureFn) {
+            out.push(...extractPureFnsFromSource(code, effectivePath, 'pureServerFn', options.noViteClient));
         }
-    }
-
-    scanDir(clientSrcPath);
-    return fns;
-}
+        if (hasMapFrom) {
+            out.push(...extractPureFnsFromSource(code, effectivePath, 'mapFrom', options.noViteClient));
+        }
+    };
 
 /** Extracts all calls to the given function name from a source file using AST */
 export function extractPureFnsFromSource(

@@ -71,6 +71,11 @@ export async function generateAOTCaches(
     const persist = serverConfig.runMode === 'childProcess';
     const startScript = resolve(startScriptOverride ?? serverConfig.startScript);
     const scriptDir = dirname(startScript);
+    // The buildStart pre-pass is always "compile, IPC the AOT data, exit" — that's `buildOnly`
+    // semantics. For runMode='middleware' or 'buildOnly' we use buildOnly here; only `childProcess`
+    // keeps its own value because the spawned child must keep running as the live API server
+    // (and emits AOT data via IPC alongside the live process).
+    const childCompileMode = serverConfig.runMode === 'childProcess' ? 'childProcess' : 'buildOnly';
 
     // Determine the vite config to use
     // If viteConfig is provided, use it; otherwise let vite-node auto-discover
@@ -100,7 +105,7 @@ export async function generateAOTCaches(
                 env: {
                     ...process.env,
                     ...serverConfig.env,
-                    MION_COMPILE: serverConfig.runMode,
+                    MION_COMPILE: childCompileMode,
                     ...(isClient ? {MION_AOT_IS_CLIENT: 'true'} : {}),
                 },
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
@@ -336,13 +341,16 @@ export const routerCache = ${routerCacheCode};
 `;
 }
 
-/** Generates the combined virtual module — pure data, no side effects.
- *  Safe to share between client and server builds. Consumers import the bundled
- *  `aotCaches` named export and pass it to `initMionRouter({ aotCaches })` /
- *  `initClient({ aotCaches })`. The individual cache exports are also available
- *  for advanced use cases. */
+/** Generates the combined virtual module. Imports the three sub-virtual modules for the AOT
+ *  caches plus the server-pure-fns virtual module — the latter is a side-effect import that
+ *  populates the `mion.server-pure-fns/v1` globalThis slot. Without it, `routesFlow.ts`
+ *  (which reads the slot via `getServerPureFn`) wouldn't see the user's `mapFrom` /
+ *  `pureServerFn` entries when the server runs in vite-node-only contexts.
+ *  Safe to share between client and server builds — `virtual:mion-server-pure-fns` is a no-op
+ *  on the client (no extracted entries to populate). */
 export function generateCombinedCachesModule(): string {
     return `/* Auto-generated combined AOT caches - do not edit */
+import 'virtual:mion-server-pure-fns';
 import { pureFnsCache } from 'virtual:mion-aot/pure-fns';
 import { jitFnsCache } from 'virtual:mion-aot/jit-fns';
 import { routerCache } from 'virtual:mion-aot/router-cache';
@@ -385,13 +393,12 @@ export const routerCache = (globalThis[KEY] ??= {});
 `;
 }
 
-/** Dev-mode shim for virtual:mion-aot/caches. All three caches read directly from globalThis.
- * Side-effect imports the server-pure-fns virtual module so its extracted entries get merged
- * into the shared globalThis slot. Without this, vite-node-only contexts (e.g. nextjs/16's
- * API child process) would leave the slot empty because they have no SSR pre-pass. */
+/** Dev-mode shim for virtual:mion-aot/caches. Backed by globalThis slots.
+ *  Used only as a fallback in test envs (vitest) and configurations without `serverConfig`.
+ *  Production paths get the build-shape `generateCombinedCachesModule()` after the buildStart
+ *  pre-pass populates `aotData`. */
 export function generateDevCombinedCachesModule(): string {
     return `/* Dev shim: combined AOT caches backed by globalThis */
-import 'virtual:mion-server-pure-fns';
 const JIT_KEY = Symbol.for('mion.jit-fns/v1');
 const PURE_KEY = Symbol.for('mion.pure-fns/v1');
 const ROUTER_KEY = Symbol.for('mion.persisted-methods/v1');

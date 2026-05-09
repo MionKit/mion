@@ -10,7 +10,9 @@ import * as ts from 'typescript';
 import {ChildProcess} from 'child_process';
 import {createDeepkitConfig, DeepkitConfig, createPureFnTransformerFactory} from './transformers.ts';
 import {ServerPureFunctionsOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions, MionServerConfig} from './types.ts';
-import {scanClientSource} from './extractPureFn.ts';
+import {pureFnVisitor} from './extractPureFn.ts';
+import {walkSourceFiles, aotImportVisitor, FileVisitor} from './sourceWalker.ts';
+import {resolve as resolvePath} from 'path';
 import {generateServerPureFnsVirtualModule} from './virtualModule.ts';
 import {
     VIRTUAL_SERVER_PURE_FNS,
@@ -84,7 +86,18 @@ export interface MionPluginOptions {
  * ```
  */
 export function mionVitePlugin(options: MionPluginOptions) {
+    /** Pure functions extracted from a single FS scan over the configured source dirs.
+     *  Populated lazily via `ensureSourceScanCompleted()`. Reused by `load()` for the
+     *  server-pure-fns virtual module, so we never walk the FS twice. */
     let extractedFns: ExtractedPureFn[] | null = null;
+    /** True iff any source file under the scanned dirs imports `virtual:mion-aot/`.
+     *  Gates the buildStart AOT pre-pass — projects that configure `serverConfig`
+     *  but don't use AOT pay zero startup cost. */
+    let aotImportPresent = false;
+    /** Tracks whether the source scan has been done already so we don't re-walk on
+     *  multi-environment Vite v6+ buildStart re-entries. */
+    let sourceScanCompleted = false;
+
     const pureFnOptions = options.serverPureFunctions;
     const runTypesOptions = options.runTypes;
     const aotOptions: AOTCacheOptions | undefined = options.aotCaches === true ? {} : options.aotCaches;
@@ -105,6 +118,28 @@ export function mionVitePlugin(options: MionPluginOptions) {
 
     // AOT cache data - populated during buildStart (IPC) or configureServer (in-process)
     let aotData: AOTCacheData | null = null;
+
+    /** Single-pass scan of the configured source dirs (server entry + clientSrcPath).
+     *  Populates `extractedFns` and `aotImportPresent` together so we never walk twice.
+     *  Called from `buildStart` (to gate the AOT pre-pass) and from `load(VIRTUAL_SERVER_PURE_FNS)`
+     *  (to populate the virtual module). Subsequent calls are no-ops. */
+    function ensureSourceScanCompleted(): void {
+        if (sourceScanCompleted) return;
+        sourceScanCompleted = true;
+        const dirs: string[] = [];
+        if (serverConfig?.startScript) dirs.push(resolvePath(serverConfig.startScript, '..'));
+        if (pureFnOptions?.clientSrcPath) dirs.push(resolvePath(pureFnOptions.clientSrcPath));
+        const fns: ExtractedPureFn[] = [];
+        extractedFns = fns;
+        if (dirs.length === 0) return;
+        const aotResult = {found: false};
+        const visitors: FileVisitor[] = [aotImportVisitor(aotResult)];
+        if (pureFnOptions) visitors.push(pureFnVisitor(pureFnOptions, fns));
+        const include = pureFnOptions?.include;
+        const exclude = pureFnOptions?.exclude;
+        walkSourceFiles(dirs, {include, exclude}, visitors);
+        aotImportPresent = aotResult.found;
+    }
 
     // Resolved cache directory from Vite's config — set in configResolved
     let aotCacheDir = '';
@@ -182,10 +217,13 @@ export function mionVitePlugin(options: MionPluginOptions) {
         },
 
         async buildStart() {
-            // Generate AOT caches if server is configured
-            // Skip when already running as a child process to prevent infinite recursion
-            // Skip when SSR mode — configureServer will handle it
-            if (serverConfig && !isRunningAsChild() && !ssrEnabled) {
+            // Generate AOT caches when serverConfig is set AND the user imports the virtual module
+            // somewhere in src. This populates aotData before user code runs, so virtual:mion-aot/caches
+            // returns hardcoded populated data at import time (no dev-shim asymmetry). Skip the pre-pass
+            // when running as the child of an existing pre-pass (would recurse), under vitest (tests opt
+            // out), or when no source file imports the virtual module.
+            ensureSourceScanCompleted();
+            if (serverConfig && !isRunningAsChild() && !IS_TEST_ENV && aotImportPresent) {
                 try {
                     log('[mion] Generating AOT caches...');
                     const result = await getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
@@ -231,6 +269,9 @@ export function mionVitePlugin(options: MionPluginOptions) {
 
         configureServer(server) {
             if (!ssrEnabled || !serverConfig) return;
+            // Skip when running as a child of a buildStart pre-pass — that child must just
+            // compile-and-IPC-and-exit (its parent runs the live dev server).
+            if (isRunningAsChild()) return;
             // SSR mode: use ssrLoadModule to load the server in the same Vite process.
             // ssrLoadModule uses Vite's internal transform pipeline (not HTTP),
             ssrLoadModule = (url: string) => server.ssrLoadModule(url);
@@ -321,15 +362,16 @@ export function mionVitePlugin(options: MionPluginOptions) {
             if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
                 // No serverPureFunctions configured — return empty cache
                 if (!pureFnOptions) return generateServerPureFnsVirtualModule([]);
-                // Lazily scan client source on first load
-                if (!extractedFns) extractedFns = scanClientSource(pureFnOptions);
-                return generateServerPureFnsVirtualModule(extractedFns);
+                // Reuse the single-pass scan if not already done; populates `extractedFns`
+                ensureSourceScanCompleted();
+                return generateServerPureFnsVirtualModule(extractedFns ?? []);
             }
 
             // AOT virtual modules — check resolved ID against the map.
-            // In dev (no aotData yet), return a tiny module backed by globalThis slots.
-            // No `await initPromise` here — that would deadlock when the user's startScript
-            // imports virtual:mion-aot/caches while the plugin is inside loadSSRRouterAndGenerateAOTCaches.
+            // `aotData` is populated by buildStart (when serverConfig + aotImportPresent + not in
+            // test env) before user code imports the virtual module, so the build-shape generator
+            // is the normal path. The dev shim is reserved for test envs and configurations where
+            // serverConfig is missing — see ensureSourceScanCompleted/buildStart.
             const aotType = aotResolvedIds.get(id);
             if (aotType) {
                 switch (aotType) {

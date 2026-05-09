@@ -1,14 +1,12 @@
-// Load AOT caches first
-import {routerCache, jitFnsCache, pureFnsCache} from 'my-api-aot';
-import {addAOTCaches} from '@mionjs/core';
-// Then initialize router and server
+// Import the populated AOT caches — see aot-loading-caches.ts for details.
+import {aotCaches} from 'virtual:mion-aot/caches';
 import {initMionRouter} from '@mionjs/router';
-import {initHttp} from '@mionjs/platform-node';
+import {startNodeServer} from '@mionjs/platform-node';
 import {routes} from './aot-routes-example.ts';
 
-// Load the pre-compiled caches BEFORE initializing the router
-addAOTCaches(jitFnsCache, pureFnsCache);
-export const myApi = await initMionRouter(routes);
+// Pass `aotCaches` to initMionRouter — flips the router into strict AOT mode and
+// uses the pre-compiled validators / serializers / route methods directly.
+export const myApi = await initMionRouter(routes, {aotCaches, basePath: '/api'});
 
-initHttp({port: 3000});
+startNodeServer({port: 3000});
 console.log('Server running on port 3000');

@@ -1,11 +1,10 @@
-// Import cache exports from your AOT package
-import {routerCache, jitFnsCache, pureFnsCache} from 'my-api-aot';
-// Import the cache loading function from @mionjs/core
-import {addAOTCaches} from '@mionjs/core';
-// Now initialize your router - it will use the pre-compiled functions
+// Import the populated AOT caches from the virtual module — the mion Vite plugin
+// emits this at build time AND in dev (the buildStart pre-pass populates it before
+// any user code runs).
+import {aotCaches} from 'virtual:mion-aot/caches';
 import {initMionRouter} from '@mionjs/router';
 import {routes as myRoutes} from './aot-routes-example.ts';
 
-// Load the pre-compiled caches BEFORE initializing the router
-addAOTCaches(jitFnsCache, pureFnsCache);
-export const myApi = await initMionRouter(myRoutes);
+// Pass `aotCaches` to initMionRouter — it loads the JIT, pure-fn, and router caches
+// into the global registry and flips the router into strict AOT mode.
+export const myApi = await initMionRouter(myRoutes, {aotCaches});

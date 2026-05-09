@@ -3,9 +3,6 @@ import { createHash } from "crypto";
 import { transformSync } from "esbuild";
 import { BODY_HASH_LENGTH, PURE_SERVER_FN_NAMESPACE } from "./constants.js";
 import { ALLOWED_GLOBALS, FORBIDDEN_IDENTIFIERS } from "../pureFns/purityRules.js";
-import { readdirSync, statSync, readFileSync } from "fs";
-import { resolve, join } from "path/posix";
-import { isIncluded } from "./mionVitePlugin.js";
 function extractVueScriptContent(source) {
   const openRegex = /<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>/gi;
   const closeTag = "<\/script>";
@@ -54,50 +51,17 @@ function skipStringLiteral(source, start, quote) {
   }
   return i;
 }
-function scanClientSource(options) {
-  const include = options.include || ["**/*.ts", "**/*.tsx", "**/*.vue"];
-  const exclude = options.exclude || ["../node_modules/**", "**/.dist/**", "**/dist/**"];
-  const clientSrcPath = resolve(options.clientSrcPath);
-  const fns = [];
-  function scanDir(dir) {
-    const entries = readdirSync(dir);
-    for (const entry of entries) {
-      const fullPath = join(dir, entry);
-      const stat = statSync(fullPath);
-      if (stat.isDirectory()) {
-        if (!isIncluded(fullPath + "/", include, exclude)) continue;
-        scanDir(fullPath);
-      } else if (stat.isFile()) {
-        if (!isIncluded(fullPath, include, exclude)) continue;
-        try {
-          let code = readFileSync(fullPath, "utf-8");
-          let effectivePath = fullPath;
-          if (fullPath.endsWith(".vue")) {
-            const scriptBlock = extractVueScriptContent(code);
-            if (!scriptBlock) continue;
-            code = scriptBlock.content;
-            effectivePath = `${fullPath}.${scriptBlock.lang}`;
-          }
-          const hasPureFn = code.includes("pureServerFn");
-          const hasMapFrom = code.includes("mapFrom");
-          if (!hasPureFn && !hasMapFrom) continue;
-          if (hasPureFn) {
-            const extracted = extractPureFnsFromSource(code, effectivePath, "pureServerFn", options.noViteClient);
-            fns.push(...extracted);
-          }
-          if (hasMapFrom) {
-            const extracted = extractPureFnsFromSource(code, effectivePath, "mapFrom", options.noViteClient);
-            fns.push(...extracted);
-          }
-        } catch (err) {
-          console.warn(`[mion-pure-functions] Warning: Could not parse ${fullPath}: ${err.message}`);
-        }
-      }
-    }
+const pureFnVisitor = (options, out) => ({ code, effectivePath }) => {
+  const hasPureFn = code.includes("pureServerFn");
+  const hasMapFrom = code.includes("mapFrom");
+  if (!hasPureFn && !hasMapFrom) return;
+  if (hasPureFn) {
+    out.push(...extractPureFnsFromSource(code, effectivePath, "pureServerFn", options.noViteClient));
   }
-  scanDir(clientSrcPath);
-  return fns;
-}
+  if (hasMapFrom) {
+    out.push(...extractPureFnsFromSource(code, effectivePath, "mapFrom", options.noViteClient));
+  }
+};
 function extractPureFnsFromSource(source, filePath, fnName = "pureServerFn", noViteClient = false) {
   const results = [];
   if (!source.includes(fnName)) return results;
@@ -605,7 +569,7 @@ export {
   PurityError,
   extractPureFnsFromSource,
   extractVueScriptContent,
-  scanClientSource,
+  pureFnVisitor,
   stripTypes
 };
 //# sourceMappingURL=extractPureFn.js.map

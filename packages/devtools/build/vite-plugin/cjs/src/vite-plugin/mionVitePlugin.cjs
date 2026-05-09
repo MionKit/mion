@@ -26,6 +26,7 @@ const path = require("path");
 const ts = require("typescript");
 const src_vitePlugin_transformers = require("./transformers.cjs");
 const src_vitePlugin_extractPureFn = require("./extractPureFn.cjs");
+const src_vitePlugin_sourceWalker = require("./sourceWalker.cjs");
 const src_vitePlugin_virtualModule = require("./virtualModule.cjs");
 const src_vitePlugin_constants = require("./constants.cjs");
 const src_vitePlugin_aotCacheGenerator = require("./aotCacheGenerator.cjs");
@@ -51,6 +52,8 @@ const IS_TEST_ENV = process.env.VITEST !== void 0 || process.env.NODE_ENV === "t
 const log = IS_TEST_ENV ? () => void 0 : console.log.bind(console);
 function mionVitePlugin(options) {
   let extractedFns = null;
+  let aotImportPresent = false;
+  let sourceScanCompleted = false;
   const pureFnOptions = options.serverPureFunctions;
   const runTypesOptions = options.runTypes;
   const aotOptions = options.aotCaches === true ? {} : options.aotCaches;
@@ -65,6 +68,23 @@ function mionVitePlugin(options) {
   let registerPureFnFactoryCount = 0;
   let pureFnFilesCount = 0;
   let aotData = null;
+  function ensureSourceScanCompleted() {
+    if (sourceScanCompleted) return;
+    sourceScanCompleted = true;
+    const dirs = [];
+    if (serverConfig?.startScript) dirs.push(path.resolve(serverConfig.startScript, ".."));
+    if (pureFnOptions?.clientSrcPath) dirs.push(path.resolve(pureFnOptions.clientSrcPath));
+    const fns = [];
+    extractedFns = fns;
+    if (dirs.length === 0) return;
+    const aotResult = { found: false };
+    const visitors = [src_vitePlugin_sourceWalker.aotImportVisitor(aotResult)];
+    if (pureFnOptions) visitors.push(src_vitePlugin_extractPureFn.pureFnVisitor(pureFnOptions, fns));
+    const include = pureFnOptions?.include;
+    const exclude = pureFnOptions?.exclude;
+    src_vitePlugin_sourceWalker.walkSourceFiles(dirs, { include, exclude }, visitors);
+    aotImportPresent = aotResult.found;
+  }
   let aotCacheDir = "";
   let ssrLoadModule = null;
   const ssrEnabled = serverConfig?.runMode === "middleware";
@@ -117,7 +137,8 @@ function mionVitePlugin(options) {
       }
     },
     async buildStart() {
-      if (serverConfig && !isRunningAsChild() && !ssrEnabled) {
+      ensureSourceScanCompleted();
+      if (serverConfig && !isRunningAsChild() && !IS_TEST_ENV && aotImportPresent) {
         try {
           log("[mion] Generating AOT caches...");
           const result = await src_vitePlugin_aotDiskCache.getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
@@ -156,6 +177,7 @@ function mionVitePlugin(options) {
     },
     configureServer(server) {
       if (!ssrEnabled || !serverConfig) return;
+      if (isRunningAsChild()) return;
       ssrLoadModule = (url) => server.ssrLoadModule(url);
       const startScript = path.resolve(serverConfig.startScript);
       let nodeRequestHandler = null;
@@ -212,8 +234,8 @@ function mionVitePlugin(options) {
     async load(id) {
       if (id === src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS)) {
         if (!pureFnOptions) return src_vitePlugin_virtualModule.generateServerPureFnsVirtualModule([]);
-        if (!extractedFns) extractedFns = src_vitePlugin_extractPureFn.scanClientSource(pureFnOptions);
-        return src_vitePlugin_virtualModule.generateServerPureFnsVirtualModule(extractedFns);
+        ensureSourceScanCompleted();
+        return src_vitePlugin_virtualModule.generateServerPureFnsVirtualModule(extractedFns ?? []);
       }
       const aotType = aotResolvedIds.get(id);
       if (aotType) {

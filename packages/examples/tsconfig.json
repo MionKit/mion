@@ -5,7 +5,8 @@
     "skipLibCheck": true,
     "composite": true,
     "module": "NodeNext",
-    "target": "ES2022"
+    "target": "ES2022",
+    "types": ["@mionjs/devtools/virtual-modules"]
   },
   "references": [
     {"path": "../core"},

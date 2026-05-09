@@ -8,6 +8,7 @@ async function generateAOTCaches(serverConfig, startScriptOverride, isClient) {
   const persist = serverConfig.runMode === "childProcess";
   const startScript = resolve(startScriptOverride ?? serverConfig.startScript);
   const scriptDir = dirname(startScript);
+  const childCompileMode = serverConfig.runMode === "childProcess" ? "childProcess" : "buildOnly";
   const viteConfigArgs = serverConfig.viteConfig ? ["--config", resolve(serverConfig.viteConfig)] : [];
   let viteNodePath;
   try {
@@ -28,7 +29,7 @@ Original error: ${err instanceof Error ? err.message : String(err)}`
         env: {
           ...process.env,
           ...serverConfig.env,
-          MION_COMPILE: serverConfig.runMode,
+          MION_COMPILE: childCompileMode,
           ...isClient ? { MION_AOT_IS_CLIENT: "true" } : {}
         },
         stdio: ["pipe", "pipe", "pipe", "ipc"],
@@ -203,6 +204,7 @@ export const routerCache = ${routerCacheCode};
 }
 function generateCombinedCachesModule() {
   return `/* Auto-generated combined AOT caches - do not edit */
+import 'virtual:mion-server-pure-fns';
 import { pureFnsCache } from 'virtual:mion-aot/pure-fns';
 import { jitFnsCache } from 'virtual:mion-aot/jit-fns';
 import { routerCache } from 'virtual:mion-aot/router-cache';
@@ -235,7 +237,6 @@ export const routerCache = (globalThis[KEY] ??= {});
 }
 function generateDevCombinedCachesModule() {
   return `/* Dev shim: combined AOT caches backed by globalThis */
-import 'virtual:mion-server-pure-fns';
 const JIT_KEY = Symbol.for('mion.jit-fns/v1');
 const PURE_KEY = Symbol.for('mion.pure-fns/v1');
 const ROUTER_KEY = Symbol.for('mion.persisted-methods/v1');
