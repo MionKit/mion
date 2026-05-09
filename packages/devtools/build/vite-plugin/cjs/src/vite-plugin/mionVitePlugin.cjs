@@ -74,16 +74,24 @@ function mionVitePlugin(options) {
     const dirs = [];
     if (serverConfig?.startScript) dirs.push(path.resolve(serverConfig.startScript, ".."));
     if (pureFnOptions?.clientSrcPath) dirs.push(path.resolve(pureFnOptions.clientSrcPath));
-    const fns = [];
-    extractedFns = fns;
+    const byFile = /* @__PURE__ */ new Map();
+    extractedFns = byFile;
     if (dirs.length === 0) return;
     const aotResult = { found: false };
     const visitors = [src_vitePlugin_sourceWalker.aotImportVisitor(aotResult)];
-    if (pureFnOptions) visitors.push(src_vitePlugin_extractPureFn.pureFnVisitor(pureFnOptions, fns));
+    if (pureFnOptions) visitors.push(src_vitePlugin_extractPureFn.pureFnVisitor(pureFnOptions, byFile));
     const include = pureFnOptions?.include;
     const exclude = pureFnOptions?.exclude;
     src_vitePlugin_sourceWalker.walkSourceFiles(dirs, { include, exclude }, visitors);
     aotImportPresent = aotResult.found;
+  }
+  function flattenExtractedFns() {
+    if (!extractedFns) return [];
+    const all = [];
+    for (const { pureServerFns, mapFromFns } of extractedFns.values()) {
+      all.push(...pureServerFns, ...mapFromFns);
+    }
+    return all;
   }
   let aotCacheDir = "";
   let ssrLoadModule = null;
@@ -235,7 +243,7 @@ function mionVitePlugin(options) {
       if (id === src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS)) {
         if (!pureFnOptions) return src_vitePlugin_virtualModule.generateServerPureFnsVirtualModule([]);
         ensureSourceScanCompleted();
-        return src_vitePlugin_virtualModule.generateServerPureFnsVirtualModule(extractedFns ?? []);
+        return src_vitePlugin_virtualModule.generateServerPureFnsVirtualModule(flattenExtractedFns());
       }
       const aotType = aotResolvedIds.get(id);
       if (aotType) {
@@ -282,7 +290,10 @@ function mionVitePlugin(options) {
       const after = [];
       const collected = hasPureFns ? [] : void 0;
       if (hasPureFns) {
-        before.push(src_vitePlugin_transformers.createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient));
+        const cachedPureFns = extractedFns?.get(tsFileName);
+        before.push(
+          src_vitePlugin_transformers.createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient, cachedPureFns)
+        );
       }
       if (needsDeepkit) {
         before.push(...deepkitConfig.beforeTransformers);
@@ -321,13 +332,13 @@ function mionVitePlugin(options) {
       await cleanupChild();
     },
     handleHotUpdate({ file, server }) {
-      if (pureFnOptions) {
+      if (pureFnOptions && extractedFns) {
         const clientSrcPath = path.resolve(pureFnOptions.clientSrcPath);
         if (file.startsWith(clientSrcPath)) {
           const include = pureFnOptions.include || ["**/*.ts", "**/*.tsx", "**/*.vue"];
           const exclude = pureFnOptions.exclude || ["../node_modules/**", "**/.dist/**", "**/dist/**"];
           if (isIncluded(file, include, exclude)) {
-            extractedFns = null;
+            src_vitePlugin_extractPureFn.refreshFilePureFnsCache(extractedFns, file, pureFnOptions);
             const mod = server.moduleGraph.getModuleById(src_vitePlugin_constants.resolveVirtualId(src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS));
             if (mod) {
               server.moduleGraph.invalidateModule(mod);

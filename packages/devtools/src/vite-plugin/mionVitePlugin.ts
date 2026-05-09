@@ -10,7 +10,7 @@ import * as ts from 'typescript';
 import {ChildProcess} from 'child_process';
 import {createDeepkitConfig, DeepkitConfig, createPureFnTransformerFactory} from './transformers.ts';
 import {ServerPureFunctionsOptions, ExtractedPureFn, DeepkitTypeOptions, AOTCacheOptions, MionServerConfig} from './types.ts';
-import {pureFnVisitor} from './extractPureFn.ts';
+import {pureFnVisitor, FilePureFnsCache, refreshFilePureFnsCache} from './extractPureFn.ts';
 import {walkSourceFiles, aotImportVisitor, FileVisitor} from './sourceWalker.ts';
 import {resolve as resolvePath} from 'path';
 import {generateServerPureFnsVirtualModule} from './virtualModule.ts';
@@ -86,10 +86,12 @@ export interface MionPluginOptions {
  * ```
  */
 export function mionVitePlugin(options: MionPluginOptions) {
-    /** Pure functions extracted from a single FS scan over the configured source dirs.
-     *  Populated lazily via `ensureSourceScanCompleted()`. Reused by `load()` for the
-     *  server-pure-fns virtual module, so we never walk the FS twice. */
-    let extractedFns: ExtractedPureFn[] | null = null;
+    /** Pure functions extracted from a single FS scan over the configured source dirs,
+     *  keyed by `effectivePath` (`<fullPath>` for ts/js, `<fullPath>.<lang>` for .vue).
+     *  Populated lazily via `ensureSourceScanCompleted()` and reused by both `load()`
+     *  (flattened into the server-pure-fns virtual module) and `transform()` (per-file
+     *  lookup so we don't re-parse the same source twice). */
+    let extractedFns: Map<string, FilePureFnsCache> | null = null;
     /** True iff any source file under the scanned dirs imports `virtual:mion-aot/`.
      *  Gates the buildStart AOT pre-pass — projects that configure `serverConfig`
      *  but don't use AOT pay zero startup cost. */
@@ -129,16 +131,26 @@ export function mionVitePlugin(options: MionPluginOptions) {
         const dirs: string[] = [];
         if (serverConfig?.startScript) dirs.push(resolvePath(serverConfig.startScript, '..'));
         if (pureFnOptions?.clientSrcPath) dirs.push(resolvePath(pureFnOptions.clientSrcPath));
-        const fns: ExtractedPureFn[] = [];
-        extractedFns = fns;
+        const byFile = new Map<string, FilePureFnsCache>();
+        extractedFns = byFile;
         if (dirs.length === 0) return;
         const aotResult = {found: false};
         const visitors: FileVisitor[] = [aotImportVisitor(aotResult)];
-        if (pureFnOptions) visitors.push(pureFnVisitor(pureFnOptions, fns));
+        if (pureFnOptions) visitors.push(pureFnVisitor(pureFnOptions, byFile));
         const include = pureFnOptions?.include;
         const exclude = pureFnOptions?.exclude;
         walkSourceFiles(dirs, {include, exclude}, visitors);
         aotImportPresent = aotResult.found;
+    }
+
+    /** Flattens the per-file cache into the single ordered list the virtual module expects. */
+    function flattenExtractedFns(): ExtractedPureFn[] {
+        if (!extractedFns) return [];
+        const all: ExtractedPureFn[] = [];
+        for (const {pureServerFns, mapFromFns} of extractedFns.values()) {
+            all.push(...pureServerFns, ...mapFromFns);
+        }
+        return all;
     }
 
     // Resolved cache directory from Vite's config — set in configResolved
@@ -364,7 +376,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
                 if (!pureFnOptions) return generateServerPureFnsVirtualModule([]);
                 // Reuse the single-pass scan if not already done; populates `extractedFns`
                 ensureSourceScanCompleted();
-                return generateServerPureFnsVirtualModule(extractedFns ?? []);
+                return generateServerPureFnsVirtualModule(flattenExtractedFns());
             }
 
             // AOT virtual modules — check resolved ID against the map.
@@ -441,7 +453,12 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // Pure function transformer (runs first — sees clean AST)
             const collected: ExtractedPureFn[] | undefined = hasPureFns ? [] : undefined;
             if (hasPureFns) {
-                before.push(createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient));
+                // Reuse the walker's per-file extraction when available — same source, same hash.
+                // Cache miss falls back to extraction inside the factory (e.g. files outside the walker's roots, post-HMR).
+                const cachedPureFns = extractedFns?.get(tsFileName);
+                before.push(
+                    createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient, cachedPureFns)
+                );
             }
 
             // Deepkit before-transformers emit type metadata and inject __assignType + CJS require().
@@ -499,14 +516,15 @@ export function mionVitePlugin(options: MionPluginOptions) {
 
         handleHotUpdate({file, server}) {
             // In dev mode, re-scan when client source changes (for pure functions)
-            if (pureFnOptions) {
+            if (pureFnOptions && extractedFns) {
                 const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
                 if (file.startsWith(clientSrcPath)) {
                     const include = pureFnOptions.include || ['**/*.ts', '**/*.tsx', '**/*.vue'];
                     const exclude = pureFnOptions.exclude || ['../node_modules/**', '**/.dist/**', '**/dist/**'];
                     if (isIncluded(file, include, exclude)) {
-                        // Clear cache and invalidate virtual module
-                        extractedFns = null;
+                        // Re-extract this single file synchronously so the virtual module sees the
+                        // new bodyHash on its next load — even if it loads before the file's transform.
+                        refreshFilePureFnsCache(extractedFns, file, pureFnOptions);
                         const mod = server.moduleGraph.getModuleById(resolveVirtualId(VIRTUAL_SERVER_PURE_FNS));
                         if (mod) {
                             server.moduleGraph.invalidateModule(mod);

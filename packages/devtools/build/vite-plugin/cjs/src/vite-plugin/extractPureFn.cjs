@@ -2,6 +2,7 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const ts = require("typescript");
 const crypto = require("crypto");
+const fs = require("fs");
 const esbuild = require("esbuild");
 const src_vitePlugin_constants = require("./constants.cjs");
 const purityRules = require("../pureFns/purityRules.cjs");
@@ -70,17 +71,53 @@ function skipStringLiteral(source, start, quote) {
   }
   return i;
 }
-const pureFnVisitor = (options, out) => ({ code, effectivePath }) => {
+const pureFnVisitor = (options, byFile) => ({ code, effectivePath }) => {
   const hasPureFn = code.includes("pureServerFn");
   const hasMapFrom = code.includes("mapFrom");
   if (!hasPureFn && !hasMapFrom) return;
-  if (hasPureFn) {
-    out.push(...extractPureFnsFromSource(code, effectivePath, "pureServerFn", options.noViteClient));
-  }
-  if (hasMapFrom) {
-    out.push(...extractPureFnsFromSource(code, effectivePath, "mapFrom", options.noViteClient));
-  }
+  byFile.set(effectivePath, {
+    pureServerFns: hasPureFn ? extractPureFnsFromSource(code, effectivePath, "pureServerFn", options.noViteClient) : [],
+    mapFromFns: hasMapFrom ? extractPureFnsFromSource(code, effectivePath, "mapFrom", options.noViteClient) : []
+  });
 };
+function refreshFilePureFnsCache(byFile, filePath, options) {
+  let code;
+  try {
+    code = fs.readFileSync(filePath, "utf-8");
+  } catch {
+    clearFileCacheEntries(byFile, filePath);
+    return;
+  }
+  let effectivePath = filePath;
+  if (filePath.endsWith(".vue")) {
+    const block = extractVueScriptContent(code);
+    if (!block) {
+      clearFileCacheEntries(byFile, filePath);
+      return;
+    }
+    code = block.content;
+    effectivePath = `${filePath}.${block.lang}`;
+    clearFileCacheEntries(byFile, filePath);
+  }
+  const hasPureFn = code.includes("pureServerFn");
+  const hasMapFrom = code.includes("mapFrom");
+  if (!hasPureFn && !hasMapFrom) {
+    byFile.delete(effectivePath);
+    return;
+  }
+  try {
+    byFile.set(effectivePath, {
+      pureServerFns: hasPureFn ? extractPureFnsFromSource(code, effectivePath, "pureServerFn", options.noViteClient) : [],
+      mapFromFns: hasMapFrom ? extractPureFnsFromSource(code, effectivePath, "mapFrom", options.noViteClient) : []
+    });
+  } catch (err) {
+    console.warn(`[mion] HMR re-extraction failed for ${filePath}: ${err?.message ?? err}`);
+  }
+}
+function clearFileCacheEntries(byFile, filePath) {
+  byFile.delete(filePath);
+  for (const ext of ["ts", "tsx", "js", "jsx"]) byFile.delete(`${filePath}.${ext}`);
+}
 function extractPureFnsFromSource(source, filePath, fnName = "pureServerFn", noViteClient = false) {
   const results = [];
   if (!source.includes(fnName)) return results;
@@ -588,5 +625,6 @@ exports.PurityError = PurityError;
 exports.extractPureFnsFromSource = extractPureFnsFromSource;
 exports.extractVueScriptContent = extractVueScriptContent;
 exports.pureFnVisitor = pureFnVisitor;
+exports.refreshFilePureFnsCache = refreshFilePureFnsCache;
 exports.stripTypes = stripTypes;
 //# sourceMappingURL=extractPureFn.cjs.map

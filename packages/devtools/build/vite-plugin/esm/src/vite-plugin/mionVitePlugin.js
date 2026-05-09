@@ -1,7 +1,7 @@
 import { resolve } from "path";
 import * as ts from "typescript";
 import { createDeepkitConfig, createPureFnTransformerFactory } from "./transformers.js";
-import { pureFnVisitor } from "./extractPureFn.js";
+import { pureFnVisitor, refreshFilePureFnsCache } from "./extractPureFn.js";
 import { walkSourceFiles, aotImportVisitor } from "./sourceWalker.js";
 import { generateServerPureFnsVirtualModule } from "./virtualModule.js";
 import { resolveVirtualId, VIRTUAL_SERVER_PURE_FNS, REFLECTION_MODULES, VIRTUAL_STUB_PREFIX, SERVER_PURE_FNS_SHIM } from "./constants.js";
@@ -33,16 +33,24 @@ function mionVitePlugin(options) {
     const dirs = [];
     if (serverConfig?.startScript) dirs.push(resolve(serverConfig.startScript, ".."));
     if (pureFnOptions?.clientSrcPath) dirs.push(resolve(pureFnOptions.clientSrcPath));
-    const fns = [];
-    extractedFns = fns;
+    const byFile = /* @__PURE__ */ new Map();
+    extractedFns = byFile;
     if (dirs.length === 0) return;
     const aotResult = { found: false };
     const visitors = [aotImportVisitor(aotResult)];
-    if (pureFnOptions) visitors.push(pureFnVisitor(pureFnOptions, fns));
+    if (pureFnOptions) visitors.push(pureFnVisitor(pureFnOptions, byFile));
     const include = pureFnOptions?.include;
     const exclude = pureFnOptions?.exclude;
     walkSourceFiles(dirs, { include, exclude }, visitors);
     aotImportPresent = aotResult.found;
+  }
+  function flattenExtractedFns() {
+    if (!extractedFns) return [];
+    const all = [];
+    for (const { pureServerFns, mapFromFns } of extractedFns.values()) {
+      all.push(...pureServerFns, ...mapFromFns);
+    }
+    return all;
   }
   let aotCacheDir = "";
   let ssrLoadModule = null;
@@ -194,7 +202,7 @@ function mionVitePlugin(options) {
       if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
         if (!pureFnOptions) return generateServerPureFnsVirtualModule([]);
         ensureSourceScanCompleted();
-        return generateServerPureFnsVirtualModule(extractedFns ?? []);
+        return generateServerPureFnsVirtualModule(flattenExtractedFns());
       }
       const aotType = aotResolvedIds.get(id);
       if (aotType) {
@@ -241,7 +249,10 @@ function mionVitePlugin(options) {
       const after = [];
       const collected = hasPureFns ? [] : void 0;
       if (hasPureFns) {
-        before.push(createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient));
+        const cachedPureFns = extractedFns?.get(tsFileName);
+        before.push(
+          createPureFnTransformerFactory(code, tsFileName, collected, pureFnOptions?.noViteClient, cachedPureFns)
+        );
       }
       if (needsDeepkit) {
         before.push(...deepkitConfig.beforeTransformers);
@@ -280,13 +291,13 @@ function mionVitePlugin(options) {
       await cleanupChild();
     },
     handleHotUpdate({ file, server }) {
-      if (pureFnOptions) {
+      if (pureFnOptions && extractedFns) {
         const clientSrcPath = resolve(pureFnOptions.clientSrcPath);
         if (file.startsWith(clientSrcPath)) {
           const include = pureFnOptions.include || ["**/*.ts", "**/*.tsx", "**/*.vue"];
           const exclude = pureFnOptions.exclude || ["../node_modules/**", "**/.dist/**", "**/dist/**"];
           if (isIncluded(file, include, exclude)) {
-            extractedFns = null;
+            refreshFilePureFnsCache(extractedFns, file, pureFnOptions);
             const mod = server.moduleGraph.getModuleById(resolveVirtualId(VIRTUAL_SERVER_PURE_FNS));
             if (mod) {
               server.moduleGraph.invalidateModule(mod);

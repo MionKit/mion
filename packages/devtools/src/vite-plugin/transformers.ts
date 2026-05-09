@@ -11,7 +11,7 @@ import {createFilter} from '@rollup/pluginutils';
 import * as ts from 'typescript';
 import {transformer, declarationTransformer} from '@deepkit/type-compiler';
 import {DeepkitTypeOptions, ExtractedPureFn} from './types.ts';
-import {extractPureFnsFromSource} from './extractPureFn.ts';
+import {extractPureFnsFromSource, FilePureFnsCache} from './extractPureFn.ts';
 
 // ── Deepkit ─────────────────────────────────────────────────────────
 
@@ -116,22 +116,28 @@ export function createDeepkitConfig(options: DeepkitTypeOptions = {}): DeepkitCo
  * For pureServerFn(def): injects bodyHash as 2nd argument.
  * For registerPureFnFactory(ns, id, fn): injects ParsedFactoryFn as 4th argument.
  *
- * Pre-extracts data using existing extractPureFnsFromSource to ensure hash consistency
- * with the virtual module cache (same whole-file esbuild strip + JS AST path).
+ * When `cachedPureFns` is provided (populated by the walker for files in clientSrcPath / serverDir),
+ * pureServerFn and mapFrom entries are reused — avoiding a second parse of the same source.
+ * registerPureFnFactory is always extracted here since the walker doesn't track factory entries.
  */
 export function createPureFnTransformerFactory(
     originalSource: string,
     filePath: string,
     collector?: ExtractedPureFn[],
-    noViteClient = false
+    noViteClient = false,
+    cachedPureFns?: FilePureFnsCache
 ): ts.CustomTransformerFactory {
     const hasPureServerFn = originalSource.includes('pureServerFn');
     const hasFactory = originalSource.includes('registerPureFnFactory');
     const hasMapFrom = originalSource.includes('mapFrom');
 
-    const pureServerFns = hasPureServerFn ? extractPureFnsFromSource(originalSource, filePath, 'pureServerFn', noViteClient) : [];
+    const pureServerFns = hasPureServerFn
+        ? (cachedPureFns?.pureServerFns ?? extractPureFnsFromSource(originalSource, filePath, 'pureServerFn', noViteClient))
+        : [];
     const factoryFns = hasFactory ? extractPureFnsFromSource(originalSource, filePath, 'registerPureFnFactory') : [];
-    const mapFromFns = hasMapFrom ? extractPureFnsFromSource(originalSource, filePath, 'mapFrom', noViteClient) : [];
+    const mapFromFns = hasMapFrom
+        ? (cachedPureFns?.mapFromFns ?? extractPureFnsFromSource(originalSource, filePath, 'mapFrom', noViteClient))
+        : [];
 
     return (context: ts.TransformationContext): ts.CustomTransformer => {
         let pureIdx = 0;

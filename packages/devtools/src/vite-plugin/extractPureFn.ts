@@ -7,6 +7,7 @@
 
 import * as ts from 'typescript';
 import {createHash} from 'crypto';
+import {readFileSync} from 'fs';
 import {transformSync} from 'esbuild';
 import {ExtractedPureFn, ServerPureFunctionsOptions} from './types.ts';
 import {BODY_HASH_LENGTH, PURE_SERVER_FN_NAMESPACE} from './constants.ts';
@@ -86,22 +87,78 @@ function skipStringLiteral(source: string, start: number, quote: string): number
     return i;
 }
 
+/** Per-file extraction result reused by both the walker (to populate the server-pure-fns
+ *  virtual module) and the transform hook (to inject bodyHash without re-parsing). */
+export interface FilePureFnsCache {
+    pureServerFns: ExtractedPureFn[];
+    mapFromFns: ExtractedPureFn[];
+}
+
 /** FileVisitor that extracts `pureServerFn` and `mapFrom` calls from each source file
- *  it sees. Pushes the extracted entries onto `out`. The substring pre-check matches the
- *  old hand-rolled walker exactly — no parser cost for files without the keywords. */
+ *  and stores them keyed by `effectivePath`. The map is consumed both when generating
+ *  the server-pure-fns virtual module (flattened) and by the transform hook (per-file
+ *  lookup) — same `extractPureFnsFromSource` runs once per file regardless of caller. */
 export const pureFnVisitor =
-    (options: ServerPureFunctionsOptions, out: ExtractedPureFn[]): FileVisitor =>
+    (options: ServerPureFunctionsOptions, byFile: Map<string, FilePureFnsCache>): FileVisitor =>
     ({code, effectivePath}) => {
         const hasPureFn = code.includes('pureServerFn');
         const hasMapFrom = code.includes('mapFrom');
         if (!hasPureFn && !hasMapFrom) return;
-        if (hasPureFn) {
-            out.push(...extractPureFnsFromSource(code, effectivePath, 'pureServerFn', options.noViteClient));
-        }
-        if (hasMapFrom) {
-            out.push(...extractPureFnsFromSource(code, effectivePath, 'mapFrom', options.noViteClient));
-        }
+        byFile.set(effectivePath, {
+            pureServerFns: hasPureFn ? extractPureFnsFromSource(code, effectivePath, 'pureServerFn', options.noViteClient) : [],
+            mapFromFns: hasMapFrom ? extractPureFnsFromSource(code, effectivePath, 'mapFrom', options.noViteClient) : [],
+        });
     };
+
+/** Re-runs the pureFnVisitor logic for a single file (used on HMR to keep the cache
+ *  in sync with disk before the virtual module reloads — avoids a race where the
+ *  reloaded virtual module sees a stale or missing entry for the changed file). */
+export function refreshFilePureFnsCache(
+    byFile: Map<string, FilePureFnsCache>,
+    filePath: string,
+    options: ServerPureFunctionsOptions
+): void {
+    let code: string;
+    try {
+        code = readFileSync(filePath, 'utf-8');
+    } catch {
+        // File missing/deleted — drop any stale entries
+        clearFileCacheEntries(byFile, filePath);
+        return;
+    }
+    let effectivePath = filePath;
+    if (filePath.endsWith('.vue')) {
+        const block = extractVueScriptContent(code);
+        if (!block) {
+            clearFileCacheEntries(byFile, filePath);
+            return;
+        }
+        code = block.content;
+        effectivePath = `${filePath}.${block.lang}`;
+        // Different lang on edit (e.g. ts → js) would leave the old entry orphaned, so clear all variants first.
+        clearFileCacheEntries(byFile, filePath);
+    }
+    const hasPureFn = code.includes('pureServerFn');
+    const hasMapFrom = code.includes('mapFrom');
+    if (!hasPureFn && !hasMapFrom) {
+        byFile.delete(effectivePath);
+        return;
+    }
+    try {
+        byFile.set(effectivePath, {
+            pureServerFns: hasPureFn ? extractPureFnsFromSource(code, effectivePath, 'pureServerFn', options.noViteClient) : [],
+            mapFromFns: hasMapFrom ? extractPureFnsFromSource(code, effectivePath, 'mapFrom', options.noViteClient) : [],
+        });
+    } catch (err: any) {
+        // Mid-edit syntax error etc. — leave the previous entry in place, surface a warning.
+        console.warn(`[mion] HMR re-extraction failed for ${filePath}: ${err?.message ?? err}`);
+    }
+}
+
+function clearFileCacheEntries(byFile: Map<string, FilePureFnsCache>, filePath: string): void {
+    byFile.delete(filePath);
+    for (const ext of ['ts', 'tsx', 'js', 'jsx']) byFile.delete(`${filePath}.${ext}`);
+}
 
 /** Extracts all calls to the given function name from a source file using AST */
 export function extractPureFnsFromSource(
