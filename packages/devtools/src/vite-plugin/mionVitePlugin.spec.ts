@@ -1,7 +1,7 @@
 import {describe, it, expect, vi, afterEach} from 'vitest';
 import {mionVitePlugin} from './mionVitePlugin.ts';
 import {SERVER_PURE_FNS_SHIM} from './constants.ts';
-import {generateCombinedCachesModule, generateNoopCombinedModule} from './aotCacheGenerator.ts';
+import {generateCombinedCachesModule} from './aotCacheGenerator.ts';
 
 afterEach(() => {
     vi.restoreAllMocks();
@@ -190,16 +190,5 @@ describe('combined virtual module — pure data shape', () => {
         expect(code).toContain('jitFnsCache');
         expect(code).toContain('pureFnsCache');
         expect(code).toContain('routerCache');
-    });
-
-    it('noop combined module exports empty caches and nothing else', () => {
-        const code = generateNoopCombinedModule();
-        expect(code).toContain('export const jitFnsCache = {}');
-        expect(code).toContain('export const pureFnsCache = {}');
-        expect(code).toContain('export const routerCache = {}');
-        expect(code).toMatch(/export const aotCaches = \{ jitFnsCache, pureFnsCache, routerCache \}/);
-        expect(code).not.toContain('loadAOTCaches');
-        expect(code).not.toContain('getRawAOTCaches');
-        expect(code).not.toContain('addAOTCaches');
     });
 });

@@ -360,55 +360,6 @@ export { jitFnsCache, pureFnsCache, routerCache };
 `;
 }
 
-/** Generates a no-op module for when AOT caches are disabled. */
-export function generateNoopModule(comment: string): string {
-    return `/* ${comment} */\n`;
-}
-
-/**
- * Dev-mode shim for virtual:mion-aot/jit-fns. Reads from the same globalThis slot
- * that @mionjs/core/jit/jitUtils.ts backs jitFnsCache with. Equivalent to the
- * compile-time generated module, but populated at runtime as routes register.
- */
-export function generateDevJitFnsModule(): string {
-    return `/* Dev shim: AOT JIT functions cache backed by globalThis */
-const KEY = Symbol.for('mion.jit-fns/v1');
-export const jitFnsCache = (globalThis[KEY] ??= {});
-`;
-}
-
-/** Dev-mode shim for virtual:mion-aot/pure-fns. Backed by globalThis slot 'mion.pure-fns/v1'. */
-export function generateDevPureFnsModule(): string {
-    return `/* Dev shim: AOT pure functions cache backed by globalThis */
-const KEY = Symbol.for('mion.pure-fns/v1');
-export const pureFnsCache = (globalThis[KEY] ??= {});
-`;
-}
-
-/** Dev-mode shim for virtual:mion-aot/router-cache. Backed by globalThis slot 'mion.persisted-methods/v1'. */
-export function generateDevRouterCacheModule(): string {
-    return `/* Dev shim: AOT router cache backed by globalThis */
-const KEY = Symbol.for('mion.persisted-methods/v1');
-export const routerCache = (globalThis[KEY] ??= {});
-`;
-}
-
-/** Dev-mode shim for virtual:mion-aot/caches. Backed by globalThis slots.
- *  Used only as a fallback in test envs (vitest) and configurations without `serverConfig`.
- *  Production paths get the build-shape `generateCombinedCachesModule()` after the buildStart
- *  pre-pass populates `aotData`. */
-export function generateDevCombinedCachesModule(): string {
-    return `/* Dev shim: combined AOT caches backed by globalThis */
-const JIT_KEY = Symbol.for('mion.jit-fns/v1');
-const PURE_KEY = Symbol.for('mion.pure-fns/v1');
-const ROUTER_KEY = Symbol.for('mion.persisted-methods/v1');
-export const jitFnsCache = (globalThis[JIT_KEY] ??= {});
-export const pureFnsCache = (globalThis[PURE_KEY] ??= {});
-export const routerCache = (globalThis[ROUTER_KEY] ??= {});
-export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
-`;
-}
-
 /** Waits for the server child process to send a mion-platform-ready IPC message. */
 export function waitForPlatformReady(
     child: ChildProcess,
@@ -434,14 +385,4 @@ export function waitForPlatformReady(
             );
         }, timeoutMs);
     });
-}
-
-/** Generates a no-op combined module that exports empty caches. */
-export function generateNoopCombinedModule(): string {
-    return `/* No-op AOT caches - AOT not yet generated */
-export const jitFnsCache = {};
-export const pureFnsCache = {};
-export const routerCache = {};
-export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
-`;
 }

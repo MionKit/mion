@@ -30,10 +30,6 @@ import {
     generatePureFnsModule,
     generateRouterCacheModule,
     generateCombinedCachesModule,
-    generateDevJitFnsModule,
-    generateDevPureFnsModule,
-    generateDevRouterCacheModule,
-    generateDevCombinedCachesModule,
     AOTCacheData,
 } from './aotCacheGenerator.ts';
 import {getOrGenerateAOTCaches, updateDiskCache, resolveCacheDir} from './aotDiskCache.ts';
@@ -160,8 +156,14 @@ export function mionVitePlugin(options: MionPluginOptions) {
     let ssrLoadModule: ((url: string) => Promise<Record<string, any>>) | null = null;
     /** Whether SSR mode is active — resolved from server config */
     const ssrEnabled = serverConfig?.runMode === 'middleware';
-    /** SSR init promise: AOT generation + router/platform module loading */
+    /** SSR init promise: AOT generation + router/platform module loading. Shared across
+     *  multiple configureServer invocations (Nuxt 4 may create more than one Vite dev server). */
     let ssrInitPromise: Promise<void> | null = null;
+    /** Resolved Node request handler — populated by the SSR init promise's `.then()`. Lives in
+     *  the plugin closure (not configureServer) so middlewares from any invocation see it. */
+    let ssrNodeRequestHandler: ((req: any, res: any) => void) | null = null;
+    let ssrBasePath: string | null = null;
+    let ssrInitFailed = false;
 
     // Persistent child process for IPC mode
     let persistentChild: ChildProcess | null = null;
@@ -232,10 +234,13 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // Generate AOT caches when serverConfig is set AND the user imports the virtual module
             // somewhere in src. This populates aotData before user code runs, so virtual:mion-aot/caches
             // returns hardcoded populated data at import time (no dev-shim asymmetry). Skip the pre-pass
-            // when running as the child of an existing pre-pass (would recurse), under vitest (tests opt
-            // out), or when no source file imports the virtual module.
+            // when running as the child of an existing pre-pass (would recurse), or when no source file
+            // imports the virtual module. We deliberately do NOT skip on `process.env.VITEST` — that
+            // env is inherited by grandchild processes (e.g. a vitest test that spawns playwright that
+            // spawns vite-node), and skipping the pre-pass there leaves AOT caches empty while the
+            // user's `aotCaches: true` still puts the router in strict AOT mode → AOTCacheError.
             ensureSourceScanCompleted();
-            if (serverConfig && !isRunningAsChild() && !IS_TEST_ENV && aotImportPresent) {
+            if (serverConfig && !isRunningAsChild() && aotImportPresent) {
                 try {
                     log('[mion] Generating AOT caches...');
                     const result = await getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
@@ -284,50 +289,53 @@ export function mionVitePlugin(options: MionPluginOptions) {
             // Skip when running as a child of a buildStart pre-pass — that child must just
             // compile-and-IPC-and-exit (its parent runs the live dev server).
             if (isRunningAsChild()) return;
-            // SSR mode: use ssrLoadModule to load the server in the same Vite process.
-            // ssrLoadModule uses Vite's internal transform pipeline (not HTTP),
-            ssrLoadModule = (url: string) => server.ssrLoadModule(url);
-            const startScript = resolve(serverConfig.startScript);
-            // Single init chain: generate AOT caches → load router + platform modules
-            let nodeRequestHandler: ((req: any, res: any) => void) | null = null;
-            let basePath: string | null = null;
-            let initFailed = false;
 
-            log('[mion] Generating SSR AOT caches...');
-            ssrInitPromise = loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startScript, aotOptions?.isClient)
-                .then(async (data) => {
-                    aotData = data;
-                    log('[mion] SSR AOT caches generated successfully');
-                    logAOTCaches(data);
-                    // Populate the server pure fns cache directly via the virtual module.
-                    // routesFlow (loaded externally by Node from @mionjs/router) reads from the
-                    // same globalThis slot that this virtual module writes to as a side-effect.
-                    if (pureFnOptions) await server.ssrLoadModule(VIRTUAL_SERVER_PURE_FNS);
-                    // Use native import (not ssrLoadModule) so we hit the same Node ESM cache the
-                    // user's externalised import populated. This guarantees module identity with the
-                    // router instance the user's initMionRouter() ran on; the route registry, options,
-                    // and middleFns are all visible without any further indirection.
-                    const routerModule = await import('@mionjs/router');
-                    const opts = routerModule.getRouterOptions();
-                    basePath = '/' + (opts.basePath || '').replace(/^\//, '');
-                    const platformNode = await import('@mionjs/platform-node');
-                    nodeRequestHandler = platformNode.httpRequestHandler;
-                    log('[mion] Dev server proxy initialized');
-                    onServerReady();
-                })
-                .catch((err) => {
-                    initFailed = true;
-                    const message = err instanceof Error ? err.message : String(err);
-                    console.error(`[mion] Failed to initialize SSR: ${message}`);
-                });
+            // Guard against multiple configureServer invocations. Frameworks like Nuxt 4 may
+            // create more than one Vite dev server (one per Vite environment / Nitro/Vite split),
+            // each calling configureServer on the same plugin instance. Only the first call
+            // performs SSR init; subsequent calls just register the proxy middleware on the new
+            // server and reuse the shared ssrInitPromise + handler refs (router state lives in
+            // globalThis, so requests routed via any server hit the same registered routes).
+            if (ssrInitPromise === null) {
+                ssrLoadModule = (url: string) => server.ssrLoadModule(url);
+                const startScript = resolve(serverConfig.startScript);
+                log('[mion] Generating SSR AOT caches...');
+                ssrInitPromise = loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startScript, aotOptions?.isClient)
+                    .then(async (data) => {
+                        aotData = data;
+                        log('[mion] SSR AOT caches generated successfully');
+                        logAOTCaches(data);
+                        // Populate the server pure fns cache directly via the virtual module.
+                        // routesFlow (loaded externally by Node from @mionjs/router) reads from the
+                        // same globalThis slot that this virtual module writes to as a side-effect.
+                        if (pureFnOptions) await server.ssrLoadModule(VIRTUAL_SERVER_PURE_FNS);
+                        // Use native import (not ssrLoadModule) so we hit the same Node ESM cache the
+                        // user's externalised import populated. This guarantees module identity with the
+                        // router instance the user's initMionRouter() ran on; the route registry, options,
+                        // and middleFns are all visible without any further indirection.
+                        const routerModule = await import('@mionjs/router');
+                        const opts = routerModule.getRouterOptions();
+                        ssrBasePath = '/' + (opts.basePath || '').replace(/^\//, '');
+                        const platformNode = await import('@mionjs/platform-node');
+                        ssrNodeRequestHandler = platformNode.httpRequestHandler;
+                        log('[mion] Dev server proxy initialized');
+                        onServerReady();
+                    })
+                    .catch((err) => {
+                        ssrInitFailed = true;
+                        const message = err instanceof Error ? err.message : String(err);
+                        console.error(`[mion] Failed to initialize SSR: ${message}`);
+                    });
+            }
 
-            // Dev server proxy: route matching requests to mion's httpRequestHandler
+            // Dev server proxy: route matching requests to mion's httpRequestHandler.
+            // Registered on every configureServer call so each Vite dev server gets the proxy.
             server.middlewares.use(async (req: any, res: any, next: () => void) => {
                 try {
-                    if (!basePath && !initFailed) await ssrInitPromise;
-                    if (!basePath || !req.url?.startsWith(basePath)) return next();
-                    if (nodeRequestHandler) {
-                        nodeRequestHandler(req, res);
+                    if (!ssrBasePath && !ssrInitFailed) await ssrInitPromise;
+                    if (!ssrBasePath || !req.url?.startsWith(ssrBasePath)) return next();
+                    if (ssrNodeRequestHandler) {
+                        ssrNodeRequestHandler(req, res);
                     } else {
                         res.statusCode = 503;
                         res.end('mion API failed to initialize');
@@ -380,29 +388,28 @@ export function mionVitePlugin(options: MionPluginOptions) {
             }
 
             // AOT virtual modules — check resolved ID against the map.
-            // `aotData` is populated by buildStart (when serverConfig + aotImportPresent + not in
-            // test env) before user code imports the virtual module, so the build-shape generator
-            // is the normal path. The dev shim is reserved for test envs and configurations where
-            // serverConfig is missing — see ensureSourceScanCompleted/buildStart.
+            // `aotData` MUST be populated by buildStart before any user code imports the virtual
+            // module. There is no dev/noop fallback in normal operation: an
+            // `import {aotCaches} from 'virtual:mion-aot/caches'` (or any sub-module) requires a
+            // successful AOT pre-pass. The single exception is when this very plugin instance is
+            // running INSIDE the pre-pass (forked child, or SSR middleware load) — that's where
+            // the data is being generated, so `aotData` is null by definition. The router runs in
+            // emit mode there and never reads from `aotCaches`, so an empty placeholder is inert.
             const aotType = aotResolvedIds.get(id);
             if (aotType) {
+                if (!aotData) {
+                    if (isMionCompileMode()) return generateEmitModePlaceholder(aotType);
+                    throw new Error(missingAOTDataMessage(id, !!serverConfig, aotImportPresent));
+                }
                 switch (aotType) {
-                    case 'jit-fns': {
-                        if (!aotData) return generateDevJitFnsModule();
+                    case 'jit-fns':
                         return generateJitFnsModule(aotData.jitFnsCode);
-                    }
-                    case 'pure-fns': {
-                        if (!aotData) return generateDevPureFnsModule();
+                    case 'pure-fns':
                         return generatePureFnsModule(aotData.pureFnsCode);
-                    }
-                    case 'router-cache': {
-                        if (!aotData) return generateDevRouterCacheModule();
+                    case 'router-cache':
                         return generateRouterCacheModule(aotData.routerCacheCode);
-                    }
-                    case 'caches': {
-                        if (!aotData) return generateDevCombinedCachesModule();
+                    case 'caches':
                         return generateCombinedCachesModule();
-                    }
                 }
             }
 
@@ -636,6 +643,38 @@ function isRunningAsChild(): boolean {
     return process.env.MION_COMPILE === 'buildOnly' || process.env.MION_COMPILE === 'childProcess';
 }
 
+/** True while the AOT pre-pass is actively running — child fork (`buildOnly`/`childProcess`) or
+ *  the SSR `loadSSRRouterAndGenerateAOTCaches` (`middleware`). The router treats this as
+ *  AOT-emit mode and never enters strict aotMode, so an empty placeholder for the AOT virtual
+ *  module is inert here — that's the chicken-and-egg gap we're filling. */
+function isMionCompileMode(): boolean {
+    const m = process.env.MION_COMPILE;
+    return m === 'buildOnly' || m === 'childProcess' || m === 'middleware';
+}
+
+/** Empty in-emit-mode placeholder for the AOT virtual modules. ONLY used while the pre-pass is
+ *  actively running and has not yet emitted real data — the router skips aotMode in that window,
+ *  so the empty values never hit a runtime cache lookup. Outside compile mode, the load hook
+ *  throws instead. */
+function generateEmitModePlaceholder(type: AOTModuleType): string {
+    switch (type) {
+        case 'jit-fns':
+            return `/* mion AOT placeholder (compile mode) */\nexport const jitFnsCache = {};\n`;
+        case 'pure-fns':
+            return `/* mion AOT placeholder (compile mode) */\nexport const pureFnsCache = {};\n`;
+        case 'router-cache':
+            return `/* mion AOT placeholder (compile mode) */\nexport const routerCache = {};\n`;
+        case 'caches':
+            return (
+                `/* mion AOT placeholder (compile mode) */\n` +
+                `export const jitFnsCache = {};\n` +
+                `export const pureFnsCache = {};\n` +
+                `export const routerCache = {};\n` +
+                `export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };\n`
+            );
+    }
+}
+
 /** Extracts the base file path and lang from a Vue SFC virtual module ID (e.g. Component.vue?vue&type=script&lang=ts) */
 export function parseVueModuleId(id: string): {basePath: string; lang: string | null} | null {
     const qIdx = id.indexOf('?');
@@ -743,6 +782,31 @@ function wrapBuildExternal(config: Record<string, any>, shimModules: string[]): 
         // node:* builtins, and third-party deps — relative paths stay bundled.
         return /^[^./]/.test(id);
     };
+}
+
+/** Build the failure message for an AOT virtual module load when `aotData` is missing.
+ *  The two flags pinpoint which guard rail the user tripped: no serverConfig at all (can't pre-pass)
+ *  vs. serverConfig set but the import wasn't seen during the source scan (so buildStart skipped). */
+function missingAOTDataMessage(virtualId: string, hasServerConfig: boolean, aotImportPresent: boolean): string {
+    const lines = [
+        `[mion] AOT caches were not generated, but "${virtualId}" was imported.`,
+        `       Importing any 'virtual:mion-aot/*' module requires a successful AOT pre-pass.`,
+    ];
+    if (!hasServerConfig) {
+        lines.push(`       Fix: pass a 'server' option to mionVitePlugin so the pre-pass can run the start script.`);
+    } else if (!aotImportPresent) {
+        lines.push(
+            `       Fix: the import wasn't found by the source scan, so the pre-pass was skipped.`,
+            `       Make sure the file containing the import is under serverConfig.startScript's directory`,
+            `       or under serverPureFunctions.clientSrcPath.`
+        );
+    } else {
+        lines.push(
+            `       The pre-pass was supposed to run but did not populate caches — check earlier`,
+            `       errors in this build for the actual failure.`
+        );
+    }
+    return lines.join('\n');
 }
 
 // #################### SERVER READY ####################

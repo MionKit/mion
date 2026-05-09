@@ -213,39 +213,6 @@ export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
 export { jitFnsCache, pureFnsCache, routerCache };
 `;
 }
-function generateNoopModule(comment) {
-  return `/* ${comment} */
-`;
-}
-function generateDevJitFnsModule() {
-  return `/* Dev shim: AOT JIT functions cache backed by globalThis */
-const KEY = Symbol.for('mion.jit-fns/v1');
-export const jitFnsCache = (globalThis[KEY] ??= {});
-`;
-}
-function generateDevPureFnsModule() {
-  return `/* Dev shim: AOT pure functions cache backed by globalThis */
-const KEY = Symbol.for('mion.pure-fns/v1');
-export const pureFnsCache = (globalThis[KEY] ??= {});
-`;
-}
-function generateDevRouterCacheModule() {
-  return `/* Dev shim: AOT router cache backed by globalThis */
-const KEY = Symbol.for('mion.persisted-methods/v1');
-export const routerCache = (globalThis[KEY] ??= {});
-`;
-}
-function generateDevCombinedCachesModule() {
-  return `/* Dev shim: combined AOT caches backed by globalThis */
-const JIT_KEY = Symbol.for('mion.jit-fns/v1');
-const PURE_KEY = Symbol.for('mion.pure-fns/v1');
-const ROUTER_KEY = Symbol.for('mion.persisted-methods/v1');
-export const jitFnsCache = (globalThis[JIT_KEY] ??= {});
-export const pureFnsCache = (globalThis[PURE_KEY] ??= {});
-export const routerCache = (globalThis[ROUTER_KEY] ??= {});
-export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
-`;
-}
 function waitForPlatformReady(child, timeoutMs = 3e4) {
   return new Promise((resolve2, reject) => {
     const onMessage = (msg) => {
@@ -267,24 +234,10 @@ function waitForPlatformReady(child, timeoutMs = 3e4) {
     }, timeoutMs);
   });
 }
-function generateNoopCombinedModule() {
-  return `/* No-op AOT caches - AOT not yet generated */
-export const jitFnsCache = {};
-export const pureFnsCache = {};
-export const routerCache = {};
-export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
-`;
-}
 export {
   generateAOTCaches,
   generateCombinedCachesModule,
-  generateDevCombinedCachesModule,
-  generateDevJitFnsModule,
-  generateDevPureFnsModule,
-  generateDevRouterCacheModule,
   generateJitFnsModule,
-  generateNoopCombinedModule,
-  generateNoopModule,
   generatePureFnsModule,
   generateRouterCacheModule,
   killPersistentChild,

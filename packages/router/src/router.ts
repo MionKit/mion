@@ -67,13 +67,7 @@ const middleFnNames: Set<string> = new Set();
 const routeNames: Set<string> = new Set();
 let complexity = 0;
 // Router init state is backed by a globalThis slot so that all module instances share it.
-// When @mionjs/router is externalised by Vite SSR the plugin's ssrLoadModule and Node's
-// external resolver may produce two distinct module instances; routes registered on one
-// must be visible to the other (e.g. for getRouterOptions(), dispatchRoute()).
-// `aotMode` records whether initRouter received `aotCaches` (read by reflection to
-// fail-loud instead of falling back to JIT when an entry is missing). The aotCaches
-// reference itself is NOT stored — it's loaded into the global jit/pure/router caches
-// at init time, so it doesn't pollute getRouterOptions() output.
+
 const ROUTER_STATE_KEY = Symbol.for('mion.router-state/v1');
 const routerState: RouterState = ((globalThis as any)[ROUTER_STATE_KEY] ??= {
     options: {...DEFAULT_ROUTE_OPTIONS},
@@ -158,6 +152,12 @@ export const resetRouter = () => {
 
 // simpler router initialization
 export async function initMionRouter<R extends Routes>(routes: R, opts?: InitRouterOptions): Promise<PublicApi<R>> {
+    // Idempotent: if the router is already initialized in this process, the user's startScript
+    // is being re-evaluated by the host framework (e.g. Nuxt SSR module runner re-loads, Vite v6+
+    // multi-environment, HMR), not by an actual second app boot. Native ESM cache pins
+    // @mionjs/router to a single module instance, so the route registry from the first init is
+    // still live; re-running registerRoutes would just collide on duplicate route names. Skip.
+    if (routerState.isInitialized) return shouldFullGenerateSpec() ? getPublicApi(routes) : ({} as PublicApi<R>);
     await initRouter(opts);
     const publicApi = await registerRoutes(routes);
     // Emit AOT caches once after ALL routes (error, client, user) are registered

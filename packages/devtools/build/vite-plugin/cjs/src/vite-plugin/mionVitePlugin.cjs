@@ -97,6 +97,9 @@ function mionVitePlugin(options) {
   let ssrLoadModule = null;
   const ssrEnabled = serverConfig?.runMode === "middleware";
   let ssrInitPromise = null;
+  let ssrNodeRequestHandler = null;
+  let ssrBasePath = null;
+  let ssrInitFailed = false;
   let persistentChild = null;
   let cleanupRegistered = false;
   const { aotVirtualModules, aotResolvedIds } = buildAOTVirtualModuleMaps(aotOptions?.customVirtualModuleId);
@@ -146,7 +149,7 @@ function mionVitePlugin(options) {
     },
     async buildStart() {
       ensureSourceScanCompleted();
-      if (serverConfig && !isRunningAsChild() && !IS_TEST_ENV && aotImportPresent) {
+      if (serverConfig && !isRunningAsChild() && aotImportPresent) {
         try {
           log("[mion] Generating AOT caches...");
           const result = await src_vitePlugin_aotDiskCache.getOrGenerateAOTCaches(serverConfig, aotOptions, aotCacheDir);
@@ -186,35 +189,34 @@ function mionVitePlugin(options) {
     configureServer(server) {
       if (!ssrEnabled || !serverConfig) return;
       if (isRunningAsChild()) return;
-      ssrLoadModule = (url) => server.ssrLoadModule(url);
-      const startScript = path.resolve(serverConfig.startScript);
-      let nodeRequestHandler = null;
-      let basePath = null;
-      let initFailed = false;
-      log("[mion] Generating SSR AOT caches...");
-      ssrInitPromise = src_vitePlugin_aotCacheGenerator.loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startScript, aotOptions?.isClient).then(async (data) => {
-        aotData = data;
-        log("[mion] SSR AOT caches generated successfully");
-        src_vitePlugin_aotCacheGenerator.logAOTCaches(data);
-        if (pureFnOptions) await server.ssrLoadModule(src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS);
-        const routerModule = await import("@mionjs/router");
-        const opts = routerModule.getRouterOptions();
-        basePath = "/" + (opts.basePath || "").replace(/^\//, "");
-        const platformNode = await import("@mionjs/platform-node");
-        nodeRequestHandler = platformNode.httpRequestHandler;
-        log("[mion] Dev server proxy initialized");
-        onServerReady();
-      }).catch((err) => {
-        initFailed = true;
-        const message = err instanceof Error ? err.message : String(err);
-        console.error(`[mion] Failed to initialize SSR: ${message}`);
-      });
+      if (ssrInitPromise === null) {
+        ssrLoadModule = (url) => server.ssrLoadModule(url);
+        const startScript = path.resolve(serverConfig.startScript);
+        log("[mion] Generating SSR AOT caches...");
+        ssrInitPromise = src_vitePlugin_aotCacheGenerator.loadSSRRouterAndGenerateAOTCaches(ssrLoadModule, startScript, aotOptions?.isClient).then(async (data) => {
+          aotData = data;
+          log("[mion] SSR AOT caches generated successfully");
+          src_vitePlugin_aotCacheGenerator.logAOTCaches(data);
+          if (pureFnOptions) await server.ssrLoadModule(src_vitePlugin_constants.VIRTUAL_SERVER_PURE_FNS);
+          const routerModule = await import("@mionjs/router");
+          const opts = routerModule.getRouterOptions();
+          ssrBasePath = "/" + (opts.basePath || "").replace(/^\//, "");
+          const platformNode = await import("@mionjs/platform-node");
+          ssrNodeRequestHandler = platformNode.httpRequestHandler;
+          log("[mion] Dev server proxy initialized");
+          onServerReady();
+        }).catch((err) => {
+          ssrInitFailed = true;
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`[mion] Failed to initialize SSR: ${message}`);
+        });
+      }
       server.middlewares.use(async (req, res, next) => {
         try {
-          if (!basePath && !initFailed) await ssrInitPromise;
-          if (!basePath || !req.url?.startsWith(basePath)) return next();
-          if (nodeRequestHandler) {
-            nodeRequestHandler(req, res);
+          if (!ssrBasePath && !ssrInitFailed) await ssrInitPromise;
+          if (!ssrBasePath || !req.url?.startsWith(ssrBasePath)) return next();
+          if (ssrNodeRequestHandler) {
+            ssrNodeRequestHandler(req, res);
           } else {
             res.statusCode = 503;
             res.end("mion API failed to initialize");
@@ -247,23 +249,19 @@ function mionVitePlugin(options) {
       }
       const aotType = aotResolvedIds.get(id);
       if (aotType) {
+        if (!aotData) {
+          if (isMionCompileMode()) return generateEmitModePlaceholder(aotType);
+          throw new Error(missingAOTDataMessage(id, !!serverConfig, aotImportPresent));
+        }
         switch (aotType) {
-          case "jit-fns": {
-            if (!aotData) return src_vitePlugin_aotCacheGenerator.generateDevJitFnsModule();
+          case "jit-fns":
             return src_vitePlugin_aotCacheGenerator.generateJitFnsModule(aotData.jitFnsCode);
-          }
-          case "pure-fns": {
-            if (!aotData) return src_vitePlugin_aotCacheGenerator.generateDevPureFnsModule();
+          case "pure-fns":
             return src_vitePlugin_aotCacheGenerator.generatePureFnsModule(aotData.pureFnsCode);
-          }
-          case "router-cache": {
-            if (!aotData) return src_vitePlugin_aotCacheGenerator.generateDevRouterCacheModule();
+          case "router-cache":
             return src_vitePlugin_aotCacheGenerator.generateRouterCacheModule(aotData.routerCacheCode);
-          }
-          case "caches": {
-            if (!aotData) return src_vitePlugin_aotCacheGenerator.generateDevCombinedCachesModule();
+          case "caches":
             return src_vitePlugin_aotCacheGenerator.generateCombinedCachesModule();
-          }
         }
       }
       for (const mod of src_vitePlugin_constants.REFLECTION_MODULES) {
@@ -428,6 +426,33 @@ function mionVitePlugin(options) {
 function isRunningAsChild() {
   return process.env.MION_COMPILE === "buildOnly" || process.env.MION_COMPILE === "childProcess";
 }
+function isMionCompileMode() {
+  const m = process.env.MION_COMPILE;
+  return m === "buildOnly" || m === "childProcess" || m === "middleware";
+}
+function generateEmitModePlaceholder(type) {
+  switch (type) {
+    case "jit-fns":
+      return `/* mion AOT placeholder (compile mode) */
+export const jitFnsCache = {};
+`;
+    case "pure-fns":
+      return `/* mion AOT placeholder (compile mode) */
+export const pureFnsCache = {};
+`;
+    case "router-cache":
+      return `/* mion AOT placeholder (compile mode) */
+export const routerCache = {};
+`;
+    case "caches":
+      return `/* mion AOT placeholder (compile mode) */
+export const jitFnsCache = {};
+export const pureFnsCache = {};
+export const routerCache = {};
+export const aotCaches = { jitFnsCache, pureFnsCache, routerCache };
+`;
+  }
+}
 function parseVueModuleId(id) {
   const qIdx = id.indexOf("?");
   if (qIdx === -1) return null;
@@ -505,6 +530,29 @@ function wrapBuildExternal(config, shimModules) {
     }
     return /^[^./]/.test(id);
   };
+}
+function missingAOTDataMessage(virtualId, hasServerConfig, aotImportPresent) {
+  const lines = [
+    `[mion] AOT caches were not generated, but "${virtualId}" was imported.`,
+    `       Importing any 'virtual:mion-aot/*' module requires a successful AOT pre-pass.`
+  ];
+  if (!hasServerConfig) {
+    lines.push(
+      `       Fix: pass a 'server' option to mionVitePlugin so the pre-pass can run the start script.`
+    );
+  } else if (!aotImportPresent) {
+    lines.push(
+      `       Fix: the import wasn't found by the source scan, so the pre-pass was skipped.`,
+      `       Make sure the file containing the import is under serverConfig.startScript's directory`,
+      `       or under serverPureFunctions.clientSrcPath.`
+    );
+  } else {
+    lines.push(
+      `       The pre-pass was supposed to run but did not populate caches — check earlier`,
+      `       errors in this build for the actual failure.`
+    );
+  }
+  return lines.join("\n");
 }
 const READY_KEY = /* @__PURE__ */ Symbol.for("mion.serverReady");
 function getOrCreateServerReady() {
