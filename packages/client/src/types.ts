@@ -234,4 +234,4 @@ export type SuccessClientResponse<RS extends RouteSubRequest<any>, RHList extend
 export type PrefilledMiddleFnsCache = Map<
     string,
     SubRequest<any>
->; /** Reference returned by mapFrom() - extends PureServerFnRef with fake() for type-safe routesFlow piping */
+>; /** Reference returned by serverMapFrom() - extends PureServerFnRef with fake() for type-safe routesFlow piping */

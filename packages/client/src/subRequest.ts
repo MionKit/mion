@@ -11,7 +11,7 @@ import type {CallSetup, MiddlewareSubRequest, RequestErrors, RouteSubRequest, Su
 import type {MapFromServerFnRef} from '@mionjs/core';
 import type {MionClient} from './client.ts';
 import {TypedEvent} from './lib/typedEvent.ts';
-import {isMapFromRef} from './routesFlow.ts';
+import {isServerMapFromRef} from './routesFlow.ts';
 
 /** Implementation of both RouteSubRequest and MiddleFnSubRequest interfaces */
 export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
@@ -35,7 +35,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
         this.pointer = [...parentProps];
         this.id = handlerId;
         this.params = argArray.map((arg, index) => {
-            if (isMapFromRef(arg)) {
+            if (isServerMapFromRef(arg)) {
                 arg.toRequestId = this.id;
                 arg.paramIndex = index;
                 this.mappings.push(arg);

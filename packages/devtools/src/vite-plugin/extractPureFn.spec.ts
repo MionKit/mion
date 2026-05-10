@@ -97,13 +97,13 @@ describe('extractPureFnsFromSource - TSX files', () => {
         expect(results[0].fnBody).toContain('x * 2');
     });
 
-    it('should extract mapFrom from a .tsx file with JSX', () => {
+    it('should extract serverMapFrom from a .tsx file with JSX', () => {
         const source = `
-            import {mapFrom} from '@mionjs/client';
+            import {serverMapFrom} from '@mionjs/client';
             const Header = () => <h1>Title</h1>;
-            const mapped = mapFrom(someSource, (data) => data.value);
+            const mapped = serverMapFrom(someSource, (data) => data.value);
         `;
-        const results = extractPureFnsFromSource(source, 'Page.tsx', 'mapFrom');
+        const results = extractPureFnsFromSource(source, 'Page.tsx', 'serverMapFrom');
         expect(results).toHaveLength(1);
         expect(results[0].fnBody).toContain('data.value');
     });
@@ -824,14 +824,14 @@ describe('purity validation', () => {
     });
 });
 
-describe('extractPureFnsFromSource - mapFrom', () => {
-    it('should extract an arrow mapper from mapFrom(source, mapper)', () => {
+describe('extractPureFnsFromSource - serverMapFrom', () => {
+    it('should extract an arrow mapper from serverMapFrom(source, mapper)', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (value: number) => value * 2);
+        export const ref = serverMapFrom(sub, (value: number) => value * 2);
         `;
-        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        const result = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom');
         expect(result).toHaveLength(1);
         expect(result[0].fnName).toBe(result[0].bodyHash);
         expect(result[0].namespace).toBe(PURE_SERVER_FN_NAMESPACE);
@@ -845,13 +845,13 @@ describe('extractPureFnsFromSource - mapFrom', () => {
 
     it('should extract a named function expression mapper', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, function extractId(item: {id: number}): number {
+        export const ref = serverMapFrom(sub, function extractId(item: {id: number}): number {
             return item.id;
         });
         `;
-        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        const result = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom');
         expect(result).toHaveLength(1);
         expect(result[0].fnName).toBe(result[0].bodyHash);
         expect(result[0].paramNames).toEqual(['item']);
@@ -861,27 +861,27 @@ describe('extractPureFnsFromSource - mapFrom', () => {
 
     it('should extract mapper with block body', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (user: any) => {
+        export const ref = serverMapFrom(sub, (user: any) => {
             const name = user.name;
             return name.toUpperCase();
         });
         `;
-        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        const result = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom');
         expect(result).toHaveLength(1);
         expect(result[0].paramNames).toEqual(['user']);
         expect(result[0].fnBody).toContain('name.toUpperCase()');
     });
 
-    it('should extract multiple mapFrom() calls from one file', () => {
+    it('should extract multiple serverMapFrom() calls from one file', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref1 = mapFrom(sub, (x: number) => x + 1);
-        export const ref2 = mapFrom(sub, (x: number) => x * 2);
+        export const ref1 = serverMapFrom(sub, (x: number) => x + 1);
+        export const ref2 = serverMapFrom(sub, (x: number) => x * 2);
         `;
-        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        const result = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom');
         expect(result).toHaveLength(2);
         expect(result[0].fnName).toBe(result[0].bodyHash);
         expect(result[1].fnName).toBe(result[1].bodyHash);
@@ -890,117 +890,119 @@ describe('extractPureFnsFromSource - mapFrom', () => {
 
     it('should generate deterministic hashes', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (x: number) => x + 1);
+        export const ref = serverMapFrom(sub, (x: number) => x + 1);
         `;
-        const result1 = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
-        const result2 = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        const result1 = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom');
+        const result2 = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom');
         expect(result1[0].bodyHash).toBe(result2[0].bodyHash);
     });
 
     it('should generate different hashes for different mapper bodies', () => {
         const source1 = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (x: number) => x + 1);
+        export const ref = serverMapFrom(sub, (x: number) => x + 1);
         `;
         const source2 = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (x: number) => x + 2);
+        export const ref = serverMapFrom(sub, (x: number) => x + 2);
         `;
-        const result1 = extractPureFnsFromSource(source1, 'test.ts', 'mapFrom');
-        const result2 = extractPureFnsFromSource(source2, 'test.ts', 'mapFrom');
+        const result1 = extractPureFnsFromSource(source1, 'test.ts', 'serverMapFrom');
+        const result2 = extractPureFnsFromSource(source2, 'test.ts', 'serverMapFrom');
         expect(result1[0].bodyHash).not.toBe(result2[0].bodyHash);
     });
 
     it('should validate purity — reject closure variables', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
         const SECRET = 'hidden';
-        export const ref = mapFrom(sub, (x: string) => x + SECRET);
+        export const ref = serverMapFrom(sub, (x: string) => x + SECRET);
         `;
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/SECRET/);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(/SECRET/);
     });
 
     it('should validate purity — reject forbidden identifiers', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (url: string) => fetch(url));
+        export const ref = serverMapFrom(sub, (url: string) => fetch(url));
         `;
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/fetch/);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(/fetch/);
     });
 
     it('should validate purity — reject this keyword', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, function() { return this.value; });
+        export const ref = serverMapFrom(sub, function() { return this.value; });
         `;
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(PurityError);
     });
 
     it('should throw when mapper is imported from another module', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         import {myMapper} from './helpers';
         const sub = {} as any;
-        export const ref = mapFrom(sub, myMapper);
+        export const ref = serverMapFrom(sub, myMapper);
         `;
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/imported from another module/);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(/imported from another module/);
     });
 
     it('should throw when mapper cannot be resolved', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, unknownMapper);
+        export const ref = serverMapFrom(sub, unknownMapper);
         `;
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/could not be resolved/);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(/could not be resolved/);
     });
 
     it('should throw when mapper is not a function', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, 'notAFunction');
+        export const ref = serverMapFrom(sub, 'notAFunction');
         `;
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/function expression or arrow function/);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(
+            /function expression or arrow function/
+        );
     });
 
     it('should resolve a variable reference holding a mapper function', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
         const myMapper = (x: number) => x + 1;
-        export const ref = mapFrom(sub, myMapper);
+        export const ref = serverMapFrom(sub, myMapper);
         `;
-        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        const result = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom');
         expect(result).toHaveLength(1);
         expect(result[0].fnName).toBe(result[0].bodyHash);
     });
 
-    it('should return empty array for files without mapFrom', () => {
+    it('should return empty array for files without serverMapFrom', () => {
         const source = `const x = 1; export function hello() { return 'world'; }`;
-        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        const result = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom');
         expect(result).toHaveLength(0);
     });
 
     it('should handle calls that already have 3 arguments (already transformed)', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (x: number) => x + 1, 'existingHash');
+        export const ref = serverMapFrom(sub, (x: number) => x + 1, 'existingHash');
         `;
-        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        const result = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom');
         expect(result).toHaveLength(1);
     });
 });
@@ -1196,13 +1198,13 @@ describe('extractPureFnsFromSource - user-provided names', () => {
         expect(result[0].fnBody).toContain('return x + 1');
     });
 
-    it('should use user-provided name as bodyHash and fnName for mapFrom', () => {
+    it('should use user-provided name as bodyHash and fnName for serverMapFrom', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (x) => x * 2, 'doubleMapper');
+        export const ref = serverMapFrom(sub, (x) => x * 2, 'doubleMapper');
         `;
-        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom');
+        const result = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom');
         expect(result).toHaveLength(1);
         expect(result[0].bodyHash).toBe('doubleMapper');
         expect(result[0].fnName).toBe('doubleMapper');
@@ -1230,15 +1232,15 @@ describe('extractPureFnsFromSource - user-provided names', () => {
         expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/must be a string literal/);
     });
 
-    it('should throw when mapFrom name argument is not a string literal', () => {
+    it('should throw when serverMapFrom name argument is not a string literal', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
         const name = 'mapper';
-        export const ref = mapFrom(sub, (x) => x + 1, name);
+        export const ref = serverMapFrom(sub, (x) => x + 1, name);
         `;
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/must be a string literal/);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(/must be a string literal/);
     });
 
     it('should throw when pureServerFn name is an empty string', () => {
@@ -1250,14 +1252,14 @@ describe('extractPureFnsFromSource - user-provided names', () => {
         expect(() => extractPureFnsFromSource(source, 'test.ts')).toThrow(/must not be an empty string/);
     });
 
-    it('should throw when mapFrom name is an empty string', () => {
+    it('should throw when serverMapFrom name is an empty string', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (x) => x + 1, '');
+        export const ref = serverMapFrom(sub, (x) => x + 1, '');
         `;
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(PurityError);
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom')).toThrow(/must not be an empty string/);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom')).toThrow(/must not be an empty string/);
     });
 
     it('should still compute hash when no name is provided (regression)', () => {
@@ -1282,14 +1284,14 @@ describe('extractPureFnsFromSource - noViteClient option', () => {
         expect(() => extractPureFnsFromSource(source, 'test.ts', 'pureServerFn', true)).toThrow(/noViteClient/);
     });
 
-    it('should throw when noViteClient is true and mapFrom has no name', () => {
+    it('should throw when noViteClient is true and serverMapFrom has no name', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (x) => x + 1);
+        export const ref = serverMapFrom(sub, (x) => x + 1);
         `;
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom', true)).toThrow(PurityError);
-        expect(() => extractPureFnsFromSource(source, 'test.ts', 'mapFrom', true)).toThrow(/noViteClient/);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom', true)).toThrow(PurityError);
+        expect(() => extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom', true)).toThrow(/noViteClient/);
     });
 
     it('should succeed when noViteClient is true and pureServerFn has a name', () => {
@@ -1303,13 +1305,13 @@ describe('extractPureFnsFromSource - noViteClient option', () => {
         expect(result[0].fnName).toBe('addOne');
     });
 
-    it('should succeed when noViteClient is true and mapFrom has a name', () => {
+    it('should succeed when noViteClient is true and serverMapFrom has a name', () => {
         const source = `
-        import {mapFrom} from '@mionjs/client';
+        import {serverMapFrom} from '@mionjs/client';
         const sub = {} as any;
-        export const ref = mapFrom(sub, (x) => x + 1, 'addOneMapper');
+        export const ref = serverMapFrom(sub, (x) => x + 1, 'addOneMapper');
         `;
-        const result = extractPureFnsFromSource(source, 'test.ts', 'mapFrom', true);
+        const result = extractPureFnsFromSource(source, 'test.ts', 'serverMapFrom', true);
         expect(result).toHaveLength(1);
         expect(result[0].bodyHash).toBe('addOneMapper');
         expect(result[0].fnName).toBe('addOneMapper');
@@ -1527,7 +1529,7 @@ describe('extractVueScriptContent', () => {
         `;
         // The regex matches any <script> tag, including the one inside <template>
         // This is fine — we only use this for keyword detection, and the template
-        // content won't contain pureServerFn/mapFrom calls
+        // content won't contain pureServerFn/serverMapFrom calls
         const result = extractVueScriptContent(vue);
         if (result) {
             expect(result.content).not.toContain('pureServerFn');
@@ -1613,13 +1615,13 @@ describe('extractPureFnsFromSource - Vue SFC file paths', () => {
         expect(result[0].bodyHash.length).toBe(BODY_HASH_LENGTH);
     });
 
-    it('should extract mapFrom using a .vue.ts synthetic path', () => {
+    it('should extract serverMapFrom using a .vue.ts synthetic path', () => {
         const source = `
-            import {mapFrom} from '@mionjs/client';
+            import {serverMapFrom} from '@mionjs/client';
             const sub = {};
-            const ref = mapFrom(sub, (x) => x + 1);
+            const ref = serverMapFrom(sub, (x) => x + 1);
         `;
-        const result = extractPureFnsFromSource(source, 'Component.vue.ts', 'mapFrom');
+        const result = extractPureFnsFromSource(source, 'Component.vue.ts', 'serverMapFrom');
         expect(result).toHaveLength(1);
         expect(result[0].bodyHash.length).toBe(BODY_HASH_LENGTH);
     });

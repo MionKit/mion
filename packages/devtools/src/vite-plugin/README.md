@@ -39,7 +39,7 @@ mionVitePlugin({
 
 ### What They Are
 
-Pure server functions are functions defined in client code that get executed on the server. They are registered via `pureServerFn()`, `mapFrom()`, or `registerPureFnFactory()`.
+Pure server functions are functions defined in client code that get executed on the server. They are registered via `pureServerFn()`, `serverMapFrom()`, or `registerPureFnFactory()`.
 
 Key constraints (enforced at build time):
 
@@ -65,7 +65,7 @@ pureServerFn({
 registerPureFnFactory('ns', 'fnId', (jitUtils) => (x) => jitUtils.validate(x));
 
 // SubRequest mapper - pure function that transforms server responses
-mapFrom(source, (data) => data.items);
+serverMapFrom(source, (data) => data.items);
 ```
 
 ### Extraction & Injection Flow
@@ -73,7 +73,7 @@ mapFrom(source, (data) => data.items);
 **Build time extraction** (`extractPureFn.ts`):
 
 1. Scans `clientSrcPath` recursively for `.ts`, `.tsx`, `.vue` files
-2. Parses each file's AST to find `pureServerFn()`, `mapFrom()`, `registerPureFnFactory()` calls
+2. Parses each file's AST to find `pureServerFn()`, `serverMapFrom()`, `registerPureFnFactory()` calls
 3. Validates purity by walking the function body AST (rejects closures, forbidden APIs, etc.)
 4. Computes a `bodyHash` = SHA-256 of `namespace + normalizedBody` (base64url, 14 chars)
 
@@ -81,7 +81,7 @@ mapFrom(source, (data) => data.items);
 
 1. During `transform()`, a TypeScript custom transformer injects the computed `bodyHash` as an additional argument:
    - `pureServerFn(fn)` → `pureServerFn(fn, "abc1234567890")`
-   - `mapFrom(src, fn)` → `mapFrom(src, fn, "abc1234567890")`
+   - `serverMapFrom(src, fn)` → `serverMapFrom(src, fn, "abc1234567890")`
    - `registerPureFnFactory(ns, id, factory)` → `registerPureFnFactory(ns, id, factory, parsedFnObj)`
 2. Injection is idempotent — already-injected calls are skipped (important for HMR)
 

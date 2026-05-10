@@ -224,56 +224,56 @@ ruleTester.run('pure-functions', rule, {
                 pureServerFn(myDef);
             `,
         },
-        // mapFrom() with pure arrow mapper
+        // serverMapFrom() with pure arrow mapper
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
-                mapFrom(sub, (x: number) => x * 2);
+                serverMapFrom(sub, (x: number) => x * 2);
             `,
         },
-        // mapFrom() with pure named function mapper
+        // serverMapFrom() with pure named function mapper
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
-                mapFrom(sub, function extractId(item: {id: number}) { return item.id; });
+                serverMapFrom(sub, function extractId(item: {id: number}) { return item.id; });
             `,
         },
-        // mapFrom() with allowed globals
+        // serverMapFrom() with allowed globals
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
-                mapFrom(sub, (x: any) => JSON.stringify(x));
+                serverMapFrom(sub, (x: any) => JSON.stringify(x));
             `,
         },
-        // mapFrom() with local variables
+        // serverMapFrom() with local variables
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
-                mapFrom(sub, (x: number) => {
+                serverMapFrom(sub, (x: number) => {
                     const doubled = x * 2;
                     return doubled;
                 });
             `,
         },
-        // mapFrom() with variable reference mapper
+        // serverMapFrom() with variable reference mapper
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
                 const myMapper = (x: number) => x + 1;
-                mapFrom(sub, myMapper);
+                serverMapFrom(sub, myMapper);
             `,
         },
-        // mapFrom() not imported from @mionjs/client — should be ignored
+        // serverMapFrom() not imported from @mionjs/client — should be ignored
         {
             code: `
-                import { mapFrom } from 'other-package';
+                import { serverMapFrom } from 'other-package';
                 const SECRET = 'key';
-                mapFrom({} as any, () => SECRET);
+                serverMapFrom({} as any, () => SECRET);
             `,
         },
     ],
@@ -574,72 +574,72 @@ ruleTester.run('pure-functions', rule, {
             `,
             errors: [{messageId: 'unresolvedArgument', data: {callee: 'pureServerFn', name: 'myFn'}}],
         },
-        // mapFrom() with closure variable in mapper
+        // serverMapFrom() with closure variable in mapper
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
                 const MULTIPLIER = 5;
-                mapFrom(sub, (x: number) => x * MULTIPLIER);
+                serverMapFrom(sub, (x: number) => x * MULTIPLIER);
             `,
             errors: [{messageId: 'purityClosureVariable', data: {name: 'MULTIPLIER', fnType: 'pure functions'}}],
         },
-        // mapFrom() with forbidden identifier in mapper
+        // serverMapFrom() with forbidden identifier in mapper
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
-                mapFrom(sub, (url: string) => fetch(url));
+                serverMapFrom(sub, (url: string) => fetch(url));
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'fetch', fnType: 'pure functions'}}],
         },
-        // mapFrom() with eval in mapper
+        // serverMapFrom() with eval in mapper
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
-                mapFrom(sub, (x: string) => eval(x));
+                serverMapFrom(sub, (x: string) => eval(x));
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'eval', fnType: 'pure functions'}}],
         },
-        // mapFrom() with this in mapper
+        // serverMapFrom() with this in mapper
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
-                mapFrom(sub, function() { return this.value; });
+                serverMapFrom(sub, function() { return this.value; });
             `,
             errors: [{messageId: 'purityThis', data: {fnType: 'pure functions'}}],
         },
-        // mapFrom() with imported mapper
+        // serverMapFrom() with imported mapper
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 import { myMapper } from './myModule';
                 const sub = {} as any;
-                mapFrom(sub, myMapper);
+                serverMapFrom(sub, myMapper);
             `,
-            errors: [{messageId: 'importedArgument', data: {callee: 'mapFrom', name: 'myMapper'}}],
+            errors: [{messageId: 'importedArgument', data: {callee: 'serverMapFrom', name: 'myMapper'}}],
         },
-        // mapFrom() with unresolved mapper
+        // serverMapFrom() with unresolved mapper
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
                 function wrap(mapper: any) {
-                    mapFrom(sub, mapper);
+                    serverMapFrom(sub, mapper);
                 }
             `,
-            errors: [{messageId: 'unresolvedArgument', data: {callee: 'mapFrom', name: 'mapper'}}],
+            errors: [{messageId: 'unresolvedArgument', data: {callee: 'serverMapFrom', name: 'mapper'}}],
         },
-        // mapFrom() with variable reference mapper that has violation
+        // serverMapFrom() with variable reference mapper that has violation
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const sub = {} as any;
                 const SECRET = 'key';
                 const myMapper = (x: string) => x + SECRET;
-                mapFrom(sub, myMapper);
+                serverMapFrom(sub, myMapper);
             `,
             errors: [{messageId: 'purityClosureVariable', data: {name: 'SECRET', fnType: 'pure functions'}}],
         },

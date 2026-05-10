@@ -127,11 +127,11 @@ export function createPureFnTransformerFactory(
 ): ts.CustomTransformerFactory {
     const hasPureServerFn = originalSource.includes('pureServerFn');
     const hasFactory = originalSource.includes('registerPureFnFactory');
-    const hasMapFrom = originalSource.includes('mapFrom');
+    const hasMapFrom = originalSource.includes('serverMapFrom');
 
     const pureServerFns = hasPureServerFn ? extractPureFnsFromSource(originalSource, filePath, 'pureServerFn', noViteClient) : [];
     const factoryFns = hasFactory ? extractPureFnsFromSource(originalSource, filePath, 'registerPureFnFactory') : [];
-    const mapFromFns = hasMapFrom ? extractPureFnsFromSource(originalSource, filePath, 'mapFrom', noViteClient) : [];
+    const mapFromFns = hasMapFrom ? extractPureFnsFromSource(originalSource, filePath, 'serverMapFrom', noViteClient) : [];
 
     return (context: ts.TransformationContext): ts.CustomTransformer => {
         let pureIdx = 0;
@@ -166,8 +166,8 @@ export function createPureFnTransformerFactory(
                             createParsedFactoryFnNode(context.factory, data),
                         ]);
                     }
-                    if (callee.text === 'mapFrom' && mapFromIdx < mapFromFns.length) {
-                        // mapFrom(source, mapper) -> mapFrom(source, mapper, 'bodyHash')
+                    if (callee.text === 'serverMapFrom' && mapFromIdx < mapFromFns.length) {
+                        // serverMapFrom(source, mapper) -> serverMapFrom(source, mapper, 'bodyHash')
                         if (node.arguments.length >= 3) {
                             mapFromIdx++;
                             return ts.visitEachChild(node, visitor, context);

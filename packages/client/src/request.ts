@@ -539,7 +539,7 @@ function reconstructHeadersSubsetFromResponse(
     return undefined;
 }
 
-/** Builds a RoutesFlowQuery from route paths and subrequests, collecting any mapFrom mappings */
+/** Builds a RoutesFlowQuery from route paths and subrequests, collecting any serverMapFrom mappings */
 function buildRoutesFlowQuery(routePaths: string[], workflowSubRequests: RouteSubRequest<any>[]): RoutesFlowQuery {
     const allMappings: RoutesFlowMapping[] = [];
     for (const sr of workflowSubRequests) {

@@ -32,7 +32,7 @@ export function validateSubRequests(
 /** Validate subRequest locally using existing RemoteApi metadata */
 export function validateSubRequest(id: string, subRequest: SubRequest<any>, errors: RequestErrors): void {
     if (subRequest?.error || subRequest?.isResolved) return;
-    // Skip validation for subrequests with mapFrom mappings — params contain null placeholders
+    // Skip validation for subrequests with serverMapFrom mappings — params contain null placeholders
     // that will be filled by the server's mapping step after the source route executes
     const mappings = (subRequest as any)?.mappings;
     if (Array.isArray(mappings) && mappings.length > 0) return;

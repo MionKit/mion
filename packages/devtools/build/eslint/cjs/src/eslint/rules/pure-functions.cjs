@@ -10,7 +10,7 @@ function buildPureFnImportCache(program) {
     for (const specifier of statement.specifiers) {
       if (specifier.type === utils.AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === utils.AST_NODE_TYPES.Identifier) {
         const importedName = specifier.imported.name;
-        if (importedName === "pureServerFn" || importedName === "registerPureFnFactory" || importedName === "mapFrom") {
+        if (importedName === "pureServerFn" || importedName === "registerPureFnFactory" || importedName === "serverMapFrom") {
           pureFnNames.set(specifier.local.name, importedName);
         }
       }
@@ -224,7 +224,7 @@ function findUnresolvedPureFnInObject(obj, program) {
   return null;
 }
 function reportUnresolvedArgument(node, callee, program, context) {
-  const argIndex = callee === "registerPureFnFactory" ? 2 : callee === "mapFrom" ? 1 : 0;
+  const argIndex = callee === "registerPureFnFactory" ? 2 : callee === "serverMapFrom" ? 1 : 0;
   const arg = node.arguments[argIndex];
   if (!arg) return;
   const identifierToCheck = findUnresolvedIdentifier(arg, program);
@@ -295,7 +295,7 @@ const rule = {
   meta: {
     type: "problem",
     docs: {
-      description: "Validate that functions passed to pureServerFn(), registerPureFnFactory(), and mapFrom() are pure and do not use forbidden identifiers, closures, or side effects."
+      description: "Validate that functions passed to pureServerFn(), registerPureFnFactory(), and serverMapFrom() are pure and do not use forbidden identifiers, closures, or side effects."
     },
     messages: {
       purityThis: "'this' is not allowed in {{fnType}}",
@@ -328,7 +328,7 @@ const rule = {
           target = extractPureServerFnTarget(node, programNode);
         } else if (importedName === "registerPureFnFactory") {
           target = extractFactoryFnTarget(node, programNode);
-        } else if (importedName === "mapFrom") {
+        } else if (importedName === "serverMapFrom") {
           target = extractMapFromMapperTarget(node, programNode);
         }
         if (!target) {

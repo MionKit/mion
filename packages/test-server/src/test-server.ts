@@ -258,7 +258,7 @@ const routes = {
         return set;
     }),
 
-    // Routes for testing routesFlow mapFrom (output→input mapping between routes)
+    // Routes for testing routesFlow serverMapFrom (output→input mapping between routes)
     getCustomerById: route((_ctx, customerId: number): {id: number; name: string; preferenceId: number} => ({
         id: customerId,
         name: 'Test Customer',

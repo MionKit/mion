@@ -7,7 +7,7 @@ export default defineConfig({
         mionVitePlugin({
             // runTypes metadata
             runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-            // Scan client source for pureServerFn() and mapFrom() calls
+            // Scan client source for pureServerFn() and serverMapFrom() calls
             serverPureFunctions: {
                 clientSrcPath: resolve(__dirname, '../client/src'),
             },

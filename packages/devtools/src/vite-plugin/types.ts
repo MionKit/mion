@@ -124,7 +124,7 @@ export interface ServerPureFunctionsOptions {
     /** Glob patterns for files to exclude from scanning */
     exclude?: string[];
     /**
-     * When true, requires all pureServerFn() and mapFrom() calls to have an explicit name/identifier
+     * When true, requires all pureServerFn() and serverMapFrom() calls to have an explicit name/identifier
      * as a string literal argument. This enables non-Vite clients (e.g. Next.js with Turbopack)
      * to use these functions without build-time transforms.
      */

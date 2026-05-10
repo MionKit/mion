@@ -69,10 +69,10 @@ function createDeepkitConfig(options = {}) {
 function createPureFnTransformerFactory(originalSource, filePath, collector, noViteClient = false) {
   const hasPureServerFn = originalSource.includes("pureServerFn");
   const hasFactory = originalSource.includes("registerPureFnFactory");
-  const hasMapFrom = originalSource.includes("mapFrom");
+  const hasMapFrom = originalSource.includes("serverMapFrom");
   const pureServerFns = hasPureServerFn ? extractPureFnsFromSource(originalSource, filePath, "pureServerFn", noViteClient) : [];
   const factoryFns = hasFactory ? extractPureFnsFromSource(originalSource, filePath, "registerPureFnFactory") : [];
-  const mapFromFns = hasMapFrom ? extractPureFnsFromSource(originalSource, filePath, "mapFrom", noViteClient) : [];
+  const mapFromFns = hasMapFrom ? extractPureFnsFromSource(originalSource, filePath, "serverMapFrom", noViteClient) : [];
   return (context) => {
     let pureIdx = 0;
     let factoryIdx = 0;
@@ -105,7 +105,7 @@ function createPureFnTransformerFactory(originalSource, filePath, collector, noV
               createParsedFactoryFnNode(context.factory, data)
             ]);
           }
-          if (callee.text === "mapFrom" && mapFromIdx < mapFromFns.length) {
+          if (callee.text === "serverMapFrom" && mapFromIdx < mapFromFns.length) {
             if (node.arguments.length >= 3) {
               mapFromIdx++;
               return ts.visitEachChild(node, visitor, context);

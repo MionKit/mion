@@ -1,7 +1,7 @@
 /* eslint-disable */
 // This file provides code examples for the pure functions documentation page
 import {pureServerFn, registerPureFnFactory} from '@mionjs/core';
-import {initClient, routesFlow, mapFrom} from '@mionjs/client';
+import {initClient, routesFlow, serverMapFrom} from '@mionjs/client';
 import type {MyApi} from '../client/server.routes.ts';
 
 // ========================================
@@ -54,17 +54,17 @@ const validate = pureServerFn({
 // end:pure-server-fn-basic
 
 // ========================================
-// mapFrom (Client → Server)
+// serverMapFrom (Client → Server)
 // ========================================
 
 // start:map-from-basic
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 const order = routes.orders.getById('ORDER-123');
-// mapFrom maps order.userId → users.getById input (runs server-side)
-const mapping = mapFrom(order, (o) => o!.userId);
+// serverMapFrom maps order.userId → users.getById input (runs server-side)
+const mapping = serverMapFrom(order, (o) => o!.userId);
 // fake() returns a typed placeholder that satisfies the TypeScript compiler
-const user = routes.users.getById(mapping.type());
+const user = routes.users.getById(mapping.asArg());
 
 const [[orderData, userData]] = await routesFlow([order, user]).call();
 console.log(`Order by ${userData?.name}`);

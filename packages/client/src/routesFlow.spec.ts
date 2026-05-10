@@ -13,9 +13,9 @@ import {HeadersSubset, PURE_SERVER_FN_NAMESPACE} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 // Alias to avoid vite plugin transformer injecting bodyHash into unit test calls
-import {mapFrom as rawMapFrom} from './routesFlow.ts';
+import {serverMapFrom as rawMapFrom} from './routesFlow.ts';
 // vite plugin DOES inject bodyHash for e2e tests
-import {mapFrom} from './routesFlow.ts';
+import {serverMapFrom} from './routesFlow.ts';
 
 // Helper to create auth headers for the test server's headersFn
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
@@ -278,7 +278,7 @@ describe('routesFlow', () => {
     });
 });
 
-describe('mapFrom()', () => {
+describe('serverMapFrom()', () => {
     const fakeSubRequest = {pointer: ['test'], id: 'test', isResolved: false, params: []} as any;
 
     it('should return a MapFromServerFnRef with correct properties', () => {
@@ -301,13 +301,13 @@ describe('mapFrom()', () => {
 
     it('should throw when bodyHash is not provided', () => {
         expect(() => rawMapFrom(fakeSubRequest, (x: number) => x * 2)).toThrow(
-            'mapFrom() requires mion vite plugin transform to inject bodyHash'
+            'serverMapFrom() requires mion vite plugin transform to inject bodyHash'
         );
     });
 
     it('fake() should return the ref itself', () => {
         const ref = rawMapFrom(fakeSubRequest, (x: number) => x * 2, 'testHash123456');
-        const fakeResult = ref.type();
+        const fakeResult = ref.asArg();
         // fake() returns the ref cast as ReturnType<F>
         expect(fakeResult).toBe(ref);
     });
@@ -320,7 +320,7 @@ describe('mapFrom()', () => {
     });
 });
 
-describe('mapFrom e2e in routesFlow', () => {
+describe('serverMapFrom e2e in routesFlow', () => {
     type MyApi = TestServerApi;
     const baseURL = TEST_SERVER_BASE_URL;
 
@@ -331,7 +331,7 @@ describe('mapFrom e2e in routesFlow', () => {
         const customer = routes.getCustomerById(42);
         const [[customerData, prefs], [customerError, prefsError]] = await routesFlow([
             customer,
-            routes.getPreferencesById(mapFrom(customer, (c) => c!.preferenceId).type()),
+            routes.getPreferencesById(serverMapFrom(customer, (c) => c!.preferenceId).asArg()),
         ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
 
         expect(customerError).toBeUndefined();

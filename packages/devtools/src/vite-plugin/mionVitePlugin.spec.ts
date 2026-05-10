@@ -118,14 +118,14 @@ describe('transform hook - @mionjs build artifact skipping', () => {
 
     it('should skip Vite pre-bundled cache files (.cache/vite/)', () => {
         const plugin = mionVitePlugin({});
-        const code = `function mapFrom() {}`;
+        const code = `function serverMapFrom() {}`;
         const result = plugin.transform(code, '/project/node_modules/.cache/vite/client/deps/@mionjs_client.js');
         expect(result).toBeNull();
     });
 
     it('should skip Vite dep cache files (.vite/deps/)', () => {
         const plugin = mionVitePlugin({});
-        const code = `function mapFrom() {}`;
+        const code = `function serverMapFrom() {}`;
         const result = plugin.transform(code, '/project/node_modules/.vite/deps/@mionjs_client.js');
         expect(result).toBeNull();
     });

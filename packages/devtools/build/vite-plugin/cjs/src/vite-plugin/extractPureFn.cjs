@@ -98,14 +98,14 @@ function scanClientSource(options) {
             effectivePath = `${fullPath}.${scriptBlock.lang}`;
           }
           const hasPureFn = code.includes("pureServerFn");
-          const hasMapFrom = code.includes("mapFrom");
+          const hasMapFrom = code.includes("serverMapFrom");
           if (!hasPureFn && !hasMapFrom) continue;
           if (hasPureFn) {
             const extracted = extractPureFnsFromSource(code, effectivePath, "pureServerFn", options.noViteClient);
             fns.push(...extracted);
           }
           if (hasMapFrom) {
-            const extracted = extractPureFnsFromSource(code, effectivePath, "mapFrom", options.noViteClient);
+            const extracted = extractPureFnsFromSource(code, effectivePath, "serverMapFrom", options.noViteClient);
             fns.push(...extracted);
           }
         } catch (err) {
@@ -129,7 +129,7 @@ function extractPureFnsFromSource(source, filePath, fnName = "pureServerFn", noV
         if (fnName === "registerPureFnFactory") {
           const extracted = extractDataFromRegisterPureFnFactoryAST(node, sourceFile, filePath);
           results.push(extracted);
-        } else if (fnName === "mapFrom") {
+        } else if (fnName === "serverMapFrom") {
           const extracted = extractDataFromMapFromCallAST(node, sourceFile, filePath, noViteClient);
           results.push(extracted);
         } else {
@@ -228,7 +228,7 @@ function extractDataFromPureFnDefAST(call, sourceFile, filePath, noViteClient = 
 function extractDataFromMapFromCallAST(call, sourceFile, filePath, noViteClient = false) {
   if (call.arguments.length < 2 || call.arguments.length > 3) {
     throw new PurityError(
-      "mapFrom() requires 2 or 3 arguments: a SubRequest source, a mapper function, and an optional name/bodyHash string",
+      "serverMapFrom() requires 2 or 3 arguments: a SubRequest source, a mapper function, and an optional name/bodyHash string",
       filePath,
       call.getStart(sourceFile)
     );
@@ -238,14 +238,14 @@ function extractDataFromMapFromCallAST(call, sourceFile, filePath, noViteClient 
     const nameArg = call.arguments[2];
     if (!ts__namespace.isStringLiteral(nameArg)) {
       throw new PurityError(
-        "mapFrom() third argument (name/bodyHash) must be a string literal",
+        "serverMapFrom() third argument (name/bodyHash) must be a string literal",
         filePath,
         nameArg.getStart(sourceFile)
       );
     }
     if (nameArg.text.length === 0) {
       throw new PurityError(
-        "mapFrom() third argument (name/bodyHash) must not be an empty string",
+        "serverMapFrom() third argument (name/bodyHash) must not be an empty string",
         filePath,
         nameArg.getStart(sourceFile)
       );
@@ -253,7 +253,7 @@ function extractDataFromMapFromCallAST(call, sourceFile, filePath, noViteClient 
     userProvidedName = nameArg.text;
   } else if (noViteClient) {
     throw new PurityError(
-      "mapFrom() requires a name as the third argument (string literal) when noViteClient is enabled",
+      "serverMapFrom() requires a name as the third argument (string literal) when noViteClient is enabled",
       filePath,
       call.getStart(sourceFile)
     );
@@ -264,13 +264,13 @@ function extractDataFromMapFromCallAST(call, sourceFile, filePath, noViteClient 
     if (!resolved) {
       if (isImportedIdentifier(arg.text, sourceFile)) {
         throw new PurityError(
-          `mapFrom() mapper argument "${arg.text}" is imported from another module. Pure functions must be defined inline or as a variable in the same file`,
+          `serverMapFrom() mapper argument "${arg.text}" is imported from another module. Pure functions must be defined inline or as a variable in the same file`,
           filePath,
           arg.getStart(sourceFile)
         );
       }
       throw new PurityError(
-        `mapFrom() mapper argument "${arg.text}" could not be resolved to a variable declaration in this file. Pure functions must be defined inline or as a variable in the same file`,
+        `serverMapFrom() mapper argument "${arg.text}" could not be resolved to a variable declaration in this file. Pure functions must be defined inline or as a variable in the same file`,
         filePath,
         arg.getStart(sourceFile)
       );
@@ -281,7 +281,7 @@ function extractDataFromMapFromCallAST(call, sourceFile, filePath, noViteClient 
     return buildExtractedPureFn(arg, src_vitePlugin_constants.PURE_SERVER_FN_NAMESPACE, void 0, false, sourceFile, filePath, userProvidedName);
   }
   throw new PurityError(
-    "mapFrom() second argument (mapper) must be a function expression or arrow function",
+    "serverMapFrom() second argument (mapper) must be a function expression or arrow function",
     filePath,
     call.arguments[1].getStart(sourceFile)
   );
