@@ -121,6 +121,7 @@ function mionVitePlugin(options) {
     },
     configureServer(server) {
       if (!ssrEnabled || !serverConfig) return;
+      if (ssrInitPromise) return;
       ssrLoadModule = (url) => server.ssrLoadModule(url);
       const startScript = resolve(serverConfig.startScript);
       let nodeRequestHandler = null;

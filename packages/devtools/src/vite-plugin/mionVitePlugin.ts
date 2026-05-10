@@ -234,6 +234,8 @@ export function mionVitePlugin(options: MionPluginOptions) {
 
         configureServer(server) {
             if (!ssrEnabled || !serverConfig) return;
+            // Nuxt invokes configureServer once per Vite dev server (client + SSR). Skip subsequent calls
+            if (ssrInitPromise) return;
             // SSR mode: use ssrLoadModule to load the server in the same Vite process.
             // ssrLoadModule uses Vite's internal transform pipeline (not HTTP),
             ssrLoadModule = (url: string) => server.ssrLoadModule(url);
