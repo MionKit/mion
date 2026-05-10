@@ -106,7 +106,7 @@ export interface MapFromServerFnRef<F extends (...args: any[]) => any = (...args
     paramIndex: number;
     mapFromSymbol: symbol;
     /** Returns this reference cast as ReturnType<F>, allowing it to be passed as a parameter to subrequests */
-    type(): ReturnType<F>;
+    asArg(): ReturnType<F>;
 }
 
 export type MapFromRef = Pick<MapFromServerFnRef<any>, 'fromRequestId' | 'toRequestId' | 'fnName' | 'namespace' | 'paramIndex'>;

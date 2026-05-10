@@ -20,7 +20,7 @@ type MessageIds =
 
 /** Cache of pure function imports from @mionjs/core and @mionjs/client */
 interface PureFnImports {
-    /** Maps local name -> imported name for pureServerFn/registerPureFnFactory/mapFrom */
+    /** Maps local name -> imported name for pureServerFn/registerPureFnFactory/serverMapFrom */
     pureFnNames: Map<string, string>;
 }
 
@@ -36,7 +36,11 @@ function buildPureFnImportCache(program: TSESTree.Program): PureFnImports {
         for (const specifier of statement.specifiers) {
             if (specifier.type === AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === AST_NODE_TYPES.Identifier) {
                 const importedName = specifier.imported.name;
-                if (importedName === 'pureServerFn' || importedName === 'registerPureFnFactory' || importedName === 'mapFrom') {
+                if (
+                    importedName === 'pureServerFn' ||
+                    importedName === 'registerPureFnFactory' ||
+                    importedName === 'serverMapFrom'
+                ) {
                     pureFnNames.set(specifier.local.name, importedName);
                 }
             }
@@ -339,7 +343,7 @@ function reportUnresolvedArgument(
     program: TSESTree.Program,
     context: TSESLint.RuleContext<MessageIds, []>
 ): void {
-    const argIndex = callee === 'registerPureFnFactory' ? 2 : callee === 'mapFrom' ? 1 : 0;
+    const argIndex = callee === 'registerPureFnFactory' ? 2 : callee === 'serverMapFrom' ? 1 : 0;
     const arg = node.arguments[argIndex];
     if (!arg) return;
 
@@ -435,12 +439,12 @@ function extractFactoryFnTarget(
     return null;
 }
 
-/** Extracts the mapper function from a mapFrom(source, mapper) call */
+/** Extracts the mapper function from a serverMapFrom(source, mapper) call */
 function extractMapFromMapperTarget(
     node: TSESTree.CallExpression,
     program: TSESTree.Program
 ): {fnNode: TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression; isFactory: boolean} | null {
-    // mapFrom(source, mapper) - mapper is the 2nd argument
+    // serverMapFrom(source, mapper) - mapper is the 2nd argument
     const mapperArg = node.arguments[1];
     if (!mapperArg) return null;
 
@@ -459,7 +463,7 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
         type: 'problem',
         docs: {
             description:
-                'Validate that functions passed to pureServerFn(), registerPureFnFactory(), and mapFrom() are pure and do not use forbidden identifiers, closures, or side effects.',
+                'Validate that functions passed to pureServerFn(), registerPureFnFactory(), and serverMapFrom() are pure and do not use forbidden identifiers, closures, or side effects.',
         },
         messages: {
             purityThis: "'this' is not allowed in {{fnType}}",
@@ -503,7 +507,7 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
                     target = extractPureServerFnTarget(node, programNode);
                 } else if (importedName === 'registerPureFnFactory') {
                     target = extractFactoryFnTarget(node, programNode);
-                } else if (importedName === 'mapFrom') {
+                } else if (importedName === 'serverMapFrom') {
                     target = extractMapFromMapperTarget(node, programNode);
                 }
 

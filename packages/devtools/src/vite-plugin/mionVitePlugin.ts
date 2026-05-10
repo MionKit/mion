@@ -396,7 +396,7 @@ export function mionVitePlugin(options: MionPluginOptions) {
             const isTsx = tsFileName.endsWith('.tsx') || tsFileName.endsWith('.jsx');
 
             const hasPureFns =
-                code.includes('pureServerFn') || code.includes('registerPureFnFactory') || code.includes('mapFrom');
+                code.includes('pureServerFn') || code.includes('registerPureFnFactory') || code.includes('serverMapFrom');
             const needsDeepkit = deepkitConfig ? deepkitConfig.filter(filterPath) : false;
 
             if (!hasPureFns && !needsDeepkit) return null;

@@ -19,11 +19,11 @@ ruleTester.run('no-vite-client', rule, {
                 pureServerFn((x: number) => x + 1, 'addOne');
             `,
         },
-        // mapFrom with name
+        // serverMapFrom with name
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
-                mapFrom(sub, (x: any) => x.id, 'extractId');
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom(sub, (x: any) => x.id, 'extractId');
             `,
         },
         // pureServerFn with PureFnDef object + name
@@ -64,11 +64,11 @@ ruleTester.run('no-vite-client', rule, {
             `,
             errors: [{messageId: 'missingPureFnName'}],
         },
-        // mapFrom without name
+        // serverMapFrom without name
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
-                mapFrom(sub, (x: any) => x.id);
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom(sub, (x: any) => x.id);
             `,
             errors: [{messageId: 'missingMapFromName'}],
         },
@@ -81,12 +81,12 @@ ruleTester.run('no-vite-client', rule, {
             `,
             errors: [{messageId: 'nameNotStringLiteral'}],
         },
-        // mapFrom with non-string-literal name
+        // serverMapFrom with non-string-literal name
         {
             code: `
-                import { mapFrom } from '@mionjs/client';
+                import { serverMapFrom } from '@mionjs/client';
                 const name = 'extractId';
-                mapFrom(sub, (x: any) => x.id, name);
+                serverMapFrom(sub, (x: any) => x.id, name);
             `,
             errors: [{messageId: 'nameNotStringLiteral'}],
         },

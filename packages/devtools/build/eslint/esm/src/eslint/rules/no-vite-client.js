@@ -4,11 +4,11 @@ const rule = {
   meta: {
     type: "problem",
     docs: {
-      description: "Enforce non-Vite client constraints: require name/bodyHash string literal for pureServerFn() and mapFrom(), and disallow registerPureFnFactory() which requires Vite transforms."
+      description: "Enforce non-Vite client constraints: require name/bodyHash string literal for pureServerFn() and serverMapFrom(), and disallow registerPureFnFactory() which requires Vite transforms."
     },
     messages: {
       missingPureFnName: "pureServerFn() requires a name as the second argument (string literal) for non-Vite environments.",
-      missingMapFromName: "mapFrom() requires a name as the third argument (string literal) for non-Vite environments.",
+      missingMapFromName: "serverMapFrom() requires a name as the third argument (string literal) for non-Vite environments.",
       nameNotStringLiteral: "{{callee}}() name argument must be a string literal, not a variable or expression.",
       registerPureFnFactoryNotAllowed: "registerPureFnFactory() is not supported in non-Vite environments. It requires Vite build-time transforms."
     },
@@ -27,7 +27,7 @@ const rule = {
           for (const specifier of statement.specifiers) {
             if (specifier.type === AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === AST_NODE_TYPES.Identifier) {
               const importedName = specifier.imported.name;
-              if (importedName === "pureServerFn" || importedName === "mapFrom" || importedName === "registerPureFnFactory") {
+              if (importedName === "pureServerFn" || importedName === "serverMapFrom" || importedName === "registerPureFnFactory") {
                 pureFnNames.set(specifier.local.name, importedName);
               }
             }
@@ -49,14 +49,14 @@ const rule = {
               data: { callee: "pureServerFn" }
             });
           }
-        } else if (importedName === "mapFrom") {
+        } else if (importedName === "serverMapFrom") {
           if (node.arguments.length < 3) {
             context.report({ node, messageId: "missingMapFromName" });
           } else if (node.arguments[2].type !== AST_NODE_TYPES.Literal || typeof node.arguments[2].value !== "string") {
             context.report({
               node: node.arguments[2],
               messageId: "nameNotStringLiteral",
-              data: { callee: "mapFrom" }
+              data: { callee: "serverMapFrom" }
             });
           }
         } else if (importedName === "registerPureFnFactory") {

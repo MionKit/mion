@@ -243,7 +243,7 @@ function mionVitePlugin(options) {
       const lang = vueInfo?.lang || "ts";
       const tsFileName = vueInfo ? `${vueInfo.basePath}.${lang}` : fileName;
       const isTsx = tsFileName.endsWith(".tsx") || tsFileName.endsWith(".jsx");
-      const hasPureFns = code.includes("pureServerFn") || code.includes("registerPureFnFactory") || code.includes("mapFrom");
+      const hasPureFns = code.includes("pureServerFn") || code.includes("registerPureFnFactory") || code.includes("serverMapFrom");
       const needsDeepkit = deepkitConfig ? deepkitConfig.filter(filterPath) : false;
       if (!hasPureFns && !needsDeepkit) return null;
       const before = [];

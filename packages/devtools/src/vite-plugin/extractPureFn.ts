@@ -121,9 +121,9 @@ export function scanClientSource(options: ServerPureFunctionsOptions): Extracted
                         effectivePath = `${fullPath}.${scriptBlock.lang}`;
                     }
 
-                    // Quick check: does this file contain pureServerFn or mapFrom?
+                    // Quick check: does this file contain pureServerFn or serverMapFrom?
                     const hasPureFn = code.includes('pureServerFn');
-                    const hasMapFrom = code.includes('mapFrom');
+                    const hasMapFrom = code.includes('serverMapFrom');
                     if (!hasPureFn && !hasMapFrom) continue;
 
                     if (hasPureFn) {
@@ -131,7 +131,7 @@ export function scanClientSource(options: ServerPureFunctionsOptions): Extracted
                         fns.push(...extracted);
                     }
                     if (hasMapFrom) {
-                        const extracted = extractPureFnsFromSource(code, effectivePath, 'mapFrom', options.noViteClient);
+                        const extracted = extractPureFnsFromSource(code, effectivePath, 'serverMapFrom', options.noViteClient);
                         fns.push(...extracted);
                     }
                 } catch (err: any) {
@@ -172,7 +172,7 @@ export function extractPureFnsFromSource(
                 if (fnName === 'registerPureFnFactory') {
                     const extracted = extractDataFromRegisterPureFnFactoryAST(node, sourceFile, filePath);
                     results.push(extracted);
-                } else if (fnName === 'mapFrom') {
+                } else if (fnName === 'serverMapFrom') {
                     const extracted = extractDataFromMapFromCallAST(node, sourceFile, filePath, noViteClient);
                     results.push(extracted);
                 } else {
@@ -297,17 +297,17 @@ function extractDataFromPureFnDefAST(
     );
 }
 
-/** Extracts the mapper function from a mapFrom(source, mapper) call expression */
+/** Extracts the mapper function from a serverMapFrom(source, mapper) call expression */
 function extractDataFromMapFromCallAST(
     call: ts.CallExpression,
     sourceFile: ts.SourceFile,
     filePath: string,
     noViteClient = false
 ): ExtractedPureFn {
-    // Accept 2 or 3 arguments: mapFrom(source, mapper) or mapFrom(source, mapper, 'name') (user-provided name or already transformed)
+    // Accept 2 or 3 arguments: serverMapFrom(source, mapper) or serverMapFrom(source, mapper, 'name') (user-provided name or already transformed)
     if (call.arguments.length < 2 || call.arguments.length > 3) {
         throw new PurityError(
-            'mapFrom() requires 2 or 3 arguments: a SubRequest source, a mapper function, and an optional name/bodyHash string',
+            'serverMapFrom() requires 2 or 3 arguments: a SubRequest source, a mapper function, and an optional name/bodyHash string',
             filePath,
             call.getStart(sourceFile)
         );
@@ -319,14 +319,14 @@ function extractDataFromMapFromCallAST(
         const nameArg = call.arguments[2];
         if (!ts.isStringLiteral(nameArg)) {
             throw new PurityError(
-                'mapFrom() third argument (name/bodyHash) must be a string literal',
+                'serverMapFrom() third argument (name/bodyHash) must be a string literal',
                 filePath,
                 nameArg.getStart(sourceFile)
             );
         }
         if (nameArg.text.length === 0) {
             throw new PurityError(
-                'mapFrom() third argument (name/bodyHash) must not be an empty string',
+                'serverMapFrom() third argument (name/bodyHash) must not be an empty string',
                 filePath,
                 nameArg.getStart(sourceFile)
             );
@@ -334,7 +334,7 @@ function extractDataFromMapFromCallAST(
         userProvidedName = nameArg.text;
     } else if (noViteClient) {
         throw new PurityError(
-            'mapFrom() requires a name as the third argument (string literal) when noViteClient is enabled',
+            'serverMapFrom() requires a name as the third argument (string literal) when noViteClient is enabled',
             filePath,
             call.getStart(sourceFile)
         );
@@ -348,13 +348,13 @@ function extractDataFromMapFromCallAST(
         if (!resolved) {
             if (isImportedIdentifier(arg.text, sourceFile)) {
                 throw new PurityError(
-                    `mapFrom() mapper argument "${arg.text}" is imported from another module. Pure functions must be defined inline or as a variable in the same file`,
+                    `serverMapFrom() mapper argument "${arg.text}" is imported from another module. Pure functions must be defined inline or as a variable in the same file`,
                     filePath,
                     arg.getStart(sourceFile)
                 );
             }
             throw new PurityError(
-                `mapFrom() mapper argument "${arg.text}" could not be resolved to a variable declaration in this file. Pure functions must be defined inline or as a variable in the same file`,
+                `serverMapFrom() mapper argument "${arg.text}" could not be resolved to a variable declaration in this file. Pure functions must be defined inline or as a variable in the same file`,
                 filePath,
                 arg.getStart(sourceFile)
             );
@@ -368,7 +368,7 @@ function extractDataFromMapFromCallAST(
     }
 
     throw new PurityError(
-        'mapFrom() second argument (mapper) must be a function expression or arrow function',
+        'serverMapFrom() second argument (mapper) must be a function expression or arrow function',
         filePath,
         call.arguments[1].getStart(sourceFile)
     );

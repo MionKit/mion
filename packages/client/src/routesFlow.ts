@@ -57,7 +57,7 @@ export function routesFlow<Routes extends RouteSubRequest<any>[]>(routeSubReques
     };
 }
 
-export const mapFromSymbol = Symbol('MapFromServerFnRef');
+const mapFromSymbol = Symbol('MapFromServerFnRef');
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║  WARNING: This function's call signature is parsed by the mion vite plugin  ║
@@ -72,13 +72,13 @@ export const mapFromSymbol = Symbol('MapFromServerFnRef');
  * The bodyHash is injected at build time by the mion vite plugin.
  */
 
-export function mapFrom<FromSR extends SubRequest<any>, MappedInput>(
+export function serverMapFrom<FromSR extends SubRequest<any>, MappedInput>(
     source: FromSR,
     mapper: (value: FromSR['resolvedValue']) => MappedInput,
     bodyHash?: string // injected by mion vite plugin
 ): MapFromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput> {
     // Important: bodyHash is injected at build time by mion vite plugin
-    if (!bodyHash) throw new Error('mapFrom() requires mion vite plugin transform to inject bodyHash');
+    if (!bodyHash) throw new Error('serverMapFrom() requires mion vite plugin transform to inject bodyHash');
     const ref: MapFromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput> = {
         mapFromSymbol,
         namespace: PURE_SERVER_FN_NAMESPACE,
@@ -89,13 +89,13 @@ export function mapFrom<FromSR extends SubRequest<any>, MappedInput>(
         fromRequestId: source.id,
         toRequestId: '',
         paramIndex: -1, // set by MionSubRequest constructor when passed as a parameter
-        type() {
+        asArg() {
             return ref as unknown as MappedInput;
         },
     };
     return ref;
 }
 
-export function isMapFromRef(ref: any): ref is MapFromServerFnRef<any> {
+export function isServerMapFromRef(ref: any): ref is MapFromServerFnRef<any> {
     return ref && ref.mapFromSymbol === mapFromSymbol;
 }

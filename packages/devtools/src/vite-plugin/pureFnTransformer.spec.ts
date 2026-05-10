@@ -239,12 +239,12 @@ export const cpf = registerPureFnFactory('mionFormats', 'dateFn', function (jUti
     });
 });
 
-describe('pureFnTransformer - mapFrom', () => {
+describe('pureFnTransformer - serverMapFrom', () => {
     it('should inject bodyHash as 3rd string argument', () => {
         const source = `
-import {mapFrom} from '@mionjs/client';
+import {serverMapFrom} from '@mionjs/client';
 const sub = {} as any;
-export const ref = mapFrom(sub, (x) => x + 1);
+export const ref = serverMapFrom(sub, (x) => x + 1);
 `;
         const {output, collected} = transformWithPureFn(source);
         expect(collected).toHaveLength(1);
@@ -253,12 +253,12 @@ export const ref = mapFrom(sub, (x) => x + 1);
         expect(output).toContain(`"${hash}"`);
     });
 
-    it('should handle multiple mapFrom() calls in one file', () => {
+    it('should handle multiple serverMapFrom() calls in one file', () => {
         const source = `
-import {mapFrom} from '@mionjs/client';
+import {serverMapFrom} from '@mionjs/client';
 const sub = {} as any;
-export const ref1 = mapFrom(sub, (x) => x + 1);
-export const ref2 = mapFrom(sub, (x) => x * 2);
+export const ref1 = serverMapFrom(sub, (x) => x + 1);
+export const ref2 = serverMapFrom(sub, (x) => x * 2);
 `;
         const {output, collected} = transformWithPureFn(source);
         expect(collected).toHaveLength(2);
@@ -268,9 +268,9 @@ export const ref2 = mapFrom(sub, (x) => x * 2);
 
     it('should be idempotent — skip calls that already have 3 arguments', () => {
         const source = `
-import {mapFrom} from '@mionjs/client';
+import {serverMapFrom} from '@mionjs/client';
 const sub = {} as any;
-export const ref = mapFrom(sub, (x) => x + 1, 'existingHash');
+export const ref = serverMapFrom(sub, (x) => x + 1, 'existingHash');
 `;
         const {output, collected} = transformWithPureFn(source);
         expect(collected).toHaveLength(0);
@@ -279,9 +279,9 @@ export const ref = mapFrom(sub, (x) => x + 1, 'existingHash');
 
     it('should handle named function expression as mapper', () => {
         const source = `
-import {mapFrom} from '@mionjs/client';
+import {serverMapFrom} from '@mionjs/client';
 const sub = {} as any;
-export const ref = mapFrom(sub, function extractName(user) { return user.name; });
+export const ref = serverMapFrom(sub, function extractName(user) { return user.name; });
 `;
         const {output, collected} = transformWithPureFn(source);
         expect(collected).toHaveLength(1);
@@ -313,14 +313,14 @@ export const cpf = registerPureFnFactory('mion', 'double', function () {
         expect(output).toContain('code');
     });
 
-    it('should handle pureServerFn and mapFrom() in the same file', () => {
+    it('should handle pureServerFn and serverMapFrom() in the same file', () => {
         const source = `
 import {pureServerFn} from '@mionjs/core';
-import {mapFrom} from '@mionjs/client';
+import {serverMapFrom} from '@mionjs/client';
 const sub = {} as any;
 
 export const fn = pureServerFn((x) => x + 1);
-export const ref = mapFrom(sub, (x) => x * 2);
+export const ref = serverMapFrom(sub, (x) => x * 2);
 `;
         const {output, collected} = transformWithPureFn(source);
         expect(collected).toHaveLength(2);
