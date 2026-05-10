@@ -31,52 +31,84 @@ afterEach(() => {
 
 describe('config hook - ssr.noExternal', () => {
     const serveEnv: any = {command: 'serve', mode: 'development'};
+    const MION_REGEX_STR = /@mionjs\//.toString();
 
     function getPlugin(aotCaches: true | object = true) {
         return mionVitePlugin({aotCaches});
     }
 
-    it('should add aot-caches to noExternal when ssr config is undefined', () => {
+    it('should add /@mionjs\\// regex and aot-caches when ssr config is undefined', () => {
         const plugin = getPlugin();
         const config: any = {};
         plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual([AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal.map((e: any) => (e instanceof RegExp ? e.toString() : e))).toEqual([
+            MION_REGEX_STR,
+            AOT_CACHES_SHIM,
+        ]);
     });
 
-    it('should add aot-caches to noExternal when ssr.noExternal is undefined', () => {
+    it('should add /@mionjs\\// regex and aot-caches when ssr.noExternal is undefined', () => {
         const plugin = getPlugin();
         const config: any = {ssr: {}};
         plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual([AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal.map((e: any) => (e instanceof RegExp ? e.toString() : e))).toEqual([
+            MION_REGEX_STR,
+            AOT_CACHES_SHIM,
+        ]);
     });
 
     it('should append to existing noExternal array', () => {
         const plugin = getPlugin();
         const config: any = {ssr: {noExternal: ['some-other-module']}};
         plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual(['some-other-module', AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal.map((e: any) => (e instanceof RegExp ? e.toString() : e))).toEqual([
+            'some-other-module',
+            MION_REGEX_STR,
+            AOT_CACHES_SHIM,
+        ]);
     });
 
-    it('should not duplicate if already in noExternal array', () => {
+    it('should not duplicate string entries already in noExternal array', () => {
         const plugin = getPlugin();
         const config: any = {ssr: {noExternal: [AOT_CACHES_SHIM]}};
         plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual([AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal.map((e: any) => (e instanceof RegExp ? e.toString() : e))).toEqual([
+            AOT_CACHES_SHIM,
+            MION_REGEX_STR,
+        ]);
     });
 
-    it('should wrap string noExternal into array with aot-caches', () => {
+    it('should dedupe equivalent regex entries by .toString()', () => {
+        const plugin = getPlugin();
+        const userRegex = /@mionjs\//;
+        const config: any = {ssr: {noExternal: [userRegex]}};
+        plugin.config(config, serveEnv);
+        const stringified = config.ssr.noExternal.map((e: any) => (e instanceof RegExp ? e.toString() : e));
+        expect(stringified.filter((s: string) => s === MION_REGEX_STR).length).toBe(1);
+        expect(stringified).toContain(AOT_CACHES_SHIM);
+    });
+
+    it('should wrap string noExternal into array with regex and aot-caches', () => {
         const plugin = getPlugin();
         const config: any = {ssr: {noExternal: 'some-module'}};
         plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual(['some-module', AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal.map((e: any) => (e instanceof RegExp ? e.toString() : e))).toEqual([
+            'some-module',
+            MION_REGEX_STR,
+            AOT_CACHES_SHIM,
+        ]);
     });
 
-    it('should wrap RegExp noExternal into array with aot-caches', () => {
+    it('should wrap RegExp noExternal into array with mion regex and aot-caches', () => {
         const plugin = getPlugin();
         const regex = /some-pattern/;
         const config: any = {ssr: {noExternal: regex}};
         plugin.config(config, serveEnv);
-        expect(config.ssr.noExternal).toEqual([regex, AOT_CACHES_SHIM]);
+        expect(config.ssr.noExternal.map((e: any) => (e instanceof RegExp ? e.toString() : e))).toEqual([
+            regex.toString(),
+            MION_REGEX_STR,
+            AOT_CACHES_SHIM,
+        ]);
     });
 
     it('should not modify noExternal when set to true', () => {
@@ -86,11 +118,11 @@ describe('config hook - ssr.noExternal', () => {
         expect(config.ssr.noExternal).toBe(true);
     });
 
-    it('should not add noExternal when no shim features are configured', () => {
+    it('should add /@mionjs\\// regex even when no shim features are configured', () => {
         const plugin = mionVitePlugin({});
         const config: any = {};
         plugin.config(config, serveEnv);
-        expect(config.ssr).toBeUndefined();
+        expect(config.ssr.noExternal.map((e: any) => (e instanceof RegExp ? e.toString() : e))).toEqual([MION_REGEX_STR]);
     });
 });
 

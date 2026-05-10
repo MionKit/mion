@@ -84,10 +84,12 @@ function mionVitePlugin(options) {
           }
         }
       }
+      const ssrEntries = [/@mionjs\//];
       const shimModules = [];
       if (pureFnOptions) shimModules.push(src_vitePlugin_constants.SERVER_PURE_FNS_SHIM);
       if (aotOptions) shimModules.push(src_vitePlugin_constants.AOT_CACHES_SHIM);
-      addSsrNoExternal(config, shimModules);
+      ssrEntries.push(...shimModules);
+      addSsrNoExternal(config, ssrEntries);
       if (env.command === "build" && shimModules.length > 0) {
         wrapBuildExternal(config, shimModules);
       }
@@ -462,19 +464,21 @@ function resolveShimModule(id, importer, shimSpecifier, virtualModuleId, entryNa
   }
   return null;
 }
-function addSsrNoExternal(config, moduleIds) {
-  if (moduleIds.length === 0) return;
-  const noExternal = config.ssr?.noExternal;
+function addSsrNoExternal(config, entries) {
+  if (entries.length === 0) return;
   if (!config.ssr) config.ssr = {};
-  if (Array.isArray(noExternal)) {
-    for (const moduleId of moduleIds) {
-      if (!noExternal.includes(moduleId)) noExternal.push(moduleId);
+  const current = config.ssr.noExternal;
+  if (current === true) return;
+  const list = Array.isArray(current) ? [...current] : current ? [current] : [];
+  const seen = new Set(list.map((e) => e instanceof RegExp ? e.toString() : e));
+  for (const entry of entries) {
+    const key = entry instanceof RegExp ? entry.toString() : entry;
+    if (!seen.has(key)) {
+      list.push(entry);
+      seen.add(key);
     }
-  } else if (typeof noExternal === "string") {
-    config.ssr.noExternal = [noExternal, ...moduleIds];
-  } else if (noExternal !== true) {
-    config.ssr.noExternal = noExternal ? [noExternal, ...moduleIds] : [...moduleIds];
   }
+  config.ssr.noExternal = list;
 }
 function wrapBuildExternal(config, shimModules) {
   if (!config.build) config.build = {};

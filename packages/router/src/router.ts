@@ -37,6 +37,7 @@ import {
     isMionCompileMode,
     isMionAOTEmitMode,
     resetRoutesCache,
+    getOrCreateGlobal,
 } from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns} from './lib/reflection.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
@@ -58,12 +59,15 @@ type RoutesWithId = {
 // ############# PRIVATE STATE #############
 
 const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
-const flatRouter: Map<string, MethodsExecutionChain> = new Map(); // Main Router
-const middleFnsById: Map<string, MiddleFnMethod | HeadersMethod | RawMethod> = new Map();
-const routesById: Map<string, RouteMethod> = new Map();
-const rawMiddleFnsById: Map<string, RawMethod> = new Map();
-const middleFnNames: Set<string> = new Set();
-const routeNames: Set<string> = new Set();
+const flatRouter = getOrCreateGlobal('mion.router.flatRouter', () => new Map<string, MethodsExecutionChain>()); // Main Router
+const middleFnsById = getOrCreateGlobal(
+    'mion.router.middleFnsById',
+    () => new Map<string, MiddleFnMethod | HeadersMethod | RawMethod>()
+);
+const routesById = getOrCreateGlobal('mion.router.routesById', () => new Map<string, RouteMethod>());
+const rawMiddleFnsById = getOrCreateGlobal('mion.router.rawMiddleFnsById', () => new Map<string, RawMethod>());
+const middleFnNames = getOrCreateGlobal('mion.router.middleFnNames', () => new Set<string>());
+const routeNames = getOrCreateGlobal('mion.router.routeNames', () => new Set<string>());
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;

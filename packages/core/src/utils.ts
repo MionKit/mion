@@ -8,6 +8,14 @@
 import {getJitUtils} from './jit/jitUtils.ts';
 import type {CompiledPureFunction} from './types/pureFunctions.types.ts';
 
+/** Stores singleton state on globalThis so it survives dual module loading (e.g. CJS + ESM copies).
+ *  noExternal remains the primary mechanism — this is defense-in-depth and a code-level signal that
+ *  the binding is intended to be a process-wide singleton. */
+export function getOrCreateGlobal<T>(key: string, factory: () => T): T {
+    const sym = Symbol.for(key);
+    return ((globalThis as any)[sym] ??= factory()) as T;
+}
+
 /** Generates a random UUID V7 (RFC 9562),
  * uses crypto.randomUUID() (v4) as random source as it's a native C++ binding that batches entropy,
  * might be faster than allocating typed arrays via crypto.getRandomValues */

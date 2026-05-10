@@ -18,10 +18,10 @@ import type {
 } from '@mionjs/core';
 import {isRoute, isHeadersMiddleFnDef, isMiddleFnDef} from '../types/guards.ts';
 import {getMiddleFnExecutable, getRouteExecutable, isPrivateDefinition} from '../router.ts';
-import {getRouterItemId, MAX_STACK_DEPTH, getJitFnHashes, getJitUtils, EMPTY_HASH} from '@mionjs/core';
+import {getRouterItemId, MAX_STACK_DEPTH, getJitFnHashes, getJitUtils, EMPTY_HASH, getOrCreateGlobal} from '@mionjs/core';
 
 // ############# PRIVATE STATE #############
-const publicMethods: Map<string, MethodWithOptions> = new Map();
+const publicMethods = getOrCreateGlobal('mion.remoteMethods.publicMethods', () => new Map<string, MethodWithOptions>());
 
 // ############# PUBLIC METHODS #############
 export function resetRemoteMethodsMetadata() {
