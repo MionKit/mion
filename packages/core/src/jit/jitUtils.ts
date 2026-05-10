@@ -18,17 +18,23 @@ import type {
 } from '../types/general.types.ts';
 import {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 import {PureFunction} from '../types/pureFunctions.types.ts';
-import {initPureFunction, isTestEnv} from '../utils.ts';
+import {initPureFunction, isTestEnv, getOrCreateGlobal} from '../utils.ts';
 import {restoreCompiledJitFns} from '../pureFns/restoreJitFns.ts';
 
 // Local caches - can be populated from AOT caches via addAOTCaches()
-const jitFnsCache: JitFunctionsCache = {};
+const jitFnsCache: JitFunctionsCache = getOrCreateGlobal('mion.jit.jitFnsCache', () => ({}) as JitFunctionsCache);
 /** Namespaced pure functions cache: { namespace: { fnHash: CompiledPureFunction } } */
-const pureFnsCache: PureFunctionsCache = {};
+const pureFnsCache: PureFunctionsCache = getOrCreateGlobal('mion.jit.pureFnsCache', () => ({}) as PureFunctionsCache);
 
 // serializable classes registry, serializable classes can be automatically deserialized if they are registered here
-const deserializeFnsRegistry = new Map<string, DeserializeClassFn<any>>();
-const serializableClassRegistry = new Map<string, SerializableClass>();
+const deserializeFnsRegistry = getOrCreateGlobal(
+    'mion.jit.deserializeFnsRegistry',
+    () => new Map<string, DeserializeClassFn<any>>()
+);
+const serializableClassRegistry = getOrCreateGlobal(
+    'mion.jit.serializableClassRegistry',
+    () => new Map<string, SerializableClass>()
+);
 
 /**
  * Interface defining the shape of jitUtils

@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getENV} from '../utils.ts';
+import {getENV, getOrCreateGlobal} from '../utils.ts';
 
-const hashes = new Map<string, string>();
-const literalHashes = new Map<string, string>();
+const hashes = getOrCreateGlobal('mion.quickHash.hashes', () => new Map<string, string>());
+const literalHashes = getOrCreateGlobal('mion.quickHash.literalHashes', () => new Map<string, string>());
 const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const alphaChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const hashIncrement = 2;

@@ -160,11 +160,15 @@ export function mionVitePlugin(options: MionPluginOptions) {
                 }
             }
 
-            // Ensure Vite bundles shim modules instead of externalizing them
+            // Ensure Vite bundles all @mionjs/* packages and shim modules as a single instance.
+            // noExternal is the primary mechanism for guaranteeing single-instance state — the
+            // /@mionjs\// regex is added unconditionally so users don't have to write it manually.
+            const ssrEntries: (string | RegExp)[] = [/@mionjs\//];
             const shimModules: string[] = [];
             if (pureFnOptions) shimModules.push(SERVER_PURE_FNS_SHIM);
             if (aotOptions) shimModules.push(AOT_CACHES_SHIM);
-            addSsrNoExternal(config, shimModules);
+            ssrEntries.push(...shimModules);
+            addSsrNoExternal(config, ssrEntries);
 
             // Wrap build.rollupOptions.external so shim and virtual modules are never externalized
             if (env.command === 'build' && shimModules.length > 0) {
@@ -685,20 +689,23 @@ function resolveShimModule(
     return null;
 }
 
-/** Adds module specifiers to Vite's ssr.noExternal so they are bundled instead of externalized. */
-function addSsrNoExternal(config: Record<string, any>, moduleIds: string[]): void {
-    if (moduleIds.length === 0) return;
-    const noExternal = config.ssr?.noExternal;
+/** Adds module specifiers (string or RegExp) to Vite's ssr.noExternal so they are bundled instead of externalized.
+ *  Dedupes strings by `===` and regex by `.toString()` so repeated entries (e.g. user's own /@mionjs\//) don't accumulate. */
+function addSsrNoExternal(config: Record<string, any>, entries: (string | RegExp)[]): void {
+    if (entries.length === 0) return;
     if (!config.ssr) config.ssr = {};
-    if (Array.isArray(noExternal)) {
-        for (const moduleId of moduleIds) {
-            if (!noExternal.includes(moduleId)) noExternal.push(moduleId);
+    const current = config.ssr.noExternal;
+    if (current === true) return;
+    const list: (string | RegExp)[] = Array.isArray(current) ? [...current] : current ? [current] : [];
+    const seen = new Set(list.map((e) => (e instanceof RegExp ? e.toString() : e)));
+    for (const entry of entries) {
+        const key = entry instanceof RegExp ? entry.toString() : entry;
+        if (!seen.has(key)) {
+            list.push(entry);
+            seen.add(key);
         }
-    } else if (typeof noExternal === 'string') {
-        config.ssr.noExternal = [noExternal, ...moduleIds];
-    } else if (noExternal !== true) {
-        config.ssr.noExternal = noExternal ? [noExternal, ...moduleIds] : [...moduleIds];
     }
+    config.ssr.noExternal = list;
 }
 
 /** Wraps build.rollupOptions.external so shim and virtual modules are always bundled. */

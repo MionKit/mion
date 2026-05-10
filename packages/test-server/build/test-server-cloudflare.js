@@ -113,6 +113,375 @@
     fromBinary: "fBi"
   };
   const EMPTY_HASH = "";
+  const __ΩReadonly = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
+  let options = { ...DEFAULT_CORE_OPTIONS };
+  function setErrorOptions(opts2) {
+    options = opts2;
+  }
+  setErrorOptions.__type = ["CoreRouterOptions", "opts", "setErrorOptions", 'P"w!2""/#'];
+  class TypedError extends Error {
+    /**
+     * Unique error identifier,
+     * Ideally this should be a symbol but we need to be able to serialize it so a namespaced prop is used instead
+     */
+    // eslint-disable-next-line @typescript-eslint/prefer-as-const
+    "mion@isΣrrθr" = true;
+    /** Error type, can be used as discriminator in union types*/
+    type;
+    // Note: message and name are NOT declared as properties here
+    // They are inherited from Error class and assigned in constructor
+    // This prevents them from being included in type reflection for JIT validation
+    constructor({ message, originalError, type }) {
+      const errorMessage = message || originalError?.message || "";
+      super(errorMessage);
+      this.type = type;
+      Object.defineProperty(this, "message", {
+        value: errorMessage,
+        writable: true,
+        enumerable: false,
+        configurable: true
+      });
+      Object.defineProperty(this, "name", {
+        value: "TypedError",
+        writable: true,
+        enumerable: false,
+        configurable: true
+      });
+      if (originalError?.stack) {
+        try {
+          this.stack = originalError.stack;
+        } catch {
+          try {
+            Object.defineProperty(this, "stack", {
+              value: originalError.stack,
+              writable: true,
+              configurable: true
+            });
+          } catch {
+          }
+        }
+      }
+      Object.setPrototypeOf(this, TypedError.prototype);
+    }
+    static __type = ["ErrType", () => Error, true, "mion@isΣrrθr", function() {
+      return true;
+    }, "type", "TypedErrorParams", "param0", "constructor", "TypedError", `b!P7".#3$9>%e!!3&9P"w'2("0)5w*`];
+  }
+  class RpcError extends TypedError {
+    // Note: name is NOT declared as a property here
+    // It is inherited from Error class and assigned in constructor
+    // This prevents it from being included in type reflection for JIT validation
+    /**
+     * id of the error, ideally each error should unique identifiable
+     * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
+     * */
+    id;
+    /** the message that will be returned in the response */
+    publicMessage;
+    /** options data related to the error, ie validation data, must be json serializable */
+    errorData;
+    /** optional http status code */
+    statusCode;
+    constructor({ message, publicMessage, originalError, errorData, type, id, statusCode }) {
+      const originalMessage = message || originalError?.message || publicMessage || "";
+      super({
+        message: originalMessage,
+        originalError,
+        type
+      });
+      const { autoGenerateErrorId } = options;
+      this.id = id ?? (autoGenerateErrorId ? randomUUID_V7() : void 0);
+      this.publicMessage = publicMessage || "";
+      this.errorData = errorData;
+      this.statusCode = statusCode;
+      Object.defineProperty(this, "name", {
+        value: "RpcError",
+        writable: true,
+        enumerable: false,
+        configurable: true
+      });
+      Object.setPrototypeOf(this, RpcError.prototype);
+    }
+    static __type = ["ErrType", "ErrData", () => TypedError, "id", "publicMessage", () => __ΩReadonly, "errorData", "statusCode", "AnyErrorParams", "param0", "constructor", "RpcErrorParams", "RpcError", `b!"c"Pe"!7#P'&J3$89&3%9e!"o&"3'89'3(8P"w)2*"0+5e!!6""w,x"w-`];
+  }
+  function restoreCompiledJitFns(jitCache, pureCache, jUtil) {
+    const visitedPure = /* @__PURE__ */ new Set();
+    const visitedJit = /* @__PURE__ */ new Set();
+    for (const namespace in pureCache) {
+      const nsCache = pureCache[namespace];
+      const keysPureFns = Object.keys(nsCache);
+      keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, namespace, key, jUtil, visitedPure));
+    }
+    const keysJitFns = Object.keys(jitCache);
+    keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key, jUtil, visitedPure, visitedJit));
+  }
+  function restoreCompiledPureFn(pureCache, namespace, fnName, jUtil, visited) {
+    const visitedKey = `${namespace}:${fnName}`;
+    if (visited.has(visitedKey)) return;
+    visited.add(visitedKey);
+    const nsCache = pureCache[namespace];
+    if (!nsCache) throw new Error(`Pure function namespace ${namespace} not found`);
+    const pureCompiled = nsCache[fnName];
+    if (!pureCompiled) throw new Error(`Pure function ${fnName} not found in namespace ${namespace}`);
+    if (pureCompiled.fn) return;
+    const dependencies = pureCompiled.pureFnDependencies || [];
+    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, namespace, depName, jUtil, visited));
+    if (pureCompiled.createPureFn) {
+      pureCompiled.fn = pureCompiled.createPureFn(jUtil);
+      return;
+    }
+    restorePureFunction(pureCompiled, jUtil);
+  }
+  function restoreCompiledJitFn(jitCache, pureCache, fnHash, jUtil, visitedPure, visitedJit) {
+    if (visitedJit.has(fnHash)) return;
+    visitedJit.add(fnHash);
+    const jitCompiled = jitCache[fnHash];
+    if (!jitCompiled) throw new Error(`Jit function ${fnHash} not found`);
+    if (jitCompiled.fn) return;
+    const pureDependencies = jitCompiled.pureFnDependencies || [];
+    pureDependencies.forEach((dep) => {
+      const parts = dep.split("::");
+      if (parts.length !== 2) throw new Error(`Invalid pure function dependency format: ${dep}, expected "namespace::fnHash"`);
+      const [namespace, fnHash2] = parts;
+      restoreCompiledPureFn(pureCache, namespace, fnHash2, jUtil, visitedPure);
+    });
+    const dependencies = jitCompiled.jitDependencies || [];
+    dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep, jUtil, visitedPure, visitedJit));
+    if (jitCompiled.createJitFn) {
+      jitCompiled.fn = jitCompiled.createJitFn(jUtil);
+      return;
+    }
+    restoreCreateJitFn(jitCompiled, jUtil);
+  }
+  function restoreCreateJitFn(fnData, jUtil) {
+    const fnName = fnData.jitFnHash;
+    const fnWithContext = `'use strict'; ${fnData.code}`;
+    try {
+      const wrapperWithContext = new Function("utl", fnWithContext);
+      const fn = wrapperWithContext(jUtil);
+      const jitFn = fnData;
+      jitFn.createJitFn = wrapperWithContext;
+      jitFn.fn = fn;
+      return jitFn;
+    } catch (e) {
+      throw new TypedError({
+        type: "jit-fn-restore-error",
+        message: `Failed to restore JIT function ${fnName}: ${e?.message}`
+      });
+    }
+  }
+  function restorePureFunction(pureFnData, jUtil) {
+    const fnName = pureFnData.fnName;
+    const fnWithContext = `'use strict'; ${pureFnData.code}`;
+    try {
+      const wrapperWithContext = new Function("utl", fnWithContext);
+      const fn = wrapperWithContext(jUtil);
+      const pureFn = pureFnData;
+      pureFn.createPureFn = wrapperWithContext;
+      pureFn.fn = fn;
+      return pureFn;
+    } catch (e) {
+      throw new TypedError({
+        type: "pure-fn-restore-error",
+        message: `Failed to restore pure function ${fnName}: ${e?.message}`
+      });
+    }
+  }
+  const jitFnsCache$1 = getOrCreateGlobal("mion.jit.jitFnsCache", () => ({}));
+  const pureFnsCache$1 = getOrCreateGlobal("mion.jit.pureFnsCache", () => ({}));
+  const deserializeFnsRegistry = getOrCreateGlobal(
+    "mion.jit.deserializeFnsRegistry",
+    () => /* @__PURE__ */ new Map()
+  );
+  const serializableClassRegistry = getOrCreateGlobal(
+    "mion.jit.serializableClassRegistry",
+    () => /* @__PURE__ */ new Map()
+  );
+  const jitUtils = {
+    addToJitCache(comp) {
+      jitFnsCache$1[comp.jitFnHash] = comp;
+    },
+    removeFromJitCache(comp) {
+      if (!jitFnsCache$1[comp.jitFnHash]) return;
+      jitFnsCache$1[comp.jitFnHash] = void 0;
+    },
+    getJIT(jitFnHash) {
+      return jitFnsCache$1[jitFnHash];
+    },
+    getJitFn(jitFnHash) {
+      const comp = jitFnsCache$1[jitFnHash];
+      if (!comp) throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
+      return comp.fn;
+    },
+    hasJitFn(jitFnHash) {
+      return !!jitFnsCache$1[jitFnHash]?.fn;
+    },
+    /**
+     * Checks if key map can be serialized/deserialized with json and still works as a key for a map.
+     * ie: if a map key is an string, it can be serialized to json and deserialized back an still will identify the correct map entry.
+     * ie: if a map entry is an object, the object can not be serialized/deserialized and wont work as the same key for entry map as they are not same memory ref.
+     *  */
+    addPureFn(namespace, compiledFn) {
+      const fnHash = compiledFn.fnName;
+      if (!fnHash) throw new Error("Pure function must have a name and must be unique");
+      const nsCache = ensureNamespace(namespace);
+      const existing = nsCache[fnHash];
+      if (existing) {
+        if (existing.bodyHash && compiledFn.bodyHash && existing.bodyHash !== compiledFn.bodyHash) {
+          console.warn(
+            `Pure function ${namespace}::${fnHash} body hash mismatch. Existing: ${existing.bodyHash}, New: ${compiledFn.bodyHash}. Replacing with new version.`
+          );
+          nsCache[fnHash] = compiledFn;
+          return compiledFn;
+        }
+        return existing;
+      }
+      nsCache[fnHash] = compiledFn;
+      return compiledFn;
+    },
+    usePureFn(namespace, fnHash) {
+      const nsCache = pureFnsCache$1[namespace];
+      if (!nsCache) throw new Error(`Pure function namespace ${namespace} not found`);
+      const compiled = nsCache[fnHash];
+      if (!compiled) throw new Error(`Pure function with name ${fnHash} not found in namespace ${namespace}`);
+      initPureFunction(compiled);
+      return compiled.fn;
+    },
+    getPureFn(namespace, fnHash) {
+      const nsCache = pureFnsCache$1[namespace];
+      if (!nsCache) return;
+      const compiled = nsCache[fnHash];
+      if (!compiled) return;
+      initPureFunction(compiled);
+      return compiled.fn;
+    },
+    getCompiledPureFn(namespace, fnHash) {
+      const nsCache = pureFnsCache$1[namespace];
+      if (!nsCache) return;
+      return nsCache[fnHash];
+    },
+    hasPureFn(namespace, fnHash) {
+      const nsCache = pureFnsCache$1[namespace];
+      if (!nsCache) return false;
+      return !!nsCache[fnHash];
+    },
+    findCompiledPureFn(fnHash) {
+      for (const namespace of Object.keys(pureFnsCache$1)) {
+        const nsCache = pureFnsCache$1[namespace];
+        if (nsCache && nsCache[fnHash]) return nsCache[fnHash];
+      }
+      return void 0;
+    },
+    setSerializableClass(cls) {
+      const className = cls.name;
+      const existingClass = serializableClassRegistry.get(className);
+      if (existingClass && existingClass !== cls) throw new Error(`Deserializable Class ${className} already registered`);
+      serializableClassRegistry.set(className, cls);
+    },
+    useSerializeClass(className) {
+      const cls = serializableClassRegistry.get(className);
+      if (!cls) throw new Error(`Serializable class with name ${className} not found, be sure to register it first`);
+      return cls;
+    },
+    getSerializeClass(className) {
+      return serializableClassRegistry.get(className);
+    },
+    setDeserializeFn(cls, deserializeFn) {
+      const className = cls.name;
+      const fn = deserializeFnsRegistry.get(className);
+      if (fn && fn !== deserializeFn) throw new Error(`Deserialize function for class ${className} already exists`);
+      if (fn) return;
+      deserializeFnsRegistry.set(className, deserializeFn);
+    },
+    useDeserializeFn(className) {
+      const fn = deserializeFnsRegistry.get(className);
+      if (!fn) throw new Error(`Deserialize function for class ${className} not found, be sure to register it first`);
+      return fn;
+    },
+    getDeserializeFn(className) {
+      return deserializeFnsRegistry.get(className);
+    }
+  };
+  function getJitUtils() {
+    return jitUtils;
+  }
+  function addAOTCaches(aotFnsCache, aotPureCache) {
+    restoreCaches(aotFnsCache, aotPureCache);
+  }
+  function restoreCaches(fnsCache, pureCache) {
+    for (const key in fnsCache) {
+      if (!(key in jitFnsCache$1)) {
+        jitFnsCache$1[key] = { ...fnsCache[key] };
+      }
+    }
+    for (const namespace in pureCache) {
+      const nsCache = ensureNamespace(namespace);
+      const sourceNsCache = pureCache[namespace];
+      for (const key in sourceNsCache) {
+        const existing = nsCache[key];
+        const incoming = sourceNsCache[key];
+        if (existing) {
+          if (existing.bodyHash && incoming.bodyHash && existing.bodyHash !== incoming.bodyHash) {
+            console.warn(
+              `Pure function ${namespace}::${key} cache eviction: bodyHash mismatch (cached: ${existing.bodyHash}, server: ${incoming.bodyHash})`
+            );
+            nsCache[key] = { ...incoming };
+          }
+        } else {
+          nsCache[key] = { ...incoming };
+        }
+      }
+    }
+    restoreCompiledJitFns(jitFnsCache$1, pureFnsCache$1, getJitUtils());
+  }
+  function getJitFnCaches() {
+    return {
+      jitFnsCache: jitFnsCache$1,
+      pureFnsCache: pureFnsCache$1
+    };
+  }
+  function ensureNamespace(namespace) {
+    if (!pureFnsCache$1[namespace]) {
+      pureFnsCache$1[namespace] = {};
+    }
+    return pureFnsCache$1[namespace];
+  }
+  function getOrCreateGlobal(key, factory) {
+    const sym = Symbol.for(key);
+    return globalThis[sym] ??= factory();
+  }
+  function randomUUID_V7() {
+    const uuid = crypto.randomUUID();
+    const tHex = Date.now().toString(16).padStart(12, "0");
+    return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
+  }
+  function getENV(key) {
+    if (typeof process !== "undefined" && process.env) {
+      return process.env[key];
+    }
+    return void 0;
+  }
+  function fromBase64Url(encoded) {
+    return atob(encoded.replace(/-/g, "+").replace(/_/g, "/"));
+  }
+  let isTest = void 0;
+  function isMionCompileMode() {
+    const val = getENV("MION_COMPILE");
+    return val === "buildOnly" || val === "middleware";
+  }
+  function isMionAOTEmitMode() {
+    const val = getENV("MION_COMPILE");
+    return val === "buildOnly" || val === "middleware" || val === "childProcess";
+  }
+  function isTestEnv() {
+    if (isTest !== void 0) return isTest;
+    isTest = getENV("VITEST") !== void 0 || getENV("NODE_ENV") === "test";
+    return isTest;
+  }
+  function initPureFunction(compiled) {
+    if (compiled.fn) return;
+    compiled.fn = compiled.createPureFn(getJitUtils());
+  }
   const __ΩPureFunction = ["args", "", "PureFunction", 'P"@2!"/"w#y'];
   const __ΩPureFunctionFactory = ["JITUtils", "jitUtils", () => __ΩPureFunction, "", "PureFunctionFactory", 'P"w!2"n#/$w%y'];
   const __ΩPureFunctionData = ["namespace", "paramNames", "code", "fnName", "bodyHash", "pureFnDependencies", "PureFunctionData", `P&4!9&F4"9&4#9&4$9&4%9&F4&89Mw'y`];
@@ -360,365 +729,6 @@
       opts.stringBytesCache.set(entries[i][0], entries[i][1]);
     }
   }
-  function restoreCompiledJitFns(jitCache, pureCache, jUtil) {
-    const visitedPure = /* @__PURE__ */ new Set();
-    const visitedJit = /* @__PURE__ */ new Set();
-    for (const namespace in pureCache) {
-      const nsCache = pureCache[namespace];
-      const keysPureFns = Object.keys(nsCache);
-      keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, namespace, key, jUtil, visitedPure));
-    }
-    const keysJitFns = Object.keys(jitCache);
-    keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key, jUtil, visitedPure, visitedJit));
-  }
-  function restoreCompiledPureFn(pureCache, namespace, fnName, jUtil, visited) {
-    const visitedKey = `${namespace}:${fnName}`;
-    if (visited.has(visitedKey)) return;
-    visited.add(visitedKey);
-    const nsCache = pureCache[namespace];
-    if (!nsCache) throw new Error(`Pure function namespace ${namespace} not found`);
-    const pureCompiled = nsCache[fnName];
-    if (!pureCompiled) throw new Error(`Pure function ${fnName} not found in namespace ${namespace}`);
-    if (pureCompiled.fn) return;
-    const dependencies = pureCompiled.pureFnDependencies || [];
-    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, namespace, depName, jUtil, visited));
-    if (pureCompiled.createPureFn) {
-      pureCompiled.fn = pureCompiled.createPureFn(jUtil);
-      return;
-    }
-    restorePureFunction(pureCompiled, jUtil);
-  }
-  function restoreCompiledJitFn(jitCache, pureCache, fnHash, jUtil, visitedPure, visitedJit) {
-    if (visitedJit.has(fnHash)) return;
-    visitedJit.add(fnHash);
-    const jitCompiled = jitCache[fnHash];
-    if (!jitCompiled) throw new Error(`Jit function ${fnHash} not found`);
-    if (jitCompiled.fn) return;
-    const pureDependencies = jitCompiled.pureFnDependencies || [];
-    pureDependencies.forEach((dep) => {
-      const parts = dep.split("::");
-      if (parts.length !== 2) throw new Error(`Invalid pure function dependency format: ${dep}, expected "namespace::fnHash"`);
-      const [namespace, fnHash2] = parts;
-      restoreCompiledPureFn(pureCache, namespace, fnHash2, jUtil, visitedPure);
-    });
-    const dependencies = jitCompiled.jitDependencies || [];
-    dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep, jUtil, visitedPure, visitedJit));
-    if (jitCompiled.createJitFn) {
-      jitCompiled.fn = jitCompiled.createJitFn(jUtil);
-      return;
-    }
-    restoreCreateJitFn(jitCompiled, jUtil);
-  }
-  function restoreCreateJitFn(fnData, jUtil) {
-    const fnName = fnData.jitFnHash;
-    const fnWithContext = `'use strict'; ${fnData.code}`;
-    try {
-      const wrapperWithContext = new Function("utl", fnWithContext);
-      const fn = wrapperWithContext(jUtil);
-      const jitFn = fnData;
-      jitFn.createJitFn = wrapperWithContext;
-      jitFn.fn = fn;
-      return jitFn;
-    } catch (e) {
-      throw new TypedError({
-        type: "jit-fn-restore-error",
-        message: `Failed to restore JIT function ${fnName}: ${e?.message}`
-      });
-    }
-  }
-  function restorePureFunction(pureFnData, jUtil) {
-    const fnName = pureFnData.fnName;
-    const fnWithContext = `'use strict'; ${pureFnData.code}`;
-    try {
-      const wrapperWithContext = new Function("utl", fnWithContext);
-      const fn = wrapperWithContext(jUtil);
-      const pureFn = pureFnData;
-      pureFn.createPureFn = wrapperWithContext;
-      pureFn.fn = fn;
-      return pureFn;
-    } catch (e) {
-      throw new TypedError({
-        type: "pure-fn-restore-error",
-        message: `Failed to restore pure function ${fnName}: ${e?.message}`
-      });
-    }
-  }
-  const jitFnsCache$1 = {};
-  const pureFnsCache$1 = {};
-  const deserializeFnsRegistry = /* @__PURE__ */ new Map();
-  const serializableClassRegistry = /* @__PURE__ */ new Map();
-  const jitUtils = {
-    addToJitCache(comp) {
-      jitFnsCache$1[comp.jitFnHash] = comp;
-    },
-    removeFromJitCache(comp) {
-      if (!jitFnsCache$1[comp.jitFnHash]) return;
-      jitFnsCache$1[comp.jitFnHash] = void 0;
-    },
-    getJIT(jitFnHash) {
-      return jitFnsCache$1[jitFnHash];
-    },
-    getJitFn(jitFnHash) {
-      const comp = jitFnsCache$1[jitFnHash];
-      if (!comp) throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
-      return comp.fn;
-    },
-    hasJitFn(jitFnHash) {
-      return !!jitFnsCache$1[jitFnHash]?.fn;
-    },
-    /**
-     * Checks if key map can be serialized/deserialized with json and still works as a key for a map.
-     * ie: if a map key is an string, it can be serialized to json and deserialized back an still will identify the correct map entry.
-     * ie: if a map entry is an object, the object can not be serialized/deserialized and wont work as the same key for entry map as they are not same memory ref.
-     *  */
-    addPureFn(namespace, compiledFn) {
-      const fnHash = compiledFn.fnName;
-      if (!fnHash) throw new Error("Pure function must have a name and must be unique");
-      const nsCache = ensureNamespace(namespace);
-      const existing = nsCache[fnHash];
-      if (existing) {
-        if (existing.bodyHash && compiledFn.bodyHash && existing.bodyHash !== compiledFn.bodyHash) {
-          console.warn(
-            `Pure function ${namespace}::${fnHash} body hash mismatch. Existing: ${existing.bodyHash}, New: ${compiledFn.bodyHash}. Replacing with new version.`
-          );
-          nsCache[fnHash] = compiledFn;
-          return compiledFn;
-        }
-        return existing;
-      }
-      nsCache[fnHash] = compiledFn;
-      return compiledFn;
-    },
-    usePureFn(namespace, fnHash) {
-      const nsCache = pureFnsCache$1[namespace];
-      if (!nsCache) throw new Error(`Pure function namespace ${namespace} not found`);
-      const compiled = nsCache[fnHash];
-      if (!compiled) throw new Error(`Pure function with name ${fnHash} not found in namespace ${namespace}`);
-      initPureFunction(compiled);
-      return compiled.fn;
-    },
-    getPureFn(namespace, fnHash) {
-      const nsCache = pureFnsCache$1[namespace];
-      if (!nsCache) return;
-      const compiled = nsCache[fnHash];
-      if (!compiled) return;
-      initPureFunction(compiled);
-      return compiled.fn;
-    },
-    getCompiledPureFn(namespace, fnHash) {
-      const nsCache = pureFnsCache$1[namespace];
-      if (!nsCache) return;
-      return nsCache[fnHash];
-    },
-    hasPureFn(namespace, fnHash) {
-      const nsCache = pureFnsCache$1[namespace];
-      if (!nsCache) return false;
-      return !!nsCache[fnHash];
-    },
-    findCompiledPureFn(fnHash) {
-      for (const namespace of Object.keys(pureFnsCache$1)) {
-        const nsCache = pureFnsCache$1[namespace];
-        if (nsCache && nsCache[fnHash]) return nsCache[fnHash];
-      }
-      return void 0;
-    },
-    setSerializableClass(cls) {
-      const className = cls.name;
-      const existingClass = serializableClassRegistry.get(className);
-      if (existingClass && existingClass !== cls) throw new Error(`Deserializable Class ${className} already registered`);
-      serializableClassRegistry.set(className, cls);
-    },
-    useSerializeClass(className) {
-      const cls = serializableClassRegistry.get(className);
-      if (!cls) throw new Error(`Serializable class with name ${className} not found, be sure to register it first`);
-      return cls;
-    },
-    getSerializeClass(className) {
-      return serializableClassRegistry.get(className);
-    },
-    setDeserializeFn(cls, deserializeFn) {
-      const className = cls.name;
-      const fn = deserializeFnsRegistry.get(className);
-      if (fn && fn !== deserializeFn) throw new Error(`Deserialize function for class ${className} already exists`);
-      if (fn) return;
-      deserializeFnsRegistry.set(className, deserializeFn);
-    },
-    useDeserializeFn(className) {
-      const fn = deserializeFnsRegistry.get(className);
-      if (!fn) throw new Error(`Deserialize function for class ${className} not found, be sure to register it first`);
-      return fn;
-    },
-    getDeserializeFn(className) {
-      return deserializeFnsRegistry.get(className);
-    }
-  };
-  function getJitUtils() {
-    return jitUtils;
-  }
-  function addAOTCaches(aotFnsCache, aotPureCache) {
-    restoreCaches(aotFnsCache, aotPureCache);
-  }
-  function restoreCaches(fnsCache, pureCache) {
-    for (const key in fnsCache) {
-      if (!(key in jitFnsCache$1)) {
-        jitFnsCache$1[key] = { ...fnsCache[key] };
-      }
-    }
-    for (const namespace in pureCache) {
-      const nsCache = ensureNamespace(namespace);
-      const sourceNsCache = pureCache[namespace];
-      for (const key in sourceNsCache) {
-        const existing = nsCache[key];
-        const incoming = sourceNsCache[key];
-        if (existing) {
-          if (existing.bodyHash && incoming.bodyHash && existing.bodyHash !== incoming.bodyHash) {
-            console.warn(
-              `Pure function ${namespace}::${key} cache eviction: bodyHash mismatch (cached: ${existing.bodyHash}, server: ${incoming.bodyHash})`
-            );
-            nsCache[key] = { ...incoming };
-          }
-        } else {
-          nsCache[key] = { ...incoming };
-        }
-      }
-    }
-    restoreCompiledJitFns(jitFnsCache$1, pureFnsCache$1, getJitUtils());
-  }
-  function getJitFnCaches() {
-    return {
-      jitFnsCache: jitFnsCache$1,
-      pureFnsCache: pureFnsCache$1
-    };
-  }
-  function ensureNamespace(namespace) {
-    if (!pureFnsCache$1[namespace]) {
-      pureFnsCache$1[namespace] = {};
-    }
-    return pureFnsCache$1[namespace];
-  }
-  function randomUUID_V7() {
-    const uuid = crypto.randomUUID();
-    const tHex = Date.now().toString(16).padStart(12, "0");
-    return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
-  }
-  function getENV(key) {
-    if (typeof process !== "undefined" && process.env) {
-      return process.env[key];
-    }
-    return void 0;
-  }
-  function fromBase64Url(encoded) {
-    return atob(encoded.replace(/-/g, "+").replace(/_/g, "/"));
-  }
-  let isTest = void 0;
-  function isMionCompileMode() {
-    const val = getENV("MION_COMPILE");
-    return val === "buildOnly" || val === "middleware";
-  }
-  function isMionAOTEmitMode() {
-    const val = getENV("MION_COMPILE");
-    return val === "buildOnly" || val === "middleware" || val === "childProcess";
-  }
-  function isTestEnv() {
-    if (isTest !== void 0) return isTest;
-    isTest = getENV("VITEST") !== void 0 || getENV("NODE_ENV") === "test";
-    return isTest;
-  }
-  function initPureFunction(compiled) {
-    if (compiled.fn) return;
-    compiled.fn = compiled.createPureFn(getJitUtils());
-  }
-  const __ΩReadonly = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
-  let options = { ...DEFAULT_CORE_OPTIONS };
-  function setErrorOptions(opts2) {
-    options = opts2;
-  }
-  setErrorOptions.__type = ["CoreRouterOptions", "opts", "setErrorOptions", 'P"w!2""/#'];
-  class TypedError extends Error {
-    /**
-     * Unique error identifier,
-     * Ideally this should be a symbol but we need to be able to serialize it so a namespaced prop is used instead
-     */
-    // eslint-disable-next-line @typescript-eslint/prefer-as-const
-    "mion@isΣrrθr" = true;
-    /** Error type, can be used as discriminator in union types*/
-    type;
-    // Note: message and name are NOT declared as properties here
-    // They are inherited from Error class and assigned in constructor
-    // This prevents them from being included in type reflection for JIT validation
-    constructor({ message, originalError, type }) {
-      const errorMessage = message || originalError?.message || "";
-      super(errorMessage);
-      this.type = type;
-      Object.defineProperty(this, "message", {
-        value: errorMessage,
-        writable: true,
-        enumerable: false,
-        configurable: true
-      });
-      Object.defineProperty(this, "name", {
-        value: "TypedError",
-        writable: true,
-        enumerable: false,
-        configurable: true
-      });
-      if (originalError?.stack) {
-        try {
-          this.stack = originalError.stack;
-        } catch {
-          try {
-            Object.defineProperty(this, "stack", {
-              value: originalError.stack,
-              writable: true,
-              configurable: true
-            });
-          } catch {
-          }
-        }
-      }
-      Object.setPrototypeOf(this, TypedError.prototype);
-    }
-    static __type = ["ErrType", () => Error, true, "mion@isΣrrθr", function() {
-      return true;
-    }, "type", "TypedErrorParams", "param0", "constructor", "TypedError", `b!P7".#3$9>%e!!3&9P"w'2("0)5w*`];
-  }
-  class RpcError extends TypedError {
-    // Note: name is NOT declared as a property here
-    // It is inherited from Error class and assigned in constructor
-    // This prevents it from being included in type reflection for JIT validation
-    /**
-     * id of the error, ideally each error should unique identifiable
-     * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
-     * */
-    id;
-    /** the message that will be returned in the response */
-    publicMessage;
-    /** options data related to the error, ie validation data, must be json serializable */
-    errorData;
-    /** optional http status code */
-    statusCode;
-    constructor({ message, publicMessage, originalError, errorData, type, id, statusCode }) {
-      const originalMessage = message || originalError?.message || publicMessage || "";
-      super({
-        message: originalMessage,
-        originalError,
-        type
-      });
-      const { autoGenerateErrorId } = options;
-      this.id = id ?? (autoGenerateErrorId ? randomUUID_V7() : void 0);
-      this.publicMessage = publicMessage || "";
-      this.errorData = errorData;
-      this.statusCode = statusCode;
-      Object.defineProperty(this, "name", {
-        value: "RpcError",
-        writable: true,
-        enumerable: false,
-        configurable: true
-      });
-      Object.setPrototypeOf(this, RpcError.prototype);
-    }
-    static __type = ["ErrType", "ErrData", () => TypedError, "id", "publicMessage", () => __ΩReadonly, "errorData", "statusCode", "AnyErrorParams", "param0", "constructor", "RpcErrorParams", "RpcError", `b!"c"Pe"!7#P'&J3$89&3%9e!"o&"3'89'3(8P"w)2*"0+5e!!6""w,x"w-`];
-  }
   function serializeBinaryBody$1(path, executionChain, body, isResponse, workflowRouteIds) {
     try {
       const serializer = createDataViewSerializer(path, workflowRouteIds);
@@ -755,9 +765,16 @@
     toBinary.fn(value, serializer);
     return true;
   }
-  const methodsCache = {};
-  const jitFunctionsCache = /* @__PURE__ */ new Map();
-  const headerJitFunctionsCache = /* @__PURE__ */ new Map();
+  const methodsCache = getOrCreateGlobal("mion.routerUtils.methodsCache", () => ({}));
+  getOrCreateGlobal(
+    "mion.routerUtils.methodsOptionsCache",
+    () => ({})
+  );
+  const jitFunctionsCache = getOrCreateGlobal("mion.routerUtils.jitFunctionsCache", () => /* @__PURE__ */ new Map());
+  const headerJitFunctionsCache = getOrCreateGlobal(
+    "mion.routerUtils.headerJitFunctionsCache",
+    () => /* @__PURE__ */ new Map()
+  );
   const routesCache = {
     /**
      * Get method metadata from the router cache by id.
@@ -993,6 +1010,13 @@
     static __type = ["Required", "Optional", "headers", "constructor", "HeadersSubset", `l+&R&R&R&Rb!!c"PPde#!N#!Pde#"N%"K3#9PPPde$!N'!Pde$"N)"K2#"0$5w%`];
   }
   const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
+  getOrCreateGlobal("mion.quickHash.hashes", () => /* @__PURE__ */ new Map());
+  getOrCreateGlobal("mion.quickHash.literalHashes", () => /* @__PURE__ */ new Map());
+  const __mionLoadCounter = getOrCreateGlobal("mion.core.loadCounter", () => ({ count: 0 }));
+  __mionLoadCounter.count += 1;
+  if (__mionLoadCounter.count > 1 && typeof process !== "undefined" && !process.env?.MION_SUPPRESS_DUAL_LOAD_WARN) {
+    console.warn(`[mion] @mionjs/core has been loaded ${__mionLoadCounter.count} times in this process. This indicates @mionjs/* is not properly bundled — most often a missing/incorrect ssr.noExternal config. mion requires ssr.noExternal: [/@mionjs\\//] to guarantee single-instance state. Set MION_SUPPRESS_DUAL_LOAD_WARN=1 to silence.`);
+  }
   const __ΩRouterEntry = [() => __ΩRoutes, () => __ΩMiddleFnDef, () => __ΩRouteDef, () => __ΩRawMiddleFnDef, () => __ΩHeadersMiddleFnDef, "RouterEntry", 'Pn!n"n#n$n%Jw&y'];
   const __ΩRoutes = [() => __ΩRouterEntry, "Routes", 'P&n!LMw"y'];
   const __ΩRouterOptions = ["Req", "ContextData", () => __ΩCoreRouterOptions, "basePath", "suffix", "request", "path", "", "pathTransform", () => __ΩContextDataFactory, "contextDataFactory", () => __ΩSerializerMode, "serializer", "RunTypeOptions", "runTypeOptions", "strictTypes", "getPublicRoutesData", "autoGenerateErrorId", "skipClientRoutes", "aot", "maxContextPoolSize", "maxRoutesFlowsCacheSize", "RouterOptions", `"c!"c"Pn#&4$&4%Pe#!2&&2'&/(4)8e""o*"4+8n,4-"w.4/)408)41)42)43)44'45'46Mw7y`];
@@ -1140,7 +1164,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return runTypesLoadPromise;
   }
   loadRunTypesModule.__type = [() => __ΩRunTypesFunctions, "loadRunTypesModule", 'Pn!`/"'];
-  const rawMiddleFnReflectionCache = (Map.Ω = [["&"], [() => __ΩMethodReflect, "n!"]], /* @__PURE__ */ new Map());
+  const rawMiddleFnReflectionCache = getOrCreateGlobal("mion.reflection.rawMiddleFnReflectionCache", () => (Map.Ω = [["&"], [() => __ΩMethodReflect, "n!"]], /* @__PURE__ */ new Map()));
   function createRawMiddleFnReflection(isAsync, hasReturnData = false, paramNames = []) {
     const cacheKey = `${isAsync}_${hasReturnData}_${paramNames.join(",")}`;
     const cached = rawMiddleFnReflectionCache.get(cacheKey);
@@ -1659,7 +1683,7 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     mionDeserializeRequest: rawMiddleFn(deserializeRequestBody, { runOnError: true }),
     mionSerializeResponse: rawMiddleFn(serializeResponseBody, { runOnError: true })
   };
-  const publicMethods = /* @__PURE__ */ new Map();
+  const publicMethods = getOrCreateGlobal("mion.remoteMethods.publicMethods", () => /* @__PURE__ */ new Map());
   function resetRemoteMethodsMetadata() {
     publicMethods.clear();
   }
@@ -1901,9 +1925,9 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     fn.__type = args;
     return fn;
   }
-  const routesFlowCache = (Map.Ω = [["&"], [() => __ΩMethodsExecutionChain, "n!"]], /* @__PURE__ */ new Map());
-  const cacheOrder = [];
-  const mappingMethodCache = (Map.Ω = [["&"], [() => __ΩRemoteMethod, "n!"]], /* @__PURE__ */ new Map());
+  const routesFlowCache = getOrCreateGlobal("mion.routesFlow.routesFlowCache", () => (Map.Ω = [["&"], [() => __ΩMethodsExecutionChain, "n!"]], /* @__PURE__ */ new Map()));
+  const cacheOrder = getOrCreateGlobal("mion.routesFlow.cacheOrder", () => []);
+  const mappingMethodCache = getOrCreateGlobal("mion.routesFlow.mappingMethodCache", () => (Map.Ω = [["&"], [() => __ΩRemoteMethod, "n!"]], /* @__PURE__ */ new Map()));
   function clearRoutesFlowCache() {
     routesFlowCache.clear();
     cacheOrder.length = 0;
@@ -2212,12 +2236,15 @@ Regenerate AOT caches using 'mion-build-aot' command.`);
     return { executionChain };
   }
   const mionInternalRoutes = Object.values(MION_ROUTES);
-  const flatRouter = /* @__PURE__ */ new Map();
-  const middleFnsById = /* @__PURE__ */ new Map();
-  const routesById = /* @__PURE__ */ new Map();
-  const rawMiddleFnsById = /* @__PURE__ */ new Map();
-  const middleFnNames = /* @__PURE__ */ new Set();
-  const routeNames = /* @__PURE__ */ new Set();
+  const flatRouter = getOrCreateGlobal("mion.router.flatRouter", () => /* @__PURE__ */ new Map());
+  const middleFnsById = getOrCreateGlobal(
+    "mion.router.middleFnsById",
+    () => /* @__PURE__ */ new Map()
+  );
+  const routesById = getOrCreateGlobal("mion.router.routesById", () => /* @__PURE__ */ new Map());
+  const rawMiddleFnsById = getOrCreateGlobal("mion.router.rawMiddleFnsById", () => /* @__PURE__ */ new Map());
+  const middleFnNames = getOrCreateGlobal("mion.router.middleFnNames", () => /* @__PURE__ */ new Set());
+  const routeNames = getOrCreateGlobal("mion.router.routeNames", () => /* @__PURE__ */ new Set());
   let routerOptions = { ...DEFAULT_ROUTE_OPTIONS };
   let isRouterInitialized = false;
   let allExecutablesIds;

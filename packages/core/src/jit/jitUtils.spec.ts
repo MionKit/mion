@@ -168,4 +168,10 @@ describe('jitUtils', () => {
         expect(cachesAfterSecond.jitFnsCache.testFn1?.typeName).toBe('TestType1');
         expect(cachesAfterSecond.jitFnsCache.testFn2?.typeName).toBe('TestType2');
     });
+
+    it('jitFnsCache and pureFnsCache are backed by globalThis (singleton across module copies)', () => {
+        const {jitFnsCache: jitRef, pureFnsCache: pureRef} = getJitFnCaches();
+        expect(jitRef).toBe((globalThis as any)[Symbol.for('mion.jit.jitFnsCache')]);
+        expect(pureRef).toBe((globalThis as any)[Symbol.for('mion.jit.pureFnsCache')]);
+    });
 });

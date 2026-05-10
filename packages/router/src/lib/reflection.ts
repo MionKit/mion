@@ -11,7 +11,7 @@ import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnC
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
 import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants.ts';
-import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns, HandlerType} from '@mionjs/core';
+import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns, HandlerType, getOrCreateGlobal} from '@mionjs/core';
 import {getPersistedMethodMetadata} from './methodsCache.ts';
 import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';
 
@@ -90,7 +90,10 @@ export function resetReflectionCaches(): void {
 // ############ Raw MiddleFn Reflection Helper ############
 
 // Cache for common raw middleFn reflections
-const rawMiddleFnReflectionCache = new Map<string, MethodReflect>();
+const rawMiddleFnReflectionCache = getOrCreateGlobal(
+    'mion.reflection.rawMiddleFnReflectionCache',
+    () => new Map<string, MethodReflect>()
+);
 
 /**
  * Creates a MethodReflect for raw middleFns.

@@ -9,13 +9,20 @@ import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH
 import type {RemoteMethodOpts, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
 import type {CoreRouterOptions, JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
 import {getJitUtils} from './jit/jitUtils.ts';
+import {getOrCreateGlobal} from './utils.ts';
 
-const methodsCache: MethodsCache = {};
-const methodsOptionsCache: Record<string, RemoteMethodOpts> = {};
+const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => ({}) as MethodsCache);
+const methodsOptionsCache: Record<string, RemoteMethodOpts> = getOrCreateGlobal(
+    'mion.routerUtils.methodsOptionsCache',
+    () => ({}) as Record<string, RemoteMethodOpts>
+);
 
 // Cache for JitCompiledFunctions objects keyed by jitHash
-const jitFunctionsCache = new Map<string, JitCompiledFunctions>();
-const headerJitFunctionsCache = new Map<string, Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>>();
+const jitFunctionsCache = getOrCreateGlobal('mion.routerUtils.jitFunctionsCache', () => new Map<string, JitCompiledFunctions>());
+const headerJitFunctionsCache = getOrCreateGlobal(
+    'mion.routerUtils.headerJitFunctionsCache',
+    () => new Map<string, Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>>()
+);
 
 /**
  * Utilities for accessing and modifying the router cache.

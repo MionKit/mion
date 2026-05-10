@@ -14,6 +14,7 @@ import {
     getNoopJitFns,
     PURE_SERVER_FN_NAMESPACE,
     fromBase64Url,
+    getOrCreateGlobal,
 } from '@mionjs/core';
 import {serverPureFnsCache} from '@mionjs/core/server-pure-fns';
 import {getRouteExecutionChain, getRouterOptions, startMiddleFns, endMiddleFns} from './router.ts';
@@ -26,10 +27,10 @@ import type {RoutesFlowQuery, RoutesFlowMapping} from '@mionjs/core';
 // ############# ROUTES_FLOW CACHE #############
 
 /** FILO cache for merged execution chains. Key is the query string, value is the cached chain. */
-const routesFlowCache = new Map<string, MethodsExecutionChain>();
-const cacheOrder: string[] = [];
+const routesFlowCache = getOrCreateGlobal('mion.routesFlow.routesFlowCache', () => new Map<string, MethodsExecutionChain>());
+const cacheOrder = getOrCreateGlobal('mion.routesFlow.cacheOrder', () => [] as string[]);
 /** Cache for mapping RemoteMethods keyed by their unique ID */
-const mappingMethodCache = new Map<string, RemoteMethod>();
+const mappingMethodCache = getOrCreateGlobal('mion.routesFlow.mappingMethodCache', () => new Map<string, RemoteMethod>());
 
 /** Clears the routesFlow cache and mapping method cache - useful for testing */
 export function clearRoutesFlowCache(): void {
