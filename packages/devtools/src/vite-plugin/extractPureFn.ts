@@ -15,19 +15,30 @@ import {readdirSync, statSync, readFileSync} from 'fs';
 import {resolve, join} from 'path/posix';
 import {isIncluded} from './mionVitePlugin.ts';
 
+/** Matches `</script` + optional whitespace + `>` per the HTML5 end-tag rule (case-insensitive) */
+const CLOSE_TAG_RE = /<\/script\s*>/i;
+
 /**
  * Extracts all <script> block contents and lang attributes from a Vue SFC source.
- * Uses a regex + state machine approach instead of a full XML/HTML AST parser. Vue SFCs have
- * a simple, well-defined structure (top-level <script> blocks only) so this is sufficient.
- * This avoids adding @vue/compiler-sfc as a dependency just for keyword detection in the
- * scan pipeline. The Vite transform pipeline relies on @vitejs/plugin-vue for proper parsing.
- * A small string-literal tracker skips </script> inside quotes so embedded script tags
- * in string literals (e.g. injecting a header script as pure text) don't break extraction.
+ * Uses regex matching instead of a full XML/HTML AST parser — Vue SFCs have a simple,
+ * well-defined structure (top-level <script> blocks only) so this is sufficient and avoids
+ * adding @vue/compiler-sfc as a dependency just for keyword detection. The Vite transform
+ * pipeline still relies on @vitejs/plugin-vue for proper parsing on the client side.
+ *
+ * Close-tag detection follows the HTML5 specification: the scanner finds the literal
+ * `</script` + optional whitespace + `>` token, case-insensitive, with no awareness of JS
+ * syntax inside the block. This matches browser behaviour. Any literal `</script>` sequence
+ * in JS source must be escaped as `<\/script>` (standard browser/HTML practice). The previous
+ * attempt to skip string literals was removed because it was incomplete (it didn't handle JS
+ * comments or nested template literals) and diverged from browser behaviour.
+ *
+ * Multiple <script> blocks per SFC are supported (e.g. classic `<script>` for module-level
+ * code + `<script setup>` for the component) and concatenated into one combined source.
+ * The returned `lang` is taken from the last block that declared one.
  */
 export function extractVueScriptContent(source: string): {content: string; lang: string} | null {
     // Matches <script ...> allowing > inside quoted attribute values (e.g. generic="T extends Foo<Bar>")
     const openRegex = /<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>/gi;
-    const closeTag = '</script>';
     let combined = '';
     let lang = 'js';
     let found = false;
@@ -36,13 +47,14 @@ export function extractVueScriptContent(source: string): {content: string; lang:
     while ((openMatch = openRegex.exec(source)) !== null) {
         const attrs = openMatch[1];
         const contentStart = openMatch.index + openMatch[0].length;
-        const closeIdx = findClosingScriptTag(source, contentStart, closeTag);
-        if (closeIdx === -1) break;
+        const closeMatch = CLOSE_TAG_RE.exec(source.slice(contentStart));
+        if (!closeMatch) break;
+        const closeIdx = contentStart + closeMatch.index;
 
         found = true;
         combined += source.slice(contentStart, closeIdx) + '\n';
         // Advance the regex past the closing tag so the next iteration finds the next block
-        openRegex.lastIndex = closeIdx + closeTag.length;
+        openRegex.lastIndex = closeIdx + closeMatch[0].length;
 
         const langMatch = attrs.match(/lang=["'](\w+)["']/);
         if (langMatch) lang = langMatch[1];
@@ -51,44 +63,16 @@ export function extractVueScriptContent(source: string): {content: string; lang:
     return found ? {content: combined.trim(), lang} : null;
 }
 
-/** Finds the position of </script> while skipping occurrences inside string literals */
-function findClosingScriptTag(source: string, start: number, closeTag: string): number {
-    let i = start;
-    while (i < source.length) {
-        const ch = source[i];
-
-        // Skip string literals (single, double, template)
-        if (ch === "'" || ch === '"' || ch === '`') {
-            i = skipStringLiteral(source, i, ch);
-            continue;
-        }
-
-        // Check for closing tag (case-insensitive)
-        if (ch === '<' && source.slice(i, i + closeTag.length).toLowerCase() === closeTag) {
-            return i;
-        }
-
-        i++;
-    }
-    return -1;
-}
-
-/** Advances past a string literal, handling escape sequences and template literal nesting */
-function skipStringLiteral(source: string, start: number, quote: string): number {
-    let i = start + 1;
-    while (i < source.length) {
-        const ch = source[i];
-        if (ch === '\\') {
-            i += 2; // skip escaped character
-            continue;
-        }
-        if (ch === quote) return i + 1;
-        i++;
-    }
-    return i;
-}
-
-/** Scans the client source directory and extracts all pure functions */
+/**
+ * Scans the client source directory and extracts all pure functions.
+ * Used by the server plugin instance only — its `transform` hook never sees client files
+ * because they are not in the server build's import graph. The client plugin instance
+ * collects pure-fns via `transform` (see createPureFnTransformerFactory) and does NOT
+ * call this. Both paths share `extractPureFnsFromSource` so bodyHashes match across
+ * builds — but Vue scripts are read here via regex (no @vue/compiler-sfc available in
+ * the server pipeline), while the client transform receives them pre-extracted from
+ * @vitejs/plugin-vue. Keep both extractions in sync to avoid hash divergence.
+ */
 export function scanClientSource(options: ServerPureFunctionsOptions): ExtractedPureFn[] {
     const include = options.include || ['**/*.ts', '**/*.tsx', '**/*.vue'];
     const exclude = options.exclude || ['../node_modules/**', '**/.dist/**', '**/dist/**'];

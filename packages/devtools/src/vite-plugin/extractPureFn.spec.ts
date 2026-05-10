@@ -1453,7 +1453,11 @@ describe('extractVueScriptContent', () => {
         expect(result!.lang).toBe('tsx');
     });
 
-    it('should handle code containing </script> inside a single-quoted string literal', () => {
+    // ── HTML5 close-tag rule: literal </script> terminates the block regardless of context ──
+    // The scanner has no JS-syntax awareness inside the script body. To embed a literal
+    // </script> sequence in JS source, escape it as <\/script> (standard browser practice).
+
+    it('should treat </script> inside a single-quoted string as the close tag (HTML5 rule)', () => {
         const vue = `
             <template><div>hello</div></template>
             <script lang="ts">
@@ -1463,11 +1467,12 @@ describe('extractVueScriptContent', () => {
         `;
         const result = extractVueScriptContent(vue);
         expect(result).not.toBeNull();
+        // Content ends at the </script> inside the string; everything after is dropped
         expect(result!.content).toContain('headerScript');
-        expect(result!.content).toContain('pureServerFn');
+        expect(result!.content).not.toContain('pureServerFn');
     });
 
-    it('should handle code containing </script> inside a double-quoted string literal', () => {
+    it('should treat </script> inside a double-quoted string as the close tag (HTML5 rule)', () => {
         const vue = `
             <template><div>hello</div></template>
             <script lang="ts">
@@ -1478,10 +1483,10 @@ describe('extractVueScriptContent', () => {
         const result = extractVueScriptContent(vue);
         expect(result).not.toBeNull();
         expect(result!.content).toContain('tag');
-        expect(result!.content).toContain('pureServerFn');
+        expect(result!.content).not.toContain('pureServerFn');
     });
 
-    it('should handle code containing </script> inside a template literal', () => {
+    it('should treat </script> inside a template literal as the close tag (HTML5 rule)', () => {
         const vue = `
             <template><div>hello</div></template>
             <script lang="ts">
@@ -1492,14 +1497,99 @@ describe('extractVueScriptContent', () => {
         const result = extractVueScriptContent(vue);
         expect(result).not.toBeNull();
         expect(result!.content).toContain('html');
-        expect(result!.content).toContain('pureServerFn');
+        expect(result!.content).not.toContain('pureServerFn');
     });
 
-    it('should handle escaped quotes inside string with </script>', () => {
+    it('should treat </script> inside a string with escaped quotes as the close tag (HTML5 rule)', () => {
         const vue = `
             <template><div>hello</div></template>
             <script lang="ts">
             const s = 'it\\'s a </script> test';
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        // Embedded </script> terminates the block regardless of surrounding quote escaping
+        expect(result!.content).not.toContain('pureServerFn');
+    });
+
+    it('should preserve content when a literal </script> is escaped as <\\/script> in a string', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script lang="ts">
+            const headerScript = '<script>alert("hi")<\\/script>';
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        // Escaped close tag is not matched, so the full block is captured
+        expect(result!.content).toContain('headerScript');
+        expect(result!.content).toContain('pureServerFn');
+    });
+
+    it('should treat </script> inside a // line comment as the close tag (HTML5 rule)', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script lang="ts">
+            // see </script> tag handling
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        expect(result!.content).not.toContain('pureServerFn');
+    });
+
+    it('should treat </script> inside a /* block comment */ as the close tag (HTML5 rule)', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script lang="ts">
+            /* example: </script> */
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        expect(result!.content).not.toContain('pureServerFn');
+    });
+
+    it('should not match </script> inside a regex literal that uses the standard \\/ escape', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script lang="ts">
+            const r = /<\\/script>/g;
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        // The standard JS regex-literal escape \/ also avoids the HTML5 close-tag pattern
+        // (the regex requires < followed immediately by /). So regex literals are naturally safe.
+        expect(result!.content).toContain('pureServerFn');
+    });
+
+    it('should not be confused by an apostrophe in a // line comment', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script lang="ts">
+            // it's broken
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        // Old string-aware scanner would have flipped into string mode at the apostrophe
+        // and consumed past the real close. HTML5 rule has no string awareness, so this works.
+        expect(result!.content).toContain('pureServerFn');
+    });
+
+    it('should not break on nested template literals via ${} interpolation', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script lang="ts">
+            const x = \`outer \${\`inner\`} end\`;
             const fn = pureServerFn((x) => x + 1);
             </script>
         `;
@@ -1534,6 +1624,112 @@ describe('extractVueScriptContent', () => {
         if (result) {
             expect(result.content).not.toContain('pureServerFn');
         }
+    });
+
+    // ── Lock-in tests for currently-correct-but-untested behaviour ──
+
+    it('should match mixed-case <Script>...</Script> tags (HTML5 case-insensitive)', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <Script lang="ts">
+            const fn = pureServerFn((x) => x + 1);
+            </Script>
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        expect(result!.lang).toBe('ts');
+        expect(result!.content).toContain('pureServerFn');
+    });
+
+    it('should accept whitespace before > in the closing tag (HTML5 rule)', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script lang="ts">
+            const fn = pureServerFn((x) => x + 1);
+            </script  >
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        expect(result!.content).toContain('pureServerFn');
+    });
+
+    it('should accept newline before > in the closing tag (HTML5 rule)', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script lang="ts">
+            const fn = pureServerFn((x) => x + 1);
+            </script
+            >
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        expect(result!.content).toContain('pureServerFn');
+    });
+
+    it('should parse a single-quoted lang attribute', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script lang='ts'>
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        expect(result!.lang).toBe('ts');
+        expect(result!.content).toContain('pureServerFn');
+    });
+
+    it('should handle a multiline opening tag', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script
+                setup
+                lang="ts"
+            >
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        expect(result!.lang).toBe('ts');
+        expect(result!.content).toContain('pureServerFn');
+    });
+
+    it('should return null when an opening <script> has no matching close', () => {
+        const vue = `
+            <template><div>hello</div></template>
+            <script lang="ts">
+            const fn = pureServerFn((x) => x + 1);
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).toBeNull();
+    });
+
+    it('should concatenate three <script> blocks in source order', () => {
+        const vue = `
+            <script lang="ts">
+            export const a = 1;
+            </script>
+            <template><div>hello</div></template>
+            <script setup lang="ts">
+            const b = 2;
+            </script>
+            <script lang="ts">
+            const fn = pureServerFn((x) => x + 1);
+            </script>
+        `;
+        const result = extractVueScriptContent(vue);
+        expect(result).not.toBeNull();
+        expect(result!.lang).toBe('ts');
+        expect(result!.content).toContain('export const a = 1');
+        expect(result!.content).toContain('const b = 2');
+        expect(result!.content).toContain('pureServerFn');
+        // Verify source order
+        const aIdx = result!.content.indexOf('const a');
+        const bIdx = result!.content.indexOf('const b');
+        const pureIdx = result!.content.indexOf('pureServerFn');
+        expect(aIdx).toBeLessThan(bIdx);
+        expect(bIdx).toBeLessThan(pureIdx);
     });
 });
 
