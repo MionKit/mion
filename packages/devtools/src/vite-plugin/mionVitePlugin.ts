@@ -329,7 +329,10 @@ export function mionVitePlugin(options: MionPluginOptions) {
             if (id === resolveVirtualId(VIRTUAL_SERVER_PURE_FNS)) {
                 // No serverPureFunctions configured — return empty cache
                 if (!pureFnOptions) return generateServerPureFnsVirtualModule([]);
-                // Lazily scan client source on first load
+                // Lazily scan client source on first load. This branch only fires in the
+                // server plugin instance (where `serverPureFunctions` is configured). The
+                // client instance populates the registry via its `transform` hook instead —
+                // the server build can't, since client files are not in its import graph.
                 if (!extractedFns) extractedFns = scanClientSource(pureFnOptions);
                 return generateServerPureFnsVirtualModule(extractedFns);
             }

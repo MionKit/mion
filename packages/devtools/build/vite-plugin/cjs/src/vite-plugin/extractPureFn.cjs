@@ -25,9 +25,9 @@ function _interopNamespaceDefault(e) {
   return Object.freeze(n);
 }
 const ts__namespace = /* @__PURE__ */ _interopNamespaceDefault(ts);
+const CLOSE_TAG_RE = /<\/script\s*>/i;
 function extractVueScriptContent(source) {
   const openRegex = /<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>/gi;
-  const closeTag = "<\/script>";
   let combined = "";
   let lang = "js";
   let found = false;
@@ -35,43 +35,16 @@ function extractVueScriptContent(source) {
   while ((openMatch = openRegex.exec(source)) !== null) {
     const attrs = openMatch[1];
     const contentStart = openMatch.index + openMatch[0].length;
-    const closeIdx = findClosingScriptTag(source, contentStart, closeTag);
-    if (closeIdx === -1) break;
+    const closeMatch = CLOSE_TAG_RE.exec(source.slice(contentStart));
+    if (!closeMatch) break;
+    const closeIdx = contentStart + closeMatch.index;
     found = true;
     combined += source.slice(contentStart, closeIdx) + "\n";
-    openRegex.lastIndex = closeIdx + closeTag.length;
+    openRegex.lastIndex = closeIdx + closeMatch[0].length;
     const langMatch = attrs.match(/lang=["'](\w+)["']/);
     if (langMatch) lang = langMatch[1];
   }
   return found ? { content: combined.trim(), lang } : null;
-}
-function findClosingScriptTag(source, start, closeTag) {
-  let i = start;
-  while (i < source.length) {
-    const ch = source[i];
-    if (ch === "'" || ch === '"' || ch === "`") {
-      i = skipStringLiteral(source, i, ch);
-      continue;
-    }
-    if (ch === "<" && source.slice(i, i + closeTag.length).toLowerCase() === closeTag) {
-      return i;
-    }
-    i++;
-  }
-  return -1;
-}
-function skipStringLiteral(source, start, quote) {
-  let i = start + 1;
-  while (i < source.length) {
-    const ch = source[i];
-    if (ch === "\\") {
-      i += 2;
-      continue;
-    }
-    if (ch === quote) return i + 1;
-    i++;
-  }
-  return i;
 }
 function scanClientSource(options) {
   const include = options.include || ["**/*.ts", "**/*.tsx", "**/*.vue"];
