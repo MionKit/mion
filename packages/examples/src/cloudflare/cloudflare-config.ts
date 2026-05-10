@@ -6,5 +6,5 @@ await initMionRouter(routes, {aot: true, basePath: 'api'});
 
 export default createCloudflareHandler({
     basePath: '/api',
-    defaultResponseHeaders: {'access-control-allow-origin': '*'},
+    defaultResponseHeaders: {'access-control-allow-origin': 'my.app.com'},
 });
