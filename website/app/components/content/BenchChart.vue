@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import "billboard.js/dist/billboard.css";
 import 'billboard.js/dist/theme/datalab.css';
-import { onMounted, nextTick } from 'vue';
-import bb, {bar, line} from "billboard.js";
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import bb, {bar, line, type Chart} from "billboard.js";
 import chartHelloRequests from './charts/charts-servers-hello/requests.json';
 import chartHelloLatency from './charts/charts-servers-hello/latency.json';
 import chartHelloThroughput from './charts/charts-servers-hello/throughput.json';
@@ -38,31 +38,54 @@ const chartList: Record<string, unknown> = {
   'update-simple-mem-series': chartUpdateSimpleMemorySeries,
 };
 
+const chartImages = import.meta.glob('./charts/**/*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+
+const imageList: Record<string, string> = {
+  'hello-requests':           chartImages['./charts/charts-servers-hello/requests.png']!,
+  'hello-latency':            chartImages['./charts/charts-servers-hello/latency.png']!,
+  'hello-throughput':         chartImages['./charts/charts-servers-hello/throughput.png']!,
+  'hello-max-mem':            chartImages['./charts/charts-servers-hello/maxMem.png']!,
+  'hello-mem-series':         chartImages['./charts/charts-servers-hello/memSeries.png']!,
+  'update-requests':          chartImages['./charts/charts-servers/requests.png']!,
+  'update-latency':           chartImages['./charts/charts-servers/latency.png']!,
+  'update-throughput':        chartImages['./charts/charts-servers/throughput.png']!,
+  'update-max-mem':           chartImages['./charts/charts-servers/maxMem.png']!,
+  'update-mem-series':        chartImages['./charts/charts-servers/memSeries.png']!,
+  'update-simple-requests':   chartImages['./charts/charts-servers-simple/requests.png']!,
+  'update-simple-latency':    chartImages['./charts/charts-servers-simple/latency.png']!,
+  'update-simple-throughput': chartImages['./charts/charts-servers-simple/throughput.png']!,
+  'update-simple-max-mem':    chartImages['./charts/charts-servers-simple/maxMem.png']!,
+  'update-simple-mem-series': chartImages['./charts/charts-servers-simple/memSeries.png']!,
+};
+
 const props = defineProps<{
   id: string;
 }>();
 
 const chartId = `benchmark-chart-${props.id}`;
+const showFallback = ref(true);
+const imageSrc = computed(() => imageList[props.id]);
 
+/** build a fresh billboard.js config without mutating the imported JSON module */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function loadChartType(chartData: any) {
+function buildChartConfig(chartData: any) {
   if (!chartData?.data?.type) throw new Error(`Chart type not defined`);
-  if (chartData.data?.loaded) return; // already loaded
   const type = chartData.data.type;
   switch (type) {
     case 'bar':
-      chartData.type = bar();
-      chartData.data.loaded = true;
-      break;
+      return {...chartData, type: bar()};
     case 'line':
-      chartData.type = line();
-      chartData.data.loaded = true;
-      break;
+      return {...chartData, type: line()};
     default:
       throw new Error(`Chart type "${type}" not supported`);
   }
-  return chartData;
 }
+
+let chart: Chart | undefined;
 
 onMounted(() => {
   nextTick(() => {
@@ -71,25 +94,42 @@ onMounted(() => {
       console.error(`BenchChart: Unknown chart id "${props.id}"`);
       return;
     }
-    bb.generate({
-      bindto: `#${chartId}`,
-      ...loadChartType(chartData),
-      tooltip: {
-        show: false,
-      },
-    });
+    try {
+      chart = bb.generate({
+        bindto: `#${chartId}`,
+        ...buildChartConfig(chartData),
+        tooltip: {
+          show: false,
+        },
+      });
+      showFallback.value = false;
+    } catch (err) {
+      console.error(`BenchChart: failed to render "${props.id}"`, err);
+    }
   });
+});
+
+onBeforeUnmount(() => {
+  chart?.destroy();
+  chart = undefined;
 });
 </script>
 <template>
   <div class="bench-card">
     <div :id="chartId" class="mion-bench"/>
+    <img
+      v-show="showFallback"
+      :src="imageSrc"
+      :alt="`Benchmark chart: ${id}`"
+      class="bench-fallback"
+    />
   </div>
 </template>
 <style>
 .bench-card {
   position: relative;
   padding: 1.5rem;
+  aspect-ratio: 750 / 320;
   border: 1px solid var(--color-primary-400);
   background: 
     linear-gradient(to bottom, rgba(138, 168, 94, 0.03) 0%, rgba(138, 168, 94, 0.08) 100%),
@@ -153,5 +193,16 @@ onMounted(() => {
 .bench-card .mion-bench {
   position: relative;
   z-index: 1;
+}
+
+.bench-fallback {
+  position: absolute;
+  inset: 1.5rem;
+  width: calc(100% - 3rem);
+  height: calc(100% - 3rem);
+  object-fit: contain;
+  z-index: 2;
+  background: transparent;
+  pointer-events: none;
 }
 </style>
