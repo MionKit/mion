@@ -20,7 +20,11 @@ bash "$ROOT_DIR/scripts/pack-packages.sh" --dest "$TEST_PUBLISH_DIR/tarballs"
 
 echo -e "\n${GREEN}[3/3] Installing from tarballs (clean)...${NC}"
 cd "$TEST_PUBLISH_DIR"
-rm -rf node_modules pnpm-lock.yaml
+# SECURITY: Do NOT delete pnpm-lock.yaml — it pins integrity hashes for every
+# transitive registry dep. --no-frozen-lockfile updates only the @mionjs/*
+# file: entries whose tarball content changed; registry-dep integrity stays
+# locked. Deleting the lockfile would silently regress supply-chain protection.
+rm -rf node_modules
 pnpm install --no-frozen-lockfile
 
 echo -e "\n${GREEN}Done! You can now run:${NC}"

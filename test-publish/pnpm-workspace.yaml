@@ -2,3 +2,20 @@
 # Intentionally isolated from the monorepo root — this package
 # consumes mion via local tarballs (file:./tarballs/*.tgz).
 packages: []
+
+# SECURITY: Explicitly deny lifecycle scripts for these packages.
+# Mirrors the root monorepo's `"pnpm": { "onlyBuiltDependencies": [] }` policy
+# and aligns with `.npmrc`'s `ignore-scripts=true`. Without these explicit
+# entries, pnpm 10 nags on every install with a "set this to true or false"
+# placeholder.
+# - @deepkit/type-compiler's postinstall patches node_modules/typescript/lib/tsc.js
+#   to inject deepkit's reflection transformer for direct `tsc` CLI usage. mion
+#   never invokes tsc directly — its Vite plugin calls `ts.transpileModule(...,
+#   { transformers })` programmatically — so this patch is unused dead weight.
+# - esbuild's postinstall validates/locates the native binary. The binary
+#   already ships inside the platform-specific optional dep (e.g.
+#   @esbuild/darwin-arm64), so esbuild works fine without the postinstall —
+#   install already runs under `ignore-scripts=true` and nothing breaks.
+allowBuilds:
+  '@deepkit/type-compiler': false
+  esbuild: false
