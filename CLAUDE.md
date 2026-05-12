@@ -2,19 +2,22 @@
 
 ## Package Manager: pnpm
 
-This monorepo uses **pnpm** (not npm). Do **not** run `npm install` — it will not respect `pnpm-workspace.yaml` and will not honor the security policies in `.npmrc`.
+This monorepo uses **pnpm 11+** (not npm). Do **not** run `npm install` — it will not respect `pnpm-workspace.yaml` and will not honor the security policies.
 
-Security posture (see `.npmrc`):
-- `frozen-lockfile=true` — installs must match `pnpm-lock.yaml` exactly
-- `minimum-release-age=43200` (30 days) — refuses to install package versions younger than 30 days
-- `ignore-scripts=true` — blocks all preinstall/install/postinstall scripts from dependencies
-- `allow-non-registry-protocols=false` — refuses git/github/file/http specifiers (workspace:* is exempt)
-- `save-exact=true` — `pnpm add` writes exact versions, never `^` or `~`
-- Versions can only be updated via explicit `pnpm update <pkg>` or by deleting the lockfile
+**pnpm 11 split**: only auth/registry settings are read from `.npmrc`; all pnpm-specific settings live in `pnpm-workspace.yaml`. Putting a pnpm setting in `.npmrc` is silently ignored.
+
+Security posture (see `pnpm-workspace.yaml`):
+- `preferFrozenLockfile: true` — prefers exact-lockfile installs (CI uses `pnpm install --frozen-lockfile` to fail loudly on drift)
+- `minimumReleaseAge: 43200` (30 days) — refuses to *resolve* package versions younger than 30 days. Lockfile-frozen entries are not re-checked; this fires only on fresh resolution (pnpm add / pnpm update / fresh resolve)
+- `ignoreScripts: true` — blocks all preinstall/install/postinstall scripts from dependencies. Per-package allowlist via `allowBuilds: { pkg: true }` (replaces deprecated `onlyBuiltDependencies`)
+- `allowNonRegistryProtocols: false` — refuses git/github/file/http specifiers (workspace:* is exempt)
+- `savePrefix: ''` — `pnpm add` writes exact versions, never `^` or `~`
+- `strictPeerDependencies: true` — peer-dep mismatches fail the install instead of warning
+- All `dependencies` and `devDependencies` across the monorepo are exact-pinned. `peerDependencies` of publishable libs (`@mionjs/devtools`, `@mionjs/platform-bun`, `@mionjs/run-types`) stay as caret ranges so consumers can dedupe.
 
 Updating dependencies:
-- `pnpm update <pkg> --latest` to bump a single package
-- `rm pnpm-lock.yaml && pnpm install` to fully resolve from scratch (will respect minimum release age)
+- `pnpm update <pkg> --latest` to bump a single package — `minimumReleaseAge` will reject versions <30 days old at this point. Either wait, pin to the latest mature version explicitly, or (last resort) add the package to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`.
+- `rm pnpm-lock.yaml && pnpm install` to fully resolve from scratch — same age policy applies. If pnpm's local metadata cache is missing the `time` field for some packages and reports `[ERR_PNPM_MISSING_TIME]`, nuke `~/Library/Caches/pnpm/v11/metadata*` and retry to force a clean refetch.
 
 ## Monorepo Structure
 - Uses **pnpm workspaces** for monorepo management (see `pnpm-workspace.yaml`)
