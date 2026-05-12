@@ -50,18 +50,18 @@
     "test": "bun test",
     "dev": "vite build --watch",
     "dev:test": "bun test --watch",
-    "lint": "npx eslint src",
+    "lint": "eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
     "clean": "rimraf .dist & rimraf .coverage",
-    "fresh-start": "npm run clean && rimraf node_modules"
+    "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionjs/core": "0.8.10",
-    "@mionjs/router": "0.8.10"
+    "@mionjs/core": "workspace:*",
+    "@mionjs/router": "workspace:*"
   },
   "devDependencies": {
     "@deepkit/core": "1.0.19",

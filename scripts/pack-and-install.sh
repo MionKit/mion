@@ -13,16 +13,16 @@ NC='\033[0m'
 
 echo -e "${GREEN}[1/3] Building all packages...${NC}"
 cd "$ROOT_DIR"
-npm run build
+pnpm run build
 
 echo -e "\n${GREEN}[2/3] Packing mion packages into unversioned tarballs...${NC}"
 bash "$ROOT_DIR/scripts/pack-packages.sh" --dest "$TEST_PUBLISH_DIR/tarballs"
 
 echo -e "\n${GREEN}[3/3] Installing from tarballs (clean)...${NC}"
 cd "$TEST_PUBLISH_DIR"
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules pnpm-lock.yaml
+pnpm install --no-frozen-lockfile
 
 echo -e "\n${GREEN}Done! You can now run:${NC}"
-echo "  cd test-publish && npm run test"
-echo "  cd test-publish && npm run verify"
+echo "  cd test-publish && pnpm run test"
+echo "  cd test-publish && pnpm run verify"

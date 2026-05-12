@@ -592,6 +592,8 @@ class PurityError extends Error {
     this.position = position;
     this.name = "PurityError";
   }
+  filePath;
+  position;
 }
 exports.PurityError = PurityError;
 exports.extractPureFnsFromSource = extractPureFnsFromSource;

@@ -1,0 +1,5 @@
+packages:
+  - 'packages/*'
+  # NOTE: website/ and test-publish/ are intentionally NOT in the workspace.
+  # - website/ has its own pnpm-lock.yaml and is built separately (CI deploys it independently).
+  # - test-publish/ consumes published tarballs via file: protocol — must stay isolated.

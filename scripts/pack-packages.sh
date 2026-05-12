@@ -42,7 +42,8 @@ rm -f "$DEST_DIR/"*.tgz 2>/dev/null || true
 cd "$ROOT_DIR"
 for pkg in "${PACKAGES[@]}"; do
   echo "  Packing $pkg..."
-  npm pack -w "$pkg" --pack-destination "$DEST_DIR" --silent
+  # `pnpm pack` rewrites workspace:* deps to concrete versions in the tarball.
+  pnpm --filter "$pkg" pack --pack-destination "$DEST_DIR" --silent
 done
 
 # ── Rename to unversioned names ──

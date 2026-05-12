@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx vitest:*)",
+      "Bash(pnpm exec vitest:*)",
+      "Bash(pnpm run test:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm --filter:*)",
       "Bash(lsof -ti:8086)",
       "Bash(xargs kill:*)",
       "Bash(find /Users/majerez/Projects/mion/packages/platform-* -name \"*.spec.ts\" -type f)",

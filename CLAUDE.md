@@ -1,7 +1,24 @@
 # Mion Monorepo Architectural Guidelines
 
+## Package Manager: pnpm
+
+This monorepo uses **pnpm** (not npm). Do **not** run `npm install` — it will not respect `pnpm-workspace.yaml` and will not honor the security policies in `.npmrc`.
+
+Security posture (see `.npmrc`):
+- `frozen-lockfile=true` — installs must match `pnpm-lock.yaml` exactly
+- `minimum-release-age=43200` (30 days) — refuses to install package versions younger than 30 days
+- `ignore-scripts=true` — blocks all preinstall/install/postinstall scripts from dependencies
+- `allow-non-registry-protocols=false` — refuses git/github/file/http specifiers (workspace:* is exempt)
+- `save-exact=true` — `pnpm add` writes exact versions, never `^` or `~`
+- Versions can only be updated via explicit `pnpm update <pkg>` or by deleting the lockfile
+
+Updating dependencies:
+- `pnpm update <pkg> --latest` to bump a single package
+- `rm pnpm-lock.yaml && pnpm install` to fully resolve from scratch (will respect minimum release age)
+
 ## Monorepo Structure
-- Uses npm workspaces for monorepo management (see workspaces in package.json)
+- Uses **pnpm workspaces** for monorepo management (see `pnpm-workspace.yaml`)
+- Internal cross-package deps use the `workspace:*` protocol — pnpm rewrites it to the concrete `version` from each sibling's `package.json` on `pnpm pack`/`pnpm publish`
 - Each package is independent and can be worked on separately
 - Packages located under `/packages/` directory:
   - `run-types`: Core type system and JIT compilation
@@ -14,7 +31,7 @@
   - `platform-aws`, `platform-gcloud`, `platform-bun`, `platform-node`, `platform-vercel`: Platform-specific adapters
   - `cli`: Command-line interface (not yet implemented)
   - `devtools`: Vite plugin, ESLint plugin, and dev tooling for mion
-- Run commands in specific package: `npm run <command> -w @mionjs/<packageName>`
+- Run commands in specific package: `pnpm --filter @mionjs/<packageName> run <command>`
 - Or navigate to package directory and run commands locally
 - all devDependencies should be installed root level not in the packages
 
@@ -22,12 +39,12 @@
 - Uses Vitest as testing framework with [projects/workspace](https://vitest.dev/guide/projects) configured in root `vitest.config.ts`
 - Test files use `.spec.ts` suffix
 - Each package has its own `vitest.config.ts` with a `test.name` matching the package directory name
-- Run a single test file from root: `npx vitest run <file-path-or-pattern>`
-- Run all tests in a specific project: `npx vitest run --project <name>` (e.g. `--project router`)
-- Run all tests across all packages: `npm run test`
+- Run a single test file from root: `pnpm exec vitest run <file-path-or-pattern>`
+- Run all tests in a specific project: `pnpm exec vitest run --project <name>` (e.g. `--project router`)
+- Run all tests across all packages: `pnpm run test`
 - Available project names: `core`, `run-types`, `type-formats`, `router`, `client`, `platform-aws`, `platform-gcloud`, `platform-node`, `platform-vercel`, `devtools`, `drizze`
 - `test-publish` package is excluded from the workspace (it tests built artifacts, run separately)
-- Never run `npm run build` during development (only for publishing)
+- Never run `pnpm run build` during development (only for publishing)
 
 ## Publishing Modules
 - Dual module output: CommonJS and ESM
@@ -48,18 +65,18 @@
 - prefer one line if statements ie: `if (condition) doSomething();`
 
 ## Development Workflow
-- Never run `npm run build` during development (only for publishing)
-- Run `npm run clean` before starting work
-- Use `npm run test` to run tests
-- before committing, run `npm run lint` and `npm run format`, to ensure code style and formatting are correct (fix any errors before committing)
-- always try to use npm commands from packages instead `npx whatever command` if there is an npm command Available.
+- Never run `pnpm run build` during development (only for publishing)
+- Run `pnpm run clean` before starting work
+- Use `pnpm run test` to run tests
+- before committing, run `pnpm run lint` and `pnpm run format`, to ensure code style and formatting are correct (fix any errors before committing)
+- always try to use pnpm scripts from packages instead of `pnpm exec <command>` if there is a script available.
 
 ## ⚠️ Devtools Rebuild Requirement
 - The `@mionjs/devtools` package exports point to built output (`./build/`), not source. Other packages (client, test-server, router, etc.) import the **built** vite plugin and eslint rules via `@mionjs/devtools/vite-plugin` and `@mionjs/devtools/eslint`.
-- After modifying any devtools source files, you MUST rebuild before running tests in other packages: `npm run build -w @mionjs/devtools`
-- Devtools' own tests (`npx vitest run --project devtools`) import source directly and do NOT need a rebuild
+- After modifying any devtools source files, you MUST rebuild before running tests in other packages: `pnpm --filter @mionjs/devtools run build`
+- Devtools' own tests (`pnpm exec vitest run --project devtools`) import source directly and do NOT need a rebuild
 - Client, test-server, and any package using `mionVitePlugin` require the rebuilt output
-- Use `npm run dev -w @mionjs/devtools` for watch mode during active development
+- Use `pnpm --filter @mionjs/devtools run dev` for watch mode during active development
 
 ## Code examples
 - There is a special package called `examples` that contains code examples that should compile

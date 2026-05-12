@@ -56,16 +56,16 @@
   },
   "scripts": {
     "test": "vitest run",
-    "dev": "npm run build:eslint && npm run build:vite-plugin -- --watch",
+    "dev": "pnpm run build:eslint && pnpm run build:vite-plugin -- --watch",
     "dev:test": "vitest watch",
-    "lint": "npx eslint src",
+    "lint": "eslint src",
     "format": "prettier --write src/**/*.ts",
-    "build": "npm run build:eslint && npm run build:vite-plugin && npm run clean:aot-caches",
+    "build": "pnpm run build:eslint && pnpm run build:vite-plugin && pnpm run clean:aot-caches",
     "clean:aot-caches": "find .. -name mion-aot-cache.json -path '*/node_modules/.vite/*' -delete 2>/dev/null; true",
     "build:eslint": "vite build --config vite.eslint.config.ts",
     "build:vite-plugin": "vite build --config vite.vite-plugin.config.ts",
-    "clean": "rimraf .dist && rimraf .coverage && npm run clean:aot-caches",
-    "fresh-start": "npm run clean && rimraf node_modules"
+    "clean": "rimraf .dist && rimraf .coverage && pnpm run clean:aot-caches",
+    "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"

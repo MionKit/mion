@@ -1,0 +1,3 @@
+# Standalone pnpm workspace for the website.
+# Keeps website install isolated from the monorepo root.
+packages: []

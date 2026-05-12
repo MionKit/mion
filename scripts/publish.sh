@@ -37,14 +37,16 @@ echo ""
 echo -e "${GREEN}[3/4] Version bump${NC}"
 echo "──────────────────────────────────────────"
 echo -e "${YELLOW}Select version bump (lerna version):${NC}"
-npx lerna version
+pnpm exec lerna version
 
 # ── Publish to npm ──
 echo ""
 echo -e "${GREEN}[4/4] Publishing to npm...${NC}"
 echo "──────────────────────────────────────────"
 read -rp "Enter npm OTP code: " OTP
-npx lerna publish from-package --no-private --ignore-scripts --otp="${OTP}"
+# lerna publish (configured with npmClient=pnpm in lerna.json) rewrites
+# `workspace:*` deps to concrete versions before publishing each tarball.
+pnpm exec lerna publish from-package --no-private --ignore-scripts --otp="${OTP}"
 
 echo ""
 echo -e "${GREEN}══════════════════════════════════════════${NC}"

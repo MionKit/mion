@@ -44,15 +44,15 @@
     "access": "public"
   },
   "scripts": {
-    "test": "vitest run && npm run test:e2e:ssr",
+    "test": "vitest run && pnpm run test:e2e:ssr",
     "test:e2e:ssr": "node --experimental-strip-types src/aotSSR.e2e.test.ts",
     "dev": "vite build --watch",
     "dev:test": "vitest watch",
-    "lint": "npx eslint src",
+    "lint": "eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
     "clean": "rimraf .dist & rimraf .coverage",
-    "fresh-start": "npm run clean && rimraf node_modules",
+    "fresh-start": "pnpm run clean && rimraf node_modules",
     "run-test-server": "ts-node --project test/tsconfig.json test/test-server.ts"
   },
   "bugs": {
@@ -60,13 +60,15 @@
   },
   "gitHead": "afd6e1d61525b4bf11bb84b3f85089038d70062d",
   "devDependencies": {
-    "@mionjs/platform-node": "0.8.10",
-    "@mionjs/router": "0.8.10",
-    "@mionjs/run-types": "0.8.10",
-    "@mionjs/test-server": "0.8.10",
+    "@mionjs/devtools": "workspace:*",
+    "@mionjs/platform-node": "workspace:*",
+    "@mionjs/router": "workspace:*",
+    "@mionjs/run-types": "workspace:*",
+    "@mionjs/test-server": "workspace:*",
+    "@mionjs/type-formats": "workspace:*",
     "jest-environment-jsdom": "^29.6.2"
   },
   "dependencies": {
-    "@mionjs/core": "0.8.10"
+    "@mionjs/core": "workspace:*"
   }
 }

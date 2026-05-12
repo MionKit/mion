@@ -6,13 +6,18 @@
 - Content: Nuxt Content v3 with MDC (Markdown Components) syntax
 - Type hovers: Shiki + Twoslash for server-rendered TypeScript code blocks
 
+## Package Manager: pnpm
+- This sub-project uses its own `pnpm-lock.yaml` (it is intentionally NOT part of the monorepo root workspace).
+- See `.npmrc` for security policy: pinned versions, 30-day minimum release age, no install scripts, no non-registry sources.
+- Install: `pnpm install --frozen-lockfile`
+
 ## Development
-- Start dev server: `npm run dev` (runs on `http://localhost:3000`)
-- Fresh start: `npm run dev:fresh` (cleans `.nuxt`, `.data`, `.output` first)
-- Build requires all mion packages built first: `npm run build` (runs `npm run build` at monorepo root, then `nuxt build`)
-- Preview production build: `npm run preview`
-- Check broken code-import paths: `npm run check-links`
-- Check unused example files: `npm run check-unused-examples`
+- Start dev server: `pnpm run dev` (runs on `http://localhost:3000`)
+- Fresh start: `pnpm run dev:fresh` (cleans `.nuxt`, `.data`, `.output` first)
+- Build requires all mion packages built first: `pnpm run build` (runs `pnpm run build` at monorepo root, then `nuxt build`)
+- Preview production build: `pnpm run preview`
+- Check broken code-import paths: `pnpm run check-links`
+- Check unused example files: `pnpm run check-unused-examples`
 
 ## Content Organization
 - Content lives in `content/` as `.md` files using MDC syntax
@@ -75,7 +80,7 @@ title: mion-router.ts
 - Examples must compile without errors (they use real mion package imports)
 - Referenced from docs via `<code-import>` and `twoslash-code` components
 - Has its own ESLint config requiring explicit return types in `.routes.ts` files
-- Lint examples: `npm run lint -w @mionjs/examples`
+- Lint examples: `pnpm --filter @mionjs/examples run lint`
 
 ## Custom Vue Components
 - Located in `app/components/content/` (auto-imported, usable directly in MDC)

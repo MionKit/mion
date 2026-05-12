@@ -9,7 +9,7 @@
     "test": "vitest run",
     "build": "vite build --config vite.build.config.ts",
     "test:aot": "vitest run --config vitest.aot.config.ts",
-    "verify": "npm run test && npm run build && npm run test:aot",
+    "verify": "pnpm run test && pnpm run build && pnpm run test:aot",
     "clean": "rimraf dist node_modules"
   },
   "dependencies": {

@@ -22,10 +22,10 @@ This is the default Docus starter template that provides everything you need to 
 
 ```bash
 # Install dependencies
-npm install
+pnpm install --frozen-lockfile
 
 # Start development server
-npm run dev
+pnpm run dev
 ```
 
 Your documentation site will be running at `http://localhost:3000`
@@ -62,7 +62,7 @@ For detailed documentation on customizing your Docus project, visit the [Docus D
 Build for production:
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 The built files will be in the `.output` directory, ready for deployment to any hosting provider that supports Node.js.
