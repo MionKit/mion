@@ -134,13 +134,13 @@ blur: 140px
     <br>
 
     ::note{class="text-sm"}
-    [GraphQL-like data composition]{.text-highlighted} with the simplicity of RPC — resolve relationships in a single request using `mapFrom`.
+    [GraphQL-like data composition]{.text-highlighted} with the simplicity of RPC — resolve relationships in a single request using `serverMapFrom`.
     ::
     ::::
 
     ::::twoslash-code
     ---
-    path: packages/examples/src/_homepage/home-mapFrom.ts
+    path: packages/examples/src/_homepage/home-serverMapFrom.ts
     title: mion-routesFlow.ts
     class: sm:col-span-2 lg:col-span-2
     ---
