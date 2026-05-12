@@ -3,3 +3,51 @@ packages:
   # NOTE: website/ and test-publish/ are intentionally NOT in the workspace.
   # - website/ has its own pnpm-lock.yaml and is built separately (CI deploys it independently).
   # - test-publish/ consumes published tarballs via file: protocol — must stay isolated.
+
+# ── Build-script allowlist ───────────────────────────────
+# pnpm 11 blocks every dependency install/postinstall script by default.
+# Only the packages listed here may run them.
+allowBuilds:
+  '@deepkit/type-compiler': false
+  esbuild: true
+  nx: false
+  workerd: false
+
+# ── Lockfile / install integrity ─────────────────────────
+preferFrozenLockfile: true
+verifyStoreIntegrity: true
+
+# ── Version pinning (no auto-bumps) ──────────────────────
+# Empty savePrefix means exact pinning (replaces legacy save-exact=true).
+savePrefix: ''
+saveWorkspaceProtocol: rolling
+resolutionMode: highest
+
+# ── Supply-chain protection: minimum release age ─────────
+# Refuse to install package versions younger than 30 days (43200 minutes).
+# Defeats fast-spreading malicious releases (TanStack-style).
+minimumReleaseAge: 43200
+# Applied to FUTURE bumps (lockfile-frozen entries are not re-checked).
+# Keep empty by default; add per-package entries only if a future bump is
+# blocked by a transitive we trust (e.g. UnJS-ecosystem packages).
+minimumReleaseAgeExclude: []
+
+# ── Block lifecycle scripts ──────────────────────────────
+# Hard-block ALL build scripts. Specific packages are re-enabled
+# via the `allowBuilds` map above.
+ignoreScripts: true
+sideEffectsCache: false
+
+# ── Block non-registry sources ───────────────────────────
+# Refuse git/github/file/http specifiers from dependencies.
+# (workspace:* is exempt — it's the workspace protocol, not external.)
+allowNonRegistryProtocols: false
+
+# ── Strict peer / hoisting ───────────────────────────────
+strictPeerDependencies: true
+autoInstallPeers: false
+# Use npm-like flat hoisting so transitive deps (esbuild, etc.) remain
+# accessible from sibling packages without each one needing to redeclare
+# them. Security is enforced by the lockfile + minimumReleaseAge +
+# ignoreScripts settings above, NOT by the linker layout.
+nodeLinker: hoisted

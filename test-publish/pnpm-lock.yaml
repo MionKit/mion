@@ -4,74 +4,89 @@ settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
 
+overrides:
+  '@mionjs/core': file:./tarballs/mionjs-core.tgz
+  '@mionjs/run-types': file:./tarballs/mionjs-run-types.tgz
+  '@mionjs/router': file:./tarballs/mionjs-router.tgz
+  '@mionjs/platform-node': file:./tarballs/mionjs-platform-node.tgz
+  '@mionjs/client': file:./tarballs/mionjs-client.tgz
+  '@mionjs/type-formats': file:./tarballs/mionjs-type-formats.tgz
+  '@mionjs/drizzle': file:./tarballs/mionjs-drizzle.tgz
+  '@mionjs/platform-aws': file:./tarballs/mionjs-platform-aws.tgz
+  '@mionjs/platform-bun': file:./tarballs/mionjs-platform-bun.tgz
+  '@mionjs/platform-cloudflare': file:./tarballs/mionjs-platform-cloudflare.tgz
+  '@mionjs/platform-gcloud': file:./tarballs/mionjs-platform-gcloud.tgz
+  '@mionjs/platform-vercel': file:./tarballs/mionjs-platform-vercel.tgz
+  '@mionjs/devtools': file:./tarballs/mionjs-devtools.tgz
+
 importers:
 
   .:
     dependencies:
       '@mionjs/client':
-        specifier: file:./tarballs/mionjs-client.tgz
+        specifier: file:tarballs/mionjs-client.tgz
         version: file:tarballs/mionjs-client.tgz
       '@mionjs/core':
-        specifier: file:./tarballs/mionjs-core.tgz
+        specifier: file:tarballs/mionjs-core.tgz
         version: file:tarballs/mionjs-core.tgz
       '@mionjs/drizzle':
-        specifier: file:./tarballs/mionjs-drizzle.tgz
+        specifier: file:tarballs/mionjs-drizzle.tgz
         version: file:tarballs/mionjs-drizzle.tgz(typescript@6.0.2)
       '@mionjs/platform-aws':
-        specifier: file:./tarballs/mionjs-platform-aws.tgz
+        specifier: file:tarballs/mionjs-platform-aws.tgz
         version: file:tarballs/mionjs-platform-aws.tgz(typescript@6.0.2)
       '@mionjs/platform-bun':
-        specifier: file:./tarballs/mionjs-platform-bun.tgz
+        specifier: file:tarballs/mionjs-platform-bun.tgz
         version: file:tarballs/mionjs-platform-bun.tgz(typescript@6.0.2)
       '@mionjs/platform-cloudflare':
-        specifier: file:./tarballs/mionjs-platform-cloudflare.tgz
+        specifier: file:tarballs/mionjs-platform-cloudflare.tgz
         version: file:tarballs/mionjs-platform-cloudflare.tgz(typescript@6.0.2)
       '@mionjs/platform-gcloud':
-        specifier: file:./tarballs/mionjs-platform-gcloud.tgz
+        specifier: file:tarballs/mionjs-platform-gcloud.tgz
         version: file:tarballs/mionjs-platform-gcloud.tgz(typescript@6.0.2)
       '@mionjs/platform-node':
-        specifier: file:./tarballs/mionjs-platform-node.tgz
+        specifier: file:tarballs/mionjs-platform-node.tgz
         version: file:tarballs/mionjs-platform-node.tgz(typescript@6.0.2)
       '@mionjs/platform-vercel':
-        specifier: file:./tarballs/mionjs-platform-vercel.tgz
+        specifier: file:tarballs/mionjs-platform-vercel.tgz
         version: file:tarballs/mionjs-platform-vercel.tgz(typescript@6.0.2)
       '@mionjs/router':
-        specifier: file:./tarballs/mionjs-router.tgz
+        specifier: file:tarballs/mionjs-router.tgz
         version: file:tarballs/mionjs-router.tgz(typescript@6.0.2)
       '@mionjs/run-types':
-        specifier: file:./tarballs/mionjs-run-types.tgz
+        specifier: file:tarballs/mionjs-run-types.tgz
         version: file:tarballs/mionjs-run-types.tgz(typescript@6.0.2)
       '@mionjs/type-formats':
-        specifier: file:./tarballs/mionjs-type-formats.tgz
+        specifier: file:tarballs/mionjs-type-formats.tgz
         version: file:tarballs/mionjs-type-formats.tgz(typescript@6.0.2)
     devDependencies:
       '@eslint/js':
-        specifier: ^9.20.1
+        specifier: 9.39.4
         version: 9.39.4
       '@mionjs/devtools':
-        specifier: file:./tarballs/mionjs-devtools.tgz
-        version: file:tarballs/mionjs-devtools.tgz(@types/node@25.7.0)(eslint@9.39.4)(rollup@4.60.3)(typescript@6.0.2)(vite@7.3.3(@types/node@25.7.0))
+        specifier: file:tarballs/mionjs-devtools.tgz
+        version: file:tarballs/mionjs-devtools.tgz(@types/node@25.7.0)(eslint@9.39.4)(rollup@4.60.3)(typescript@6.0.2)(vite@7.3.2(@types/node@25.7.0))
       dom-storage:
-        specifier: ^2.1.0
+        specifier: 2.1.0
         version: 2.1.0
       eslint:
-        specifier: ^9.20.1
+        specifier: 9.39.4
         version: 9.39.4
       rimraf:
-        specifier: ^6.1.3
+        specifier: 6.1.3
         version: 6.1.3
       typescript:
         specifier: 6.0.2
         version: 6.0.2
       typescript-eslint:
-        specifier: ^8.30.1
-        version: 8.59.3(eslint@9.39.4)(typescript@6.0.2)
+        specifier: 8.58.1
+        version: 8.58.1(eslint@9.39.4)(typescript@6.0.2)
       vite:
-        specifier: ^7.3.1
-        version: 7.3.3(@types/node@25.7.0)
+        specifier: 7.3.2
+        version: 7.3.2(@types/node@25.7.0)
       vitest:
-        specifier: ^4.0.18
-        version: 4.1.6(@types/node@25.7.0)(vite@7.3.3(@types/node@25.7.0))
+        specifier: 4.1.4
+        version: 4.1.4(@types/node@25.7.0)(vite@7.3.2(@types/node@25.7.0))
 
 packages:
 
@@ -353,18 +368,15 @@ packages:
     resolution: {integrity: sha512-xgAyonlVVS+q7Vc7qLW0UrJU7rSFcETRWsqdXZtjzRU8dF+6CkozTK4V4y1LwOX7j8r/vHphjDeMeGI4tNGeGA==}
 
   '@mionjs/client@file:tarballs/mionjs-client.tgz':
-    resolution: {integrity: sha512-CvJeB9cisy9V/H7ML1RY6QTNskJkAWpzEVgjSE9dxp7PJTpehtLUDJphd9v9FZ9hhHc4nVExYpM82d6QLingTw==, tarball: file:tarballs/mionjs-client.tgz}
+    resolution: {integrity: sha512-05eoMqWD3kRqgl3KvXQAoq6hknHltVSwRoa9RJX1rfm0ETUSDgHYzt3w8ykpIJStx8LZdIunwQL5JwOrMNnXQw==, tarball: file:tarballs/mionjs-client.tgz}
     version: 0.8.10
-
-  '@mionjs/core@0.8.10':
-    resolution: {integrity: sha512-52jjhynFDeuOEx6fpt8ljXkKFcyy0CqFMyXVZ2SRGyydwXVOrUBb5kzy3yicnnchT6QdKMUVd3ieuGBBlsJp5g==}
 
   '@mionjs/core@file:tarballs/mionjs-core.tgz':
     resolution: {integrity: sha512-q+8RNMjQch6L4UIHNx73LReKT9j5vcyPELFY6Q5ZY+ZBcJh2Tc5gtpi7FDJN0RFX7wza7GO2SNS/5oDokwJOzw==, tarball: file:tarballs/mionjs-core.tgz}
     version: 0.8.10
 
   '@mionjs/devtools@file:tarballs/mionjs-devtools.tgz':
-    resolution: {integrity: sha512-KeqXGTSHKNz4ENVgBRsnRQ2NpIY218QBanEHo3vwDyjzVkalgxQ4oGXBWyAVFg62LbZGBBvEHTAnj8f7GyPVcw==, tarball: file:tarballs/mionjs-devtools.tgz}
+    resolution: {integrity: sha512-CV3JTiq5VNLKNG87wAzZ3AB1FQ5KD9DpZTGFSSyEuygbRWVIHBt84AUhSaAM9rC8oqia29g6E9D6YI8dRbbEgQ==, tarball: file:tarballs/mionjs-devtools.tgz}
     version: 0.8.10
     peerDependencies:
       typescript: '>=6.0.0'
@@ -378,11 +390,11 @@ packages:
     version: 0.8.10
 
   '@mionjs/platform-aws@file:tarballs/mionjs-platform-aws.tgz':
-    resolution: {integrity: sha512-vHPjJ03LUwO4DBgXkTVM8CvoRcnku1urS4qzuM8os2+pXBrJdSPh8csjZc88Sk/CZdMVZueNYhTBTYRrTzJmHQ==, tarball: file:tarballs/mionjs-platform-aws.tgz}
+    resolution: {integrity: sha512-oRX6b34F4RLoWv4XkkLjh6U4VXCN2QMnT95Fyk5n9JAOcW945lIxAZ+ZIC1pTiYGh7k0uNrI3tjQhe1Zr9p4Ew==, tarball: file:tarballs/mionjs-platform-aws.tgz}
     version: 0.8.10
 
   '@mionjs/platform-bun@file:tarballs/mionjs-platform-bun.tgz':
-    resolution: {integrity: sha512-MyO+ZchrPYGaAjQQdn0jAJtp5ha9/Mby+cNSkLDi+5tgZe/6803XFaD03kSO5yUg/uX48cQq+S48yP3jZe8d1A==, tarball: file:tarballs/mionjs-platform-bun.tgz}
+    resolution: {integrity: sha512-mfqNjyJHg5LSGyVnnOfvJ8AktUPxbG+M3nsoTlsFb+es+ocJz+auA1AqFk9mDnrSt1BQVbhBT1ljVEIiqMZjsQ==, tarball: file:tarballs/mionjs-platform-bun.tgz}
     version: 0.8.10
     engines: {bun: '>=1.0.1'}
     peerDependencies:
@@ -393,7 +405,7 @@ packages:
     version: 0.8.10
 
   '@mionjs/platform-gcloud@file:tarballs/mionjs-platform-gcloud.tgz':
-    resolution: {integrity: sha512-uyNRROB/zR73CzrdR5W+WcPPgS+qLV5Eie2irygvh0BWB7oqcu7NtFgR+guTGNeij+glLHyP8tSixNMwWtBWlQ==, tarball: file:tarballs/mionjs-platform-gcloud.tgz}
+    resolution: {integrity: sha512-pHL8CJvVbl+3xIWsf0IzQFuuMpJxP1zF6+y/8YBum+Vh9ku9AvC/iv9bEZT3MNnhNqpffo7x5mMbGdcFmUX9zA==, tarball: file:tarballs/mionjs-platform-gcloud.tgz}
     version: 0.8.10
 
   '@mionjs/platform-node@file:tarballs/mionjs-platform-node.tgz':
@@ -404,26 +416,15 @@ packages:
     resolution: {integrity: sha512-hvzwIKJ2MI7/fWj87SsEcv4P5Vvnusvx87n/ddYE5N5ROtcJ8OsBk2za16yJ3A5eUCyfEfEpmkC69RTQ036wDA==, tarball: file:tarballs/mionjs-platform-vercel.tgz}
     version: 0.8.10
 
-  '@mionjs/router@0.8.10':
-    resolution: {integrity: sha512-KsRqODL4tgmCUXJPAQuYEjTFjbbxLRhKDXo4vopJPjytuezWmTCkxkiMu1wxV64eF+JVBQd+MW69CD7fngQWMg==}
-
   '@mionjs/router@file:tarballs/mionjs-router.tgz':
-    resolution: {integrity: sha512-8Q4Z2Q/xZQpczSVUN/zEcKBAXrqtr/rSuWjb3FxoLxY10pnfpdggmWC6b/h1/HsBL1bhmSJm6QoAEFRjIANTKA==, tarball: file:tarballs/mionjs-router.tgz}
+    resolution: {integrity: sha512-m0XAap9Nd1pN7nuP7n2vhS+U7XMY3Zoo6yV7duiq3vL/7jKykuw0EyLGzAa5Cne5lSsatJMzdRdSNTxaGdxJFg==, tarball: file:tarballs/mionjs-router.tgz}
     version: 0.8.10
-
-  '@mionjs/run-types@0.8.10':
-    resolution: {integrity: sha512-eWEqTARYCZ34+NuYVuzIgejaRsnO4r6Wfw/udyTIBCr5WgRbN3h/5bdq35ase++9dgDI8P0P8yacJFHeLm6owA==}
-    peerDependencies:
-      typescript: '>=6.0.0'
 
   '@mionjs/run-types@file:tarballs/mionjs-run-types.tgz':
     resolution: {integrity: sha512-dhvmh/LuQme826snScRRNluaxde8lzlTaYscl4SBaYJTyEinpGKp5a7bW4EwULHVvxOyfhMNVikL8l5Ox25U5A==, tarball: file:tarballs/mionjs-run-types.tgz}
     version: 0.8.10
     peerDependencies:
       typescript: '>=6.0.0'
-
-  '@mionjs/type-formats@0.8.10':
-    resolution: {integrity: sha512-J+W54m6psffm5KNzHxQ6UOf7Xr7muLO+6UMIjhK/yevD9yQu7HaZLEVImAXaGQ9Y6kyjoz4uiEqz8vR1llJmkQ==}
 
   '@mionjs/type-formats@file:tarballs/mionjs-type-formats.tgz':
     resolution: {integrity: sha512-A58Y6Yk9LlxjUeQp9ZEPGv2XfFy0+PM9s6akvknL183yJE+zgiUxfw9rwD5hhVMtBbcWFDYms3oTozRwTeBKRQ==, tarball: file:tarballs/mionjs-type-formats.tgz}
@@ -669,73 +670,73 @@ packages:
   '@types/uuid@8.3.4':
     resolution: {integrity: sha512-c/I8ZRb51j+pYGAu5CrFMRxqZ2ke4y2grEBO5AUjgSkSk+qT2Ea+OdWElz/OiMf5MNpn2b17kuVBwZLQJXzihw==}
 
-  '@typescript-eslint/eslint-plugin@8.59.3':
-    resolution: {integrity: sha512-PwFvSKsXGShKGW6n5bZOhGHEcCZXM8HofLK9fNsEwZXzFRjoY+XT1Vsf1zgyXdwTr0ZYz1/2tkZ0DBTT9jZjhw==}
+  '@typescript-eslint/eslint-plugin@8.58.1':
+    resolution: {integrity: sha512-eSkwoemjo76bdXl2MYqtxg51HNwUSkWfODUOQ3PaTLZGh9uIWWFZIjyjaJnex7wXDu+TRx+ATsnSxdN9YWfRTQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
-      '@typescript-eslint/parser': ^8.59.3
+      '@typescript-eslint/parser': ^8.58.1
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/parser@8.59.3':
-    resolution: {integrity: sha512-HPwA+hVkfcriajbNvTmZv4VRauibay+cWArYUYq7u7W7PmGShMxbPxLvrwDme55a6d5alG3nrYfhyJ/G28XlLg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
-      typescript: '>=4.8.4 <6.1.0'
-
-  '@typescript-eslint/project-service@8.59.3':
-    resolution: {integrity: sha512-ECiUWa/KYRGDFUqTNehaRgzDshnJfkTABJxVemHk4ko22gcr0ukloKjWvyQ64g8YCV/UI47kN1dbmjf/GaQYng==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      typescript: '>=4.8.4 <6.1.0'
-
-  '@typescript-eslint/scope-manager@8.59.3':
-    resolution: {integrity: sha512-t2LvZnoEfzKtnPjgeEu41xw5gxq9mQVfYy4OoZ4Vlt0sk3JwxmhCca/AR7DwOiHrjWgjAj6as4AhRLKSDfvZIA==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@typescript-eslint/tsconfig-utils@8.59.3':
-    resolution: {integrity: sha512-PcIJHjmaREXLgIAIzLnSY9VucEzz8FKXsRgFa1DmdGCK/5tJpW03TKJF01Q6VZd1lLdz2sIKPWaDUZN9dp//dw==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      typescript: '>=4.8.4 <6.1.0'
-
-  '@typescript-eslint/type-utils@8.59.3':
-    resolution: {integrity: sha512-g71d8QD8UaiHGvrJwyIS1hCX5r63w6Jll+4VEYhEAHXTDIqX1JgxhTAbEHtKntL9kuc4jRo7/GWw5xfCepSccQ==}
+  '@typescript-eslint/parser@8.58.1':
+    resolution: {integrity: sha512-gGkiNMPqerb2cJSVcruigx9eHBlLG14fSdPdqMoOcBfh+vvn4iCq2C8MzUB89PrxOXk0y3GZ1yIWb9aOzL93bw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/types@8.59.3':
-    resolution: {integrity: sha512-ePFoH0g4ludssdRFqqDxQePCxU4WQyRa9+XVwjm7yLn0FKhMeoetC+qBEEI1Eyb1pGSDveTIT09Bvw2WhlGayg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@typescript-eslint/typescript-estree@8.59.3':
-    resolution: {integrity: sha512-CbRjVRAf7Lr9Kr8RopKcbY45p2VfmmHrm0ygOCYFi7oU8q19m0Fs/6iHS7kNOmwpp+ob07ZVcAqlxUod9lYdmg==}
+  '@typescript-eslint/project-service@8.58.1':
+    resolution: {integrity: sha512-gfQ8fk6cxhtptek+/8ZIqw8YrRW5048Gug8Ts5IYcMLCw18iUgrZAEY/D7s4hkI0FxEfGakKuPK/XUMPzPxi5g==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/utils@8.59.3':
-    resolution: {integrity: sha512-JAvT14goBzRzzzZyqq3P9BLArIxTtQURUtFgQ/V7FO+eU+Gg6ES+5ymOPP1wRxXcxAYeivCk4uS3jCKWI1K8Zg==}
+  '@typescript-eslint/scope-manager@8.58.1':
+    resolution: {integrity: sha512-TPYUEqJK6avLcEjumWsIuTpuYODTTDAtoMdt8ZZa93uWMTX13Nb8L5leSje1NluammvU+oI3QRr5lLXPgihX3w==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@typescript-eslint/tsconfig-utils@8.58.1':
+    resolution: {integrity: sha512-JAr2hOIct2Q+qk3G+8YFfqkqi7sC86uNryT+2i5HzMa2MPjw4qNFvtjnw1IiA1rP7QhNKVe21mSSLaSjwA1Olw==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      typescript: '>=4.8.4 <6.1.0'
+
+  '@typescript-eslint/type-utils@8.58.1':
+    resolution: {integrity: sha512-HUFxvTJVroT+0rXVJC7eD5zol6ID+Sn5npVPWoFuHGg9Ncq5Q4EYstqR+UOqaNRFXi5TYkpXXkLhoCHe3G0+7w==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/visitor-keys@8.59.3':
-    resolution: {integrity: sha512-f1UQF7ggd42YiwI5wGrRaPsa+P0CINBlrkLPmGfpq/u/I/oVtecoEIfFR9ag/oa1sLOsRNZ6xehf6qMZhQGBDg==}
+  '@typescript-eslint/types@8.58.1':
+    resolution: {integrity: sha512-io/dV5Aw5ezwzfPBBWLoT+5QfVtP8O7q4Kftjn5azJ88bYyp/ZMCsyW1lpKK46EXJcaYMZ1JtYj+s/7TdzmQMw==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@typescript-eslint/typescript-estree@8.58.1':
+    resolution: {integrity: sha512-w4w7WR7GHOjqqPnvAYbazq+Y5oS68b9CzasGtnd6jIeOIeKUzYzupGTB2T4LTPSv4d+WPeccbxuneTFHYgAAWg==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      typescript: '>=4.8.4 <6.1.0'
+
+  '@typescript-eslint/utils@8.58.1':
+    resolution: {integrity: sha512-Ln8R0tmWC7pTtLOzgJzYTXSCjJ9rDNHAqTaVONF4FEi2qwce8mD9iSOxOpLFFvWp/wBFlew0mjM1L1ihYWfBdQ==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
+      typescript: '>=4.8.4 <6.1.0'
+
+  '@typescript-eslint/visitor-keys@8.58.1':
+    resolution: {integrity: sha512-y+vH7QE8ycjoa0bWciFg7OpFcipUuem1ujhrdLtq1gByKwfbC7bPeKsiny9e0urg93DqwGcHey+bGRKCnF1nZQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typescript/vfs@1.5.0':
     resolution: {integrity: sha512-AJS307bPgbsZZ9ggCT3wwpg3VbTKMFNHfaY/uF0ahSkYYrPF2dSSKDNIDIQAHm9qJqbLvCsSJH7yN4Vs/CsMMg==}
 
-  '@vitest/expect@4.1.6':
-    resolution: {integrity: sha512-7EHDquPthALSV0jhhjgEW8FXaviMx7rSqu8W6oqCoAuOhKov814P99QDV1pxMA3QPv21YudvJngIhjrNI4opLg==}
+  '@vitest/expect@4.1.4':
+    resolution: {integrity: sha512-iPBpra+VDuXmBFI3FMKHSFXp3Gx5HfmSCE8X67Dn+bwephCnQCaB7qWK2ldHa+8ncN8hJU8VTMcxjPpyMkUjww==}
 
-  '@vitest/mocker@4.1.6':
-    resolution: {integrity: sha512-MCFc63czMjEInOlcY2cpQCvCN+KgbAn+60xu9cMgP4sKaLC5JNAKw7JH8QdAnoAC88hW1IiSNZ+GgVXlN1UcMQ==}
+  '@vitest/mocker@4.1.4':
+    resolution: {integrity: sha512-R9HTZBhW6yCSGbGQnDnH3QHfJxokKN4KB+Yvk9Q1le7eQNYwiCyKxmLmurSpFy6BzJanSLuEUDrD+j97Q+ZLPg==}
     peerDependencies:
       msw: ^2.4.9
       vite: ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -745,20 +746,20 @@ packages:
       vite:
         optional: true
 
-  '@vitest/pretty-format@4.1.6':
-    resolution: {integrity: sha512-h5SxD/IzNhZYnrSZRsUZQIC+vD0GY8cUvq0iwsmkFKixRCKLLWqCXa/FIQ4S1R+sI+PGoojkHsdNrbZiM9Qpgw==}
+  '@vitest/pretty-format@4.1.4':
+    resolution: {integrity: sha512-ddmDHU0gjEUyEVLxtZa7xamrpIefdEETu3nZjWtHeZX4QxqJ7tRxSteHVXJOcr8jhiLoGAhkK4WJ3WqBpjx42A==}
 
-  '@vitest/runner@4.1.6':
-    resolution: {integrity: sha512-nOPCmn2+yD0ZNmKdsXGv/UxMMWbMuKeD6GyYncNwdkYDxpQvrPSKYj2rWuDjC2Y4b6w6hjip5dBKFzEUuZe3vA==}
+  '@vitest/runner@4.1.4':
+    resolution: {integrity: sha512-xTp7VZ5aXP5ZJrn15UtJUWlx6qXLnGtF6jNxHepdPHpMfz/aVPx+htHtgcAL2mDXJgKhpoo2e9/hVJsIeFbytQ==}
 
-  '@vitest/snapshot@4.1.6':
-    resolution: {integrity: sha512-YhsdE6xAVfTDmzjxL2ZDUvjj+ZsgyOKe+TdQzqkD72wIOmHka8NuGQ6NpTNZv9D2Z63fbwWKJPeVpEw4EQgYxw==}
+  '@vitest/snapshot@4.1.4':
+    resolution: {integrity: sha512-MCjCFgaS8aZz+m5nTcEcgk/xhWv0rEH4Yl53PPlMXOZ1/Ka2VcZU6CJ+MgYCZbcJvzGhQRjVrGQNZqkGPttIKw==}
 
-  '@vitest/spy@4.1.6':
-    resolution: {integrity: sha512-JFKxMx6udhwKh/Ldo270e17QX710vgunMkuPAvXjHSvC6oqLWAHhVhjg/I71q0u0CBSErIODV1Kjv0FQNSWjdg==}
+  '@vitest/spy@4.1.4':
+    resolution: {integrity: sha512-XxNdAsKW7C+FLydqFJLb5KhJtl3PGCMmYwFRfhvIgxJvLSXhhVI1zM8f1qD3Zg7RCjTSzDVyct6sghs9UEgBEQ==}
 
-  '@vitest/utils@4.1.6':
-    resolution: {integrity: sha512-FxIY+U81R3LGKCxaHHFRQ5+g6/iRgGLmeHWdp2Amj4ljQRrEIWHmZyDfDYBRZlpyqA7qKxtS9DD1dhk8RnRIVQ==}
+  '@vitest/utils@4.1.4':
+    resolution: {integrity: sha512-13QMT+eysM5uVGa1rG4kegGYNp6cnQcsTc67ELFbhNLQO+vgsygtYJx2khvdt4gVQqSSpC/KT5FZZxUpP3Oatw==}
 
   '@volar/language-core@2.4.28':
     resolution: {integrity: sha512-w4qhIJ8ZSitgLAkVay6AbcnC7gP3glYM3fYwKV3srj8m494E3xtrCv6E+bWviiK/8hs6e6t1ij1s2Endql7vzQ==}
@@ -1920,8 +1921,8 @@ packages:
     resolution: {integrity: sha512-TkRKr9sUTxEH8MdfuCSP7VizJyzRNMjj2J2do2Jr3Kym598JVdEksuzPQCnlFPW4ky9Q+iA+ma9BGm06XQBy8g==}
     engines: {node: '>= 0.6'}
 
-  typescript-eslint@8.59.3:
-    resolution: {integrity: sha512-KgusgyDgG4LI8Ih/sWaCtZ06tckLAS5CvT5A4D1Q7bYVoAAyzwiZvE4BmwDHkhRVkvhRBepKeASoFzQetha7Fg==}
+  typescript-eslint@8.58.1:
+    resolution: {integrity: sha512-gf6/oHChByg9HJvhMO1iBexJh12AqqTfnuxscMDOVqfJW3htsdRJI/GfPpHTTcyeB8cSTUY2JcZmVgoyPqcrDg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
@@ -1987,8 +1988,8 @@ packages:
       vite:
         optional: true
 
-  vite@7.3.3:
-    resolution: {integrity: sha512-/4XH147Ui7OGTjg3HbdWe5arnZQSbfuRzdr9Ec7TQi5I7R+ir0Rlc9GIvD4v0XZurELqA035KVXJXpR61xhiTA==}
+  vite@7.3.2:
+    resolution: {integrity: sha512-Bby3NOsna2jsjfLVOHKes8sGwgl4TT0E6vvpYgnAYDIF/tie7MRaFthmKuHx1NSXjiTueXH3do80FMQgvEktRg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -2027,20 +2028,20 @@ packages:
       yaml:
         optional: true
 
-  vitest@4.1.6:
-    resolution: {integrity: sha512-6lvjbS3p9b4CrdCmguzbh2/4uoXhGE2q71R4OX5sqF9R1bo9Xd6fGrMAfvp5wnCzlBnFVdCOp6onuTQVbo8iUQ==}
+  vitest@4.1.4:
+    resolution: {integrity: sha512-tFuJqTxKb8AvfyqMfnavXdzfy3h3sWZRWwfluGbkeR7n0HUev+FmNgZ8SDrRBTVrVCjgH5cA21qGbCffMNtWvg==}
     engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
     hasBin: true
     peerDependencies:
       '@edge-runtime/vm': '*'
       '@opentelemetry/api': ^1.9.0
       '@types/node': ^20.0.0 || ^22.0.0 || >=24.0.0
-      '@vitest/browser-playwright': 4.1.6
-      '@vitest/browser-preview': 4.1.6
-      '@vitest/browser-webdriverio': 4.1.6
-      '@vitest/coverage-istanbul': 4.1.6
-      '@vitest/coverage-v8': 4.1.6
-      '@vitest/ui': 4.1.6
+      '@vitest/browser-playwright': 4.1.4
+      '@vitest/browser-preview': 4.1.4
+      '@vitest/browser-webdriverio': 4.1.4
+      '@vitest/coverage-istanbul': 4.1.4
+      '@vitest/coverage-v8': 4.1.4
+      '@vitest/ui': 4.1.4
       happy-dom: '*'
       jsdom: '*'
       vite: ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -2342,22 +2343,20 @@ snapshots:
 
   '@mionjs/client@file:tarballs/mionjs-client.tgz':
     dependencies:
-      '@mionjs/core': 0.8.10
-
-  '@mionjs/core@0.8.10': {}
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
 
   '@mionjs/core@file:tarballs/mionjs-core.tgz': {}
 
-  '@mionjs/devtools@file:tarballs/mionjs-devtools.tgz(@types/node@25.7.0)(eslint@9.39.4)(rollup@4.60.3)(typescript@6.0.2)(vite@7.3.3(@types/node@25.7.0))':
+  '@mionjs/devtools@file:tarballs/mionjs-devtools.tgz(@types/node@25.7.0)(eslint@9.39.4)(rollup@4.60.3)(typescript@6.0.2)(vite@7.3.2(@types/node@25.7.0))':
     dependencies:
       '@deepkit/type-compiler': 1.0.19(rollup@4.60.3)(typescript@6.0.2)
       '@rollup/pluginutils': 5.3.0(rollup@4.60.3)
-      '@typescript-eslint/utils': 8.59.3(eslint@9.39.4)(typescript@6.0.2)
+      '@typescript-eslint/utils': 8.58.1(eslint@9.39.4)(typescript@6.0.2)
       typescript: 6.0.2
       vite-node: 5.3.0(@types/node@25.7.0)
-      vite-plugin-dts: 4.5.4(@types/node@25.7.0)(rollup@4.60.3)(typescript@6.0.2)(vite@7.3.3(@types/node@25.7.0))
+      vite-plugin-dts: 4.5.4(@types/node@25.7.0)(rollup@4.60.3)(typescript@6.0.2)(vite@7.3.2(@types/node@25.7.0))
     optionalDependencies:
-      vite: 7.3.3(@types/node@25.7.0)
+      vite: 7.3.2(@types/node@25.7.0)
     transitivePeerDependencies:
       - '@types/node'
       - eslint
@@ -2376,9 +2375,9 @@ snapshots:
 
   '@mionjs/drizzle@file:tarballs/mionjs-drizzle.tgz(typescript@6.0.2)':
     dependencies:
-      '@mionjs/core': 0.8.10
-      '@mionjs/run-types': 0.8.10(typescript@6.0.2)
-      '@mionjs/type-formats': 0.8.10(typescript@6.0.2)
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
+      '@mionjs/run-types': file:tarballs/mionjs-run-types.tgz(typescript@6.0.2)
+      '@mionjs/type-formats': file:tarballs/mionjs-type-formats.tgz(typescript@6.0.2)
       drizzle-orm: 0.38.4
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -2414,86 +2413,65 @@ snapshots:
 
   '@mionjs/platform-aws@file:tarballs/mionjs-platform-aws.tgz(typescript@6.0.2)':
     dependencies:
-      '@mionjs/core': 0.8.10
-      '@mionjs/router': 0.8.10(typescript@6.0.2)
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
+      '@mionjs/router': file:tarballs/mionjs-router.tgz(typescript@6.0.2)
     transitivePeerDependencies:
       - typescript
 
   '@mionjs/platform-bun@file:tarballs/mionjs-platform-bun.tgz(typescript@6.0.2)':
     dependencies:
-      '@mionjs/core': 0.8.10
-      '@mionjs/router': 0.8.10(typescript@6.0.2)
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
+      '@mionjs/router': file:tarballs/mionjs-router.tgz(typescript@6.0.2)
       typescript: 6.0.2
 
   '@mionjs/platform-cloudflare@file:tarballs/mionjs-platform-cloudflare.tgz(typescript@6.0.2)':
     dependencies:
-      '@mionjs/core': 0.8.10
-      '@mionjs/router': 0.8.10(typescript@6.0.2)
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
+      '@mionjs/router': file:tarballs/mionjs-router.tgz(typescript@6.0.2)
     transitivePeerDependencies:
       - typescript
 
   '@mionjs/platform-gcloud@file:tarballs/mionjs-platform-gcloud.tgz(typescript@6.0.2)':
     dependencies:
       '@google-cloud/functions-framework': 3.5.1
-      '@mionjs/core': 0.8.10
-      '@mionjs/router': 0.8.10(typescript@6.0.2)
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
+      '@mionjs/router': file:tarballs/mionjs-router.tgz(typescript@6.0.2)
     transitivePeerDependencies:
       - supports-color
       - typescript
 
   '@mionjs/platform-node@file:tarballs/mionjs-platform-node.tgz(typescript@6.0.2)':
     dependencies:
-      '@mionjs/core': 0.8.10
-      '@mionjs/router': 0.8.10(typescript@6.0.2)
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
+      '@mionjs/router': file:tarballs/mionjs-router.tgz(typescript@6.0.2)
     transitivePeerDependencies:
       - typescript
 
   '@mionjs/platform-vercel@file:tarballs/mionjs-platform-vercel.tgz(typescript@6.0.2)':
     dependencies:
-      '@mionjs/core': 0.8.10
-      '@mionjs/router': 0.8.10(typescript@6.0.2)
-    transitivePeerDependencies:
-      - typescript
-
-  '@mionjs/router@0.8.10(typescript@6.0.2)':
-    dependencies:
-      '@mionjs/core': 0.8.10
-      '@mionjs/run-types': 0.8.10(typescript@6.0.2)
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
+      '@mionjs/router': file:tarballs/mionjs-router.tgz(typescript@6.0.2)
     transitivePeerDependencies:
       - typescript
 
   '@mionjs/router@file:tarballs/mionjs-router.tgz(typescript@6.0.2)':
     dependencies:
-      '@mionjs/core': 0.8.10
-      '@mionjs/run-types': 0.8.10(typescript@6.0.2)
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
+      '@mionjs/run-types': file:tarballs/mionjs-run-types.tgz(typescript@6.0.2)
     transitivePeerDependencies:
       - typescript
-
-  '@mionjs/run-types@0.8.10(typescript@6.0.2)':
-    dependencies:
-      '@deepkit/core': 1.0.19
-      '@deepkit/type': 1.0.19(@deepkit/core@1.0.19)
-      '@mionjs/core': 0.8.10
-      typescript: 6.0.2
 
   '@mionjs/run-types@file:tarballs/mionjs-run-types.tgz(typescript@6.0.2)':
     dependencies:
       '@deepkit/core': 1.0.19
       '@deepkit/type': 1.0.19(@deepkit/core@1.0.19)
-      '@mionjs/core': 0.8.10
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
       typescript: 6.0.2
-
-  '@mionjs/type-formats@0.8.10(typescript@6.0.2)':
-    dependencies:
-      '@mionjs/core': 0.8.10
-      '@mionjs/run-types': 0.8.10(typescript@6.0.2)
-    transitivePeerDependencies:
-      - typescript
 
   '@mionjs/type-formats@file:tarballs/mionjs-type-formats.tgz(typescript@6.0.2)':
     dependencies:
-      '@mionjs/core': 0.8.10
-      '@mionjs/run-types': 0.8.10(typescript@6.0.2)
+      '@mionjs/core': file:tarballs/mionjs-core.tgz
+      '@mionjs/run-types': file:tarballs/mionjs-run-types.tgz(typescript@6.0.2)
     transitivePeerDependencies:
       - typescript
 
@@ -2690,14 +2668,14 @@ snapshots:
 
   '@types/uuid@8.3.4': {}
 
-  '@typescript-eslint/eslint-plugin@8.59.3(@typescript-eslint/parser@8.59.3(eslint@9.39.4)(typescript@6.0.2))(eslint@9.39.4)(typescript@6.0.2)':
+  '@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(eslint@9.39.4)(typescript@6.0.2))(eslint@9.39.4)(typescript@6.0.2)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
-      '@typescript-eslint/parser': 8.59.3(eslint@9.39.4)(typescript@6.0.2)
-      '@typescript-eslint/scope-manager': 8.59.3
-      '@typescript-eslint/type-utils': 8.59.3(eslint@9.39.4)(typescript@6.0.2)
-      '@typescript-eslint/utils': 8.59.3(eslint@9.39.4)(typescript@6.0.2)
-      '@typescript-eslint/visitor-keys': 8.59.3
+      '@typescript-eslint/parser': 8.58.1(eslint@9.39.4)(typescript@6.0.2)
+      '@typescript-eslint/scope-manager': 8.58.1
+      '@typescript-eslint/type-utils': 8.58.1(eslint@9.39.4)(typescript@6.0.2)
+      '@typescript-eslint/utils': 8.58.1(eslint@9.39.4)(typescript@6.0.2)
+      '@typescript-eslint/visitor-keys': 8.58.1
       eslint: 9.39.4
       ignore: 7.0.5
       natural-compare: 1.4.0
@@ -2706,41 +2684,41 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.59.3(eslint@9.39.4)(typescript@6.0.2)':
+  '@typescript-eslint/parser@8.58.1(eslint@9.39.4)(typescript@6.0.2)':
     dependencies:
-      '@typescript-eslint/scope-manager': 8.59.3
-      '@typescript-eslint/types': 8.59.3
-      '@typescript-eslint/typescript-estree': 8.59.3(typescript@6.0.2)
-      '@typescript-eslint/visitor-keys': 8.59.3
+      '@typescript-eslint/scope-manager': 8.58.1
+      '@typescript-eslint/types': 8.58.1
+      '@typescript-eslint/typescript-estree': 8.58.1(typescript@6.0.2)
+      '@typescript-eslint/visitor-keys': 8.58.1
       debug: 4.4.3
       eslint: 9.39.4
       typescript: 6.0.2
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/project-service@8.59.3(typescript@6.0.2)':
+  '@typescript-eslint/project-service@8.58.1(typescript@6.0.2)':
     dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.59.3(typescript@6.0.2)
-      '@typescript-eslint/types': 8.59.3
+      '@typescript-eslint/tsconfig-utils': 8.58.1(typescript@6.0.2)
+      '@typescript-eslint/types': 8.58.1
       debug: 4.4.3
       typescript: 6.0.2
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/scope-manager@8.59.3':
+  '@typescript-eslint/scope-manager@8.58.1':
     dependencies:
-      '@typescript-eslint/types': 8.59.3
-      '@typescript-eslint/visitor-keys': 8.59.3
+      '@typescript-eslint/types': 8.58.1
+      '@typescript-eslint/visitor-keys': 8.58.1
 
-  '@typescript-eslint/tsconfig-utils@8.59.3(typescript@6.0.2)':
+  '@typescript-eslint/tsconfig-utils@8.58.1(typescript@6.0.2)':
     dependencies:
       typescript: 6.0.2
 
-  '@typescript-eslint/type-utils@8.59.3(eslint@9.39.4)(typescript@6.0.2)':
+  '@typescript-eslint/type-utils@8.58.1(eslint@9.39.4)(typescript@6.0.2)':
     dependencies:
-      '@typescript-eslint/types': 8.59.3
-      '@typescript-eslint/typescript-estree': 8.59.3(typescript@6.0.2)
-      '@typescript-eslint/utils': 8.59.3(eslint@9.39.4)(typescript@6.0.2)
+      '@typescript-eslint/types': 8.58.1
+      '@typescript-eslint/typescript-estree': 8.58.1(typescript@6.0.2)
+      '@typescript-eslint/utils': 8.58.1(eslint@9.39.4)(typescript@6.0.2)
       debug: 4.4.3
       eslint: 9.39.4
       ts-api-utils: 2.5.0(typescript@6.0.2)
@@ -2748,14 +2726,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/types@8.59.3': {}
+  '@typescript-eslint/types@8.58.1': {}
 
-  '@typescript-eslint/typescript-estree@8.59.3(typescript@6.0.2)':
+  '@typescript-eslint/typescript-estree@8.58.1(typescript@6.0.2)':
     dependencies:
-      '@typescript-eslint/project-service': 8.59.3(typescript@6.0.2)
-      '@typescript-eslint/tsconfig-utils': 8.59.3(typescript@6.0.2)
-      '@typescript-eslint/types': 8.59.3
-      '@typescript-eslint/visitor-keys': 8.59.3
+      '@typescript-eslint/project-service': 8.58.1(typescript@6.0.2)
+      '@typescript-eslint/tsconfig-utils': 8.58.1(typescript@6.0.2)
+      '@typescript-eslint/types': 8.58.1
+      '@typescript-eslint/visitor-keys': 8.58.1
       debug: 4.4.3
       minimatch: 10.2.5
       semver: 7.8.0
@@ -2765,20 +2743,20 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@8.59.3(eslint@9.39.4)(typescript@6.0.2)':
+  '@typescript-eslint/utils@8.58.1(eslint@9.39.4)(typescript@6.0.2)':
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.4)
-      '@typescript-eslint/scope-manager': 8.59.3
-      '@typescript-eslint/types': 8.59.3
-      '@typescript-eslint/typescript-estree': 8.59.3(typescript@6.0.2)
+      '@typescript-eslint/scope-manager': 8.58.1
+      '@typescript-eslint/types': 8.58.1
+      '@typescript-eslint/typescript-estree': 8.58.1(typescript@6.0.2)
       eslint: 9.39.4
       typescript: 6.0.2
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/visitor-keys@8.59.3':
+  '@typescript-eslint/visitor-keys@8.58.1':
     dependencies:
-      '@typescript-eslint/types': 8.59.3
+      '@typescript-eslint/types': 8.58.1
       eslint-visitor-keys: 5.0.1
 
   '@typescript/vfs@1.5.0':
@@ -2787,44 +2765,44 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest/expect@4.1.6':
+  '@vitest/expect@4.1.4':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
-      '@vitest/spy': 4.1.6
-      '@vitest/utils': 4.1.6
+      '@vitest/spy': 4.1.4
+      '@vitest/utils': 4.1.4
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.6(vite@7.3.3(@types/node@25.7.0))':
+  '@vitest/mocker@4.1.4(vite@7.3.2(@types/node@25.7.0))':
     dependencies:
-      '@vitest/spy': 4.1.6
+      '@vitest/spy': 4.1.4
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.3(@types/node@25.7.0)
+      vite: 7.3.2(@types/node@25.7.0)
 
-  '@vitest/pretty-format@4.1.6':
+  '@vitest/pretty-format@4.1.4':
     dependencies:
       tinyrainbow: 3.1.0
 
-  '@vitest/runner@4.1.6':
+  '@vitest/runner@4.1.4':
     dependencies:
-      '@vitest/utils': 4.1.6
+      '@vitest/utils': 4.1.4
       pathe: 2.0.3
 
-  '@vitest/snapshot@4.1.6':
+  '@vitest/snapshot@4.1.4':
     dependencies:
-      '@vitest/pretty-format': 4.1.6
-      '@vitest/utils': 4.1.6
+      '@vitest/pretty-format': 4.1.4
+      '@vitest/utils': 4.1.4
       magic-string: 0.30.21
       pathe: 2.0.3
 
-  '@vitest/spy@4.1.6': {}
+  '@vitest/spy@4.1.4': {}
 
-  '@vitest/utils@4.1.6':
+  '@vitest/utils@4.1.4':
     dependencies:
-      '@vitest/pretty-format': 4.1.6
+      '@vitest/pretty-format': 4.1.4
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
@@ -3951,12 +3929,12 @@ snapshots:
       media-typer: 0.3.0
       mime-types: 2.1.35
 
-  typescript-eslint@8.59.3(eslint@9.39.4)(typescript@6.0.2):
+  typescript-eslint@8.58.1(eslint@9.39.4)(typescript@6.0.2):
     dependencies:
-      '@typescript-eslint/eslint-plugin': 8.59.3(@typescript-eslint/parser@8.59.3(eslint@9.39.4)(typescript@6.0.2))(eslint@9.39.4)(typescript@6.0.2)
-      '@typescript-eslint/parser': 8.59.3(eslint@9.39.4)(typescript@6.0.2)
-      '@typescript-eslint/typescript-estree': 8.59.3(typescript@6.0.2)
-      '@typescript-eslint/utils': 8.59.3(eslint@9.39.4)(typescript@6.0.2)
+      '@typescript-eslint/eslint-plugin': 8.58.1(@typescript-eslint/parser@8.58.1(eslint@9.39.4)(typescript@6.0.2))(eslint@9.39.4)(typescript@6.0.2)
+      '@typescript-eslint/parser': 8.58.1(eslint@9.39.4)(typescript@6.0.2)
+      '@typescript-eslint/typescript-estree': 8.58.1(typescript@6.0.2)
+      '@typescript-eslint/utils': 8.58.1(eslint@9.39.4)(typescript@6.0.2)
       eslint: 9.39.4
       typescript: 6.0.2
     transitivePeerDependencies:
@@ -4003,7 +3981,7 @@ snapshots:
       es-module-lexer: 2.1.0
       obug: 2.1.1
       pathe: 2.0.3
-      vite: 7.3.3(@types/node@25.7.0)
+      vite: 7.3.2(@types/node@25.7.0)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -4017,7 +3995,7 @@ snapshots:
       - tsx
       - yaml
 
-  vite-plugin-dts@4.5.4(@types/node@25.7.0)(rollup@4.60.3)(typescript@6.0.2)(vite@7.3.3(@types/node@25.7.0)):
+  vite-plugin-dts@4.5.4(@types/node@25.7.0)(rollup@4.60.3)(typescript@6.0.2)(vite@7.3.2(@types/node@25.7.0)):
     dependencies:
       '@microsoft/api-extractor': 7.58.7(@types/node@25.7.0)
       '@rollup/pluginutils': 5.3.0(rollup@4.60.3)
@@ -4030,13 +4008,13 @@ snapshots:
       magic-string: 0.30.21
       typescript: 6.0.2
     optionalDependencies:
-      vite: 7.3.3(@types/node@25.7.0)
+      vite: 7.3.2(@types/node@25.7.0)
     transitivePeerDependencies:
       - '@types/node'
       - rollup
       - supports-color
 
-  vite@7.3.3(@types/node@25.7.0):
+  vite@7.3.2(@types/node@25.7.0):
     dependencies:
       esbuild: 0.27.7
       fdir: 6.5.0(picomatch@4.0.4)
@@ -4048,15 +4026,15 @@ snapshots:
       '@types/node': 25.7.0
       fsevents: 2.3.3
 
-  vitest@4.1.6(@types/node@25.7.0)(vite@7.3.3(@types/node@25.7.0)):
+  vitest@4.1.4(@types/node@25.7.0)(vite@7.3.2(@types/node@25.7.0)):
     dependencies:
-      '@vitest/expect': 4.1.6
-      '@vitest/mocker': 4.1.6(vite@7.3.3(@types/node@25.7.0))
-      '@vitest/pretty-format': 4.1.6
-      '@vitest/runner': 4.1.6
-      '@vitest/snapshot': 4.1.6
-      '@vitest/spy': 4.1.6
-      '@vitest/utils': 4.1.6
+      '@vitest/expect': 4.1.4
+      '@vitest/mocker': 4.1.4(vite@7.3.2(@types/node@25.7.0))
+      '@vitest/pretty-format': 4.1.4
+      '@vitest/runner': 4.1.4
+      '@vitest/snapshot': 4.1.4
+      '@vitest/spy': 4.1.4
+      '@vitest/utils': 4.1.4
       es-module-lexer: 2.1.0
       expect-type: 1.3.0
       magic-string: 0.30.21
@@ -4068,7 +4046,7 @@ snapshots:
       tinyexec: 1.1.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vite: 7.3.3(@types/node@25.7.0)
+      vite: 7.3.2(@types/node@25.7.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.7.0
