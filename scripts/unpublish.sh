@@ -26,7 +26,7 @@ if [ -z "$VERSION" ]; then
 fi
 
 # ── Get packages in reverse topological order (dependents first, dependencies last) ──
-PACKAGES=$(npx lerna ls --no-private --toposort --json 2>/dev/null | node -e "
+PACKAGES=$(pnpm exec lerna ls --no-private --toposort --json 2>/dev/null | node -e "
   const pkgs = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   pkgs.reverse().forEach(p => console.log(p.name));
 ")

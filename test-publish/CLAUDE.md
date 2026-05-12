@@ -15,13 +15,18 @@
 
 - `bash ../scripts/pack-and-install.sh`: builds all mion packages, packs tarballs, and installs them here (run from this directory or root)
 
+## Package Manager: pnpm
+
+- This package uses its own `pnpm-lock.yaml`, isolated from the monorepo workspace.
+- Its `.npmrc` allows `file:` protocol (required to consume local tarballs) but otherwise enforces the same hardening as the root (pinned, ignore-scripts, minimum-release-age).
+
 ## Running Tests & Build
 
-- `npm run test`: runs JSON and binary serialization E2E tests (uses mionVitePlugin + IPC server)
-- `npm run build`: builds with AOT caches via `vite.build.config.ts`
-- `npm run test:aot`: verifies AOT caches are inlined in build output
-- `npm run verify`: runs test + build + test:aot in sequence
-- `npm run clean`: removes dist and node_modules
+- `pnpm run test`: runs JSON and binary serialization E2E tests (uses mionVitePlugin + IPC server)
+- `pnpm run build`: builds with AOT caches via `vite.build.config.ts`
+- `pnpm run test:aot`: verifies AOT caches are inlined in build output
+- `pnpm run verify`: runs test + build + test:aot in sequence
+- `pnpm run clean`: removes dist and node_modules
 
 ## Project Structure
 

@@ -31,32 +31,32 @@
   },
   "scripts": {
     "dev": "vite build --watch",
-    "lint": "npx eslint src",
+    "lint": "eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "echo noop: examples packages does not need to be built",
     "clean": "rimraf .dist",
-    "fresh-start": "npm run clean && rimraf node_modules"
+    "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionjs/platform-aws": "^0.8.0-alpha.0",
-    "@mionjs/platform-bun": "^0.8.0-alpha.0",
-    "@mionjs/core": "^0.8.0-alpha.0",
-    "@mionjs/drizzle": "^0.8.0-alpha.0",
-    "@mionjs/platform-node": "^0.8.0-alpha.0",
-    "@mionjs/router": "^0.8.0-alpha.0",
-    "@mionjs/platform-gcloud": "^0.8.0-alpha.0",
-    "@mionjs/platform-cloudflare": "^0.8.0-alpha.0",
-    "@mionjs/platform-vercel": "^0.8.0-alpha.0",
-    "@mionjs/client": "^0.8.0-alpha.0",
-    "@mionjs/run-types": "^0.8.0-alpha.0",
-    "@mionjs/type-formats": "^0.8.0-alpha.0",
+    "@mionjs/platform-aws": "workspace:*",
+    "@mionjs/platform-bun": "workspace:*",
+    "@mionjs/core": "workspace:*",
+    "@mionjs/drizzle": "workspace:*",
+    "@mionjs/platform-node": "workspace:*",
+    "@mionjs/router": "workspace:*",
+    "@mionjs/platform-gcloud": "workspace:*",
+    "@mionjs/platform-cloudflare": "workspace:*",
+    "@mionjs/platform-vercel": "workspace:*",
+    "@mionjs/client": "workspace:*",
+    "@mionjs/run-types": "workspace:*",
+    "@mionjs/type-formats": "workspace:*",
     "drizzle-orm": "^0.38.0"
   },
   "devDependencies": {
-    "@mionjs/devtools": "^0.8.0-alpha.0",
+    "@mionjs/devtools": "workspace:*",
     "@types/aws-lambda": "^8.10.108",
     "@types/node": "^24.0.0",
     "bun-types": "latest",

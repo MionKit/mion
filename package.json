@@ -5,32 +5,33 @@
   "type": "module",
   "main": "index.js",
   "homepage": "https://github.com/MionKit/mion#readme",
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "test": "vitest run",
     "format": "prettier --write 'packages/**/*.{ts,md}'",
     "check-format": "prettier --check 'packages/**/*.{ts,md}'",
     "check-format-pre-commit": "prettier --check",
     "lint": "lerna run lint",
-    "lint:spec": "npx eslint --fix packages/**/*.spec.ts",
-    "lint-pre-committ": "npx eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
+    "lint:spec": "eslint --fix packages/**/*.spec.ts",
+    "lint-pre-committ": "eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
     "build": "lerna run build",
     "clean": "nx reset && lerna run clean",
-    "fresh-start": "lerna run fresh-start && rimraf node_modules && npm ci && npm run build -w @mionjs/devtools",
+    "fresh-start": "lerna run fresh-start && rimraf node_modules && pnpm install --frozen-lockfile && pnpm --filter @mionjs/devtools run build",
     "deepkit-install": "deepkit-type-install",
     "pre-publish-test": "bash scripts/pre-publish-test.sh",
     "npm-publish": "bash scripts/publish.sh",
     "npm-unpublish": "bash scripts/unpublish.sh",
-    "prepare": "husky install",
+    "prepare": "husky",
     "copy-benchmarks": "cp -r ../mion-benchmarks/assets/public/* ./website/app/components/content/charts/ && node scripts/copy-benchmarks.js",
-    "pages-build": "npm run build && cd website && npm ci && npm run generate"
+    "pages-build": "pnpm run build && cd website && pnpm install --frozen-lockfile && pnpm run generate"
   },
   "lint-staged": {
     "packages/!(examples)/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
-      "npm run lint-pre-committ --",
-      "npm run check-format-pre-commit --"
+      "pnpm run lint-pre-committ --",
+      "pnpm run check-format-pre-commit --"
     ],
     "packages/!(examples)/**/*.{spec,test}.ts": [
-      "npm run check-format-pre-commit --"
+      "pnpm run check-format-pre-commit --"
     ]
   },
   "repository": {
@@ -55,17 +56,20 @@
     "url": "https://github.com/MionKit/issues"
   },
   "engines": {
-    "node": ">= 24.0.0"
+    "node": ">= 24.0.0",
+    "pnpm": ">= 10.0.0"
   },
   "devDependencies": {
     "@deepkit/core": "1.0.19",
     "@deepkit/type-compiler": "1.0.19",
     "@edge-runtime/vm": "^5.0.0",
+    "@eslint/js": "^9.20.1",
+    "@mionjs/devtools": "workspace:*",
     "@playwright/mcp": "^0.0.56",
     "@types/aws-lambda": "^8.10.108",
     "@types/node": "^24.0.0",
     "eslint": "^9.20.1",
-    "husky": "^8.0.1",
+    "husky": "^9.1.7",
     "lerna": "^9.0.7",
     "lint-staged": "^16.2.4",
     "miniflare": "^3.20241106.1",
@@ -80,23 +84,10 @@
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.0.18"
   },
-  "workspaces": [
-    "packages/platform-aws",
-    "packages/platform-bun",
-    "packages/client",
-    "packages/devtools",
-    "packages/core",
-    "packages/drizze",
-    "packages/type-formats",
-    "packages/platform-gcloud",
-    "packages/platform-node",
-    "packages/router",
-    "packages/run-types",
-    "packages/test-server",
-    "packages/platform-vercel",
-    "packages/platform-cloudflare"
-  ],
   "dependencies": {
     "typescript": "6.0.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": []
   }
 }

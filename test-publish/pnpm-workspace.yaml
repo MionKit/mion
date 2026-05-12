@@ -1,0 +1,4 @@
+# Standalone pnpm workspace for tarball-consumer simulation.
+# Intentionally isolated from the monorepo root — this package
+# consumes mion via local tarballs (file:./tarballs/*.tgz).
+packages: []
