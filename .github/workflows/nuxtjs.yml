@@ -30,39 +30,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: npm
-      - name: Restore cache node modules
-        id: cache-npm
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-node-modules
-        with:
-          path: ./website/node_modules
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/website/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-      # disable cache temp (build failing when removing pages)
-      # - name: Restore Nuxt cache
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: |
-      #       ./website/.output
-      #     key: ${{ runner.os }}-nuxt-build-${{ hashFiles('./website/.output') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-nuxt-build-
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+
       - name: Install dependencies
         working-directory: website
-        run: npm ci
+        run: pnpm install --frozen-lockfile
+
       - name: Generate Static Nuxt site
         working-directory: website
-        run: npm run generate
+        run: pnpm run generate
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:

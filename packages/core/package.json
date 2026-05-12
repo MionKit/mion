@@ -61,11 +61,11 @@
     "test": "vitest run",
     "dev": "vite build --watch",
     "dev:test": "vitest watch",
-    "lint": "npx eslint src",
+    "lint": "eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
     "clean": "rimraf .dist & rimraf .coverage",
-    "fresh-start": "npm run clean && rimraf node_modules"
+    "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"

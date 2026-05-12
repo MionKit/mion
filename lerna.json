@@ -1,6 +1,7 @@
 {
   "version": "0.8.10",
   "loglevel": "error",
+  "npmClient": "pnpm",
   "$schema": "node_modules/lerna/schemas/lerna-schema.json",
   "command": {
     "version": {

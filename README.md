@@ -78,16 +78,24 @@ Contributors and maintainers are welcome 👍
 
 Mion's philosophy is simplicity, so we don't want to add many features! As an small open source project we want to keep it simple and keep features to maintain at a minimum, that said contributions to mion are encouraged! Please open issues and submit pull requests for any improvements or bug fixes.
 
-The project is organized as a monorepo using npm workspaces, NX, and Lerna. Each package within the monorepo is compiled and tested individually using TypeScript and Jest.
+The project is organized as a monorepo using pnpm workspaces, NX, and Lerna. Each package within the monorepo is compiled and tested individually using TypeScript and Vitest.
+
+### Install
+
+This repo uses **pnpm** (with a security-hardened `.npmrc`: pinned versions, 30-day minimum release age, no install scripts, no non-registry sources). Do not run `npm install`.
+
+```sh
+pnpm install --frozen-lockfile
+```
 
 ### Publishing
 
 To publish packages we need to make sure the packages are built first.
 
 ```sh
-npm run build
-npx lerna version --no-private
-npx lerna publish from-package --no-private
+pnpm run build
+pnpm exec lerna version --no-private
+pnpm exec lerna publish from-package --no-private
 ```
 
 ## Powered by:

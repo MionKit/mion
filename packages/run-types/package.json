@@ -52,11 +52,11 @@
     "test": "vitest run",
     "dev": "vite build --watch",
     "dev:test": "vitest watch",
-    "lint": "npx eslint src",
+    "lint": "eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
     "clean": "rimraf .dist & rimraf .coverage",
-    "fresh-start": "npm run clean && rimraf node_modules"
+    "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
@@ -64,7 +64,7 @@
   "dependencies": {
     "@deepkit/core": "1.0.19",
     "@deepkit/type": "1.0.19",
-    "@mionjs/core": "0.8.10"
+    "@mionjs/core": "workspace:*"
   },
   "peerDependencies": {
     "typescript": ">=6.0.0"
