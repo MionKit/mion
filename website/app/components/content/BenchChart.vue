@@ -129,7 +129,7 @@ onBeforeUnmount(() => {
 .bench-card {
   position: relative;
   padding: 1.5rem;
-  aspect-ratio: 750 / 320;
+  min-height: 370px;
   border: 1px solid var(--color-primary-400);
   background: 
     linear-gradient(to bottom, rgba(138, 168, 94, 0.03) 0%, rgba(138, 168, 94, 0.08) 100%),
