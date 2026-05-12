@@ -8,8 +8,15 @@
 
 ## Package Manager: pnpm
 - This sub-project uses its own `pnpm-lock.yaml` (it is intentionally NOT part of the monorepo root workspace).
-- See `.npmrc` for security policy: pinned versions, 30-day minimum release age, no install scripts, no non-registry sources.
+- See `.npmrc` for security policy: pinned versions, 30-day minimum release age, no non-registry sources.
 - Install: `pnpm install --frozen-lockfile`
+
+### Build-script allowlist
+- pnpm 10 blocks every dependency `install`/`postinstall` script by default.
+- The explicit allowlist of packages permitted to run them lives in `pnpm-workspace.yaml` under `onlyBuiltDependencies`.
+- Currently only `better-sqlite3` is allowlisted (required by `@nuxt/content` to load the native SQLite binding).
+- Other native deps (`esbuild`, `sharp`, `@parcel/watcher`, `unrs-resolver`, `vue-demi`) were tested and are NOT required for `nuxt dev` or `nuxt generate`.
+- Before adding a new entry, verify the failure mode without it — every addition is an explicit trust decision.
 
 ## Development
 - Start dev server: `pnpm run dev` (runs on `http://localhost:3000`)

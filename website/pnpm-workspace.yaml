@@ -1,3 +1,15 @@
 # Standalone pnpm workspace for the website.
 # Keeps website install isolated from the monorepo root.
 packages: []
+
+# ── Build-script allowlist ───────────────────────────────
+# pnpm 10 blocks every dependency install/postinstall script by default.
+# Only the packages listed here may run them. Verified minimum required
+# for `nuxt dev` and `nuxt generate` to function — every other package
+# with install hooks (esbuild, sharp, @parcel/watcher, unrs-resolver,
+# vue-demi) was tested and is NOT needed: their binaries either ship
+# pre-built via optional platform-specific deps (esbuild), or the
+# package falls back to a JS implementation at runtime.
+# Add a new entry only after confirming a real failure without it.
+onlyBuiltDependencies:
+  - better-sqlite3   # native sqlite binary — @nuxt/content fails to load without it
