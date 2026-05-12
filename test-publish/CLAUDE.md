@@ -19,6 +19,7 @@
 
 - This package uses its own `pnpm-lock.yaml`, isolated from the monorepo workspace.
 - Its `.npmrc` allows `file:` protocol (required to consume local tarballs) but otherwise enforces the same hardening as the root (pinned, ignore-scripts, minimum-release-age).
+- `pnpm-lock.yaml` is **committed** as the integrity baseline for all registry deps. The pre-publish scripts run `pnpm install --no-frozen-lockfile` which rewrites only the `@mionjs/*` `file:` entries (expected — tarball content changes when source changes); any registry-dep integrity change in the lockfile diff is a red flag and must be reviewed. Do NOT delete `pnpm-lock.yaml` in the install flow — that erases the supply-chain protection pnpm provides.
 
 ## Running Tests & Build
 

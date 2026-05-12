@@ -44,8 +44,14 @@ bash scripts/pack-packages.sh
 
 # 5b. Clean install from tarballs
 cd test-publish
-rm -rf node_modules dist pnpm-lock.yaml
-# pnpm verifies tarball integrity from the tarball content itself; no lockfile munging needed.
+# SECURITY: Do NOT delete pnpm-lock.yaml here.
+# The committed lockfile pins integrity hashes for every transitive registry dep
+# (vitest, vite, typescript, eslint, and ~hundreds of transitives). Deleting it
+# re-resolves everything from the registry on each run, defeating pnpm's main
+# supply-chain protection — the whole reason we migrated off npm.
+# --no-frozen-lockfile keeps registry-dep integrity locked and only rewrites
+# the @mionjs/* file: entries whose tarball content legitimately changed.
+rm -rf node_modules dist
 pnpm install --no-frozen-lockfile
 
 # 5e. Run E2E tests (JSON + binary serialization + pure functions)
