@@ -9,6 +9,18 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+TEST_PUBLISH_LOCKFILE="$ROOT_DIR/test-publish/pnpm-lock.yaml"
+
+# Back up test-publish/pnpm-lock.yaml and restore on exit. Every pack changes
+# tarball integrity hashes, so the install step below rewrites the @mionjs/*
+# file: entries in the lockfile — pure noise that'd be different next run.
+# Restoring at script exit keeps the working tree clean. Fires on success,
+# error, and Ctrl-C.
+LOCKFILE_BACKUP="$(mktemp)"
+cp "$TEST_PUBLISH_LOCKFILE" "$LOCKFILE_BACKUP"
+trap 'cp "$LOCKFILE_BACKUP" "$TEST_PUBLISH_LOCKFILE" && rm -f "$LOCKFILE_BACKUP" && echo -e "${GREEN}[restore] test-publish/pnpm-lock.yaml restored to pre-script state${NC}"' EXIT
+
 step=0
 total_steps=6
 
@@ -51,8 +63,13 @@ cd test-publish
 # supply-chain protection — the whole reason we migrated off npm.
 # --no-frozen-lockfile keeps registry-dep integrity locked and only rewrites
 # the @mionjs/* file: entries whose tarball content legitimately changed.
+#
+# minimum-release-age override: test-publish/pnpm-workspace.yaml declares the
+# strict 30-day policy as the resting state. We override to 0 here because
+# every pack changes tarball hashes, triggering fresh resolution that would
+# otherwise fail on whatever transitive happens to be young that day.
 rm -rf node_modules dist
-pnpm install --no-frozen-lockfile
+pnpm install --no-frozen-lockfile --config.minimum-release-age=0
 
 # 5e. Run E2E tests (JSON + binary serialization + pure functions)
 pnpm run test
