@@ -140,7 +140,7 @@ blur: 140px
 
     ::::twoslash-code
     ---
-    path: packages/examples/src/_homepage/home-serverMapFrom.ts
+    path: packages/examples/src/_homepage/home-mapFrom.ts
     title: mion-routesFlow.ts
     class: sm:col-span-2 lg:col-span-2
     ---
