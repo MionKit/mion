@@ -4,12 +4,12 @@ packages: []
 
 # ── Build-script allowlist ───────────────────────────────
 # pnpm 11 blocks every dependency install/postinstall script by default.
-# Only the packages listed below with `true` may run them. Verified minimum
-# required for `nuxt dev` and `nuxt generate` to function — every other
-# package with install hooks (esbuild, sharp, @parcel/watcher, unrs-resolver,
-# vue-demi) was tested and is NOT needed: their binaries either ship
-# pre-built via optional platform-specific deps (esbuild), or the
-# package falls back to a JS implementation at runtime.
+# Only packages set to `true` here may run them. Verified minimum required
+# for `nuxt dev` and `nuxt generate` to function — every other package with
+# install hooks (esbuild, sharp, @parcel/watcher, unrs-resolver, vue-demi)
+# was tested and is NOT needed: their binaries either ship pre-built via
+# optional platform-specific deps (esbuild), or the package falls back to
+# a JS implementation at runtime.
 # Add a new entry only after confirming a real failure without it.
 allowBuilds:
   better-sqlite3: true     # native sqlite binary — @nuxt/content fails to load without it
@@ -23,7 +23,7 @@ allowBuilds:
 preferFrozenLockfile: true
 verifyStoreIntegrity: true
 
-# ── Version pinning ──────────────────────────────────────
+# ── Version pinning ────────────────────────────────────
 # Empty savePrefix means exact pinning (replaces legacy save-exact=true).
 savePrefix: ''
 resolutionMode: highest
@@ -43,8 +43,12 @@ minimumReleaseAgeExclude: []
 # Allowlist-based: only packages set to `true` in `allowBuilds` run scripts.
 # (Equivalent to the root's `ignoreScripts: true` + allowlist combo.)
 
-# ── Block non-registry sources ───────────────────────────
-allowNonRegistryProtocols: false
+# ── Block exotic transitive sources ───────────────────────
+# pnpm 11 defaults this to true; setting explicitly for clarity. Direct
+# dependencies may declare any source; all TRANSITIVE deps must resolve
+# from a trusted source. pnpm has no per-package allowlist for direct-dep
+# sources — PR review covers that surface.
+blockExoticSubdeps: true
 
 # ── Peer / hoisting ──────────────────────────────────────
 strictPeerDependencies: false

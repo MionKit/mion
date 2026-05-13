@@ -38,12 +38,16 @@ minimumReleaseAgeExclude: []
 ignoreScripts: true
 sideEffectsCache: false
 
-# ── Block non-registry sources ───────────────────────────
-# Refuse git/github/file/http specifiers from dependencies.
-# (workspace:* is exempt — it's the workspace protocol, not external.)
-allowNonRegistryProtocols: false
+# ── Block exotic transitive sources ───────────────────────
+# pnpm 11 defaults this to true; setting explicitly for clarity. Direct
+# dependencies may declare any source; all TRANSITIVE deps must resolve
+# from a trusted source: configured registry, workspace links, local file
+# paths, or the node/bun/deno mirrors. pnpm has no per-package allowlist
+# for direct-dep sources — PR review covers that surface.
+# (workspace:* is always exempt — it's the workspace protocol, not external.)
+blockExoticSubdeps: true
 
-# ── Strict peer / hoisting ───────────────────────────────
+# ── Strict peer / hoisting ────────────────────────────────
 strictPeerDependencies: true
 autoInstallPeers: false
 # Use npm-like flat hoisting so transitive deps (esbuild, etc.) remain
