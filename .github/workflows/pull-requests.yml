@@ -25,8 +25,10 @@ jobs:
 
       - name: Install
         # `--frozen-lockfile` refuses installs when pnpm-lock.yaml would change.
-        # Combined with `.npmrc` settings (ignore-scripts, minimum-release-age,
-        # allow-non-registry-protocols=false) this hardens the install step.
+        # Combined with `pnpm-workspace.yaml` settings (ignoreScripts,
+        # minimumReleaseAge, allowNonRegistryProtocols=false) this hardens
+        # the install step. Build scripts are blocked except for the
+        # explicit `allowBuilds:` entries in `pnpm-workspace.yaml`.
         run: pnpm install --frozen-lockfile
 
       - name: Prettier check
