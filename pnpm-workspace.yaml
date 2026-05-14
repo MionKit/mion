@@ -14,7 +14,7 @@ allowBuilds:
   workerd: false
 
 # ── Lockfile / install integrity ─────────────────────────
-preferFrozenLockfile: true
+frozenLockfile: true
 verifyStoreIntegrity: true
 
 # ── Version pinning (no auto-bumps) ──────────────────────

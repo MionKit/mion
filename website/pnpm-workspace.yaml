@@ -20,7 +20,7 @@ allowBuilds:
   vue-demi: false          # postinstall just rewrites entrypoints; runtime works without it
 
 # ── Lockfile / install integrity ─────────────────────────
-preferFrozenLockfile: true
+frozenLockfile: true
 verifyStoreIntegrity: true
 
 # ── Version pinning ────────────────────────────────────
