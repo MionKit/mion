@@ -1,7 +1,13 @@
 import { createHighlighter } from 'shiki'
 import { transformerTwoslash, rendererRich, defaultHoverInfoProcessor } from '@shikijs/twoslash'
+// `twoslash` is a transitive dep here; we reach it through `twoslash-vue` (a direct dep)
+// which re-exports its own `createTwoslasher`. Functionally identical for non-Vue code.
+import { createTwoslasher } from 'twoslash-vue'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
-import { join, relative, resolve } from 'path'
+import { join, relative, resolve, dirname } from 'path'
+import { createRequire } from 'module'
+
+const nodeRequire = createRequire(import.meta.url)
 
 /**
  * Patterns to match native type signatures that should be filtered out from hover popups.
@@ -94,6 +100,10 @@ let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
 // Cache for fsMap (loaded once at startup)
 let fsMapCache: Map<string, string> | null = null
 
+// Cache for the twoslasher instance — fsMap is read only at create-time,
+// so the VFS of mion d.ts files must be baked in here, not passed per-call.
+let twoslasherInstance: ReturnType<typeof createTwoslasher> | null = null
+
 // Cache for rendered twoslash results (avoids re-rendering on hot reload)
 const resultCache = new Map<string, { html: string }>()
 
@@ -137,27 +147,53 @@ function loadMionPackageTypes(): Map<string, string> {
 
   const fsMap = new Map<string, string>()
 
+  // TypeScript lib files (lib.es5.d.ts, lib.dom.d.ts, etc.) — required for built-in
+  // globals like Date, Set, console. The VFS-backed env has no real filesystem
+  // access, so we have to load them ourselves at `/lib.<name>.d.ts`.
+  // (Avoid ts.getDefaultLibFilePath — under Nitro's ESM bundle it touches __filename
+  // and crashes; resolve typescript via createRequire instead.)
+  const tsLibDir = dirname(nodeRequire.resolve('typescript'))
+  for (const f of readdirSync(tsLibDir)) {
+    if (/^lib\..*\.d\.ts$/.test(f) || f === 'lib.d.ts') {
+      fsMap.set('/' + f, readFileSync(join(tsLibDir, f), 'utf-8'))
+    }
+  }
+
   // Get the repo root (parent of website directory)
   // process.cwd() is always the website dir in both dev and generate modes.
   // import.meta.url breaks during generate because the code is bundled into .nuxt/prerender/chunks/
   const repoRoot = resolve(process.cwd(), '..')
   const packagesDir = join(repoRoot, 'packages')
 
-  // Packages to load with their dist paths
+  // Packages to load. `dir` is the directory under packages/, `name` is the
+  // @mionjs/<name> npm package name (used to build the virtual node_modules path).
+  // They differ for `drizze` (dir) → `drizzle` (npm).
   const packageConfigs = [
-    { name: 'core', distPath: '.dist/esm' },
-    { name: 'router', distPath: '.dist/esm' },
-    { name: 'http', distPath: '.dist/esm' },
-    { name: 'client', distPath: '.dist/esm' },
-    { name: 'run-types', distPath: '.dist/esm' },
-    { name: 'aws', distPath: '.dist/esm' },
-    { name: 'bun', distPath: '.dist/esm' },
-    { name: 'aot-caches', distPath: 'build/esm' },
+    { dir: 'core', name: 'core', distPath: '.dist/esm' },
+    { dir: 'router', name: 'router', distPath: '.dist/esm' },
+    { dir: 'client', name: 'client', distPath: '.dist/esm' },
+    { dir: 'run-types', name: 'run-types', distPath: '.dist/esm' },
+    { dir: 'type-formats', name: 'type-formats', distPath: '.dist/esm' },
+    { dir: 'drizze', name: 'drizzle', distPath: '.dist/esm' },
+    { dir: 'platform-aws', name: 'platform-aws', distPath: '.dist/esm' },
+    { dir: 'platform-bun', name: 'platform-bun', distPath: '.dist/esm' },
+    { dir: 'platform-cloudflare', name: 'platform-cloudflare', distPath: '.dist/esm' },
+    { dir: 'platform-gcloud', name: 'platform-gcloud', distPath: '.dist/esm' },
+    { dir: 'platform-node', name: 'platform-node', distPath: '.dist/esm' },
+    { dir: 'platform-vercel', name: 'platform-vercel', distPath: '.dist/esm' },
   ]
 
   for (const pkg of packageConfigs) {
-    const pkgDistDir = join(packagesDir, pkg.name, pkg.distPath)
+    const pkgDistDir = join(packagesDir, pkg.dir, pkg.distPath)
     const dtsFiles = findFiles(pkgDistDir, /\.d\.ts$/)
+    if (dtsFiles.length === 0) continue
+
+    // Synthetic package.json so TS's Node resolver finds `index.d.ts` (and subpath
+    // exports like `@mionjs/type-formats/StringFormats`) for bare imports in examples.
+    fsMap.set(
+      `/node_modules/@mionjs/${pkg.name}/package.json`,
+      JSON.stringify({ name: `@mionjs/${pkg.name}`, types: 'index.d.ts', main: 'index.d.ts' }),
+    )
 
     for (const dtsFile of dtsFiles) {
       // Get relative path from dist directory
@@ -176,6 +212,32 @@ function loadMionPackageTypes(): Map<string, string> {
         console.warn(`Failed to read ${dtsFile}:`, e)
       }
     }
+  }
+
+  // External deps referenced from examples — load their .d.ts files into the VFS too.
+  // Sourced from the monorepo root's node_modules (where the @mionjs/examples package
+  // installed them). Without these, twoslash fails on imports like `drizzle-orm/pg-core`.
+  const externalDeps = ['drizzle-orm']
+  for (const dep of externalDeps) {
+    const depDir = join(repoRoot, 'node_modules', dep)
+    const depDts = findFiles(depDir, /\.d\.ts$/)
+    for (const dtsFile of depDts) {
+      const relativePath = relative(depDir, dtsFile)
+      const virtualPath = `/node_modules/${dep}/${relativePath}`
+      try {
+        fsMap.set(virtualPath, readFileSync(dtsFile, 'utf-8'))
+      } catch (e) {
+        console.warn(`Failed to read ${dtsFile}:`, e)
+      }
+    }
+    // Real package.json (drizzle-orm uses subpath exports which Node10 resolution
+    // doesn't honor, but the per-directory index.d.ts fallback works for our usage).
+    try {
+      const pkgJsonPath = join(depDir, 'package.json')
+      if (existsSync(pkgJsonPath)) {
+        fsMap.set(`/node_modules/${dep}/package.json`, readFileSync(pkgJsonPath, 'utf-8'))
+      }
+    } catch {}
   }
 
   // Also load source files from examples package for relative imports
@@ -269,6 +331,23 @@ export default defineEventHandler(async (event) => {
     if (isDev) console.log(`[twoslash] ${path || 'inline'} (${code.length} chars)`)
     const highlighter = await getHighlighter()
     const fsMap = loadMionPackageTypes()
+    if (!twoslasherInstance) {
+      twoslasherInstance = createTwoslasher({
+        fsMap,
+        compilerOptions: {
+          // Node module resolution so TS resolves .d.ts files (and subpath
+          // exports like @mionjs/type-formats/StringFormats) for bare imports
+          // out of the VFS. Bundler resolution doesn't resolve .d.ts re-exports.
+          target: 99, // ESNext
+          module: 99, // ESNext
+          moduleResolution: 2, // Node (classic node resolution)
+          strict: false,
+          esModuleInterop: true,
+          skipLibCheck: true,
+          noEmit: true,
+        },
+      })
+    }
 
     // If we have a file path (e.g., packages/examples/src/introduction/about-client.ts)
     // Set up the extra files so relative imports work
@@ -309,27 +388,17 @@ export default defineEventHandler(async (event) => {
       },
       transformers: [
         transformerTwoslash({
+          // Use our own twoslasher so the fsMap of mion d.ts files is in the VFS.
+          // @shikijs/twoslash's default creates an FS-backed twoslasher (real node_modules).
+          twoslasher: twoslasherInstance,
           explicitTrigger: false,
           renderer: rendererRich({
             processHoverInfo: hoverInfoProcessor,
           }),
           twoslashOptions: {
-            fsMap,
             extraFiles,
             // Enable custom annotation tags like @log, @error, @warn, @annotate
             customTags: ['log', 'error', 'warn', 'annotate'],
-            compilerOptions: {
-              // Use Node module resolution so TypeScript properly resolves .d.ts
-              // files in the VFS and evaluates complex mapped types from packages.
-              // Bundler resolution doesn't resolve .d.ts re-exports in the VFS.
-              target: 99, // ESNext
-              module: 99, // ESNext
-              moduleResolution: 2, // Node (classic node resolution)
-              strict: false, // Allow implicit any for examples
-              esModuleInterop: true,
-              skipLibCheck: true,
-              noEmit: true,
-            },
           },
         }),
       ],
