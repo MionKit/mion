@@ -1,0 +1,65 @@
+{
+  "name": "@mionjs/examples",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "description": "mion mion examples node example",
+  "keywords": [
+    "cli",
+    "mion",
+    "fastify",
+    "rest",
+    "api"
+  ],
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "main": ".dist/cli.js",
+  "types": ".dist/cli.d.ts",
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist"
+  ],
+  "engines": {
+    "node": ">= 18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "lint": "eslint src",
+    "format": "prettier --write src/**/*.ts",
+    "build": "echo noop: examples packages does not need to be built",
+    "clean": "rimraf .dist",
+    "fresh-start": "pnpm run clean && rimraf node_modules"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionjs/platform-aws": "workspace:*",
+    "@mionjs/platform-bun": "workspace:*",
+    "@mionjs/core": "workspace:*",
+    "@mionjs/drizzle": "workspace:*",
+    "@mionjs/platform-node": "workspace:*",
+    "@mionjs/router": "workspace:*",
+    "@mionjs/platform-gcloud": "workspace:*",
+    "@mionjs/platform-cloudflare": "workspace:*",
+    "@mionjs/platform-vercel": "workspace:*",
+    "@mionjs/client": "workspace:*",
+    "@mionjs/run-types": "workspace:*",
+    "@mionjs/type-formats": "workspace:*",
+    "drizzle-orm": "^0.38.0"
+  },
+  "devDependencies": {
+    "@mionjs/devtools": "workspace:*",
+    "@types/aws-lambda": "8.10.161",
+    "@types/node": "24.12.2",
+    "bun-types": "1.3.12",
+    "typescript": "6.0.2"
+  }
+}

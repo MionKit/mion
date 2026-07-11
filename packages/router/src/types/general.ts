@@ -5,20 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions} from '@mionkit/core';
-import {SharedDataFactory} from './context';
-import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
-import {ReflectionOptions} from '@mionkit/reflection';
-
+import {CoreRouterOptions, SerializerMode} from '@mionjs/core';
+import {ContextDataFactory} from './context.ts';
+import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
+import type {RunTypeOptions} from '@mionjs/run-types';
 // #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */
 export type Route = RouteDef;
 
-/** A route entry can be a route, a hook or sub-routes */
-export type RouterEntry = Routes | HookDef | RouteDef | RawHookDef | HeaderHookDef;
+/** A route entry can be a route, a middleFn or sub-routes */
+export type RouterEntry = Routes | MiddleFnDef | RouteDef | RawMiddleFnDef | HeadersMiddleFnDef;
 
-/** Data structure to define all the routes, each entry is a route a hook or sub-routes */
+/** Data structure to define all the routes, each entry is a route a middleFn or sub-routes */
 export interface Routes {
     [key: string]: RouterEntry;
 }
@@ -26,36 +25,60 @@ export interface Routes {
 // ####### Router Options #######
 
 /** Global Router Options */
-export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions {
-    /** prefix for all routes, i.e: api/v1.
+export interface RouterOptions<Req = any, ContextData extends Record<string, any> = any> extends CoreRouterOptions {
+    /** basePath for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
-    prefix: string;
+    basePath: string;
     /** suffix for all routes, i.e: .json.
      * Not path separators is added between the route and the suffix */
     suffix: string;
     /** Transform the path before finding a route */
     pathTransform?: (request: Req, path: string) => string;
     /** factory function to initialize shared call context data */
-    sharedDataFactory?: SharedDataFactory<SharedData>;
-    /** enable automatic parameter validation, defaults to true */
-    useValidation: boolean;
-    /** Enables serialization/deserialization */
-    useSerialization: boolean;
-    /** Reflection and Deepkit Serialization-Validation options */
-    reflectionOptions: ReflectionOptions;
-    /** Custom JSON parser, defaults to Native js JSON */
-    bodyParser: JsonParser;
+    contextDataFactory?: ContextDataFactory<ContextData>;
+    /**
+     * Default serializer mode for response body serialization.
+     * Can be overridden per-route using route options.
+     * - 'json': Use prepareForJson, platform adapter handles JSON.stringify
+     * - 'binary': Use toBinary JIT function for binary serialization
+     * - 'stringifyJson': Use stringifyJson JIT function for optimized JSON serialization
+     * @default 'stringifyJson'
+     */
+    serializer: SerializerMode;
+    /** run type compiler options for middleFns and routes */
+    runTypeOptions: RunTypeOptions;
+    /** When true, isType and typeErrors reject objects with unknown/extra properties. Can be overridden per-route. */
+    strictTypes?: boolean;
     /** Used to return public data structure when adding routes */
     getPublicRoutesData: boolean;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
     /** client routes are initialized by default */
     skipClientRoutes: boolean;
+    /**
+     * Enable AOT (Ahead-of-Time) mode.
+     * When true, router will use pre-compiled JIT functions from cache
+     * and will NOT load @mionjs/run-types package.
+     * Throws error if any route/middleFn is missing from AOT cache.
+     * @default false
+     */
+    aot: boolean;
+    /**
+     * Maximum size of the CallContext pool for reduced memory allocations.
+     * When set to a value > 0, CallContext objects are reused from a pool
+     * instead of creating new ones for each request. This can improve
+     * performance in high-throughput scenarios by reducing GC pressure.
+     * Set to 0 to disable pooling.
+     * @default 0 (disabled)
+     */
+    maxContextPoolSize: number;
+    /**
+     * Maximum size of the routesFlow execution chain cache.
+     * Caches merged execution chains for routesFlow requests to avoid
+     * recalculating them on every request with the same route combination.
+     * Uses FILO (First In, Last Out) eviction when cache is full.
+     * Set to 0 to disable caching.
+     * @default 100
+     */
+    maxRoutesFlowsCacheSize: number;
 }
-
-// #######  Others #######
-
-export type JsonParser = {
-    parse: (text: string) => any;
-    stringify: (js) => string;
-};

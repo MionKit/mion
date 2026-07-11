@@ -1,0 +1,87 @@
+{
+  "name": "@mionjs/type-formats",
+  "version": "0.8.10",
+  "type": "module",
+  "description": "mion standard middleFns and routes",
+  "keywords": [
+    "typescript",
+    "API",
+    "RPC",
+    "json",
+    "schema",
+    "generate",
+    "server",
+    "serverless",
+    "framework",
+    "node",
+    "runtime types"
+  ],
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "browser": {},
+  "exports": {
+    "./NumberFormats": {
+      "source": "./NumberFormats.ts",
+      "types": "./.dist/esm/NumberFormats.d.ts",
+      "require": "./.dist/cjs/NumberFormats.cjs",
+      "default": "./.dist/esm/NumberFormats.js"
+    },
+    "./StringFormats": {
+      "source": "./StringFormats.ts",
+      "types": "./.dist/esm/StringFormats.d.ts",
+      "require": "./.dist/cjs/StringFormats.cjs",
+      "default": "./.dist/esm/StringFormats.js"
+    },
+    "./BigintFormats": {
+      "source": "./BigintFormats.ts",
+      "types": "./.dist/esm/BigintFormats.d.ts",
+      "require": "./.dist/cjs/BigintFormats.cjs",
+      "default": "./.dist/esm/BigintFormats.js"
+    },
+    "./constants": {
+      "source": "./constants.ts",
+      "types": "./.dist/esm/src/constants.d.ts",
+      "require": "./.dist/cjs/src/constants.cjs",
+      "default": "./.dist/esm/src/constants.js"
+    }
+  },
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist",
+    "NumberFormats.ts",
+    "StringFormats.ts",
+    "BigintFormats.ts",
+    "constants.ts",
+    "src",
+    "!src/**/*.spec.ts",
+    "!src/**/*.test.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "dev": "vite build --watch",
+    "dev:test": "vitest watch",
+    "lint": "eslint src",
+    "format": "prettier --write src/**/*.ts",
+    "build": "vite build",
+    "clean": "rimraf .dist & rimraf .coverage",
+    "fresh-start": "pnpm run clean && rimraf node_modules"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionjs/core": "workspace:*",
+    "@mionjs/run-types": "workspace:*"
+  },
+  "gitHead": "afd6e1d61525b4bf11bb84b3f85089038d70062d"
+}

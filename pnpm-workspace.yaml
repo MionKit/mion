@@ -1,0 +1,57 @@
+packages:
+  - 'packages/*'
+  # NOTE: website/ and test-publish/ are intentionally NOT in the workspace.
+  # - website/ has its own pnpm-lock.yaml and is built separately (CI deploys it independently).
+  # - test-publish/ consumes published tarballs via file: protocol — must stay isolated.
+
+# ── Build-script allowlist ───────────────────────────────
+# pnpm 11 blocks every dependency install/postinstall script by default.
+# Only the packages listed here may run them.
+allowBuilds:
+  '@deepkit/type-compiler': false
+  esbuild: true
+  nx: false
+  workerd: false
+
+# ── Lockfile / install integrity ─────────────────────────
+frozenLockfile: true
+verifyStoreIntegrity: true
+
+# ── Version pinning (no auto-bumps) ──────────────────────
+# Empty savePrefix means exact pinning (replaces legacy save-exact=true).
+savePrefix: ''
+saveWorkspaceProtocol: rolling
+resolutionMode: highest
+
+# ── Supply-chain protection: minimum release age ─────────
+# Refuse to install package versions younger than 30 days (43200 minutes).
+# Defeats fast-spreading malicious releases (TanStack-style).
+minimumReleaseAge: 43200
+# Applied to FUTURE bumps (lockfile-frozen entries are not re-checked).
+# Keep empty by default; add per-package entries only if a future bump is
+# blocked by a transitive we trust (e.g. UnJS-ecosystem packages).
+minimumReleaseAgeExclude: []
+
+# ── Block lifecycle scripts ──────────────────────────────
+# Hard-block ALL build scripts. Specific packages are re-enabled
+# via the `allowBuilds` map above.
+ignoreScripts: true
+sideEffectsCache: false
+
+# ── Block exotic transitive sources ───────────────────────
+# pnpm 11 defaults this to true; setting explicitly for clarity. Direct
+# dependencies may declare any source; all TRANSITIVE deps must resolve
+# from a trusted source: configured registry, workspace links, local file
+# paths, or the node/bun/deno mirrors. pnpm has no per-package allowlist
+# for direct-dep sources — PR review covers that surface.
+# (workspace:* is always exempt — it's the workspace protocol, not external.)
+blockExoticSubdeps: true
+
+# ── Strict peer / hoisting ────────────────────────────────
+strictPeerDependencies: true
+autoInstallPeers: false
+# Use npm-like flat hoisting so transitive deps (esbuild, etc.) remain
+# accessible from sibling packages without each one needing to redeclare
+# them. Security is enforced by the lockfile + minimumReleaseAge +
+# ignoreScripts settings above, NOT by the linker layout.
+nodeLinker: hoisted

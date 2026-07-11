@@ -1,9 +1,5 @@
 {
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "outDir": ".dist/cjs"
-  },
-  "reflection": ["src/**/*.routes.ts"],
-  "include": ["."],
-  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
+  "extends": "./tsconfig.json",
+  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../type-formats"}],
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "**/*.spec.ts", "**/*.test.ts"]
 }

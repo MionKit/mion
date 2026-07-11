@@ -1,0 +1,158 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme static {
+  --color-green-50: #f7f9f4;
+  --color-green-100: #e8edd9;
+  --color-green-200: #d4dfbc;
+  --color-green-300: #bdd09d;
+  --color-green-400: #a3be7a;
+  --color-green-500: #8aa85e;
+  --color-green-600: #728c4d;
+  --color-green-700: #5c7240;
+  --color-green-800: #4a5c35;
+  --color-green-900: #374428;
+}
+
+:root {
+  --ui-saturated: #79af43;
+  width: 100%;
+  overflow-x: hidden;
+  --ui-radius: 0;
+}
+
+:root.dark {
+  --elements-text-secondary-color-static: var(--color-gray-300);
+}
+
+/* Home Page header */
+:root.dark header {
+  background-color: rgba(20, 20, 20, 0.55);
+}
+:root.light header {
+  background-color: rgba(255, 255, 255, 0.65);
+}
+/* Remove header background on home page */
+:root.dark:has(.typed-title-container) header {
+  background-color: transparent;
+}
+:root.light:has(.typed-title-container) header {
+  background-color: transparent;
+}
+
+:root.light {
+  --elements-text-secondary-color-static: var(--color-gray-600);
+  --ui-bg: #f0f0f0;
+}
+
+body h1 {
+  color: var(--ui-primary);
+}
+
+
+body .video-player > img {
+  width: 100%;
+}
+
+pre code {
+  font-size: 0.8rem;
+  letter-spacing: -0.01rem;
+  line-height: 1.1rem;
+}
+
+/* Selected text background color */
+:root.dark ::selection {
+  background-color: var(--color-green-500);
+  color: var(--color-green-50);
+}
+
+:root.light ::selection {
+  background-color: var(--color-green-500);
+  color: var(--color-green-50);
+}
+
+
+pre.px-4 {
+  padding-left: 0.8rem;
+  padding-right: 0.4rem;
+}
+
+/* Home Page Hero */
+.home-hero > div{
+  padding-bottom: calc(var(--spacing) * 12);
+}
+
+/* Home Page Features */
+.home-page h2 {
+  color: var(--color-green-500);
+}
+
+.home-features h2 {
+  text-align: center;
+  color: var(--color-green-500);
+}
+
+.home-features h2 a{
+  color: var(--color-green-500);
+}
+
+.home-features h3 {
+  color: var(--color-green-400);
+}
+
+.home-features a {
+  color: var(--ui-text-highlighted)
+}
+
+
+.home-features .stylish-list {
+  display: flex;
+  width: fit-content;
+  margin: 0 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.home-features h3 {
+  background: linear-gradient(
+    90deg,
+    #8aa85e 0%,
+    color-mix(in srgb, #8aa85e 55%, #60a5fa) 25%,
+    #bdd09d 50%,
+    color-mix(in srgb, #8aa85e 55%, #60a5fa) 75%,
+    #8aa85e 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 100%;
+  animation: gradient-flow 12s linear infinite;
+}
+
+.dark table tbody td strong {
+    color: var(--color-primary-300)
+}
+
+.dark table th {
+    color: var(--color-primary-400)
+}
+
+@media screen and (min-width: 780px){
+  .home-features h2 {
+    font-size: 3rem;
+  }
+  .home-features h3 {
+    font-size: 2rem;
+  }
+}
+
+@keyframes gradient-flow {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+

@@ -5,227 +5,283 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {describe, it, expect, beforeEach} from 'vitest';
 import {
     registerRoutes,
-    geHooksSize,
+    geMiddleFnsSize,
     geRoutesSize,
     getComplexity,
-    getHookExecutable,
-    getRouteExecutionPath,
+    getMiddleFnExecutable,
+    getRouteExecutionChain,
     getRouteExecutable,
     resetRouter,
     initRouter,
-    addStartHooks,
-    addEndHooks,
-} from './router';
-import {type Routes} from './types/general';
-import {hook, route, rawHook} from './initFunctions';
-import {ProcedureType} from './types/procedures';
+    addStartMiddleFns,
+    addEndMiddleFns,
+} from './router.ts';
+import {type Routes} from './types/general.ts';
+import {middleFn, route, rawMiddleFn, headersFn, query, mutation} from './lib/handlers.ts';
+import {HandlerType, HeadersSubset} from '@mionjs/core';
+import {isPublicExecutable} from './types/guards.ts';
 
 describe('Create routes should', () => {
-    const hook1 = hook((): void => undefined);
-    const route1 = route(() => 'route1');
-    const route2 = route(() => 'route2');
+    const middleFn1 = middleFn((): void => undefined);
+    const route1 = route((): string => 'route1');
+    const route2 = route((): string => 'route2');
 
     const routes = {
-        first: hook1,
+        first: middleFn1,
         users: {
-            userBefore: hook1,
+            userBefore: middleFn1,
             getUser: route1,
             setUser: route2,
             pets: {
                 getUserPet: route2,
-                userPetsAfter: hook1,
+                userPetsAfter: middleFn1,
             },
-            userAfter: hook1,
+            userAfter: middleFn1,
         },
         pets: {
             getPet: route1,
             setPet: route2,
         },
-        last: hook1,
+        last: middleFn1,
     } satisfies Routes;
 
-    const hookExecutables = {
+    const middleFnExecutables = {
         first: {
             id: 'first',
-            type: ProcedureType.hook,
+            type: HandlerType.middleFn,
         },
         userBefore: {
-            id: 'users-userBefore',
-            type: ProcedureType.hook,
+            id: 'users/userBefore',
+            type: HandlerType.middleFn,
         },
         userAfter: {
-            id: 'users-userAfter',
-            type: ProcedureType.hook,
+            id: 'users/userAfter',
+            type: HandlerType.middleFn,
         },
         userPetsAfter: {
-            id: 'users-pets-userPetsAfter',
-            type: ProcedureType.hook,
+            id: 'users/pets/userPetsAfter',
+            type: HandlerType.middleFn,
         },
         last: {
             id: 'last',
-            type: ProcedureType.hook,
+            type: HandlerType.middleFn,
         },
     };
 
     const routeExecutables = {
         usersGetUser: {
-            id: 'users-getUser',
-            type: ProcedureType.route,
+            id: 'users/getUser',
+            type: HandlerType.route,
         },
         usersPetsGetUserPet: {
-            id: 'users-pets-getUserPet',
-            type: ProcedureType.route,
+            id: 'users/pets/getUserPet',
+            type: HandlerType.route,
         },
         petsGetPet: {
-            id: 'pets-getPet',
-            type: ProcedureType.route,
+            id: 'pets/getPet',
+            type: HandlerType.route,
         },
     };
 
     const defaultExecutables = {
-        mionParseJsonRequestBody: {
-            id: 'mionParseJsonRequestBody',
-            type: ProcedureType.rawHook,
+        mionDeserializeRequest: {
+            id: 'mionDeserializeRequest',
+            type: HandlerType.rawMiddleFn,
         },
-        mionStringifyJsonResponseBody: {
-            id: 'mionStringifyJsonResponseBody',
-            type: ProcedureType.rawHook,
+        mionMethodsMetadata: {
+            id: 'mion@methodsMetadata',
+            type: HandlerType.middleFn,
+        },
+        mionSerializeResponse: {
+            id: 'mionSerializeResponse',
+            type: HandlerType.rawMiddleFn,
         },
     };
 
     function addDefaultExecutables(exec: any[]) {
         return [
-            expect.objectContaining({...defaultExecutables.mionParseJsonRequestBody}),
+            expect.objectContaining({...defaultExecutables.mionDeserializeRequest}),
             ...exec,
-            expect.objectContaining({...defaultExecutables.mionStringifyJsonResponseBody}),
+            expect.objectContaining({...defaultExecutables.mionMethodsMetadata}),
+            expect.objectContaining({...defaultExecutables.mionSerializeResponse}),
         ];
     }
 
     beforeEach(() => resetRouter());
 
-    it('create a flat routes Map', () => {
-        initRouter();
-        registerRoutes(routes);
+    it('create a flat routes Map', async () => {
+        await initRouter();
+        await registerRoutes(routes);
 
-        expect(geRoutesSize()).toEqual(5);
-        expect(geHooksSize()).toEqual(5);
+        expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
+        expect(geMiddleFnsSize()).toEqual(6);
 
-        expect(getRouteExecutionPath('/users-getUser')).toEqual(
+        expect(getRouteExecutionChain('/users/getUser')?.methods).toEqual(
             addDefaultExecutables([
-                expect.objectContaining({...hookExecutables.first}),
-                expect.objectContaining({...hookExecutables.userBefore}),
+                expect.objectContaining({...middleFnExecutables.first}),
+                expect.objectContaining({...middleFnExecutables.userBefore}),
                 expect.objectContaining({...routeExecutables.usersGetUser}),
-                expect.objectContaining({...hookExecutables.userAfter}),
-                expect.objectContaining({...hookExecutables.last}),
+                expect.objectContaining({...middleFnExecutables.userAfter}),
+                expect.objectContaining({...middleFnExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/users-setUser')).toBeTruthy();
-        expect(getRouteExecutionPath('/users-pets-getUserPet')).toEqual(
+        expect(getRouteExecutionChain('/users/setUser')).toBeTruthy();
+        expect(getRouteExecutionChain('/users/pets/getUserPet')?.methods).toEqual(
             addDefaultExecutables([
-                expect.objectContaining({...hookExecutables.first}),
-                expect.objectContaining({...hookExecutables.userBefore}),
+                expect.objectContaining({...middleFnExecutables.first}),
+                expect.objectContaining({...middleFnExecutables.userBefore}),
                 expect.objectContaining({...routeExecutables.usersPetsGetUserPet}),
-                expect.objectContaining({...hookExecutables.userPetsAfter}),
-                expect.objectContaining({...hookExecutables.userAfter}),
-                expect.objectContaining({...hookExecutables.last}),
+                expect.objectContaining({...middleFnExecutables.userPetsAfter}),
+                expect.objectContaining({...middleFnExecutables.userAfter}),
+                expect.objectContaining({...middleFnExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/pets-getPet')).toEqual(
+        expect(getRouteExecutionChain('/pets/getPet')?.methods).toEqual(
             addDefaultExecutables([
-                expect.objectContaining({...hookExecutables.first}),
+                expect.objectContaining({...middleFnExecutables.first}),
                 expect.objectContaining({...routeExecutables.petsGetPet}),
-                expect.objectContaining({...hookExecutables.last}),
+                expect.objectContaining({...middleFnExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/pets-setPet')).toBeTruthy();
+        expect(getRouteExecutionChain('/pets/setPet')).toBeTruthy();
     });
 
-    it('add default values to hooks', () => {
-        initRouter();
-        const defaultHookValues = {
-            first: hook((): void => undefined),
-            second: hook((): null => null),
+    it('add default values to middleFns', async () => {
+        await initRouter();
+        const defaultMiddleFnValues = {
+            first: middleFn((): void => undefined),
+            second: middleFn((): null => null),
         };
-        registerRoutes(defaultHookValues);
+        await registerRoutes(defaultMiddleFnValues);
 
-        expect(getHookExecutable('first')).toEqual(
+        expect(getMiddleFnExecutable('first')).toEqual(
             expect.objectContaining({
                 id: 'first',
                 nestLevel: 0,
-                type: ProcedureType.hook,
+                type: HandlerType.middleFn,
+                hasReturnData: false,
                 options: expect.objectContaining({
                     runOnError: false,
-                    canReturnData: false,
                 }),
             })
         );
 
-        expect(getHookExecutable('second')).toEqual(
+        expect(getMiddleFnExecutable('second')).toEqual(
             expect.objectContaining({
                 id: 'second',
                 nestLevel: 0,
-                type: ProcedureType.hook,
+                type: HandlerType.middleFn,
+                hasReturnData: true,
                 options: expect.objectContaining({
                     runOnError: false,
-                    canReturnData: true,
                 }),
             })
         );
     });
 
-    it('add default values to routes', () => {
-        initRouter();
+    it('add default values to routes', async () => {
+        await initRouter();
         const defaultRouteValues = {sayHello: route((): null => null)};
-        registerRoutes(defaultRouteValues);
+        await registerRoutes(defaultRouteValues);
 
         expect(getRouteExecutable('sayHello')).toEqual(
             expect.objectContaining({
                 id: 'sayHello',
                 nestLevel: 0,
-                type: ProcedureType.route,
+                type: HandlerType.route,
+                hasReturnData: true,
                 options: expect.objectContaining({
                     runOnError: false,
-                    canReturnData: true,
                 }),
             })
         );
     });
 
-    it('add prefix & suffix to routes', () => {
-        initRouter({prefix: 'api/v1', suffix: '.json'});
-        registerRoutes(routes);
+    it('set isMutation correctly for route(), query() and mutation()', async () => {
+        await initRouter();
+        await registerRoutes({
+            getUser: query((): null => null),
+            createUser: mutation((): null => null),
+            sayHello: route((): null => null),
+        });
 
-        expect(geRoutesSize()).toEqual(5);
-        expect(geHooksSize()).toEqual(5);
-
-        expect(getRouteExecutionPath('/api/v1/users-getUser.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/users-setUser.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/users-pets-getUserPet.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/pets-getPet.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/pets-setPet.json')).toBeTruthy();
+        expect(getRouteExecutable('getUser')).toEqual(
+            expect.objectContaining({
+                options: expect.objectContaining({isMutation: false}),
+            })
+        );
+        expect(getRouteExecutable('createUser')).toEqual(
+            expect.objectContaining({
+                options: expect.objectContaining({isMutation: true}),
+            })
+        );
+        expect(getRouteExecutable('sayHello')).toEqual(
+            expect.objectContaining({
+                options: expect.objectContaining({isMutation: undefined}),
+            })
+        );
     });
 
-    it('throw an error when a routes are invalid', () => {
-        initRouter();
+    it('add prefix & suffix to routes', async () => {
+        await initRouter({basePath: 'api/v1', suffix: '.json'});
+        await registerRoutes(routes);
+
+        expect(geRoutesSize()).toEqual(8); // includes +3 mion Error routes (notFound, thrownErrors, platformError)
+        expect(geMiddleFnsSize()).toEqual(6);
+
+        expect(getRouteExecutionChain('/api/v1/users/getUser.json')).toBeTruthy();
+        expect(getRouteExecutionChain('/api/v1/users/setUser.json')).toBeTruthy();
+        expect(getRouteExecutionChain('/api/v1/users/pets/getUserPet.json')).toBeTruthy();
+        expect(getRouteExecutionChain('/api/v1/pets/getPet.json')).toBeTruthy();
+        expect(getRouteExecutionChain('/api/v1/pets/setPet.json')).toBeTruthy();
+    });
+
+    it('throw an error when a routes are invalid', async () => {
+        await initRouter();
         const empty = {};
         const emptySub = {sayHello: {}};
         const invalidValues = {sayHello: {total: 2}};
         const numericNames = {directory: {2: route1}};
 
-        expect(() => registerRoutes(empty)).toThrow('Invalid route: *. Can Not define empty routes');
-        expect(() => registerRoutes(emptySub)).toThrow('Invalid route: sayHello. Can Not define empty routes');
-        expect(() => registerRoutes(invalidValues as any)).toThrow(
+        await expect(registerRoutes(empty)).rejects.toThrow('Invalid route: *. Can Not define empty routes');
+        await expect(registerRoutes(emptySub)).rejects.toThrow('Invalid route: sayHello. Can Not define empty routes');
+        await expect(registerRoutes(invalidValues as any)).rejects.toThrow(
             'Invalid route: sayHello/total. Type <number> is not a valid route.'
         );
-        expect(() => registerRoutes(numericNames)).toThrow('Invalid route: directory/2. Numeric route names are not allowed');
+        await expect(registerRoutes(numericNames)).rejects.toThrow(
+            'Invalid route: directory/2. Numeric route names are not allowed'
+        );
     });
 
-    it('optimize parsing routes (complexity) when there are multiple routes in a row', () => {
-        initRouter();
+    it('throw an error when contextDataFactory returns invalid values', async () => {
+        const errorMessage = 'contextDataFactory must return a plain object with at least one property';
+
+        await expect(initRouter({contextDataFactory: () => undefined as any})).rejects.toThrow(errorMessage);
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => null as any})).rejects.toThrow(errorMessage);
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => 'string' as any})).rejects.toThrow(errorMessage);
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => 42 as any})).rejects.toThrow(errorMessage);
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => [] as any})).rejects.toThrow(errorMessage);
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => ({})})).rejects.toThrow(errorMessage);
+    });
+
+    it('accept valid contextDataFactory that returns an object with properties', async () => {
+        await expect(initRouter({contextDataFactory: () => ({user: null})})).resolves.not.toThrow();
+        resetRouter();
+        await expect(initRouter({contextDataFactory: () => ({user: null, data: 'test'})})).resolves.not.toThrow();
+    });
+
+    it('optimize parsing routes (complexity) when there are multiple routes in a row', async () => {
+        await initRouter();
         const bestCase = {
-            first: hook1,
+            first: middleFn1,
             route1: route1,
             route2: route2,
             route3: route1,
@@ -237,7 +293,7 @@ describe('Create routes should', () => {
             route9: route1,
             route10: route2,
             pets: {
-                petsFirst: hook1,
+                petsFirst: middleFn1,
                 route1: route1,
                 route2: route2,
                 route3: route1,
@@ -248,39 +304,39 @@ describe('Create routes should', () => {
                 route8: route2,
                 route9: route1,
                 route10: route2,
-                petsLast: hook1,
+                petsLast: middleFn1,
             },
-            last: hook1,
+            last: middleFn1,
         };
         const worstCase = {
-            first: hook1,
+            first: middleFn1,
             route1: route1,
             route12: route2,
             pets: {
-                petsFirst: hook1,
+                petsFirst: middleFn1,
                 route1: route1,
                 route12: route2,
-                petsLast: hook1,
+                petsLast: middleFn1,
             },
-            last: hook1,
+            last: middleFn1,
         };
         const bestCaseTotalRoutes = 20;
         const worstCaseTotalRoutes = 4;
         const ratio = bestCaseTotalRoutes / worstCaseTotalRoutes;
 
-        registerRoutes(bestCase);
+        await registerRoutes(bestCase);
         const bestCaseComplexity = getComplexity();
         resetRouter();
-        initRouter();
-        registerRoutes(worstCase);
+        await initRouter();
+        await registerRoutes(worstCase);
         const worstCaseComplexity = getComplexity();
 
         expect(worstCaseComplexity * ratio > bestCaseComplexity).toBeTruthy();
     });
 
-    it('differentiate async vs non async routes', () => {
-        initRouter();
-        // !! Important return types must always be declared as deepkit doe not infers the type
+    it('differentiate async vs non async routes', async () => {
+        await initRouter();
+        // !! Important return types must always be declared as the type compiler does not infer the type
         const defaultRouteValues = {
             sayHello: route((): null => null),
             asyncSayHello: route(async (): Promise<string> => {
@@ -291,44 +347,63 @@ describe('Create routes should', () => {
             }),
             noReturnType: route(() => null),
         };
-        registerRoutes(defaultRouteValues);
+        await registerRoutes(defaultRouteValues);
 
-        expect(getRouteExecutable('sayHello')?.reflection.isAsync).toEqual(false);
-        expect(getRouteExecutable('asyncSayHello')?.reflection.isAsync).toEqual(true);
+        expect(getRouteExecutable('sayHello')?.isAsync).toEqual(false);
+        expect(getRouteExecutable('asyncSayHello')?.isAsync).toEqual(true);
 
-        // when there is no return type we asume the function is async.
+        // when there is no return type we assume the function is async.
         // this is done so await is enforced in case we don't know the return type
-        expect(getRouteExecutable('noReturnType')?.reflection.isAsync).toEqual(true);
+        expect(getRouteExecutable('noReturnType')?.isAsync).toEqual(true);
     });
 
-    it('add start and end global hooks', () => {
-        const prependHooks = {
-            p1: rawHook((ctx, cb) => cb()),
-            p2: rawHook((ctx, cb) => cb()),
+    it('add start and end global middleFns', async () => {
+        const prependMiddleFns = {
+            p1: rawMiddleFn((ctx, cb: () => void): void => cb()),
+            p2: rawMiddleFn((ctx, cb: () => void): void => cb()),
         };
 
-        const appendHooks = {
-            a1: rawHook((ctx, cb) => cb()),
-            a2: rawHook((ctx, cb) => cb()),
+        const appendMiddleFns = {
+            a1: rawMiddleFn((ctx, cb: () => void): void => cb()),
+            a2: rawMiddleFn((ctx, cb: () => void): void => cb()),
         };
-        addStartHooks(prependHooks, false);
-        addEndHooks(appendHooks, false);
+        addStartMiddleFns(prependMiddleFns, false);
+        addEndMiddleFns(appendMiddleFns, false);
 
-        initRouter();
-        registerRoutes(routes);
+        await initRouter();
+        await registerRoutes(routes);
 
-        const expectedExecutionPath = addDefaultExecutables([
-            expect.objectContaining({id: 'p1', type: ProcedureType.rawHook}),
-            expect.objectContaining({id: 'p2', type: ProcedureType.rawHook}),
-            expect.objectContaining({id: 'first', type: ProcedureType.hook}),
-            expect.objectContaining({id: 'pets-getPet', type: ProcedureType.route}),
-            expect.objectContaining({id: 'last', type: ProcedureType.hook}),
-            expect.objectContaining({id: 'a1', type: ProcedureType.rawHook}),
-            expect.objectContaining({id: 'a2', type: ProcedureType.rawHook}),
+        const expectedExecutionChain = addDefaultExecutables([
+            expect.objectContaining({id: 'p1', type: HandlerType.rawMiddleFn}),
+            expect.objectContaining({id: 'p2', type: HandlerType.rawMiddleFn}),
+            expect.objectContaining({id: 'first', type: HandlerType.middleFn}),
+            expect.objectContaining({id: 'pets/getPet', type: HandlerType.route}),
+            expect.objectContaining({id: 'last', type: HandlerType.middleFn}),
+            expect.objectContaining({id: 'a1', type: HandlerType.rawMiddleFn}),
+            expect.objectContaining({id: 'a2', type: HandlerType.rawMiddleFn}),
         ]);
 
-        expect(getRouteExecutionPath('/pets-getPet')).toEqual(expectedExecutionPath);
-        expect(() => addStartHooks(prependHooks)).toThrow('Can not add start hooks after the router has been initialized');
-        expect(() => addEndHooks(appendHooks)).toThrow('Can not add end hooks after the router has been initialized');
+        expect(getRouteExecutionChain('/pets/getPet')?.methods).toEqual(expectedExecutionChain);
+        expect(() => addStartMiddleFns(prependMiddleFns)).toThrow(
+            'Can not add start middleFns after the router has been initialized'
+        );
+        expect(() => addEndMiddleFns(appendMiddleFns)).toThrow('Can not add end middleFns after the router has been initialized');
+    });
+
+    it('Headers Functions should be considered public (non-private)', async () => {
+        await initRouter();
+        const routesWithHeadersMiddleFn = {
+            auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+                // Headers MiddleFn with no return data and no body params
+            }),
+            sayHello: route((): string => 'hello'),
+        } satisfies Routes;
+        await registerRoutes(routesWithHeadersMiddleFn);
+
+        const authMiddleFn = getMiddleFnExecutable('auth');
+        expect(authMiddleFn).toBeDefined();
+        expect(authMiddleFn!.type).toEqual(HandlerType.headersMiddleFn);
+        // Headers Functions should be public because they have headerNames, even if they have no return data or body params
+        expect(isPublicExecutable(authMiddleFn!)).toBe(true);
     });
 });

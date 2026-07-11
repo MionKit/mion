@@ -1,9 +1,12 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/cjs"
+    "outDir": ".dist/esm",
+    "rootDir": ".",
+    "types": ["@mionjs/devtools/virtual-modules", "@types/node"]
   },
+  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../type-formats"}, {"path": "../test-server"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "examples", ".dist"]
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts"]
 }

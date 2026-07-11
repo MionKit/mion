@@ -5,184 +5,233 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
-import {FunctionReflection, ParamsValidationResponse, ReflectionOptions} from '@mionkit/reflection';
-import type {
-    JsonParser,
-    PublicHeaderProcedure,
-    PublicHookProcedure,
-    PublicProcedure,
-    PublicApi,
-    PublicRouteProcedure,
-} from '@mionkit/router';
-import type {MionRequest} from './request';
+import {RpcError} from '@mionjs/core';
+import type {CoreRouterOptions, Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
+import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
+import type {TypedEvent} from './lib/typedEvent.ts';
 
-export type StorageType = 'localStorage' | 'sessionStorage';
+/** Result type for call() - 4-tuple pattern */
+export type Result<
+    RouteSuccess,
+    RouteError,
+    MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>,
+    MiddleFnsErrors extends Record<string, unknown> = Record<string, RpcError<string, unknown>>,
+> = [RouteSuccess | undefined, RouteError | undefined, MiddleFnsResults | undefined, MiddleFnsErrors | undefined];
 
-export type ClientOptions = {
+/** Extract success type from a MiddleFnSubRequest */
+export type MiddleFnSuccess<H> = H extends MiddlewareSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
+
+/** Extract error type from a MiddleFnSubRequest */
+export type MiddleFnError<H> = H extends MiddlewareSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
+
+// type-routesFlow-result-start
+/** Result type for routesFlow() function - 4-tuple pattern matching array input */
+export type WorkflowResult<
+    Routes extends RouteSubRequest<any>[],
+    MiddleFns extends Record<string, MiddlewareSubRequest<any>> = Record<string, MiddlewareSubRequest<any>>,
+> = [
+    WorkflowRouteResults<Routes>,
+    WorkflowRouteErrors<Routes>,
+    {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
+    {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined,
+];
+// type-routesFlow-result-end
+
+// type-routesFlow-route-results-start
+/** Extract success types from route subrequests as tuple */
+export type WorkflowRouteResults<Routes extends RouteSubRequest<any>[]> = {
+    [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? HandlerSuccessResponse<PH> | undefined : never;
+};
+// type-routesFlow-route-results-end
+
+// type-routesFlow-route-errors-start
+/** Extract error types from route subrequests as tuple */
+export type WorkflowRouteErrors<Routes extends RouteSubRequest<any>[]> = {
+    [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> | undefined : never;
+};
+// type-routesFlow-route-errors-end
+
+export interface ClientOptions extends CoreRouterOptions {
+    /** Base URL of the server, i.e: http://localhost:3000 */
     baseURL: string;
-    storage: StorageType;
-    fetchOptions: RequestInit;
-
-    // ############# ROUTER OPTIONS (should match router options) #############
-
-    /** prefix for all routes, i.e: api/v1.
-     * path separator is added between the prefix and the route */
-    prefix: string;
-    /** suffix for all routes, i.e: .json.
-     * Not path separators is added between the route and the suffix */
+    /** basePath for all routes, i.e: api/v1 */
+    basePath: string;
+    /** suffix for all routes, i.e: .json */
     suffix: string;
-    /** enable automatic parameter validation, defaults to true */
-    useValidation: boolean;
-    /** Enables serialization/deserialization */
-    useSerialization: boolean;
-    /** Reflection and Deepkit Serialization-Validation options */
-    reflectionOptions: ReflectionOptions;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
-    /** Custom JSON parser, defaults to Native js JSON */
-    bodyParser: JsonParser;
-};
+    /**  default fetch options */
+    fetchOptions: RequestInit;
+    /** enable automatic parameter validation, defaults to true */
+    validateParams: boolean;
+    /** Default serializer mode */
+    serializer: SerializerMode;
+    /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */
+    timeout?: number;
+}
 
-export type InitOptions = Partial<ClientOptions> & {baseURL: string};
-export type MetadataById = Map<string, PublicProcedure>;
-export type ReflectionById = Map<string, FunctionReflection>;
+type PublicHandler = (...args: any[]) => Promise<any>;
+type PublicMethod = PublicRoute | PublicMiddleFn | PublicHeadersFn;
+type ExtractHandler<PM extends PublicMethod> = PM extends {handler: infer H} ? H : never;
+
+export type InitClientOptions = Partial<ClientOptions> & {baseURL: string};
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
-export type PublicMethodReflection = {reflection: FunctionReflection};
-export type HandlerResponse<RM extends PublicProcedure> = Awaited<ReturnType<RM['handler']>>;
-export type HandlerSuccessResponse<RM extends PublicProcedure> = Exclude<HandlerResponse<RM>, RpcError | Error>;
-export type HandlerFailResponse<RM extends PublicProcedure> = Extract<HandlerResponse<RM>, RpcError | Error>;
-export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['return'];
+
+/** Extracts all parameters from a PublicRoute, PublicMiddleFn, or PublicHeadersFn */
+export type RouteParamsType<PM extends PublicMethod> = Parameters<ExtractHandler<PM>>;
+/** Extracts a single parameter at a given index from a PublicRoute, PublicMiddleFn, or PublicHeadersFn */
+export type RouteParamType<PM extends PublicMethod, Index extends number> = Parameters<ExtractHandler<PM>>[Index];
+/** Extracts the headers parameter (first param) from a PublicHeadersFn handler */
+export type HeadersParamsType<PM extends PublicHeadersFn> = Parameters<ExtractHandler<PM>>[0];
+/** Extracts the success return type from a PublicRoute, PublicMiddleFn, or PublicHeadersFn */
+export type RouteReturnType<PM extends PublicMethod> = HandlerSuccessResponse<ExtractHandler<PM>>;
+
+export type HandlerResponse<PH extends PublicHandler> = Awaited<ReturnType<PH>>;
+export type HandlerSuccessResponse<PH extends PublicHandler> = Exclude<HandlerResponse<PH>, RpcError<string>>;
+export type HandlerFailResponse<PH extends PublicHandler> = Extract<HandlerResponse<PH>, RpcError<string>>;
+export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['resolvedValue'];
 export type SuccessResponses<List extends SubRequest<any>[]> = {[P in keyof List]: SuccessResponse<List[P]>};
 export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
-export type RequestErrors = Map<string, RpcError>;
+export type RequestErrors = Map<string, RpcError<string>>;
 
-// ############# Remote Methods Request #############
+/** Handler function for a specific error type */
+export type ErrorHandler<E extends RpcError<string, any>> = (error: E) => void;
 
-/** Represents a remote method (sub request).
- * A route request can contains multiple subRequest to the route itself and any required hook*/
-export interface SubRequest<RM extends PublicProcedure> {
+/** Handler function for unknown/unhandled errors */
+export type UnknownErrorHandler = (error: RpcError<string, any>) => void;
+
+/** Handler function for successful results */
+export type SuccessHandler<S> = (result: S) => void;
+
+/** Utility type to force TypeScript to evaluate/resolve the type */
+type Simplify<T> = T extends any ? T : never;
+
+/** Extracts all RpcError types from a handler's return type as a union */
+export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplify<
+    Extract<HandlerResponse<PH>, RpcError<string, any>> | ValidationError
+>;
+
+/** Represents a remote method (sub request) */
+export interface SubRequest<PH extends PublicHandler> {
     pointer: string[];
-    id: RM['id'];
+    id: string;
     isResolved: boolean;
-    params: Parameters<RM['handler']>;
-    return?: HandlerSuccessResponse<RM>;
-    error?: HandlerFailResponse<RM>;
-    validationResponse?: ParamsValidationResponse;
+    params: Parameters<PH>;
+    /** The resolved value after the request completes successfully */
+    resolvedValue?: HandlerSuccessResponse<PH>;
+    error?: HandlerFailResponse<PH>;
     serializedParams?: any[];
-    // note this type can't contain functions, so it can be stored/restored from localStorage
 }
 
-/** structure returned from the proxy, containing info of the remote route to execute
- * Note routePointer is using as differentiating key from hookPointer in HookInfo, so types can't overlap.
- */
-export interface RouteSubRequest<RR extends PublicRouteProcedure> extends SubRequest<RR> {
-    /**
-     * Validates Route's parameters. Throws RpcError if validation fails.
-     * @returns {hasErrors: false, totalErrors: 0, errors: []}
-     */
-    validate: () => Promise<ParamsValidationResponse>;
-    /**
-     * Calls a remote route.
-     * Validates route and required hooks request parameters locally before calling the remote route.
-     * Throws RpcError if anything fails during the call (including validation or serialization) or if the remote route returns an error.
-     * @param hooks HookSubRequests requires by the route
-     * @returns
-     */
-    call: <RHList extends HookSubRequest<any>[]>(...hooks: RHList) => Promise<HandlerSuccessResponse<RR>>;
+/** Unified config object for call() */
+export interface CallSetup<
+    H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
+    OtherRoutes extends RouteSubRequest<any>[] = [],
+> {
+    middleFns?: H;
+    otherRoutes?: [...OtherRoutes];
+    /** AbortSignal to cancel this specific request */
+    signal?: AbortSignal;
+    /** Timeout in ms (overrides ClientOptions.timeout) */
+    timeout?: number;
 }
 
-/** structure returned from the proxy, containing info of the remote hook to execute
- * Note hookPointer is using as differentiating key from routePointer in RouteInfo, so types can't overlap.
- */
-export interface HookSubRequest<RH extends PublicHookProcedure | PublicHeaderProcedure> extends SubRequest<RH> {
-    /**
-     * Validates Hooks's parameters. Throws RpcError if validation fails.
-     * @returns {hasErrors: false, totalErrors: 0, errors: []}
-     */
-    validate: () => Promise<ParamsValidationResponse>;
-    /**
-     * Prefills Hook's parameters for any future request. Parameters are also persisted in local storage for future requests.
-     * Validates and Serializes parameters before storing in local storage.
-     * Throws RpcError if validation or serialization fail or if the parameters can't be persisted.
-     * @returns Promise<void>
-     */
-    prefill: () => Promise<void>;
+/** Builder returned by routesFlow() - call .call() to execute */
+export interface RoutesFlowBuilder<Routes extends RouteSubRequest<any>[]> {
+    /** Execute the routes flow */
+    call(setup?: {middleFns?: never; signal?: AbortSignal; timeout?: number}): Promise<WorkflowResult<Routes>>;
+    /** Execute the routes flow with middleware */
+    call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
+        middleFns: H;
+        signal?: AbortSignal;
+        timeout?: number;
+    }): Promise<WorkflowResult<Routes, H>>;
+}
 
-    /**
-     * Removes prefilled value.
-     * Throws RpcError if something fails removing the prefilled parameters
-     * @returns Promise<void>
-     */
+/** structure returned from the proxy, containing info of the remote route to execute */
+export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
+    /** Validates Route's parameters and returns type errors */
+    typeErrors: () => Promise<RunTypeError[]>;
+
+    /** Calls a remote route and returns a Result 4-tuple */
+    call(setup?: {
+        middleFns?: never;
+        otherRoutes?: never;
+        signal?: AbortSignal;
+        timeout?: number;
+    }): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
+
+    /** Calls a remote route with middleFns */
+    call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
+        middleFns: H;
+        otherRoutes?: never;
+        signal?: AbortSignal;
+        timeout?: number;
+    }): Promise<
+        Result<
+            HandlerSuccessResponse<PH>,
+            Simplify<HandlerErrors<PH>>,
+            {[K in keyof H]?: MiddleFnSuccess<H[K]>},
+            {[K in keyof H]?: MiddleFnError<H[K]>}
+        >
+    >;
+
+    /** Calls this route with other routes in a single HTTP request */
+    call<
+        OtherRoutes extends RouteSubRequest<any>[],
+        H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>,
+    >(setup: {
+        otherRoutes: [...OtherRoutes];
+        middleFns?: H;
+        signal?: AbortSignal;
+        timeout?: number;
+    }): Promise<WorkflowResult<any, H>>;
+}
+
+/** structure returned from the proxy, containing info of the remote middleFn to execute */
+export interface MiddlewareSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
+    /** Validates MiddleFn's parameters and returns type errors */
+    typeErrors: () => Promise<RunTypeError[]>;
+    /** Prefills MiddleFn's parameters for any future request and returns TypedEvent */
+    prefill: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
+    /** Removes prefilled value */
     removePrefill: () => Promise<void>;
 }
 
-export interface SuccessSubRequest<RM extends PublicProcedure> extends SubRequest<RM> {
-    return: HandlerSuccessResponse<RM>;
-    error: undefined;
-}
+export type NonClientRoute = never | PublicMiddleFn | PublicHeadersFn;
 
-export type HookCall<RH extends PublicHookProcedure | PublicHeaderProcedure> = (
-    ...params: Parameters<RH['handler']>
-) => HookSubRequest<RH>;
-export type RouteCall<RR extends PublicRouteProcedure> = (...params: Parameters<RR['handler']>) => RouteSubRequest<RR>;
-
-export type NonClientRoute = never | PublicHookProcedure | PublicHeaderProcedure;
-
-export type ClientRoutes<RMS extends PublicApi<any>> = {
-    [Property in keyof RMS as RMS[Property] extends NonClientRoute ? never : Property]: RMS[Property] extends PublicRouteProcedure
-        ? RouteCall<RMS[Property]>
-        : RMS[Property] extends PublicApi<any>
-          ? ClientRoutes<RMS[Property]>
+export type ClientRoutes<RA extends RemoteApi> = Prettify<{
+    [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
+        ? (...params: Parameters<RA[Property]['handler']>) => RouteSubRequest<RA[Property]['handler']>
+        : RA[Property] extends RemoteApi
+          ? ClientRoutes<RA[Property]>
           : never;
-};
+}>;
 
-export type NonClientHook = never | PublicRouteProcedure | {[key: string]: PublicRouteProcedure};
+export type NonClientMiddleFn = never | PublicRoute | {[key: string]: PublicRoute};
 
-export type ClientHooks<RMS extends PublicApi<any>> = {
-    [Property in keyof RMS as RMS[Property] extends NonClientHook ? never : Property]: RMS[Property] extends
-        | PublicHookProcedure
-        | PublicHeaderProcedure
-        ? HookCall<RMS[Property]>
-        : RMS[Property] extends PublicApi<any>
-          ? ClientHooks<RMS[Property]>
+export type ClientMiddleFns<RA extends RemoteApi> = Prettify<{
+    [Property in keyof RA as RA[Property] extends NonClientMiddleFn ? never : Property]: RA[Property] extends
+        | PublicMiddleFn
+        | PublicHeadersFn
+        ? (...params: Parameters<RA[Property]['handler']>) => MiddlewareSubRequest<RA[Property]['handler']>
+        : RA[Property] extends RemoteApi
+          ? ClientMiddleFns<RA[Property]>
           : never;
-};
+}>;
 
-export type Cleaned<RMS extends PublicApi<any>> = {
+export type Cleaned<RMS extends RemoteApi> = {
     [Property in keyof RMS as RMS[Property] extends never ? never : Property]: RMS[Property];
 };
 
-export type SuccessClientResponse<RR extends RouteSubRequest<any>, RHList extends HookSubRequest<any>[]> = [
-    SuccessResponse<RR>,
+export type SuccessClientResponse<RS extends RouteSubRequest<any>, RHList extends MiddlewareSubRequest<any>[]> = [
+    SuccessResponse<RS>,
     ...SuccessResponses<RHList>,
 ];
 
-export type ValidationRequest = Pick<MionRequest<any, any>, 'metadataById' | 'reflectionById' | 'options' | 'subRequests'>;
-
-// ############# STRONG PROMISE  (reject error is strongly typed) #############
-// TODO: typescript complains async function only can return a Promise Type
-// export interface StrongPromise<ReturnType, ErrorType> extends Promise<ReturnType> {
-//     catch<NewErrorType = never>(
-//         onRejected?: ((error: ErrorType) => PromiseLike<NewErrorType>) | null
-//     ): StrongPromise<ReturnType | NewErrorType, NewErrorType | ErrorType>;
-
-//     then<NewReturnType = ReturnType, NewErrorType = ErrorType>(
-//         onFulfilled?: ((value: ReturnType) => NewReturnType | PromiseLike<NewReturnType>) | null | undefined,
-//         onRejected?: ((error: ErrorType) => NewErrorType | PromiseLike<NewErrorType>) | null | undefined
-//     ): StrongPromise<NewReturnType, NewErrorType>;
-// }
-
-// export type RpcPromise<
-//     RR extends RouteRequest<any>,
-//     RHList extends HookRequest<any>[],
-//     Success = [SuccessResponse<RR>, ...SuccessResponses<RHList>],
-//     Fail = [FailResponse<RR>, ...FailResponses<RHList>],
-// > = StrongPromise<Success, Fail>;
-
-// // maps an array of RemoteRequest to an object where keys are ids (but no strong key types happens if the array is not a constant
-// export type RecordOf<TupleType extends readonly {id: string}[]> = {
-//     [Item in TupleType[number] as Item['id']]: Item;
-// };
+export type PrefilledMiddleFnsCache = Map<
+    string,
+    SubRequest<any>
+>; /** Reference returned by serverMapFrom() - extends PureServerFnRef with fake() for type-safe routesFlow piping */

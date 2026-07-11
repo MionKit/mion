@@ -5,25 +5,49 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Handler, HeaderHandler, RawHookHandler} from './handlers';
-import {HeaderProcedure, HookProcedure, RawProcedure, RouteProcedure} from './procedures';
+import {Handler, HeaderHandler, RawMiddleFnHandler} from './handlers.ts';
+import {
+    HeadersMiddleFnOptions,
+    HeadersMethod,
+    MiddleFnOptions,
+    MiddleFnMethod,
+    RawMiddleFnOptions,
+    RawMethod,
+    RouteOptions,
+    RouteMethod,
+} from './remoteMethods.ts';
 
 // #######  Routes Definitions #######
 
+// type-route-def-start
 /** Route definition */
-export type RouteDef<H extends Handler = any> = Pick<RouteProcedure<H>, 'type' | 'handler' | 'options'>;
+export type RouteDef<H extends Handler = any> = Pick<RouteMethod<H>, 'type' | 'handler'> & {
+    options?: RouteOptions;
+};
+// type-route-def-end
 
-/** Hook definition, a function that hooks into the execution path */
-export type HookDef<H extends Handler = any> = Pick<HookProcedure<H>, 'type' | 'handler' | 'options'>;
+// type-middleFn-def-start
+/** MiddleFn definition, a function that middleFns into the ExecutionChain */
+export type MiddleFnDef<H extends Handler = any> = Pick<MiddleFnMethod<H>, 'type' | 'handler'> & {
+    options?: MiddleFnOptions;
+};
+// type-middleFn-def-end
 
-/** Header Hook definition, used to handle header params */
-export type HeaderHookDef<H extends HeaderHandler = any> = Pick<
-    HeaderProcedure<H>,
-    'type' | 'handler' | 'options' | 'headerName'
->;
+// type-header-middleFn-def-start
+/** Headers MiddleFn definition, used to handle header params */
+export type HeadersMiddleFnDef<H extends HeaderHandler = any> = Pick<HeadersMethod<H>, 'type' | 'handler'> & {
+    options?: HeadersMiddleFnOptions;
+};
+// type-header-middleFn-def-end
 
+// type-raw-middleFn-def-start
 /**
- * Raw hook, used only to access raw request/response and modify the call context.
+ * Raw middleFn, used only to access raw request/response and modify the call context.
  * Can not declare extra parameters.
  */
-export type RawHookDef<H extends RawHookHandler = any> = Pick<RawProcedure<H>, 'type' | 'handler' | 'options'>;
+export type RawMiddleFnDef<H extends RawMiddleFnHandler = any> = Pick<RawMethod<H>, 'type' | 'handler'> & {
+    options?: RawMiddleFnOptions;
+};
+// type-raw-middleFn-def-end
+
+export type AnyHandlerDef = RouteDef | MiddleFnDef | HeadersMiddleFnDef | RawMiddleFnDef;

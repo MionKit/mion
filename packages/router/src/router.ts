@@ -5,24 +5,50 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {join} from 'path';
-import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
-import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
-import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
-import type {NotFoundProcedure} from './types/procedures';
-import type {RawProcedure} from './types/procedures';
-import type {HeaderProcedure} from './types/procedures';
-import type {HookProcedure} from './types/procedures';
-import type {RouteProcedure} from './types/procedures';
-import type {Procedure} from './types/procedures';
-import {ProcedureType} from './types/procedures';
-import type {PublicApi, PrivateDef, HooksCollection} from './types/publicProcedures';
-import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
-import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/reflection';
-import {bodyParserHooks} from './jsonBodyParser.routes';
-import {RpcError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
-import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
-import {clientRoutes} from './client.routes';
+/** Lightweight path join for error messages (avoids Node's 'path' module for edge compatibility) */
+import type {Route, RouterOptions, Routes, RouterEntry} from './types/general.ts';
+import type {
+    RemoteMethod,
+    MethodsExecutionChain,
+    RawMethod,
+    HeadersMethod,
+    MiddleFnMethod,
+    RouteMethod,
+} from './types/remoteMethods.ts';
+import type {PublicApi, PrivateDef, MiddleFnsCollection} from './types/publicMethods.ts';
+import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef} from './types/definitions.ts';
+import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, WORKFLOW_KEY} from './constants.ts';
+import {
+    isRawMiddleFnDef,
+    isHeadersMiddleFnDef,
+    isExecutable,
+    isMiddleFnDef,
+    isRoute,
+    isRoutes,
+    isAnyMiddleFnDef,
+    isPublicExecutable,
+} from './types/guards.ts';
+import {
+    HandlerType,
+    SerializerModes,
+    SerializerCode,
+    SerializerMode,
+    isTestEnv,
+    isMionCompileMode,
+    isMionAOTEmitMode,
+    resetRoutesCache,
+    getOrCreateGlobal,
+} from '@mionjs/core';
+import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns} from './lib/reflection.ts';
+import {serializerMiddleFns} from './routes/serializer.routes.ts';
+import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionjs/core';
+import {setErrorOptions} from '@mionjs/core';
+import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
+import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache.ts';
+import {mionClientRoutes, mionClientMiddleFns} from './routes/client.routes.ts';
+import {mionErrorsRoutes} from './routes/errors.routes.ts';
+import {clearRoutesFlowCache} from './routesFlow.ts';
+import {clearContextPool} from './callContext.ts';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -32,184 +58,232 @@ type RoutesWithId = {
 
 // ############# PRIVATE STATE #############
 
-const flatRouter: Map<string, Procedure[]> = new Map(); // Main Router
-const hooksById: Map<string, HookProcedure | HeaderProcedure | RawProcedure> = new Map();
-const routesById: Map<string, RouteProcedure> = new Map();
-const rawHooksById: Map<string, RawProcedure> = new Map();
-const hookNames: Map<string, boolean> = new Map();
-const routeNames: Map<string, boolean> = new Map();
+const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
+const flatRouter = getOrCreateGlobal('mion.router.flatRouter', () => new Map<string, MethodsExecutionChain>()); // Main Router
+const middleFnsById = getOrCreateGlobal(
+    'mion.router.middleFnsById',
+    () => new Map<string, MiddleFnMethod | HeadersMethod | RawMethod>()
+);
+const routesById = getOrCreateGlobal('mion.router.routesById', () => new Map<string, RouteMethod>());
+const rawMiddleFnsById = getOrCreateGlobal('mion.router.rawMiddleFnsById', () => new Map<string, RawMethod>());
+const middleFnNames = getOrCreateGlobal('mion.router.middleFnNames', () => new Set<string>());
+const routeNames = getOrCreateGlobal('mion.router.routeNames', () => new Set<string>());
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
-let looselyReflectionOptions: ReflectionOptions | undefined;
 let allExecutablesIds: string[] | undefined;
+let platformConfig: Record<string, unknown> | undefined;
 
-/** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
-const defaultStartHooks = {mionParseJsonRequestBody: bodyParserHooks.mionParseJsonRequestBody};
-const defaultEndHooks = {mionStringifyJsonResponseBody: bodyParserHooks.mionStringifyJsonResponseBody};
-let startHooksDef: HooksCollection = {...defaultStartHooks};
-let endHooksDef: HooksCollection = {...defaultEndHooks};
-let startHooks: Procedure[] = [];
-let endHooks: Procedure[] = [];
+/** Global middleFns to be run before and after any other middleFns or routes set using `registerRoutes` */
+const defaultStartMiddleFns = {
+    mionDeserializeRequest: serializerMiddleFns.mionDeserializeRequest,
+};
+const defaultEndMiddleFns = {
+    ...mionClientMiddleFns,
+    mionSerializeResponse: serializerMiddleFns.mionSerializeResponse,
+};
+let startMiddleFnsDef: MiddleFnsCollection = {...defaultStartMiddleFns};
+let endMiddleFnsDef: MiddleFnsCollection = {...defaultEndMiddleFns};
+export let startMiddleFns: RemoteMethod[] = [];
+export let endMiddleFns: RemoteMethod[] = [];
 
 // ############# PUBLIC METHODS #############
 
-export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
+export const getRouteExecutionChain = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();
 export const geRoutesSize = () => flatRouter.size;
 export const getRouteExecutable = (id: string) => routesById.get(id);
-export const getHookExecutable = (id: string) => hooksById.get(id);
-export const geHooksSize = () => hooksById.size;
+export const getMiddleFnExecutable = (id: string) => middleFnsById.get(id);
+export const geMiddleFnsSize = () => middleFnsById.size;
 export const getComplexity = () => complexity;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
-export const getAnyExecutable = (id: string) => routesById.get(id) || hooksById.get(id) || rawHooksById.get(id);
+export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
+
+/** Sets platform adapter config and notifies the parent process (Vite plugin) that the server is ready.
+ *  Called automatically by platform adapters. Sends an IPC message containing both the
+ *  serializable router config and the platform adapter config. */
+export function setPlatformConfig(config: Record<string, unknown>): void {
+    platformConfig = config;
+    if (isMionAOTEmitMode() && typeof process.send === 'function') {
+        const routerConfig = Object.fromEntries(Object.entries(routerOptions).filter(([, v]) => typeof v !== 'function'));
+        try {
+            process.send({type: 'mion-platform-ready', routerConfig, platformConfig: config});
+        } catch (err) {
+            console.error('[mion] Failed to send platform-ready IPC:', err);
+        }
+    }
+}
+
+/** Returns the platform adapter config set by setPlatformConfig(). */
+export const getPlatformConfig = (): Readonly<Record<string, unknown>> | undefined => platformConfig;
 
 export const resetRouter = () => {
     flatRouter.clear();
-    hooksById.clear();
+    middleFnsById.clear();
     routesById.clear();
-    rawHooksById.clear();
-    hookNames.clear();
+    rawMiddleFnsById.clear();
+    middleFnNames.clear();
     routeNames.clear();
     complexity = 0;
     routerOptions = {...DEFAULT_ROUTE_OPTIONS};
-    startHooksDef = {...defaultStartHooks};
-    endHooksDef = {...defaultEndHooks};
-    startHooks = [];
-    endHooks = [];
+    startMiddleFnsDef = {...defaultStartMiddleFns};
+    endMiddleFnsDef = {...defaultEndMiddleFns};
+    startMiddleFns = [];
+    endMiddleFns = [];
     isRouterInitialized = false;
-    looselyReflectionOptions = undefined;
     allExecutablesIds = undefined;
+    platformConfig = undefined;
     resetRemoteMethodsMetadata();
+    resetPersistedMethods();
+    resetRoutesCache();
+    clearContextPool();
+    clearRoutesFlowCache();
+    // Note: We intentionally do NOT call resetJitFnCaches() here because:
+    // 1. JIT function caches are global and should persist across router resets
+    // 2. The serializableClassRegistry (cleared by resetJitFnCaches) is needed for
+    //    serialization/deserialization of classes like RpcError
+    // resetJitFnCaches() should only be called in specific test scenarios that need
+    // to test AOT cache loading behavior
 };
 
 // simpler router initialization
-export function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): PublicApi<R> {
-    initRouter(opts);
-    return registerRoutes(routes);
+export async function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): Promise<PublicApi<R>> {
+    await initRouter(opts);
+    const publicApi = await registerRoutes(routes);
+    // Emit AOT caches once after ALL routes (error, client, user) are registered
+    await emitAOTCaches();
+    return publicApi;
 }
 
 /**
  * Initializes the Router.
  * @param application
- * @param sharedDataFactory a factory function that returns an object to be shared in the `callContext.shared`
+ * @param contextDataFactory a factory function that returns an object to be shared in the `callContext.shared`
  * @param routerOptions
  * @returns
  */
-export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOptions> {
+export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonly<RouterOptions>> {
     if (isRouterInitialized) throw new Error('Router has already been initialized');
     routerOptions = {...routerOptions, ...opts};
+    validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
+    if (routerOptions.aot) await loadAOTCaches();
     isRouterInitialized = true;
-    if (!routerOptions.skipClientRoutes) registerRoutes(clientRoutes);
+    await registerRoutes({...mionErrorsRoutes});
+    if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});
+    if (!isTestEnv()) console.log('mion router initialized', {routerOptions});
     return routerOptions;
 }
 
-export function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
+export async function registerRoutes<R extends Routes>(routes: R): Promise<PublicApi<R>> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
-    startHooks = getExecutablesFromHooksCollection(startHooksDef);
-    endHooks = getExecutablesFromHooksCollection(endHooksDef);
-    recursiveFlatRoutes(routes);
-    // we only want to get information about the routes when creating api spec
-    if (shouldFullGenerateSpec()) return getRemoteMethodsMetadata(routes);
+    startMiddleFns = await getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
+    endMiddleFns = await getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
+    const binaryMiddlewares = new Set<string>();
+    await recursiveFlatRoutes(routes, [], [], [], binaryMiddlewares, 0);
+    if (binaryMiddlewares.size > 0) await compileBinaryForMiddleware(binaryMiddlewares);
+    if (shouldFullGenerateSpec()) {
+        return getPublicApi(routes);
+    }
     return {} as PublicApi<R>;
 }
 
-export function getRouteDefaultParams(): string[] {
-    return ['context'];
-}
-
-/** Add hooks at the start af the execution path, adds them before any other existing start hooks by default */
-export function addStartHooks(hooksDef: HooksCollection, appendBeforeExisting = true) {
-    if (isRouterInitialized) throw new Error('Can not add start hooks after the router has been initialized');
+/** Add middleFns at the start af the ExecutionChain, adds them before any other existing start middleFns by default */
+export function addStartMiddleFns(middleFnsDef: MiddleFnsCollection, appendBeforeExisting = true) {
+    if (isRouterInitialized) throw new Error('Can not add start middleFns after the router has been initialized');
     if (appendBeforeExisting) {
-        startHooksDef = {...hooksDef, ...startHooksDef};
+        startMiddleFnsDef = {...middleFnsDef, ...startMiddleFnsDef};
         return;
     }
-    startHooksDef = {...startHooksDef, ...hooksDef};
+    startMiddleFnsDef = {...startMiddleFnsDef, ...middleFnsDef};
 }
 
-/** Add hooks at the end af the execution path, adds them after any other existing end hooks by default */
-export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = true) {
-    if (isRouterInitialized) throw new Error('Can not add end hooks after the router has been initialized');
+/** Add middleFns at the end af the ExecutionChain, adds them after any other existing end middleFns by default */
+export function addEndMiddleFns(middleFnsDef: MiddleFnsCollection, prependAfterExisting = true) {
+    if (isRouterInitialized) throw new Error('Can not add end middleFns after the router has been initialized');
     if (prependAfterExisting) {
-        endHooksDef = {...endHooksDef, ...hooksDef};
+        endMiddleFnsDef = {...endMiddleFnsDef, ...middleFnsDef};
         return;
     }
-    endHooksDef = {...hooksDef, ...endHooksDef};
+    endMiddleFnsDef = {...middleFnsDef, ...endMiddleFnsDef};
 }
 
-let notFoundExecutionPath: Procedure[] | undefined;
-const notFoundHook = {
-    type: ProcedureType.rawHook,
-    handler: () => new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}),
-    options: {
-        canReturnData: false,
-        runOnError: true,
-        useValidation: false,
-        useSerialization: false,
-    },
-} satisfies RawHookDef;
-export function getNotFoundExecutionPath(): Procedure[] {
-    if (notFoundExecutionPath) return notFoundExecutionPath;
-    const hookName = '_mion404NotfoundHook_';
-    const notFoundHandlerExecutable = getExecutableFromRawHook(notFoundHook, [hookName], 0);
-    (notFoundHandlerExecutable as NotFoundProcedure).is404 = true;
-    notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
-    return notFoundExecutionPath;
-}
-
-export function isPrivateProcedure(entry: RouterEntry, id: string): entry is PrivateDef {
+export function isPrivateDefinition(entry: RouterEntry, id: string): entry is PrivateDef {
     if (isRoute(entry)) return false;
-    if (isRawHookDef(entry)) return true;
+    if (isRawMiddleFnDef(entry)) return true;
     try {
-        const handler = entry.handler;
-        const executable = getHookExecutable(id) || getRouteExecutable(id);
-        const hasPublicParams = handler.length > getRouteDefaultParams().length;
-        return !hasPublicParams && !executable?.options.canReturnData;
+        const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
+        if (!executable)
+            throw new Error(`Route or MiddleFn ${id} not found. Please check you have called router.registerRoutes first.`);
+        return isPrivateExecutable(executable);
     } catch {
         // error thrown because entry is a Routes object and does not have any handler
         return false;
     }
 }
 
-export function isPrivateExecutable(executable: Procedure): boolean {
-    if (executable.type === ProcedureType.rawHook) return true;
-    if (executable.type === ProcedureType.route) return false;
-    const hasPublicParams = executable.handler.length > getRouteDefaultParams().length;
-    return !hasPublicParams && !executable.options.canReturnData;
+export function isPrivateExecutable(executable: RemoteMethod): boolean {
+    if (executable.type === HandlerType.rawMiddleFn) return true;
+    if (executable.type === HandlerType.route) return false;
+    const hasPublicParams = !!executable.paramNames?.length;
+    const hasHeaderParams = !!(executable as HeadersMethod).headersParam?.headerNames?.length;
+    return !hasPublicParams && !hasHeaderParams && !executable.hasReturnData;
 }
 
 export function getTotalExecutables(): number {
-    return routesById.size + hooksById.size + rawHooksById.size;
+    return routesById.size + middleFnsById.size + rawMiddleFnsById.size;
 }
 
 export function getAllExecutablesIds(): string[] {
     if (allExecutablesIds) return allExecutablesIds;
-    allExecutablesIds = [...routesById.keys(), ...hooksById.keys(), ...rawHooksById.keys()];
+    allExecutablesIds = [...routesById.keys(), ...middleFnsById.keys(), ...rawMiddleFnsById.keys()];
     return allExecutablesIds;
 }
 
+// used by codegen
 export function shouldFullGenerateSpec(): boolean {
-    return routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true';
+    return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true' || isMionCompileMode();
+}
+
+export function getRouteExecutableFromPath(path: string): RouteMethod {
+    const executionChain = flatRouter.get(path);
+    if (!executionChain) {
+        // Return the not-found route executable
+        return getAnyExecutable(MION_ROUTES.notFound) as RouteMethod;
+    }
+    return executionChain.methods[executionChain.routeIndex] as RouteMethod;
 }
 
 // ############# PRIVATE METHODS #############
+
+async function loadAOTCaches() {
+    const loader = await import('./aot/aotCacheLoader.ts');
+    return loader.loadRouterAOTCaches();
+}
+
+async function emitAOTCaches() {
+    if (!isMionAOTEmitMode()) return;
+    // Dynamic import resolves relative to this source file.
+    // This only runs via vite-node (MION_COMPILE=buildOnly|childProcess), which always resolves from source.
+    const aotEmitter = await import('./lib/aotEmitter.ts');
+    return aotEmitter.emitAOTCaches();
+}
 
 /**
  * Optimized algorithm to flatten the routes object into a list of Executable objects.
  * @param routes
  * @param currentPointer current pointer in the routes object i.e. ['users', 'get']
- * @param preHooks hooks one level up preceding current pointer
- * @param postHooks hooks one level up  following the current pointer
+ * @param preMiddleFns middleFns one level up preceding current pointer
+ * @param postMiddleFns middleFns one level up  following the current pointer
  * @param nestLevel
  */
-function recursiveFlatRoutes(
+async function recursiveFlatRoutes(
     routes: Routes,
     currentPointer: string[] = [],
-    preHooks: Procedure[] = [],
-    postHooks: Procedure[] = [],
+    preMiddleFns: RemoteMethod[] = [],
+    postMiddleFns: RemoteMethod[] = [],
+    binaryMiddlewares: Set<string> = new Set(),
     nestLevel = 0
 ) {
     if (nestLevel > MAX_ROUTE_NESTING)
@@ -217,30 +291,38 @@ function recursiveFlatRoutes(
 
     const entries = Object.entries(routes);
     if (entries.length === 0)
-        throw new Error(`Invalid route: ${currentPointer.length ? join(...currentPointer) : '*'}. Can Not define empty routes`);
+        throw new Error(
+            `Invalid route: ${currentPointer.length ? joinPath(...currentPointer) : '*'}. Can Not define empty routes`
+        );
 
     let minus1Props: ReturnType<typeof getRouteEntryProperties> | null = null;
-    entries.forEach(([key, item], index, array) => {
+    for (let index = 0; index < entries.length; index++) {
+        const [key, item] = entries[index];
         // create the executable items
         const newPointer = [...currentPointer, key];
-        let routeEntry: Procedure | RoutesWithId;
+        let routeEntry: RemoteMethod | RoutesWithId;
         if (typeof key !== 'string' || !isNaN(key as any))
-            throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
+            throw new Error(`Invalid route: ${joinPath(...newPointer)}. Numeric route names are not allowed`);
+        if (key.includes(',')) throw new Error(`Invalid route: ${joinPath(...newPointer)}. Route names cannot contain commas.`);
+        if (key === WORKFLOW_KEY)
+            throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
 
-        // generates a hook
-        if (isAnyHookDef(item)) {
-            routeEntry = getExecutableFromAnyHook(item, newPointer, nestLevel);
-            if (hookNames.has(routeEntry.id))
-                throw new Error(`Invalid hook: ${join(...newPointer)}. Naming collision, Naming collision, duplicated hook.`);
-            hookNames.set(routeEntry.id, true);
+        // generates a middleFn
+        if (isAnyMiddleFnDef(item)) {
+            routeEntry = await getExecutableFromAnyMiddleFn(item, newPointer, nestLevel);
+            if (middleFnNames.has(routeEntry.id))
+                throw new Error(
+                    `Invalid middleFn: ${joinPath(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`
+                );
+            middleFnNames.add(routeEntry.id);
         }
 
         // generates a route
         else if (isRoute(item)) {
-            routeEntry = getExecutableFromRoute(item, newPointer, nestLevel);
+            routeEntry = await getExecutableFromRoute(item, newPointer, nestLevel);
             if (routeNames.has(routeEntry.id))
-                throw new Error(`Invalid route: ${join(...newPointer)}. Naming collision, duplicated route`);
-            routeNames.set(routeEntry.id, true);
+                throw new Error(`Invalid route: ${joinPath(...newPointer)}. Naming collision, duplicated route`);
+            routeNames.add(routeEntry.id);
         }
 
         // generates structure required to go one level down
@@ -254,30 +336,32 @@ function recursiveFlatRoutes(
         // throws an error if the route is invalid
         else {
             const itemType = typeof item;
-            throw new Error(`Invalid route: ${join(...newPointer)}. Type <${itemType}> is not a valid route.`);
+            throw new Error(`Invalid route: ${joinPath(...newPointer)}. Type <${itemType}> is not a valid route.`);
         }
 
         // recurse into sublevels
-        minus1Props = recursiveCreateExecutionPath(
+        minus1Props = await recursiveCreateExecutionChain(
             routeEntry,
             newPointer,
-            preHooks,
-            postHooks,
+            preMiddleFns,
+            postMiddleFns,
+            binaryMiddlewares,
             nestLevel,
             index,
-            array,
+            entries,
             minus1Props
         );
 
         complexity++;
-    });
+    }
 }
 
-function recursiveCreateExecutionPath(
-    routeEntry: Procedure | RoutesWithId,
+async function recursiveCreateExecutionChain(
+    routeEntry: RemoteMethod | RoutesWithId,
     currentPointer: string[],
-    preHooks: Procedure[],
-    postHooks: Procedure[],
+    preMiddleFns: RemoteMethod[],
+    postMiddleFns: RemoteMethod[],
+    binaryMiddlewares: Set<string>,
     nestLevel: number,
     index: number,
     routeKeyedEntries: RouterKeyEntryList,
@@ -288,31 +372,56 @@ function recursiveCreateExecutionPath(
     const props = getRouteEntryProperties(minus1, routeEntry, plus1);
 
     if (props.isBetweenRoutes && minus1Props) {
-        props.preLevelHooks = minus1Props.preLevelHooks;
-        props.postLevelHooks = minus1Props.postLevelHooks;
+        props.preLevelMiddleFns = minus1Props.preLevelMiddleFns;
+        props.postLevelMiddleFns = minus1Props.postLevelMiddleFns;
     } else {
-        routeKeyedEntries.forEach(([k, entry], i) => {
+        for (let i = 0; i < routeKeyedEntries.length; i++) {
+            const [k, entry] = routeKeyedEntries[i];
             complexity++;
-            if (!isAnyHookDef(entry)) return;
+            if (!isAnyMiddleFnDef(entry)) continue;
             const newPointer = [...currentPointer.slice(0, -1), k];
-            const executable = getExecutableFromAnyHook(entry, newPointer, nestLevel);
-            if (i < index) return props.preLevelHooks.push(executable);
-            if (i > index) return props.postLevelHooks.push(executable);
-        });
+            const executable = await getExecutableFromAnyMiddleFn(entry, newPointer, nestLevel);
+            if (i < index) props.preLevelMiddleFns.push(executable);
+            if (i > index) props.postLevelMiddleFns.push(executable);
+        }
     }
     const isExec = isExecutable(routeEntry);
 
     if (isExec && props.isRoute) {
-        const routeExecutionPath = [...preHooks, ...props.preLevelHooks, routeEntry, ...props.postLevelHooks, ...postHooks];
         const path = getRoutePath(routeEntry.pointer, routerOptions);
-        const execPath = getFullExecutionPath(routeExecutionPath);
-        flatRouter.set(path, execPath);
+        const routeMethod = routeEntry as RouteMethod;
+        const levelMethods = [
+            ...preMiddleFns,
+            ...props.preLevelMiddleFns,
+            routeEntry,
+            ...props.postLevelMiddleFns,
+            ...postMiddleFns,
+        ];
+        const methods = [...startMiddleFns, ...levelMethods, ...endMiddleFns];
+        const executionChain: MethodsExecutionChain = {
+            routeIndex: startMiddleFns.length + preMiddleFns.length + props.preLevelMiddleFns.length,
+            methods,
+            serializer: getSerializerCodeFromMode(routeMethod.options.serializer),
+        };
+        const middleFnIds = getPublicMiddleFnIds(methods);
+        // add middleware functions deps, so can be serialized with the router
+        if (middleFnIds.length) routeMethod.middleFnIds = middleFnIds;
+        flatRouter.set(path, executionChain);
+        // Collect middleware that needs binary JIT functions for retroactive compilation
+        if (routeMethod.options.serializer === 'binary') {
+            for (const method of methods) {
+                if (method.type === HandlerType.middleFn || method.type === HandlerType.headersMiddleFn) {
+                    binaryMiddlewares.add(method.id);
+                }
+            }
+        }
     } else if (!isExec) {
-        recursiveFlatRoutes(
+        await recursiveFlatRoutes(
             routeEntry.routes,
             routeEntry.pathPointer,
-            [...preHooks, ...props.preLevelHooks],
-            [...props.postLevelHooks, ...postHooks],
+            [...preMiddleFns, ...props.preLevelMiddleFns],
+            [...props.postLevelMiddleFns, ...postMiddleFns],
+            binaryMiddlewares,
             nestLevel + 1
         );
     }
@@ -320,124 +429,232 @@ function recursiveCreateExecutionPath(
     return props;
 }
 
-/** returns an execution path with start and end hooks added to the start and end of the execution path respectively */
-function getFullExecutionPath(executionPath: Procedure[]): Procedure[] {
-    return [...startHooks, ...executionPath, ...endHooks];
-}
-
-function getExecutableFromAnyHook(hook: HookDef | HeaderHookDef | RawHookDef, hookPointer: string[], nestLevel: number) {
-    if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, hookPointer, nestLevel);
-    return getExecutableFromHook(hook, hookPointer, nestLevel);
-}
-
-function getExecutableFromHook(
-    hook: HookDef | HeaderHookDef,
-    hookPointer: string[],
+async function getExecutableFromAnyMiddleFn(
+    middleFn: MiddleFnDef | HeadersMiddleFnDef | RawMiddleFnDef,
+    middleFnPointer: string[],
     nestLevel: number
-): HookProcedure | HeaderProcedure {
-    const inHeader = isHeaderHookDef(hook);
+) {
+    if (isRawMiddleFnDef(middleFn)) return getExecutableFromRawMiddleFn(middleFn, middleFnPointer, nestLevel);
+    return getExecutableFromMiddleFn(middleFn, middleFnPointer, nestLevel);
+}
+
+export async function getExecutableFromMiddleFn(
+    middleFn: MiddleFnDef | HeadersMiddleFnDef,
+    middleFnPointer: string[],
+    nestLevel: number
+): Promise<MiddleFnMethod | HeadersMethod> {
+    const isHeader = isHeadersMiddleFnDef(middleFn);
     // todo fix header id should be same as any other one and then maybe map from id to header name
-    const hookId = getRouterItemId(hookPointer);
-    const existing = hooksById.get(hookId);
-    if (existing) return existing as HookProcedure;
+    const middleFnId = getRouterItemId(middleFnPointer);
+    const existing = middleFnsById.get(middleFnId);
+    if (existing) return existing as MiddleFnMethod;
 
-    type MixedExecutable = (Omit<HookProcedure, 'type'> | Omit<HeaderProcedure, 'type'>) & {
-        type: ProcedureType.hook | ProcedureType.headerHook;
+    type MixedMiddleFn = (Omit<MiddleFnMethod, 'type'> | Omit<HeadersMethod, 'type'>) & {
+        type: typeof HandlerType.middleFn | typeof HandlerType.headersMiddleFn;
     };
 
-    const executable: MixedExecutable = {
-        id: hookId,
-        type: inHeader ? ProcedureType.headerHook : ProcedureType.hook,
-        nestLevel,
-        handler: hook.handler,
-        reflection: getFunctionReflectionMethods(hook.handler, getReflectionOptions(hook), getRouteDefaultParams().length),
-        pointer: hookPointer,
-        headerName: inHeader ? (hook as HeaderHookDef).headerName?.toLowerCase() : undefined,
-        options: hook.options,
-    };
-    executable.options.canReturnData = executable.reflection.hasReturnData;
-    hooksById.set(hookId, executable as any);
+    const compiledMethod = getPersistedMethod(middleFnId, middleFn.handler);
+    let executable: MixedMiddleFn;
+    if (compiledMethod) {
+        executable = compiledMethod as MixedMiddleFn;
+    } else {
+        const reflectionData = await getHandlerReflection(
+            middleFn.handler,
+            middleFnId,
+            routerOptions,
+            middleFn.options ?? {},
+            isHeader,
+            middleFn.options?.strictTypes
+        );
+        executable = {
+            id: middleFnId,
+            type: isHeader ? HandlerType.headersMiddleFn : HandlerType.middleFn,
+            nestLevel,
+            handler: middleFn.handler,
+            pointer: middleFnPointer,
+            ...reflectionData,
+            options: {
+                runOnError: !!middleFn.options?.runOnError,
+                validateParams: middleFn.options?.validateParams ?? true,
+                validateReturn: middleFn.options?.validateReturn ?? false,
+                description: middleFn.options?.description,
+                strictTypes: middleFn.options?.strictTypes ?? routerOptions.strictTypes,
+            },
+        };
+        addToPersistedMethods(middleFnId, executable);
+    }
+
+    middleFnsById.set(middleFnId, executable as any);
+    routesCache.setMethodJitFns(middleFnId, executable as any);
     return executable as any;
 }
 
-function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestLevel: number): RawProcedure {
-    const hookId = getRouterItemId(hookPointer);
-    const existing = rawHooksById.get(hookId);
-    if (existing) return existing as RawProcedure;
-
-    const executable: RawProcedure = {
-        type: ProcedureType.rawHook,
-        id: hookId,
+export async function getExecutableFromRawMiddleFn(
+    middleFn: RawMiddleFnDef,
+    middleFnPointer: string[],
+    nestLevel: number
+): Promise<RawMethod> {
+    const middleFnId = getRouterItemId(middleFnPointer);
+    const existing = rawMiddleFnsById.get(middleFnId);
+    if (existing) return existing as RawMethod;
+    const reflectionData = await getRawMethodReflection(middleFn.handler, middleFnId, routerOptions);
+    const executable: RawMethod = {
+        id: middleFnId,
+        type: HandlerType.rawMiddleFn,
         nestLevel,
-        handler: hook.handler,
-        reflection: null,
-        pointer: hookPointer,
-        options: hook.options,
+        handler: middleFn.handler,
+        pointer: middleFnPointer,
+        ...reflectionData,
+        options: {
+            runOnError: !!middleFn.options?.runOnError,
+            validateParams: false,
+            validateReturn: false,
+            description: middleFn.options?.description,
+        },
     };
-    executable.options.canReturnData = false;
-    rawHooksById.set(hookId, executable);
+    rawMiddleFnsById.set(middleFnId, executable);
+    routesCache.setMethodJitFns(middleFnId, executable as any);
     return executable;
 }
 
-function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteProcedure {
+/** Retroactively compiles binary JIT functions for middleware in the path of binary routes */
+async function compileBinaryForMiddleware(binaryMiddlewareIds: Set<string>): Promise<void> {
+    for (const id of binaryMiddlewareIds) {
+        const method = middleFnsById.get(id);
+        if (method) await ensureBinaryJitFns(method as MiddleFnMethod);
+    }
+}
+
+export async function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): Promise<RouteMethod> {
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
-    if (existing) return existing as RouteProcedure;
-    const executable: RouteProcedure = {
-        type: ProcedureType.route,
-        id: routeId,
-        nestLevel,
-        handler: route.handler,
-        reflection: getFunctionReflectionMethods(route.handler, getReflectionOptions(route), getRouteDefaultParams().length),
-        pointer: routePointer,
-        options: route.options,
-    };
-    delete (executable as any).route;
+    if (existing) return existing as RouteMethod;
+
+    const compiledMethod = getPersistedMethod(routeId, route.handler);
+    let executable: RouteMethod;
+    if (compiledMethod) {
+        executable = compiledMethod as RouteMethod;
+    } else {
+        const resolvedRouteOptions = {...route.options, serializer: route.options?.serializer ?? routerOptions.serializer};
+        const reflectionData = await getHandlerReflection(
+            route.handler,
+            routeId,
+            routerOptions,
+            resolvedRouteOptions,
+            false,
+            route.options?.strictTypes
+        );
+        executable = {
+            id: routeId,
+            type: HandlerType.route,
+            nestLevel,
+            handler: route.handler,
+            pointer: routePointer,
+            ...reflectionData,
+            options: {
+                runOnError: false,
+                validateParams: route.options?.validateParams ?? true,
+                validateReturn: route.options?.validateReturn ?? false,
+                description: route.options?.description,
+                serializer: route.options?.serializer ?? routerOptions.serializer,
+                isMutation: route.options?.isMutation,
+                strictTypes: route.options?.strictTypes ?? routerOptions.strictTypes,
+            },
+        };
+        addToPersistedMethods(routeId, executable);
+    }
     routesById.set(routeId, executable);
+    routesCache.setMethodJitFns(routeId, executable as any);
     return executable;
 }
 
-function getEntry(index, keyEntryList: RouterKeyEntryList) {
+/** Returns IDs of public middleware methods from the execution chain, excluding internal mion routes. */
+function getPublicMiddleFnIds(methods: RemoteMethod[]): string[] {
+    const ids = methods
+        .filter((exec) => isPublicExecutable(exec))
+        .map((exec) => getRouterItemId(exec.pointer))
+        .filter((mfId) => {
+            if (mionInternalRoutes.includes(mfId)) return false;
+            const exec = getMiddleFnExecutable(mfId);
+            return exec && isPublicExecutable(exec);
+        });
+    return ids;
+}
+
+function getEntry(index: number, keyEntryList: RouterKeyEntryList) {
     return keyEntryList[index]?.[1];
 }
 
 function getRouteEntryProperties(
     minus1: RouterEntry | undefined,
-    zero: Procedure | RoutesWithId,
+    zero: RemoteMethod | RoutesWithId,
     plus1: RouterEntry | undefined
 ) {
     const minus1IsRoute = minus1 && isRoute(minus1);
-    const zeroIsRoute = (zero as Procedure).type === ProcedureType.route;
+    const zeroIsRoute = (zero as RemoteMethod).type === HandlerType.route;
     const plus1IsRoute = plus1 && isRoute(plus1);
 
-    const isExec = !!(zero as Procedure).handler;
+    const isExec = !!(zero as RemoteMethod).handler;
 
     return {
         isBetweenRoutes: minus1IsRoute && zeroIsRoute && plus1IsRoute,
         isExecutable: isExec,
         isRoute: zeroIsRoute,
-        preLevelHooks: [] as Procedure[],
-        postLevelHooks: [] as Procedure[],
+        preLevelMiddleFns: [] as RemoteMethod[],
+        postLevelMiddleFns: [] as RemoteMethod[],
     };
 }
 
-function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawProcedure | HookProcedure | HeaderProcedure)[] {
-    return Object.entries(hooksDef).map(([key, hook]) => {
-        if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, [key], 0);
-        if (isHeaderHookDef(hook) || isHookDef(hook)) return getExecutableFromHook(hook, [key], 0);
-        throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
-    });
+async function getExecutablesFromMiddleFnsCollection(
+    middleFnsDef: MiddleFnsCollection
+): Promise<(RawMethod | MiddleFnMethod | HeadersMethod)[]> {
+    const results: (RawMethod | MiddleFnMethod | HeadersMethod)[] = [];
+    for (const [key, middleFn] of Object.entries(middleFnsDef)) {
+        if (isRawMiddleFnDef(middleFn)) {
+            results.push(await getExecutableFromRawMiddleFn(middleFn, [key], 0));
+        } else if (isHeadersMiddleFnDef(middleFn) || isMiddleFnDef(middleFn)) {
+            results.push(await getExecutableFromMiddleFn(middleFn, [key], 0));
+        } else {
+            throw new Error(`Invalid middleFn: ${key}. Invalid middleFn definition`);
+        }
+    }
+    return results;
 }
 
-function getReflectionOptions(entry: RouterEntry): ReflectionOptions {
-    if (isHeaderHookDef(entry)) return getReflectionOptionsWithLooselySerialization();
-    return routerOptions.reflectionOptions;
+/**
+ * Validates that a contextDataFactory returns a valid context data object.
+ * @param contextDataFactory The factory function to validate
+ * @throws Error if the factory doesn't return a plain object with at least one property
+ */
+function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
+    if (!opts?.contextDataFactory) return;
+    const testSharedData = opts.contextDataFactory();
+    if (
+        typeof testSharedData !== 'object' ||
+        Array.isArray(testSharedData) ||
+        testSharedData === null ||
+        Object.keys(testSharedData).length === 0
+    ) {
+        throw new Error('contextDataFactory must return a plain object with at least one property');
+    }
 }
 
-function getReflectionOptionsWithLooselySerialization(): ReflectionOptions {
-    if (looselyReflectionOptions) return looselyReflectionOptions;
-    const newReflectionOptions = {...routerOptions.reflectionOptions};
-    newReflectionOptions.serializationOptions = {...newReflectionOptions.serializationOptions, loosely: true};
-    looselyReflectionOptions = newReflectionOptions;
-    return looselyReflectionOptions;
+/** Maps serializer mode string to response body type code */
+function getSerializerCodeFromMode(mode: SerializerMode | undefined): SerializerCode {
+    switch (mode) {
+        case 'binary':
+            return SerializerModes.binary;
+        case 'stringifyJson':
+            return SerializerModes.stringifyJson;
+        case 'optimistic':
+            return SerializerModes.stringifyJson;
+        case 'json':
+        default:
+            return SerializerModes.json;
+    }
+}
+
+/** Path replacement as is not available in edge runtime */
+function joinPath(...parts: string[]): string {
+    return parts.filter(Boolean).join('/');
 }

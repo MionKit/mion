@@ -1,0 +1,33 @@
+import {defineConfig} from 'vitest/config';
+import {resolve} from 'path';
+import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
+
+export default defineConfig({
+    plugins: [
+        mionVitePlugin({
+            runTypes: {
+                tsConfig: resolve(__dirname, 'tsconfig.json'),
+                compilerOptions: {
+                    sourceMap: true,
+                },
+            },
+            server: {
+                startScript: resolve(__dirname, 'src/server/server.ts'),
+                viteConfig: resolve(__dirname, 'vite.server.config.ts'),
+                runMode: 'childProcess',
+                waitTimeout: 30000,
+                env: {MION_TEST_PORT: '8086'},
+            },
+        }) as any,
+    ],
+    test: {
+        environment: 'node',
+        include: ['src/tests/json.spec.ts', 'src/tests/binary.spec.ts', 'src/tests/packaged-sources.spec.ts'],
+        testTimeout: 30000,
+        maxWorkers: 1,
+        globalSetup: ['./globalSetup.ts'],
+        env: {
+            MION_TEST_SERVER_AUTO_START: 'false',
+        },
+    },
+});

@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
-    "module": "CommonJS",
+    "allowImportingTsExtensions": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "esModuleInterop": true,
     "noImplicitAny": false,
     "removeComments": true,
@@ -9,18 +10,35 @@
     "strict": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "target": "es2020",
-    "lib": ["es6", "ES2021"],
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
     "outDir": ".dist/cjs",
-    "composite": false,
-    "declaration": false,
-    "declarationMap": false,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
     "incremental": true,
     "sourceMap": true,
+    "isolatedModules": true,
+    "rewriteRelativeImportExtensions": true,
     "paths": {
-      "@mionkit/*": ["packages/*"],
-    },
+      "@mionjs/*": ["./packages/*"]
+    }
   },
+  "references": [
+    {"path": "./packages/core"},
+    {"path": "./packages/run-types"},
+    {"path": "./packages/type-formats"},
+    {"path": "./packages/router"},
+    {"path": "./packages/client"},
+    {"path": "./packages/platform-node"},
+    {"path": "./packages/platform-aws"},
+    {"path": "./packages/platform-gcloud"},
+    {"path": "./packages/platform-bun"},
+    {"path": "./packages/devtools"},
+    {"path": "./packages/test-server"}
+  ],
+  "files": [],
   "exclude": ["node_modules", ".dist"],
-  "reflection": true,
+  "reflection": true
 }

@@ -1,10 +1,21 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/cjs",
-    "lib": ["es6", "ES2021", "DOM"],
+    "outDir": ".dist/esm",
+    "lib": ["es6", "ES2023", "DOM"],
+    "composite": true,
+    "rootDir": ".",
+    "types": ["@mionjs/devtools/virtual-modules"]
   },
-  "reflection": true,
+  "references": [
+    {"path": "../core"},
+    {"path": "../run-types"},
+    {"path": "../platform-node"},
+    {"path": "../type-formats"},
+    {"path": "../router"},
+    {"path": "../test-server"}
+  ],
+  "reflection": false,
   "include": ["."],
-  "exclude": ["node_modules", "examples", ".dist"],
+  "exclude": ["node_modules", ".dist", "vite.config.ts"]
 }

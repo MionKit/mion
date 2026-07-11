@@ -1,0 +1,1 @@
+{"data":{"x":"x","columns":[["x","Latency (ms)"],["elysia.bun","0.77"],["hono.bun","0.87"],["mion.bun","0.94"],["http-node","1.14"],["mion","1.32"],["hono","1.33"],["fastify","1.63"],["hapi","1.66"],["express","1.71"]],"type":"bar","labels":true},"axis":{"x":{"type":"category","labels":{"rotate":75}}},"transition":{"duration":0}}

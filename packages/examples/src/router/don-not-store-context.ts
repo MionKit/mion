@@ -1,0 +1,32 @@
+import {HeadersSubset} from '@mionjs/core';
+import {Routes, initMionRouter, headersFn, route} from '@mionjs/router';
+import {getAuthUser, isAuthorized} from 'MyAuth';
+
+let currentSharedData: any = null;
+
+const authorizationMiddleFn = headersFn(async (ctx, {headers}: HeadersSubset<'Authorization'>): Promise<void> => {
+    const token = headers.Authorization;
+    const me = await getAuthUser(token);
+    if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
+    ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/middleFns
+
+    // THIS IS WRONG! DO NOT STORE THE CONTEXT!
+    currentSharedData = ctx.shared;
+});
+
+const wrongSayHello = route((): string => {
+    // this is wrong! besides currentContext might have changed, it might be also causing memory problems
+    return `hello ${currentSharedData?.shared?.auth}`;
+});
+
+const sayHello = route((ctx): string => {
+    return `hello ${ctx.shared.auth}`;
+});
+
+const routes = {
+    authorizationMiddleFn, // header: Authorization
+    wrongSayHello,
+    sayHello,
+} satisfies Routes;
+
+export const apiSpec = await initMionRouter(routes);

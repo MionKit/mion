@@ -1,0 +1,209 @@
+/* ########
+ * 2024 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+import {describe, it, expect} from 'vitest';
+import {runType} from '../../createRunType.ts';
+import {JitFunctions} from '../../constants.functions.ts';
+import {getJITFnHash} from '../../lib/createJitFunction.ts';
+import {getJitUtils} from '@mionjs/core';
+import {NonSerializableRunType} from './nonSerializable.ts';
+import {FunctionRunType} from '../function/function.ts';
+import {RunType} from '../../types.ts';
+
+/**
+ * Non serializable types can create a RunType but will throw when trying to create a JIT function.
+ * Non serializable types are automatically removed from other objects when serializing and deserializing.
+ * Non serializable types are set to undefined when serializing and deserializing deserialize tuples and function arguments.
+ *
+ * List of all the native js types that are non serializable:
+ * Function, Symbol, Promise, , Generator, GeneratorFunction, AsyncGenerator, Iterator, AsyncIterator, AsyncGeneratorFunction
+ * Error, EvalError, RangeError, ReferenceError, SyntaxError, TypeError, URIError, AggregateError
+ * Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array, BigInt64Array, BigUint64Array, DataView, ArrayBuffer, SharedArrayBuffer,
+ *
+ * */
+
+describe('non serializable general behavior', () => {
+    it('Ensure compiler operations are not stored in jit cache when an error is thrown', () => {
+        const rt = runType<Int8Array>();
+        expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow('Jit compilation disabled for Non Serializable types.');
+        expect(getJitUtils().getJIT(getJITFnHash(JitFunctions.isType.id, rt as any, {}))).toBe(undefined);
+    });
+
+    async function failOnCreateJitFunction(rt: RunType) {
+        const errorMessage = `Jit compilation disabled for Non Serializable types.`;
+        expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.typeErrors)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.prepareForJson)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.restoreFromJson)).toThrow(errorMessage);
+        // stringifyJson test moved to packages/run-types/src/jitCompilers/json/stringifyJson.spec.ts (lines 1856-1868)
+        expect(() => rt.createJitFunction(JitFunctions.hasUnknownKeys)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.stripUnknownKeys)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.unknownKeyErrors)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.unknownKeysToUndefined)).toThrow(errorMessage);
+        await expect(() => rt.mock()).rejects.toThrow(`Mock is disabled for Non Serializable types.`);
+    }
+
+    it('NonSerializableRunType should throw when creating a jit function', async () => {
+        const rt = runType<Int8Array>();
+        await failOnCreateJitFunction(rt);
+    });
+
+    it('interface with non serializable type should throw when compiling jit', async () => {
+        const rt = runType<{a: Int8Array}>();
+        await failOnCreateJitFunction(rt);
+    });
+
+    it('array with non serializable type should throw when compiling jit', async () => {
+        const rt = runType<Int8Array[]>();
+        await failOnCreateJitFunction(rt);
+    });
+
+    it('tuple with non serializable type should throw when compiling jit', async () => {
+        const rt = runType<[Int8Array]>();
+        await failOnCreateJitFunction(rt);
+    });
+
+    it('function params with non serializable type should throw when compiling jit', async () => {
+        const rt = runType<(a: Int8Array) => void>() as FunctionRunType;
+        await failOnCreateJitFunction(rt.getParameters());
+    });
+
+    it('function return with non serializable type should throw when compiling jit', async () => {
+        const rt = runType<() => Int8Array>() as FunctionRunType;
+        await failOnCreateJitFunction(rt.getReturnType());
+    });
+
+    it('union with non serializable type should throw when compiling jit', async () => {
+        const rt = runType<Int8Array | Uint8Array>();
+        await failOnCreateJitFunction(rt);
+    });
+});
+
+// Some test are skipped as currently we cant differentiate the type at runtime
+describe('non serializable iterables', () => {
+    it('Generator should be an instance of NonSerializableRunType', () => {
+        // src = { kind: 30, id: 2, types: [], annotations: {} }
+        const rt = runType<Generator>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('GeneratorFunction should be an instance of NonSerializableRunType', () => {
+        const rt = runType<GeneratorFunction>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('AsyncGenerator should be an instance of NonSerializableRunType', () => {
+        const rt = runType<AsyncGenerator>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('Iterator should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Iterator<any>>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('AsyncGeneratorFunction should be an instance of NonSerializableRunType', () => {
+        const rt = runType<AsyncGeneratorFunction>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('AsyncIterator should be an instance of NonSerializableRunType', () => {
+        const rt = runType<AsyncIterator<any>>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+});
+
+// TODO: decide what to do with native errors, they should be easily serializable
+describe('non serializable errors', () => {
+    it('Error should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Error>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('EvalError should be an instance of NonSerializableRunType', () => {
+        const rt = runType<EvalError>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('RangeError should be an instance of NonSerializableRunType', () => {
+        const rt = runType<RangeError>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('ReferenceError should be an instance of NonSerializableRunType', () => {
+        const rt = runType<ReferenceError>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('SyntaxError should be an instance of NonSerializableRunType', () => {
+        const rt = runType<SyntaxError>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('TypeError should be an instance of NonSerializableRunType', () => {
+        const rt = runType<TypeError>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('URIError should be an instance of NonSerializableRunType', () => {
+        const rt = runType<URIError>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    // TODO: for some reason AggregateError is created with type kind = 0 (never)
+    it.skip('AggregateError should be an instance of NonSerializableRunType', () => {
+        const rt = runType<AggregateError>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+});
+
+describe('non serializable data types', () => {
+    it('Int8Array should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Int8Array>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('Uint8Array should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Uint8Array>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('Uint8ClampedArray should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Uint8ClampedArray>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('Int16Array should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Int16Array>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('Uint16Array should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Uint16Array>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('Int32Array should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Int32Array>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('Uint32Array should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Uint32Array>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('Float32Array should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Float32Array>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('Float64Array should be an instance of NonSerializableRunType', () => {
+        const rt = runType<Float64Array>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('BigInt64Array should be an instance of NonSerializableRunType', () => {
+        const rt = runType<BigInt64Array>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('BigUint64Array should be an instance of NonSerializableRunType', () => {
+        const rt = runType<BigUint64Array>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('ArrayBuffer should be an instance of NonSerializableRunType', () => {
+        const rt = runType<ArrayBuffer>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+    it('DataView should be an instance of NonSerializableRunType', () => {
+        const rt = runType<DataView>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+
+    it('SharedArrayBuffer should be an instance of NonSerializableRunType', () => {
+        const rt = runType<SharedArrayBuffer>();
+        expect(rt).toBeInstanceOf(NonSerializableRunType);
+    });
+});

@@ -11,9 +11,30 @@ dist
 tmp
 .coverage
 coverage
+.build
+build
 
 
 ########################
 # Documentation
 ########################
 website
+old-website
+
+########################
+# type compiler output
+########################
+_deepkit
+
+########################
+# AI Agent Guidelines
+########################
+.augment-*
+**/AGENTS.md
+
+
+
+########################
+# Examples
+########################
+packages/examples/src/_homepage
