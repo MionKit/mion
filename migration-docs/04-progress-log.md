@@ -26,7 +26,7 @@
 | 5 | **Plugin crash on foreign `registerPureFnFactory`**: mion core's own function shares the name of a ts-runtypes API probed by the plugin's textual fallback; the resolver hard-failed (`source file not in program`) on a file outside its program | fixed upstream (ts-run-types `unplugin.ts`): textual-fallback false positives skip instead of crashing (+ regression test). Site-set files still fail loud |
 | 6 | pnpm does NOT refresh re-packed `file:` tarballs (same name → stale content served from store, even with `--force`) | tarballs get a `-local.N` suffix bumped on every repack |
 | 7 | **`@ts-runtypes/core` published without `src/` while its exports declare a `source` condition** → unresolvable under mion's `resolve.conditions: ['source']` | fixed upstream: `src` added to the package `files` |
-| 8 | **tsconfig project `references` silently kill the scan**: references redirect `@mionjs/*` to never-built `.dist` declaration outputs → resolver finds **0 marker sites program-wide**, no diagnostics | mion-side shim: `mionVitePlugin` derives a references-free twin tsconfig under `node_modules/.cache/mion-devtools/`; **candidate upstream fix filed in ts-run-types `docs/todos/`** (silent zero-sites is a bad failure mode) |
+| 8 | **tsconfig project `references` silently kill the scan**: references redirect `@mionjs/*` to never-built `.dist` declaration outputs → resolver finds **0 marker sites program-wide**, no diagnostics | **FIXED UPSTREAM** (ts-run-types PR #216): the resolver now drops project references when building its scan program (they're a `tsc --build` concept bundlers never honor) + Go & JS regression tests; spec moved to ts-run-types `docs/done/`. mion's interim twin-tsconfig shim was removed — the plugin takes the real tsconfigs |
 | 9 | vitest error traces show `src/…` paths for dist-running packages (source maps) — cosmetic, but confusing while debugging | noted here so nobody chases ghosts |
 | 10 | `stringifyBody` line 175 in serializer.routes.ts: `if (prepareForJson.isNoop) JSON.stringify(returnValue);` discards its result (pre-existing oddity, unrelated to migration) | left as-is; flagged for maintainer |
 
@@ -49,3 +49,12 @@
 6. routesFlow pure-fn mappings → ts-runtypes `PureFunction` marker.
 7. Rewrite/delete legacy specs; update `handlers.spec` expectations.
 8. Website/docs refresh (mion-build-aot removal, new plugin options).
+
+## 2026-07-11 — session 1 addendum (references fix upstreamed)
+
+The project-references issue (#8 above) got a REAL fix in ts-run-types (PR #216, commit
+`803aa04`): `program.New` drops tsconfig `references` before building the scan program,
+with Go (`references_test.go`) and JS e2e (`references-unbuilt.test.ts`) regressions, and
+the todo spec moved to `docs/done/`. mion's `deriveRuntypesTsconfig` workaround was removed
+from `mionVitePlugin` in the same change; router migration spec (8/8) and run-types adapter
+spec (6/6) re-verified against the original tsconfigs (references intact) + rebuilt binary.
